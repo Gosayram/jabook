@@ -1,0 +1,324 @@
+---
+title: "Диаграммы состояний приложения"
+format: html
+---
+
+# Диаграммы состояний приложения
+
+State Diagrams для различных компонентов приложения.
+
+## 1. Состояния экрана (UI State)
+
+```{mermaid}
+%%| label: fig-ui-states
+%%| fig-cap: "Переходы состояний UI"
+stateDiagram-v2
+    [*] --> Loading
+    Loading --> Success: Data loaded
+    Loading --> Error: Load failed
+    Error --> Loading: Retry
+    Success --> Loading: Refresh
+    Success --> Error: Error occurred
+    
+    state Success {
+        [*] --> Empty
+        Empty --> HasData: Data added
+        HasData --> Empty: Data cleared
+        HasData --> Updating: User action
+        Updating --> HasData: Update complete
+    }
+```
+
+## 2. Навигация приложения
+
+```{mermaid}
+%%| label: fig-navigation
+%%| fig-cap: "Навигационные переходы между экранами"
+stateDiagram-v2
+    [*] --> PermissionCheck
+    
+    PermissionCheck --> PermissionScreen: No permission
+    PermissionCheck --> Library: Has permission
+    PermissionScreen --> Library: Granted
+    
+    state "Bottom Navigation" as BottomNav {
+        Library --> Settings: Navigate
+        Settings --> Library: Navigate
+    }
+    
+    Library --> Player: Book clicked
+    Library --> Search: Search icon
+    Library --> Downloads: Downloads icon
+    
+    Search --> Player: Local book
+    Search --> Topic: Online book
+    Topic --> Downloads: Download started
+    
+    Settings --> Auth: Login
+    Auth --> WebView: OAuth flow
+    WebView --> Auth: Token received
+    
+    Player --> Library: Back
+    Search --> Library: Back
+    Downloads --> Library: Back
+    Topic --> Search: Back
+    Auth --> Settings: Back
+    WebView --> Auth: Back
+```
+
+## 3. Состояния загрузки (Download States)
+
+```{mermaid}
+%%| label: fig-download-states
+%%| fig-cap: "Жизненный цикл загрузки"
+stateDiagram-v2
+    [*] --> Queued
+    
+    Queued --> Downloading: Start download
+    Queued --> Cancelled: User cancelled
+    
+    Downloading --> Paused: User paused
+    Downloading --> Completed: Download finished
+    Downloading --> Failed: Error occurred
+    Downloading --> Cancelled: User cancelled
+    
+    Paused --> Downloading: Resume
+    Paused --> Cancelled: User cancelled
+    
+    Failed --> Queued: Retry (attempt < 3)
+    Failed --> Cancelled: Max retries
+    
+    Completed --> [*]
+    Cancelled --> [*]
+    
+    state Downloading {
+        [*] --> Connecting
+        Connecting --> Metadata: Connected
+        Metadata --> Transferring: Metadata received
+        Transferring --> [*]: Progress 100%
+        
+        state Transferring {
+            [*] --> Downloading_Active
+            Downloading_Active --> Downloading_Active: Progress update
+        }
+    }
+```
+
+## 4. Состояния аудио-плеера
+
+```{mermaid}
+%%| label: fig-player-states
+%%| fig-cap: "Состояния воспроизведения"
+stateDiagram-v2
+    [*] --> Idle
+    
+    Idle --> Loading: Load playlist
+    Loading --> Ready: Loaded successfully
+    Loading --> Error: Load failed
+    
+    Ready --> Playing: Play
+    Playing --> Paused: Pause
+    Playing --> Buffering: Network delay
+    Paused --> Playing: Resume
+    
+    Buffering --> Playing: Buffer ready
+    Buffering --> Error: Buffer failed
+    
+    Playing --> Ended: Track ended
+    Ended --> Playing: Next track
+    Ended --> Idle: Last track
+    
+    state Playing {
+        [*] --> Normal
+        Normal --> Seeking: User seek
+        Seeking --> Normal: Seek complete
+    }
+    
+    state "Timer Active" as Timer {
+        Playing --> TimerRunning
+        TimerRunning --> Paused: Timer expired
+    }
+    
+    Error --> Idle: Reset
+    Paused --> Idle: Stop
+    Playing --> Idle: Stop
+```
+
+## 5. Состояния экрана плеера
+
+```{mermaid}
+%%| label: fig-player-screen
+%%| fig-cap: "Состояния экрана плеера"
+stateDiagram-v2
+    [*] --> NoBook
+    
+    NoBook --> LoadingBook: Book selected
+    LoadingBook --> PlayerReady: Book loaded
+    LoadingBook --> LoadError: Load failed
+    
+    LoadError --> NoBook: Exit
+    LoadError --> LoadingBook: Retry
+    
+    state PlayerReady {
+        [*] --> ShowingPlayer
+        ShowingPlayer --> ShowingChapters: Chapters tab
+        ShowingChapters --> ShowingPlayer: Player tab
+        ShowingPlayer --> ShowingSpeed: Speed control
+        ShowingSpeed --> ShowingPlayer: Close
+    }
+    
+    PlayerReady --> NoBook: Exit
+```
+
+## 6. Жизненный цикл AudioPlayerService
+
+```{mermaid}
+%%| label: fig-service-lifecycle
+%%| fig-cap: "Жизненный цикл AudioPlayerService"
+stateDiagram-v2
+    [*] --> Created
+    
+    Created --> Initialized: onCreate()
+    Initialized --> Foreground: startForeground()
+    
+    Foreground --> Playing: play()
+    Foreground --> Idle: idle
+    
+    Playing --> Foreground: pause()
+    Playing --> Playing: track change
+    
+    Idle --> Foreground: activity
+    Idle --> Stopping: inactivity timeout (30min)
+    
+    Foreground --> Stopping: stop()
+    Playing --> Stopping: stop()
+    
+    Stopping --> Destroyed: onDestroy()
+    Destroyed --> [*]
+    
+    state Playing {
+        [*] --> PlaybackActive
+        PlaybackActive --> SavingPosition: every 5s
+        SavingPosition --> PlaybackActive: saved
+    }
+```
+
+## 7. Состояния авторизации
+
+```{mermaid}
+%%| label: fig-auth-states
+%%| fig-cap: "Состояния авторизации"
+stateDiagram-v2
+    [*] --> LoggedOut
+    
+    LoggedOut --> LoggingIn: Login attempt
+    LoggingIn --> LoggedIn: Success
+    LoggingIn --> LoggedOut: Failed
+    
+    state LoggedIn {
+        [*] --> Active
+        Active --> RefreshingToken: Token expired
+        RefreshingToken --> Active: Refreshed
+        RefreshingToken --> TokenExpired: Refresh failed
+    }
+    
+    TokenExpired --> LoggedOut: Session expired
+    LoggedIn --> LoggedOut: Logout
+```
+
+## 8. Состояния синхронизации
+
+```{mermaid}
+%%| label: fig-sync-states
+%%| fig-cap: "Состояния синхронизации данных"
+stateDiagram-v2
+    [*] --> Idle
+    
+    Idle --> Syncing: Periodic trigger / Manual
+    Syncing --> Success: Sync complete
+    Syncing --> Failed: Sync failed
+    
+    Success --> Idle: Wait
+    Failed --> Idle: Backoff delay
+    
+    state Syncing {
+        [*] --> FetchingRemote
+        FetchingRemote --> MergingData: Fetched
+        MergingData --> UpdatingLocal: Merged
+        UpdatingLocal --> [*]: Updated
+    }
+```
+
+## 9. Состояния поиска
+
+```{mermaid}
+%%| label: fig-search-states
+%%| fig-cap: "Состояния поиска"
+stateDiagram-v2
+    [*] --> Empty
+    
+    Empty --> Searching: User types
+    Searching --> ShowingResults: Results found
+    Searching --> NoResults: No results
+    Searching --> Error: Search failed
+    
+    ShowingResults --> Searching: Query changed
+    NoResults --> Searching: Query changed
+    Error --> Searching: Query changed
+    
+    ShowingResults --> Empty: Clear
+    NoResults --> Empty: Clear
+    
+    state ShowingResults {
+        [*] --> LocalResults
+        LocalResults --> CombinedResults: Online results loaded
+        CombinedResults --> LocalResults: Online failed
+    }
+```
+
+## 10. Состояния WebView
+
+```{mermaid}
+%%| label: fig-webview-states
+%%| fig-cap: "Состояния WebView"
+stateDiagram-v2
+    [*] --> Loading
+    
+    Loading --> PageLoaded: Load complete
+    Loading --> LoadError: Load failed
+    
+    PageLoaded --> Navigating: Link clicked
+    Navigating --> PageLoaded: Navigation complete
+    
+    PageLoaded --> MagnetDetected: Magnet link
+    MagnetDetected --> DownloadStarted: User confirmed
+    
+    LoadError --> Loading: Retry
+    LoadError --> [*]: Back
+    PageLoaded --> [*]: Back
+```
+
+---
+
+## Описание переходов
+
+### UI State Transitions
+- **Loading → Success**: Данные успешно загружены
+- **Success → Error**: Произошла ошибка во время работы
+- **Error → Loading**: Пользователь нажал Retry
+
+### Download State Transitions
+- **Queued → Downloading**: WorkManager начал выполнение
+- **Downloading → Paused**: Потеря сети или пользователь приостановил
+- **Failed → Queued**: Автоматический retry (max 3 попытки)
+
+### Player State Transitions
+- **Ready → Playing**: Пользователь нажал Play
+- **Playing → Buffering**: Недостаточно данных в буфере
+- **Playing → Ended**: Трек закончился
+- **TimerRunning → Paused**: Таймер сна истёк
+
+### Service Lifecycle Transitions
+- **Idle → Stopping**: Нет активности 30 минут (InactivityTimer)
+- **Playing → SavingPosition**: Автосохранение каждые 5 секунд
+- **Foreground → Stopping**: Пользователь явно остановил сервис

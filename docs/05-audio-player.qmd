@@ -1,0 +1,367 @@
+---
+title: "Архитектура аудио-плеера"
+format: html
+---
+
+# Архитектура аудио-плеера
+
+State diagrams и component diagrams для Audio Player Service.
+
+## 1. Жизненный цикл плеера (Player Lifecycle)
+
+```{mermaid}
+%%| label: fig-01
+%%| fig-cap: "Diagram 1"
+stateDiagram-v2
+    [*] --> ServiceCreated
+    
+    ServiceCreated --> Initializing: onCreate()
+    Initializing --> Idle: Initialization complete
+    
+    Idle --> LoadingPlaylist: setPlaylist()
+    LoadingPlaylist --> Ready: Playlist loaded
+    LoadingPlaylist --> Error: Load failed
+    
+    Ready --> Playing: play()
+    Ready --> Idle: clear()
+    
+    Playing --> Paused: pause()
+    Playing --> Buffering: Buffer underrun
+    Playing --> TrackEnded: Track finished
+    Playing --> Error: Playback error
+    
+    Paused --> Playing: play()
+    Paused --> Ready: stop()
+    
+    Buffering --> Playing: Buffer filled
+    Buffering --> Error: Buffer failed
+    
+    TrackEnded --> Playing: Auto-next track
+    TrackEnded --> Ready: Last track
+    
+    Error --> Idle: reset()
+    
+    state Playing {
+        [*] --> NormalPlayback
+        NormalPlayback --> Seeking: seekTo()
+        Seeking --> NormalPlayback: Seek complete
+        
+        NormalPlayback --> SpeedChanging: setSpeed()
+        SpeedChanging --> NormalPlayback: Speed applied
+    }
+    
+    Ready --> Destroying: onDestroy()
+    Idle --> Destroying: onDestroy()
+    Paused --> Destroying: onDestroy()
+    Destroying --> [*]
+```
+
+## 2. Компоненты AudioPlayerService
+
+```{mermaid}
+%%| label: fig-02
+%%| fig-cap: "Diagram 2"
+graph TB
+    subgraph "AudioPlayerService"
+        Service[MediaLibraryService<br/>Main Service]
+        
+        subgraph "Playback Management"
+            PlaylistMgr[PlaylistManager<br/>Create & manage playlists]
+            PlaybackCtrl[PlaybackController<br/>Play/Pause/Seek/Skip]
+            PositionMgr[PositionManager<br/>Track & save position]
+        end
+        
+        subgraph "Media Session"
+            SessionMgr[MediaSessionManager<br/>MediaSession lifecycle]
+            Callback[SessionCallback<br/>Handle media buttons]
+            Actions[ActionReceiver<br/>Custom actions]
+        end
+        
+        subgraph "Notifications"
+            NotifMgr[NotificationManager<br/>Update notifications]
+            NotifProvider[NotificationProvider<br/>Media3 integration]
+        end
+        
+        subgraph "Timers"
+            SleepTimer[SleepTimerManager<br/>Auto-stop timer]
+            PlaybackTimer[PlaybackTimer<br/>Statistics]
+            InactivityTimer[InactivityTimer<br/>Auto cleanup]
+        end
+        
+        subgraph "Metadata & State"
+            MetadataMgr[MetadataManager<br/>Track metadata]
+            StateHelper[PlayerStateHelper<br/>State queries]
+            Persistence[PersistenceManager<br/>Save/restore state]
+        end
+        
+        subgraph "Media Engine"
+            ExoPlayer[ExoPlayer<br/>Media3]
+            Listener[PlayerListener<br/>Event handling]
+            Config[PlayerConfigurator<br/>Audio settings]
+        end
+    end
+    
+    Service --> PlaylistMgr
+    Service --> PlaybackCtrl
+    Service --> PositionMgr
+    Service --> SessionMgr
+    Service --> NotifMgr
+    Service --> SleepTimer
+    Service --> MetadataMgr
+    Service --> Persistence
+    
+    PlaybackCtrl --> ExoPlayer
+    PlaybackCtrl --> Config
+    SessionMgr --> Callback
+    SessionMgr --> Actions
+    NotifMgr --> NotifProvider
+    ExoPlayer --> Listener
+    
+    Listener -.Events.-> PositionMgr
+    Listener -.Events.-> MetadataMgr
+    Listener -.Events.-> NotifMgr
+    
+    style Service fill:#e1f5ff
+    style ExoPlayer fill:#fff3e0
+```
+
+## 3. Состояния Sleep Timer
+
+```{mermaid}
+%%| label: fig-03
+%%| fig-cap: "Diagram 3"
+stateDiagram-v2
+    [*] --> Inactive
+    
+    Inactive --> ConfiguringFixed: User sets fixed duration
+    Inactive --> ConfiguringTrack: User sets end of track
+    
+    ConfiguringFixed --> Active: Timer started
+    ConfiguringTrack --> Active: Timer started
+    
+    state Active {
+        [*] --> Running
+        Running --> Paused: Player paused
+        Paused --> Running: Player resumed
+        Running --> [*]: Timer expired
+    }
+    
+    Active --> Cancelled: User cancelled
+    Active --> Inactive: Timer completed
+    Cancelled --> Inactive
+    
+    state Active {
+        state Running {
+            [*] --> Counting
+            Counting --> Counting: Tick (1s)
+        }
+    }
+```
+
+## 4. Position Saving Strategy
+
+```{mermaid}
+%%| label: fig-04
+%%| fig-cap: "Diagram 4"
+stateDiagram-v2
+    [*] --> NotTracking
+    
+    NotTracking --> Tracking: Playback started
+    Tracking --> NotTracking: Playback stopped
+    
+    state Tracking {
+        [*] --> Waiting
+        Waiting --> Saving: 5 seconds elapsed
+        Saving --> Waiting: Save complete
+        
+        state Saving {
+            [*] --> FetchingPosition
+            FetchingPosition --> WritingDB: Position fetched
+            WritingDB --> [*]: Written
+        }
+    }
+    
+    Tracking --> ForceSave: Track changed
+    ForceSave --> Tracking: Saved
+    
+    Tracking --> ForceSave: User seeks
+    ForceSave --> Tracking: Saved
+```
+
+## 5. Notification Updates
+
+```{mermaid}
+%%| label: fig-05
+%%| fig-cap: "Diagram 5"
+stateDiagram-v2
+    [*] --> NoNotification
+    
+    NoNotification --> ShowingNotification: Service started
+    
+    state ShowingNotification {
+        [*] --> BasicInfo
+        
+        BasicInfo --> UpdatingMetadata: Metadata changed
+        UpdatingMetadata --> BasicInfo: Updated
+        
+        BasicInfo --> UpdatingState: Play/Pause
+        UpdatingState --> BasicInfo: Updated
+        
+        BasicInfo --> UpdatingProgress: Position changed
+        UpdatingProgress --> BasicInfo: Updated
+    }
+    
+    ShowingNotification --> NoNotification: Service stopped
+```
+
+## 6. Chapter Navigation
+
+```{mermaid}
+%%| label: fig-06
+%%| fig-cap: "Diagram 6"
+stateDiagram-v2
+    [*] --> NoChapters
+    
+    NoChapters --> LoadingChapters: Book has chapters
+    LoadingChapters --> ChaptersReady: Chapters loaded
+    LoadingChapters --> NoChapters: Load failed
+    
+    state ChaptersReady {
+        [*] --> CurrentChapter
+        CurrentChapter --> Seeking: User selects chapter
+        Seeking --> CurrentChapter: Seek complete
+        
+        CurrentChapter --> AutoNext: Current track ended
+        AutoNext --> CurrentChapter: Next chapter
+    }
+    
+    ChaptersReady --> NoChapters: Book changed
+```
+
+## 7. Audio Processing Pipeline
+
+```{mermaid}
+%%| label: fig-07
+%%| fig-cap: "Diagram 7"
+graph LR
+    Source[Audio Source<br/>File/Stream] --> Decoder[Media Codec<br/>Decoder]
+    
+    Decoder --> Speed[Speed Processor<br/>0.5x - 3.0x]
+    Speed --> Pitch[Pitch Processor<br/>Optional]
+    Pitch --> EQ[Equalizer<br/>Optional]
+    EQ --> Volume[Volume Boost<br/>Optional]
+    
+    Volume --> Mixer[Audio Mixer]
+    Mixer --> Output[Audio Output<br/>Speaker/Headphones]
+    
+    Config[PlayerConfigurator] -.configures.-> Speed
+    Config -.configures.-> Pitch
+    Config -.configures.-> EQ
+    Config -.configures.-> Volume
+    
+    style Source fill:#e3f2fd
+    style Output fill:#c8e6c9
+    style Config fill:#fff3e0
+```
+
+## 8. Media Session Actions
+
+```{mermaid}
+%%| label: fig-08
+%%| fig-cap: "Diagram 8"
+graph TB
+    User[User Input] --> Actions{Action Type}
+    
+    Actions -->|System Button| MediaButton[Media Button]
+    Actions -->|Notification| NotifAction[Notification Action]
+    Actions -->|Android Auto| AutoAction[Auto Action]
+    Actions -->|Quick Settings| QSAction[QS Action]
+    
+    MediaButton --> SessionCallback[SessionCallback]
+    NotifAction --> SessionCallback
+    AutoAction --> SessionCallback
+    QSAction --> SessionCallback
+    
+    SessionCallback --> Handler{Command}
+    
+    Handler -->|PLAY| Play[PlaybackController.play]
+    Handler -->|PAUSE| Pause[PlaybackController.pause]
+    Handler -->|SKIP_NEXT| Next[PlaybackController.next]
+    Handler -->|SKIP_PREV| Prev[PlaybackController.previous]
+    Handler -->|SEEK| Seek[PlaybackController.seekTo]
+    Handler -->|CUSTOM| Custom[Custom Action Handler]
+    
+    Play --> ExoPlayer[ExoPlayer]
+    Pause --> ExoPlayer
+    Next --> ExoPlayer
+    Prev --> ExoPlayer
+    Seek --> ExoPlayer
+    
+    Custom -->|SET_SPEED| Speed[Set Playback Speed]
+    Custom -->|START_TIMER| Timer[Start Sleep Timer]
+    Custom -->|JUMP_FORWARD| JumpF[Jump +30s]
+    Custom -->|JUMP_BACKWARD| JumpB[Jump -10s]
+    
+    style User fill:#e3f2fd
+    style ExoPlayer fill:#fff3e0
+```
+
+## Описание компонентов
+
+### Core Components
+
+1. **PlaylistManager**
+   - Создаёт MediaItems для ExoPlayer
+   - Управляет порядком треков
+   - Поддерживает начальную позицию (resume)
+
+2. **PlaybackController**
+   - Основной интерфейс управления воспроизведением
+   - Методы: play(), pause(), seekTo(), skipNext(), skipPrevious()
+   - Управляет speed и pitch
+
+3. **PositionManager**
+   - Автосохранение каждые 5 секунд
+   - Немедленное сохранение при seek и track change
+   - Восстановление позиции при запуске
+
+### Session Components
+
+4. **MediaSessionManager**
+   - Управляет MediaLibrarySession
+   - Интеграция с system media controls
+   - Поддержка Android Auto
+
+5. **SessionCallback**
+   - Обрабатывает команды от media buttons
+   - Custom actions (sleep timer, speed, jumps)
+
+### Notification Components
+
+6. **NotificationManager**
+   - Обновляет notification при изменениях
+   - Media-style notification (Android 13+)
+   - Action buttons (Play/Pause/Skip)
+
+### Timer Components
+
+7. **SleepTimerManager**
+   - Fixed duration mode
+   - End of track mode
+   - Suspendable (pause при паузе плеера)
+
+8. **InactivityTimer**
+   - 30 минут бездействия
+   - Автоматическая остановка сервиса
+
+### State Components
+
+9. **PlayerPersistenceManager**
+   - Сохраняет полное состояние плеера
+   - Восстанавливает при перезапуске
+   - Включает: playlist, position, speed, repeat mode
+
+10. **MetadataManager**
+    - Загружает metadata для треков
+    - Кэширует в Room Database
+    - Обновляет UI через MediaSession

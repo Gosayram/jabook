@@ -1,0 +1,259 @@
+---
+title: "MVVM Architecture по экранам"
+format: html
+---
+
+# MVVM Architecture по экранам
+
+Detailed screen-by-screen architecture with MVVM pattern.
+
+## Screen Architecture Pattern
+
+Each screen follows this consistent MVVM pattern:
+
+```{mermaid}
+%%| label: fig-mvvm-pattern
+%%| fig-cap: "MVVM паттерн для экранов"
+graph TB
+    User([User]) --> Screen[Screen Composable]
+    
+    Screen --> VM[ViewModel]
+    VM --> UseCase[Use Cases]
+    UseCase --> Repo[Repository]
+    Repo --> Data[(Data Sources)]
+    
+    Data -.Flow.-> Repo
+    Repo -.Flow.-> UseCase
+    UseCase -.Flow.-> VM
+    VM -.StateFlow.-> Screen
+    Screen --> UI[UI Updates]
+    
+    style Screen fill:#e3f2fd
+    style VM fill:#fff3e0
+    style Repo fill:#ffecb3
+    style Data fill:#c8e6c9
+```
+
+## UiState Pattern
+
+All screens use sealed interface for state:
+
+```{mermaid}
+%%| label: fig-uistate
+%%| fig-cap: "UiState паттерн с состояниями"
+stateDiagram-v2
+    [*] --> Loading
+    Loading --> Success: Data loaded
+    Loading --> Error: Load failed
+    
+    Success --> Loading: Refresh
+    Error --> Loading: Retry
+    
+    state Success {
+        [*] --> Empty
+        Empty --> HasData: Data available
+        HasData --> Empty: Data cleared
+    }
+```
+
+## Screen Implementations
+
+### 1. LibraryScreen
+
+```kotlin
+// State
+sealed interface LibraryUiState {
+    data object Loading : LibraryUiState
+    data class Success(
+        val books: List<Book>,
+        val sortOrder: SortOrder
+    ) : LibraryUiState
+    data class Error(val message: String) : LibraryUiState
+}
+
+// ViewModel
+@HiltViewModel
+class LibraryViewModel @Inject constructor(
+    private val getBooksUseCase: GetBooksUseCase,
+    private val deleteBooksUseCase: DeleteBookUseCase
+) : ViewModel() {
+    val uiState: StateFlow<LibraryUiState> = ...
+}
+
+// Screen
+@Composable
+fun LibraryScreen(
+    onBookClick: (String) -> Unit,
+    viewModel: LibraryViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // UI rendering
+}
+```
+
+### 2. PlayerScreen
+
+```kotlin
+// State
+data class PlayerUiState(
+    val book: Book? = null,
+    val isPlaying: Boolean = false,
+    val currentPosition: Long = 0,
+    val duration: Long = 0,
+    val playbackSpeed: Float = 1.0f,
+    val chapters: List<Chapter> = emptyList()
+)
+
+// ViewModel
+@HiltViewModel
+class PlayerViewModel @Inject constructor(
+    private val audioService: AudioPlayerService,
+    private val getBooksUseCase: GetBookUseCase
+) : ViewModel() {
+    val uiState: StateFlow<PlayerUiState> = ...
+}
+```
+
+### 3. SearchScreen
+
+```kotlin
+// State
+sealed interface SearchUiState {
+    data object Empty : SearchUiState
+    data object Searching : SearchUiState
+    data class Results(
+        val localBooks: List<Book>,
+        val onlineBooks: List<SearchResult>
+    ) : SearchUiState
+    data class Error(val message: String) : SearchUiState
+}
+```
+
+### 4. DownloadsScreen
+
+```kotlin
+// State
+data class DownloadsUiState(
+    val activeDownloads: List<Download> = emptyList(),
+    val completedDownloads: List<Download> = emptyList()
+)
+
+// Download state
+data class Download(
+    val id: String,
+    val title: String,
+    val status: DownloadStatus,
+    val progress: Float,
+    val speed: Long,
+    val eta: Long
+)
+
+enum class DownloadStatus {
+    QUEUED, DOWNLOADING, PAUSED, COMPLETED, FAILED, CANCELLED
+}
+```
+
+## ViewModel Lifecycle
+
+```{mermaid}
+%%| label: fig-viewmodel-lifecycle
+%%| fig-cap: "Жизненный цикл ViewModel"
+stateDiagram-v2
+    [*] --> Created
+    Created --> Active: init block
+    
+    state Active {
+        [*] --> Collecting
+        Collecting --> Collecting: Data updates
+        Collecting --> Updating: User action
+        Updating --> Collecting: Update complete
+    }
+    
+    Active --> Cleared: Activity destroyed
+    Cleared --> [*]: onCleared()
+```
+
+## Data Flow Example
+
+### User clicks book in Library
+
+```{mermaid}
+%%| label: fig-data-flow
+%%| fig-cap: "Поток данных при клике на книгу"
+sequenceDiagram
+    participant User
+    participant UI as LibraryScreen
+    participant VM as LibraryViewModel
+    participant Nav as NavController
+    participant PS as PlayerScreen
+    participant PVM as PlayerViewModel
+    participant Service as AudioPlayerService
+    
+    User->>UI: Click book
+    UI->>Nav: navigate(PlayerRoute(bookId))
+    Nav->>PS: Create screen
+    PS->>PVM: Get ViewModel
+    PVM->>Service: loadBook(bookId)
+    Service-->>PVM: Book loaded
+    PVM-->>PS: Update UI state
+    PS-->>User: Show player
+```
+
+## Dependency Injection in Screens
+
+```{mermaid}
+%%| label: fig-di-screens
+%%| fig-cap: "Dependency Injection для экранов"
+graph TB
+    Screen[Screen Composable] --> HiltVM[hiltViewModel]
+    HiltVM --> VM[ViewModel @HiltViewModel]
+    VM --> DI[Hilt DI]
+    
+    DI --> UC[Use Cases @Inject]
+    DI --> Repo[Repositories @Inject]
+    DI --> Service[Services @Inject]
+    
+    VM -.@Inject.-> UC
+    VM -.@Inject.-> Repo
+    VM -.@Inject.-> Service
+    
+    style Screen fill:#e3f2fd
+    style VM fill:#fff3e0
+    style DI fill:#f3e5f5
+```
+
+## Common Patterns
+
+### Loading Pattern
+```kotlin
+viewModelScope.launch {
+    _uiState.value = UiState.Loading
+    try {
+        val data = repository.getData()
+        _uiState.value = UiState.Success(data)
+    } catch (e: Exception) {
+        _uiState.value = UiState.Error(e.message)
+    }
+}
+```
+
+### Flow Collection Pattern
+```kotlin
+repository.getBooksFlow()
+    .map { books -> UiState.Success(books) }
+    .catch { e -> emit(UiState.Error(e.message)) }
+    .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = UiState.Loading
+    )
+```
+
+### Event Handling Pattern
+```kotlin
+fun onBookClick(bookId: String) {
+    viewModelScope.launch {
+        // Handle event
+    }
+}
+```
