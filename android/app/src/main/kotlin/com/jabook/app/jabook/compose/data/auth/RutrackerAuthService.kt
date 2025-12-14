@@ -243,16 +243,17 @@ class RutrackerAuthService
 
         /**
          * Test 2: Validate via search page access.
-        * Fallback if profile page check is inconclusive.
+         * Fallback if profile page check is inconclusive.
          */
         private suspend fun validateSearchPage(operationId: String): Boolean {
             return try {
                 // Perform a simple search to test authentication
                 // searchTopics only accepts query and forumIds (optional)
-                val response = api.searchTopics(
-                    query = "test",
-                    forumIds = "33" // Audiobooks forum
-                )
+                val response =
+                    api.searchTopics(
+                        query = "test",
+                        forumIds = "33", // Audiobooks forum
+                    )
 
                 if (!response.isSuccessful) {
                     Log.d(TAG, "[$operationId] Search check: HTTP ${response.code()}")
@@ -260,11 +261,16 @@ class RutrackerAuthService
                 }
 
                 // searchTopics returns Response<String>, not ResponseBody
-                val bodyString = response.body()?.lowercase() ?: run {
-                    Log.d(TAG, "[$operationId] Search check: empty body")
-                    return false
-                }
-                val finalUrl = response.raw().request.url.toString()
+                val bodyString =
+                    response.body()?.lowercase() ?: run {
+                        Log.d(TAG, "[$operationId] Search check: empty body")
+                        return false
+                    }
+                val finalUrl =
+                    response
+                        .raw()
+                        .request.url
+                        .toString()
 
                 // Check for redirect to login
                 if (finalUrl.contains("login.php")) {
@@ -273,9 +279,10 @@ class RutrackerAuthService
                 }
 
                 // Check for auth required messages
-                val requiresAuth = bodyString.contains("profile.php?mode=register") ||
-                                   bodyString.contains("авторизация") ||
-                                   bodyString.contains("войдите в систему")
+                val requiresAuth =
+                    bodyString.contains("profile.php?mode=register") ||
+                        bodyString.contains("авторизация") ||
+                        bodyString.contains("войдите в систему")
 
                 if (requiresAuth) {
                     Log.d(TAG, "[$operationId] Search check: auth required message found")
@@ -283,10 +290,11 @@ class RutrackerAuthService
                 }
 
                 // Check for search page elements (authenticated)
-                val hasSearchElements = bodyString.contains("поиск") ||
-                                        bodyString.contains("search") ||
-                                        bodyString.contains("форум") ||
-                                        bodyString.length > 1000 // Search page usually >1KB
+                val hasSearchElements =
+                    bodyString.contains("поиск") ||
+                        bodyString.contains("search") ||
+                        bodyString.contains("форум") ||
+                        bodyString.length > 1000 // Search page usually >1KB
 
                 Log.d(TAG, "[$operationId] Search check: hasElements=$hasSearchElements, size=${bodyString.length}")
 

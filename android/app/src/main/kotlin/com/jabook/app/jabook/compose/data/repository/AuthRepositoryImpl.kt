@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.compose.data.auth.CookiePersistenceManager
 import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
 import com.jabook.app.jabook.compose.data.auth.SecureCredentialStorage
 import com.jabook.app.jabook.compose.data.network.MirrorManager
@@ -44,6 +45,7 @@ class AuthRepositoryImpl
         private val secureStorage: SecureCredentialStorage,
         private val cookieJar: PersistentCookieJar,
         private val mirrorManager: MirrorManager,
+        private val cookiePersistence: CookiePersistenceManager,
     ) : AuthRepository {
         private val _authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Unauthenticated)
         override val authStatus: StateFlow<AuthStatus> = _authStatus.asStateFlow()
@@ -107,6 +109,14 @@ class AuthRepositoryImpl
                             val isValid = authService.validateAuth(operationId)
 
                             if (isValid) {
+                                // Persist cookies to all layers (Database, WebView, SecureStorage)
+                                try {
+                                    cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
+                                    android.util.Log.d("AuthRepository", "[$operationId] Cookies persisted to all layers")
+                                } catch (e: Exception) {
+                                    android.util.Log.w("AuthRepository", "[$operationId] Cookie persistence failed", e)
+                                }
+
                                 _authStatus.value = AuthStatus.Authenticated(credentials.username)
                                 android.util.Log.i("AuthRepository", "[$operationId] Login successful and validated")
                                 Result.success(true)
@@ -159,6 +169,14 @@ class AuthRepositoryImpl
                             val isValid = authService.validateAuth(operationId)
 
                             if (isValid) {
+                                // Persist cookies to all layers
+                                try {
+                                    cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
+                                    android.util.Log.d("AuthRepository", "[$operationId] Cookies persisted to all layers")
+                                } catch (e: Exception) {
+                                    android.util.Log.w("AuthRepository", "[$operationId] Cookie persistence failed", e)
+                                }
+
                                 _authStatus.value = AuthStatus.Authenticated(credentials.username)
                                 android.util.Log.i("AuthRepository", "[$operationId] Captcha login successful and validated")
                                 Result.success(true)
@@ -209,16 +227,13 @@ class AuthRepositoryImpl
         override suspend fun getStoredCredentials(): UserCredentials? = secureStorage.getCredentials()
 
         override suspend fun syncCookiesFromWebView() {
-            val cookieManager = android.webkit.CookieManager.getInstance()
             val url = rutrackerUrl.toString()
-            val cookieString = cookieManager.getCookie(url)
 
-            if (!cookieString.isNullOrBlank()) {
-                val cookies = parseCookieString(url, cookieString)
-                cookieJar.saveFromResponse(rutrackerUrl, cookies)
-                // Refresh status immediately
-                checkAuthStatus()
-            }
+            // Use CookiePersistenceManager to sync from WebView to all layers
+            cookiePersistence.syncCookiesFromWebView(url)
+
+            // Refresh auth status immediately
+            checkAuthStatus()
         }
 
         override suspend fun syncCookiesToWebView() {
