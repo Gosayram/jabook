@@ -17,7 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- Add dynamic color support to `JabookTheme` for Android 12+ devices
+- Add fade-in and fade-out navigation transitions to PlayerScreen
 - Add online audiobook search via Rutracker
+- Add permission management and refactor Rutracker authentication to improve WebView cookie synchronization
 - Add swipe gestures and notification controls to mini player
 - Implement custom audio notification manager with media session integration and enable shared element transitions
 - Implement local audiobook scanning, sleep timer, and playback speed controls, and display download messages
@@ -30,11 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mirror management with dynamic base URL, health checks, and persistent settings
 
 ### Changed
+
 - Add `run-beta` and `run-beta-debug` Makefile targets and update `install-beta` to use `adb`
+- Add comprehensive architecture documentation in Quarto format with 45+ Mermaid diagrams
 - Add deprecation suppression for hiltViewModel in feature screens
 - Add logic to request necessary permissions on app launch based on Android version
 - Add topic details screen with its viewmodel and navigation route
 - Added ignore packages for copyright validation
+- Auto markdown formatter
 - Bump Android SDK versions, enable ABI splits with universal APK generation, remove desugaring, and adapt Makefile for new APK output structure
 - Bump Makefile
 - Bump packages
@@ -57,9 +64,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed all flutter code from project; prepate to migrate native Kotlin code
 - Reorganize makefile automation and fix hack scripts
 - Streamline Gradle configuration, enable build caching, remove integration test plugin workaround, disable default WorkManager initialization, and generalize DataMigrationManager's DataStore usage
+- Update Hilt `@ApplicationContext` parameter annotation syntax and add `viewModel` import
 - Update ProGuard rules by removing Flutter configurations and adding rules for Compose, Hilt, Room, DataStore, Media3, and WorkManager
 
 ### Fixed
+
 - Fix chapter mismatch, player freeze, and local playback
 - Fix compilation errors and improve playback position saving
 - Fix playback position restoration and prevent playlist loading conflicts
@@ -78,20 +87,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update beta APK installation to use arm64-v8a specific build
 
 ### Security
+
 - FileProvider for secure file sharing, new permissions, and manifest compatibility adjustments
 
 ## [1.2.6] - 2025-12-06
 
 ### Changed
+
 - Add dynamic app name support based on build flavor (#43)
 - Bump softprops/action-gh-release from 2.4.2 to 2.5.0 (#44)
 
 ### Fixed
+
 - Tag resolution
 
 ## [1.2.5] - 2025-11-27
 
 ### Changed
+
 - Bump release
 - Change fmt to html for each body msg
 - Tg notification
@@ -99,29 +112,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.4] - 2025-11-27
 
 ### Changed
+
 - Bump actions/checkout from 5.0.1 to 6.0.0 (#30)
 - Ignore issue docs
 - Improve playback speed control and seek feedback (#35)
 - Improve storage permissions handling for custom ROMs (#42)
 
 ### Fixed
+
 - Fix library books not visible after app update (#37)
 - Fix/login auth (#32)
 
 ## [1.2.0] - 2025-11-24
 
 ### Added
+
 - Add theme and audio settings with per-book customization (#25)
 - Feature/about page (#28)
 - Refactor favorites to Riverpod and add favorite buttons (#26)
 
 ### Changed
+
 - Bump changelog generator
 - Optimize Android build configuration and ProGuard rules
 - Prod package validation
 - Update release 1.2.0
 
 ### Fixed
+
 - Fix typo
 - Fix/about (#29)
 - Fix/distr (#24)
@@ -132,6 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.4+9] - 2025-11-23
 
 ### Added
+
 - ADD - Add CI workflow for GitHub Actions
 - Add CI workflow for GitHub Actions
 - Add comprehensive file management and torrent system
@@ -147,6 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initialize Android Kotlin project with Jetpack Compose
 
 ### Changed
+
 - 1.1.2; (#12)
 - Add comprehensive logging and error handling for downloads synchronization (#17)
 - Added signed release
@@ -161,7 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Detekt: massive refactor, split complex classes, fix trailing spaces, reduce cyclomatic complexity: - Split PlayerManagerImpl into smaller classes (AudioFocusManager, SleepTimerManager, MediaItemManager, PlaybackStateManager) - Refactor DebugLogger and TorrentEventFormatter for better maintainability - Remove unused properties and imports\n- Fix all trailing spaces and final newlines - Reduce cyclomatic complexity in UI and domain logic - All detekt errors and warnings are now non-blocking (only complexity and function count remain as warnings)
 - Fix base errors for impl, imports and unused methods
 - Fix builds
-- Fix compilation errors and detekt warnings, improve code structure: - Fix Hilt dependency injection conflicts: remove duplicate bindings from NetworkModule,   move RuTracker dependencies to RuTrackerModule with proper @Binds annotations - Resolve MediaType deprecation: replace MediaType.get() with toMediaType() extension - Fix compilation errors in RuTrackerApiService: add missing imports and @Inject constructor - Refactor complex UI components to reduce function count and improve maintainability:   * Split RuTrackerSettingsScreen into ModeToggleCard, LoginCard, StatusMessageCard   * Break down AudiobookSearchResultCard into AudiobookCover, AudiobookInfo,     ActionButtons, MetadataRow, AdditionalInfo components   * Extract SleepTimerDelegate from PlayerManagerImpl to reduce function count - Fix import conflicts and trailing spaces: resolve weight() modifier issues,   remove unused imports, fix import ordering - Improve code organization: use data classes for component parameters,   add proper trailing commas, fix modifier usage - All detekt warnings resolved: no more compilation errors, clean build passes
+- Fix compilation errors and detekt warnings, improve code structure: - Fix Hilt dependency injection conflicts: remove duplicate bindings from NetworkModule,   move RuTracker dependencies to RuTrackerModule with proper @Binds annotations - Resolve MediaType deprecation: replace MediaType.get() with toMediaType() extension - Fix compilation errors in RuTrackerApiService: add missing imports and @Inject constructor - Refactor complex UI components to reduce function count and improve maintainability:   *Split RuTrackerSettingsScreen into ModeToggleCard, LoginCard, StatusMessageCard* Break down AudiobookSearchResultCard into AudiobookCover, AudiobookInfo,     ActionButtons, MetadataRow, AdditionalInfo components   * Extract SleepTimerDelegate from PlayerManagerImpl to reduce function count - Fix import conflicts and trailing spaces: resolve weight() modifier issues,   remove unused imports, fix import ordering - Improve code organization: use data classes for component parameters,   add proper trailing commas, fix modifier usage - All detekt warnings resolved: no more compilation errors, clean build passes
 - Gitignore for compiler
 - Lots of updates and fixes
 - Refactoring/perf (#20)
@@ -177,6 +197,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V1.1.1; (#1)
 
 ### Fixed
+
 - Add automatic download resumption and improve settings UX (#19)
 - Adding super.onStartCommand(intent, flags, startId) at the beginning of the onStartCommand method
 - Api version for deprecated libs
@@ -248,9 +269,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Syntax errors and imports
 
 ### Security
+
 - Fix secure imports and logical starts with cursors
 - Security params
-
 
 [Unreleased]: https://github.com/Gosayram/jabook/compare/1.2.6...HEAD
 [1.2.6]: https://github.com/Gosayram/jabook/compare/1.2.5...1.2.6
