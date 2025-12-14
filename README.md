@@ -162,6 +162,7 @@ make fmt
 ```
 
 Quality tools configured:
+
 - **Flutter Lints** for Dart code analysis
 - **Flutter Test** for unit and widget testing
 - **Integration Test** for end-to-end testing
@@ -169,6 +170,7 @@ Quality tools configured:
 - **Localization** with `flutter gen-l10n`
 
 Unit tests are available for:
+
 - Cache management
 - Endpoint management
 - RuTracker parsing
