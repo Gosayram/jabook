@@ -40,7 +40,7 @@ import javax.inject.Singleton
 class SleepTimerRepositoryImpl
     @Inject
     constructor(
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
     ) : SleepTimerRepository {
         private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
