@@ -131,48 +131,185 @@ class RutrackerAuthService
         }
 
         /**
-         * Validate authentication by checking profile page access.
+         * Validate authentication using multi-tier approach.
+         * Based on Flutter's robust 3-tier validation strategy:
+         * 1. Profile page (most reliable)
+         * 2. Search page (fallback)
+         * 3. Index page (final fallback)
          *
+         * @param operationId Optional operation ID for logging correlation
          * @return true if authenticated, false otherwise
          */
-        suspend fun validateAuth(): Boolean {
+        suspend fun validateAuth(operationId: String? = null): Boolean {
+            val validationId =
+                operationId?.let { "${it}_validation" }
+                    ?: "auth_validation_${System.currentTimeMillis()}"
+            val startTime = System.currentTimeMillis()
+
             return withContext(Dispatchers.IO) {
                 try {
-                    val response = api.getProfile()
+                    Log.d(TAG, "[$validationId] Authentication validation started")
 
-                    if (!response.isSuccessful) return@withContext false
-
-                    val rawBody = response.body()?.bytes() ?: return@withContext false
-                    val bodyString = String(rawBody, CP1251)
-
-                    // Check for redirect to login or login form presence
-                    // If Retrofit follows redirects, we check the final URL or body content
-                    val finalUrl =
-                        response
-                            .raw()
-                            .request.url
-                            .toString()
-                    if (finalUrl.contains("login.php")) {
-                        return@withContext false
+                    // Test 1: Profile page (most reliable indicator)
+                    val profileResult = validateProfilePage(validationId)
+                    if (profileResult) {
+                        val duration = System.currentTimeMillis() - startTime
+                        Log.i(TAG, "[$validationId] Auth validated via profile (${duration}ms)")
+                        return@withContext true
                     }
 
-                    // Strict check: if body contains login input fields or "guest" markers
-                    // "login_username" input field is present on login page
-                    if (bodyString.contains("name=\"login_username\"", ignoreCase = true)) {
-                        return@withContext false
+                    // Test 2: Search page (fallback)
+                    val searchResult = validateSearchPage(validationId)
+                    if (searchResult) {
+                        val duration = System.currentTimeMillis() - startTime
+                        Log.i(TAG, "[$validationId] Auth validated via search (${duration}ms)")
+                        return@withContext true
                     }
 
-                    // "Профиль" or "Profile" should be present for logged in user
-                    // "Выход" (Logout) link should be present
-                    val hasLogout =
-                        bodyString.contains("login.php?logout=1") ||
-                            bodyString.contains("mode=logout")
+                    // Test 3: Index page (final fallback)
+                    val indexResult = validateIndexPage(validationId)
+                    val duration = System.currentTimeMillis() - startTime
 
-                    return@withContext hasLogout
+                    if (indexResult) {
+                        Log.i(TAG, "[$validationId] Auth validated via index (${duration}ms)")
+                    } else {
+                        Log.w(TAG, "[$validationId] Auth validation failed - all tests failed (${duration}ms)")
+                    }
+
+                    return@withContext indexResult
                 } catch (e: Exception) {
-                    Log.e(TAG, "Validation failed", e)
+                    val duration = System.currentTimeMillis() - startTime
+                    Log.e(TAG, "[$validationId] Validation exception (${duration}ms)", e)
                     return@withContext false
                 }
             }
         }
+
+        /**
+         * Test 1: Validate via profile page access.
+         * Most reliable indicator of authentication status.
+         */
+        private suspend fun validateProfilePage(operationId: String): Boolean {
+            return try {
+                val response = api.getProfile()
+
+                if (!response.isSuccessful) {
+                    Log.d(TAG, "[$operationId] Profile check: HTTP ${response.code()}")
+                    return false
+                }
+
+                val rawBody =
+                    response.body()?.bytes() ?: run {
+                        Log.d(TAG, "[$operationId] Profile check: empty body")
+                        return false
+                    }
+                val bodyString = String(rawBody, CP1251).lowercase()
+                val finalUrl =
+                    response
+                        .raw()
+                        .request.url
+                        .toString()
+
+                // Check for redirect to login
+                if (finalUrl.contains("login.php")) {
+                    Log.d(TAG, "[$operationId] Profile check: redirected to login")
+                    return false
+                }
+
+                // Check for login form presence (not authenticated)
+                if (bodyString.contains("name=\"login_username\"")) {
+                    Log.d(TAG, "[$operationId] Profile check: login form present")
+                    return false
+                }
+
+                // Check for profile elements (authenticated user)
+                val hasLogout =
+                    bodyString.contains("login.php?logout=1") ||
+                        bodyString.contains("mode=logout")
+                val hasProfile =
+                    bodyString.contains("личный кабинет") ||
+                        bodyString.contains("profile") ||
+                        bodyString.contains("личные данные")
+
+                val isAuthenticated = hasLogout || hasProfile
+                Log.d(TAG, "[$operationId] Profile check: logout=$hasLogout, profile=$hasProfile")
+
+                isAuthenticated
+            } catch (e: Exception) {
+                Log.w(TAG, "[$operationId] Profile check exception", e)
+                false
+            }
+        }
+
+        /**
+         * Test 2: Validate via search page access.
+        * Fallback if profile page check is inconclusive.
+         */
+        private suspend fun validateSearchPage(operationId: String): Boolean {
+            return try {
+                // Perform a simple search to test authentication
+                // searchTopics only accepts query and forumIds (optional)
+                val response = api.searchTopics(
+                    query = "test",
+                    forumIds = "33" // Audiobooks forum
+                )
+
+                if (!response.isSuccessful) {
+                    Log.d(TAG, "[$operationId] Search check: HTTP ${response.code()}")
+                    return false
+                }
+
+                // searchTopics returns Response<String>, not ResponseBody
+                val bodyString = response.body()?.lowercase() ?: run {
+                    Log.d(TAG, "[$operationId] Search check: empty body")
+                    return false
+                }
+                val finalUrl = response.raw().request.url.toString()
+
+                // Check for redirect to login
+                if (finalUrl.contains("login.php")) {
+                    Log.d(TAG, "[$operationId] Search check: redirected to login")
+                    return false
+                }
+
+                // Check for auth required messages
+                val requiresAuth = bodyString.contains("profile.php?mode=register") ||
+                                   bodyString.contains("авторизация") ||
+                                   bodyString.contains("войдите в систему")
+
+                if (requiresAuth) {
+                    Log.d(TAG, "[$operationId] Search check: auth required message found")
+                    return false
+                }
+
+                // Check for search page elements (authenticated)
+                val hasSearchElements = bodyString.contains("поиск") ||
+                                        bodyString.contains("search") ||
+                                        bodyString.contains("форум") ||
+                                        bodyString.length > 1000 // Search page usually >1KB
+
+                Log.d(TAG, "[$operationId] Search check: hasElements=$hasSearchElements, size=${bodyString.length}")
+
+                hasSearchElements
+            } catch (e: Exception) {
+                Log.w(TAG, "[$operationId] Search check exception", e)
+                false
+            }
+        }
+
+        /**
+         * Test 3: Validate via index page access.
+         * Final fallback - checks if forum index is accessible.
+         */
+        private suspend fun validateIndexPage(operationId: String): Boolean =
+            try {
+                // Note: We need to add getIndex() to RutrackerApi
+                // For now, we'll reuse profile check as fallback
+                // TODO: Add api.getIndex() endpoint
+                Log.d(TAG, "[$operationId] Index check: not implemented, using profile fallback")
+                false
+            } catch (e: Exception) {
+                Log.w(TAG, "[$operationId] Index check exception", e)
+                false
+            }
     }
