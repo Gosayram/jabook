@@ -201,10 +201,14 @@ fun JabookApp(
                     )
                 },
             ) { padding ->
-                JabookNavHost(
-                    appState = appState,
-                    modifier = Modifier.padding(padding),
-                )
+                @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+                androidx.compose.animation.SharedTransitionLayout {
+                    JabookNavHost(
+                        appState = appState,
+                        modifier = Modifier.padding(padding),
+                        sharedTransitionScope = this,
+                    )
+                }
             }
         }
     }

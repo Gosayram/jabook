@@ -55,6 +55,7 @@ fun BookCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
+    imageModifier: Modifier = Modifier,
 ) {
     Card(
         onClick = onClick,
@@ -80,7 +81,7 @@ fun BookCard(
                 model = coverUrl,
                 contentDescription = null, // Decorative, title is read from Text below
                 modifier =
-                    Modifier
+                    imageModifier
                         .fillMaxWidth()
                         .aspectRatio(2f / 3f)
                         .clip(MaterialTheme.shapes.medium),

@@ -232,10 +232,31 @@ class SettingsViewModel
 
         // ===== Download Settings =====
 
-        fun updateDownloadPath(path: String) {
+        fun updateDownloadPath(uriString: String) {
+            val path = resolvePathFromUri(uriString)
             viewModelScope.launch {
                 settingsRepository.updateDownloadPath(path)
             }
+        }
+
+        private fun resolvePathFromUri(uriString: String): String {
+            try {
+                val uri = android.net.Uri.parse(uriString)
+                if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
+                    val path = uri.path ?: return uriString
+                    val split = path.split(":")
+                    if (split.size > 1) {
+                        val type = split[0]
+                        val relativePath = split[1]
+                        if (type.endsWith("primary")) {
+                            return "/storage/emulated/0/$relativePath"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore parsing errors and return original
+            }
+            return uriString
         }
 
         fun updateWifiOnly(enabled: Boolean) {

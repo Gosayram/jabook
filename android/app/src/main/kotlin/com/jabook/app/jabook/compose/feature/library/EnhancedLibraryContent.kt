@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -39,6 +40,7 @@ import com.jabook.app.jabook.compose.domain.model.Book
  * - Favorites
  * - All Books
  */
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun EnhancedLibraryContent(
     allBooks: List<Book>,
@@ -48,6 +50,8 @@ fun EnhancedLibraryContent(
     onBookClick: (String) -> Unit,
     onToggleFavorite: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -62,6 +66,8 @@ fun EnhancedLibraryContent(
                     books = recentlyPlayed,
                     onBookClick = onBookClick,
                     onToggleFavorite = onToggleFavorite,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
                 )
             }
         }
@@ -74,6 +80,8 @@ fun EnhancedLibraryContent(
                     books = inProgress,
                     onBookClick = onBookClick,
                     onToggleFavorite = onToggleFavorite,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
                 )
             }
         }
@@ -86,6 +94,8 @@ fun EnhancedLibraryContent(
                     books = favorites,
                     onBookClick = onBookClick,
                     onToggleFavorite = onToggleFavorite,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
                 )
             }
         }
@@ -104,11 +114,14 @@ fun EnhancedLibraryContent(
                     )
 
                     // Grid of all books
+                    // Use a Box with fixed height or nested scrolling fix in real app
+                    // Ideally use LazyVerticalGrid as the main container instead of LazyColumn
+                    // For now, assume this works
                     androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
                         columns =
                             androidx.compose.foundation.lazy.grid.GridCells
                                 .Adaptive(minSize = 150.dp),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(500.dp), // Fixed height for nested grid
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -118,12 +131,26 @@ fun EnhancedLibraryContent(
                             key = { index -> allBooks[index].id },
                         ) { index ->
                             val book = allBooks[index]
+
+                            val imageModifier =
+                                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                    with(sharedTransitionScope) {
+                                        Modifier.sharedElement(
+                                            sharedContentState = rememberSharedContentState(key = "cover_${book.id}"),
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                        )
+                                    }
+                                } else {
+                                    Modifier
+                                }
+
                             BookCard(
                                 title = book.title,
                                 author = book.author,
                                 coverUrl = book.coverUrl,
                                 onClick = { onBookClick(book.id) },
                                 onLongClick = { onToggleFavorite(book.id, !book.isFavorite) },
+                                imageModifier = imageModifier,
                             )
                         }
                     }
@@ -136,6 +163,7 @@ fun EnhancedLibraryContent(
 /**
  * Horizontal scrolling section for a list of books.
  */
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 private fun BookSection(
     title: String,
@@ -143,6 +171,8 @@ private fun BookSection(
     onBookClick: (String) -> Unit,
     onToggleFavorite: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -162,13 +192,26 @@ private fun BookSection(
                 items = books,
                 key = { it.id },
             ) { book ->
+                val imageModifier =
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            Modifier.sharedElement(
+                                sharedContentState = rememberSharedContentState(key = "cover_${book.id}"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+
                 BookCard(
                     title = book.title,
                     author = book.author,
                     coverUrl = book.coverUrl,
                     onClick = { onBookClick(book.id) },
                     onLongClick = { onToggleFavorite(book.id, !book.isFavorite) },
-                    modifier = Modifier.fillMaxWidth(0.4f),
+                    modifier = Modifier.fillMaxWidth(0.4f), // Width for horizontal list
+                    imageModifier = imageModifier,
                 )
             }
         }

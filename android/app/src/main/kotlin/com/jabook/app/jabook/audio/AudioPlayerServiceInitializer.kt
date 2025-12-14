@@ -227,6 +227,21 @@ class AudioPlayerServiceInitializer(
                     service,
                     service.exoPlayer,
                 )
+
+            // Initialize NotificationManager with MediaSession integration
+            service.notificationManager =
+                NotificationManager(
+                    context = service,
+                    player = service.exoPlayer,
+                    mediaSession = service.mediaLibrarySession,
+                    metadata = service.currentMetadata,
+                    embeddedArtworkPath = service.embeddedArtworkPath,
+                    rewindSeconds = service.mediaSessionManager?.getRewindDuration() ?: 15L,
+                    forwardSeconds = service.mediaSessionManager?.getForwardDuration() ?: 30L,
+                )
+
+            // Set notification type based on service state
+            service.notificationManager?.setNotificationType(service.isMinimalNotification)
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
         }

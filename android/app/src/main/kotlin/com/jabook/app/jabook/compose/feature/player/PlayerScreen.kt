@@ -89,6 +89,8 @@ fun PlayerScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel(),
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     val strings = LocalStrings.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -157,6 +159,8 @@ fun PlayerScreen(
                         onChapterClick = viewModel::skipToChapter,
                         onSpeedClick = { showSpeedSheet = true },
                         onSleepTimerClick = { showSleepTimerSheet = true },
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
                     )
                 }
 
@@ -171,6 +175,7 @@ fun PlayerScreen(
     }
 }
 
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 private fun PlayerContent(
     state: PlayerUiState.Success,
@@ -184,6 +189,8 @@ private fun PlayerContent(
     onSpeedClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     modifier: Modifier = Modifier,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     androidx.compose.foundation.lazy.LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -195,11 +202,23 @@ private fun PlayerContent(
     ) {
         // Book cover
         item {
+            val imageModifier =
+                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        Modifier.sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "cover_${state.book.id}"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+
             AsyncImage(
                 model = state.book.coverUrl,
                 contentDescription = state.book.title,
                 modifier =
-                    Modifier
+                    imageModifier
                         .fillMaxWidth(0.7f)
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(16.dp))

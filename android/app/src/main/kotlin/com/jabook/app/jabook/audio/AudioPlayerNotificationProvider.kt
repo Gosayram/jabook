@@ -79,6 +79,17 @@ class AudioPlayerNotificationProvider(
         // it will skip artwork if isMinimalNotification is true.
         // We just delegate to the default provider, but because of our custom BitmapLoader,
         // it will skip artwork if isMinimalNotification is true.
+        // If NotificationManager is initialized, use it to create the notification
+        // This ensures consistent UI with custom actions (Rewind, Forward) and correct MediaSession token
+        if (service.notificationManager != null) {
+            val notification = service.notificationManager!!.createNotification()
+            return MediaNotification(
+                NotificationHelper.NOTIFICATION_ID,
+                notification,
+            )
+        }
+
+        // Fallback to default provider
         val mediaNotification =
             defaultProvider.createNotification(
                 mediaSession,

@@ -41,10 +41,12 @@ import com.jabook.app.jabook.compose.feature.webview.WebViewScreen
  * @param appState App state containing navigation controller
  * @param modifier Modifier to be applied to the NavHost
  */
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun JabookNavHost(
     appState: JabookAppState,
     modifier: Modifier = Modifier,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
 ) {
     val navController = appState.navController
 
@@ -122,6 +124,8 @@ fun JabookNavHost(
                 onNavigateToDownloads = {
                     navController.navigate(DownloadsRoute)
                 },
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = this,
             )
         }
 
@@ -136,6 +140,8 @@ fun JabookNavHost(
                 onNavigateBack = {
                     navController.popBackStack()
                 },
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = this,
             )
         }
 
