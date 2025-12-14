@@ -19,8 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add online audiobook search via Rutracker
 - Add swipe gestures and notification controls to mini player
+- Implement custom audio notification manager with media session integration and enable shared element transitions
+- Implement local audiobook scanning, sleep timer, and playback speed controls, and display download messages
 - Implement main navigation and integrate core screens
 - Implement native streaming torrent downloads
+- Implement user-configurable download location and Wi-Fi only download settings, and add library scanning functionality
 - Improve authentication with strict validation and WebView cookie synchronization, and update Android runtime permission requests
 - Introduce Jetpack Compose UI with new data layer for books and refactor audio player components: phase 1 and 2
 - Migrate to Gradle 9 for comprehensive building experience
