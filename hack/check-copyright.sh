@@ -29,6 +29,7 @@ done < <(find . -name "*.dart" \
     -not -path "./.flutter-plugins*" \
     -not -path "./.packages" \
     -not -path "./packages/*" \
+    -not -path "./test_results/*" \
     -print0)
 
 if [ $ERRORS -eq 0 ]; then

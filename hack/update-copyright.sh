@@ -42,6 +42,7 @@ done < <(find . -type f \( -name "*.dart" -o -name "*.sh" -o -name "*.yaml" -o -
     -not -path "./.flutter-plugins*" \
     -not -path "./.packages" \
     -not -path "./pubspec.lock" \
+    -not -path "./test_results/*" \
     -print0)
 
 if [ $UPDATED -eq 0 ]; then
