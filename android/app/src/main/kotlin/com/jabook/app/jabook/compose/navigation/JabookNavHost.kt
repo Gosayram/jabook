@@ -137,22 +137,30 @@ fun JabookNavHost(
                 ),
             enterTransition = {
                 androidx.compose.animation.fadeIn(
-                    animationSpec = androidx.compose.animation.core.tween(300),
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
                 )
             },
             exitTransition = {
                 androidx.compose.animation.fadeOut(
-                    animationSpec = androidx.compose.animation.core.tween(300),
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
                 )
             },
             popEnterTransition = {
                 androidx.compose.animation.fadeIn(
-                    animationSpec = androidx.compose.animation.core.tween(300),
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
                 )
             },
             popExitTransition = {
                 androidx.compose.animation.fadeOut(
-                    animationSpec = androidx.compose.animation.core.tween(300),
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(300),
                 )
             },
         ) { backStackEntry ->

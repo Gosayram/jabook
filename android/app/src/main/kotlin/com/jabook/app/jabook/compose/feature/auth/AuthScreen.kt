@@ -78,6 +78,11 @@ fun AuthScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var rememberMe by remember { mutableStateOf(true) }
+    var passwordVisible by remember { mutableStateOf(false) }
+
     // Handle WebView Login Navigation
     LaunchedEffect(uiState.showWebViewLogin) {
         if (uiState.showWebViewLogin) {
@@ -147,11 +152,6 @@ fun AuthScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(vertical = 16.dp),
             )
-
-            var username by remember { mutableStateOf("") }
-            var password by remember { mutableStateOf("") }
-            var rememberMe by remember { mutableStateOf(true) }
-            var passwordVisible by remember { mutableStateOf(false) }
 
             // Pre-fill if saved credentials exist
             LaunchedEffect(uiState.savedCredentials) {
@@ -236,18 +236,11 @@ fun AuthScreen(
             captchaData = uiState.captchaData!!,
             onConfirm = { code ->
                 viewModel.login(
-                    viewModel.uiState.value.savedCredentials
-                        ?.username ?: "", // Assuming username is preserved in state or fields
-                    viewModel.uiState.value.savedCredentials
-                        ?.password ?: "",
-                    true,
+                    username,
+                    password,
+                    rememberMe,
                     code,
                 )
-                // Note: The ViewModel login method call in CaptchaDialog needs current username/password inputs.
-                // However, uiState only stores savedCredentials.
-                // We should pass the current input values to the dialog or store them in VM.
-                // For simplicity, let's fix this in ViewModel or here.
-                // Since `username` and `password` are state vars here, we can capture them.
             },
             onDismiss = { viewModel.dismissCaptcha() },
         )

@@ -103,16 +103,23 @@ fun JabookTheme(
     isBetaFlavor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S -> {
-            val context = LocalView.current.context
-            if (darkTheme) androidx.compose.material3.dynamicDarkColorScheme(context) else androidx.compose.material3.dynamicLightColorScheme(context)
+    val colorScheme =
+        when {
+            dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S -> {
+                val context = LocalView.current.context
+                if (darkTheme) {
+                    androidx.compose.material3.dynamicDarkColorScheme(
+                        context,
+                    )
+                } else {
+                    androidx.compose.material3.dynamicLightColorScheme(context)
+                }
+            }
+            isBetaFlavor && darkTheme -> BetaDarkColorScheme
+            isBetaFlavor && !darkTheme -> BetaLightColorScheme
+            !isBetaFlavor && darkTheme -> ProdDarkColorScheme
+            else -> ProdLightColorScheme
         }
-        isBetaFlavor && darkTheme -> BetaDarkColorScheme
-        isBetaFlavor && !darkTheme -> BetaLightColorScheme
-        !isBetaFlavor && darkTheme -> ProdDarkColorScheme
-        else -> ProdLightColorScheme
-    }
 
     val view = LocalView.current
     if (!view.isInEditMode) {

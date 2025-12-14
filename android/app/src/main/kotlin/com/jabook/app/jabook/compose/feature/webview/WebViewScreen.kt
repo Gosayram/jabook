@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -73,6 +74,7 @@ fun WebViewScreen(
     onNavigateBack: () -> Unit,
     onMagnetLinkDetected: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    viewModel: WebViewViewModel = hiltViewModel(),
 ) {
     // Decode URL from navigation argument
     val url =
@@ -175,6 +177,9 @@ fun WebViewScreen(
                                     loadingProgress = 1f
                                     pageTitle = view?.title ?: ""
                                     canGoBack = view?.canGoBack() ?: false
+
+                                    // Sync cookies if on relevant domain
+                                    viewModel.onPageFinished(url)
                                 }
 
                                 override fun shouldOverrideUrlLoading(

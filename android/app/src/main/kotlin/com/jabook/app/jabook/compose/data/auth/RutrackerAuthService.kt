@@ -35,6 +35,7 @@ class RutrackerAuthService
     @Inject
     constructor(
         private val api: RutrackerApi,
+        private val parser: com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser,
     ) {
         companion object {
             private const val TAG = "RutrackerAuthService"
@@ -60,41 +61,24 @@ class RutrackerAuthService
                     val response = api.login(body)
                     val rawBody = response.body()?.bytes() ?: ByteArray(0)
 
-                    // Decode body to check for errors
-                    // Try CP1251 first as it's default for Rutracker
+                    // Decode body
                     val bodyString = String(rawBody, CP1251)
 
-                    // Check for cookies (success)
-                    // Rutracker typically redirects (302) on success, or returns 200 with error
-                    // Retrofit/OkHttp follows redirects by default unless configured otherwise.
-                    // If we followed redirect to index, we are good if we have valid session cookies.
-                    // However, our OkHttpClient might be configured to NOT follow redirects for login?
-                    // Let's assume standard behavior: if we land on index page (200) or get a 302, we check cookies.
-                    // The most reliable check is "bb_session" cookie existence in the cookie jar.
-                    // Since CookieJar handles cookies automatically, we just need to verify success/failure.
-
-                    // Check for error messages in body
-                    if (bodyString.contains("неверный пароль", ignoreCase = true) ||
-                        bodyString.contains("wrong password", ignoreCase = true)
-                    ) {
-                        return@withContext AuthResult.Error("Invalid username or password")
-                    }
-
-                    if (bodyString.contains("введите код подтверждения", ignoreCase = true) ||
-                        bodyString.contains("site want captcha", ignoreCase = true)
-                    ) {
-                        // Extract captcha
-                        // Simplified extraction - in real scenario would use Jsoup or Regex
-                        // This is a placeholder for captcha extraction logic matching legacy parser
-                        val captcha = extractCaptcha(bodyString)
-                        return@withContext AuthResult.Captcha(captcha)
-                    }
-
-                    if (response.isSuccessful) {
-                        // Success!
-                        return@withContext AuthResult.Success
-                    } else {
+                    if (!response.isSuccessful && response.code() !in 300..399) {
                         return@withContext AuthResult.Error("HTTP Error: ${response.code()}")
+                    }
+
+                    // Use Parser
+                    return@withContext when (val result = parser.parseLoginResponse(bodyString)) {
+                        is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Success -> AuthResult.Success
+                        is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Error ->
+                            AuthResult.Error(
+                                result.message,
+                            )
+                        is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Captcha ->
+                            AuthResult.Captcha(
+                                result.data,
+                            )
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Login failed", e)
@@ -132,24 +116,6 @@ class RutrackerAuthService
             }
 
             return sb.toString()
-        }
-
-        private fun extractCaptcha(html: String): CaptchaData {
-            // Regex extraction similar to legacy
-            // Placeholder implementation
-            // Need to parse: <img src="//static.t-ru.org/captcha/..." ...>
-            // and <input type="hidden" name="cap_sid" value="...">
-
-            val sidRegex = """name="cap_sid"\s+value="(\d+)"""".toRegex()
-            val sidMatch = sidRegex.find(html)
-            val sid = sidMatch?.groupValues?.get(1) ?: ""
-
-            val urlRegex = """img\s+src="([^"]+captcha[^"]+)"""".toRegex()
-            val urlMatch = urlRegex.find(html)
-            var url = urlMatch?.groupValues?.get(1) ?: ""
-            if (url.startsWith("//")) url = "https:$url"
-
-            return CaptchaData(url, sid)
         }
 
         sealed interface AuthResult {

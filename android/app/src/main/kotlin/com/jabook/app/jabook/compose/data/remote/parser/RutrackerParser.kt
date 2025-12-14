@@ -297,4 +297,90 @@ class RutrackerParser
 
             return related.take(10) // Limit to 10 related books
         }
+
+        /**
+         * Result of a login attempt.
+         */
+        sealed interface LoginResult {
+            data object Success : LoginResult
+
+            data class Error(
+                val message: String,
+            ) : LoginResult
+
+            data class Captcha(
+                val data: com.jabook.app.jabook.compose.domain.model.CaptchaData,
+            ) : LoginResult
+        }
+
+        /**
+         * Parse login response HTML.
+         *
+         * @param html HTML content from login response
+         * @return LoginResult
+         */
+        fun parseLoginResponse(html: String): LoginResult {
+            try {
+                // Check for explicit errors first
+                if (html.contains("неверный пароль", ignoreCase = true) ||
+                    html.contains("wrong password", ignoreCase = true)
+                ) {
+                    return LoginResult.Error("Invalid username or password")
+                }
+
+                // Check for captcha
+                if (html.contains("введите код подтверждения", ignoreCase = true) ||
+                    html.contains("site want captcha", ignoreCase = true)
+                ) {
+                    val captchaData = extractCaptcha(html)
+                    return if (captchaData != null) {
+                        LoginResult.Captcha(captchaData)
+                    } else {
+                        LoginResult.Error("Captcha required but failed to parse")
+                    }
+                }
+
+                // Check for success indicators
+                // "Выход" (Logout) link presence or redirect to index
+                if (html.contains("login.php?logout=1") || html.contains("mode=logout")) {
+                    return LoginResult.Success
+                }
+
+                // Fallback: if no error and no captcha, assume success or redirect happened
+                // This is a heuristic; ideally we rely on cookies, but this parser checks the body.
+                // If the body is small/empty it might be a redirect.
+                if (html.length < 500 && !html.contains("login")) {
+                    return LoginResult.Success
+                }
+
+                return LoginResult.Error("Unknown login response")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse login response", e)
+                return LoginResult.Error(e.message ?: "Parser Error")
+            }
+        }
+
+        private fun extractCaptcha(html: String): com.jabook.app.jabook.compose.domain.model.CaptchaData? {
+            try {
+                val document = Jsoup.parse(html)
+
+                // <input type="hidden" name="cap_sid" value="12345">
+                val sidElement = document.selectFirst("input[name=cap_sid]")
+                val sid = sidElement?.attr("value") ?: return null
+
+                // <img src="//static.t-ru.org/captcha/..." ...>
+                val imgElement = document.selectFirst("img[src*=\"captcha\"]")
+                var url = imgElement?.attr("src") ?: return null
+
+                if (url.startsWith("//")) {
+                    url = "https:$url"
+                }
+
+                return com.jabook.app.jabook.compose.domain.model
+                    .CaptchaData(url, sid)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse captcha", e)
+                return null
+            }
+        }
     }

@@ -169,17 +169,18 @@ class AuthRepositoryImpl
             val cookieManager = android.webkit.CookieManager.getInstance()
             cookieManager.setAcceptCookie(true)
 
+            val currentHost = mirrorManager.currentMirror.value
             val url = rutrackerUrl.toString()
+            // Ensure domain is set with leading dot for wildcard matching across subdomains
+            val domain = if (currentHost.startsWith(".")) currentHost else ".$currentHost"
+
             cookies.forEach { cookie ->
                 val cookieString =
                     buildString {
                         append("${cookie.name}=${cookie.value}")
-                        // Note: setCookie expects "name=value", domain/path attributes are optional hints
-                        // If we set Domain explicitly, it might fail if it doesn't match URL strictly?
-                        // Safe approach: set for the specific URL without forcing domain if it matches host.
-                        // But to share across subdomains, Domain is needed.
-                        if (cookie.domain.isNotEmpty()) append("; Domain=${cookie.domain}")
-                        if (cookie.path.isNotEmpty()) append("; Path=${cookie.path}")
+                        // Force domain to match current mirror
+                        append("; Domain=$domain")
+                        append("; Path=/")
                         if (cookie.secure) append("; Secure")
                         if (cookie.httpOnly) append("; HttpOnly")
                     }
