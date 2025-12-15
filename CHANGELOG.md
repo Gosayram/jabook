@@ -20,12 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add dynamic color support to `JabookTheme` for Android 12+ devices
 - Add fade-in and fade-out navigation transitions to PlayerScreen
+- Add login concurrency protection and multi-tier authentication validation
 - Add online audiobook search via Rutracker
 - Add permission management and refactor Rutracker authentication to improve WebView cookie synchronization
 - Add swipe gestures and notification controls to mini player
 - Implement custom audio notification manager with media session integration and enable shared element transitions
 - Implement local audiobook scanning, sleep timer, and playback speed controls, and display download messages
 - Implement main navigation and integrate core screens
+- Implement multi-stage cookie persistence using new DAO, entity, and manager, integrated into the authentication flow and database
 - Implement native streaming torrent downloads
 - Implement user-configurable download location and Wi-Fi only download settings, and add library scanning functionality
 - Improve authentication with strict validation and WebView cookie synchronization, and update Android runtime permission requests
@@ -69,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Copyright validation folders
 - Fix chapter mismatch, player freeze, and local playback
 - Fix compilation errors and improve playback position saving
 - Fix playback position restoration and prevent playlist loading conflicts
