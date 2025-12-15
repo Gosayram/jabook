@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add debug screen for viewing and sharing logs and integrate it into navigation
 - Add dynamic color support to `JabookTheme` for Android 12+ devices
 - Add fade-in and fade-out navigation transitions to PlayerScreen
 - Add login concurrency protection and multi-tier authentication validation
@@ -48,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump Makefile
 - Bump packages
 - Bump pub build
+- Clean up each cache before compilation testing
 - Clean up unused imports and apply minor formatting to settings and topic screens
 - Enhance foreground service initialization for Android 14+ and standardize notification ID
 - Enhance screen reader experience by adding semantic descriptions and roles to various UI components
@@ -62,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrate to Java 21 and replace kapt with KSP for Room
 - Polish navigation UI and resolve deprecations
 - Refactor audio player service architecture
+- Remove unused backup build file
 - Remove unused flutter collab code from Kotlin
 - Removed all flutter code from project; prepate to migrate native Kotlin code
 - Reorganize makefile automation and fix hack scripts
@@ -91,6 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Add debug tools section and navigation to settings
 - FileProvider for secure file sharing, new permissions, and manifest compatibility adjustments
 
 ## [1.2.6] - 2025-12-06
