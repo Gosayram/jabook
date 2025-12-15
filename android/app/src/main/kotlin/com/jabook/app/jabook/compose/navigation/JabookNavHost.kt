@@ -252,6 +252,20 @@ fun JabookNavHost(
             )
         }
 
+        // Debug screen - shows debug tools and logs
+        composable<DebugRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://debug" },
+                ),
+        ) {
+            com.jabook.app.jabook.compose.feature.debug.DebugScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+            )
+        }
+
         // Topic details screen - shows RuTracker topic information
         composable<TopicRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<TopicRoute>()

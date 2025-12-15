@@ -69,6 +69,12 @@ object SearchRoute
 object DownloadsRoute
 
 /**
+ * Debug screen route - shows debug tools and logs.
+ */
+@Serializable
+object DebugRoute
+
+/**
  * Topic details screen route - shows detailed information about a RuTracker topic.
  *
  * @param topicId Unique identifier of the topic
