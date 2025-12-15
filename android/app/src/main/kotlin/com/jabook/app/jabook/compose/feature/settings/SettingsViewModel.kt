@@ -19,6 +19,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.backup.BackupService
 import com.jabook.app.jabook.compose.data.backup.ImportStats
+import com.jabook.app.jabook.compose.data.cache.CacheManager
+import com.jabook.app.jabook.compose.data.cache.CacheStatistics
+import com.jabook.app.jabook.compose.data.cache.CacheType
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.network.MirrorManager
@@ -50,6 +53,7 @@ class SettingsViewModel
         private val authRepository: com.jabook.app.jabook.compose.domain.repository.AuthRepository,
         private val mirrorManager: MirrorManager,
         private val backupService: BackupService,
+        private val cacheManager: CacheManager,
     ) : ViewModel() {
         // Exposure of auth status for UI
         val authStatus =
@@ -312,6 +316,63 @@ class SettingsViewModel
         fun resetBackupState() {
             _backupState.value = BackupUiState.Idle
         }
+
+        // ===== Cache Management =====
+
+        private val _cacheStats = MutableStateFlow<CacheStatistics?>(null)
+        val cacheStats: StateFlow<CacheStatistics?> = _cacheStats.asStateFlow()
+
+        private val _cacheOperation = MutableStateFlow<CacheOperationState>(CacheOperationState.Idle)
+        val cacheOperation: StateFlow<CacheOperationState> = _cacheOperation.asStateFlow()
+
+        /**
+         * Load cache statistics.
+         */
+        fun loadCacheStatistics() {
+            viewModelScope.launch {
+                try {
+                    _cacheOperation.value = CacheOperationState.Loading
+                    val stats = cacheManager.getCacheStatistics()
+                    _cacheStats.value = stats
+                    _cacheOperation.value = CacheOperationState.Idle
+                } catch (e: Exception) {
+                    _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to load cache stats")
+                }
+            }
+        }
+
+        /**
+         * Clear cache (all or specific type).
+         */
+        fun clearCache(type: CacheType? = null) {
+            viewModelScope.launch {
+                try {
+                    _cacheOperation.value = CacheOperationState.Clearing
+                    val success =
+                        if (type != null) {
+                            cacheManager.clearCacheType(type)
+                        } else {
+                            cacheManager.clearAllCache()
+                        }
+
+                    if (success) {
+                        loadCacheStatistics() // Reload stats
+                        _cacheOperation.value = CacheOperationState.Success
+                    } else {
+                        _cacheOperation.value = CacheOperationState.Error("Failed to clear cache")
+                    }
+                } catch (e: Exception) {
+                    _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to clear cache")
+                }
+            }
+        }
+
+        /**
+         * Reset cache operation state.
+         */
+        fun resetCacheOperation() {
+            _cacheOperation.value = CacheOperationState.Idle
+        }
     }
 
 /**
@@ -335,4 +396,21 @@ sealed class BackupUiState {
     data class Error(
         val message: String,
     ) : BackupUiState()
+}
+
+/**
+ * UI state for cache operations.
+ */
+sealed class CacheOperationState {
+    data object Idle : CacheOperationState()
+
+    data object Loading : CacheOperationState()
+
+    data object Clearing : CacheOperationState()
+
+    data object Success : CacheOperationState()
+
+    data class Error(
+        val message: String,
+    ) : CacheOperationState()
 }

@@ -372,6 +372,102 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            // Cache Management Section
+            SettingsSection(title = "Cache Management")
+
+            val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
+            val cacheOperation by viewModel.cacheOperation.collectAsStateWithLifecycle()
+
+            // State for clear cache dialog
+            var showClearCacheDialog by remember { mutableStateOf(false) }
+
+            // Load cache statistics on first composition
+            LaunchedEffect(Unit) {
+                viewModel.loadCacheStatistics()
+            }
+
+            // Total cache size
+            SettingsItem(
+                title = "Total Cache Size",
+                subtitle =
+                    cacheStats?.let { formatBytes(it.totalSize) }
+                        ?: if (cacheOperation is CacheOperationState.Loading) "Calculating..." else "Unknown",
+            )
+
+            // Last cleanup timestamp
+            SettingsItem(
+                title = "Last Cleanup",
+                subtitle =
+                    cacheStats?.let {
+                        if (it.lastCleanup > 0) {
+                            formatTimestamp(it.lastCleanup)
+                        } else {
+                            "Never"
+                        }
+                    } ?: "-",
+            )
+
+            // Clear all cache button
+            SettingsItem(
+                title = "Clear All Cache",
+                subtitle = cacheStats?.let { "Free up ${formatBytes(it.totalSize)}" } ?: "",
+                onClick = {
+                    if (cacheOperation != CacheOperationState.Clearing) {
+                        showClearCacheDialog = true
+                    }
+                },
+            )
+
+            // Clear cache confirmation dialog
+            if (showClearCacheDialog) {
+                AlertDialog(
+                    onDismissRequest = { showClearCacheDialog = false },
+                    title = { Text("Clear Cache?") },
+                    text = {
+                        Text(
+                            "This will delete ${cacheStats?.let { formatBytes(it.totalSize) } ?: "all"} of cached data. Continue?",
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.clearCache()
+                                showClearCacheDialog = false
+                            },
+                        ) {
+                            Text("Clear")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showClearCacheDialog = false }) {
+                            Text("Cancel")
+                        }
+                    },
+                )
+            }
+
+            // Show toast on success/error
+            LaunchedEffect(cacheOperation) {
+                when (cacheOperation) {
+                    is CacheOperationState.Success -> {
+                        android.widget.Toast
+                            .makeText(context, "Cache cleared successfully", android.widget.Toast.LENGTH_SHORT)
+                            .show()
+                        viewModel.resetCacheOperation()
+                    }
+                    is CacheOperationState.Error -> {
+                        val error = (cacheOperation as CacheOperationState.Error).message
+                        android.widget.Toast
+                            .makeText(context, error, android.widget.Toast.LENGTH_LONG)
+                            .show()
+                        viewModel.resetCacheOperation()
+                    }
+                    else -> {}
+                }
+            }
+
+            HorizontalDivider()
+
             // Appearance Section
             SettingsSection(title = strings.settingsSectionAppearance)
 
@@ -842,4 +938,23 @@ private fun extractDomain(input: String): String? {
     } else {
         null
     }
+}
+
+/**
+ * Format bytes to human-readable string (B, KB, MB, GB).
+ */
+private fun formatBytes(bytes: Long): String =
+    when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+        bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
+        else -> "${bytes / (1024 * 1024 * 1024)} GB"
+    }
+
+/**
+ * Format timestamp to readable date string.
+ */
+private fun formatTimestamp(millis: Long): String {
+    val sdf = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date(millis))
 }
