@@ -84,7 +84,7 @@ clean:
 
 # Compile Kotlin code
 .PHONY: compile
-compile: clean compile 
+compile: compile 
 	@echo "Compiling Kotlin code for all flavors..."
 	@(cd android && ./gradlew :app:compileDevDebugKotlin :app:compileBetaDebugKotlin :app:compileProdDebugKotlin --no-daemon); \
 	EXIT_CODE=$$?; \
@@ -282,7 +282,7 @@ build-android-signed-apk-beta-copy: build-beta-and-copy
 
 # Aliases for linting and compiling
 .PHONY: lint
-lint: fmt-kotlin compile
+lint: clean fmt-kotlin compile
 
 # ========================================
 # Version Management
