@@ -18,7 +18,9 @@ package com.jabook.app.jabook.compose.domain.model
  * Download priority levels.
  * Higher priority downloads are processed first.
  */
-enum class DownloadPriority(val value: Int) {
+enum class DownloadPriority(
+    val value: Int,
+) {
     /**
      * Low priority - process only when no other downloads are active.
      */
