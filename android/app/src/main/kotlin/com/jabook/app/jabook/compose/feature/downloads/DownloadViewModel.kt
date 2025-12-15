@@ -170,4 +170,15 @@ class DownloadViewModel
                     .forEach { downloadRepository.resumeDownload(it.bookId) }
             }
         }
+
+        /**
+         * Reorder download queue after drag & drop.
+         *
+         * @param downloads New ordered list of downloads
+         */
+        fun reorderQueue(downloads: List<DownloadInfo>) {
+            viewModelScope.launch {
+                downloadRepository.reorderQueue(downloads.map { it.bookId })
+            }
+        }
     }
