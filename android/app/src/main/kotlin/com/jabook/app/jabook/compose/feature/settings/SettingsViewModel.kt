@@ -14,8 +14,11 @@
 
 package com.jabook.app.jabook.compose.feature.settings
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.data.backup.BackupService
+import com.jabook.app.jabook.compose.data.backup.ImportStats
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.network.MirrorManager
@@ -24,8 +27,10 @@ import com.jabook.app.jabook.compose.data.preferences.ThemeMode
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -44,6 +49,7 @@ class SettingsViewModel
         private val userPreferencesRepository: UserPreferencesRepository, // Keep for migration
         private val authRepository: com.jabook.app.jabook.compose.domain.repository.AuthRepository,
         private val mirrorManager: MirrorManager,
+        private val backupService: BackupService,
     ) : ViewModel() {
         // Exposure of auth status for UI
         val authStatus =
@@ -264,4 +270,69 @@ class SettingsViewModel
                 settingsRepository.updateWifiOnly(enabled)
             }
         }
+
+        // ===== Backup & Restore =====
+
+        private val _backupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
+        val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
+
+        /**
+         * Export app data to JSON backup file.
+         */
+        fun exportData() {
+            viewModelScope.launch {
+                try {
+                    _backupState.value = BackupUiState.Exporting
+                    val uri = backupService.exportToFile()
+                    _backupState.value = BackupUiState.ExportReady(uri)
+                } catch (e: Exception) {
+                    _backupState.value = BackupUiState.Error(e.message ?: "Export failed")
+                }
+            }
+        }
+
+        /**
+         * Import app data from JSON backup file.
+         */
+        fun importData(uri: Uri) {
+            viewModelScope.launch {
+                try {
+                    _backupState.value = BackupUiState.Importing
+                    val stats = backupService.importFromFile(uri)
+                    _backupState.value = BackupUiState.ImportComplete(stats)
+                } catch (e: Exception) {
+                    _backupState.value = BackupUiState.Error(e.message ?: "Import failed: ${e.message}")
+                }
+            }
+        }
+
+        /**
+         * Reset backup state to Idle.
+         */
+        fun resetBackupState() {
+            _backupState.value = BackupUiState.Idle
+        }
     }
+
+/**
+ * UI state for backup/restore operations.
+ */
+sealed class BackupUiState {
+    data object Idle : BackupUiState()
+
+    data object Exporting : BackupUiState()
+
+    data class ExportReady(
+        val uri: Uri,
+    ) : BackupUiState()
+
+    data object Importing : BackupUiState()
+
+    data class ImportComplete(
+        val stats: ImportStats,
+    ) : BackupUiState()
+
+    data class Error(
+        val message: String,
+    ) : BackupUiState()
+}

@@ -48,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -253,6 +254,121 @@ fun SettingsScreen(
                 checked = protoSettings.wifiOnlyDownload,
                 onCheckedChange = viewModel::updateWifiOnly,
             )
+
+            HorizontalDivider()
+
+            // Backup & Restore Section
+            SettingsSection(title = "Backup & Restore")
+
+            val backupState by viewModel.backupState.collectAsStateWithLifecycle()
+
+            // State for import dialog
+            var showImportConfirmation by remember { mutableStateOf(false) }
+            var selectedBackupUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+            // File picker for import
+            val importFilePicker =
+                androidx.activity.compose.rememberLauncherForActivityResult(
+                    contract =
+                        androidx.activity.result.contract.ActivityResultContracts
+                            .GetContent(),
+                ) { uri: android.net.Uri? ->
+                    uri?.let {
+                        // Show confirmation dialog
+                        showImportConfirmation = true
+                        selectedBackupUri = it
+                    }
+                }
+
+            SettingsItem(
+                title = "Export Data",
+                subtitle = "Save settings and library to backup file",
+                onClick = { viewModel.exportData() },
+            )
+
+            SettingsItem(
+                title = "Import Data",
+                subtitle = "Restore settings and library from backup",
+                onClick = {
+                    // Launch file picker for JSON files
+                    importFilePicker.launch("application/json")
+                },
+            )
+
+            // Import Confirmation Dialog
+            if (showImportConfirmation) {
+                AlertDialog(
+                    onDismissRequest = { showImportConfirmation = false },
+                    title = { Text("Import Backup?") },
+                    text = {
+                        Text(
+                            "This will replace your current settings. Are you sure you want to continue?",
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                selectedBackupUri?.let { viewModel.importData(it) }
+                                showImportConfirmation = false
+                            },
+                        ) {
+                            Text("Import")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showImportConfirmation = false }) {
+                            Text("Cancel")
+                        }
+                    },
+                )
+            }
+
+            // Handle Export Success - Share file
+            LaunchedEffect(backupState) {
+                if (backupState is BackupUiState.ExportReady) {
+                    val uri = (backupState as BackupUiState.ExportReady).uri
+                    val intent =
+                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "application/json"
+                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Jabook Backup")
+                            putExtra(
+                                android.content.Intent.EXTRA_TEXT,
+                                "Backup of Jabook settings and data",
+                            )
+                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                    context.startActivity(
+                        android.content.Intent.createChooser(intent, "Export Backup"),
+                    )
+                    viewModel.resetBackupState()
+                }
+            }
+
+            // Handle Import Success - Show statistics
+            LaunchedEffect(backupState) {
+                if (backupState is BackupUiState.ImportComplete) {
+                    val stats = (backupState as BackupUiState.ImportComplete).stats
+                    android.widget.Toast
+                        .makeText(
+                            context,
+                            "Import successful! $stats",
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    viewModel.resetBackupState()
+                }
+            }
+
+            // Handle Errors
+            LaunchedEffect(backupState) {
+                if (backupState is BackupUiState.Error) {
+                    val error = (backupState as BackupUiState.Error).message
+                    android.widget.Toast
+                        .makeText(context, error, android.widget.Toast.LENGTH_LONG)
+                        .show()
+                    viewModel.resetBackupState()
+                }
+            }
 
             HorizontalDivider()
 
