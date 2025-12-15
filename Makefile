@@ -83,7 +83,7 @@ clean:
 	@echo "✅ Cleaned build artifacts"
 
 # Compile Kotlin code
-.PHONY: compile
+.PHONY: clean compile
 compile:
 	@echo "Compiling Kotlin code for all flavors..."
 	@(cd android && ./gradlew :app:compileDevDebugKotlin :app:compileBetaDebugKotlin :app:compileProdDebugKotlin --no-daemon); \
