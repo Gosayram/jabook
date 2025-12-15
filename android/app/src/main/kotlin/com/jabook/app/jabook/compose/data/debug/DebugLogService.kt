@@ -71,13 +71,36 @@ class DebugLogService
                     val bufferedReader = BufferedReader(InputStreamReader(process.inputStream))
                     val logs = StringBuilder()
 
-                    // Add header
+                    // Add header with comprehensive device info
                     logs.append("=== Jabook Debug Logs ===\n")
                     logs.append("Generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}\n")
                     logs.append("Package: ${context.packageName}\n")
                     logs.append("Version: ${getAppVersion()}\n")
                     logs.append("Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})\n")
                     logs.append("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n")
+
+                    // Additional device info
+                    logs.append("Build: ${android.os.Build.FINGERPRINT}\n")
+                    logs.append("Board: ${android.os.Build.BOARD}\n")
+                    logs.append("Product: ${android.os.Build.PRODUCT}\n")
+                    logs.append("Brand: ${android.os.Build.BRAND}\n")
+                    logs.append("Hardware: ${android.os.Build.HARDWARE}\n")
+
+                    // Screen & Display info
+                    val displayMetrics = context.resources.displayMetrics
+                    logs.append("Screen: ${displayMetrics.widthPixels}x${displayMetrics.heightPixels} @ ${displayMetrics.densityDpi}dpi\n")
+                    logs.append("Density: ${displayMetrics.density}x\n")
+
+                    // Memory info
+                    val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                    val memInfo = android.app.ActivityManager.MemoryInfo()
+                    activityManager.getMemoryInfo(memInfo)
+                    logs.append("RAM Total: ${memInfo.totalMem / (1024 * 1024)}MB\n")
+                    logs.append("RAM Available: ${memInfo.availMem / (1024 * 1024)}MB\n")
+
+                    // CPU Architecture
+                    logs.append("ABI: ${android.os.Build.SUPPORTED_ABIS.joinToString(", ")}\n")
+
                     logs.append("===========================\n\n")
 
                     // Collect logs

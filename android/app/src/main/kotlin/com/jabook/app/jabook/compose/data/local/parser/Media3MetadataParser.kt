@@ -50,28 +50,49 @@ class Media3MetadataParser
 
         private fun parseWithKTagLib(file: File): AudioMetadata? {
             return try {
-                val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-                pfd.use {
-                    val metadata = kTagLib.getMetadata(pfd.fd, file.name)
-                    val artwork = kTagLib.getArtwork(pfd.fd, file.name)
+                // IMPORTANT: Use separate ParcelFileDescriptors for metadata and artwork
+                // to avoid FDSAN errors on Android 16 (API 36). KTagLib internally
+                // changes file descriptor ownership, causing crashes when reusing the same PFD.
 
-                    if (metadata == null) return@use null
+                var metadata: com.simplecityapps.ktaglib.Metadata? = null
+                var artwork: ByteArray? = null
 
-                    val props = metadata.propertyMap
-                    val audioProps = metadata.audioProperties
-
-                    AudioMetadata(
-                        title = props["TITLE"]?.firstOrNull(),
-                        artist = props["ARTIST"]?.firstOrNull(),
-                        album = props["ALBUM"]?.firstOrNull(),
-                        albumArtist = props["ALBUMARTIST"]?.firstOrNull(),
-                        duration = (audioProps?.duration ?: 0).toLong(),
-                        genre = props["GENRE"]?.firstOrNull(),
-                        year = props["DATE"]?.firstOrNull(),
-                        trackNumber = props["TRACKNUMBER"]?.firstOrNull()?.toIntOrNull(),
-                        coverArt = artwork,
-                    )
+                // First call: extract metadata
+                try {
+                    val pfdMeta = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+                    pfdMeta.use {
+                        metadata = kTagLib.getMetadata(it.fd, file.name)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("MetadataParser", "KTagLib metadata extraction failed", e)
                 }
+
+                // Second call: extract artwork with NEW file descriptor
+                try {
+                    val pfdArt = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+                    pfdArt.use {
+                        artwork = kTagLib.getArtwork(it.fd, file.name)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("MetadataParser", "KTagLib artwork extraction failed", e)
+                }
+
+                if (metadata == null) return null
+
+                val props = metadata.propertyMap
+                val audioProps = metadata.audioProperties
+
+                AudioMetadata(
+                    title = props["TITLE"]?.firstOrNull(),
+                    artist = props["ARTIST"]?.firstOrNull(),
+                    album = props["ALBUM"]?.firstOrNull(),
+                    albumArtist = props["ALBUMARTIST"]?.firstOrNull(),
+                    duration = (audioProps?.duration ?: 0).toLong(),
+                    genre = props["GENRE"]?.firstOrNull(),
+                    year = props["DATE"]?.firstOrNull(),
+                    trackNumber = props["TRACKNUMBER"]?.firstOrNull()?.toIntOrNull(),
+                    coverArt = artwork,
+                )
             } catch (e: Exception) {
                 android.util.Log.w("MetadataParser", "KTagLib parsing failed", e)
                 null
