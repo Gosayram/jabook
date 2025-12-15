@@ -1,17 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ FileProvider paths for secure file sharing across all build flavors.
+  ~ This configuration works for dev, beta, prod, and stage variants.
+  ~
+  ~ Path types:
+  ~ - files-path: Context.getFilesDir()
+  ~ - cache-path: Context.getCacheDir()
+  ~ - external-path: Environment.getExternalStorageDirectory()
+  ~ - external-files-path: Context.getExternalFilesDir(null)
+  ~ - external-cache-path: Context.getExternalCacheDir()
+  -->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- External storage root -->
-    <external-path name="external_files" path="." />
-    
-    <!-- App-specific external storage -->
-    <external-files-path name="external_app_files" path="." />
-    
-    <!-- Internal app storage -->
-    <files-path name="internal_files" path="." />
-    
-    <!-- Cache directory -->
-    <cache-path name="cache_files" path="." />
-    
-    <!-- External cache -->
-    <external-cache-path name="external_cache" path="." />
+    <!-- App's internal files directory for logs, databases, etc -->
+    <files-path
+        name="app_files"
+        path="." />
+
+    <!-- App's cache directory for temporary files -->
+    <cache-path
+        name="app_cache"
+        path="." />
+
+    <!-- Debug logs directory (typically in app_files/logs/) -->
+    <files-path
+        name="logs"
+        path="logs/" />
+
+    <!-- External files directory (SD card) for downloads, audiobooks, etc -->
+    <external-files-path
+        name="external_files"
+        path="." />
+
+    <!-- External cache for temporary downloads -->
+    <external-cache-path
+        name="external_cache"
+        path="." />
+
+    <!-- Downloads directory in app-specific external storage -->
+    <external-files-path
+        name="downloads"
+        path="Downloads/" />
+
+    <!-- Audiobooks directory in app-specific external storage -->
+    <external-files-path
+        name="audiobooks"
+        path="JabookAudio/" />
 </paths>
