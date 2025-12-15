@@ -280,6 +280,9 @@ build-android-signed-apk-copy: build-and-copy
 .PHONY: build-android-signed-apk-beta-copy
 build-android-signed-apk-beta-copy: build-beta-and-copy
 
+# Aliases for linting and compiling
+.PHONY: lint
+lint: fmt-kotlin compile
 
 # ========================================
 # Version Management
