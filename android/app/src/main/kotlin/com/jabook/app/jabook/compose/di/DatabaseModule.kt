@@ -21,6 +21,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
+import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
+import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
+import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -142,8 +146,13 @@ object DatabaseModule {
                 context,
                 JabookDatabase::class.java,
                 "jabook-database",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_4_5, MIGRATION_5_6)
-            .build()
+            ).addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+            ).build()
 
     @Provides
     fun provideBooksDao(database: JabookDatabase): BooksDao = database.booksDao()
@@ -162,4 +171,7 @@ object DatabaseModule {
     @Provides
     fun provideDownloadHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao =
         database.downloadHistoryDao()
+
+    @Provides
+    fun provideFavoriteDao(database: JabookDatabase): FavoriteDao = database.favoriteDao()
 }

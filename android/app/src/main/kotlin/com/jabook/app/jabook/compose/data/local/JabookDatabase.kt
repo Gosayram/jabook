@@ -21,12 +21,14 @@ import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.dao.CookiesDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
+import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
+import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 
 /**
@@ -38,6 +40,7 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
  * enhanced library and playback features.
  * Database version 5: Added download_queue table for download queue management.
  * Database version 6: Added download_history table for tracking completed/failed downloads.
+ * Database version 7: Added favorites table for favorite audiobooks management.
  */
 @Database(
     entities = [
@@ -47,8 +50,9 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
         CookieEntity::class,
         DownloadQueueEntity::class,
         DownloadHistoryEntity::class,
+        FavoriteEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class JabookDatabase : RoomDatabase() {
@@ -63,4 +67,6 @@ abstract class JabookDatabase : RoomDatabase() {
     abstract fun downloadQueueDao(): DownloadQueueDao
 
     abstract fun downloadHistoryDao(): DownloadHistoryDao
+
+    abstract fun favoriteDao(): FavoriteDao
 }
