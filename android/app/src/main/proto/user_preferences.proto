@@ -35,6 +35,9 @@ message UserPreferences {
   // Download settings
   string download_path = 18; // URI string for selected download folder
   bool wifi_only_download = 19; // Restrict downloads to Wi-Fi only
+  bool limit_download_speed = 20; // Enable download speed limiting
+  int32 max_download_speed_kb = 21; // Max download speed in KB/s (0 = unlimited)
+  int32 max_concurrent_downloads = 22; // Max concurrent downloads (default 3)
 }
 
 // Theme mode enum

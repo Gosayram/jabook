@@ -43,6 +43,9 @@ object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setNotificationsEnabled(true)
             .setDownloadNotifications(true)
             .setPlayerNotifications(true)
+            .setLimitDownloadSpeed(false)
+            .setMaxDownloadSpeedKb(1000)
+            .setMaxConcurrentDownloads(3)
             .build()
 
     override suspend fun readFrom(input: InputStream): UserPreferences =

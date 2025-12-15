@@ -114,6 +114,21 @@ interface SettingsRepository {
     suspend fun updateWifiOnly(enabled: Boolean)
 
     /**
+     * Update download speed limiting.
+     */
+    suspend fun updateLimitDownloadSpeed(enabled: Boolean)
+
+    /**
+     * Update max download speed in KB/s.
+     */
+    suspend fun updateMaxDownloadSpeed(speedKb: Int)
+
+    /**
+     * Update max concurrent downloads.
+     */
+    suspend fun updateMaxConcurrentDownloads(count: Int)
+
+    /**
      * Reset all settings to defaults.
      */
     suspend fun resetToDefaults()
@@ -250,9 +265,27 @@ class ProtoSettingsRepository
             }
         }
 
+        override suspend fun updateLimitDownloadSpeed(enabled: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setLimitDownloadSpeed(enabled).build()
+            }
+        }
+
+        override suspend fun updateMaxDownloadSpeed(speedKb: Int) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setMaxDownloadSpeedKb(speedKb).build()
+            }
+        }
+
+        override suspend fun updateMaxConcurrentDownloads(count: Int) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setMaxConcurrentDownloads(count).build()
+            }
+        }
+
         override suspend fun resetToDefaults() {
             dataStore.updateData {
-                UserPreferencesSerializer.defaultValue
+                UserPreferences.getDefaultInstance()
             }
         }
     }

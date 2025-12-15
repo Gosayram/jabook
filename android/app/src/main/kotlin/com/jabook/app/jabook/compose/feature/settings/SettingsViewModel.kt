@@ -373,6 +373,33 @@ class SettingsViewModel
         fun resetCacheOperation() {
             _cacheOperation.value = CacheOperationState.Idle
         }
+
+        /**
+         * Toggle download speed limiting.
+         */
+        fun updateLimitDownloadSpeed(enabled: Boolean) {
+            viewModelScope.launch {
+                settingsRepository.updateLimitDownloadSpeed(enabled)
+            }
+        }
+
+        /**
+         * Update max download speed in KB/s.
+         */
+        fun updateMaxDownloadSpeed(speedKb: Int) {
+            viewModelScope.launch {
+                settingsRepository.updateMaxDownloadSpeed(speedKb)
+            }
+        }
+
+        /**
+         * Update max concurrent downloads.
+         */
+        fun updateMaxConcurrentDownloads(count: Int) {
+            viewModelScope.launch {
+                settingsRepository.updateMaxConcurrentDownloads(count)
+            }
+        }
     }
 
 /**

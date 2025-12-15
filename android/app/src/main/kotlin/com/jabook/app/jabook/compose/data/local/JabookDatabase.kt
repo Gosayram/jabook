@@ -19,22 +19,25 @@ import androidx.room.RoomDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.dao.CookiesDao
+import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
+import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 
 /**
  * The Room database for this app.
  *
- * Version 5: Added DownloadQueueEntity for persistent download queue management.
  * Version 4: Added CookieEntity for multi-stage cookie persistence.
  * Version 3: Added SearchHistoryEntity for search history persistence.
  * Version 2: Added new fields to BookEntity and ChapterEntity for
  * enhanced library and playback features.
+ * Database version 5: Added download_queue table for download queue management.
+ * Database version 6: Added download_history table for tracking completed/failed downloads.
  */
 @Database(
     entities = [
@@ -43,9 +46,10 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
         SearchHistoryEntity::class,
         CookieEntity::class,
         DownloadQueueEntity::class,
+        DownloadHistoryEntity::class,
     ],
-    version = 5,
-    exportSchema = true,
+    version = 6,
+    exportSchema = false,
 )
 abstract class JabookDatabase : RoomDatabase() {
     abstract fun booksDao(): BooksDao
@@ -57,4 +61,6 @@ abstract class JabookDatabase : RoomDatabase() {
     abstract fun cookiesDao(): CookiesDao
 
     abstract fun downloadQueueDao(): DownloadQueueDao
+
+    abstract fun downloadHistoryDao(): DownloadHistoryDao
 }

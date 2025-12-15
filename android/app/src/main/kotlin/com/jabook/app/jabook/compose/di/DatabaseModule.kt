@@ -107,6 +107,31 @@ object DatabaseModule {
             }
         }
 
+    /**
+     * Database migration from version 5 to version 6.
+     *
+     * Adds download_history table for tracking completed/failed downloads.
+     */
+    private val MIGRATION_5_6 =
+        object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `download_history` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `bookId` TEXT NOT NULL,
+                        `bookTitle` TEXT NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `startedAt` INTEGER NOT NULL,
+                        `completedAt` INTEGER NOT NULL,
+                        `totalBytes` INTEGER,
+                        `errorMessage` TEXT
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
     @Provides
     @Singleton
     fun provideJabookDatabase(
@@ -117,7 +142,7 @@ object DatabaseModule {
                 context,
                 JabookDatabase::class.java,
                 "jabook-database",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_4_5)
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_4_5, MIGRATION_5_6)
             .build()
 
     @Provides
@@ -133,4 +158,8 @@ object DatabaseModule {
     @Provides
     fun provideDownloadQueueDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao =
         database.downloadQueueDao()
+
+    @Provides
+    fun provideDownloadHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao =
+        database.downloadHistoryDao()
 }

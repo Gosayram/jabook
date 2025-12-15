@@ -260,11 +260,37 @@ private fun DownloadCard(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Text(
-                        text = "${(state.progress * 100).toInt()}% • ${state.formattedSpeed}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    // Progress percentage and speed in separate row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = "${(state.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = state.formattedSpeed,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                    // Downloaded / Total bytes
+                    if (state.totalBytes != null && state.totalBytes!! > 0) {
+                        Text(
+                            text = "${formatBytes(state.downloadedBytes)} / ${formatBytes(state.totalBytes!!)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            text = formatBytes(state.downloadedBytes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
 
                 is DownloadState.Paused -> {
@@ -307,3 +333,14 @@ private fun DownloadCard(
         }
     }
 }
+
+/**
+ * Format bytes to human-readable string.
+ */
+private fun formatBytes(bytes: Long): String =
+    when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+        bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+    }

@@ -255,6 +255,35 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::updateWifiOnly,
             )
 
+            // Bandwidth Limiting
+            SettingsSwitchItem(
+                title = "Limit Download Speed",
+                subtitle = "Set maximum download speed",
+                checked = protoSettings.limitDownloadSpeed,
+                onCheckedChange = viewModel::updateLimitDownloadSpeed,
+            )
+
+            if (protoSettings.limitDownloadSpeed) {
+                SettingsSliderItem(
+                    title = "Max Speed",
+                    subtitle = "${protoSettings.maxDownloadSpeedKb} KB/s",
+                    value = protoSettings.maxDownloadSpeedKb.toFloat(),
+                    valueRange = 100f..10000f,
+                    steps = 98,
+                    onValueChange = { viewModel.updateMaxDownloadSpeed(it.toInt()) },
+                )
+            }
+
+            // Concurrent Downloads
+            SettingsSliderItem(
+                title = "Concurrent Downloads",
+                subtitle = "${protoSettings.maxConcurrentDownloads} downloads",
+                value = protoSettings.maxConcurrentDownloads.toFloat(),
+                valueRange = 1f..10f,
+                steps = 8,
+                onValueChange = { viewModel.updateMaxConcurrentDownloads(it.toInt()) },
+            )
+
             HorizontalDivider()
 
             // Backup & Restore Section
