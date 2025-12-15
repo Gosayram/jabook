@@ -22,6 +22,7 @@ import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.compose.util.DateTimeFormatter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -30,10 +31,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -45,7 +42,7 @@ import javax.inject.Singleton
 class BackupService
     @Inject
     constructor(
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
         private val database: JabookDatabase,
         private val userPreferencesRepository: UserPreferencesRepository,
         private val protoSettingsRepository: ProtoSettingsRepository,
@@ -74,10 +71,7 @@ class BackupService
                     val backupData =
                         BackupData(
                             version = CURRENT_VERSION,
-                            timestamp =
-                                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-                                    .apply { timeZone = TimeZone.getTimeZone("UTC") }
-                                    .format(Date()),
+                            timestamp = DateTimeFormatter.formatCurrentISO8601(),
                             settings = collectSettings(),
                             bookMetadata = collectBookMetadata(),
                             favorites = emptyList(), // TODO: when favorites implemented
@@ -89,7 +83,7 @@ class BackupService
                     Log.d(TAG, "Serialized backup: ${jsonString.length} bytes")
 
                     // 3. Write to file
-                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                    val timestamp = DateTimeFormatter.formatCurrentForFilename()
                     val fileName = "jabook_backup_$timestamp.json"
                     val file = File(context.cacheDir, fileName)
                     file.writeText(jsonString)

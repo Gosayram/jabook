@@ -952,9 +952,8 @@ private fun formatBytes(bytes: Long): String =
     }
 
 /**
- * Format timestamp to readable date string.
+ * Format timestamp to readable date string (GOST 7.64-90 format).
  */
-private fun formatTimestamp(millis: Long): String {
-    val sdf = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault())
-    return sdf.format(java.util.Date(millis))
-}
+private fun formatTimestamp(millis: Long): String =
+    com.jabook.app.jabook.compose.util.DateTimeFormatter
+        .formatGOST(millis)

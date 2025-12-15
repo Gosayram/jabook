@@ -40,8 +40,8 @@ import javax.inject.Singleton
 class CookiePersistenceManager
     @Inject
     constructor(
+        @param:ApplicationContext private val context: Context,
         private val database: JabookDatabase,
-        @ApplicationContext private val context: Context,
         private val secureStorage: SecureCredentialStorage,
         private val cookieJar: PersistentCookieJar,
     ) {
