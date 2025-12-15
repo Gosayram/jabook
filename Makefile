@@ -83,8 +83,8 @@ clean:
 	@echo "✅ Cleaned build artifacts"
 
 # Compile Kotlin code
-.PHONY: clean compile
-compile:
+.PHONY: compile
+compile: clean compile 
 	@echo "Compiling Kotlin code for all flavors..."
 	@(cd android && ./gradlew :app:compileDevDebugKotlin :app:compileBetaDebugKotlin :app:compileProdDebugKotlin --no-daemon); \
 	EXIT_CODE=$$?; \
