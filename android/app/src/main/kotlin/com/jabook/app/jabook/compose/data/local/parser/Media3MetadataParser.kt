@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.data.local.parser
 
 import android.media.MediaMetadataRetriever
-import android.os.ParcelFileDescriptor
 import com.simplecityapps.ktaglib.KTagLib
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -49,50 +48,38 @@ class Media3MetadataParser
             }
 
         private fun parseWithKTagLib(file: File): AudioMetadata? {
+            // CRITICAL: Disable KTagLib on Android 16+ (API 36) due to FDSAN incompatibility.
+            // KTagLib's native code (libktaglib.so) uses fdopen() which violates Android 16's
+            // strict file descriptor ownership tracking (fdsan), causing SIGABRT crashes.
+            // MediaMetadataRetriever is a reliable fallback for all Android versions.
+            if (android.os.Build.VERSION.SDK_INT >= 36) {
+                android.util.Log.d("MetadataParser", "Skipping KTagLib on Android 16+ (FDSAN incompatibility)")
+                return null
+            }
+
             return try {
-                // IMPORTANT: Use separate ParcelFileDescriptors for metadata and artwork
-                // to avoid FDSAN errors on Android 16 (API 36). KTagLib internally
-                // changes file descriptor ownership, causing crashes when reusing the same PFD.
+                val pfd = android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+                pfd.use {
+                    val metadata = kTagLib.getMetadata(it.fd, file.name)
+                    val artwork = kTagLib.getArtwork(it.fd, file.name)
 
-                var metadata: com.simplecityapps.ktaglib.Metadata? = null
-                var artwork: ByteArray? = null
+                    if (metadata == null) return@use null
 
-                // First call: extract metadata
-                try {
-                    val pfdMeta = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-                    pfdMeta.use {
-                        metadata = kTagLib.getMetadata(it.fd, file.name)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("MetadataParser", "KTagLib metadata extraction failed", e)
+                    val props = metadata.propertyMap
+                    val audioProps = metadata.audioProperties
+
+                    AudioMetadata(
+                        title = props["TITLE"]?.firstOrNull(),
+                        artist = props["ARTIST"]?.firstOrNull(),
+                        album = props["ALBUM"]?.firstOrNull(),
+                        albumArtist = props["ALBUMARTIST"]?.firstOrNull(),
+                        duration = (audioProps?.duration ?: 0).toLong(),
+                        genre = props["GENRE"]?.firstOrNull(),
+                        year = props["DATE"]?.firstOrNull(),
+                        trackNumber = props["TRACKNUMBER"]?.firstOrNull()?.toIntOrNull(),
+                        coverArt = artwork,
+                    )
                 }
-
-                // Second call: extract artwork with NEW file descriptor
-                try {
-                    val pfdArt = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-                    pfdArt.use {
-                        artwork = kTagLib.getArtwork(it.fd, file.name)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("MetadataParser", "KTagLib artwork extraction failed", e)
-                }
-
-                if (metadata == null) return null
-
-                val props = metadata.propertyMap
-                val audioProps = metadata.audioProperties
-
-                AudioMetadata(
-                    title = props["TITLE"]?.firstOrNull(),
-                    artist = props["ARTIST"]?.firstOrNull(),
-                    album = props["ALBUM"]?.firstOrNull(),
-                    albumArtist = props["ALBUMARTIST"]?.firstOrNull(),
-                    duration = (audioProps?.duration ?: 0).toLong(),
-                    genre = props["GENRE"]?.firstOrNull(),
-                    year = props["DATE"]?.firstOrNull(),
-                    trackNumber = props["TRACKNUMBER"]?.firstOrNull()?.toIntOrNull(),
-                    coverArt = artwork,
-                )
             } catch (e: Exception) {
                 android.util.Log.w("MetadataParser", "KTagLib parsing failed", e)
                 null

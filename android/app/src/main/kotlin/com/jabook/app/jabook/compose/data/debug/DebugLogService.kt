@@ -75,13 +75,13 @@ class DebugLogService
                     logs.append("╔════════════════════════════════════════════╗\n")
                     logs.append("║       JABOOK DEBUG LOGS & DIAGNOSTICS      ║\n")
                     logs.append("╚════════════════════════════════════════════╝\n\n")
-                    
+
                     val currentDate = Date()
                     val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                     logs.append("📅 Captured: ${dateFormatter.format(currentDate)}\n")
                     logs.append("📦 Package: ${context.packageName}\n")
                     logs.append("🔖 Version: ${getAppVersion()}\n\n")
-                    
+
                     logs.append("📱 DEVICE INFORMATION\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
                     logs.append("Manufacturer: ${android.os.Build.MANUFACTURER}\n")
