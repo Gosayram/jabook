@@ -72,36 +72,49 @@ class DebugLogService
                     val logs = StringBuilder()
 
                     // Add header with comprehensive device info
-                    logs.append("=== Jabook Debug Logs ===\n")
-                    logs.append("Generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}\n")
-                    logs.append("Package: ${context.packageName}\n")
-                    logs.append("Version: ${getAppVersion()}\n")
-                    logs.append("Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})\n")
-                    logs.append("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n")
-
-                    // Additional device info
-                    logs.append("Build: ${android.os.Build.FINGERPRINT}\n")
-                    logs.append("Board: ${android.os.Build.BOARD}\n")
-                    logs.append("Product: ${android.os.Build.PRODUCT}\n")
+                    logs.append("╔════════════════════════════════════════════╗\n")
+                    logs.append("║       JABOOK DEBUG LOGS & DIAGNOSTICS      ║\n")
+                    logs.append("╚════════════════════════════════════════════╝\n\n")
+                    
+                    val currentDate = Date()
+                    val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    logs.append("📅 Captured: ${dateFormatter.format(currentDate)}\n")
+                    logs.append("📦 Package: ${context.packageName}\n")
+                    logs.append("🔖 Version: ${getAppVersion()}\n\n")
+                    
+                    logs.append("📱 DEVICE INFORMATION\n")
+                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                    logs.append("Manufacturer: ${android.os.Build.MANUFACTURER}\n")
+                    logs.append("Model: ${android.os.Build.MODEL}\n")
                     logs.append("Brand: ${android.os.Build.BRAND}\n")
+                    logs.append("Product: ${android.os.Build.PRODUCT}\n")
+                    logs.append("Board: ${android.os.Build.BOARD}\n")
                     logs.append("Hardware: ${android.os.Build.HARDWARE}\n")
+                    logs.append("Build: ${android.os.Build.FINGERPRINT}\n")
+                    logs.append("Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})\n\n")
 
-                    // Screen & Display info
+                    logs.append("🖥️ DISPLAY & SCREEN\n")
+                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
                     val displayMetrics = context.resources.displayMetrics
-                    logs.append("Screen: ${displayMetrics.widthPixels}x${displayMetrics.heightPixels} @ ${displayMetrics.densityDpi}dpi\n")
-                    logs.append("Density: ${displayMetrics.density}x\n")
+                    logs.append("Resolution: ${displayMetrics.widthPixels}×${displayMetrics.heightPixels}px\n")
+                    logs.append("Density: ${displayMetrics.densityDpi}dpi (${displayMetrics.density}x)\n\n")
 
-                    // Memory info
+                    logs.append("💾 MEMORY\n")
+                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
                     val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                     val memInfo = android.app.ActivityManager.MemoryInfo()
                     activityManager.getMemoryInfo(memInfo)
-                    logs.append("RAM Total: ${memInfo.totalMem / (1024 * 1024)}MB\n")
-                    logs.append("RAM Available: ${memInfo.availMem / (1024 * 1024)}MB\n")
+                    logs.append("Total RAM: ${memInfo.totalMem / (1024 * 1024)}MB\n")
+                    logs.append("Available: ${memInfo.availMem / (1024 * 1024)}MB\n\n")
 
-                    // CPU Architecture
-                    logs.append("ABI: ${android.os.Build.SUPPORTED_ABIS.joinToString(", ")}\n")
+                    logs.append("⚙️ CPU ARCHITECTURE\n")
+                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                    logs.append("ABIs: ${android.os.Build.SUPPORTED_ABIS.joinToString(", ")}\n\n")
 
-                    logs.append("===========================\n\n")
+                    logs.append("📋 SYSTEM LOGS (logcat)\n")
+                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                    logs.append("⚠️  Note: Dates below use system format MM-DD HH:mm:ss\n")
+                    logs.append("    (MM-DD = Month-Day, not Day-Month)\n\n")
 
                     // Collect logs
                     var line: String?
