@@ -74,4 +74,31 @@ interface DownloadRepository {
      * @return Flow of list of active downloads
      */
     fun getActiveDownloads(): Flow<List<DownloadInfo>>
+
+    /**
+     * Update download priority.
+     *
+     * Higher priority downloads are processed first.
+     *
+     * @param bookId ID of the book
+     * @param priority New priority level
+     */
+    suspend fun updatePriority(
+        bookId: String,
+        priority: com.jabook.app.jabook.compose.domain.model.DownloadPriority,
+    )
+
+    /**
+     * Reorder downloads in queue.
+     *
+     * @param bookIds List of book IDs in desired order
+     */
+    suspend fun reorderQueue(bookIds: List<String>)
+
+    /**
+     * Get downloads grouped by status for filtering.
+     *
+     * @return Flow of map with status as key and list of downloads as value
+     */
+    fun getDownloadsByStatus(): Flow<Map<String, List<DownloadInfo>>>
 }

@@ -23,8 +23,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.data.download.DownloadWorker
+import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.compose.domain.model.DownloadInfo
+import com.jabook.app.jabook.compose.domain.model.DownloadPriority
 import com.jabook.app.jabook.compose.domain.model.DownloadState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +47,7 @@ class WorkManagerDownloadRepository
     constructor(
         @param:ApplicationContext private val context: Context,
         private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository,
+        private val downloadQueueDao: DownloadQueueDao,
     ) : DownloadRepository {
         private val workManager = WorkManager.getInstance(context)
 
@@ -169,4 +172,38 @@ class WorkManagerDownloadRepository
                 WorkInfo.State.CANCELLED -> DownloadState.Idle
                 WorkInfo.State.BLOCKED -> DownloadState.Idle
             }
+
+        override suspend fun updatePriority(
+            bookId: String,
+            priority: DownloadPriority,
+        ) {
+            downloadQueueDao.updatePriority(bookId, priority.value)
+        }
+
+        override suspend fun reorderQueue(bookIds: List<String>) {
+            bookIds.forEachIndexed { index, bookId ->
+                downloadQueueDao.updatePosition(bookId, index)
+            }
+        }
+
+        override fun getDownloadsByStatus(): Flow<Map<String, List<DownloadInfo>>> =
+            downloadQueueDao
+                .getAllQueue()
+                .map { downloads ->
+                    downloads
+                        .groupBy { it.status }
+                        .mapValues { (_, entities) ->
+                            entities.map { entity ->
+                                DownloadInfo(
+                                    bookId = entity.bookId,
+                                    bookTitle = "Download ${entity.bookId}", // TODO: fetch from books table
+                                    torrentUrl = "",
+                                    state = DownloadState.Idle, // TODO: fetch from WorkManager
+                                    priority = DownloadPriority.fromValue(entity.priority),
+                                    queuePosition = entity.queuePosition,
+                                    createdAt = entity.createdAt,
+                                )
+                            }
+                        }
+                }.distinctUntilChanged()
     }

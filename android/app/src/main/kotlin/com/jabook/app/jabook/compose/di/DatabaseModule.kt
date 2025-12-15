@@ -84,6 +84,29 @@ object DatabaseModule {
             }
         }
 
+    /**
+     * Database migration from version 4 to version 5.
+     *
+     * Adds download_queue table for persistent download queue management.
+     */
+    private val MIGRATION_4_5 =
+        object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `download_queue` (
+                        `bookId` TEXT PRIMARY KEY NOT NULL,
+                        `priority` INTEGER NOT NULL,
+                        `queuePosition` INTEGER NOT NULL,
+                        `status` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
     @Provides
     @Singleton
     fun provideJabookDatabase(
@@ -94,7 +117,7 @@ object DatabaseModule {
                 context,
                 JabookDatabase::class.java,
                 "jabook-database",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_4_5)
             .build()
 
     @Provides
@@ -106,4 +129,8 @@ object DatabaseModule {
     @Provides
     fun provideSearchHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao =
         database.searchHistoryDao()
+
+    @Provides
+    fun provideDownloadQueueDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao =
+        database.downloadQueueDao()
 }
