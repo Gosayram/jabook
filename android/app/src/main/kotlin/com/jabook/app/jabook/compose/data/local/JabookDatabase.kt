@@ -19,23 +19,32 @@ import androidx.room.RoomDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.dao.CookiesDao
+import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
+import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 
 /**
  * The Room database for this app.
  *
+ * Version 5: Added DownloadQueueEntity for persistent download queue management.
  * Version 4: Added CookieEntity for multi-stage cookie persistence.
  * Version 3: Added SearchHistoryEntity for search history persistence.
  * Version 2: Added new fields to BookEntity and ChapterEntity for
  * enhanced library and playback features.
  */
 @Database(
-    entities = [BookEntity::class, ChapterEntity::class, SearchHistoryEntity::class, CookieEntity::class],
-    version = 4,
+    entities = [
+        BookEntity::class,
+        ChapterEntity::class,
+        SearchHistoryEntity::class,
+        CookieEntity::class,
+        DownloadQueueEntity::class,
+    ],
+    version = 5,
     exportSchema = true,
 )
 abstract class JabookDatabase : RoomDatabase() {
@@ -46,4 +55,6 @@ abstract class JabookDatabase : RoomDatabase() {
     abstract fun searchHistoryDao(): SearchHistoryDao
 
     abstract fun cookiesDao(): CookiesDao
+
+    abstract fun downloadQueueDao(): DownloadQueueDao
 }

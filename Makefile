@@ -84,7 +84,7 @@ clean:
 
 # Compile Kotlin code
 .PHONY: compile
-compile: compile 
+compile:
 	@echo "Compiling Kotlin code for all flavors..."
 	@(cd android && ./gradlew :app:compileDevDebugKotlin :app:compileBetaDebugKotlin :app:compileProdDebugKotlin --no-daemon); \
 	EXIT_CODE=$$?; \

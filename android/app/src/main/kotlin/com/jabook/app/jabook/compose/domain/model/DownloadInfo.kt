@@ -23,14 +23,18 @@ package com.jabook.app.jabook.compose.domain.model
  * @param bookTitle Title of the book for display
  * @param torrentUrl URL of the torrent file
  * @param state Current download state
+ * @param priority Download priority level
  * @param queuePosition Position in download queue (0 = downloading now, 1+ = queued)
+ * @param createdAt When download was created (Unix timestamp)
  */
 data class DownloadInfo(
     val bookId: String,
     val bookTitle: String,
     val torrentUrl: String,
     val state: DownloadState,
+    val priority: DownloadPriority = DownloadPriority.NORMAL,
     val queuePosition: Int = 0,
+    val createdAt: Long = System.currentTimeMillis(),
 ) {
     /**
      * Whether this download is currently active (downloading).
