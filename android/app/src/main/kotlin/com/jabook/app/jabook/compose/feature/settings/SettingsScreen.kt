@@ -74,6 +74,7 @@ import com.jabook.app.jabook.compose.data.model.AppTheme
 @Composable
 fun SettingsScreen(
     onNavigateToAuth: () -> Unit,
+    onNavigateToDebug: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -317,6 +318,17 @@ fun SettingsScreen(
                         .makeText(context, "Privacy Policy placeholder", android.widget.Toast.LENGTH_SHORT)
                         .show()
                 },
+            )
+
+            HorizontalDivider()
+
+            // Developer Tools Section
+            SettingsSection(title = "Developer")
+
+            SettingsItem(
+                title = "Debug Tools",
+                subtitle = "View logs, test mirrors, check cache",
+                onClick = onNavigateToDebug,
             )
 
             Spacer(modifier = Modifier.height(16.dp))

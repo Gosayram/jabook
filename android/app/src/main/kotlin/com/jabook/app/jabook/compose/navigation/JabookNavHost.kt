@@ -204,6 +204,9 @@ fun JabookNavHost(
                 onNavigateToAuth = {
                     navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
                 },
+                onNavigateToDebug = {
+                    navController.navigate(DebugRoute)
+                },
             )
         }
 
