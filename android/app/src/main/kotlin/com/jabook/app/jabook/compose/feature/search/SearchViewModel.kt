@@ -16,7 +16,9 @@ package com.jabook.app.jabook.compose.feature.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
+import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -68,6 +71,7 @@ class SearchViewModel
         private val searchBooksUseCase: SearchBooksUseCase,
         private val searchRutrackerUseCase: SearchRutrackerUseCase,
         private val searchHistoryRepository: com.jabook.app.jabook.compose.data.repository.SearchHistoryRepository,
+        private val favoritesRepository: FavoritesRepository,
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
@@ -115,6 +119,18 @@ class SearchViewModel
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = emptyList(),
+                )
+
+        /**
+         * Favorite IDs for checking status.
+         */
+        val favoriteIds: StateFlow<Set<String>> =
+            favoritesRepository.favoriteIds
+                .map { it.toSet() }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptySet(),
                 )
 
         /**
@@ -266,6 +282,44 @@ class SearchViewModel
         fun clearSearchHistory() {
             viewModelScope.launch {
                 searchHistoryRepository.clearAll()
+            }
+        }
+
+        /**
+         * Toggle favorite status for a search result.
+         */
+        fun toggleFavorite(result: SearchResult) {
+            viewModelScope.launch {
+                if (favoriteIds.value.contains(result.topicId)) {
+                    favoritesRepository.removeFromFavorites(result.topicId)
+                } else {
+                    val favorite =
+                        FavoriteEntity(
+                            topicId = result.topicId,
+                            title = result.title,
+                            author = result.author,
+                            category = result.category,
+                            size = result.size,
+                            seeders = result.seeders,
+                            leechers = result.leechers,
+                            magnetUrl = result.magnetUrl ?: "",
+                            coverUrl = "", // Not available in search result
+                            performer = "",
+                            genres = "",
+                            addedDate =
+                                java.time.Instant
+                                    .now()
+                                    .toString(),
+                            addedToFavorites =
+                                java.time.Instant
+                                    .now()
+                                    .toString(),
+                            duration = null,
+                            bitrate = null,
+                            audioCodec = null,
+                        )
+                    favoritesRepository.addToFavorites(favorite)
+                }
             }
         }
     }

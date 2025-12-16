@@ -34,9 +34,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -103,6 +105,7 @@ fun SearchScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val filters by viewModel.filters.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+    val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
 
     var showFiltersSheet by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -252,7 +255,9 @@ fun SearchScreen(
                 is SearchUiState.Success -> {
                     OnlineSearchResults(
                         results = state.onlineResults,
+                        favoriteIds = favoriteIds,
                         onBookClick = onOnlineBookClick,
+                        onToggleFavorite = viewModel::toggleFavorite,
                     )
                 }
 
@@ -407,7 +412,9 @@ private fun SearchHistoryList(
 @Composable
 private fun OnlineSearchResults(
     results: List<SearchResult>,
+    favoriteIds: Set<String>,
     onBookClick: (SearchResult) -> Unit,
+    onToggleFavorite: (SearchResult) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (results.isEmpty()) {
@@ -428,7 +435,9 @@ private fun OnlineSearchResults(
             ) { result ->
                 OnlineBookCard(
                     result = result,
+                    isFavorite = favoriteIds.contains(result.topicId),
                     onClick = { onBookClick(result) },
+                    onToggleFavorite = { onToggleFavorite(result) },
                 )
             }
         }
@@ -441,15 +450,31 @@ private fun OnlineSearchResults(
 @Composable
 private fun OnlineBookCard(
     result: SearchResult,
+    isFavorite: Boolean,
     onClick: () -> Unit,
+    onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Using BookCard with online data
-    BookCard(
-        title = result.title,
-        author = result.author,
-        coverUrl = null, // No cover from search results
-        onClick = onClick,
-        modifier = modifier,
-    )
+    Box(modifier = modifier) {
+        // Using BookCard with online data
+        BookCard(
+            title = result.title,
+            author = result.author,
+            coverUrl = null, // No cover from search results
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Favorite Button
+        IconButton(
+            onClick = onToggleFavorite,
+            modifier = Modifier.align(Alignment.TopEnd),
+        ) {
+            Icon(
+                imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                tint = if (isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }

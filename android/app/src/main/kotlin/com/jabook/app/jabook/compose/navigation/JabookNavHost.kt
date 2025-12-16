@@ -25,6 +25,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.compose.feature.downloads.DownloadsScreen
+import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
 import com.jabook.app.jabook.compose.feature.search.SearchScreen
@@ -276,6 +277,23 @@ fun JabookNavHost(
                 topicId = route.topicId,
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+            )
+        }
+
+        // Favorites screen - shows user's favorite audiobooks
+        composable<FavoritesRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://favorites" },
+                ),
+        ) {
+            FavoritesScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToTopic = { topicId: String ->
+                    navController.navigate(TopicRoute(topicId = topicId))
                 },
             )
         }

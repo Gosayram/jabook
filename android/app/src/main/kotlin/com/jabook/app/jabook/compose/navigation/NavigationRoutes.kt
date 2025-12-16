@@ -69,6 +69,12 @@ object SearchRoute
 object DownloadsRoute
 
 /**
+ * Download History screen route - shows history of downloads.
+ */
+@Serializable
+object DownloadHistoryRoute
+
+/**
  * Debug screen route - shows debug tools and logs.
  */
 @Serializable
@@ -83,3 +89,9 @@ object DebugRoute
 data class TopicRoute(
     val topicId: String,
 )
+
+/**
+ * Favorites screen route - shows user's favorite audiobooks.
+ */
+@Serializable
+object FavoritesRoute
