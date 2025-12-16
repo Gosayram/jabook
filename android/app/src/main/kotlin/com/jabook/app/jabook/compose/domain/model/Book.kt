@@ -60,6 +60,8 @@ data class Book(
     val lastPlayedDate: Long?,
     val isFavorite: Boolean,
     val sourceUrl: String?,
+    val rewindDuration: Int? = null,
+    val forwardDuration: Int? = null,
 ) {
     /**
      * Calculated remaining duration to complete the book.
@@ -72,13 +74,6 @@ data class Book(
      */
     val isStarted: Boolean
         get() = currentPosition.inWholeMilliseconds > 0
-
-    /**
-     * Whether the book is completed (progress >= 0.98).
-     * Uses 98% threshold to account for floating point precision.
-     */
-    val isCompleted: Boolean
-        get() = progress >= 0.98f
 
     /**
      * Whether the book is currently downloading.
@@ -97,6 +92,13 @@ data class Book(
      */
     val isAvailableOffline: Boolean
         get() = isDownloaded
+
+    /**
+     * Whether the book is completed (progress >= 0.98).
+     * Uses 98% threshold to account for floating point precision.
+     */
+    val isCompleted: Boolean
+        get() = progress >= 0.98f
 
     companion object {
         /**
@@ -145,6 +147,8 @@ fun BookEntity.toBook() =
         lastPlayedDate = lastPlayedDate,
         isFavorite = isFavorite,
         sourceUrl = sourceUrl,
+        rewindDuration = rewindDuration,
+        forwardDuration = forwardDuration,
     )
 
 /**
@@ -168,6 +172,8 @@ fun Book.toEntity() =
         lastPlayedDate = lastPlayedDate,
         isFavorite = isFavorite,
         sourceUrl = sourceUrl,
+        rewindDuration = rewindDuration,
+        forwardDuration = forwardDuration,
         isDownloaded = downloadStatus == DownloadStatus.DOWNLOADED,
     )
 

@@ -76,6 +76,11 @@ data class BookEntity(
     val isFavorite: Boolean = false,
     @ColumnInfo(name = "source_url")
     val sourceUrl: String? = null,
+    // Per-book playback settings (null = use global default)
+    @ColumnInfo(name = "rewind_duration")
+    val rewindDuration: Int? = null,
+    @ColumnInfo(name = "forward_duration")
+    val forwardDuration: Int? = null,
     // Legacy field for backwards compatibility
     @ColumnInfo(name = "is_downloaded")
     val isDownloaded: Boolean = false,

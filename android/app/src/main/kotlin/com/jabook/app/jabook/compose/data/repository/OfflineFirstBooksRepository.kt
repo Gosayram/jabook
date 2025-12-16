@@ -104,6 +104,18 @@ class OfflineFirstBooksRepository
             booksDao.deleteById(bookId)
         }
 
+        override suspend fun updateBookSettings(
+            bookId: String,
+            rewindDuration: Int?,
+            forwardDuration: Int?,
+        ) {
+            booksDao.updateBookSettings(bookId, rewindDuration, forwardDuration)
+        }
+
+        override suspend fun resetAllBookSettings() {
+            booksDao.resetAllBookSettings()
+        }
+
         override suspend fun refresh() {
             // No-op for offline-first implementation
             // In a network-enabled version, this would fetch from remote

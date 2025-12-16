@@ -2229,4 +2229,18 @@
     <string name="seekBackward10s">Seek backward 10s</string>
     <!-- Seek forward 30s -->
     <string name="seekForward30s">Seek forward 30s</string>
+    <!-- Reset all per-book settings -->
+    <!-- Confirmation for resetting all book settings -->
+    <!-- Suffix for seconds -->
+    <string name="secondsSuffix">%d s</string>
+    <!-- Description for seek forward button -->
+    <string name="seekForwardDescription">Seek forward %d seconds</string>
+    <!-- Description for seek backward button -->
+    <string name="seekBackwardDescription">Seek backward %d seconds</string>
+    <!-- Override book settings title -->
+    <string name="overrideBookSettings">Override book settings</string>
+    <!-- Use global settings option -->
+    <string name="useGlobalSettings">Use global settings</string>
+    <!-- Custom settings option -->
+    <string name="customSettings">Custom settings</string>
 </resources>

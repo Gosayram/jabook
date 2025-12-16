@@ -57,6 +57,7 @@ class PlayerViewModel
         private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository,
         private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
         private val sleepTimerRepository: com.jabook.app.jabook.compose.data.repository.SleepTimerRepository,
+        private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
     ) : ViewModel() {
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
@@ -66,7 +67,7 @@ class PlayerViewModel
         private var isBookLoaded = false
 
         /**
-         * Combined UI state from book data and playback state.
+         * Combined UI state from book data, playback state, and settings.
          */
         val uiState: StateFlow<PlayerUiState> =
             combine(
@@ -75,10 +76,29 @@ class PlayerViewModel
                 playerController.isPlaying,
                 playerController.currentPosition,
                 playerController.currentChapterIndex,
-            ) { book, chapters, playing, position, chapterIndex ->
+                settingsRepository.userPreferences,
+            ) { args ->
+                val book = args[0] as? Book
+
+                @Suppress("UNCHECKED_CAST")
+                val chapters = args[1] as List<Chapter>
+                val playing = args[2] as Boolean
+                val position = args[3] as Long
+                val chapterIndex = args[4] as Int
+                val preferences = args[5] as com.jabook.app.jabook.compose.data.preferences.UserPreferences
+
                 if (book == null) {
                     PlayerUiState.Error("Book not found")
                 } else {
+                    // Calculate effective seek intervals
+                    // Priority: Book Override -> Global Setting -> Hardcoded Default
+                    val rewindInterval =
+                        book.rewindDuration
+                            ?: if (preferences.rewindDurationSeconds > 0) preferences.rewindDurationSeconds.toInt() else 10
+                    val forwardInterval =
+                        book.forwardDuration
+                            ?: if (preferences.forwardDurationSeconds > 0) preferences.forwardDurationSeconds.toInt() else 30
+
                     PlayerUiState.Success(
                         book = book,
                         chapters = chapters,
@@ -86,6 +106,8 @@ class PlayerViewModel
                         currentPosition = position,
                         currentChapterIndex = chapterIndex,
                         currentChapter = chapters.getOrNull(chapterIndex),
+                        rewindInterval = rewindInterval,
+                        forwardInterval = forwardInterval,
                     )
                 }
             }.stateIn(
@@ -155,19 +177,24 @@ class PlayerViewModel
             playerController.skipToChapter(chapterIndex)
         }
 
-        fun seekForward(seconds: Int = 30) {
+        fun seekForward() {
             val state = uiState.value
             if (state is PlayerUiState.Success && state.currentChapter != null) {
+                val interval = state.forwardInterval
                 val newPosition =
-                    (playerController.currentPosition.value + seconds * 1000)
+                    (playerController.currentPosition.value + interval * 1000)
                         .coerceAtMost(state.currentChapter.duration.inWholeMilliseconds)
                 seekTo(newPosition)
             }
         }
 
-        fun seekBackward(seconds: Int = 10) {
-            val newPosition = (playerController.currentPosition.value - seconds * 1000).coerceAtLeast(0)
-            seekTo(newPosition)
+        fun seekBackward() {
+            val state = uiState.value
+            if (state is PlayerUiState.Success) {
+                val interval = state.rewindInterval
+                val newPosition = (playerController.currentPosition.value - interval * 1000).coerceAtLeast(0)
+                seekTo(newPosition)
+            }
         }
 
         fun setPlaybackSpeed(speed: Float) {
@@ -182,6 +209,21 @@ class PlayerViewModel
 
         fun cancelSleepTimer() {
             sleepTimerRepository.cancelTimer()
+        }
+
+        fun updateBookSeekSettings(
+            rewindSeconds: Int?,
+            forwardSeconds: Int?,
+        ) {
+            viewModelScope.launch {
+                updateBookSettingsUseCase(bookId, rewindSeconds, forwardSeconds)
+            }
+        }
+
+        fun resetBookSeekSettings() {
+            viewModelScope.launch {
+                updateBookSettingsUseCase.resetForBook(bookId)
+            }
         }
 
         /**
@@ -223,6 +265,8 @@ sealed interface PlayerUiState {
         val currentPosition: Long, // milliseconds
         val currentChapterIndex: Int,
         val currentChapter: Chapter?,
+        val rewindInterval: Int,
+        val forwardInterval: Int,
     ) : PlayerUiState
 
     /**

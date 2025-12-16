@@ -52,7 +52,7 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
         DownloadHistoryEntity::class,
         FavoriteEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class JabookDatabase : RoomDatabase() {

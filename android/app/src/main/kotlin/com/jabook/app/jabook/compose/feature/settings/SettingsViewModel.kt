@@ -54,6 +54,7 @@ class SettingsViewModel
         private val mirrorManager: MirrorManager,
         private val backupService: BackupService,
         private val cacheManager: CacheManager,
+        private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
     ) : ViewModel() {
         // Exposure of auth status for UI
         val authStatus =
@@ -398,6 +399,15 @@ class SettingsViewModel
         fun updateMaxConcurrentDownloads(count: Int) {
             viewModelScope.launch {
                 settingsRepository.updateMaxConcurrentDownloads(count)
+            }
+        }
+
+        /**
+         * Resets all per-book custom seek settings to global defaults.
+         */
+        fun resetAllBookSettings() {
+            viewModelScope.launch {
+                updateBookSettingsUseCase.resetAll()
             }
         }
     }

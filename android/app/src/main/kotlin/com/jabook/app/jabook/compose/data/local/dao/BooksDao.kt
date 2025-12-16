@@ -213,6 +213,22 @@ interface BooksDao {
     fun searchBooksFlow(query: String): Flow<List<BookEntity>>
 
     /**
+     * Updates per-book playback settings.
+     */
+    @Query("UPDATE books SET rewind_duration = :rewindDuration, forward_duration = :forwardDuration WHERE id = :bookId")
+    suspend fun updateBookSettings(
+        bookId: String,
+        rewindDuration: Int?,
+        forwardDuration: Int?,
+    )
+
+    /**
+     * Resets all per-book playback settings to global defaults (NULL).
+     */
+    @Query("UPDATE books SET rewind_duration = NULL, forward_duration = NULL")
+    suspend fun resetAllBookSettings()
+
+    /**
      * Deletes a book by ID.
      * Chapters will be cascade deleted due to foreign key constraint.
      */

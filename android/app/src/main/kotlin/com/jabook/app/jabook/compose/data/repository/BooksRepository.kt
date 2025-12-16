@@ -85,4 +85,18 @@ interface BooksRepository {
      * For now, this is a no-op as books are managed locally.
      */
     suspend fun refresh()
+
+    /**
+     * Update per-book playback settings (seek intervals).
+     */
+    suspend fun updateBookSettings(
+        bookId: String,
+        rewindDuration: Int?,
+        forwardDuration: Int?,
+    )
+
+    /**
+     * Reset all per-book playback settings to global defaults.
+     */
+    suspend fun resetAllBookSettings()
 }

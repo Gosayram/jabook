@@ -2261,8 +2261,22 @@
     <string name="apache20OpenSourceLicense">Лицензия с открытым исходным кодом Apache 2.0</string>
     <!-- Компактный просмотр списка -->
     <string name="compactListView">Компактный просмотр списка</string>
-    <!-- Искать 10 секунд назад -->
-    <string name="seekBackward10s">Искать 10 секунд назад</string>
-    <!-- Ищите вперед 30-е годы -->
-    <string name="seekForward30s">Ищите вперед 30-е годы</string>
+    <!-- Прокрутить назад на 10 секунд -->
+    <string name="seekBackward10s">Прокрутить назад на 10 секунд</string>
+    <!-- Прокрутить вперед на 30 секунд -->
+    <string name="seekForward30s">Прокрутить вперед на 30 секунд</string>
+    <!-- Сбросить настройки для всех книг -->
+    <!-- Подтверждение сброса настроек -->
+    <!-- Суффикс секунд -->
+    <string name="secondsSuffix">%d с</string>
+    <!-- Описание кнопки вперед -->
+    <string name="seekForwardDescription">Вперед на %d секунд</string>
+    <!-- Описание кнопки назад -->
+    <string name="seekBackwardDescription">Назад на %d секунд</string>
+    <!-- Настройки книги -->
+    <string name="overrideBookSettings">Настройки книги</string>
+    <!-- Использовать общие настройки -->
+    <string name="useGlobalSettings">Использовать общие настройки</string>
+    <!-- Свои настройки -->
+    <string name="customSettings">Свои настройки</string>
 </resources>

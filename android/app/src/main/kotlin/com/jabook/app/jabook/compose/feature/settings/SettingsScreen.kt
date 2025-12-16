@@ -539,6 +539,93 @@ fun SettingsScreen(
                 onValueChange = viewModel::updatePlaybackSpeed,
             )
 
+            // Seek Intervals
+            SettingsSliderItem(
+                title = stringResource(R.string.rewindDurationTitle),
+                subtitle =
+                    String.format(
+                        stringResource(R.string.secondsSuffix),
+                        if (protoSettings.rewindDurationSeconds >
+                            0
+                        ) {
+                            protoSettings.rewindDurationSeconds
+                        } else {
+                            10
+                        },
+                    ),
+                value =
+                    (
+                        if (protoSettings.rewindDurationSeconds > 0) {
+                            protoSettings.rewindDurationSeconds
+                        } else {
+                            10
+                        }
+                    ).toFloat(),
+                valueRange = 5f..60f,
+                steps = 10, // (60-5)/5 - 1 = 10 steps of size 5
+                onValueChange = { viewModel.updateAudioSettings(rewindSeconds = it.toInt()) },
+            )
+
+            SettingsSliderItem(
+                title = stringResource(R.string.forwardDurationTitle),
+                subtitle =
+                    String.format(
+                        stringResource(R.string.secondsSuffix),
+                        if (protoSettings.forwardDurationSeconds >
+                            0
+                        ) {
+                            protoSettings.forwardDurationSeconds
+                        } else {
+                            30
+                        },
+                    ),
+                value =
+                    (
+                        if (protoSettings.forwardDurationSeconds > 0) {
+                            protoSettings.forwardDurationSeconds
+                        } else {
+                            30
+                        }
+                    ).toFloat(),
+                valueRange = 5f..60f,
+                steps = 10,
+                onValueChange = { viewModel.updateAudioSettings(forwardSeconds = it.toInt()) },
+            )
+
+            // Reset Global Book Settings
+            var showResetBookSettingsDialog by remember { mutableStateOf(false) }
+
+            SettingsItem(
+                title = stringResource(R.string.resetAllBookSettings),
+                subtitle =
+                    stringResource(R.string.resetAllBookSettingsConfirmation)
+                        .substringBefore("\n"), // Use first line as subtitle or full desc
+                onClick = { showResetBookSettingsDialog = true },
+            )
+
+            if (showResetBookSettingsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showResetBookSettingsDialog = false },
+                    title = { Text(stringResource(R.string.resetAllBookSettings)) },
+                    text = { Text(stringResource(R.string.resetAllBookSettingsConfirmation)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.resetAllBookSettings()
+                                showResetBookSettingsDialog = false
+                            },
+                        ) {
+                            Text(stringResource(R.string.resetButton))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showResetBookSettingsDialog = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    },
+                )
+            }
+
             HorizontalDivider()
 
             // About Section

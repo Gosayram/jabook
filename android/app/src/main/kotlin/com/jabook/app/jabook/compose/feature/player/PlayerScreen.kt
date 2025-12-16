@@ -26,12 +26,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
@@ -39,6 +41,7 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -69,6 +72,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
+import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -109,6 +113,7 @@ fun PlayerScreen(
 
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
+    var showSettingsSheet by remember { mutableStateOf(false) }
 
     // Handle back gesture for swipe-to-dismiss
     androidx.activity.compose.BackHandler {
@@ -134,6 +139,17 @@ fun PlayerScreen(
         )
     }
 
+    // Player Settings Sheet
+    if (showSettingsSheet && uiState is PlayerUiState.Success) {
+        val state = uiState as PlayerUiState.Success
+        PlayerSettingsSheet(
+            book = state.book,
+            onUpdateSettings = viewModel::updateBookSeekSettings,
+            onResetSettings = viewModel::resetBookSeekSettings,
+            onDismiss = { showSettingsSheet = false },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -142,6 +158,14 @@ fun PlayerScreen(
                     TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
                     ),
+                actions = {
+                    IconButton(onClick = { showSettingsSheet = true }) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.settings),
+                        )
+                    }
+                },
             )
         },
         modifier = modifier,
@@ -338,7 +362,7 @@ private fun PlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Replay,
-                        contentDescription = stringResource(R.string.seekBackward10s),
+                        contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
                         modifier = Modifier.size(40.dp),
                     )
                 }
@@ -378,7 +402,7 @@ private fun PlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.FastForward,
-                        contentDescription = stringResource(R.string.seekForward30s),
+                        contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
                         modifier = Modifier.size(40.dp),
                     )
                 }
@@ -459,6 +483,122 @@ private fun PlayerContent(
                     onClick = { onSelectChapter(index) },
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlayerSettingsSheet(
+    book: com.jabook.app.jabook.compose.domain.model.Book,
+    onUpdateSettings: (Int?, Int?) -> Unit,
+    onResetSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    JabookModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.overrideBookSettings),
+                style = MaterialTheme.typography.headlineSmall,
+            )
+
+            // Switch: Use Global / Custom
+            var useGlobal by remember {
+                mutableStateOf(book.rewindDuration == null && book.forwardDuration == null)
+            }
+
+            // Local state for sliders (init from book or default 10/30 if null)
+            var rewindSeconds by remember { mutableStateOf((book.rewindDuration ?: 10).toFloat()) }
+            var forwardSeconds by remember { mutableStateOf((book.forwardDuration ?: 30).toFloat()) }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.useGlobalSettings),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                androidx.compose.material3.Switch(
+                    checked = useGlobal,
+                    onCheckedChange = {
+                        useGlobal = it
+                        if (it) {
+                            onResetSettings()
+                        } else {
+                            // When switching to custom, save current slider values
+                            onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
+                        }
+                    },
+                )
+            }
+
+            if (!useGlobal) {
+                HorizontalDivider()
+
+                Text(
+                    text = stringResource(R.string.customSettings),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+
+                // Rewind Slider
+                Text(
+                    text = stringResource(R.string.rewindDurationTitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Slider(
+                        value = rewindSeconds,
+                        onValueChange = {
+                            rewindSeconds = it
+                            onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
+                        },
+                        valueRange = 5f..60f,
+                        steps = 10,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = String.format(stringResource(R.string.secondsSuffix), rewindSeconds.toInt()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.width(48.dp),
+                        textAlign = TextAlign.End,
+                    )
+                }
+
+                // Forward Slider
+                Text(
+                    text = stringResource(R.string.forwardDurationTitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Slider(
+                        value = forwardSeconds,
+                        onValueChange = {
+                            forwardSeconds = it
+                            onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
+                        },
+                        valueRange = 5f..60f,
+                        steps = 10,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = String.format(stringResource(R.string.secondsSuffix), forwardSeconds.toInt()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.width(48.dp),
+                        textAlign = TextAlign.End,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
