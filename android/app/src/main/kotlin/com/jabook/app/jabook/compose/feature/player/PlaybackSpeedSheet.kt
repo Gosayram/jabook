@@ -62,7 +62,7 @@ fun PlaybackSpeedSheet(
                     .padding(bottom = 16.dp),
         ) {
             Text(
-                text = stringResource(R.string.скоростьВоспроизведения),
+                text = stringResource(R.string.playbackSpeed),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )

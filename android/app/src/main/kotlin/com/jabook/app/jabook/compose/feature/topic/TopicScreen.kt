@@ -99,7 +99,7 @@ fun TopicScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.деталиКниги)) },
+                title = { Text(stringResource(R.string.bookDetails)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -215,19 +215,19 @@ private fun TopicDetailsContent(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     details.duration?.let {
                         Text(
-                            text = stringResource(R.string.длительностьIt),
+                            text = stringResource(R.string.durationFormat),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     details.bitrate?.let {
                         Text(
-                            text = stringResource(R.string.битрейтIt),
+                            text = stringResource(R.string.bitrateFormat),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     details.audioCodec?.let {
                         Text(
-                            text = stringResource(R.string.форматIt),
+                            text = stringResource(R.string.formatFormat),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
@@ -245,7 +245,7 @@ private fun TopicDetailsContent(
         // File List Header
         item {
             Text(
-                text = stringResource(R.string.файлы),
+                text = stringResource(R.string.files),
                 style = MaterialTheme.typography.titleMedium,
             )
         }
@@ -305,7 +305,7 @@ private fun ExpandableDescription(
 
     Column(modifier = modifier) {
         Text(
-            text = stringResource(R.string.описание),
+            text = stringResource(R.string.description),
             style = MaterialTheme.typography.titleMedium,
         )
 
@@ -325,7 +325,7 @@ private fun ExpandableDescription(
 
         if (description.length > maxPreviewLength) {
             TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) stringResource(R.string.свернуть) else stringResource(R.string.развернуть))
+                Text(if (expanded) stringResource(R.string.collapse) else stringResource(R.string.expand))
             }
         }
     }
@@ -367,7 +367,7 @@ private fun ErrorContent(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = stringResource(R.string.ошибкаMessage),
+            text = stringResource(R.string.errorMessageFormat),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.error,
         )
@@ -375,7 +375,7 @@ private fun ErrorContent(
         Spacer(Modifier.height(16.dp))
 
         Button(onClick = onRetry) {
-            Text(stringResource(R.string.повторить))
+            Text(stringResource(R.string.retry))
         }
     }
 }

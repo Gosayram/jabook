@@ -784,9 +784,7 @@
     <!-- Step 1 for storage permission guidance -->
     <string name="storagePermissionGuidanceStep1">1. Open JaBook app settings</string>
     <!-- Step 2 for storage permission guidance -->
-    <string name="storagePermissionGuidanceStep2">2. Go to Permissions section</string>
     <!-- Step 3 for storage permission guidance -->
-    <string name="storagePermissionGuidanceStep3">3. Enable \"Files and media\" or \"Storage\" permission</string>
     <!-- Title for MIUI storage permission guidance dialog -->
     <string name="storagePermissionGuidanceMiuiTitle">File Access Permission (MIUI)</string>
     <!-- Message for MIUI storage permission guidance dialog -->
@@ -794,9 +792,7 @@
     <!-- Step 1 for MIUI storage permission guidance -->
     <string name="storagePermissionGuidanceMiuiStep1">1. Open Settings → Apps → JaBook → Permissions</string>
     <!-- Step 2 for MIUI storage permission guidance -->
-    <string name="storagePermissionGuidanceMiuiStep2">2. Enable \"Files and media\" or \"Storage\" permission</string>
     <!-- Step 3 for MIUI storage permission guidance -->
-    <string name="storagePermissionGuidanceMiuiStep3">3. If access is limited, enable \"Manage all files\" in MIUI Security settings</string>
     <!-- Note for MIUI storage permission guidance -->
     <string name="storagePermissionGuidanceMiuiNote">Note: On some MIUI versions, you may need to additionally enable \"Manage all files\" in Settings → Security → Permission management.</string>
     <!-- Title for ColorOS/RealmeUI storage permission guidance dialog -->
@@ -806,9 +802,7 @@
     <!-- Step 1 for ColorOS/RealmeUI storage permission guidance -->
     <string name="storagePermissionGuidanceColorosStep1">1. Open Settings → Apps → JaBook → Permissions</string>
     <!-- Step 2 for ColorOS/RealmeUI storage permission guidance -->
-    <string name="storagePermissionGuidanceColorosStep2">2. Enable \"Files and media\" permission</string>
     <!-- Step 3 for ColorOS/RealmeUI storage permission guidance -->
-    <string name="storagePermissionGuidanceColorosStep3">3. If access is limited, check \"Files and media\" settings in permissions section</string>
     <!-- Note for ColorOS/RealmeUI storage permission guidance -->
     <string name="storagePermissionGuidanceColorosNote">Note: On some ColorOS versions, you may need to additionally allow file access in security settings.</string>
     <!-- Button text to open settings -->
@@ -1781,9 +1775,7 @@
     <!-- Default step 1 for manufacturer settings -->
     <string name="manufacturerSettingsDefaultStep1">1. Enable application autostart</string>
     <!-- Default step 2 for manufacturer settings -->
-    <string name="manufacturerSettingsDefaultStep2">2. Disable battery optimization for the application</string>
     <!-- Default step 3 for manufacturer settings -->
-    <string name="manufacturerSettingsDefaultStep3">3. Allow background activity</string>
     <!-- Title for MIUI manufacturer settings -->
     <string name="manufacturerSettingsMiuiTitle">MIUI Settings for Stable Operation</string>
     <!-- Message for MIUI manufacturer settings -->
@@ -1791,9 +1783,7 @@
     <!-- Step 1 for MIUI settings -->
     <string name="manufacturerSettingsMiuiStep1">1. Autostart: Settings → Apps → Permission management → Autostart → Enable for {appName}</string>
     <!-- Step 2 for MIUI settings -->
-    <string name="manufacturerSettingsMiuiStep2">2. Battery optimization: Settings → Battery → Battery optimization → Select {appName} → Don\'t optimize</string>
     <!-- Step 3 for MIUI settings -->
-    <string name="manufacturerSettingsMiuiStep3">3. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow</string>
     <!-- Title for EMUI manufacturer settings -->
     <string name="manufacturerSettingsEmuiTitle">EMUI Settings for Stable Operation</string>
     <!-- Message for EMUI manufacturer settings -->
@@ -1801,9 +1791,7 @@
     <!-- Step 1 for EMUI settings -->
     <string name="manufacturerSettingsEmuiStep1">1. App protection: Settings → Apps → App protection → {appName} → Enable autostart</string>
     <!-- Step 2 for EMUI settings -->
-    <string name="manufacturerSettingsEmuiStep2">2. Battery management: Settings → Battery → Battery management → {appName} → Don\'t optimize</string>
     <!-- Step 3 for EMUI settings -->
-    <string name="manufacturerSettingsEmuiStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
     <!-- Title for ColorOS/RealmeUI manufacturer settings -->
     <string name="manufacturerSettingsColorosTitle">ColorOS/RealmeUI Settings for Stable Operation</string>
     <!-- Message for ColorOS/RealmeUI manufacturer settings -->
@@ -1811,9 +1799,7 @@
     <!-- Step 1 for ColorOS/RealmeUI settings -->
     <string name="manufacturerSettingsColorosStep1">1. Autostart: Settings → Apps → Autostart → Enable for {appName}</string>
     <!-- Step 2 for ColorOS/RealmeUI settings -->
-    <string name="manufacturerSettingsColorosStep2">2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize</string>
     <!-- Step 3 for ColorOS/RealmeUI settings -->
-    <string name="manufacturerSettingsColorosStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
     <!-- Title for OxygenOS manufacturer settings -->
     <string name="manufacturerSettingsOxygenosTitle">OxygenOS Settings for Stable Operation</string>
     <!-- Message for OxygenOS manufacturer settings -->
@@ -1821,9 +1807,7 @@
     <!-- Step 1 for OxygenOS settings -->
     <string name="manufacturerSettingsOxygenosStep1">1. Autostart: Settings → Apps → Autostart → Enable for {appName}</string>
     <!-- Step 2 for OxygenOS settings -->
-    <string name="manufacturerSettingsOxygenosStep2">2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize</string>
     <!-- Step 3 for OxygenOS settings -->
-    <string name="manufacturerSettingsOxygenosStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
     <!-- Title for FuntouchOS/OriginOS manufacturer settings -->
     <string name="manufacturerSettingsFuntouchosTitle">FuntouchOS/OriginOS Settings for Stable Operation</string>
     <!-- Message for FuntouchOS/OriginOS manufacturer settings -->
@@ -1831,9 +1815,7 @@
     <!-- Step 1 for FuntouchOS/OriginOS settings -->
     <string name="manufacturerSettingsFuntouchosStep1">1. Autostart: Settings → Apps → Autostart → Enable for {appName}</string>
     <!-- Step 2 for FuntouchOS/OriginOS settings -->
-    <string name="manufacturerSettingsFuntouchosStep2">2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize</string>
     <!-- Step 3 for FuntouchOS/OriginOS settings -->
-    <string name="manufacturerSettingsFuntouchosStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
     <!-- Title for Flyme manufacturer settings -->
     <string name="manufacturerSettingsFlymeTitle">Flyme Settings for Stable Operation</string>
     <!-- Message for Flyme manufacturer settings -->
@@ -1841,9 +1823,7 @@
     <!-- Step 1 for Flyme settings -->
     <string name="manufacturerSettingsFlymeStep1">1. Autostart: Settings → Apps → Autostart → Enable for {appName}</string>
     <!-- Step 2 for Flyme settings -->
-    <string name="manufacturerSettingsFlymeStep2">2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize</string>
     <!-- Step 3 for Flyme settings -->
-    <string name="manufacturerSettingsFlymeStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
     <!-- Title for One UI manufacturer settings -->
     <string name="manufacturerSettingsOneuiTitle">One UI Settings for Stable Operation</string>
     <!-- Message for One UI manufacturer settings -->
@@ -1851,9 +1831,7 @@
     <!-- Step 1 for One UI settings -->
     <string name="manufacturerSettingsOneuiStep1">1. Battery optimization: Settings → Apps → {appName} → Battery → Don\'t optimize</string>
     <!-- Step 2 for One UI settings -->
-    <string name="manufacturerSettingsOneuiStep2">2. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow</string>
     <!-- Step 3 for One UI settings -->
-    <string name="manufacturerSettingsOneuiStep3">3. Autostart: Usually not required on Samsung, but you can check in app settings</string>
     <!-- Track position indicator -->
     <string name="trackOfTotal">Track {currentTrack} of {totalTracks}</string>
     <!-- Tracks section title with plural -->
@@ -1999,7 +1977,6 @@
     <!-- $leechers -->
     <string name="leechers">$leechers</string>
     <!-- Leechers -->
-    <string name="leechers1">Leechers</string>
     <!-- Loading logs... -->
     <string name="loadingLogs">Loading logs...</string>
     <!-- Mirrors testing - Coming soon -->
@@ -2027,7 +2004,6 @@
     <!-- $seeders -->
     <string name="seeders">$seeders</string>
     <!-- Seeders -->
-    <string name="seeders1">Seeders</string>
     <!-- Share logs -->
     <string name="shareLogs">Share logs</string>
     <!-- Sleep Timer -->
@@ -2043,19 +2019,18 @@
     <!-- Unavailable -->
     <string name="unavailable">Unavailable</string>
     <!-- Детали книги -->
-    <string name="деталиКниги">Детали книги</string>
+    <string name="bookDetails">Детали книги</string>
     <!-- Добавить -->
-    <string name="добавить">Добавить</string>
+    <string name="add">Добавить</string>
     <!-- Добавить зеркало -->
-    <string name="добавитьЗеркало">Добавить зеркало</string>
+    <string name="addMirror">Добавить зеркало</string>
     <!-- Домен -->
-    <string name="домен">Домен</string>
+    <string name="domain">Домен</string>
     <!-- Отмена -->
-    <string name="отмена">Отмена</string>
+    <string name="cancelAction">Отмена</string>
     <!-- Отменить таймер -->
-    <string name="отменитьТаймер">Отменить таймер</string>
+    <string name="cancelTimer">Отменить таймер</string>
     <!-- Повторить -->
-    <string name="повторить">Повторить</string>
 
     <!-- Add audiobooks to get started -->
     <string name="addAudiobooksToGetStarted">Add audiobooks to get started</string>
@@ -2076,13 +2051,10 @@
     <!-- Calculating... -->
     <string name="calculating">Calculating...</string>
     <!-- Captcha required -->
-    <string name="captchaRequired1">Captcha required</string>
     <!-- Chapter $number -->
-    <string name="chapterNumber1">Chapter $number</string>
     <!-- Choose app theme -->
     <string name="chooseAppTheme">Choose app theme</string>
     <!-- Clear Cache -->
-    <string name="clearCache1">Clear Cache</string>
     <!-- Completed -->
     <string name="completed">Completed</string>
     <!-- Completed downloads will appear here -->
@@ -2133,7 +2105,6 @@
     <!-- Limit Download Speed -->
     <string name="limitDownloadSpeed">Limit Download Speed</string>
     <!-- Loading -->
-    <string name="loading1">Loading</string>
     <!-- Login failed -->
     <string name="loginFailed">Login failed</string>
     <!-- Login to Rutracker -->
@@ -2168,7 +2139,6 @@
     <!-- Save settings and library to backup file -->
     <string name="saveSettingsAndLibraryToBackupFile">Save settings and library to backup file</string>
     <!-- Search books -->
-    <string name="searchBooks1">Search books</string>
     <!-- Set maximum download speed -->
     <string name="setMaximumDownloadSpeed">Set maximum download speed</string>
     <!-- sid -->
@@ -2176,7 +2146,6 @@
     <!-- Storage Access Required -->
     <string name="storageAccessRequired">Storage Access Required</string>
     <!-- System default -->
-    <string name="systemDefault1">System default</string>
     <!-- Tap to logout -->
     <string name="tapToLogout">Tap to logout</string>
     <!-- This will clear all cached data. Downloaded audiobooks will not be affected. Continue? -->
@@ -2184,7 +2153,6 @@
     <!-- This will replace your current settings. Are you sure you want to continue? -->
     <string name="thisWillReplaceYourCurrentSettingsAreYouSureYouWan">This will replace your current settings. Are you sure you want to continue?</string>
     <!-- Total Cache Size -->
-    <string name="totalCacheSize1">Total Cache Size</string>
     <!-- Total: Error -->
     <string name="totalError">Total: Error</string>
     <!-- Version -->
@@ -2196,113 +2164,108 @@
     <!-- Wi-Fi Only -->
     <string name="wifiOnly">Wi-Fi Only</string>
     <!-- Автоматически переключаться на рабочее зеркало при ошибках -->
-    <string name="автоматическиПереключатьсяНаРабочееЗеркалоПриОшибк">Автоматически переключаться на рабочее зеркало при ошибках</string>
+    <string name="autoSwitchToWorkingMirrorOnError">Автоматически переключаться на рабочее зеркало при ошибках</string>
     <!-- Автоматически проигрывать следующую главу когда текущая закончится -->
-    <string name="автоматическиПроигрыватьСледующуюГлавуКогдаТекущая">Автоматически проигрывать следующую главу когда текущая закончится</string>
+    <string name="autoPlayNextChapter">Автоматически проигрывать следующую главу когда текущая закончится</string>
     <!-- Автопереключение -->
-    <string name="автопереключение">Автопереключение</string>
+    <string name="autoSwitching">Автопереключение</string>
     <!-- Авто-проигрывание следующей главы -->
-    <string name="автопроигрываниеСледующейГлавы">Авто-проигрывание следующей главы</string>
+    <string name="autoPlayNextChapterTitle">Авто-проигрывание следующей главы</string>
     <!-- Библиотека -->
-    <string name="библиотека">Библиотека</string>
     <!-- Битрейт: $it -->
-    <string name="битрейтIt">Битрейт: $it</string>
+    <string name="bitrateFormat">Битрейт: $it</string>
     <!-- Браузер -->
-    <string name="браузер">Браузер</string>
+    <string name="browser">Браузер</string>
     <!-- Введите URL зеркала -->
-    <string name="введитеUrlЗеркала">Введите URL зеркала</string>
+    <string name="enterMirrorUrl">Введите URL зеркала</string>
     <!-- Введите домен зеркала RuTracker -->
-    <string name="введитеДоменЗеркалаRutracker">Введите домен зеркала RuTracker</string>
+    <string name="enterRutrackerMirrorDomain">Введите домен зеркала RuTracker</string>
     <!-- Версия -->
-    <string name="версия">Версия</string>
+    <string name="versionTitle">Версия</string>
     <!-- Внешний вид -->
-    <string name="внешнийВид">Внешний вид</string>
+    <string name="appearanceTitle">Внешний вид</string>
     <!-- Воспроизведение -->
-    <string name="воспроизведение">Воспроизведение</string>
+    <string name="playbackTitle">Воспроизведение</string>
     <!-- Воспроизведение автоматически остановится -->
-    <string name="воспроизведениеАвтоматическиОстановится">Воспроизведение автоматически остановится</string>
+    <string name="playbackWillStopAutomatically">Воспроизведение автоматически остановится</string>
     <!-- Выберите тему приложения -->
-    <string name="выберитеТемуПриложения">Выберите тему приложения</string>
+    <string name="chooseAppThemeTitle">Выберите тему приложения</string>
     <!-- Глава $number -->
-    <string name="главаNumber">Глава $number</string>
+    <string name="chapterNumberFormat">Глава $number</string>
     <!-- Длительность: $it -->
-    <string name="длительностьIt">Длительность: $it</string>
+    <string name="durationFormat">Длительность: $it</string>
     <!-- Добавить свое зеркало -->
-    <string name="добавитьСвоеЗеркало">Добавить свое зеркало</string>
+    <string name="addCustomMirror">Добавить свое зеркало</string>
     <!-- Добавьте аудиокниги чтобы начать -->
-    <string name="добавьтеАудиокнигиЧтобыНачать">Добавьте аудиокниги чтобы начать</string>
+    <string name="addAudiobooksToStart">Добавьте аудиокниги чтобы начать</string>
     <!-- Загрузка... -->
-    <string name="загрузка">Загрузка...</string>
+    <string name="loadingEllipsis">Загрузка...</string>
     <!-- Загрузка -->
-    <string name="загрузка1">Загрузка</string>
     <!-- Закрыть -->
-    <string name="закрыть">Закрыть</string>
     <!-- Зеркало $domain добавлено -->
-    <string name="зеркалоDomainДобавлено">Зеркало $domain добавлено</string>
+    <string name="mirrorAddedFormat">Зеркало $domain добавлено</string>
     <!-- Играть -->
-    <string name="играть">Играть</string>
+    <string name="play">Играть</string>
     <!-- Назад -->
-    <string name="назад">Назад</string>
+    <string name="backButton">Назад</string>
     <!-- Настройки -->
-    <string name="настройки">Настройки</string>
+    <string name="settings">Настройки</string>
     <!-- Неверный URL. Используйте формат: rutracker.example -->
-    <string name="неверныйUrlИспользуйтеФорматRutrackerexample">Неверный URL. Используйте формат: rutracker.example</string>
+    <string name="invalidUrlFormatError">Неверный URL. Используйте формат: rutracker.example</string>
     <!-- Неизвестно -->
-    <string name="неизвестно">Неизвестно</string>
+    <string name="unknownStat">Неизвестно</string>
     <!-- Нет аудиокниг -->
-    <string name="нетАудиокниг">Нет аудиокниг</string>
+    <string name="noAudiobooksFound">Нет аудиокниг</string>
     <!-- О приложении -->
-    <string name="оПриложении">О приложении</string>
+    <string name="aboutApp">О приложении</string>
     <!-- Описание -->
-    <string name="описание">Описание</string>
+    <string name="description">Описание</string>
     <!-- Ошибка -->
-    <string name="ошибка">Ошибка</string>
     <!-- Ошибка: $message -->
-    <string name="ошибкаMessage">Ошибка: $message</string>
+    <string name="errorMessageFormat">Ошибка: $message</string>
     <!-- Пауза -->
-    <string name="пауза">Пауза</string>
+    <string name="pause">Пауза</string>
     <!-- Поиск книг -->
-    <string name="поискКниг">Поиск книг</string>
+    <string name="searchBooksTitle">Поиск книг</string>
     <!-- Предыдущая глава -->
-    <string name="предыдущаяГлава">Предыдущая глава</string>
+    <string name="previousChapterTitle">Предыдущая глава</string>
     <!-- Проверить -->
-    <string name="проверить">Проверить</string>
+    <string name="check">Проверить</string>
     <!-- Развернуть -->
-    <string name="развернуть">Развернуть</string>
+    <string name="expand">Развернуть</string>
     <!-- Свернуть -->
-    <string name="свернуть">Свернуть</string>
+    <string name="collapse">Свернуть</string>
     <!-- Светлая -->
-    <string name="светлая">Светлая</string>
+    <string name="lightThemeName">Светлая</string>
     <!-- Сейчас играет -->
-    <string name="сейчасИграет">Сейчас играет</string>
+    <string name="nowPlayingTitle">Сейчас играет</string>
     <!-- Сеть и Зеркала -->
-    <string name="сетьИЗеркала">Сеть и Зеркала</string>
+    <string name="networkAndMirrors">Сеть и Зеркала</string>
     <!-- Системная -->
-    <string name="системная">Системная</string>
+    <string name="systemThemeName">Системная</string>
     <!-- Скорость воспроизведения -->
-    <string name="скоростьВоспроизведения">Скорость воспроизведения</string>
     <!-- Следующая глава -->
-    <string name="следующаяГлава">Следующая глава</string>
+    <string name="nextChapterTitle">Следующая глава</string>
     <!-- Таймер -->
-    <string name="таймер">Таймер</string>
+    <string name="timer">Таймер</string>
     <!-- Таймер активен -->
-    <string name="таймерАктивен">Таймер активен</string>
+    <string name="timerActive">Таймер активен</string>
     <!-- Таймер сна -->
-    <string name="таймерСна">Таймер сна</string>
+    <string name="sleepTimerTitle">Таймер сна</string>
     <!-- Текущее зеркало -->
-    <string name="текущееЗеркало">Текущее зеркало</string>
+    <string name="currentMirror">Текущее зеркало</string>
     <!-- Тема -->
-    <string name="тема">Тема</string>
+    <string name="theme">Тема</string>
     <!-- Тёмная -->
-    <string name="тёмная">Тёмная</string>
+    <string name="darkThemeName">Тёмная</string>
     <!-- Удалить -->
-    <string name="удалить">Удалить</string>
+    <string name="deleteAction">Удалить</string>
     <!-- Файлы -->
-    <string name="файлы">Файлы</string>
+    <string name="files">Файлы</string>
     <!-- Формат: $it -->
-    <string name="форматIt">Формат: $it</string>
+    <string name="formatFormat">Формат: $it</string>
     <!-- Это зеркало уже добавлено -->
-    <string name="этоЗеркалоУжеДобавлено">Это зеркало уже добавлено</string>
+    <string name="mirrorAlreadyAddedError">Это зеркало уже добавлено</string>
 
     <!-- Debug Section - RuTracker -->
     <string name="rutrackerTab">RuTracker</string>

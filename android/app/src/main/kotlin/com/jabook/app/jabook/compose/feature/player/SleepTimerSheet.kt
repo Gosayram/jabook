@@ -69,7 +69,7 @@ fun SleepTimerSheet(
                     .padding(bottom = 16.dp),
         ) {
             Text(
-                text = stringResource(R.string.таймерСна),
+                text = stringResource(R.string.sleepTimerTitle),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -112,7 +112,7 @@ fun SleepTimerSheet(
                                 .padding(16.dp),
                     ) {
                         Text(
-                            text = stringResource(R.string.таймерАктивен),
+                            text = stringResource(R.string.timerActive),
                             style = MaterialTheme.typography.titleMedium,
                         )
 
@@ -123,7 +123,7 @@ fun SleepTimerSheet(
                         )
 
                         Text(
-                            text = stringResource(R.string.воспроизведениеАвтоматическиОстановится),
+                            text = stringResource(R.string.playbackWillStopAutomatically),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -137,7 +137,7 @@ fun SleepTimerSheet(
                             },
                             modifier = Modifier.fillMaxWidth(0.7f),
                         ) {
-                            Text(stringResource(R.string.отменитьТаймер))
+                            Text(stringResource(R.string.cancelTimer))
                         }
                     }
                 }

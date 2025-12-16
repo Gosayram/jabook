@@ -131,10 +131,10 @@ fun SettingsScreen(
             var healthCheckInProgress by remember { mutableStateOf<String?>(null) }
             val healthStatus = remember { mutableStateOf<Map<String, Boolean?>>(emptyMap()) }
 
-            SettingsSection(title = stringResource(R.string.сетьИЗеркала))
+            SettingsSection(title = stringResource(R.string.networkAndMirrors))
 
             SettingsItem(
-                title = stringResource(R.string.текущееЗеркало),
+                title = stringResource(R.string.currentMirror),
                 subtitle = currentMirror,
             )
 
@@ -172,15 +172,15 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             SettingsSwitchItem(
-                title = stringResource(R.string.автопереключение),
-                subtitle = stringResource(R.string.автоматическиПереключатьсяНаРабочееЗеркалоПриОшибк),
+                title = stringResource(R.string.autoSwitching),
+                subtitle = stringResource(R.string.autoSwitchToWorkingMirrorOnError),
                 checked = protoSettings.autoSwitchMirror,
                 onCheckedChange = viewModel::updateAutoSwitch,
             )
 
             SettingsItem(
-                title = stringResource(R.string.добавитьСвоеЗеркало),
-                subtitle = stringResource(R.string.введитеUrlЗеркала),
+                title = stringResource(R.string.addCustomMirror),
+                subtitle = stringResource(R.string.enterMirrorUrl),
                 onClick = {
                     customMirrorUrl = ""
                     showAddMirrorDialog = true
@@ -199,17 +199,17 @@ fun SettingsScreen(
                             viewModel.addCustomMirror(domain)
                             showAddMirrorDialog = false
                             android.widget.Toast
-                                .makeText(context, context.getString(R.string.зеркалоDomainДобавлено), android.widget.Toast.LENGTH_SHORT)
+                                .makeText(context, context.getString(R.string.mirrorAddedFormat), android.widget.Toast.LENGTH_SHORT)
                                 .show()
                         } else if (domain in availableMirrors) {
                             android.widget.Toast
-                                .makeText(context, context.getString(R.string.этоЗеркалоУжеДобавлено), android.widget.Toast.LENGTH_SHORT)
+                                .makeText(context, context.getString(R.string.mirrorAlreadyAddedError), android.widget.Toast.LENGTH_SHORT)
                                 .show()
                         } else {
                             android.widget.Toast
                                 .makeText(
                                     context,
-                                    context.getString(R.string.неверныйUrlИспользуйтеФорматRutrackerexample),
+                                    context.getString(R.string.invalidUrlFormatError),
                                     android.widget.Toast.LENGTH_SHORT,
                                 ).show()
                         }
@@ -924,13 +924,13 @@ private fun MirrorOption(
             onClick = onCheckHealth,
             enabled = !isChecking,
         ) {
-            Text(stringResource(R.string.проверить), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.check), style = MaterialTheme.typography.bodySmall)
         }
 
         // Remove button for custom mirrors
         if (onRemove != null) {
             TextButton(onClick = onRemove) {
-                Text(stringResource(R.string.удалить), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.deleteAction), style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -948,18 +948,18 @@ private fun AddMirrorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.добавитьЗеркало)) },
+        title = { Text(stringResource(R.string.addMirror)) },
         text = {
             Column {
                 Text(
-                    stringResource(R.string.введитеДоменЗеркалаRutracker),
+                    stringResource(R.string.enterRutrackerMirrorDomain),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = currentValue,
                     onValueChange = onValueChange,
-                    label = { Text(stringResource(R.string.домен)) },
+                    label = { Text(stringResource(R.string.domain)) },
                     placeholder = { Text(stringResource(R.string.rutrackernl)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -974,12 +974,12 @@ private fun AddMirrorDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.добавить))
+                Text(stringResource(R.string.add))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.отмена))
+                Text(stringResource(R.string.cancelAction))
             }
         },
     )

@@ -429,7 +429,7 @@ private fun PlayerContent(
                     Text(
                         text =
                             when (sleepTimerState) {
-                                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle -> stringResource(R.string.таймер)
+                                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle -> stringResource(R.string.timer)
                                 is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active ->
                                     (sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime
                             },
