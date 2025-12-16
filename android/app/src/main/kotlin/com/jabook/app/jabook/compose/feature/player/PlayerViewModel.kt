@@ -172,7 +172,7 @@ class PlayerViewModel
 
         fun setPlaybackSpeed(speed: Float) {
             viewModelScope.launch {
-                settingsRepository.updatePlaybackSpeed(speed)
+                userPreferencesRepository.setPlaybackSpeed(speed)
             }
         }
 

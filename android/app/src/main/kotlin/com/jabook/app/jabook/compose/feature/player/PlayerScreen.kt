@@ -29,8 +29,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
@@ -163,7 +165,9 @@ fun PlayerScreen(
                         onSkipNext = viewModel::skipToNext,
                         onSkipPrevious = viewModel::skipToPrevious,
                         onSeek = viewModel::seekTo,
-                        onChapterClick = viewModel::skipToChapter,
+                        onSeekForward = viewModel::seekForward,
+                        onSeekBackward = viewModel::seekBackward,
+                        onSelectChapter = viewModel::skipToChapter,
                         onSpeedClick = { showSpeedSheet = true },
                         onSleepTimerClick = { showSleepTimerSheet = true },
                         sharedTransitionScope = sharedTransitionScope,
@@ -192,7 +196,9 @@ private fun PlayerContent(
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
     onSeek: (Long) -> Unit,
-    onChapterClick: (Int) -> Unit,
+    onSeekForward: () -> Unit,
+    onSeekBackward: () -> Unit,
+    onSelectChapter: (Int) -> Unit,
     onSpeedClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -312,7 +318,7 @@ private fun PlayerContent(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Skip previous
@@ -324,6 +330,18 @@ private fun PlayerContent(
                         imageVector = Icons.Filled.SkipPrevious,
                         contentDescription = stringResource(R.string.previousChapter),
                         modifier = Modifier.size(48.dp),
+                    )
+                }
+
+                // Seek backward (10s)
+                IconButton(
+                    onClick = onSeekBackward,
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Replay,
+                        contentDescription = "Seek backward 10s",
+                        modifier = Modifier.size(40.dp),
                     )
                 }
 
@@ -352,6 +370,18 @@ private fun PlayerContent(
                                 stringResource(R.string.playButton)
                             },
                         modifier = Modifier.size(48.dp),
+                    )
+                }
+
+                // Seek forward (30s)
+                IconButton(
+                    onClick = onSeekForward,
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FastForward,
+                        contentDescription = "Seek forward 30s",
+                        modifier = Modifier.size(40.dp),
                     )
                 }
 
@@ -428,7 +458,7 @@ private fun PlayerContent(
                     chapter = chapter,
                     index = index + 1,
                     isCurrent = index == state.currentChapterIndex,
-                    onClick = { onChapterClick(index) },
+                    onClick = { onSelectChapter(index) },
                 )
             }
         }
