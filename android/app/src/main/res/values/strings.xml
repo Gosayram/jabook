@@ -2069,8 +2069,6 @@
     <string name="autoplayNextChapter">Auto-play next chapter</string>
     <!-- Backup of Jabook settings and data -->
     <string name="backupOfJabookSettingsAndData">Backup of Jabook settings and data</string>
-    <!-- Cache cleared: $clearedSizeFormatted -->
-    <string name="cacheClearedClearedsizeformatted">Cache cleared: $clearedSizeFormatted</string>
     <!-- Cache: Error -->
     <string name="cacheError">Cache: Error</string>
     <!-- Cache Management -->
@@ -2108,10 +2106,8 @@
     <string name="developer">Developer</string>
     <!-- Download only via Wi-Fi -->
     <string name="downloadOnlyViaWifi">Download only via Wi-Fi</string>
-    <!--  else  -->
-    <string name="else"> else </string>
-    <!-- en -->
-    <string name="en">en</string>
+
+
     <!-- Export Backup -->
     <string name="exportBackup">Export Backup</string>
     <!-- Import successful! $stats -->
@@ -2154,8 +2150,6 @@
     <string name="noDownloadHistory">No download history</string>
     <!-- Now Playing -->
     <string name="nowPlaying">Now Playing</string>
-    <!-- } of cached data. Continue? -->
-    <string name="ofCachedDataContinue">} of cached data. Continue?</string>
     <!-- Open Source Licenses -->
     <string name="openSourceLicenses">Open Source Licenses</string>
     <!-- Options -->
@@ -2170,8 +2164,7 @@
     <string name="requiredToDownloadTorrents">Required to download torrents</string>
     <!-- Restore settings and library from backup -->
     <string name="restoreSettingsAndLibraryFromBackup">Restore settings and library from backup</string>
-    <!-- ru -->
-    <string name="ru">ru</string>
+
     <!-- Save settings and library to backup file -->
     <string name="saveSettingsAndLibraryToBackupFile">Save settings and library to backup file</string>
     <!-- Search books -->

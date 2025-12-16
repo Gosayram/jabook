@@ -131,7 +131,18 @@ class StringResourceMigrator:
                 # Skip annotations - @Suppress, @Deprecated, @SuppressLint, etc.
                 if re.search(r'@(Suppress|Deprecated|SuppressLint|SuppressWarnings|Annotation)', line):
                     continue
-                
+
+                # SAFETY: Skip lines with complex interpolation (nested braces, code in strings)
+                # These often contain nested quotes which regex struggles with,
+                # and usually require manual migration with format args anyway.
+                if '${' in line:
+                    continue
+
+                # SAFETY: Skip 'const val' declarations
+                # stringResource() cannot be used in const val (compile-time constant required)
+                if 'const val ' in line:
+                    continue
+
                 # Find ALL string literals that look like UI text (not technical strings)
                 # Match: "any text" but exclude technical patterns
                 all_strings = re.findall(r'"([^"]+)"', line)
@@ -141,8 +152,10 @@ class StringResourceMigrator:
                     if self._is_technical_string(match):
                         continue
                     
-                    # Skip template strings
-                    if match.startswith('$'):
+                    # Skip template strings (variables)
+                    # Any presence of '$' means it's a template and can't be auto-migrated
+                    # because stringResource() doesn't support $var syntax directly (needs args)
+                    if '$' in match:
                         continue
                         
                     # This looks like UI text
@@ -192,10 +205,6 @@ class StringResourceMigrator:
             if text.startswith(verb + ' '):
                 return True
         
-        # Strings with many variables (likely debug logs)
-        if text.count('$') >= 2:  # More than 2 variables
-            return True
-        
         # Technical patterns in text
         technical_patterns = [
             'MediaSession', 'PendingIntent', 'Notification', 'ViewModel',
@@ -203,7 +212,7 @@ class StringResourceMigrator:
             'Handler', 'Callback', 'Listener', 'Observer', 'Worker',
             'mediaItem', 'currentIndex', 'trackIndex', 'positionMs',
             'attempt=', 'state=', 'count=', 'index=', 'position=',
-            '${', 'total=', 'expected=', 'current='
+            'total=', 'expected=', 'current='
         ]
         
         for pattern in technical_patterns:
@@ -213,8 +222,14 @@ class StringResourceMigrator:
         # All lowercase technical identifiers (method names, variables)
         if text.islower() and len(text) > 3 and ' ' not in text:
             return True
+        
+        # Reserved keywords or single words that cause issues
+        if text == 'else':
+            return True
             
         # Format specifiers (e.g. %.2f, %d, %s)
+        # Any string containing % followed by a format char is likely a format string
+        # which should NOT be put into strings.xml unless carefully handled.
         if '%' in text and re.search(r'%[\d\.]*[dfs]', text):
             return True
 

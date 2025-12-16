@@ -2116,10 +2116,7 @@
     <string name="developer">Разработчик</string>
     <!-- Загрузка только через Wi-Fi -->
     <string name="downloadOnlyViaWifi">Загрузка только через Wi-Fi</string>
-    <!-- еще -->
-    <string name="else">еще</string>
-    <!-- ru -->
-    <string name="en">ru</string>
+
     <!-- Экспортировать резервную копию -->
     <string name="exportBackup">Экспортировать резервную копию</string>
     <!-- Импорт выполнен успешно! $статистика -->
@@ -2178,8 +2175,6 @@
     <string name="requiredToDownloadTorrents">Требуется для скачивания торрентов</string>
     <!-- Восстановление настроек и библиотеки из резервной копии -->
     <string name="restoreSettingsAndLibraryFromBackup">Восстановление настроек и библиотеки из резервной копии</string>
-    <!-- ру -->
-    <string name="ru">ру</string>
     <!-- Сохраните настройки и библиотеку в файл резервной копии. -->
     <string name="saveSettingsAndLibraryToBackupFile">Сохраните настройки и библиотеку в файл резервной копии.</string>
     <!-- Поиск книг -->
