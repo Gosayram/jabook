@@ -705,4 +705,3 @@ EOF
 perl -i -0pe 's/\n\n\n+/\n\n/g' "${OUTPUT_FILE}"
 
 echo "Generated CHANGELOG.md at ${OUTPUT_FILE}"
-echo "✅ CHANGELOG.md generated"
