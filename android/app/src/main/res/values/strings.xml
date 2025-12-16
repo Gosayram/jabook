@@ -1964,4 +1964,12 @@
     <string name="noBooksInLibrary">No books in your library yet.\nAdd books to get started!</string>
     <string name="storagePermissionRequired">Storage permission required to scan books</string>
     <string name="foundBooksMessage">Found %1$d books</string>
+    <!-- Cancel -->
+    <string name="cancel1">Cancel</string>
+    <!-- Clear All Favorites? -->
+    <string name="clearAllFavorites1">Clear All Favorites?</string>
+    <!-- Select -->
+    <string name="select">Select</string>
+    <!-- This will remove all favorite audiobooks. This action cannot be undone. -->
+    <string name="thisWillRemoveAllFavoriteAudiobooksThisActionCanno">This will remove all favorite audiobooks. This action cannot be undone.</string>
 </resources>

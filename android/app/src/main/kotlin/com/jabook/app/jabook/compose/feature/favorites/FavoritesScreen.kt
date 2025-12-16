@@ -60,6 +60,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.ui.favorites.FavoritesViewModel
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Favorites screen displaying user's favorite audiobooks.
@@ -144,7 +146,7 @@ fun FavoritesScreen(
                                 onDismissRequest = { showMenu = false },
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Select") },
+                                    text = { Text(stringResource(R.string.select)) },
                                     leadingIcon = { Icon(Icons.Default.Checklist, null) },
                                     onClick = {
                                         isSelectionMode = true
@@ -355,9 +357,9 @@ private fun ClearAllFavoritesDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Clear All Favorites?") },
+        title = { Text(stringResource(R.string.clearAllFavorites1)) },
         text = {
-            Text("This will remove all favorite audiobooks. This action cannot be undone.")
+            Text(stringResource(R.string.thisWillRemoveAllFavoriteAudiobooksThisActionCanno))
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
@@ -366,7 +368,7 @@ private fun ClearAllFavoritesDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel1))
             }
         },
     )
