@@ -94,7 +94,7 @@ fun SearchFiltersSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Filters",
+                    text = stringResource(R.string.filters),
                     style = MaterialTheme.typography.titleLarge,
                 )
                 IconButton(onClick = onDismiss) {
@@ -104,7 +104,7 @@ fun SearchFiltersSheet(
 
             // Status (Seeders)
             Text(
-                text = "Minimum Seeders",
+                text = stringResource(R.string.minimumSeeders),
                 style = MaterialTheme.typography.titleMedium,
             )
             OutlinedTextField(
@@ -172,7 +172,7 @@ fun SearchFiltersSheet(
 
 private fun formatSize(mb: Float): String {
     if (mb >= 1024) {
-        return "%.1f GB".format(mb / 1024)
+        return stringResource(R.string.1fGb).format(mb / 1024)
     }
-    return "%.0f MB".format(mb)
+    return stringResource(R.string.0fMb).format(mb)
 }

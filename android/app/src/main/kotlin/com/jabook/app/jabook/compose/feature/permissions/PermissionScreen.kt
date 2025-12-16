@@ -92,7 +92,7 @@ fun PermissionScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Storage Access Required",
+                text = stringResource(R.string.storageAccessRequired),
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center,
             )
@@ -100,7 +100,7 @@ fun PermissionScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Jabook needs access to your files to download books, manage torrents, and scan your local library.",
+                text = stringResource(R.string.jabookNeedsAccessToYourFilesToDownloadBooksManageT),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
             )

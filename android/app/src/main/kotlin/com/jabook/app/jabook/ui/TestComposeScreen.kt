@@ -11,6 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.jabook.app.jabook.ui.theme.JabookTheme
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Test screen to verify Compose setup.
@@ -31,7 +33,7 @@ fun TestComposeScreen(modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "Jetpack Compose работает! 🎉",
+                text = stringResource(R.string.jetpackComposeРаботает),
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -40,7 +42,7 @@ fun TestComposeScreen(modifier: Modifier = Modifier) {
 }
 
 @Preview(
-    name = "Light Theme",
+    name = stringResource(R.string.lightTheme),
     showBackground = true,
 )
 @Composable
@@ -51,7 +53,7 @@ private fun TestComposeScreenPreview() {
 }
 
 @Preview(
-    name = "Dark Theme",
+    name = stringResource(R.string.darkTheme),
     showBackground = true,
 )
 @Composable

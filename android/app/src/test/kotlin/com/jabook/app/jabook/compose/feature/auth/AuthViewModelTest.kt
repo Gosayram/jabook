@@ -36,6 +36,8 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {
@@ -105,7 +107,7 @@ class AuthViewModelTest {
     @Test
     fun `login failure with error updates state`() =
         runTest {
-            val errorMsg = "Login failed"
+            val errorMsg = stringResource(R.string.loginFailed)
             whenever(authRepository.login(any())).thenReturn(Result.failure(Exception(errorMsg)))
 
             viewModel.login("user", "pass", rememberMe = false)
@@ -119,13 +121,13 @@ class AuthViewModelTest {
     @Test
     fun `login failure with captcha updates state`() =
         runTest {
-            val captchaData = CaptchaData("http://url", "sid")
+            val captchaData = CaptchaData("http://url", stringResource(R.string.sid))
             whenever(authRepository.login(any())).thenReturn(Result.failure(CaptchaRequiredException(captchaData)))
 
             viewModel.login("user", "pass", rememberMe = true)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            assertEquals("Captcha required", viewModel.uiState.value.error)
+            assertEquals(stringResource(R.string.captchaRequired1), viewModel.uiState.value.error)
             assertEquals(captchaData, viewModel.uiState.value.captchaData)
         }
 

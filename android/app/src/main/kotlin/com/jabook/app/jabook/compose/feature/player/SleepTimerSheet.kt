@@ -69,7 +69,7 @@ fun SleepTimerSheet(
                     .padding(bottom = 16.dp),
         ) {
             Text(
-                text = "Таймер сна",
+                text = stringResource(R.string.таймерСна),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -84,7 +84,7 @@ fun SleepTimerSheet(
                     durations.forEach { minutes ->
                         ListItem(
                             headlineContent = {
-                                Text("$minutes минут${if (minutes == 1) "а" else ""}")
+                                Text("$minutes минут${if (minutes == 1) "аstringResource(R.string.else)"}")
                             },
                             leadingContent = {
                                 androidx.compose.material3.Icon(
@@ -112,7 +112,7 @@ fun SleepTimerSheet(
                                 .padding(16.dp),
                     ) {
                         Text(
-                            text = "Таймер активен",
+                            text = stringResource(R.string.таймерАктивен),
                             style = MaterialTheme.typography.titleMedium,
                         )
 
@@ -123,7 +123,7 @@ fun SleepTimerSheet(
                         )
 
                         Text(
-                            text = "Воспроизведение автоматически остановится",
+                            text = stringResource(R.string.воспроизведениеАвтоматическиОстановится),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

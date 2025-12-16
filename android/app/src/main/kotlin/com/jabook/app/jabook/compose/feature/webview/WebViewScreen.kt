@@ -102,7 +102,7 @@ fun WebViewScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = pageTitle.ifEmpty { "Loading..." },
+                            text = pageTitle.ifEmpty { stringResource(R.string.loading) },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )

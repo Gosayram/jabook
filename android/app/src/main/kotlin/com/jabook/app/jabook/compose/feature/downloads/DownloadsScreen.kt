@@ -318,7 +318,7 @@ private fun DownloadCard(
 
                 is DownloadState.Completed -> {
                     Text(
-                        text = "Completed",
+                        text = stringResource(R.string.completed),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -344,5 +344,5 @@ private fun formatBytes(bytes: Long): String =
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+        else -> String.format(stringResource(R.string.2fGb), bytes / (1024.0 * 1024.0 * 1024.0))
     }

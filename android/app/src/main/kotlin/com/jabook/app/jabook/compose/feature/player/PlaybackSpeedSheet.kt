@@ -30,6 +30,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Bottom sheet for selecting playback speed.
@@ -60,7 +62,7 @@ fun PlaybackSpeedSheet(
                     .padding(bottom = 16.dp),
         ) {
             Text(
-                text = "Скорость воспроизведения",
+                text = stringResource(R.string.скоростьВоспроизведения),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )

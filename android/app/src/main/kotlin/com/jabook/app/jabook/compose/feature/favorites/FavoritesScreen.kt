@@ -100,7 +100,7 @@ fun FavoritesScreen(
                         if (isSelectionMode) {
                             "${selectedIds.size} selected"
                         } else {
-                            "Favorites"
+                            stringResource(R.string.favoritesTooltip)
                         },
                     )
                 },
@@ -117,7 +117,7 @@ fun FavoritesScreen(
                     ) {
                         Icon(
                             if (isSelectionMode) Icons.Default.Close else Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = if (isSelectionMode) "Cancel" else "Back",
+                            contentDescription = if (isSelectionMode) stringResource(R.string.cancel) else stringResource(R.string.back),
                         )
                     }
                 },
@@ -133,13 +133,13 @@ fun FavoritesScreen(
                                         isSelectionMode = false
                                     },
                                 ) {
-                                    Icon(Icons.Default.Delete, "Delete selected")
+                                    Icon(Icons.Default.Delete, stringResource(R.string.deleteSelected))
                                 }
                             }
                         } else {
                             // Normal mode: show menu
                             IconButton(onClick = { showMenu = true }) {
-                                Icon(Icons.Default.MoreVert, "More")
+                                Icon(Icons.Default.MoreVert, stringResource(R.string.more))
                             }
                             DropdownMenu(
                                 expanded = showMenu,
@@ -156,7 +156,7 @@ fun FavoritesScreen(
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            "Clear All",
+                                            stringResource(R.string.clearAll),
                                             color = MaterialTheme.colorScheme.error,
                                         )
                                     },
@@ -252,12 +252,12 @@ private fun FavoritesEmptyState(modifier: Modifier = Modifier) {
                 tint = MaterialTheme.colorScheme.outline,
             )
             Text(
-                "No favorite audiobooks",
+                stringResource(R.string.noFavoritesMessage),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                "Add audiobooks to favorites from search results",
+                stringResource(R.string.addFavoritesHint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
@@ -334,7 +334,7 @@ private fun FavoriteListItem(
                 IconButton(onClick = onToggleFavorite) {
                     Icon(
                         if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                        contentDescription = if (isFavorite) stringResource(R.string.removeFromFavorites) else stringResource(R.string.addToFavorites),
                         tint = if (isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -363,7 +363,7 @@ private fun ClearAllFavoritesDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Clear All", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.clearAll), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {

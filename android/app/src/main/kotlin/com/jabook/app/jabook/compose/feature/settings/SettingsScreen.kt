@@ -102,20 +102,20 @@ fun SettingsScreen(
         ) {
             // Authentication Section
             val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
-            SettingsSection(title = "Account")
+            SettingsSection(title = stringResource(R.string.account))
 
             when (val status = authStatus) {
                 is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> {
                     SettingsItem(
                         title = "Logged in as ${status.username}",
-                        subtitle = "Tap to logout",
+                        subtitle = stringResource(R.string.tapToLogout),
                         onClick = { viewModel.logout() },
                     )
                 }
                 else -> {
                     SettingsItem(
-                        title = "Login to Rutracker",
-                        subtitle = "Required to download torrents",
+                        title = stringResource(R.string.loginToRutracker),
+                        subtitle = stringResource(R.string.requiredToDownloadTorrents),
                         onClick = { onNavigateToAuth() },
                     )
                 }
@@ -134,10 +134,10 @@ fun SettingsScreen(
             var healthCheckInProgress by remember { mutableStateOf<String?>(null) }
             val healthStatus = remember { mutableStateOf<Map<String, Boolean?>>(emptyMap()) }
 
-            SettingsSection(title = "Сеть и Зеркала")
+            SettingsSection(title = stringResource(R.string.сетьИЗеркала))
 
             SettingsItem(
-                title = "Текущее зеркало",
+                title = stringResource(R.string.текущееЗеркало),
                 subtitle = currentMirror,
             )
 
@@ -175,15 +175,15 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             SettingsSwitchItem(
-                title = "Автопереключение",
-                subtitle = "Автоматически переключаться на рабочее зеркало при ошибках",
+                title = stringResource(R.string.автопереключение),
+                subtitle = stringResource(R.string.автоматическиПереключатьсяНаРабочееЗеркалоПриОшибк),
                 checked = protoSettings.autoSwitchMirror,
                 onCheckedChange = viewModel::updateAutoSwitch,
             )
 
             SettingsItem(
-                title = "Добавить свое зеркало",
-                subtitle = "Введите URL зеркала",
+                title = stringResource(R.string.добавитьСвоеЗеркало),
+                subtitle = stringResource(R.string.введитеUrlЗеркала),
                 onClick = {
                     customMirrorUrl = ""
                     showAddMirrorDialog = true
@@ -202,15 +202,15 @@ fun SettingsScreen(
                             viewModel.addCustomMirror(domain)
                             showAddMirrorDialog = false
                             android.widget.Toast
-                                .makeText(context, "Зеркало $domain добавлено", android.widget.Toast.LENGTH_SHORT)
+                                .makeText(context, stringResource(R.string.зеркалоDomainДобавлено), android.widget.Toast.LENGTH_SHORT)
                                 .show()
                         } else if (domain in availableMirrors) {
                             android.widget.Toast
-                                .makeText(context, "Это зеркало уже добавлено", android.widget.Toast.LENGTH_SHORT)
+                                .makeText(context, stringResource(R.string.этоЗеркалоУжеДобавлено), android.widget.Toast.LENGTH_SHORT)
                                 .show()
                         } else {
                             android.widget.Toast
-                                .makeText(context, "Неверный URL. Используйте формат: rutracker.example", android.widget.Toast.LENGTH_SHORT)
+                                .makeText(context, stringResource(R.string.неверныйUrlИспользуйтеФорматRutrackerexample), android.widget.Toast.LENGTH_SHORT)
                                 .show()
                         }
                     },
@@ -220,7 +220,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Downloads Section
-            SettingsSection(title = "Downloads")
+            SettingsSection(title = stringResource(R.string.downloads))
 
             val folderLauncher =
                 androidx.activity.compose.rememberLauncherForActivityResult(
@@ -238,36 +238,36 @@ fun SettingsScreen(
                 }
 
             SettingsItem(
-                title = "Download Location",
+                title = stringResource(R.string.downloadLocationTitle),
                 subtitle =
                     if (protoSettings.downloadPath.isNotEmpty()) {
                         android.net.Uri
                             .parse(protoSettings.downloadPath)
                             .path ?: protoSettings.downloadPath
                     } else {
-                        "Internal App Storage (Default)"
+                        stringResource(R.string.internalAppStorageDefault)
                     },
                 onClick = { folderLauncher.launch(null) },
             )
 
             SettingsSwitchItem(
-                title = "Wi-Fi Only",
-                subtitle = "Download only via Wi-Fi",
+                title = stringResource(R.string.wifiOnly),
+                subtitle = stringResource(R.string.downloadOnlyViaWifi),
                 checked = protoSettings.wifiOnlyDownload,
                 onCheckedChange = viewModel::updateWifiOnly,
             )
 
             // Bandwidth Limiting
             SettingsSwitchItem(
-                title = "Limit Download Speed",
-                subtitle = "Set maximum download speed",
+                title = stringResource(R.string.limitDownloadSpeed),
+                subtitle = stringResource(R.string.setMaximumDownloadSpeed),
                 checked = protoSettings.limitDownloadSpeed,
                 onCheckedChange = viewModel::updateLimitDownloadSpeed,
             )
 
             if (protoSettings.limitDownloadSpeed) {
                 SettingsSliderItem(
-                    title = "Max Speed",
+                    title = stringResource(R.string.maxSpeed),
                     subtitle = "${protoSettings.maxDownloadSpeedKb} KB/s",
                     value = protoSettings.maxDownloadSpeedKb.toFloat(),
                     valueRange = 100f..10000f,
@@ -278,7 +278,7 @@ fun SettingsScreen(
 
             // Concurrent Downloads
             SettingsSliderItem(
-                title = "Concurrent Downloads",
+                title = stringResource(R.string.concurrentDownloads),
                 subtitle = "${protoSettings.maxConcurrentDownloads} downloads",
                 value = protoSettings.maxConcurrentDownloads.toFloat(),
                 valueRange = 1f..10f,
@@ -289,7 +289,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Backup & Restore Section
-            SettingsSection(title = "Backup & Restore")
+            SettingsSection(title = stringResource(R.string.backupRestoreTitle))
 
             val backupState by viewModel.backupState.collectAsStateWithLifecycle()
 
@@ -312,14 +312,14 @@ fun SettingsScreen(
                 }
 
             SettingsItem(
-                title = "Export Data",
-                subtitle = "Save settings and library to backup file",
+                title = stringResource(R.string.exportDataButton),
+                subtitle = stringResource(R.string.saveSettingsAndLibraryToBackupFile),
                 onClick = { viewModel.exportData() },
             )
 
             SettingsItem(
-                title = "Import Data",
-                subtitle = "Restore settings and library from backup",
+                title = stringResource(R.string.importDataButton),
+                subtitle = stringResource(R.string.restoreSettingsAndLibraryFromBackup),
                 onClick = {
                     // Launch file picker for JSON files
                     importFilePicker.launch("application/json")
@@ -333,7 +333,7 @@ fun SettingsScreen(
                     title = { Text(stringResource(R.string.importBackup)) },
                     text = {
                         Text(
-                            "This will replace your current settings. Are you sure you want to continue?",
+                            stringResource(R.string.thisWillReplaceYourCurrentSettingsAreYouSureYouWan),
                         )
                     },
                     confirmButton = {
@@ -362,15 +362,15 @@ fun SettingsScreen(
                         android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                             type = "application/json"
                             putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Jabook Backup")
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, stringResource(R.string.jabookBackup))
                             putExtra(
                                 android.content.Intent.EXTRA_TEXT,
-                                "Backup of Jabook settings and data",
+                                stringResource(R.string.backupOfJabookSettingsAndData),
                             )
                             addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
                     context.startActivity(
-                        android.content.Intent.createChooser(intent, "Export Backup"),
+                        android.content.Intent.createChooser(intent, stringResource(R.string.exportBackup)),
                     )
                     viewModel.resetBackupState()
                 }
@@ -383,7 +383,7 @@ fun SettingsScreen(
                     android.widget.Toast
                         .makeText(
                             context,
-                            "Import successful! $stats",
+                            stringResource(R.string.importSuccessfulStats),
                             android.widget.Toast.LENGTH_LONG,
                         ).show()
                     viewModel.resetBackupState()
@@ -404,7 +404,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Cache Management Section
-            SettingsSection(title = "Cache Management")
+            SettingsSection(title = stringResource(R.string.cacheManagement))
 
             val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
             val cacheOperation by viewModel.cacheOperation.collectAsStateWithLifecycle()
@@ -419,28 +419,28 @@ fun SettingsScreen(
 
             // Total cache size
             SettingsItem(
-                title = "Total Cache Size",
+                title = stringResource(R.string.totalCacheSize1),
                 subtitle =
                     cacheStats?.let { formatBytes(it.totalSize) }
-                        ?: if (cacheOperation is CacheOperationState.Loading) "Calculating..." else "Unknown",
+                        ?: if (cacheOperation is CacheOperationState.Loading) stringResource(R.string.calculating) else stringResource(R.string.unknown),
             )
 
             // Last cleanup timestamp
             SettingsItem(
-                title = "Last Cleanup",
+                title = stringResource(R.string.lastCleanup),
                 subtitle =
                     cacheStats?.let {
                         if (it.lastCleanup > 0) {
                             formatTimestamp(it.lastCleanup)
                         } else {
-                            "Never"
+                            stringResource(R.string.neverDate)
                         }
                     } ?: "-",
             )
 
             // Clear all cache button
             SettingsItem(
-                title = "Clear All Cache",
+                title = stringResource(R.string.clearAllCacheButton),
                 subtitle = cacheStats?.let { "Free up ${formatBytes(it.totalSize)}" } ?: "",
                 onClick = {
                     if (cacheOperation != CacheOperationState.Clearing) {
@@ -456,7 +456,7 @@ fun SettingsScreen(
                     title = { Text(stringResource(R.string.clearCache)) },
                     text = {
                         Text(
-                            "This will delete ${cacheStats?.let { formatBytes(it.totalSize) } ?: "all"} of cached data. Continue?",
+                            "This will delete ${cacheStats?.let { formatBytes(it.totalSize) } ?: "allstringResource(R.string.ofCachedDataContinue),
                         )
                     },
                     confirmButton = {
@@ -482,7 +482,7 @@ fun SettingsScreen(
                 when (cacheOperation) {
                     is CacheOperationState.Success -> {
                         android.widget.Toast
-                            .makeText(context, "Cache cleared successfully", android.widget.Toast.LENGTH_SHORT)
+                            .makeText(context, stringResource(R.string.cacheClearedSuccessMessage), android.widget.Toast.LENGTH_SHORT)
                             .show()
                         viewModel.resetCacheOperation()
                     }
@@ -546,19 +546,19 @@ fun SettingsScreen(
             HorizontalDivider()
 
             SettingsItem(
-                title = "Open Source Licenses",
+                title = stringResource(R.string.openSourceLicenses),
                 onClick = {
                     android.widget.Toast
-                        .makeText(context, "License screen placeholder", android.widget.Toast.LENGTH_SHORT)
+                        .makeText(context, stringResource(R.string.licenseScreenPlaceholder), android.widget.Toast.LENGTH_SHORT)
                         .show()
                 },
             )
 
             SettingsItem(
-                title = "Privacy Policy",
+                title = stringResource(R.string.privacyPolicy),
                 onClick = {
                     android.widget.Toast
-                        .makeText(context, "Privacy Policy placeholder", android.widget.Toast.LENGTH_SHORT)
+                        .makeText(context, stringResource(R.string.privacyPolicyPlaceholder), android.widget.Toast.LENGTH_SHORT)
                         .show()
                 },
             )
@@ -566,11 +566,11 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Developer Tools Section
-            SettingsSection(title = "Developer")
+            SettingsSection(title = stringResource(R.string.developer))
 
             SettingsItem(
-                title = "Debug Tools",
-                subtitle = "View logs, test mirrors, check cache",
+                title = stringResource(R.string.debugToolsTitle),
+                subtitle = stringResource(R.string.viewLogsTestMirrorsCheckCache),
                 onClick = onNavigateToDebug,
             )
 
@@ -792,9 +792,9 @@ private fun ThemeOption(
 private fun getVersionName(context: Context): String =
     try {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-        packageInfo.versionName ?: "Unknown"
+        packageInfo.versionName ?: stringResource(R.string.unknown)
     } catch (e: PackageManager.NameNotFoundException) {
-        "Unknown"
+        stringResource(R.string.unknown)
     }
 
 /**
@@ -886,13 +886,13 @@ private fun MirrorOption(
             onClick = onCheckHealth,
             enabled = !isChecking,
         ) {
-            Text("Проверить", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.проверить), style = MaterialTheme.typography.bodySmall)
         }
 
         // Remove button for custom mirrors
         if (onRemove != null) {
             TextButton(onClick = onRemove) {
-                Text("Удалить", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.удалить), style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -914,7 +914,7 @@ private fun AddMirrorDialog(
         text = {
             Column {
                 Text(
-                    "Введите домен зеркала RuTracker",
+                    stringResource(R.string.введитеДоменЗеркалаRutracker),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(modifier = Modifier.height(8.dp))

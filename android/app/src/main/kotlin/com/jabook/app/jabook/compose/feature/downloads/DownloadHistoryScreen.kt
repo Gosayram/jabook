@@ -85,18 +85,18 @@ fun DownloadHistoryScreen(
                     title = { Text(stringResource(R.string.downloadHistory)) },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
                         }
                     },
                     actions = {
                         // Search button
                         IconButton(onClick = { searchActive = true }) {
-                            Icon(Icons.Default.Search, "Search")
+                            Icon(Icons.Default.Search, stringResource(R.string.search))
                         }
 
                         // Sort button
                         IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, "Sort")
+                            Icon(Icons.AutoMirrored.Filled.Sort, stringResource(R.string.sort))
                         }
 
                         DropdownMenu(
@@ -149,7 +149,7 @@ fun DownloadHistoryScreen(
 
                         // Options menu
                         IconButton(onClick = { showOptionsMenu = true }) {
-                            Icon(Icons.Default.MoreVert, "Options")
+                            Icon(Icons.Default.MoreVert, stringResource(R.string.options))
                         }
 
                         DropdownMenu(
@@ -205,7 +205,7 @@ fun DownloadHistoryScreen(
                                 viewModel.updateSearchQuery("")
                                 searchActive = false
                             }) {
-                                Icon(Icons.Default.Close, "Close")
+                                Icon(Icons.Default.Close, stringResource(R.string.close))
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -243,12 +243,12 @@ private fun EmptyHistoryState(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "No download history",
+                text = stringResource(R.string.noDownloadHistory),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "Completed downloads will appear here",
+                text = stringResource(R.string.completedDownloadsWillAppearHere),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -327,7 +327,7 @@ private fun HistoryCard(
  * Format timestamp to readable date.
  */
 private fun formatDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+    val sdf = SimpleDateFormat(stringResource(R.string.ddmmyyyyHhmm), Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
 
@@ -339,5 +339,5 @@ private fun formatBytes(bytes: Long): String =
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+        else -> String.format(stringResource(R.string.2fGb), bytes / (1024.0 * 1024.0 * 1024.0))
     }

@@ -2062,4 +2062,270 @@
     <string name="отменитьТаймер">Отменить таймер</string>
     <!-- Повторить -->
     <string name="повторить">Повторить</string>
+    <!-- %.0f МБ -->
+    <string name="0fMb">%.0f МБ</string>
+    <!-- %.1f ГБ -->
+    <string name="1fGb">%.1f ГБ</string>
+    <!-- %.2f ГБ -->
+    <string name="2fGb">%.2f ГБ</string>
+    <!-- %.2f КБ -->
+    <string name="2fKb">%.2f КБ</string>
+    <!-- %.2f МБ -->
+    <string name="2fMb">%.2f МБ</string>
+    <!-- Добавьте аудиокниги, чтобы начать -->
+    <string name="addAudiobooksToGetStarted">Добавьте аудиокниги, чтобы начать</string>
+    <!-- Все книги -->
+    <string name="allBooks">Все книги</string>
+    <!-- Появление -->
+    <string name="appearance">Появление</string>
+    <!-- Автоматически воспроизводить следующую главу, когда текущая заканчивается -->
+    <string name="automaticallyPlayNextChapterWhenCurrentEnds">Автоматически воспроизводить следующую главу, когда текущая заканчивается</string>
+    <!-- Автоматическое воспроизведение следующей главы -->
+    <string name="autoplayNextChapter">Автоматическое воспроизведение следующей главы</string>
+    <!-- Резервное копирование настроек и данных Jabook -->
+    <string name="backupOfJabookSettingsAndData">Резервное копирование настроек и данных Jabook</string>
+    <!-- Кэш очищен: $clearedSizeFormatted -->
+    <string name="cacheClearedClearedsizeformatted">Кэш очищен: $clearedSizeFormatted</string>
+    <!-- Кэш: Ошибка -->
+    <string name="cacheError">Кэш: Ошибка</string>
+    <!-- Управление кэшем -->
+    <string name="cacheManagement">Управление кэшем</string>
+    <!-- Расчет... -->
+    <string name="calculating">Расчет...</string>
+    <!-- Требуется капча -->
+    <string name="captchaRequired1">Требуется капча</string>
+    <!-- Глава $номер -->
+    <string name="chapterNumber1">Глава $номер</string>
+    <!-- Выберите тему приложения -->
+    <string name="chooseAppTheme">Выберите тему приложения</string>
+    <!-- Очистить кэш -->
+    <string name="clearCache1">Очистить кэш</string>
+    <!-- Завершенный -->
+    <string name="completed">Завершенный</string>
+    <!-- Завершенные загрузки появятся здесь. -->
+    <string name="completedDownloadsWillAppearHere">Завершенные загрузки появятся здесь.</string>
+    <!-- ComposeMainActivity -->
+    <string name="composemainactivity">ComposeMainActivity</string>
+    <!-- Одновременные загрузки -->
+    <string name="concurrentDownloads">Одновременные загрузки</string>
+    <!-- Продолжить прослушивание -->
+    <string name="continueListening">Продолжить прослушивание</string>
+    <!-- Темный -->
+    <string name="dark">Темный</string>
+    <!-- Темная тема -->
+    <string name="darkTheme">Темная тема</string>
+    <!-- Данные: Ошибка -->
+    <string name="dataError">Данные: Ошибка</string>
+    <!-- дд.ММ.гггг ЧЧ:мм -->
+    <string name="ddmmyyyyHhmm">дд.ММ.гггг ЧЧ:мм</string>
+    <!-- Удалить выбранное -->
+    <string name="deleteSelected">Удалить выбранное</string>
+    <!-- УСТАРЕВАНИЕ -->
+    <string name="deprecation">УСТАРЕВАНИЕ</string>
+    <!-- Разработчик -->
+    <string name="developer">Разработчик</string>
+    <!-- Загрузка только через Wi-Fi -->
+    <string name="downloadOnlyViaWifi">Загрузка только через Wi-Fi</string>
+    <!-- еще -->
+    <string name="else">еще</string>
+    <!-- ru -->
+    <string name="en">ru</string>
+    <!-- Экспортировать резервную копию -->
+    <string name="exportBackup">Экспортировать резервную копию</string>
+    <!-- Импорт выполнен успешно! $статистика -->
+    <string name="importSuccessfulStats">Импорт выполнен успешно! $статистика</string>
+    <!-- В ходе выполнения -->
+    <string name="inProgress">В ходе выполнения</string>
+    <!-- Внутреннее хранилище приложений (по умолчанию) -->
+    <string name="internalAppStorageDefault">Внутреннее хранилище приложений (по умолчанию)</string>
+    <!-- Резервное копирование Jabook -->
+    <string name="jabookBackup">Резервное копирование Jabook</string>
+    <!-- Jabook необходим доступ к вашим файлам для загрузки книг, управления торрентами и сканирования вашей местной библиотеки. -->
+    <string name="jabookNeedsAccessToYourFilesToDownloadBooksManageT">Jabook необходим доступ к вашим файлам для загрузки книг, управления торрентами и сканирования вашей местной библиотеки.</string>
+    <!-- Jetpack Compose работает! 🎉 -->
+    <string name="jetpackComposeРаботает">Jetpack Compose работает! 🎉</string>
+    <!-- Последняя очистка -->
+    <string name="lastCleanup">Последняя очистка</string>
+    <!-- Заполнитель экрана лицензии -->
+    <string name="licenseScreenPlaceholder">Заполнитель экрана лицензии</string>
+    <!-- Свет -->
+    <string name="light">Свет</string>
+    <!-- Светлая тема -->
+    <string name="lightTheme">Светлая тема</string>
+    <!-- Ограничить скорость загрузки -->
+    <string name="limitDownloadSpeed">Ограничить скорость загрузки</string>
+    <!-- Загрузка -->
+    <string name="loading1">Загрузка</string>
+    <!-- Ошибка входа -->
+    <string name="loginFailed">Ошибка входа</string>
+    <!-- Вход на Рутрекер -->
+    <string name="loginToRutracker">Вход на Рутрекер</string>
+    <!-- Максимальная скорость -->
+    <string name="maxSpeed">Максимальная скорость</string>
+    <!-- Минимальные сеялки -->
+    <string name="minimumSeeders">Минимальные сеялки</string>
+    <!-- Более -->
+    <string name="more">Более</string>
+    <!-- Нет аудиокниг -->
+    <string name="noAudiobooks">Нет аудиокниг</string>
+    <!-- Нет истории загрузок -->
+    <string name="noDownloadHistory">Нет истории загрузок</string>
+    <!-- Сейчас играет -->
+    <string name="nowPlaying">Сейчас играет</string>
+    <!-- } кэшированных данных. Продолжать? -->
+    <string name="ofCachedDataContinue">} кэшированных данных. Продолжать?</string>
+    <!-- Лицензии с открытым исходным кодом -->
+    <string name="openSourceLicenses">Лицензии с открытым исходным кодом</string>
+    <!-- Параметры -->
+    <string name="options">Параметры</string>
+    <!-- Воспроизведение -->
+    <string name="playback">Воспроизведение</string>
+    <!-- политика конфиденциальности -->
+    <string name="privacyPolicy">политика конфиденциальности</string>
+    <!-- Заполнитель Политики конфиденциальности -->
+    <string name="privacyPolicyPlaceholder">Заполнитель Политики конфиденциальности</string>
+    <!-- Требуется для скачивания торрентов -->
+    <string name="requiredToDownloadTorrents">Требуется для скачивания торрентов</string>
+    <!-- Восстановление настроек и библиотеки из резервной копии -->
+    <string name="restoreSettingsAndLibraryFromBackup">Восстановление настроек и библиотеки из резервной копии</string>
+    <!-- ру -->
+    <string name="ru">ру</string>
+    <!-- Сохраните настройки и библиотеку в файл резервной копии. -->
+    <string name="saveSettingsAndLibraryToBackupFile">Сохраните настройки и библиотеку в файл резервной копии.</string>
+    <!-- Поиск книг -->
+    <string name="searchBooks1">Поиск книг</string>
+    <!-- Установить максимальную скорость загрузки -->
+    <string name="setMaximumDownloadSpeed">Установить максимальную скорость загрузки</string>
+    <!-- Сид -->
+    <string name="sid">Сид</string>
+    <!-- Требуется доступ к хранилищу -->
+    <string name="storageAccessRequired">Требуется доступ к хранилищу</string>
+    <!-- Система по умолчанию -->
+    <string name="systemDefault1">Система по умолчанию</string>
+    <!-- Нажмите, чтобы выйти -->
+    <string name="tapToLogout">Нажмите, чтобы выйти</string>
+    <!-- Это очистит все кэшированные данные. Загруженные аудиокниги не будут затронуты. Продолжать? -->
+    <string name="thisWillClearAllCachedDataDownloadedAudiobooksWill">Это очистит все кэшированные данные. Загруженные аудиокниги не будут затронуты. Продолжать?</string>
+    <!-- Это заменит ваши текущие настройки. Вы уверены, что хотите продолжить? -->
+    <string name="thisWillReplaceYourCurrentSettingsAreYouSureYouWan">Это заменит ваши текущие настройки. Вы уверены, что хотите продолжить?</string>
+    <!-- Общий размер кэша -->
+    <string name="totalCacheSize1">Общий размер кэша</string>
+    <!-- Итого: Ошибка -->
+    <string name="totalError">Итого: Ошибка</string>
+    <!-- Версия -->
+    <string name="version">Версия</string>
+    <!-- Просмотр логов, тестирование зеркал, проверка кеша -->
+    <string name="viewLogsTestMirrorsCheckCache">Просмотр логов, тестирование зеркал, проверка кеша</string>
+    <!-- Веб-представление -->
+    <string name="webview">Веб-представление</string>
+    <!-- Только Wi-Fi -->
+    <string name="wifiOnly">Только Wi-Fi</string>
+    <!-- Автоматически переключаться на рабочем зеркале при ошибках -->
+    <string name="автоматическиПереключатьсяНаРабочееЗеркалоПриОшибк">Автоматически переключаться на рабочем зеркале при ошибках</string>
+    <!-- Автоматически проигрывать эту главу при текущем завершении -->
+    <string name="автоматическиПроигрыватьСледующуюГлавуКогдаТекущая">Автоматически проигрывать эту главу при текущем завершении</string>
+    <!-- Автопереключение -->
+    <string name="автопереключение">Автопереключение</string>
+    <!-- Автопроигрывание настоящей главы -->
+    <string name="автопроигрываниеСледующейГлавы">Автопроигрывание настоящей главы</string>
+    <!-- Библиотека -->
+    <string name="библиотека">Библиотека</string>
+    <!-- Битрейт: $it -->
+    <string name="битрейтIt">Битрейт: $it</string>
+    <!-- Браузер -->
+    <string name="браузер">Браузер</string>
+    <!-- Введите URL-адрес зеркала -->
+    <string name="введитеUrlЗеркала">Введите URL-адрес зеркала</string>
+    <!-- Введите домен зеркала RuTracker -->
+    <string name="введитеДоменЗеркалаRutracker">Введите домен зеркала RuTracker</string>
+    <!-- Версия -->
+    <string name="версия">Версия</string>
+    <!-- Внешний вид -->
+    <string name="внешнийВид">Внешний вид</string>
+    <!-- Воспроизведение -->
+    <string name="воспроизведение">Воспроизведение</string>
+    <!-- Воспроизведение автоматически останавливается -->
+    <string name="воспроизведениеАвтоматическиОстановится">Воспроизведение автоматически останавливается</string>
+    <!-- Выберите тему приложения -->
+    <string name="выберитеТемуПриложения">Выберите тему приложения</string>
+    <!-- Глава $номер -->
+    <string name="главаNumber">Глава $номер</string>
+    <!-- Длительность: $it -->
+    <string name="длительностьIt">Длительность: $it</string>
+    <!-- Добавить свое зеркало -->
+    <string name="добавитьСвоеЗеркало">Добавить свое зеркало</string>
+    <!-- добавьте аудиокниги, чтобы начать -->
+    <string name="добавьтеАудиокнигиЧтобыНачать">добавьте аудиокниги, чтобы начать</string>
+    <!-- Загрузка... -->
+    <string name="загрузка">Загрузка...</string>
+    <!-- Загрузка -->
+    <string name="загрузка1">Загрузка</string>
+    <!-- Закрыть -->
+    <string name="закрыть">Закрыть</string>
+    <!-- Зеркало $domain добавлено -->
+    <string name="зеркалоDomainДобавлено">Зеркало $domain добавлено</string>
+    <!-- Играть -->
+    <string name="играть">Играть</string>
+    <!-- Назад -->
+    <string name="назад">Назад</string>
+    <!-- Настройки -->
+    <string name="настройки">Настройки</string>
+    <!-- Неверный URL. Используйте формат: rutracker.example -->
+    <string name="неверныйUrlИспользуйтеФорматRutrackerexample">Неверный URL. Используйте формат: rutracker.example</string>
+    <!-- Неизвестно -->
+    <string name="неизвестно">Неизвестно</string>
+    <!-- Нет аудиокнига -->
+    <string name="нетАудиокниг">Нет аудиокнига</string>
+    <!-- О приложении -->
+    <string name="оПриложении">О приложении</string>
+    <!-- Описание -->
+    <string name="описание">Описание</string>
+    <!-- Ошибка -->
+    <string name="ошибка">Ошибка</string>
+    <!-- Ошибка: $сообщение -->
+    <string name="ошибкаMessage">Ошибка: $сообщение</string>
+    <!-- Пауза -->
+    <string name="пауза">Пауза</string>
+    <!-- Поиск книг -->
+    <string name="поискКниг">Поиск книг</string>
+    <!-- Предыдущая глава -->
+    <string name="предыдущаяГлава">Предыдущая глава</string>
+    <!-- Проверить -->
+    <string name="проверить">Проверить</string>
+    <!-- Развернуть -->
+    <string name="развернуть">Развернуть</string>
+    <!-- Свернуть -->
+    <string name="свернуть">Свернуть</string>
+    <!-- Светлая -->
+    <string name="светлая">Светлая</string>
+    <!-- Сейчас играет -->
+    <string name="сейчасИграет">Сейчас играет</string>
+    <!-- Сеть и Зеркала -->
+    <string name="сетьИЗеркала">Сеть и Зеркала</string>
+    <!-- Системная -->
+    <string name="системная">Системная</string>
+    <!-- Скорость передачи -->
+    <string name="скоростьВоспроизведения">Скорость передачи</string>
+    <!-- Следующий -->
+    <string name="следующаяГлава">Следующий</string>
+    <!-- Таймер -->
+    <string name="таймер">Таймер</string>
+    <!-- Таймер активен -->
+    <string name="таймерАктивен">Таймер активен</string>
+    <!-- Таймер сна -->
+    <string name="таймерСна">Таймер сна</string>
+    <!-- Текущее зеркало -->
+    <string name="текущееЗеркало">Текущее зеркало</string>
+    <!-- Тема -->
+    <string name="тема">Тема</string>
+    <!-- Тёмная -->
+    <string name="тёмная">Тёмная</string>
+    <!-- Удалить -->
+    <string name="удалить">Удалить</string>
+    <!-- Файлы -->
+    <string name="файлы">Файлы</string>
+    <!-- Формат: $it -->
+    <string name="форматIt">Формат: $it</string>
+    <!-- Это зеркало уже добавлено -->
+    <string name="этоЗеркалоУжеДобавлено">Это зеркало уже добавлено</string>
 </resources>

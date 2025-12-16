@@ -62,7 +62,7 @@ fun DebugScreen(
     onNavigateBack: () -> Unit,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Logs", "Mirrors", "Cache")
+    val tabs = listOf(stringResource(R.string.logsTab), stringResource(R.string.mirrorsTooltip), stringResource(R.string.cacheSectionTitle))
 
     val uiState by viewModel.uiState.collectAsState()
     val logs by viewModel.logs.collectAsState()

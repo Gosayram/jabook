@@ -25,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Compose UI Activity for testing parallel Compose implementation.
@@ -42,7 +44,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ComposeMainActivity : ComponentActivity() {
     companion object {
-        private const val TAG = "ComposeMainActivity"
+        private const val TAG = stringResource(R.string.composemainactivity)
     }
 
     private var deepLinkIntent by androidx.compose.runtime.mutableStateOf<Intent?>(null)

@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.l10n
 
 import cafe.adriel.lyricist.LyricistStrings
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * English localization (default).
@@ -23,48 +25,48 @@ import cafe.adriel.lyricist.LyricistStrings
 val EnStrings =
     Strings(
         // Navigation
-        navLibrary = "Library",
-        navSettings = "Settings",
+        navLibrary = stringResource(R.string.library),
+        navSettings = stringResource(R.string.navSettingsText),
         // Screen titles
-        screenLibrary = "Library",
-        screenPlayer = "Now Playing",
-        screenSettings = "Settings",
-        screenWebView = "WebView",
+        screenLibrary = stringResource(R.string.library),
+        screenPlayer = stringResource(R.string.nowPlaying),
+        screenSettings = stringResource(R.string.navSettingsText),
+        screenWebView = stringResource(R.string.webview),
         // Library Screen
-        libraryEmptyTitle = "No audiobooks",
-        libraryEmptyMessage = "Add audiobooks to get started",
-        librarySearchHint = "Search books",
+        libraryEmptyTitle = stringResource(R.string.noAudiobooks),
+        libraryEmptyMessage = stringResource(R.string.addAudiobooksToGetStarted),
+        librarySearchHint = stringResource(R.string.searchBooks1),
         // Player Screen
-        playerChapter = { number -> "Chapter $number" },
-        playerLoading = "Loading...",
-        playerUnknown = "Unknown",
-        playerPlay = "Play",
-        playerPause = "Pause",
-        playerSkipPrevious = "Previous chapter",
-        playerSkipNext = "Next chapter",
+        playerChapter = { number -> stringResource(R.string.chapterNumber1) },
+        playerLoading = stringResource(R.string.loading),
+        playerUnknown = stringResource(R.string.unknown),
+        playerPlay = stringResource(R.string.playButton),
+        playerPause = stringResource(R.string.pauseButton),
+        playerSkipPrevious = stringResource(R.string.previousChapter),
+        playerSkipNext = stringResource(R.string.nextChapter),
         // Settings Screen
-        settingsSectionAppearance = "Appearance",
-        settingsSectionPlayback = "Playback",
-        settingsSectionAbout = "About",
-        settingsTheme = "Theme",
-        settingsThemeDescription = "Choose app theme",
-        settingsThemeLight = "Light",
-        settingsThemeDark = "Dark",
-        settingsThemeSystem = "System default",
-        settingsAutoPlayNext = "Auto-play next chapter",
-        settingsAutoPlayNextDescription = "Automatically play next chapter when current ends",
-        settingsPlaybackSpeed = "Playback speed",
+        settingsSectionAppearance = stringResource(R.string.appearance),
+        settingsSectionPlayback = stringResource(R.string.playback),
+        settingsSectionAbout = stringResource(R.string.aboutTitle),
+        settingsTheme = stringResource(R.string.themeTitle),
+        settingsThemeDescription = stringResource(R.string.chooseAppTheme),
+        settingsThemeLight = stringResource(R.string.light),
+        settingsThemeDark = stringResource(R.string.dark),
+        settingsThemeSystem = stringResource(R.string.systemDefault1),
+        settingsAutoPlayNext = stringResource(R.string.autoplayNextChapter),
+        settingsAutoPlayNextDescription = stringResource(R.string.automaticallyPlayNextChapterWhenCurrentEnds),
+        settingsPlaybackSpeed = stringResource(R.string.playbackSpeed),
         settingsPlaybackSpeedValue = { speed -> "%.1fx".format(speed) },
-        settingsVersion = "Version",
+        settingsVersion = stringResource(R.string.version),
         // WebView Screen
-        webViewLoading = "Loading...",
-        webViewBack = "Back",
+        webViewLoading = stringResource(R.string.loading),
+        webViewBack = stringResource(R.string.back),
         // Common
-        commonLoading = "Loading",
-        commonError = "Error",
-        commonRetry = "Retry",
-        commonBack = "Back",
-        commonClose = "Close",
+        commonLoading = stringResource(R.string.loading1),
+        commonError = stringResource(R.string.error),
+        commonRetry = stringResource(R.string.retryButton),
+        commonBack = stringResource(R.string.back),
+        commonClose = stringResource(R.string.close),
     )
 
 /**
@@ -74,48 +76,48 @@ val EnStrings =
 val RuStrings =
     Strings(
         // Навигация
-        navLibrary = "Библиотека",
-        navSettings = "Настройки",
+        navLibrary = stringResource(R.string.библиотека),
+        navSettings = stringResource(R.string.настройки),
         // Заголовки экранов
-        screenLibrary = "Библиотека",
-        screenPlayer = "Сейчас играет",
-        screenSettings = "Настройки",
-        screenWebView = "Браузер",
+        screenLibrary = stringResource(R.string.библиотека),
+        screenPlayer = stringResource(R.string.сейчасИграет),
+        screenSettings = stringResource(R.string.настройки),
+        screenWebView = stringResource(R.string.браузер),
         // Экран библиотеки
-        libraryEmptyTitle = "Нет аудиокниг",
-        libraryEmptyMessage = "Добавьте аудиокниги чтобы начать",
-        librarySearchHint = "Поиск книг",
+        libraryEmptyTitle = stringResource(R.string.нетАудиокниг),
+        libraryEmptyMessage = stringResource(R.string.добавьтеАудиокнигиЧтобыНачать),
+        librarySearchHint = stringResource(R.string.поискКниг),
         // Экран плеера
-        playerChapter = { number -> "Глава $number" },
-        playerLoading = "Загрузка...",
-        playerUnknown = "Неизвестно",
-        playerPlay = "Играть",
-        playerPause = "Пауза",
-        playerSkipPrevious = "Предыдущая глава",
-        playerSkipNext = "Следующая глава",
+        playerChapter = { number -> stringResource(R.string.главаNumber) },
+        playerLoading = stringResource(R.string.загрузка),
+        playerUnknown = stringResource(R.string.неизвестно),
+        playerPlay = stringResource(R.string.играть),
+        playerPause = stringResource(R.string.пауза),
+        playerSkipPrevious = stringResource(R.string.предыдущаяГлава),
+        playerSkipNext = stringResource(R.string.следующаяГлава),
         // Экран настроек
-        settingsSectionAppearance = "Внешний вид",
-        settingsSectionPlayback = "Воспроизведение",
-        settingsSectionAbout = "О приложении",
-        settingsTheme = "Тема",
-        settingsThemeDescription = "Выберите тему приложения",
-        settingsThemeLight = "Светлая",
-        settingsThemeDark = "Тёмная",
-        settingsThemeSystem = "Системная",
-        settingsAutoPlayNext = "Авто-проигрывание следующей главы",
-        settingsAutoPlayNextDescription = "Автоматически проигрывать следующую главу когда текущая закончится",
-        settingsPlaybackSpeed = "Скорость воспроизведения",
+        settingsSectionAppearance = stringResource(R.string.внешнийВид),
+        settingsSectionPlayback = stringResource(R.string.воспроизведение),
+        settingsSectionAbout = stringResource(R.string.оПриложении),
+        settingsTheme = stringResource(R.string.тема),
+        settingsThemeDescription = stringResource(R.string.выберитеТемуПриложения),
+        settingsThemeLight = stringResource(R.string.светлая),
+        settingsThemeDark = stringResource(R.string.тёмная),
+        settingsThemeSystem = stringResource(R.string.системная),
+        settingsAutoPlayNext = stringResource(R.string.автопроигрываниеСледующейГлавы),
+        settingsAutoPlayNextDescription = stringResource(R.string.автоматическиПроигрыватьСледующуюГлавуКогдаТекущая),
+        settingsPlaybackSpeed = stringResource(R.string.скоростьВоспроизведения),
         settingsPlaybackSpeedValue = { speed -> "%.1fx".format(speed) },
-        settingsVersion = "Версия",
+        settingsVersion = stringResource(R.string.версия),
         // Экран WebView
-        webViewLoading = "Загрузка...",
-        webViewBack = "Назад",
+        webViewLoading = stringResource(R.string.загрузка),
+        webViewBack = stringResource(R.string.назад),
         // Общие
-        commonLoading = "Загрузка",
-        commonError = "Ошибка",
-        commonRetry = "Повторить",
-        commonBack = "Назад",
-        commonClose = "Закрыть",
+        commonLoading = stringResource(R.string.загрузка1),
+        commonError = stringResource(R.string.ошибка),
+        commonRetry = stringResource(R.string.повторить),
+        commonBack = stringResource(R.string.назад),
+        commonClose = stringResource(R.string.закрыть),
     )
 
 /**
@@ -184,8 +186,8 @@ data class Strings(
  * 3. Or import from JSON export from translation service
  */
 object Locales {
-    const val EN = "en"
-    const val RU = "ru"
+    const val EN = stringResource(R.string.en)
+    const val RU = stringResource(R.string.ru)
     // Add more languages here:
     // const val ES = "es"
     // const val DE = "de"

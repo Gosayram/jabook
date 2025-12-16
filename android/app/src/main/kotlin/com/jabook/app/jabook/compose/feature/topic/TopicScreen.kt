@@ -215,19 +215,19 @@ private fun TopicDetailsContent(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     details.duration?.let {
                         Text(
-                            text = "Длительность: $it",
+                            text = stringResource(R.string.длительностьIt),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     details.bitrate?.let {
                         Text(
-                            text = "Битрейт: $it",
+                            text = stringResource(R.string.битрейтIt),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                     details.audioCodec?.let {
                         Text(
-                            text = "Формат: $it",
+                            text = stringResource(R.string.форматIt),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
@@ -245,7 +245,7 @@ private fun TopicDetailsContent(
         // File List Header
         item {
             Text(
-                text = "Файлы",
+                text = stringResource(R.string.файлы),
                 style = MaterialTheme.typography.titleMedium,
             )
         }
@@ -305,7 +305,7 @@ private fun ExpandableDescription(
 
     Column(modifier = modifier) {
         Text(
-            text = "Описание",
+            text = stringResource(R.string.описание),
             style = MaterialTheme.typography.titleMedium,
         )
 
@@ -325,7 +325,7 @@ private fun ExpandableDescription(
 
         if (description.length > maxPreviewLength) {
             TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) "Свернуть" else "Развернуть")
+                Text(if (expanded) stringResource(R.string.свернуть) else stringResource(R.string.развернуть))
             }
         }
     }
@@ -367,7 +367,7 @@ private fun ErrorContent(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "Ошибка: $message",
+            text = stringResource(R.string.ошибкаMessage),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.error,
         )

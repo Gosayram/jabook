@@ -31,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.compose.designsystem.component.BookCard
 import com.jabook.app.jabook.compose.domain.model.Book
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Enhanced library screen with sections for different book lists.
@@ -62,7 +64,7 @@ fun EnhancedLibraryContent(
         if (recentlyPlayed.isNotEmpty()) {
             item {
                 BookSection(
-                    title = "Continue Listening",
+                    title = stringResource(R.string.continueListening),
                     books = recentlyPlayed,
                     onBookClick = onBookClick,
                     onToggleFavorite = onToggleFavorite,
@@ -76,7 +78,7 @@ fun EnhancedLibraryContent(
         if (inProgress.isNotEmpty()) {
             item {
                 BookSection(
-                    title = "In Progress",
+                    title = stringResource(R.string.inProgress),
                     books = inProgress,
                     onBookClick = onBookClick,
                     onToggleFavorite = onToggleFavorite,
@@ -90,7 +92,7 @@ fun EnhancedLibraryContent(
         if (favorites.isNotEmpty()) {
             item {
                 BookSection(
-                    title = "Favorites",
+                    title = stringResource(R.string.favoritesTooltip),
                     books = favorites,
                     onBookClick = onBookClick,
                     onToggleFavorite = onToggleFavorite,
@@ -108,7 +110,7 @@ fun EnhancedLibraryContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        text = "All Books",
+                        text = stringResource(R.string.allBooks),
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )

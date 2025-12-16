@@ -338,7 +338,7 @@ private fun PlayerContent(
                             } else {
                                 Icons.Filled.PlayArrow
                             },
-                        contentDescription = if (state.isPlaying) "Pause" else "Play",
+                        contentDescription = if (state.isPlaying) stringResource(R.string.pauseButton) else stringResource(R.string.playButton),
                         modifier = Modifier.size(48.dp),
                     )
                 }
@@ -389,7 +389,7 @@ private fun PlayerContent(
                     Text(
                         text =
                             when (sleepTimerState) {
-                                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle -> "Таймер"
+                                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle -> stringResource(R.string.таймер)
                                 is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active ->
                                     (sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime
                             },
@@ -403,7 +403,7 @@ private fun PlayerContent(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Chapters",
+                    text = stringResource(R.string.chaptersLabelText),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.fillMaxWidth(),
                 )

@@ -128,6 +128,10 @@ class StringResourceMigrator:
                 if re.search(r'(Log\.[diewtv]|println|logger\.|Timber\.)', line):
                     continue
                 
+                # Skip annotations - @Suppress, @Deprecated, @SuppressLint, etc.
+                if re.search(r'@(Suppress|Deprecated|SuppressLint|SuppressWarnings|Annotation)', line):
+                    continue
+                
                 # Find ALL string literals that look like UI text (not technical strings)
                 # Match: "any text" but exclude technical patterns
                 all_strings = re.findall(r'"([^"]+)"', line)

@@ -11,6 +11,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import java.io.File
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Activity for managing app storage space.
@@ -75,9 +77,9 @@ class DataManagementActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.util.Log.e("DataManagementActivity", "Error loading storage info", e)
                 runOnUiThread {
-                    cacheSizeText.text = "Cache: Error"
-                    dataSizeText.text = "Data: Error"
-                    totalSizeText.text = "Total: Error"
+                    cacheSizeText.text = stringResource(R.string.cacheError)
+                    dataSizeText.text = stringResource(R.string.dataError)
+                    totalSizeText.text = stringResource(R.string.totalError)
                     progressBar.visibility = View.GONE
                 }
             }
@@ -161,11 +163,11 @@ class DataManagementActivity : AppCompatActivity() {
     private fun formatSize(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
         val kb = bytes / 1024.0
-        if (kb < 1024) return String.format("%.2f KB", kb)
+        if (kb < 1024) return String.format(stringResource(R.string.2fKb), kb)
         val mb = kb / 1024.0
-        if (mb < 1024) return String.format("%.2f MB", mb)
+        if (mb < 1024) return String.format(stringResource(R.string.2fMb), mb)
         val gb = mb / 1024.0
-        return String.format("%.2f GB", gb)
+        return String.format(stringResource(R.string.2fGb), gb)
     }
 
     /**
@@ -174,11 +176,11 @@ class DataManagementActivity : AppCompatActivity() {
     private fun showClearCacheDialog() {
         AlertDialog
             .Builder(this)
-            .setTitle("Clear Cache")
-            .setMessage("This will clear all cached data. Downloaded audiobooks will not be affected. Continue?")
-            .setPositiveButton("Clear") { _, _ ->
+            .setTitle(stringResource(R.string.clearCache1))
+            .setMessage(stringResource(R.string.thisWillClearAllCachedDataDownloadedAudiobooksWill))
+            .setPositiveButton(stringResource(R.string.clearButton)) { _, _ ->
                 clearCache()
-            }.setNegativeButton("Cancel", null)
+            }.setNegativeButton(stringResource(R.string.cancel), null)
             .show()
     }
 
@@ -214,7 +216,7 @@ class DataManagementActivity : AppCompatActivity() {
                     Toast
                         .makeText(
                             this@DataManagementActivity,
-                            "Cache cleared: $clearedSizeFormatted",
+                            stringResource(R.string.cacheClearedClearedsizeformatted),
                             Toast.LENGTH_SHORT,
                         ).show()
 
