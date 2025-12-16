@@ -96,35 +96,70 @@ class StringResourceMigrator:
         return key
     
     def find_hardcoded_strings(self, kotlin_file: Path) -> List[Tuple[str, int]]:
-        """Find all hardcoded strings in a Kotlin file"""
+        """Find all hardcoded strings in a Kotlin file - comprehensive UI string detection"""
         strings = []
+        
+        # Skip non-UI files
+        file_str = str(kotlin_file)
+        if any(skip in file_str for skip in ['/data/', '/domain/', '/di/', '/util/', 'ViewModel.kt', 'Repository.kt', 'Dao.kt', 'Entity.kt', 'Module.kt']):
+            return strings
+            
         with open(kotlin_file, 'r', encoding='utf-8') as f:
             for line_num, line in enumerate(f, 1):
                 # Skip comments
                 if line.strip().startswith('//'):
                     continue
                 
-                # Find strings in Text() calls, labels, contentDescription, etc.
-                # Pattern: Text("string") or Text("string", style=...) 
-                # More flexible - doesn't require immediate closing paren
-                matches = re.findall(r'Text\s*\(\s*"([^"]+)"', line)
-                for match in matches:
-                    if match and not match.startswith('$'):  # Skip template strings
-                        strings.append((match, line_num))
+                # Skip imports, package declarations
+                if line.strip().startswith(('import ', 'package ')):
+                    continue
                 
-                # Find contentDescription strings
-                matches = re.findall(r'contentDescription\s*=\s*"([^"]+)"', line)
-                for match in matches:
-                    if match:
-                        strings.append((match, line_num))
+                # Find ALL string literals that look like UI text (not technical strings)
+                # Match: "any text" but exclude technical patterns
+                all_strings = re.findall(r'"([^"]+)"', line)
                 
-                # Find label strings
-                matches = re.findall(r'label\s*=\s*\{\s*Text\s*\(\s*"([^"]+)"\s*\)', line)
-                for match in matches:
-                    if match:
-                        strings.append((match, line_num))
+                for match in all_strings:
+                    # Skip if it's a technical string (not UI text)
+                    if self._is_technical_string(match):
+                        continue
+                    
+                    # Skip template strings
+                    if match.startswith('$'):
+                        continue
+                        
+                    # This looks like UI text
+                    strings.append((match, line_num))
         
         return strings
+    
+    def _is_technical_string(self, text: str) -> bool:
+        """Determine if a string is technical (not UI text)"""
+        # File paths
+        if '/' in text or '\\\\' in text:
+            return True
+        
+        # URLs and domains
+        if text.startswith(('http://', 'https://', 'www.')) or '.com' in text or '.net' in text or '.org' in text:
+            return True
+            
+        # MIME types
+        if text.startswith('application/') or text.startswith('text/') or text.startswith('image/'):
+            return True
+        
+        # Intent actions and categories
+        if text.startswith('android.') or text.startswith('com.'):
+            return True
+            
+        # Single letters or very short technical strings
+        if len(text) <= 1:
+            return True
+            
+        # Regex patterns
+        if text.count('[') > 0 and text.count(']') > 0 and text.count('(') > 0:
+            return True
+            
+        # Looks good - likely UI text
+        return False
     
     def migrate_file(self, kotlin_file: Path, dry_run: bool = False) -> Tuple[int, int]:
         """
