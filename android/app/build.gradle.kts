@@ -287,9 +287,7 @@ dependencies {
     // Coil3 for async image loading in Compose
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
 
-    // Lyricist - Type-safe i18n for Compose
-    implementation("cafe.adriel.lyricist:lyricist:1.8.0")
-    ksp("cafe.adriel.lyricist:lyricist-processor:1.8.0")
+    // Lyricist dependency removed
 
     // Note: Google Play Core is NOT needed as a dependency
     // Flutter references these classes but they're not actually used
