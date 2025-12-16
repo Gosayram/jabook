@@ -23,9 +23,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.stringResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.jabook.app.jabook.R
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -44,7 +42,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ComposeMainActivity : ComponentActivity() {
     companion object {
-        private const val TAG = stringResource(R.string.composemainactivity)
+        private const val TAG = "ComposeMainActivity"
     }
 
     private var deepLinkIntent by androidx.compose.runtime.mutableStateOf<Intent?>(null)

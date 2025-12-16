@@ -20,7 +20,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import androidx.compose.ui.res.stringResource
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
@@ -63,7 +62,7 @@ internal class NotificationHelper(
         return NotificationCompat
             .Builder(context, CHANNEL_ID)
             .setContentTitle("JaBook Audio")
-            .setContentText(stringResource(R.string.initializingAudioPlayer))
+            .setContentText(context.getString(R.string.initializingAudioPlayer))
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -83,7 +82,7 @@ internal class NotificationHelper(
         return NotificationCompat
             .Builder(context, CHANNEL_ID)
             .setContentTitle("JaBook Audio")
-            .setContentText(stringResource(R.string.initializing))
+            .setContentText(context.getString(R.string.initializing))
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)

@@ -28,9 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.lyricist.LocalStrings
-import cafe.adriel.lyricist.ProvideStrings
-import cafe.adriel.lyricist.rememberStrings
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
 import com.jabook.app.jabook.compose.navigation.TopLevelDestination
@@ -99,34 +96,31 @@ fun JabookApp(
             }
         }
 
-    // Setup Lyricist for type-safe localization
-    // This must wrap the theme/content so LocalStrings is available in all subcompositions
-    ProvideStrings(rememberStrings()) {
-        JabookTheme(
-            darkTheme = darkTheme,
-            isBetaFlavor = isBetaFlavor,
-        ) {
-            Scaffold(
-                modifier = Modifier.fillMaxSize(),
-                snackbarHost = { androidx.compose.material3.SnackbarHost(appState.snackbarHostState) },
-                bottomBar = {
-                    JabookBottomBar(
-                        destinations = appState.topLevelDestinations,
-                        currentDestination = appState.currentDestination,
-                        onNavigateToDestination = { destination ->
-                            appState.navigateToTopLevelDestination(destination)
-                        },
-                    )
-                },
-            ) { padding ->
-                @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
-                androidx.compose.animation.SharedTransitionLayout {
-                    JabookNavHost(
-                        appState = appState,
-                        modifier = Modifier.padding(padding),
-                        sharedTransitionScope = this,
-                    )
-                }
+    // Setup Lyricist for type-safe localization - REMOVED, using standard Android resources
+    JabookTheme(
+        darkTheme = darkTheme,
+        isBetaFlavor = isBetaFlavor,
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            snackbarHost = { androidx.compose.material3.SnackbarHost(appState.snackbarHostState) },
+            bottomBar = {
+                JabookBottomBar(
+                    destinations = appState.topLevelDestinations,
+                    currentDestination = appState.currentDestination,
+                    onNavigateToDestination = { destination ->
+                        appState.navigateToTopLevelDestination(destination)
+                    },
+                )
+            },
+        ) { padding ->
+            @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+            androidx.compose.animation.SharedTransitionLayout {
+                JabookNavHost(
+                    appState = appState,
+                    modifier = Modifier.padding(padding),
+                    sharedTransitionScope = this,
+                )
             }
         }
     }
@@ -146,8 +140,6 @@ private fun JabookBottomBar(
     onNavigateToDestination: (TopLevelDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val strings = LocalStrings.current
-
     NavigationBar(
         modifier = modifier,
     ) {
@@ -165,10 +157,17 @@ private fun JabookBottomBar(
                             } else {
                                 destination.unselectedIcon
                             },
-                        contentDescription = destination.iconText(strings),
+                        contentDescription =
+                            androidx.compose.ui.res
+                                .stringResource(destination.iconTextId),
                     )
                 },
-                label = { Text(destination.titleText(strings)) },
+                label = {
+                    Text(
+                        androidx.compose.ui.res
+                            .stringResource(destination.titleTextId),
+                    )
+                },
             )
         }
     }

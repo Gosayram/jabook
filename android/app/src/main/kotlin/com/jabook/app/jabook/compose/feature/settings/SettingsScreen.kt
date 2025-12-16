@@ -61,7 +61,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.lyricist.LocalStrings
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.model.AppTheme
 
@@ -83,12 +82,10 @@ fun SettingsScreen(
 ) {
     val userPreferences by viewModel.userPreferences.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val strings = LocalStrings.current
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(strings.screenSettings) },
+                title = { Text(stringResource(R.string.navSettingsText)) },
             )
         },
         modifier = modifier,
@@ -202,17 +199,17 @@ fun SettingsScreen(
                             viewModel.addCustomMirror(domain)
                             showAddMirrorDialog = false
                             android.widget.Toast
-                                .makeText(context, stringResource(R.string.зеркалоDomainДобавлено), android.widget.Toast.LENGTH_SHORT)
+                                .makeText(context, context.getString(R.string.зеркалоDomainДобавлено), android.widget.Toast.LENGTH_SHORT)
                                 .show()
                         } else if (domain in availableMirrors) {
                             android.widget.Toast
-                                .makeText(context, stringResource(R.string.этоЗеркалоУжеДобавлено), android.widget.Toast.LENGTH_SHORT)
+                                .makeText(context, context.getString(R.string.этоЗеркалоУжеДобавлено), android.widget.Toast.LENGTH_SHORT)
                                 .show()
                         } else {
                             android.widget.Toast
                                 .makeText(
                                     context,
-                                    stringResource(R.string.неверныйUrlИспользуйтеФорматRutrackerexample),
+                                    context.getString(R.string.неверныйUrlИспользуйтеФорматRutrackerexample),
                                     android.widget.Toast.LENGTH_SHORT,
                                 ).show()
                         }
@@ -365,15 +362,15 @@ fun SettingsScreen(
                         android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                             type = "application/json"
                             putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                            putExtra(android.content.Intent.EXTRA_SUBJECT, stringResource(R.string.jabookBackup))
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, context.getString(R.string.jabookBackup))
                             putExtra(
                                 android.content.Intent.EXTRA_TEXT,
-                                stringResource(R.string.backupOfJabookSettingsAndData),
+                                context.getString(R.string.backupOfJabookSettingsAndData),
                             )
                             addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
                     context.startActivity(
-                        android.content.Intent.createChooser(intent, stringResource(R.string.exportBackup)),
+                        android.content.Intent.createChooser(intent, context.getString(R.string.exportBackup)),
                     )
                     viewModel.resetBackupState()
                 }
@@ -386,7 +383,7 @@ fun SettingsScreen(
                     android.widget.Toast
                         .makeText(
                             context,
-                            stringResource(R.string.importSuccessfulStats),
+                            context.getString(R.string.importSuccessfulStats),
                             android.widget.Toast.LENGTH_LONG,
                         ).show()
                     viewModel.resetBackupState()
@@ -491,7 +488,7 @@ fun SettingsScreen(
                 when (cacheOperation) {
                     is CacheOperationState.Success -> {
                         android.widget.Toast
-                            .makeText(context, stringResource(R.string.cacheClearedSuccessMessage), android.widget.Toast.LENGTH_SHORT)
+                            .makeText(context, context.getString(R.string.cacheClearedSuccessMessage), android.widget.Toast.LENGTH_SHORT)
                             .show()
                         viewModel.resetCacheOperation()
                     }
@@ -509,11 +506,11 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Appearance Section
-            SettingsSection(title = strings.settingsSectionAppearance)
+            SettingsSection(title = stringResource(R.string.appearance))
 
             SettingsItem(
-                title = strings.settingsTheme,
-                subtitle = strings.settingsThemeDescription,
+                title = stringResource(R.string.themeTitle),
+                subtitle = stringResource(R.string.chooseAppTheme),
             ) {
                 ThemeSelector(
                     selectedTheme = userPreferences?.theme ?: AppTheme.SYSTEM,
@@ -524,18 +521,18 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Playback Section
-            SettingsSection(title = strings.settingsSectionPlayback)
+            SettingsSection(title = stringResource(R.string.playback))
 
             SettingsSwitchItem(
-                title = strings.settingsAutoPlayNext,
-                subtitle = strings.settingsAutoPlayNextDescription,
+                title = stringResource(R.string.autoplayNextChapter),
+                subtitle = stringResource(R.string.automaticallyPlayNextChapterWhenCurrentEnds),
                 checked = userPreferences?.autoPlayNext ?: true,
                 onCheckedChange = viewModel::updateAutoPlayNext,
             )
 
             SettingsSliderItem(
-                title = strings.settingsPlaybackSpeed,
-                subtitle = strings.settingsPlaybackSpeedValue(userPreferences?.playbackSpeed ?: 1.0f),
+                title = stringResource(R.string.playbackSpeed),
+                subtitle = String.format("%.1fx", userPreferences?.playbackSpeed ?: 1.0f),
                 value = userPreferences?.playbackSpeed ?: 1.0f,
                 valueRange = 0.5f..2.0f,
                 steps = 14, // 0.5, 0.6, ..., 2.0
@@ -545,10 +542,10 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // About Section
-            SettingsSection(title = strings.settingsSectionAbout)
+            SettingsSection(title = stringResource(R.string.aboutTitle))
 
             SettingsItem(
-                title = strings.settingsVersion,
+                title = stringResource(R.string.version),
                 subtitle = getVersionName(context),
             )
 
@@ -558,7 +555,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.openSourceLicenses),
                 onClick = {
                     android.widget.Toast
-                        .makeText(context, stringResource(R.string.licenseScreenPlaceholder), android.widget.Toast.LENGTH_SHORT)
+                        .makeText(context, context.getString(R.string.licenseScreenPlaceholder), android.widget.Toast.LENGTH_SHORT)
                         .show()
                 },
             )
@@ -567,7 +564,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.privacyPolicy),
                 onClick = {
                     android.widget.Toast
-                        .makeText(context, stringResource(R.string.privacyPolicyPlaceholder), android.widget.Toast.LENGTH_SHORT)
+                        .makeText(context, context.getString(R.string.privacyPolicyPlaceholder), android.widget.Toast.LENGTH_SHORT)
                         .show()
                 },
             )
@@ -735,28 +732,26 @@ private fun ThemeSelector(
     onThemeSelected: (AppTheme) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val strings = LocalStrings.current
-
     Column(modifier = modifier) {
         Spacer(modifier = Modifier.height(8.dp))
 
         ThemeOption(
             theme = AppTheme.LIGHT,
-            label = strings.settingsThemeLight,
+            label = stringResource(R.string.light),
             selected = selectedTheme == AppTheme.LIGHT,
             onSelected = { onThemeSelected(AppTheme.LIGHT) },
         )
 
         ThemeOption(
             theme = AppTheme.DARK,
-            label = strings.settingsThemeDark,
+            label = stringResource(R.string.dark),
             selected = selectedTheme == AppTheme.DARK,
             onSelected = { onThemeSelected(AppTheme.DARK) },
         )
 
         ThemeOption(
             theme = AppTheme.SYSTEM,
-            label = strings.settingsThemeSystem,
+            label = stringResource(R.string.systemDefault1),
             selected = selectedTheme == AppTheme.SYSTEM,
             onSelected = { onThemeSelected(AppTheme.SYSTEM) },
         )
@@ -801,9 +796,9 @@ private fun ThemeOption(
 private fun getVersionName(context: Context): String =
     try {
         val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-        packageInfo.versionName ?: stringResource(R.string.unknown)
+        packageInfo.versionName ?: context.getString(R.string.unknown)
     } catch (e: PackageManager.NameNotFoundException) {
-        stringResource(R.string.unknown)
+        context.getString(R.string.unknown)
     }
 
 /**

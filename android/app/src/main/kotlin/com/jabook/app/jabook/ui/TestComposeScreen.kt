@@ -42,7 +42,7 @@ fun TestComposeScreen(modifier: Modifier = Modifier) {
 }
 
 @Preview(
-    name = stringResource(R.string.lightTheme),
+    name = "Light Theme",
     showBackground = true,
 )
 @Composable
@@ -53,7 +53,7 @@ private fun TestComposeScreenPreview() {
 }
 
 @Preview(
-    name = stringResource(R.string.darkTheme),
+    name = "Dark Theme",
     showBackground = true,
 )
 @Composable

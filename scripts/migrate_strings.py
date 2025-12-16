@@ -108,7 +108,8 @@ class StringResourceMigrator:
             '/sync/', '/worker/', '/service/', '/receiver/', '/broadcast/',
             'Manager.kt', 'Helper.kt', 'Provider.kt', 'Factory.kt',
             'Mapper.kt', 'UseCase.kt', 'Processor.kt', 'Handler.kt',
-            'Listener.kt', 'Observer.kt', 'Callback.kt'
+            'Listener.kt', 'Observer.kt', 'Callback.kt',
+            'TestComposeScreen.kt' # Excluded by request
         ]
         
         if any(skip in file_str for skip in skip_patterns):

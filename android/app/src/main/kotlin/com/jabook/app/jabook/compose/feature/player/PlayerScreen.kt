@@ -65,7 +65,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import cafe.adriel.lyricist.LocalStrings
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
@@ -94,7 +93,6 @@ fun PlayerScreen(
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
-    val strings = LocalStrings.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
@@ -124,7 +122,7 @@ fun PlayerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(strings.screenPlayer) },
+                title = { Text(stringResource(R.string.nowPlaying)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
