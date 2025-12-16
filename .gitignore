@@ -253,3 +253,6 @@ issue*.md
 
 # Room database schemas
 android/app/schemas/
+
+# XML backup files
+*.xml.backup
