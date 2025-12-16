@@ -26,45 +26,57 @@ class StringResourceMigrator:
         self.strings_xml_en = self.project_root / "android/app/src/main/res/values/strings.xml"
         self.strings_xml_ru = self.project_root / "android/app/src/main/res/values-ru/strings.xml"
         self.existing_keys: Set[str] = set()
+        self.existing_values: Dict[str, str] = {}  # value -> key mapping
         self.new_strings: Dict[str, str] = {}
         self.enable_translation = enable_translation and HAS_REQUESTS
         
     def load_existing_strings(self):
-        """Load existing string keys from strings.xml"""
+        """Load existing string keys and values from strings.xml"""
         if self.strings_xml_en.exists():
             tree = ET.parse(self.strings_xml_en)
             root = tree.getroot()
             for string_elem in root.findall('string'):
                 key = string_elem.get('name')
+                value = string_elem.text
                 if key:
                     self.existing_keys.add(key)
+                    if value:
+                        # Map value to key for lookup
+                        self.existing_values[value] = key
         print(f"📋 Loaded {len(self.existing_keys)} existing string keys")
     
-    def translate_to_russian(self, text: str) -> Optional[str]:
-        """Translate English text to Russian using Google Translate API"""
+    def translate_to_russian(self, text: str, max_retries: int = 3) -> Optional[str]:
+        """Translate English text to Russian using Google Translate API with retry"""
         if not self.enable_translation:
             return None
         
-        try:
-            # Use Google Translate API (unofficial endpoint, free)
-            url = "https://translate.googleapis.com/translate_a/single"
-            params = {
-                'client': 'gtx',
-                'sl': 'en',  # source language
-                'tl': 'ru',  # target language  
-                'dt': 't',   # return translation
-                'q': text
-            }
-            
-            response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                result = response.json()
-                # Extract translated text from response
-                if result and len(result) > 0 and len(result[0]) > 0:
-                    translated = ''.join([item[0] for item in result[0] if item[0]])
-                    return translated
-        except Exception as e:
-            print(f"   ⚠️  Translation failed: {e}")
+        for attempt in range(max_retries):
+            try:
+                # Use Google Translate API (unofficial endpoint, free)
+                url = "https://translate.googleapis.com/translate_a/single"
+                params = {
+                    'client': 'gtx',
+                    'sl': 'en',  # source language
+                    'tl': 'ru',  # target language  
+                    'dt': 't',   # return translation
+                    'q': text
+                }
+                
+                # Increase timeout for better reliability
+                timeout = 10 + (attempt * 5)  # 10s, 15s, 20s
+                response = requests.get(url, params=params, timeout=timeout)
+                if response.status_code == 200:
+                    result = response.json()
+                    # Extract translated text from response
+                    if result and len(result) > 0 and len(result[0]) > 0:
+                        translated = ''.join([item[0] for item in result[0] if item[0]])
+                        if translated and translated.strip():
+                            return translated
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"   ⚠️  Translation attempt {attempt + 1} failed, retrying...")
+                else:
+                    print(f"   ⚠️  Translation failed after {max_retries} attempts: {e}")
         
         return None
     
@@ -149,7 +161,18 @@ class StringResourceMigrator:
         # Process each string
         replacements = {}
         for text, line_num in hardcoded:
-            # Generate key
+            # First check if this exact string value already exists
+            if text in self.existing_values:
+                key = self.existing_values[text]
+                print(f"   ♻️  Reusing existing: '{key}' for '{text[:50]}...'")
+                replacements[text] = key
+                continue
+            
+            # Check if already processed in this run
+            if text in replacements:
+                continue
+            
+            # Generate new key
             key = self.string_to_key(text)
             base_key = key
             counter = 1
@@ -159,12 +182,12 @@ class StringResourceMigrator:
                 key = f"{base_key}{counter}"
                 counter += 1
             
-            # Add to new strings
-            if key not in self.existing_keys:
-                self.new_strings[key] = text
-                self.existing_keys.add(key)
-                strings_added += 1
-                print(f"   + New string: '{key}' = '{text[:50]}...'")
+            # Add to new strings and mappings
+            self.new_strings[key] = text
+            self.existing_keys.add(key)
+            self.existing_values[text] = key
+            strings_added += 1
+            print(f"   + New string: '{key}' = '{text[:50]}...'")
             
             # Store replacement
             replacements[text] = key
@@ -249,16 +272,14 @@ class StringResourceMigrator:
                 russian_value = self.translate_to_russian(english_value)
                 if russian_value:
                     text_value = escape_xml(russian_value)
-                    # For Russian comment, just translate the English value directly
-                    comment_ru = self.translate_to_russian(english_value)
-                    # Use the translation as the comment
-                    comment = f"    <!-- {comment_ru} -->" if comment_ru else f"    <!-- {english_value} -->"
+                    # For Russian comment, use the translated value
+                    comment = f"    <!-- {russian_value} -->"
                     print(f"   ✅ Translated '{key}': '{english_value}' → '{russian_value}'")
                 else:
-                    # Fallback if translation fails
-                    text_value = escape_xml(f"[RU] {english_value}")
+                    # Fallback: use English text  with [NEEDS TRANSLATION] comment
+                    text_value = escape_xml(english_value)
                     comment = f"    <!-- [NEEDS TRANSLATION] {english_value} -->"
-                    print(f"   ⚠️  Could not translate '{key}', using placeholder")
+                    print(f"   ⚠️  Could not translate '{key}', using English text")
             else:
                 # English version - use the English value as comment
                 text_value = escape_xml(english_value)

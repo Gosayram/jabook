@@ -58,6 +58,8 @@ help:
 	@echo "  make check-l10n                    - Check for l10n duplicates"
 	@echo "  make clean-l10n                    - Clean l10n duplicates (auto-remove)"
 	@echo "  make fmt-l10n                      - Format l10n files (cleanup duplicates)"
+	@echo "  make strings                       - Migrate hardcoded strings to resources"
+	@echo "  make strings-check                 - Dry-run migration (no changes)"
 	@echo ""
 	@echo "Device Commands:"
 	@echo "  make run                           - Install and run APK on device"
@@ -403,6 +405,21 @@ clean-l10n:
 .PHONY: fmt-l10n
 fmt-l10n: clean-l10n
 	@echo "✅ Localization files formatted"
+
+# Migrate hardcoded strings to string resources
+.PHONY: strings
+strings:
+	@echo "🔄 Migrating hardcoded strings to resources..."
+	@scripts/.venv/bin/python3 scripts/migrate_strings.py android
+	@echo ""
+	@echo "⚠️  Don't forget to run 'make clean-l10n' to remove any duplicates!"
+
+# Dry-run migration (no changes)
+.PHONY: strings-check
+strings-check:
+	@echo "🔍 DRY RUN - Checking hardcoded strings..."
+	@scripts/.venv/bin/python3 scripts/migrate_strings.py android --dry-run
+
 
 # ========================================
 # Additional Android Development Commands
