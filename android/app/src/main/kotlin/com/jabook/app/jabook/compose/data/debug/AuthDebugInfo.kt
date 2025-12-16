@@ -14,44 +14,34 @@
 
 package com.jabook.app.jabook.compose.data.debug
 
+import com.jabook.app.jabook.compose.data.auth.AuthError
+
 /**
- * Debug information about RuTracker authentication status.
- * Used for diagnostics in Debug screen.
+ * Data class containing diagnostic information for RuTracker authentication and connectivity.
  */
 data class AuthDebugInfo(
     val isAuthenticated: Boolean,
-    val lastAuthAttemptTime: Long?,
-    val lastAuthError: String?,
-    val currentMirror: String,
-    val mirrorConnectivity: Map<String, MirrorStatus>,
-    val validationResults: ValidationResults,
+    val lastAuthAttempt: Long? = null,
+    val lastAuthError: String? = null,
+    val mirrorConnectivity: Map<String, Boolean> = emptyMap(),
+    val validationResults: ValidationResults? = null
 )
 
 /**
- * Status of a mirror connectivity check.
- */
-data class MirrorStatus(
-    val isReachable: Boolean,
-    val responseTimeMs: Long?,
-    val lastChecked: Long,
-    val error: String? = null,
-)
-
-/**
- * Results of 3-tier authentication validation.
+ * Results of 3-tier validation logic from Flutter implementation.
  */
 data class ValidationResults(
-    val profilePageCheck: CheckResult,
-    val searchPageCheck: CheckResult,
-    val indexPageCheck: CheckResult,
-    val lastValidationTime: Long,
+    val profilePageCheck: Boolean,
+    val searchPageCheck: Boolean,
+    val indexPageCheck: Boolean,
+    val lastValidation: Long
 )
 
 /**
- * Result of a single validation check.
+ * Extension to display validation check as emoji
  */
-data class CheckResult(
-    val passed: Boolean,
-    val durationMs: Long,
-    val error: String? = null,
-)
+fun Boolean?.toIcon(): String = when(this) {
+    true -> "✅"
+    false -> "❌"
+    null -> "❓"
+}

@@ -35,12 +35,16 @@ class DebugViewModel
     constructor(
         private val debugLogService: DebugLogService,
         private val mirrorManager: MirrorManager,
+        private val authService: com.jabook.app.jabook.compose.data.auth.RutrackerAuthService,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow<DebugUiState>(DebugUiState.Initial)
         val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
 
         private val _logs = MutableStateFlow<String>("")
         val logs: StateFlow<String> = _logs.asStateFlow()
+
+        private val _authDebugInfo = MutableStateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?>(null)
+        val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
 
         init {
             loadLogs()
@@ -80,13 +84,44 @@ class DebugViewModel
         fun testAllMirrors() {
             viewModelScope.launch {
                 _uiState.value = DebugUiState.Loading
-                // TODO: Implement mirror testing
+                refreshAuthDebugInfo()
                 _uiState.value = DebugUiState.Success
             }
         }
 
         fun refreshDebugData() {
             loadLogs()
+            refreshAuthDebugInfo()
+        }
+
+        fun refreshAuthDebugInfo() {
+            viewModelScope.launch {
+                val isAuthenticated = authService.validateAuth()
+                val connectivity = checkAllMirrors()
+                
+                // TODO: Get real validation results and last error from AuthService/Preferences
+                // For now creating placeholder
+                val info = com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                    isAuthenticated = isAuthenticated,
+                    lastAuthAttempt = System.currentTimeMillis(),
+                    lastAuthError = null, // Needs to be exposed from AuthService
+                    mirrorConnectivity = connectivity,
+                    validationResults = com.jabook.app.jabook.compose.data.debug.ValidationResults(
+                        profilePageCheck = isAuthenticated,
+                        searchPageCheck = false,
+                        indexPageCheck = connectivity.values.any { it },
+                        lastValidation = System.currentTimeMillis()
+                    )
+                )
+                _authDebugInfo.value = info
+            }
+        }
+
+        private suspend fun checkAllMirrors(): Map<String, Boolean> {
+            val mirrors = mirrorManager.availableMirrors.value
+            return mirrors.associateWith { mirror ->
+                mirrorManager.checkMirrorHealth(mirror)
+            }
         }
     }
 
