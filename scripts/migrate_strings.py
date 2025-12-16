@@ -105,8 +105,9 @@ class StringResourceMigrator:
                     continue
                 
                 # Find strings in Text() calls, labels, contentDescription, etc.
-                # Pattern: Text("string") or label = { Text("string") }
-                matches = re.findall(r'Text\s*\(\s*"([^"]+)"\s*\)', line)
+                # Pattern: Text("string") or Text("string", style=...) 
+                # More flexible - doesn't require immediate closing paren
+                matches = re.findall(r'Text\s*\(\s*"([^"]+)"', line)
                 for match in matches:
                     if match and not match.startswith('$'):  # Skip template strings
                         strings.append((match, line_num))
