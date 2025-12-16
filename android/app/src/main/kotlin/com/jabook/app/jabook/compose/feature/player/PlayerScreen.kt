@@ -97,6 +97,13 @@ fun PlayerScreen(
     val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
 
+    // Auto-initialize player when book data is ready
+    androidx.compose.runtime.LaunchedEffect(uiState) {
+        if (uiState is PlayerUiState.Success) {
+            viewModel.initializePlayer()
+        }
+    }
+
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
 

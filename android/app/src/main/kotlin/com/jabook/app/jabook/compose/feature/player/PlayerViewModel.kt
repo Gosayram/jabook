@@ -62,6 +62,9 @@ class PlayerViewModel
         private val args = savedStateHandle.toRoute<PlayerRoute>()
         private val bookId = args.bookId
 
+        // Track if book has been loaded into player
+        private var isBookLoaded = false
+
         /**
          * Combined UI state from book data and playback state.
          */
@@ -112,13 +115,22 @@ class PlayerViewModel
         // Player control methods delegated to controller
 
         fun play() {
-            // If we have book data but not playing, we might need to load the book first
-            // simplified for MVP: assume book is loaded if we are here or just call play
             val state = uiState.value
             if (state is PlayerUiState.Success) {
-                // Check if we need to load variables (omitted for strict MVP, assuming existing playlist)
-                // In full implementation: if (currentMediaId != bookId) playerController.loadBook(...)
-                playerController.play()
+                // Ensure book is loaded before playing
+                if (!isBookLoaded) {
+                    val filePaths = state.chapters.mapNotNull { it.fileUrl }
+                    if (filePaths.isNotEmpty()) {
+                        playerController.loadBook(
+                            filePaths = filePaths,
+                            initialChapterIndex = state.currentChapterIndex,
+                            initialPosition = state.currentPosition,
+                        )
+                        isBookLoaded = true
+                    }
+                } else {
+                    playerController.play()
+                }
             }
         }
 
@@ -176,11 +188,16 @@ class PlayerViewModel
          */
         fun initializePlayer() {
             val state = uiState.value
-            if (state is PlayerUiState.Success) {
-                // Logic to load book if not already loaded would go here
-                // For MVP, we rely on manual "Load" or assume it's loaded via clicking "Play"
-                // Or we can auto-load here:
-                // playerController.loadBook(state.book.chapters.map { it.fileUrl ?: "" })
+            if (state is PlayerUiState.Success && !isBookLoaded) {
+                val filePaths = state.chapters.mapNotNull { it.fileUrl }
+                if (filePaths.isNotEmpty()) {
+                    playerController.loadBook(
+                        filePaths = filePaths,
+                        initialChapterIndex = state.currentChapterIndex,
+                        initialPosition = state.currentPosition,
+                    )
+                    isBookLoaded = true
+                }
             }
         }
     }

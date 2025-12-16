@@ -18,11 +18,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -276,7 +276,7 @@ private fun ViewModeToggle(
             onClick = { onModeChanged(LibraryViewMode.LIST) },
         ) {
             Icon(
-                imageVector = Icons.Default.ViewList,
+                imageVector = Icons.AutoMirrored.Filled.ViewList,
                 contentDescription = stringResource(R.string.viewModeList),
                 tint =
                     if (currentMode == LibraryViewMode.LIST) {
