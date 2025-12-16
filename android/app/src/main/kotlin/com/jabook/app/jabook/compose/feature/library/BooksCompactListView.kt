@@ -37,9 +37,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.Book
 
 /**
@@ -140,9 +142,9 @@ private fun CompactBookCard(
                         },
                     contentDescription =
                         if (book.isFavorite) {
-                            "Remove from favorites"
+                            stringResource(R.string.removeFromFavorites)
                         } else {
-                            "Add to favorites"
+                            stringResource(R.string.addToFavorites)
                         },
                     tint =
                         if (book.isFavorite) {

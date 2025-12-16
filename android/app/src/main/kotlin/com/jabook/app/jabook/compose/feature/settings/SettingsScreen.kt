@@ -419,7 +419,7 @@ fun SettingsScreen(
 
             // Total cache size
             SettingsItem(
-                title = stringResource(R.string.totalCacheSize1),
+                title = stringResource(R.string.totalCacheSize),
                 subtitle =
                     cacheStats?.let { formatBytes(it.totalSize) }
                         ?: if (cacheOperation is CacheOperationState.Loading) {
@@ -592,7 +592,7 @@ fun SettingsScreen(
 
             SettingsItem(
                 title = stringResource(R.string.privacyPolicy),
-                subtitle = "Apache 2.0 Open Source License",
+                subtitle = stringResource(R.string.apache20OpenSourceLicense),
                 onClick = {
                     val intent =
                         android.content.Intent(
@@ -785,7 +785,7 @@ private fun ThemeSelector(
 
         ThemeOption(
             theme = AppTheme.SYSTEM,
-            label = stringResource(R.string.systemDefault1),
+            label = stringResource(R.string.systemDefault),
             selected = selectedTheme == AppTheme.SYSTEM,
             onSelected = { onThemeSelected(AppTheme.SYSTEM) },
         )

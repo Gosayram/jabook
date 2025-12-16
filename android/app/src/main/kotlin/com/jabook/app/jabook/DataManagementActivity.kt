@@ -189,7 +189,7 @@ class DataManagementActivity : AppCompatActivity() {
     private fun showClearCacheDialog() {
         AlertDialog
             .Builder(this)
-            .setTitle(getString(R.string.clearCache1))
+            .setTitle(getString(R.string.clearCache))
             .setMessage(getString(R.string.thisWillClearAllCachedDataDownloadedAudiobooksWill))
             .setPositiveButton(getString(R.string.clearButton)) { _, _ ->
                 clearCache()

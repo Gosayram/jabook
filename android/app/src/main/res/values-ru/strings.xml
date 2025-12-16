@@ -2257,4 +2257,12 @@
     <string name="viewModeList">Список</string>
     <string name="viewModeGrid">Сетка</string>
     <string name="viewModeGrouped">Группировка</string>
+    <!-- Лицензия с открытым исходным кодом Apache 2.0 -->
+    <string name="apache20OpenSourceLicense">Лицензия с открытым исходным кодом Apache 2.0</string>
+    <!-- Компактный просмотр списка -->
+    <string name="compactListView">Компактный просмотр списка</string>
+    <!-- Искать 10 секунд назад -->
+    <string name="seekBackward10s">Искать 10 секунд назад</string>
+    <!-- Ищите вперед 30-е годы -->
+    <string name="seekForward30s">Ищите вперед 30-е годы</string>
 </resources>

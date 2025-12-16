@@ -297,7 +297,7 @@ private fun ViewModeToggle(
                     } else {
                         Icons.AutoMirrored.Outlined.List
                     },
-                contentDescription = "List view",
+                contentDescription = stringResource(R.string.viewModeList),
                 tint =
                     if (currentMode == LibraryViewMode.LIST) {
                         androidx.compose.material3.MaterialTheme.colorScheme.primary
@@ -318,7 +318,7 @@ private fun ViewModeToggle(
                     } else {
                         Icons.AutoMirrored.Outlined.ViewList
                     },
-                contentDescription = "Compact list view",
+                contentDescription = stringResource(R.string.compactListView),
                 tint =
                     if (currentMode == LibraryViewMode.LIST_COMPACT) {
                         androidx.compose.material3.MaterialTheme.colorScheme.primary
@@ -352,7 +352,7 @@ private fun ViewModeToggle(
                     } else {
                         Icons.Outlined.GridView
                     },
-                contentDescription = "Grid view",
+                contentDescription = stringResource(R.string.viewModeGrid),
                 tint =
                     if (currentMode.isGrid()) {
                         androidx.compose.material3.MaterialTheme.colorScheme.primary

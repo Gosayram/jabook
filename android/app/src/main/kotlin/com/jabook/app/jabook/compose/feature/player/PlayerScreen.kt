@@ -338,7 +338,7 @@ private fun PlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Replay,
-                        contentDescription = "Seek backward 10s",
+                        contentDescription = stringResource(R.string.seekBackward10s),
                         modifier = Modifier.size(40.dp),
                     )
                 }
@@ -378,7 +378,7 @@ private fun PlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.FastForward,
-                        contentDescription = "Seek forward 30s",
+                        contentDescription = stringResource(R.string.seekForward30s),
                         modifier = Modifier.size(40.dp),
                     )
                 }

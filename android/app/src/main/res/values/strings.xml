@@ -2221,4 +2221,12 @@
     <string name="viewModeList">List view</string>
     <string name="viewModeGrid">Grid view</string>
     <string name="viewModeGrouped">Grouped view</string>
+    <!-- Apache 2.0 Open Source License -->
+    <string name="apache20OpenSourceLicense">Apache 2.0 Open Source License</string>
+    <!-- Compact list view -->
+    <string name="compactListView">Compact list view</string>
+    <!-- Seek backward 10s -->
+    <string name="seekBackward10s">Seek backward 10s</string>
+    <!-- Seek forward 30s -->
+    <string name="seekForward30s">Seek forward 30s</string>
 </resources>

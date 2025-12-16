@@ -272,7 +272,7 @@ private fun SeedersLeechersChip(
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowUpward,
-                    contentDescription = stringResource(R.string.seeders1),
+                    contentDescription = stringResource(R.string.seeders),
                     tint = Color(0xFF4CAF50), // Green
                 )
             },
@@ -284,7 +284,7 @@ private fun SeedersLeechersChip(
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowDownward,
-                    contentDescription = stringResource(R.string.leechers1),
+                    contentDescription = stringResource(R.string.leechers),
                     tint = Color(0xFFFF9800), // Orange
                 )
             },

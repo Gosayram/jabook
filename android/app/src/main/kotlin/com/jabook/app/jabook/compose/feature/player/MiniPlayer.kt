@@ -34,9 +34,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.jabook.app.jabook.R
 
 /**
  * Mini player component displayed above bottom navigation.
@@ -120,9 +122,9 @@ fun MiniPlayer(
                             },
                         contentDescription =
                             if (isPlaying) {
-                                "Pause"
+                                stringResource(R.string.pause)
                             } else {
-                                "Play"
+                                stringResource(R.string.play)
                             },
                         tint = MaterialTheme.colorScheme.primary,
                     )
