@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -148,7 +149,7 @@ fun AuthScreen(
             )
 
             Text(
-                text = "Rutracker Auth",
+                text = stringResource(R.string.rutrackerAuth),
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(vertical = 16.dp),
             )
@@ -164,7 +165,7 @@ fun AuthScreen(
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text("Username") },
+                label = { Text(stringResource(R.string.username)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -174,7 +175,7 @@ fun AuthScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.password)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -188,7 +189,17 @@ fun AuthScreen(
                         }
 
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(imageVector = image, contentDescription = if (passwordVisible) "Hide password" else "Show password")
+                        Icon(
+                            imageVector = image,
+                            contentDescription =
+                                if (passwordVisible) {
+                                    stringResource(
+                                        R.string.hidePassword,
+                                    )
+                                } else {
+                                    stringResource(R.string.showPassword)
+                                },
+                        )
                     }
                 },
             )
@@ -203,7 +214,7 @@ fun AuthScreen(
                     checked = rememberMe,
                     onCheckedChange = { rememberMe = it },
                 )
-                Text(text = "Remember me")
+                Text(text = stringResource(R.string.rememberMe))
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -216,7 +227,7 @@ fun AuthScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = username.isNotBlank() && password.isNotBlank(),
                 ) {
-                    Text("Login")
+                    Text(stringResource(R.string.login))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -225,7 +236,7 @@ fun AuthScreen(
                     onClick = { viewModel.requestWebViewLogin() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Login via WebView")
+                    Text(stringResource(R.string.loginViaWebView))
                 }
             }
         }
@@ -257,7 +268,7 @@ fun CaptchaDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Captcha Required") },
+        title = { Text(stringResource(R.string.captchaRequired)) },
         text = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -265,7 +276,7 @@ fun CaptchaDialog(
             ) {
                 AsyncImage(
                     model = captchaData.url,
-                    contentDescription = "Captcha Image",
+                    contentDescription = stringResource(R.string.captchaImage),
                     modifier =
                         Modifier
                             .fillMaxWidth()
@@ -275,7 +286,7 @@ fun CaptchaDialog(
                 OutlinedTextField(
                     value = code,
                     onValueChange = { code = it },
-                    label = { Text("Enter code") },
+                    label = { Text(stringResource(R.string.enterCode)) },
                     singleLine = true,
                 )
             }
@@ -285,12 +296,12 @@ fun CaptchaDialog(
                 onClick = { onConfirm(code) },
                 enabled = code.isNotBlank(),
             ) {
-                Text("Verify")
+                Text(stringResource(R.string.verify))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         },
     )

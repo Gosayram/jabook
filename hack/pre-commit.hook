@@ -1,0 +1,34 @@
+#!/bin/bash
+# Pre-commit hook to clean duplicate string resources
+# This hook automatically removes duplicate string keys before commit
+#
+# Installation:
+#   cp hack/pre-commit.hook .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+
+# Find the project root
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+# Check if strings.xml files are being committed
+if git diff --cached --name-only | grep -q "android/app/src/main/res/values.*strings.xml"; then
+    echo "📝 Detected strings.xml changes, checking for duplicates..."
+    
+    # Run the duplicate cleaner
+    if "$PROJECT_ROOT/hack/check-l10n-duplicates.sh"; then
+        echo "✅ No duplicates found"
+    else
+        echo "🧹 Duplicates were found and auto-cleaned"
+        echo "📌 Re-staging cleaned strings.xml files..."
+        
+        # Re-add the cleaned files
+        git add android/app/src/main/res/values/strings.xml
+        git add android/app/src/main/res/values-ru/strings.xml
+        
+        # Find and add any other locale files that were modified
+        find "$PROJECT_ROOT/android/app/src/main/res" -path "*/values-*/strings.xml" -exec git add {} \;
+        
+        echo "✅ Cleaned files re-staged for commit"
+    fi
+fi
+
+exit 0

@@ -1943,4 +1943,25 @@
     <string name="addToFavorites">Add to favorites</string>
     <string name="removeFromFavorites">Remove from favorites</string>
     <string name="errorWithMessage">Error: %1$s</string>
+    <!-- Auth screen strings -->
+    <string name="rutrackerAuth">Rutracker Auth</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="rememberMe">Remember me</string>
+    <string name="loginViaWebView">Login via WebView</string>
+    <string name="hidePassword">Hide password</string>
+    <string name="showPassword">Show password</string>
+    <string name="captchaRequired">Captcha Required</string>
+    <string name="captchaImage">Captcha Image</string>
+    <string name="enterCode">Enter code</string>
+    <string name="verify">Verify</string>
+    <!-- Library screen strings -->
+    <string name="library">Library</string>
+    <string name="search">Search</string>
+    <string name="downloads">Downloads</string>
+    <string name="scanLibrary">Scan Library</string>
+    <string name="loadingLibrary">Loading library...</string>
+    <string name="noBooksInLibrary">No books in your library yet.\nAdd books to get started!</string>
+    <string name="storagePermissionRequired">Storage permission required to scan books</string>
+    <string name="foundBooksMessage">Found %1$d books</string>
 </resources>

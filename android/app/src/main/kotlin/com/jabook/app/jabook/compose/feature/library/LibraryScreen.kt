@@ -30,9 +30,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
@@ -66,6 +68,10 @@ fun LibraryScreen(
     val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
+    val storagePermissionText = stringResource(R.string.storagePermissionRequired)
+    val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
+    val scanFailedMessageTemplate = stringResource(R.string.scanFailedMessage)
+
     // Permission launcher for scanning
     val permissionLauncher =
         androidx.activity.compose.rememberLauncherForActivityResult(
@@ -77,7 +83,7 @@ fun LibraryScreen(
                 viewModel.startLibraryScan()
             } else {
                 scope.launch {
-                    snackbarHostState.showSnackbar("Storage permission required to scan books")
+                    snackbarHostState.showSnackbar(storagePermissionText)
                 }
             }
         }
@@ -86,10 +92,10 @@ fun LibraryScreen(
     androidx.compose.runtime.LaunchedEffect(scanState) {
         when (val state = scanState) {
             is ScanState.Completed -> {
-                snackbarHostState.showSnackbar("Found ${state.booksFound} books")
+                snackbarHostState.showSnackbar(foundBooksMessageTemplate.format(state.booksFound))
             }
             is ScanState.Failed -> {
-                snackbarHostState.showSnackbar("Scan failed: ${state.error}")
+                snackbarHostState.showSnackbar(scanFailedMessageTemplate.format(state.error))
             }
             else -> {}
         }
@@ -98,20 +104,20 @@ fun LibraryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Library") },
+                title = { Text(stringResource(R.string.library)) },
                 actions = {
                     // Search button
                     IconButton(onClick = onNavigateToSearch) {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
+                            contentDescription = stringResource(R.string.search),
                         )
                     }
                     // Downloads button
                     IconButton(onClick = onNavigateToDownloads) {
                         Icon(
                             imageVector = Icons.Default.Download,
-                            contentDescription = "Downloads",
+                            contentDescription = stringResource(R.string.downloads),
                         )
                     }
                 },
@@ -137,7 +143,7 @@ fun LibraryScreen(
                 } else {
                     Icon(
                         imageVector = androidx.compose.material.icons.Icons.Default.Refresh,
-                        contentDescription = "Scan Library",
+                        contentDescription = stringResource(R.string.scanLibrary),
                     )
                 }
             }
@@ -148,7 +154,7 @@ fun LibraryScreen(
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (uiState) {
                 is LibraryUiState.Loading -> {
-                    LoadingScreen(message = "Loading library...")
+                    LoadingScreen(message = stringResource(R.string.loadingLibrary))
                 }
 
                 is LibraryUiState.Success -> {
@@ -167,7 +173,7 @@ fun LibraryScreen(
 
                 is LibraryUiState.Empty -> {
                     EmptyState(
-                        message = "No books in your library yet.\nAdd books to get started!",
+                        message = stringResource(R.string.noBooksInLibrary),
                     )
                 }
 
@@ -194,7 +200,7 @@ private fun LibraryContent(
     Box(modifier = modifier) {
         when (uiState) {
             is LibraryUiState.Loading -> {
-                LoadingScreen(message = "Loading library...")
+                LoadingScreen(message = stringResource(R.string.loadingLibrary))
             }
 
             is LibraryUiState.Success -> {
@@ -206,7 +212,7 @@ private fun LibraryContent(
 
             is LibraryUiState.Empty -> {
                 EmptyState(
-                    message = "No books in your library yet.\nAdd books to get started!",
+                    message = stringResource(R.string.noBooksInLibrary),
                 )
             }
 

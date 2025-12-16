@@ -1949,4 +1949,25 @@
     <string name="addToFavorites">Добавить в избранное</string>
     <string name="removeFromFavorites">Удалить из избранного</string>
     <string name="errorWithMessage">Ошибка: %1$s</string>
+    <!-- Строки экрана аутентификации -->
+    <string name="rutrackerAuth">Rutracker Auth</string>
+    <string name="username">Имя пользователя</string>
+    <string name="password">Пароль</string>
+    <string name="rememberMe">Запомнить меня</string>
+    <string name="loginViaWebView">Войти через WebView</string>
+    <string name="hidePassword">Скрыть пароль</string>
+    <string name="showPassword">Показать пароль</string>
+    <string name="captchaRequired">Требуется капча</string>
+    <string name="captchaImage">Изображение капчи</string>
+    <string name="enterCode">Введите код</string>
+    <string name="verify">Подтвердить</string>
+    <!-- Строки экрана библиотеки -->
+    <string name="library">Библиотека</string>
+    <string name="search">Поиск</string>
+    <string name="downloads">Загрузки</string>
+    <string name="scanLibrary">Сканировать библиотеку</string>
+    <string name="loadingLibrary">Загрузка библиотеки...</string>
+    <string name="noBooksInLibrary">В вашей библиотеке пока нет книг.\nДобавьте книги, чтобы начать!</string>
+    <string name="storagePermissionRequired">Для сканирования книг требуется разрешение на доступ к хранилищу</string>
+    <string name="foundBooksMessage">Найдено книг: %1$d</string>
 </resources>

@@ -1,126 +1,140 @@
 #!/bin/bash
-# Check for duplicate string resource keys in Android strings.xml files
+# Script to find and remove duplicate string resource keys in Android XML files
+# Keeps the first occurrence, removes subsequent duplicates
 
 set -e
 
-# Android strings.xml locations
-DEFAULT_STRINGS="android/app/src/main/res/values/strings.xml"
-RU_STRINGS="android/app/src/main/res/values-ru/strings.xml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ANDROID_RES="$PROJECT_ROOT/android/app/src/main/res"
+BACKUP_DIR="$PROJECT_ROOT/.backup/strings"
 
-EXIT_CODE=0
-
-echo "Checking for duplicate string resource keys in Android XML files..."
+echo "🔍 Checking and cleaning duplicate string resource keys in Android XML files..."
 echo ""
 
-# Function to find duplicates in a strings.xml file
-check_duplicates() {
-    local file=$1
-    local file_name=$(basename "$file")
-    local dir=$(dirname "$file")
-    local locale=$(basename "$dir")
+# Create backup directory if it doesn't exist
+mkdir -p "$BACKUP_DIR"
+
+# Function to check and clean duplicates in a strings.xml file
+check_and_clean_duplicates() {
+    local file_path="$1"
+    local locale="$2"
     
-    if [ ! -f "$file" ]; then
-        echo "ℹ️  $file not found (locale: $locale) - skipping"
-        return
-    fi
+    echo "Checking strings.xml (locale: $locale)..."
     
-    echo "Checking $file_name (locale: $locale)..."
+    # Create a temporary file in the same directory for atomic replace
+    local temp_file="${file_path}.tmp"
+    # Create backup with timestamp and locale name in backup directory
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_file="$BACKUP_DIR/strings_${locale}_${timestamp}.xml"
     
-    # Extract string resource names from <string name="key"> tags
-    local duplicates=$(awk '
-    BEGIN {
-        duplicates = ""
-    }
-    {
-        # Skip comments and empty lines
-        if ($0 ~ /^[[:space:]]*<!--/ || $0 ~ /^[[:space:]]*$/) {
-            next
-        }
-        
-        # Match <string name="key"> pattern
-        if (match($0, /<string[^>]+name="([^"]+)"/, arr)) {
-            key = arr[1]
-            
-            if (key in seen) {
-                if (!(key in dups)) {
-                    dups[key] = seen[key] "," NR
-                } else {
-                    dups[key] = dups[key] "," NR
-                }
-            } else {
-                seen[key] = NR
-            }
-        }
-        
-        # Also check <string-array name="key"> and <plurals name="key">
-        if (match($0, /<(string-array|plurals)[^>]+name="([^"]+)"/, arr)) {
-            key = arr[2]
-            
-            if (key in seen) {
-                if (!(key in dups)) {
-                    dups[key] = seen[key] "," NR
-                } else {
-                    dups[key] = dups[key] "," NR
-                }
-            } else {
-                seen[key] = NR
-            }
-        }
-    }
-    END {
-        for (key in dups) {
-            print key ":" dups[key]
-        }
-    }
-    ' "$file")
+    # Use Python for better XML handling
+    python3 -c '
+import sys
+import re
+from collections import OrderedDict
+
+file_path = sys.argv[1]
+temp_file = sys.argv[2]  
+backup_file = sys.argv[3]
+locale = sys.argv[4]
+
+# Read the file
+with open(file_path, "r", encoding="utf-8") as f:
+    lines = f.readlines()
+
+# Track seen keys and their line numbers
+seen_keys = OrderedDict()
+duplicates_found = []
+output_lines = []
+
+for i, line in enumerate(lines, 1):
+    # Match string resource definition
+    match = re.search(r"<string\s+name=\"([^\"]+)\"", line)
     
-    if [ -n "$duplicates" ]; then
-        echo "❌ Found duplicate string resource keys in $file_name (locale: $locale):"
-        echo "$duplicates" | while IFS=: read -r key lines; do
-            echo "  - $key (lines: $lines)"
-            # Show the actual lines
-            echo "$lines" | tr ',' '\n' | while read line_num; do
-                sed -n "${line_num}p" "$file" | sed 's/^/    /'
-            done
-        done
-        EXIT_CODE=1
-    else
-        echo "✅ No duplicate string resource keys found in $file_name (locale: $locale)"
-    fi
+    if match:
+        key = match.group(1)
+        if key in seen_keys:
+            # This is a duplicate - skip this line
+            duplicates_found.append((i, key, seen_keys[key]))
+            continue  # Don'"'"'t add to output
+        else:
+            # First occurrence - remember it
+            seen_keys[key] = i
+    
+    output_lines.append(line)
+
+# Report results
+if duplicates_found:
+    print(f"⚠️  Found {len(duplicates_found)} duplicate(s)")
+    for line_num, key, first_line in duplicates_found:
+        print(f"   Line {line_num}: '"'"'{key}'"'"' (first defined at line {first_line}) - REMOVED")
+    
+    # Create backup
+    with open(backup_file, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+    
+    # Write cleaned file
+    with open(temp_file, "w", encoding="utf-8") as f:
+        f.writelines(output_lines)
+    
+    # Replace original with cleaned
+    import shutil
+    shutil.move(temp_file, file_path)
+    
+    print(f"✅ Cleaned file saved")
+    print(f"📦 Backup: {backup_file}")
+    sys.exit(1)  # Exit with 1 to indicate changes were made
+else:
+    print(f"✅ No duplicates found")
+    sys.exit(0)
+' "$file_path" "$temp_file" "$backup_file" "$locale"
+    
+    return $?
 }
 
-# Check default strings.xml
-check_duplicates "$DEFAULT_STRINGS"
-echo ""
+had_duplicates=false
 
-# Check Russian strings.xml
-check_duplicates "$RU_STRINGS"
-echo ""
+# Check values/strings.xml (default English)
+if [ -f "$ANDROID_RES/values/strings.xml" ]; then
+    if ! check_and_clean_duplicates "$ANDROID_RES/values/strings.xml" "values"; then
+        had_duplicates=true
+    fi
+    echo ""
+fi
 
-# Check if there are any other values-* directories
+# Check values-ru/strings.xml (Russian)
+if [ -f "$ANDROID_RES/values-ru/strings.xml" ]; then
+    if ! check_and_clean_duplicates "$ANDROID_RES/values-ru/strings.xml" "values-ru"; then
+        had_duplicates=true
+    fi
+    echo ""
+fi
+
+# Search for any other locale strings.xml files
 echo "Searching for additional locale strings.xml files..."
-FOUND_ADDITIONAL=false
-for values_dir in android/app/src/main/res/values-*/; do
-    if [ -d "$values_dir" ]; then
-        strings_file="${values_dir}strings.xml"
-        locale=$(basename "$values_dir")
-        if [ -f "$strings_file" ] && [ "$locale" != "values-ru" ]; then
-            FOUND_ADDITIONAL=true
-            check_duplicates "$strings_file"
+additional_files=$(find "$ANDROID_RES" -path "*/values-*/strings.xml" ! -path "*/values-ru/*" 2>/dev/null || true)
+
+if [ -n "$additional_files" ]; then
+    while IFS= read -r file; do
+        if [ -f "$file" ]; then
+            locale=$(basename "$(dirname "$file")")
+            if ! check_and_clean_duplicates "$file" "$locale"; then
+                had_duplicates=true
+            fi
             echo ""
         fi
-    fi
-done
-
-if [ "$FOUND_ADDITIONAL" = false ]; then
+    done <<< "$additional_files"
+else
     echo "ℹ️  No additional locale strings.xml files found"
     echo ""
 fi
 
-if [ $EXIT_CODE -eq 1 ]; then
-    echo "❌ Duplicate string resource keys detected! Please fix them before committing."
-    echo "   Android will use the last value for duplicate keys, which can cause unexpected behavior."
+if [ "$had_duplicates" = true ]; then
+    echo "🧹 Cleanup complete! Duplicates have been removed."
+    echo "📦 Backup files saved to: $BACKUP_DIR"
     exit 1
 else
     echo "✅ All strings.xml files are clean - no duplicate resource keys found."
+    exit 0
 fi

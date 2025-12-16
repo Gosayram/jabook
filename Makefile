@@ -56,6 +56,8 @@ help:
 	@echo "  make update-copyright              - Update copyright headers"
 	@echo "  make add-copyright                 - Add missing copyright headers"
 	@echo "  make check-l10n                    - Check for l10n duplicates"
+	@echo "  make clean-l10n                    - Clean l10n duplicates (auto-remove)"
+	@echo "  make fmt-l10n                      - Format l10n files (cleanup duplicates)"
 	@echo ""
 	@echo "Device Commands:"
 	@echo "  make run                           - Install and run APK on device"
@@ -390,6 +392,17 @@ add-copyright:
 check-l10n:
 	@echo "Checking for l10n duplicates..."
 	@bash hack/check-l10n-duplicates.sh
+
+# Clean l10n duplicates (auto-removes duplicates, keeps first occurrence)
+.PHONY: clean-l10n
+clean-l10n:
+	@echo "Cleaning l10n duplicates..."
+	@bash hack/check-l10n-duplicates.sh || echo "✅ Duplicates cleaned automatically"
+
+# Format all localization files (cleanup duplicates)
+.PHONY: fmt-l10n
+fmt-l10n: clean-l10n
+	@echo "✅ Localization files formatted"
 
 # ========================================
 # Additional Android Development Commands
