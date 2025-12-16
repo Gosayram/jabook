@@ -2315,4 +2315,9 @@
     <string name="searchPageCheck">Search Page: %s</string>
     <string name="indexPageCheck">Index Page: %s</string>
     <string name="mirrorConnectivityTitle">Mirror Connectivity</string>
+    
+    <!-- View Mode Strings -->
+    <string name="viewModeList">List view</string>
+    <string name="viewModeGrid">Grid view</string>
+    <string name="viewModeGrouped">Grouped view</string>
 </resources>

@@ -22,6 +22,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
+import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.data.model.UserData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -42,6 +43,7 @@ class DataStoreUserPreferencesRepository
         companion object {
             private val THEME = stringPreferencesKey("theme")
             private val SORT_ORDER = stringPreferencesKey("sort_order")
+            private val VIEW_MODE = stringPreferencesKey("view_mode")
             private val AUTO_PLAY_NEXT = booleanPreferencesKey("auto_play_next")
             private val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         }
@@ -65,6 +67,14 @@ class DataStoreUserPreferencesRepository
                                 BookSortOrder.RECENTLY_PLAYED
                             }
                         } ?: BookSortOrder.RECENTLY_PLAYED,
+                    viewMode =
+                        preferences[VIEW_MODE]?.let { modeName ->
+                            try {
+                                LibraryViewMode.valueOf(modeName)
+                            } catch (e: IllegalArgumentException) {
+                                LibraryViewMode.LIST
+                            }
+                        } ?: LibraryViewMode.LIST,
                     autoPlayNext = preferences[AUTO_PLAY_NEXT] ?: true,
                     playbackSpeed = preferences[PLAYBACK_SPEED] ?: 1.0f,
                 )
@@ -79,6 +89,12 @@ class DataStoreUserPreferencesRepository
         override suspend fun setSortOrder(sortOrder: BookSortOrder) {
             dataStore.edit { preferences ->
                 preferences[SORT_ORDER] = sortOrder.name
+            }
+        }
+
+        override suspend fun setViewMode(viewMode: LibraryViewMode) {
+            dataStore.edit { preferences ->
+                preferences[VIEW_MODE] = viewMode.name
             }
         }
 

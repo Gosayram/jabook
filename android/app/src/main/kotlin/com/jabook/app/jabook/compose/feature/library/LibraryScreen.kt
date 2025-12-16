@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
@@ -61,6 +64,7 @@ fun LibraryScreen(
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsStateWithLifecycle()
     val inProgress by viewModel.inProgress.collectAsStateWithLifecycle()
     val favorites by viewModel.favoriteBooks.collectAsStateWithLifecycle()
@@ -106,6 +110,12 @@ fun LibraryScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.library)) },
                 actions = {
+                    // View mode toggle
+                    ViewModeToggle(
+                        currentMode = viewMode,
+                        onModeChanged = viewModel::onViewModeChanged,
+                    )
+
                     // Search button
                     IconButton(onClick = onNavigateToSearch) {
                         Icon(
@@ -158,17 +168,43 @@ fun LibraryScreen(
                 }
 
                 is LibraryUiState.Success -> {
-                    EnhancedLibraryContent(
-                        allBooks = (uiState as LibraryUiState.Success).books,
-                        recentlyPlayed = recentlyPlayed,
-                        inProgress = inProgress,
-                        favorites = favorites,
-                        onBookClick = onBookClick,
-                        onToggleFavorite = viewModel::toggleFavorite,
-                        modifier = Modifier.fillMaxSize(),
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                    )
+                    val books = (uiState as LibraryUiState.Success).books
+
+                    // Switch based on view mode
+                    when (viewMode) {
+                        LibraryViewMode.LIST -> {
+                            EnhancedLibraryContent(
+                                allBooks = books,
+                                recentlyPlayed = recentlyPlayed,
+                                inProgress = inProgress,
+                                favorites = favorites,
+                                onBookClick = onBookClick,
+                                onToggleFavorite = viewModel::toggleFavorite,
+                                modifier = Modifier.fillMaxSize(),
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                            )
+                        }
+                        LibraryViewMode.GRID_COMPACT,
+                        LibraryViewMode.GRID_COMFORTABLE,
+                        -> {
+                            BooksGridView(
+                                books = books,
+                                viewMode = viewMode,
+                                onBookClick = onBookClick,
+                                onToggleFavorite = viewModel::toggleFavorite,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                        LibraryViewMode.GROUPED_LETTER -> {
+                            BooksGroupedView(
+                                books = books,
+                                onBookClick = onBookClick,
+                                onToggleFavorite = viewModel::toggleFavorite,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
                 }
 
                 is LibraryUiState.Empty -> {
@@ -224,3 +260,52 @@ private fun LibraryContent(
         }
     }
 }
+
+/**
+ * View mode toggle buttons for switching between list and grid views.
+ */
+@Composable
+private fun ViewModeToggle(
+    currentMode: LibraryViewMode,
+    onModeChanged: (LibraryViewMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.foundation.layout.Row(modifier = modifier) {
+        // List view button
+        IconButton(
+            onClick = { onModeChanged(LibraryViewMode.LIST) },
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ViewList,
+                contentDescription = stringResource(R.string.viewModeList),
+                tint =
+                    if (currentMode == LibraryViewMode.LIST) {
+                        androidx.compose.material3.MaterialTheme.colorScheme.primary
+                    } else {
+                        androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                    },
+            )
+        }
+
+        // Grid view button
+        IconButton(
+            onClick = { onModeChanged(LibraryViewMode.GRID_COMFORTABLE) },
+        ) {
+            Icon(
+                imageVector = Icons.Default.GridView,
+                contentDescription = stringResource(R.string.viewModeGrid),
+                tint =
+                    if (currentMode.isGrid()) {
+                        androidx.compose.material3.MaterialTheme.colorScheme.primary
+                    } else {
+                        androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                    },
+            )
+        }
+    }
+}
+
+/**
+ * Helper extension to check if view mode is a grid variant.
+ */
+private fun LibraryViewMode.isGrid() = this == LibraryViewMode.GRID_COMPACT || this == LibraryViewMode.GRID_COMFORTABLE

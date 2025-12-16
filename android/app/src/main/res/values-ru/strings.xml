@@ -2319,4 +2319,9 @@
     <string name="searchPageCheck">Страница поиска: %s</string>
     <string name="indexPageCheck">Главная страница: %s</string>
     <string name="mirrorConnectivityTitle">Доступность зеркал</string>
+
+    <!-- View Mode Strings -->
+    <string name="viewModeList">Список</string>
+    <string name="viewModeGrid">Сетка</string>
+    <string name="viewModeGrouped">Группировка</string>
 </resources>

@@ -22,6 +22,7 @@ package com.jabook.app.jabook.compose.data.model
 data class UserData(
     val theme: AppTheme = AppTheme.SYSTEM,
     val sortOrder: BookSortOrder = BookSortOrder.RECENTLY_PLAYED,
+    val viewMode: LibraryViewMode = LibraryViewMode.LIST,
     val autoPlayNext: Boolean = true,
     val playbackSpeed: Float = 1.0f,
 )
@@ -45,4 +46,21 @@ enum class BookSortOrder {
     TITLE_DESC,
     AUTHOR_ASC,
     AUTHOR_DESC,
+}
+
+/**
+ * Library view mode options.
+ */
+enum class LibraryViewMode {
+    /** Standard list view (default) */
+    LIST,
+
+    /** Grid view - compact (3 cols phone, 6 tablet) */
+    GRID_COMPACT,
+
+    /** Grid view - comfortable (2 cols phone, 4 tablet) */
+    GRID_COMFORTABLE,
+
+    /** Grouped by first letter with sticky headers */
+    GROUPED_LETTER,
 }

@@ -21,6 +21,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
+import com.jabook.app.jabook.compose.data.model.LibraryViewMode
+import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.usecase.library.DeleteBookUseCase
@@ -62,6 +64,7 @@ class LibraryViewModel
         private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
         private val deleteBookUseCase: DeleteBookUseCase,
         private val workManager: WorkManager,
+        private val userPreferencesRepository: UserPreferencesRepository,
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
@@ -70,6 +73,19 @@ class LibraryViewModel
         // Sort order state
         private val _sortOrder = MutableStateFlow(BookSortOrder.RECENTLY_PLAYED)
         val sortOrder: StateFlow<BookSortOrder> = _sortOrder
+
+        // View mode state
+        private val _viewMode = MutableStateFlow(LibraryViewMode.LIST)
+        val viewMode: StateFlow<LibraryViewMode> = _viewMode
+
+        init {
+            // Load saved view mode from preferences
+            viewModelScope.launch {
+                userPreferencesRepository.userData.collect { userData ->
+                    _viewMode.value = userData.viewMode
+                }
+            }
+        }
 
         /**
          * UI state combining books data with loading/error states.
@@ -128,6 +144,16 @@ class LibraryViewModel
          */
         fun onSortOrderChanged(order: BookSortOrder) {
             _sortOrder.value = order
+        }
+
+        /**
+         * Update view mode.
+         */
+        fun onViewModeChanged(mode: LibraryViewMode) {
+            viewModelScope.launch {
+                _viewMode.value = mode
+                userPreferencesRepository.setViewMode(mode)
+            }
         }
 
         /**

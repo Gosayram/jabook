@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
+import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.data.model.UserData
 import kotlinx.coroutines.flow.Flow
 
@@ -40,6 +41,11 @@ interface UserPreferencesRepository {
      * Update book sort order preference.
      */
     suspend fun setSortOrder(sortOrder: BookSortOrder)
+
+    /**
+     * Update library view mode preference.
+     */
+    suspend fun setViewMode(viewMode: LibraryViewMode)
 
     /**
      * Update auto-play next preference.
