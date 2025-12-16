@@ -43,8 +43,8 @@ locale = sys.argv[4]
 with open(file_path, "r", encoding="utf-8") as f:
     lines = f.readlines()
 
-# Track seen keys and their line numbers
-seen_keys = OrderedDict()
+# Track seen normalized keys
+seen_normalized_keys = {}
 duplicates_found = []
 output_lines = []
 
@@ -53,22 +53,29 @@ for i, line in enumerate(lines, 1):
     match = re.search(r"<string\s+name=\"([^\"]+)\"", line)
     
     if match:
-        key = match.group(1)
-        if key in seen_keys:
-            # This is a duplicate - skip this line
-            duplicates_found.append((i, key, seen_keys[key]))
+        original_key = match.group(1)
+        # Normalize key by removing trailing digits
+        normalized_key = re.sub(r"\d+$", "", original_key)
+        
+        if normalized_key in seen_normalized_keys:
+            # This is a duplicate (either exact match or numbered variant)
+            first_occurrence = seen_normalized_keys[normalized_key]
+            duplicates_found.append((i, original_key, first_occurrence["line"], first_occurrence["key"]))
             continue  # Don'"'"'t add to output
         else:
             # First occurrence - remember it
-            seen_keys[key] = i
+            seen_normalized_keys[normalized_key] = {"line": i, "key": original_key}
     
     output_lines.append(line)
 
 # Report results
 if duplicates_found:
     print(f"⚠️  Found {len(duplicates_found)} duplicate(s)")
-    for line_num, key, first_line in duplicates_found:
-        print(f"   Line {line_num}: '"'"'{key}'"'"' (first defined at line {first_line}) - REMOVED")
+    for line_num, key, first_line, first_key in duplicates_found:
+        if key == first_key:
+            print(f"   Line {line_num}: '"'"'{key}'"'"' (duplicate of line {first_line}) - REMOVED")
+        else:
+            print(f"   Line {line_num}: '"'"'{key}'"'"' (numbered duplicate of '"'"'{first_key}'"'"' at line {first_line}) - REMOVED")
     
     # Create backup
     with open(backup_file, "w", encoding="utf-8") as f:

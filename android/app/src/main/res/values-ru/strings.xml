@@ -2094,7 +2094,7 @@
     <!-- Jabook необходим доступ к вашим файлам для загрузки книг, управления торрентами и сканирования вашей местной библиотеки. -->
     <string name="jabookNeedsAccessToYourFilesToDownloadBooksManageT">Jabook необходим доступ к вашим файлам для загрузки книг, управления торрентами и сканирования вашей местной библиотеки.</string>
     <!-- Jetpack Compose работает! 🎉 -->
-    <string name="jetpackComposeРаботает">Jetpack Compose работает! 🎉</string>
+    <string name="jetpackComposeWorks">Jetpack Compose работает! 🎉</string>
     <!-- Последняя очистка -->
     <string name="lastCleanup">Последняя очистка</string>
     <!-- Заполнитель экрана лицензии -->

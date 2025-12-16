@@ -47,7 +47,7 @@ fun TestComposeScreen(modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = stringResource(R.string.jetpackComposeРаботает),
+                text = stringResource(R.string.jetpackComposeWorks),
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
