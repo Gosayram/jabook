@@ -21,6 +21,7 @@ help:
 	@echo "  make compile                       - Compile Kotlin code (for syntax checking)"
 	@echo "  make fmt-kotlin                    - Format Kotlin code (ktlint format)"
 	@echo "  make lint-kotlin                   - Lint Kotlin code (ktlint check)"
+	@echo "  make ktlint-strace                 - Lint Kotlin code with stacktrace"
 	@echo ""
 	@echo "Build Commands:"
 	@echo "  make build-dev                     - Build Android dev debug APK"
@@ -118,6 +119,18 @@ lint-kotlin:
 fmt-kotlin:
 	@echo "Formatting Kotlin code with ktlint..."
 	@(cd android && ./gradlew :app:ktlintFormat --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Kotlin code formatted successfully"; \
+	else \
+		echo "❌ Kotlin formatting failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: ktlint-strace
+ktlint-strace:
+	@echo "Linting Kotlin code with ktlint..."
+	@(cd android && ./gradlew :app:runKtlintFormatOverMainSourceSet --no-daemon --stacktrace); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Kotlin code formatted successfully"; \
