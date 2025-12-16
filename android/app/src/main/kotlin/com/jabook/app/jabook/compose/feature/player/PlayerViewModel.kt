@@ -90,7 +90,7 @@ class PlayerViewModel
                 }
             }.stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
+                started = SharingStarted.Eagerly, // Start immediately to avoid race conditions
                 initialValue = PlayerUiState.Loading,
             )
 
