@@ -462,7 +462,7 @@ private fun OnlineBookCard(
         BookCard(
             title = result.title,
             author = result.author,
-            coverUrl = null, // No cover from search results
+            coverUrl = result.coverUrl, // Use cover URL from search results
             onClick = onClick,
             modifier = Modifier.fillMaxWidth(),
         )
