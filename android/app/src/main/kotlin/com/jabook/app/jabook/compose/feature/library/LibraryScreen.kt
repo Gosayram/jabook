@@ -276,7 +276,7 @@ private fun ViewModeToggle(
             onClick = { onModeChanged(LibraryViewMode.LIST) },
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ViewList,
+                imageVector = Icons.Default.ViewList,
                 contentDescription = stringResource(R.string.viewModeList),
                 tint =
                     if (currentMode == LibraryViewMode.LIST) {
