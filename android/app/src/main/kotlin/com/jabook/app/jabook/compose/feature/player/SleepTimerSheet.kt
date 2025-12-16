@@ -84,7 +84,7 @@ fun SleepTimerSheet(
                     durations.forEach { minutes ->
                         ListItem(
                             headlineContent = {
-                                Text("$minutes минут${if (minutes == 1) "аstringResource(R.string.else)"}")
+                                Text("$minutes ${stringResource(R.string.minutes)}")
                             },
                             leadingContent = {
                                 androidx.compose.material3.Icon(

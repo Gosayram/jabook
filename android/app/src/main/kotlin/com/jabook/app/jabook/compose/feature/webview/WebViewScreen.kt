@@ -43,17 +43,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 
 /**
  * WebView screen for displaying web content.

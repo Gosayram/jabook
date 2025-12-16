@@ -56,14 +56,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.lyricist.LocalStrings
-import com.jabook.app.jabook.compose.data.model.AppTheme
-import androidx.compose.ui.res.stringResource
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.data.model.AppTheme
 
 /**
  * Settings screen for app configuration.
@@ -210,8 +210,11 @@ fun SettingsScreen(
                                 .show()
                         } else {
                             android.widget.Toast
-                                .makeText(context, stringResource(R.string.неверныйUrlИспользуйтеФорматRutrackerexample), android.widget.Toast.LENGTH_SHORT)
-                                .show()
+                                .makeText(
+                                    context,
+                                    stringResource(R.string.неверныйUrlИспользуйтеФорматRutrackerexample),
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
                         }
                     },
                 )
@@ -422,7 +425,13 @@ fun SettingsScreen(
                 title = stringResource(R.string.totalCacheSize1),
                 subtitle =
                     cacheStats?.let { formatBytes(it.totalSize) }
-                        ?: if (cacheOperation is CacheOperationState.Loading) stringResource(R.string.calculating) else stringResource(R.string.unknown),
+                        ?: if (cacheOperation is CacheOperationState.Loading) {
+                            stringResource(
+                                R.string.calculating,
+                            )
+                        } else {
+                            stringResource(R.string.unknown)
+                        },
             )
 
             // Last cleanup timestamp
@@ -456,7 +465,7 @@ fun SettingsScreen(
                     title = { Text(stringResource(R.string.clearCache)) },
                     text = {
                         Text(
-                            "This will delete ${cacheStats?.let { formatBytes(it.totalSize) } ?: "allstringResource(R.string.ofCachedDataContinue),
+                            "This will delete ${cacheStats?.let { formatBytes(it.totalSize) } ?: "all"} of cached data. Continue?",
                         )
                     },
                     confirmButton = {

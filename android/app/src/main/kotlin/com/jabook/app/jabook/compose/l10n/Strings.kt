@@ -14,8 +14,8 @@
 
 package com.jabook.app.jabook.compose.l10n
 
-import cafe.adriel.lyricist.LyricistStrings
 import androidx.compose.ui.res.stringResource
+import cafe.adriel.lyricist.LyricistStrings
 import com.jabook.app.jabook.R
 
 /**
@@ -186,8 +186,8 @@ data class Strings(
  * 3. Or import from JSON export from translation service
  */
 object Locales {
-    const val EN = stringResource(R.string.en)
-    const val RU = stringResource(R.string.ru)
+    const val EN = "en"
+    const val RU = "ru"
     // Add more languages here:
     // const val ES = "es"
     // const val DE = "de"

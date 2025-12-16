@@ -9,10 +9,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import java.io.File
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 
 /**
  * Activity for managing app storage space.
@@ -77,9 +76,9 @@ class DataManagementActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.util.Log.e("DataManagementActivity", "Error loading storage info", e)
                 runOnUiThread {
-                    cacheSizeText.text = stringResource(R.string.cacheError)
-                    dataSizeText.text = stringResource(R.string.dataError)
-                    totalSizeText.text = stringResource(R.string.totalError)
+                    cacheSizeText.text = getString(R.string.cacheError)
+                    dataSizeText.text = getString(R.string.dataError)
+                    totalSizeText.text = getString(R.string.totalError)
                     progressBar.visibility = View.GONE
                 }
             }
@@ -163,11 +162,11 @@ class DataManagementActivity : AppCompatActivity() {
     private fun formatSize(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
         val kb = bytes / 1024.0
-        if (kb < 1024) return String.format(stringResource(R.string.2fKb), kb)
+        if (kb < 1024) return String.format("%.2f KB", kb)
         val mb = kb / 1024.0
-        if (mb < 1024) return String.format(stringResource(R.string.2fMb), mb)
+        if (mb < 1024) return String.format("%.2f MB", mb)
         val gb = mb / 1024.0
-        return String.format(stringResource(R.string.2fGb), gb)
+        return String.format("%.2f GB", gb)
     }
 
     /**
@@ -176,11 +175,11 @@ class DataManagementActivity : AppCompatActivity() {
     private fun showClearCacheDialog() {
         AlertDialog
             .Builder(this)
-            .setTitle(stringResource(R.string.clearCache1))
-            .setMessage(stringResource(R.string.thisWillClearAllCachedDataDownloadedAudiobooksWill))
-            .setPositiveButton(stringResource(R.string.clearButton)) { _, _ ->
+            .setTitle(getString(R.string.clearCache1))
+            .setMessage(getString(R.string.thisWillClearAllCachedDataDownloadedAudiobooksWill))
+            .setPositiveButton(getString(R.string.clearButton)) { _, _ ->
                 clearCache()
-            }.setNegativeButton(stringResource(R.string.cancel), null)
+            }.setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
@@ -216,7 +215,7 @@ class DataManagementActivity : AppCompatActivity() {
                     Toast
                         .makeText(
                             this@DataManagementActivity,
-                            stringResource(R.string.cacheClearedClearedsizeformatted),
+                            getString(R.string.cacheClearedSuccessMessage),
                             Toast.LENGTH_SHORT,
                         ).show()
 
