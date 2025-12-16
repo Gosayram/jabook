@@ -125,6 +125,7 @@ class PlayerViewModel
                             filePaths = filePaths,
                             initialChapterIndex = state.currentChapterIndex,
                             initialPosition = state.currentPosition,
+                            autoPlay = true, // Auto-play after loading
                         )
                         isBookLoaded = true
                     }
@@ -195,6 +196,7 @@ class PlayerViewModel
                         filePaths = filePaths,
                         initialChapterIndex = state.currentChapterIndex,
                         initialPosition = state.currentPosition,
+                        autoPlay = false, // Don't auto-play on init
                     )
                     isBookLoaded = true
                 }

@@ -144,6 +144,7 @@ class AudioPlayerController
             filePaths: List<String>,
             initialChapterIndex: Int = 0,
             initialPosition: Long = 0,
+            autoPlay: Boolean = false,
         ) {
             startService()
 
@@ -158,7 +159,9 @@ class AudioPlayerController
                     initialTrackIndex = initialChapterIndex,
                     initialPosition = initialPosition,
                     callback = { success, _ ->
-                        if (success) play()
+                        if (success && autoPlay) {
+                            play()
+                        }
                     },
                 )
             } else {
