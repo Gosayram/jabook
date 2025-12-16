@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add favorites feature with new data model, DAO, repository, ViewModel, and database migration
 - Add Favorites screen with navigation and audiobook management capabilities
 - Add login concurrency protection and multi-tier authentication validation
+- Add Makefile targets for string migration and improve script to reuse existing strings and enhance translation robustness
 - Add online audiobook search via Rutracker
 - Add permission management and refactor Rutracker authentication to improve WebView cookie synchronization
 - Add script to automate Kotlin Compose hardcoded string migration to resources
@@ -46,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Localize search screen by extracting strings to resources and adding an ARB to XML conversion script
 - Migrate to Gradle 9 for comprehensive building experience
 - Mirror management with dynamic base URL, health checks, and persistent settings
+- Replace hardcoded UI strings with string resources for localization across various screens and components
 - Update FileProvider paths to include logs, downloads, and audiobooks, and align AndroidManifest authority and resource
 
 ### Changed
@@ -57,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add topic details screen with its viewmodel and navigation route
 - Added ignore packages for copyright validation
 - Auto markdown formatter
+- Broaden string migration's file and technical string exclusion rules and streamline string replacement
 - Bump Android SDK versions, enable ABI splits with universal APK generation, remove desugaring, and adapt Makefile for new APK output structure
 - Bump Makefile
 - Bump packages
@@ -67,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhance foreground service initialization for Android 14+ and standardize notification ID
 - Enhance screen reader experience by adding semantic descriptions and roles to various UI components
 - Exclude test_results folder for copyright heads
+- Externalize hardcoded strings in various Compose screens and add new string resources
 - Extract MainActivity logic to handlers and fix missing methods
 - Gitignore
 - Ignore backup file
@@ -77,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve changelog generation mechanism
 - Improve code formatting and organize imports
 - Improve translate quality and checking dry-run mechanism
+- Make Text() string extraction regex more flexible to include additional arguments
 - Migrate player to new bridge API with Kotlin state persistence
 - Migrate to DataStore + Tink encryption for credentials
 - Migrate to Java 21 and replace kapt with KSP for Room
@@ -84,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve XML comments and formatting when adding new strings to `strings.xml`
 - Re-change clean params for linting
 - Refactor audio player service architecture
+- Refine hardcoded string detection in `migrate_strings.py` to exclude non-UI files and technical strings
 - Remove redundant changelog generation confirmation message
 - Remove unused backup build file
 - Remove unused calls for defalt params into compile
@@ -100,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Copyright validation folders
 - Disable KTagLib on Android 16+ due to FDSAN incompatibility and simplify ParcelFileDescriptor handling in metadata parsing
+- Duplicated and numeric strings with similar params for each project
 - Fix chapter mismatch, player freeze, and local playback
 - Fix compilation errors and improve playback position saving
 - Fix logical relation with called alias param for each task in makefile
