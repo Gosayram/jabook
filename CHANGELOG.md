@@ -19,22 +19,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add debug screen for viewing and sharing logs and integrate it into navigation
+- Add download history screen with search and sort functionality, and enable drag-and-drop reordering for the download queue
 - Add dynamic color support to `JabookTheme` for Android 12+ devices
 - Add fade-in and fade-out navigation transitions to PlayerScreen
+- Add favorites feature with new data model, DAO, repository, ViewModel, and database migration
+- Add Favorites screen with navigation and audiobook management capabilities
 - Add login concurrency protection and multi-tier authentication validation
 - Add online audiobook search via Rutracker
 - Add permission management and refactor Rutracker authentication to improve WebView cookie synchronization
+- Add script to automate Kotlin Compose hardcoded string migration to resources
 - Add swipe gestures and notification controls to mini player
+- Implement app data backup and restore functionality for settings and book metadata
+- Implement cache management in settings, allowing users to view and clear app cache
 - Implement custom audio notification manager with media session integration and enable shared element transitions
+- Implement download filtering, priority management, and queue reordering with a new database table
+- Implement download history tracking and add new download speed and concurrency settings
 - Implement local audiobook scanning, sleep timer, and playback speed controls, and display download messages
 - Implement main navigation and integrate core screens
 - Implement multi-stage cookie persistence using new DAO, entity, and manager, integrated into the authentication flow and database
 - Implement native streaming torrent downloads
 - Implement user-configurable download location and Wi-Fi only download settings, and add library scanning functionality
 - Improve authentication with strict validation and WebView cookie synchronization, and update Android runtime permission requests
+- Internationalize favorites screen dialog and menu texts by adding new string resources
 - Introduce Jetpack Compose UI with new data layer for books and refactor audio player components: phase 1 and 2
+- Introduce pre-commit hook and script for automated cleaning of duplicate Android string resources
+- Localize search screen by extracting strings to resources and adding an ARB to XML conversion script
 - Migrate to Gradle 9 for comprehensive building experience
 - Mirror management with dynamic base URL, health checks, and persistent settings
+- Update FileProvider paths to include logs, downloads, and audiobooks, and align AndroidManifest authority and resource
 
 ### Changed
 
@@ -49,39 +61,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump Makefile
 - Bump packages
 - Bump pub build
+- Centralize date and time formatting with a new DateTimeFormatter utility and apply it to backup and settings
 - Clean up each cache before compilation testing
 - Clean up unused imports and apply minor formatting to settings and topic screens
 - Enhance foreground service initialization for Android 14+ and standardize notification ID
 - Enhance screen reader experience by adding semantic descriptions and roles to various UI components
 - Exclude test_results folder for copyright heads
 - Extract MainActivity logic to handlers and fix missing methods
+- Gitignore
+- Ignore backup file
+- Ignore xml backup
 - Implement custom rewind/forward media session commands, force Android compile SDK to 34, and update flutter_media_metadata to a path dependency
 - Implement environment-specific beta and production color themes, replacing the default Material 3 color schemes
 - Implement jumpToTrack functionality, increase playback position saving frequency, and add extensive logging for audio bridge events
+- Improve changelog generation mechanism
 - Improve code formatting and organize imports
+- Improve translate quality and checking dry-run mechanism
 - Migrate player to new bridge API with Kotlin state persistence
 - Migrate to DataStore + Tink encryption for credentials
 - Migrate to Java 21 and replace kapt with KSP for Room
 - Polish navigation UI and resolve deprecations
+- Preserve XML comments and formatting when adding new strings to `strings.xml`
+- Re-change clean params for linting
 - Refactor audio player service architecture
+- Remove redundant changelog generation confirmation message
 - Remove unused backup build file
+- Remove unused calls for defalt params into compile
 - Remove unused flutter collab code from Kotlin
 - Removed all flutter code from project; prepate to migrate native Kotlin code
 - Reorganize makefile automation and fix hack scripts
 - Streamline Gradle configuration, enable build caching, remove integration test plugin workaround, disable default WorkManager initialization, and generalize DataMigrationManager's DataStore usage
+- Unification into one abstraction for easily linting
 - Update Hilt `@ApplicationContext` parameter annotation syntax and add `viewModel` import
+- Update Hilt ViewModel imports and add trailing comma to enum definition + enhance downloads mechanism
 - Update ProGuard rules by removing Flutter configurations and adding rules for Compose, Hilt, Room, DataStore, Media3, and WorkManager
 
 ### Fixed
 
 - Copyright validation folders
+- Disable KTagLib on Android 16+ due to FDSAN incompatibility and simplify ParcelFileDescriptor handling in metadata parsing
 - Fix chapter mismatch, player freeze, and local playback
 - Fix compilation errors and improve playback position saving
+- Fix logical relation with called alias param for each task in makefile
 - Fix playback position restoration and prevent playlist loading conflicts
 - Flutter media start
 - HttpCache validation
 - Move Lyricist's `ProvideStrings` to `JabookApp` and update `LocalStrings` imports
 - Player validation
+- Prevent KTagLib FDSAN errors by using separate file descriptors for metadata/artwork and enhance debug logs with comprehensive device info
 - Remove old BridgeModule between Kotlin and Flutter
 - Removed unused flutter params
 - Removed unused flutter tests, implementations, libs
@@ -95,6 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Add debug tools section and navigation to settings
+- Enhance debug log header with detailed device, display, memory, and CPU info, and add a system log section
 - FileProvider for secure file sharing, new permissions, and manifest compatibility adjustments
 
 ## [1.2.6] - 2025-12-06
@@ -162,7 +190,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add CI workflow for GitHub Actions
 - Add comprehensive file management and torrent system
 - Add downloads management and enhanced metadata support (#15)
-- Add RuTracker availability checker, improve logging and settings UI: - Add RuTrackerAvailabilityChecker: periodic background check (every 5 min) and manual check from settings. - Integrate checker with MainActivity lifecycle and RuTrackerSettingsScreen (manual button). - Refactor RuTrackerSettingsScreen and ViewModel: all UI strings moved to resources, improved localization. - Add/replace strings in strings.xml for all new UI and error messages. - Improve debug log export, SAF folder selection, and error handling in settings. - Update DI modules, repository, and core network logic for new checker and guest mode. - Minor: update DebugLogger, file_paths.xml, and related UI/UX polish
+- Add RuTracker availability checker, improve logging and settings UI: - Add RuTrackerAvailabilityChecker: periodic background check (every 5 min) and manual check from settings. - Integrate checker
+  with MainActivity lifecycle and RuTrackerSettingsScreen (manual button). - Refactor RuTrackerSettingsScreen and ViewModel: all UI strings moved to resources, improved localization. - Add/replace
+  strings in strings.xml for all new UI and error messages. - Improve debug log export, SAF folder selection, and error handling in settings. - Update DI modules, repository, and core network logic
+  for new checker and guest mode. - Minor: update DebugLogger, file_paths.xml, and related UI/UX polish
 - FEATURE - Add RuTracker and torrent system architecture
 - Implement Clean Architecture foundation with modular structure
 - Implement phase 2 core player functionality
@@ -185,14 +216,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump localizations
 - Bump package version
 - Bunch of changes without comments
-- Detekt: massive refactor, split complex classes, fix trailing spaces, reduce cyclomatic complexity: - Split PlayerManagerImpl into smaller classes (AudioFocusManager, SleepTimerManager, MediaItemManager, PlaybackStateManager) - Refactor DebugLogger and TorrentEventFormatter for better maintainability - Remove unused properties and imports\n- Fix all trailing spaces and final newlines - Reduce cyclomatic complexity in UI and domain logic - All detekt errors and warnings are now non-blocking (only complexity and function count remain as warnings)
+- Detekt: massive refactor, split complex classes, fix trailing spaces, reduce cyclomatic complexity: - Split PlayerManagerImpl into smaller classes (AudioFocusManager, SleepTimerManager,
+  MediaItemManager, PlaybackStateManager) - Refactor DebugLogger and TorrentEventFormatter for better maintainability - Remove unused properties and imports\n- Fix all trailing spaces and final
+  newlines - Reduce cyclomatic complexity in UI and domain logic - All detekt errors and warnings are now non-blocking (only complexity and function count remain as warnings)
 - Fix base errors for impl, imports and unused methods
 - Fix builds
-- Fix compilation errors and detekt warnings, improve code structure: - Fix Hilt dependency injection conflicts: remove duplicate bindings from NetworkModule,   move RuTracker dependencies to RuTrackerModule with proper @Binds annotations - Resolve MediaType deprecation: replace MediaType.get() with toMediaType() extension - Fix compilation errors in RuTrackerApiService: add missing imports and @Inject constructor - Refactor complex UI components to reduce function count and improve maintainability:   *Split RuTrackerSettingsScreen into ModeToggleCard, LoginCard, StatusMessageCard* Break down AudiobookSearchResultCard into AudiobookCover, AudiobookInfo,     ActionButtons, MetadataRow, AdditionalInfo components   * Extract SleepTimerDelegate from PlayerManagerImpl to reduce function count - Fix import conflicts and trailing spaces: resolve weight() modifier issues,   remove unused imports, fix import ordering - Improve code organization: use data classes for component parameters,   add proper trailing commas, fix modifier usage - All detekt warnings resolved: no more compilation errors, clean build passes
+- Fix compilation errors and detekt warnings, improve code structure: - Fix Hilt dependency injection conflicts: remove duplicate bindings from NetworkModule,   move RuTracker dependencies to
+  RuTrackerModule with proper @Binds annotations - Resolve MediaType deprecation: replace MediaType.get() with toMediaType() extension - Fix compilation errors in RuTrackerApiService: add missing
+  imports and @Inject constructor - Refactor complex UI components to reduce function count and improve maintainability:   * Split RuTrackerSettingsScreen into ModeToggleCard, LoginCard,
+  StatusMessageCard   * Break down AudiobookSearchResultCard into AudiobookCover, AudiobookInfo,     ActionButtons, MetadataRow, AdditionalInfo components   * Extract SleepTimerDelegate from
+  PlayerManagerImpl to reduce function count - Fix import conflicts and trailing spaces: resolve weight() modifier issues,   remove unused imports, fix import ordering - Improve code organization:
+  use data classes for component parameters,   add proper trailing commas, fix modifier usage - All detekt warnings resolved: no more compilation errors, clean build passes
 - Gitignore for compiler
 - Lots of updates and fixes
 - Refactoring/perf (#20)
-- Remove deprecated Android API usage, unify compatibility for minSdk 23+; cleanup suppressions: - Remove all usages of deprecated Android platform APIs (audio focus, getColor, getParcelableExtra, network info); - Unify compatibility logic for Android 6.0+ (minSdk 23): explicit version checks, no suppressions; - Refactor AudioFocusManager, PlayerService, Extensions, ViewFallbacks for clarity and maintainability
+- Remove deprecated Android API usage, unify compatibility for minSdk 23+; cleanup suppressions: - Remove all usages of deprecated Android platform APIs (audio focus, getColor, getParcelableExtra,
+  network info); - Unify compatibility logic for Android 6.0+ (minSdk 23): explicit version checks, no suppressions; - Refactor AudioFocusManager, PlayerService, Extensions, ViewFallbacks for clarity
+  and maintainability
 - Remove unused private property in DebugLogger.kt
 - Removed and fixed unused params; bump logical structure
 - Removed unused files
@@ -235,7 +275,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix package versions
 - Fix pop_up (#16)
 - Fix/notify (#18)
-- Fixed build errors: -  Hilt binding issues - Fixed proper dependency injection for File and CacheConfig; - ExperimentalCoilApi dependency - Corrected import path for Coil 3; - Kotlin language version conflicts - Resolved API version compatibility issue
+- Fixed build errors: -  Hilt binding issues - Fixed proper dependency injection for File and CacheConfig; - ExperimentalCoilApi dependency - Corrected import path for Coil 3; - Kotlin language
+  version conflicts - Resolved API version compatibility issue
 - Fixed formats
 - Fixes format issues
 - Format issues
@@ -252,26 +293,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Linters and imports; remove unused params; validation errors
 - Lots of fixes and exceptions
 - Lots of fixes for packages
-- Minor changes: - Updated `fallbackToDestructiveMigration()` to `fallbackToDestructiveMigration(true)` in JaBookDatabase.kt - Fixed annotation target in RuTrackerPreferences.kt using `@param:ApplicationContext` - Replaced deprecated `LocalClipboardManager` with `LocalClipboard` in AudiobookSearchResultCard.kt - Removed deprecated `catch` operator on SharedFlow in DownloadsViewModel.kt
-- Multiple code quality and compatibility fixes across the project Material Design Migration: - updated DownloadsScreen.kt to use material3 library instead of material imports; - replaced android:tint with app:tint in jabook_widget_layout.xml for proper namespace usage; - added kotlin-kapt plugin to build.gradle.kts to support data binding functionality; - added format placeholders (%s) to string resources that were used with String.format(); - enhanced RuTrackerPreferences.kt encryption by adding explicit mode and padding to Cipher.getInstance(); - removed unnecessary SDK_INT checks in multiple files since minSdk is 24
+- Minor changes: - Updated `fallbackToDestructiveMigration()` to `fallbackToDestructiveMigration(true)` in JaBookDatabase.kt - Fixed annotation target in RuTrackerPreferences.kt using
+  `@param:ApplicationContext` - Replaced deprecated `LocalClipboardManager` with `LocalClipboard` in AudiobookSearchResultCard.kt - Removed deprecated `catch` operator on SharedFlow in
+  DownloadsViewModel.kt
+- Multiple code quality and compatibility fixes across the project Material Design Migration: - updated DownloadsScreen.kt to use material3 library instead of material imports; - replaced
+  android:tint with app:tint in jabook_widget_layout.xml for proper namespace usage; - added kotlin-kapt plugin to build.gradle.kts to support data binding functionality; - added format placeholders
+  (%s) to string resources that were used with String.format(); - enhanced RuTrackerPreferences.kt encryption by adding explicit mode and padding to Cipher.getInstance(); - removed unnecessary
+  SDK_INT checks in multiple files since minSdk is 24
 - Package compatibility fixes
 - Package version
 - Packages fixes and imports
 - Removed jaudiotagger
 - Removed unused error: Exception? = null; error = e
-- Resolve all unused resource warnings and improve code quality across the project: - Created JaBookAppWidgetProvider.kt with proper AppWidgetProvider implementation; - Added widget receiver registration in AndroidManifest.xml; - Fixed unused appwidget_background.xml and appwidget_preview.xml drawable resources; - Removed unnecessary resValue calls for app_name in build.gradle.kts; - Fixed duplicate string resource definition conflicts
-- Resolve duplicate strings, add pending/idle statuses, bind TorrentRepository; expose downloadStates in TorrentManager and make UI when-expressions exhaustive; remove resumeTorrent overload, fix Hilt MissingBinding for downloads module
+- Resolve all unused resource warnings and improve code quality across the project: - Created JaBookAppWidgetProvider.kt with proper AppWidgetProvider implementation; - Added widget receiver
+  registration in AndroidManifest.xml; - Fixed unused appwidget_background.xml and appwidget_preview.xml drawable resources; - Removed unnecessary resValue calls for app_name in build.gradle.kts; -
+  Fixed duplicate string resource definition conflicts
+- Resolve duplicate strings, add pending/idle statuses, bind TorrentRepository; expose downloadStates in TorrentManager and make UI when-expressions exhaustive; remove resumeTorrent overload, fix
+  Hilt MissingBinding for downloads module
 - Resolve linters issue
-- Resolve multiple build warnings and compatibility issues: - Fix PlayerService onStartCommand by adding super.onStartCommand call - Remove non-existent activity references from AndroidManifest.xml (PlayerActivity, RuTrackerSettingsScreen, etc.) - Update library versions in gradle/libs.versions.toml to latest stable versions - Fix screen orientation for Chrome OS compatibility (unspecified instead of portrait) - Add @UnstableApi annotation to PlayerService for Media3 experimental APIs - Update ThemeToggleButton to use LocalWindowInfo instead of LocalConfiguration - Fix Compose Modifier parameter positioning in multiple components
+- Resolve multiple build warnings and compatibility issues: - Fix PlayerService onStartCommand by adding super.onStartCommand call - Remove non-existent activity references from AndroidManifest.xml
+  (PlayerActivity, RuTrackerSettingsScreen, etc.) - Update library versions in gradle/libs.versions.toml to latest stable versions - Fix screen orientation for Chrome OS compatibility (unspecified
+  instead of portrait) - Add @UnstableApi annotation to PlayerService for Media3 experimental APIs - Update ThemeToggleButton to use LocalWindowInfo instead of LocalConfiguration - Fix Compose
+  Modifier parameter positioning in multiple components
 - Resolve package compatability
-- Resolve some issues: - Fixed SearchBar function signature by removing the incorrect inputField parameter and using the proper overload - Fixed @Composable invocation issues by removing nested SearchBarDefaults.InputField calls - Fixed Icons.Default.Close reference; - Fixed Icons.AutoMirrored.Default.ArrowBack reference to use Icons.AutoMirrored.filled.ArrowBack; - Fixed all Icons.AutoMirrored.Default.LibraryBooks references to use Icons.AutoMirrored.filled.LibraryBooks; - Fixed Icons.AutoMirrored.Default.Sort reference to use Icons.AutoMirrored.filled.Sort; - Fixed statusBarColor reference by using colorScheme.toArgb() instead of the incorrect property access
-- Resolve some issues: - fixed unchecked cast warning on line 59 by replacing flows[6] as List<Bookmark> with flows[6] as? List<Bookmark> ?: emptyList(); - fixed deprecated Icons.Filled.ArrowBack by importing autoMirrored.filled.ArrowBack and updating the reference to Icons.AutoMirrored.Default.ArrowBack; - fixed 2 deprecated LinearProgressIndicator warnings by changing progress = audiobook.progressPercentage to progress = { audiobook.progressPercentage } on lines 109 and 181; - fixed 4 deprecated Icons.Filled.LibraryBooks warnings by importing autoMirrored.filled.LibraryBooks and updating all references to Icons.AutoMirrored.Default.LibraryBooks; - fixed deprecated Icons.Filled.Sort by importing autoMirrored.filled.Sort and updating the reference to Icons.AutoMirrored.Default.Sort; - fixed deprecated statusBarColor by replacing window.statusBarColor = colorScheme.primary.toArgb() with window.statusBarColor = WindowCompat.getInsetsController(window, view).statusBarColor
+- Resolve some issues: - Fixed SearchBar function signature by removing the incorrect inputField parameter and using the proper overload - Fixed @Composable invocation issues by removing nested
+  SearchBarDefaults.InputField calls - Fixed Icons.Default.Close reference; - Fixed Icons.AutoMirrored.Default.ArrowBack reference to use Icons.AutoMirrored.filled.ArrowBack; - Fixed all
+  Icons.AutoMirrored.Default.LibraryBooks references to use Icons.AutoMirrored.filled.LibraryBooks; - Fixed Icons.AutoMirrored.Default.Sort reference to use Icons.AutoMirrored.filled.Sort; - Fixed
+  statusBarColor reference by using colorScheme.toArgb() instead of the incorrect property access
+- Resolve some issues: - fixed unchecked cast warning on line 59 by replacing flows[6] as List<Bookmark> with flows[6] as? List<Bookmark> ?: emptyList(); - fixed deprecated Icons.Filled.ArrowBack by
+  importing autoMirrored.filled.ArrowBack and updating the reference to Icons.AutoMirrored.Default.ArrowBack; - fixed 2 deprecated LinearProgressIndicator warnings by changing progress =
+  audiobook.progressPercentage to progress = { audiobook.progressPercentage } on lines 109 and 181; - fixed 4 deprecated Icons.Filled.LibraryBooks warnings by importing
+  autoMirrored.filled.LibraryBooks and updating all references to Icons.AutoMirrored.Default.LibraryBooks; - fixed deprecated Icons.Filled.Sort by importing autoMirrored.filled.Sort and updating the
+  reference to Icons.AutoMirrored.Default.Sort; - fixed deprecated statusBarColor by replacing window.statusBarColor = colorScheme.primary.toArgb() with window.statusBarColor =
+  WindowCompat.getInsetsController(window, view).statusBarColor
 - Resolve unused permissions and fixes launchers (logos)
 - Restrict generic, fix data type
 - Sdk 24 compatability params
 - Some bug fixes
 - Some fixes
-- Some fixes: - RuTrackerParserEnhanced.kt: The nullable String issues on lines 442-443 have been resolved - the code now uses safe calls (?.) with null fallbacks (?:); - JaBookDatabase.kt: Fixed the deprecated Room API warning by updating fallbackToDestructiveMigration() to fallbackToDestructiveMigration(true) to use the non-deprecated overloaded version; - Coil warning: This is a build configuration issue about a missing dependency for coil.annotation.ExperimentalCoilApi that would need to be addressed in the build.gradle file
+- Some fixes: - RuTrackerParserEnhanced.kt: The nullable String issues on lines 442-443 have been resolved - the code now uses safe calls (?.) with null fallbacks (?:); - JaBookDatabase.kt: Fixed the
+  deprecated Room API warning by updating fallbackToDestructiveMigration() to fallbackToDestructiveMigration(true) to use the non-deprecated overloaded version; - Coil warning: This is a build
+  configuration issue about a missing dependency for coil.annotation.ExperimentalCoilApi that would need to be addressed in the build.gradle file
 - Specify Java home directory
 - Syntax errors and imports
 
