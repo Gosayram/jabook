@@ -99,9 +99,19 @@ class StringResourceMigrator:
         """Find all hardcoded strings in a Kotlin file - comprehensive UI string detection"""
         strings = []
         
-        # Skip non-UI files
+        # Skip non-UI files - be very selective about what we process
         file_str = str(kotlin_file)
-        if any(skip in file_str for skip in ['/data/', '/domain/', '/di/', '/util/', 'ViewModel.kt', 'Repository.kt', 'Dao.kt', 'Entity.kt', 'Module.kt']):
+        skip_patterns = [
+            '/data/', '/domain/', '/di/', '/util/', 
+            'ViewModel.kt', 'Repository.kt', 'Dao.kt', 'Entity.kt', 'Module.kt',
+            '/audio/', '/download/', '/infrastructure/', '/torrent/', '/migration/',
+            '/sync/', '/worker/', '/service/', '/receiver/', '/broadcast/',
+            'Manager.kt', 'Helper.kt', 'Provider.kt', 'Factory.kt',
+            'Mapper.kt', 'UseCase.kt', 'Processor.kt', 'Handler.kt',
+            'Listener.kt', 'Observer.kt', 'Callback.kt'
+        ]
+        
+        if any(skip in file_str for skip in skip_patterns):
             return strings
             
         with open(kotlin_file, 'r', encoding='utf-8') as f:
@@ -112,6 +122,10 @@ class StringResourceMigrator:
                 
                 # Skip imports, package declarations
                 if line.strip().startswith(('import ', 'package ')):
+                    continue
+                
+                # Skip logging statements - Log.d, Log.i, Log.e, println, logger, etc.
+                if re.search(r'(Log\.[diewtv]|println|logger\.|Timber\.)', line):
                     continue
                 
                 # Find ALL string literals that look like UI text (not technical strings)
@@ -147,7 +161,7 @@ class StringResourceMigrator:
             return True
         
         # Intent actions and categories
-        if text.startswith('android.') or text.startswith('com.'):
+        if text.startswith('android.') or text.startswith('com.') or text.startswith('java.'):
             return True
             
         # Single letters or very short technical strings
@@ -157,7 +171,45 @@ class StringResourceMigrator:
         # Regex patterns
         if text.count('[') > 0 and text.count(']') > 0 and text.count('(') > 0:
             return True
-            
+        
+        # Debug/Log messages - typically start with verbs in present continuous or technical verbs
+        debug_verbs = [
+            'Using', 'Loading', 'Saving', 'Validating', 'Waiting', 'Checking', 
+            'Creating', 'Destroying', 'Initializing', 'Skipping', 'Found',
+            'Processing', 'Applying', 'Clearing', 'Releasing', 'Binding',
+            'Attempting', 'Pausing', 'Resuming', 'Stopping', 'Starting',
+            'Seeking', 'Buffering', 'Preparing', 'Restoring', 'Requesting',
+            'Received', 'Sending', 'Publishing', 'Updating track', 'Navigating to',
+            'Setting', 'Getting', 'Fetching', 'Syncing', 'Registering',
+            'Unregistering', 'Broadcasting', 'Observing', 'Cancelling'
+        ]
+        
+        for verb in debug_verbs:
+            if text.startswith(verb + ' '):
+                return True
+        
+        # Strings with many variables (likely debug logs)
+        if text.count('$') >= 2:  # More than 2 variables
+            return True
+        
+        # Technical patterns in text
+        technical_patterns = [
+            'MediaSession', 'PendingIntent', 'Notification', 'ViewModel',
+            'Repository', 'Dao', 'Entity', 'Processor', 'Manager',
+            'Handler', 'Callback', 'Listener', 'Observer', 'Worker',
+            'mediaItem', 'currentIndex', 'trackIndex', 'positionMs',
+            'attempt=', 'state=', 'count=', 'index=', 'position=',
+            '${', 'total=', 'expected=', 'current='
+        ]
+        
+        for pattern in technical_patterns:
+            if pattern in text:
+                return True
+        
+        # All lowercase technical identifiers (method names, variables)
+        if text.islower() and len(text) > 3 and ' ' not in text:
+            return True
+        
         # Looks good - likely UI text
         return False
     
@@ -233,19 +285,12 @@ class StringResourceMigrator:
         
         # Apply replacements
         for text, key in replacements.items():
-            # Replace Text("string") with Text(stringResource(R.string.key))
-            pattern = rf'Text\s*\(\s*"{re.escape(text)}"\s*\)'
-            replacement = f'Text(stringResource(R.string.{key}))'
-            content = re.sub(pattern, replacement, content)
+            escaped_text = re.escape(text)
             
-            # Replace contentDescription = "string"
-            pattern = rf'contentDescription\s*=\s*"{re.escape(text)}"'
-            replacement = f'contentDescription = stringResource(R.string.{key})'
-            content = re.sub(pattern, replacement, content)
-            
-            # Replace label = { Text("string") }
-            pattern = rf'label\s*=\s*\{{\s*Text\s*\(\s*"{re.escape(text)}"\s*\)\s*\}}'
-            replacement = f'label = {{ Text(stringResource(R.string.{key})) }}'
+            # Universal replacement: replace "string" with stringResource(R.string.key)
+            # This handles all contexts: Text("..."), title = "...", subtitle = "...", etc.
+            pattern = rf'"{escaped_text}"'
+            replacement = f'stringResource(R.string.{key})'
             content = re.sub(pattern, replacement, content)
             
             strings_replaced += 1
