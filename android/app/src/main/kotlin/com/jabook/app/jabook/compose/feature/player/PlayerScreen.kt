@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -111,6 +110,11 @@ fun PlayerScreen(
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
 
+    // Handle back gesture for swipe-to-dismiss
+    androidx.activity.compose.BackHandler {
+        onNavigateBack()
+    }
+
     // Playback Speed Sheet
     if (showSpeedSheet) {
         PlaybackSpeedSheet(
@@ -134,14 +138,6 @@ fun PlayerScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.nowPlaying)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,

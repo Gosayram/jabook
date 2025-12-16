@@ -18,11 +18,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -159,6 +163,9 @@ fun LibraryScreen(
             }
         },
         snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
+        contentWindowInsets =
+            androidx.compose.foundation.layout
+                .WindowInsets(0, 0, 0, 0),
         modifier = modifier,
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
@@ -183,6 +190,14 @@ fun LibraryScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope,
+                            )
+                        }
+                        LibraryViewMode.LIST_COMPACT -> {
+                            BooksCompactListView(
+                                books = books,
+                                onBookClick = onBookClick,
+                                onToggleFavorite = viewModel::toggleFavorite,
+                                modifier = Modifier.fillMaxSize(),
                             )
                         }
                         LibraryViewMode.GRID_COMPACT,
@@ -271,34 +286,78 @@ private fun ViewModeToggle(
     modifier: Modifier = Modifier,
 ) {
     androidx.compose.foundation.layout.Row(modifier = modifier) {
-        // List view button
+        // List view
         IconButton(
             onClick = { onModeChanged(LibraryViewMode.LIST) },
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ViewList,
-                contentDescription = stringResource(R.string.viewModeList),
+                imageVector =
+                    if (currentMode == LibraryViewMode.LIST) {
+                        Icons.AutoMirrored.Filled.List
+                    } else {
+                        Icons.AutoMirrored.Outlined.List
+                    },
+                contentDescription = "List view",
                 tint =
                     if (currentMode == LibraryViewMode.LIST) {
                         androidx.compose.material3.MaterialTheme.colorScheme.primary
                     } else {
-                        androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                        androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                     },
             )
         }
 
-        // Grid view button
+        // Compact list view
         IconButton(
-            onClick = { onModeChanged(LibraryViewMode.GRID_COMFORTABLE) },
+            onClick = { onModeChanged(LibraryViewMode.LIST_COMPACT) },
         ) {
             Icon(
-                imageVector = Icons.Default.GridView,
-                contentDescription = stringResource(R.string.viewModeGrid),
+                imageVector =
+                    if (currentMode == LibraryViewMode.LIST_COMPACT) {
+                        Icons.AutoMirrored.Filled.ViewList
+                    } else {
+                        Icons.AutoMirrored.Outlined.ViewList
+                    },
+                contentDescription = "Compact list view",
+                tint =
+                    if (currentMode == LibraryViewMode.LIST_COMPACT) {
+                        androidx.compose.material3.MaterialTheme.colorScheme.primary
+                    } else {
+                        androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+            )
+        }
+
+        // Grid view - toggle between compact and comfortable
+        IconButton(
+            onClick = {
+                onModeChanged(
+                    if (currentMode.isGrid()) {
+                        // Cycle between GRID_COMPACT and GRID_COMFORTABLE
+                        if (currentMode == LibraryViewMode.GRID_COMPACT) {
+                            LibraryViewMode.GRID_COMFORTABLE
+                        } else {
+                            LibraryViewMode.GRID_COMPACT
+                        }
+                    } else {
+                        LibraryViewMode.GRID_COMPACT
+                    },
+                )
+            },
+        ) {
+            Icon(
+                imageVector =
+                    if (currentMode.isGrid()) {
+                        Icons.Filled.GridView
+                    } else {
+                        Icons.Outlined.GridView
+                    },
+                contentDescription = "Grid view",
                 tint =
                     if (currentMode.isGrid()) {
                         androidx.compose.material3.MaterialTheme.colorScheme.primary
                     } else {
-                        androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                        androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
                     },
             )
         }

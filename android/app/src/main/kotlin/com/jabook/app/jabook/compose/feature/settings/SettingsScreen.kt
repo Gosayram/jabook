@@ -553,19 +553,53 @@ fun SettingsScreen(
 
             SettingsItem(
                 title = stringResource(R.string.openSourceLicenses),
+                subtitle = stringResource(R.string.viewLicenses),
                 onClick = {
-                    android.widget.Toast
-                        .makeText(context, context.getString(R.string.licenseScreenPlaceholder), android.widget.Toast.LENGTH_SHORT)
-                        .show()
+                    val intent =
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://github.com/Gosayram/jabook/blob/main/LICENSE"),
+                        )
+                    context.startActivity(intent)
+                },
+            )
+
+            SettingsItem(
+                title = stringResource(R.string.changelog),
+                subtitle = stringResource(R.string.changelogDescription),
+                onClick = {
+                    val intent =
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://github.com/Gosayram/jabook/blob/main/CHANGELOG.md"),
+                        )
+                    context.startActivity(intent)
+                },
+            )
+
+            SettingsItem(
+                title = stringResource(R.string.github),
+                subtitle = stringResource(R.string.githubRepositoryDescription),
+                onClick = {
+                    val intent =
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://github.com/Gosayram/jabook"),
+                        )
+                    context.startActivity(intent)
                 },
             )
 
             SettingsItem(
                 title = stringResource(R.string.privacyPolicy),
+                subtitle = "Apache 2.0 Open Source License",
                 onClick = {
-                    android.widget.Toast
-                        .makeText(context, context.getString(R.string.privacyPolicyPlaceholder), android.widget.Toast.LENGTH_SHORT)
-                        .show()
+                    val intent =
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://www.apache.org/licenses/LICENSE-2.0"),
+                        )
+                    context.startActivity(intent)
                 },
             )
 

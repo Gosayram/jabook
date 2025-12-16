@@ -55,6 +55,9 @@ enum class LibraryViewMode {
     /** Standard list view (default) */
     LIST,
 
+    /** Compact list view - denser layout with smaller cards */
+    LIST_COMPACT,
+
     /** Grid view - compact (3 cols phone, 6 tablet) */
     GRID_COMPACT,
 

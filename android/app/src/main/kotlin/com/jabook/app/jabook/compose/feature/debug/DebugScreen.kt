@@ -212,6 +212,11 @@ private fun CacheTab() {
 private fun RutrackerTab(viewModel: DebugViewModel) {
     val authInfo by viewModel.authDebugInfo.collectAsState()
 
+    // Auto-refresh when tab opens
+    LaunchedEffect(Unit) {
+        viewModel.refreshAuthDebugInfo()
+    }
+
     Column(
         modifier =
             Modifier

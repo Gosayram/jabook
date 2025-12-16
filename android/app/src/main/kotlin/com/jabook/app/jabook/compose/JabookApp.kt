@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -26,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.compose.navigation.JabookAppState
@@ -101,17 +103,55 @@ fun JabookApp(
         darkTheme = darkTheme,
         isBetaFlavor = isBetaFlavor,
     ) {
+        // Get player state for mini-player
+        val playerViewModel: com.jabook.app.jabook.compose.feature.player.PlayerViewModel = hiltViewModel()
+        val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
+
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             snackbarHost = { androidx.compose.material3.SnackbarHost(appState.snackbarHostState) },
             bottomBar = {
-                JabookBottomBar(
-                    destinations = appState.topLevelDestinations,
-                    currentDestination = appState.currentDestination,
-                    onNavigateToDestination = { destination ->
-                        appState.navigateToTopLevelDestination(destination)
-                    },
-                )
+                androidx.compose.foundation.layout.Column {
+                    // Mini player (show only when playing and not on player screen)
+                    if (playerUiState is com.jabook.app.jabook.compose.feature.player.PlayerUiState.Success) {
+                        val successState = playerUiState as com.jabook.app.jabook.compose.feature.player.PlayerUiState.Success
+                        val isOnPlayerScreen = appState.currentDestination?.route?.contains("player", ignoreCase = true) == true
+
+                        if (!isOnPlayerScreen) {
+                            // Calculate progress (0.0 to 1.0)
+                            val durationMillis = successState.currentChapter?.duration?.inWholeMilliseconds ?: 1L
+                            val progress = (successState.currentPosition.toFloat() / durationMillis).coerceIn(0f, 1f)
+
+                            com.jabook.app.jabook.compose.feature.player.MiniPlayer(
+                                coverUrl = successState.book.coverUrl,
+                                title = successState.book.title,
+                                author = successState.book.author,
+                                isPlaying = successState.isPlaying,
+                                progress = progress,
+                                onPlayPauseClick = {
+                                    if (successState.isPlaying) {
+                                        playerViewModel.pause()
+                                    } else {
+                                        playerViewModel.play()
+                                    }
+                                },
+                                onMiniPlayerClick = {
+                                    appState.navController.navigate("player/${successState.book.id}")
+                                },
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+
+                    // Bottom navigation bar
+                    JabookBottomBar(
+                        destinations = appState.topLevelDestinations,
+                        currentDestination = appState.currentDestination,
+                        onNavigateToDestination = { destination ->
+                            appState.navigateToTopLevelDestination(destination)
+                        },
+                    )
+                }
             },
         ) { padding ->
             @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)

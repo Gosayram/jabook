@@ -2065,8 +2065,8 @@
     <string name="addAudiobooksToGetStarted">Добавьте аудиокниги, чтобы начать</string>
     <!-- Все книги -->
     <string name="allBooks">Все книги</string>
-    <!-- Появление -->
-    <string name="appearance">Появление</string>
+    <!-- Оформление (внешний вид приложения) -->
+    <string name="appearance">Оформление</string>
     <!-- Автоматически воспроизводить следующую главу, когда текущая заканчивается -->
     <string name="automaticallyPlayNextChapterWhenCurrentEnds">Автоматически воспроизводить следующую главу, когда текущая заканчивается</string>
     <!-- Автоматическое воспроизведение следующей главы -->
@@ -2162,7 +2162,7 @@
     <!-- Воспроизведение -->
     <string name="playback">Воспроизведение</string>
     <!-- политика конфиденциальности -->
-    <string name="privacyPolicy">политика конфиденциальности</string>
+    <string name="privacyPolicy">Политика конфиденциальности</string>
     <!-- Заполнитель Политики конфиденциальности -->
     <string name="privacyPolicyPlaceholder">Заполнитель Политики конфиденциальности</string>
     <!-- Требуется для скачивания торрентов -->
