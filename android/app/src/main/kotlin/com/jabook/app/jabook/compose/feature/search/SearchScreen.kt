@@ -63,9 +63,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.designsystem.component.BookCard
@@ -135,7 +137,7 @@ fun SearchScreen(
                         value = searchQuery,
                         onValueChange = viewModel::onSearchQueryChanged,
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search books...") },
+                        placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
                         singleLine = true,
                         colors =
                             TextFieldDefaults.colors(
@@ -150,7 +152,7 @@ fun SearchScreen(
                                     IconButton(onClick = viewModel::clearSearch) {
                                         Icon(
                                             imageVector = Icons.Filled.Clear,
-                                            contentDescription = "Clear search",
+                                            contentDescription = stringResource(R.string.clearSearch),
                                         )
                                     }
                                 }
@@ -163,7 +165,7 @@ fun SearchScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                         )
                     }
                 },
@@ -171,7 +173,7 @@ fun SearchScreen(
                     // Sort Button
                     Box {
                         IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort))
                         }
                         DropdownMenu(
                             expanded = showSortMenu,
@@ -197,7 +199,7 @@ fun SearchScreen(
 
                     // Filter Button
                     IconButton(onClick = { showFiltersSheet = true }) {
-                        Icon(Icons.Filled.FilterList, contentDescription = "Filters")
+                        Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filters))
                     }
                 },
             )
@@ -219,7 +221,7 @@ fun SearchScreen(
                 ) {
                     Icon(Icons.Filled.Search, contentDescription = null)
                     Spacer(Modifier.padding(4.dp))
-                    Text("Search Online on Rutracker")
+                    Text(stringResource(R.string.searchOnlineRutracker))
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -268,12 +270,12 @@ fun SearchScreen(
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Text(
-                            text = "Error: ${state.message}",
+                            text = stringResource(R.string.errorWithMessage, state.message),
                             color = MaterialTheme.colorScheme.error,
                         )
                         Spacer(Modifier.height(8.dp))
                         Button(onClick = viewModel::searchOnline) {
-                            Text("Retry")
+                            Text(stringResource(R.string.retry))
                         }
                     }
                 }
@@ -308,14 +310,14 @@ private fun LocalSearchResults(
                 )
             } else {
                 EmptyState(
-                    message = "Enter a search query to find books",
+                    message = stringResource(R.string.enterSearchTerm),
                 )
             }
         }
 
         results.isEmpty() -> {
             EmptyState(
-                message = "No local books found for \"$query\"",
+                message = stringResource(R.string.noLocalBooksFound, query),
             )
         }
 
@@ -361,12 +363,12 @@ private fun SearchHistoryList(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Recent Searches",
+                text = stringResource(R.string.recentSearches),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
             androidx.compose.material3.TextButton(onClick = onClearHistory) {
-                Text("Clear All")
+                Text(stringResource(R.string.clearAll))
             }
         }
 
@@ -391,7 +393,7 @@ private fun SearchHistoryList(
                         IconButton(onClick = { onItemDelete(item.id) }) {
                             Icon(
                                 imageVector = Icons.Filled.Clear,
-                                contentDescription = "Delete",
+                                contentDescription = stringResource(R.string.delete),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -419,7 +421,7 @@ private fun OnlineSearchResults(
 ) {
     if (results.isEmpty()) {
         EmptyState(
-            message = "No online results found",
+            message = stringResource(R.string.noResults),
         )
     } else {
         LazyVerticalGrid(
@@ -472,7 +474,14 @@ private fun OnlineBookCard(
         ) {
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                contentDescription =
+                    if (isFavorite) {
+                        stringResource(
+                            R.string.removeFromFavorites,
+                        )
+                    } else {
+                        stringResource(R.string.addToFavorites)
+                    },
                 tint = if (isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

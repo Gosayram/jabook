@@ -1,0 +1,1946 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appTitle">JaBook</string>
+    <!-- Title for search screen -->
+    <string name="searchAudiobooks">Search Audiobooks</string>
+    <!-- Placeholder text for search field -->
+    <string name="searchPlaceholder">Enter title, author, or keywords</string>
+    <!-- Title for library screen -->
+    <string name="libraryTitle">Library</string>
+    <!-- Title for player screen -->
+    <string name="playerTitle">Player</string>
+    <!-- Title for settings screen -->
+    <string name="settingsTitle">Settings</string>
+    <!-- Title for debug screen -->
+    <string name="debugTitle">Debug</string>
+    <!-- Title for mirrors screen -->
+    <string name="mirrorsTitle">Mirrors</string>
+    <!-- Title for topic screen -->
+    <string name="topicTitle">Topic</string>
+    <!-- Message when no search results -->
+    <string name="noResults">No results found</string>
+    <!-- Message when no results match selected category filters -->
+    <string name="noResultsForFilters">No results match the selected filters</string>
+    <!-- Loading indicator text -->
+    <string name="loading">Loading...</string>
+    <!-- Error message title -->
+    <string name="error">Error</string>
+    <!-- Retry button text -->
+    <string name="retry">Retry</string>
+    <!-- Language setting label -->
+    <string name="language">Language</string>
+    <!-- English language option -->
+    <string name="english">English</string>
+    <!-- Russian language option -->
+    <string name="russian">Russian</string>
+    <!-- Use system language setting -->
+    <string name="systemDefault">System Default</string>
+    <!-- Error message when search fails -->
+    <string name="failedToSearch">Failed to search</string>
+    <!-- Indicator that results are from cache -->
+    <string name="resultsFromCache">Results from cache</string>
+    <!-- Indicator that results are from local database -->
+    <string name="resultsFromLocalDb">Results from local database</string>
+    <!-- Prompt to start searching -->
+    <string name="enterSearchTerm">Enter a search term to begin</string>
+    <!-- Label for author field -->
+    <string name="authorLabel">Author: </string>
+    <!-- Label for size field -->
+    <string name="sizeLabel">Size: </string>
+    <!-- Label for seeders count -->
+    <string name="seedersLabel"> seeders</string>
+    <!-- Label for leechers count -->
+    <string name="leechersLabel"> leechers</string>
+    <!-- Fallback for missing title -->
+    <string name="unknownTitle">Unknown Title</string>
+    <!-- Fallback for missing author -->
+    <string name="unknownAuthor">Unknown Author</string>
+    <!-- Fallback for missing size -->
+    <string name="unknownSize">Unknown Size</string>
+    <!-- Message for upcoming add book feature -->
+    <string name="addBookComingSoon">Add book functionality coming soon!</string>
+    <!-- Placeholder text for library screen -->
+    <string name="libraryContentPlaceholder">Library content will be displayed here</string>
+    <!-- Title for authentication prompt dialog -->
+    <string name="authenticationRequired">Authentication Required</string>
+    <!-- Message explaining that login is required for search -->
+    <string name="loginRequiredForSearch">Please login to RuTracker to access search functionality.</string>
+    <!-- Cancel button text -->
+    <string name="cancel">Cancel</string>
+    <!-- Button label for reset action -->
+    <string name="reset">Reset</string>
+    <!-- Menu item to reset book settings to global defaults -->
+    <string name="resetToGlobalSettings">Reset to global settings</string>
+    <!-- Button label to reset all individual book settings -->
+    <string name="resetAllBookSettings">Reset all book settings</string>
+    <!-- Description for reset all book settings action -->
+    <string name="resetAllBookSettingsDescription">Remove individual settings for all books</string>
+    <!-- Confirmation message for resetting all book settings -->
+    <string name="resetAllBookSettingsConfirmation">This will remove individual audio settings for all books. All books will use global settings. This action cannot be undone.</string>
+    <!-- Message shown when book settings are reset -->
+    <string name="settingsResetToGlobal">Settings reset to global defaults</string>
+    <!-- Message shown when all book settings are reset -->
+    <string name="allBookSettingsReset">All book settings have been reset to global defaults</string>
+    <!-- Error message when resetting settings fails -->
+    <string name="errorResettingSettings">Error resetting settings</string>
+    <!-- Login button text -->
+    <string name="login">Login</string>
+    <!-- User-friendly network connection error message -->
+    <string name="networkConnectionError">Could not connect. Check your internet or choose another mirror in Settings → Sources.</string>
+    <!-- Generic connection failure message -->
+    <string name="connectionFailed">Connection failed. Please check your internet connection or try a different mirror.</string>
+    <!-- Button text for choosing mirror -->
+    <string name="chooseMirror">Choose Mirror</string>
+    <!-- User-friendly network error title -->
+    <string name="networkErrorUser">Network connection issue</string>
+    <!-- DNS resolution error message -->
+    <string name="dnsError">Could not resolve domain. This may be due to network restrictions or an inactive mirror.</string>
+    <!-- Timeout error message -->
+    <string name="timeoutError">Request took too long. Please check your connection and try again.</string>
+    <!-- Server error message -->
+    <string name="serverError">Server is temporarily unavailable. Please try again later or choose another mirror.</string>
+    <!-- Title for recent searches section -->
+    <string name="recentSearches">Recent Searches</string>
+    <!-- Title for search examples section -->
+    <string name="searchExamples">Try these examples</string>
+    <!-- Title for quick actions section -->
+    <string name="quickActions">Quick Actions</string>
+    <!-- Label for scan local files action -->
+    <string name="scanLocalFiles">Scan Local Files</string>
+    <!-- Message for upcoming features -->
+    <string name="featureComingSoon">Feature coming soon</string>
+    <!-- Label for change mirror action -->
+    <string name="changeMirror">Change Mirror</string>
+    <!-- Label for check connection action -->
+    <string name="checkConnection">Check Connection</string>
+    <!-- Title for permissions required dialog -->
+    <string name="permissionsRequired">Permissions Required</string>
+    <!-- Explanation for why permissions are needed -->
+    <string name="permissionExplanation">This app needs storage permission to download and save audiobook files. Please grant the required permissions to continue.</string>
+    <!-- Button text to grant permissions -->
+    <string name="grantPermissions">Grant Permissions</string>
+    <!-- Title for permission denied dialog -->
+    <string name="permissionDeniedTitle">Permission Denied</string>
+    <!-- Message for permission denied dialog -->
+    <string name="permissionDeniedMessage">Storage permission is required to download files. Please enable it in app settings.</string>
+    <!-- Button text for permission denied action -->
+    <string name="permissionDeniedButton">Open Settings</string>
+    <!-- Navigation label for library -->
+    <string name="navLibrary">Library</string>
+    <!-- Navigation label for authentication -->
+    <string name="navAuth">Connect</string>
+    <!-- Navigation label for search -->
+    <string name="navSearch">Search</string>
+    <!-- Navigation label for settings -->
+    <string name="navSettings">Settings</string>
+    <!-- Navigation label for debug -->
+    <string name="navDebug">Debug</string>
+    <!-- Title for authentication screen -->
+    <string name="authTitle">Login</string>
+    <!-- Label for username field -->
+    <string name="usernameLabel">Username</string>
+    <!-- Label for password field -->
+    <string name="passwordLabel">Password</string>
+    <!-- Label for remember me checkbox -->
+    <string name="rememberMeLabel">Remember me</string>
+    <!-- Login button text -->
+    <string name="loginButton">Login</string>
+    <!-- Test connection button text -->
+    <string name="testConnectionButton">Test Connection</string>
+    <!-- Logout button text -->
+    <string name="logoutButton">Logout</string>
+    <!-- Message for successful cache clearing -->
+    <string name="cacheClearedSuccessfully">Cache cleared successfully</string>
+    <!-- Message for unknown download status -->
+    <string name="downloadStatusUnknown">Download status unknown</string>
+    <!-- Message for failed log export -->
+    <string name="failedToExportLogs">Failed to export logs</string>
+    <!-- Message for successful log export -->
+    <string name="logsExportedSuccessfully">Logs exported successfully</string>
+    <!-- Message for completed mirror health check -->
+    <string name="mirrorHealthCheckCompleted">Mirror health check completed</string>
+    <!-- Test all mirrors button text -->
+    <string name="testAllMirrors">Test All Mirrors</string>
+    <!-- Label for status -->
+    <string name="statusLabel">Status:</string>
+    <!-- Label for last OK time -->
+    <string name="lastOkLabel">Last OK:</string>
+    <!-- Label for round trip time -->
+    <string name="rttLabel">RTT:</string>
+    <!-- Abbreviation for milliseconds -->
+    <string name="milliseconds">ms</string>
+    <!-- Label for download -->
+    <string name="downloadLabel">Download</string>
+    <!-- Status label without colon -->
+    <string name="statusLabelNoColon">Status</string>
+    <!-- Label for download progress -->
+    <string name="downloadProgressLabel">Progress</string>
+    <!-- Title for cache statistics -->
+    <string name="cacheStatistics">Cache Statistics</string>
+    <!-- Label for total entries -->
+    <string name="totalEntries">Total entries</string>
+    <!-- Label for search cache -->
+    <string name="searchCache">Search cache</string>
+    <!-- Label for topic cache -->
+    <string name="topicCache">Topic cache</string>
+    <!-- Label for memory usage -->
+    <string name="memoryUsage">Memory usage</string>
+    <!-- Clear all cache button text -->
+    <string name="clearAllCache">Clear All Cache</string>
+    <!-- Title for mirrors screen -->
+    <string name="mirrorsScreenTitle">Mirrors</string>
+    <!-- Message for failed audio loading -->
+    <string name="failedToLoadAudio">Failed to load audio</string>
+    <!-- Label for chapters -->
+    <string name="chaptersLabel">Chapters</string>
+    <!-- Hint for chapters search field -->
+    <string name="searchChaptersHint">Search by number or title...</string>
+    <!-- Filter for showing all chapters -->
+    <string name="allFilter">All</string>
+    <!-- Filter for showing current chapter -->
+    <string name="currentFilter">Current</string>
+    <!-- Message when no chapters found in search/filter -->
+    <string name="noChaptersFoundInSearch">No chapters found</string>
+    <!-- Message for upcoming download feature -->
+    <string name="downloadFunctionalityComingSoon">Download functionality coming soon</string>
+    <!-- Message for request timeout -->
+    <string name="requestTimedOut">Request timed out</string>
+    <!-- Message for network error -->
+    <string name="networkError">Network error</string>
+    <!-- Status for disabled mirror -->
+    <string name="mirrorStatusDisabled">Disabled</string>
+    <!-- Label for mirror response time -->
+    <string name="mirrorResponseTime">Response time</string>
+    <!-- Label for last check time -->
+    <string name="mirrorLastCheck">Last check</string>
+    <!-- Text for testing individual mirror -->
+    <string name="mirrorTestIndividual">Test individual mirror</string>
+    <!-- Status for active mirror -->
+    <string name="activeStatus">Active</string>
+    <!-- Status for disabled mirror -->
+    <string name="disabledStatus">Disabled</string>
+    <!-- Description for language setting -->
+    <string name="languageDescription">Select language</string>
+    <!-- Title for theme setting -->
+    <string name="themeTitle">Theme</string>
+    <!-- Description for theme setting -->
+    <string name="themeDescription">Select app theme</string>
+    <!-- Label for dark mode -->
+    <string name="darkMode">Dark mode</string>
+    <!-- Label for high contrast -->
+    <string name="highContrast">High contrast</string>
+    <!-- Title for audio settings -->
+    <string name="audioTitle">Audio</string>
+    <!-- Description for audio settings -->
+    <string name="audioDescription">Audio settings</string>
+    <!-- Title for audio enhancement settings -->
+    <string name="audioEnhancementTitle">Audio Enhancement</string>
+    <!-- Description for audio enhancement settings -->
+    <string name="audioEnhancementDescription">Improve audio quality and volume consistency</string>
+    <!-- Title for normalize volume setting -->
+    <string name="normalizeVolumeTitle">Normalize Volume</string>
+    <!-- Description for normalize volume setting -->
+    <string name="normalizeVolumeDescription">Maintain consistent volume across different audiobooks</string>
+    <!-- Title for volume boost setting -->
+    <string name="volumeBoostTitle">Volume Boost</string>
+    <!-- Title for DRC level setting -->
+    <string name="drcLevelTitle">Dynamic Range Compression</string>
+    <!-- Title for speech enhancer setting -->
+    <string name="speechEnhancerTitle">Speech Enhancer</string>
+    <!-- Description for speech enhancer setting -->
+    <string name="speechEnhancerDescription">Improve speech clarity and reduce sibilance</string>
+    <!-- Title for auto volume leveling setting -->
+    <string name="autoVolumeLevelingTitle">Auto Volume Leveling</string>
+    <!-- Description for auto volume leveling setting -->
+    <string name="autoVolumeLevelingDescription">Automatically adjust volume to maintain consistent level</string>
+    <!-- Label for playback speed -->
+    <string name="playbackSpeed">Playback speed</string>
+    <!-- Label for skip duration -->
+    <string name="skipDuration">Skip duration</string>
+    <!-- Title for downloads settings -->
+    <string name="downloadsTitle">Downloads</string>
+    <!-- Description for downloads settings -->
+    <string name="downloadsDescription">Download settings</string>
+    <!-- Label for download location -->
+    <string name="downloadLocation">Download location</string>
+    <!-- Label for WiFi only downloads -->
+    <string name="wifiOnlyDownloads">WiFi only downloads</string>
+    <!-- Message for data loaded from cache -->
+    <string name="dataLoadedFromCache">Data loaded from cache</string>
+    <!-- Message for failed topic loading -->
+    <string name="failedToLoadTopic">Failed to load topic</string>
+    <!-- Label for magnet link -->
+    <string name="magnetLinkLabel">Magnet link</string>
+    <!-- Fallback for missing chapter -->
+    <string name="unknownChapter">Unknown chapter</string>
+    <!-- Message for magnet link copied -->
+    <string name="magnetLinkCopied">Magnet link copied</string>
+    <!-- Label for copy to clipboard -->
+    <string name="copyToClipboardLabel">Copy to clipboard</string>
+    <!-- Title for debug tools screen -->
+    <string name="debugToolsTitle">Debug Tools</string>
+    <!-- Text for logs tab -->
+    <string name="logsTab">Logs</string>
+    <!-- Text for mirrors tab -->
+    <string name="mirrorsTab">Mirrors</string>
+    <!-- Text for downloads tab -->
+    <string name="downloadsTab">Downloads</string>
+    <!-- Text for cache tab -->
+    <string name="cacheTab">Cache</string>
+    <!-- Text for test all mirrors button -->
+    <string name="testAllMirrorsButton">Test All Mirrors</string>
+    <!-- Label for displaying status -->
+    <string name="statusLabelText">Status: </string>
+    <!-- Label for last OK time -->
+    <string name="lastOkLabelText">Last OK: </string>
+    <!-- Label for round trip time -->
+    <string name="rttLabelText">RTT: </string>
+    <!-- Abbreviation for milliseconds -->
+    <string name="millisecondsText">ms</string>
+    <!-- Label for download -->
+    <string name="downloadLabelText">Download</string>
+    <!-- Status label without colon -->
+    <string name="statusLabelNoColonText">Status</string>
+    <!-- Label for download progress -->
+    <string name="downloadProgressLabelText">Progress</string>
+    <!-- Title for cache statistics section -->
+    <string name="cacheStatisticsTitle">Cache Statistics</string>
+    <!-- Label for total entries -->
+    <string name="totalEntriesText">Total entries: </string>
+    <!-- Label for search cache size -->
+    <string name="searchCacheText">Search cache: </string>
+    <!-- Label for topic cache size -->
+    <string name="topicCacheText">Topic cache: </string>
+    <!-- Label for memory usage -->
+    <string name="memoryUsageText">Memory usage: </string>
+    <!-- Text for clear cache button -->
+    <string name="clearAllCacheButton">Clear All Cache</string>
+    <!-- Message for empty cache -->
+    <string name="cacheIsEmptyMessage">Cache is empty</string>
+    <!-- Text for refresh debug data button -->
+    <string name="refreshDebugDataButton">Refresh Debug Data</string>
+    <!-- Text for export logs button -->
+    <string name="exportLogsButton">Export Logs</string>
+    <!-- Text for delete download button -->
+    <string name="deleteDownloadButton">Delete Download</string>
+    <!-- Text for done button -->
+    <string name="doneButtonText">Done</string>
+    <!-- Title for webview screen -->
+    <string name="webViewTitle">RuTracker</string>
+    <!-- Instruction banner text for WebView login screen -->
+    <string name="webViewLoginInstruction">Please log in to RuTracker. After successful login, tap Done to extract cookies for the client.</string>
+    <!-- Message shown during Cloudflare check -->
+    <string name="cloudflareMessage">This site uses Cloudflare security checks. Please wait for the check to complete and interact with the page that opens if needed.</string>
+    <!-- Text for retry button -->
+    <string name="retryButtonText">Retry</string>
+    <!-- Text for go home button -->
+    <string name="goHomeButtonText">Go to Home</string>
+    <!-- Message shown during browser check -->
+    <string name="browserCheckMessage">The site is checking your browser - please wait for the check to complete on this page.</string>
+    <!-- Title for download torrent dialog -->
+    <string name="downloadTorrentTitle">Download Torrent</string>
+    <!-- Content for download torrent dialog -->
+    <string name="selectActionText">Select action:</string>
+    <!-- Text for open button -->
+    <string name="openButtonText">Open</string>
+    <!-- Text for download button -->
+    <string name="downloadButtonText">Download</string>
+    <!-- Message for opening link in browser -->
+    <string name="downloadInBrowserMessage">To download the file, please open the link in your browser</string>
+    <!-- Title for import audiobooks dialog -->
+    <string name="importAudiobooksTitle">Import Audiobooks</string>
+    <!-- Content for import audiobooks dialog -->
+    <string name="selectFilesMessage">Select audiobook files from your device to add to your library</string>
+    <!-- Text for import button -->
+    <string name="importButtonText">Import</string>
+    <!-- Message for successful import -->
+    <string name="importedSuccess">Imported %1$s audiobook(s)</string>
+    <!-- Message for no files selected -->
+    <string name="noFilesSelectedMessage">No files selected</string>
+    <!-- Message for import failure -->
+    <string name="importFailedMessage">Failed to import: %1$s</string>
+    <!-- Title for scan folder dialog -->
+    <string name="scanFolderTitle">Scan Folder</string>
+    <!-- Content for scan folder dialog -->
+    <string name="scanFolderMessage">Scan a folder on your device for audiobook files</string>
+    <!-- Text for scan button -->
+    <string name="scanButtonText">Scan</string>
+    <!-- Message for successful scan -->
+    <string name="scanSuccessMessage">Found and imported %1$s audiobook(s)</string>
+    <!-- Message for no audiobooks found -->
+    <string name="noAudiobooksFoundMessage">No audiobook files found in selected folder</string>
+    <!-- Message for no folder selected -->
+    <string name="noFolderSelectedMessage">No folder selected</string>
+    <!-- Message for scan failure -->
+    <string name="scanFailedMessage">Failed to scan folder: %1$s</string>
+    <!-- Title for authentication screen -->
+    <string name="authScreenTitle">RuTracker Connection</string>
+    <!-- Label for username field -->
+    <string name="usernameLabelText">Username</string>
+    <!-- Label for password field -->
+    <string name="passwordLabelText">Password</string>
+    <!-- Label for remember me checkbox -->
+    <string name="rememberMeLabelText">Remember me</string>
+    <!-- Text for login button -->
+    <string name="loginButtonText">Login</string>
+    <!-- Text for test connection button -->
+    <string name="testConnectionButtonText">Test Connection</string>
+    <!-- Text for logout button -->
+    <string name="logoutButtonText">Logout</string>
+    <!-- Message during login -->
+    <string name="loggingInText">Logging in...</string>
+    <!-- Message for successful login -->
+    <string name="loginSuccessMessage">Login successful!</string>
+    <!-- Message for failed login -->
+    <string name="loginFailedMessage">Login failed. Please check credentials</string>
+    <!-- Message for login error -->
+    <string name="loginErrorMessage">Login error: %1$s</string>
+    <!-- Message for successful connection test -->
+    <string name="connectionSuccessMessage">Connection successful! Using: %1$s</string>
+    <!-- Message for failed connection test -->
+    <string name="connectionFailedMessage">Connection test failed: %1$s</string>
+    <!-- Message during logout -->
+    <string name="loggingOutText">Logging out...</string>
+    <!-- Message for successful logout -->
+    <string name="logoutSuccessMessage">Logout completed</string>
+    <!-- Message for logout error -->
+    <string name="logoutErrorMessage">Logout error: %1$s</string>
+    <!-- Subtitle for mirror configuration -->
+    <string name="configureMirrorsSubtitle">Configure and test RuTracker mirrors</string>
+    <!-- Title for playback speed setting -->
+    <string name="playbackSpeedTitle">Playback Speed</string>
+    <!-- Title for skip duration setting -->
+    <string name="skipDurationTitle">Skip Duration</string>
+    <!-- Title for download location setting -->
+    <string name="downloadLocationTitle">Download Location</string>
+    <!-- Title for dark mode setting -->
+    <string name="darkModeTitle">Dark Mode</string>
+    <!-- Title for high contrast setting -->
+    <string name="highContrastTitle">High Contrast</string>
+    <!-- Title for WiFi only downloads setting -->
+    <string name="wifiOnlyDownloadsTitle">WiFi Only Downloads</string>
+    <!-- Message for failed mirror loading -->
+    <string name="failedToLoadMirrorsMessage">Failed to load mirrors: %1$s</string>
+    <!-- Message for successful mirror test -->
+    <string name="mirrorTestSuccessMessage">Mirror %1$s tested successfully</string>
+    <!-- Message for failed mirror test -->
+    <string name="mirrorTestFailedMessage">Failed to test mirror %1$s: %2$s</string>
+    <!-- Mirror status text -->
+    <string name="mirrorStatusText">Mirror %1$s</string>
+    <!-- Message for failed mirror update -->
+    <string name="failedToUpdateMirrorMessage">Failed to update mirror: %1$s</string>
+    <!-- Title for add custom mirror dialog -->
+    <string name="addCustomMirrorTitle">Add Custom Mirror</string>
+    <!-- Label for mirror URL field -->
+    <string name="mirrorUrlLabelText">Mirror URL</string>
+    <!-- Hint for mirror URL field -->
+    <string name="mirrorUrlHintText">https://rutracker.example.com</string>
+    <!-- Label for priority field -->
+    <string name="priorityLabelText">Priority (1-10)</string>
+    <!-- Hint for priority field -->
+    <string name="priorityHintText">5</string>
+    <!-- Text for add mirror button -->
+    <string name="addMirrorButtonText">Add</string>
+    <!-- Message for successful mirror addition -->
+    <string name="mirrorAddedMessage">Mirror %1$s added</string>
+    <!-- Message for failed mirror addition -->
+    <string name="failedToAddMirrorMessage">Failed to add mirror: %1$s</string>
+    <!-- Title for mirror settings screen -->
+    <string name="mirrorSettingsTitle">Mirror Settings</string>
+    <!-- Description for mirror settings screen -->
+    <string name="mirrorSettingsDescription">Configure RuTracker mirrors for optimal search performance. Enabled mirrors will be used automatically.</string>
+    <!-- Text for add custom mirror button -->
+    <string name="addCustomMirrorButtonText">Add Custom Mirror</string>
+    <!-- Text for showing mirror priority -->
+    <string name="priorityText">Priority: %1$s</string>
+    <!-- Text for showing mirror response time -->
+    <string name="responseTimeText">Response time: %1$s ms</string>
+    <!-- Text for showing mirror last check time -->
+    <string name="lastCheckedText">Last checked: %1$s</string>
+    <!-- Text for test mirror button -->
+    <string name="testMirrorButtonText">Test this mirror</string>
+    <!-- Status for active mirror -->
+    <string name="activeStatusText">Active</string>
+    <!-- Status for disabled mirror -->
+    <string name="disabledStatusText">Disabled</string>
+    <!-- Text for never -->
+    <string name="neverDateText">Never</string>
+    <!-- Text for invalid date -->
+    <string name="invalidDateText">Invalid date</string>
+    <!-- Title for player screen -->
+    <string name="playerScreenTitle">Player</string>
+    <!-- Message for failed audiobook loading -->
+    <string name="failedToLoadAudioMessage">Failed to load audiobook</string>
+    <!-- Text for showing author -->
+    <string name="byAuthorText">by: %1$s</string>
+    <!-- Label for chapters section -->
+    <string name="chaptersLabelText">Chapters</string>
+    <!-- Message for upcoming download feature -->
+    <string name="downloadFunctionalityComingSoonMessage">Download functionality coming soon!</string>
+    <!-- Sample audiobook title -->
+    <string name="sampleTitleText">Sample Audiobook</string>
+    <!-- Sample audiobook author -->
+    <string name="sampleAuthorText">Sample Author</string>
+    <!-- Sample audiobook category -->
+    <string name="sampleCategoryText">Fiction</string>
+    <!-- Sample audiobook size -->
+    <string name="sampleSizeText">150 MB</string>
+    <!-- Sample chapter 1 title -->
+    <string name="sampleChapter1Text">Chapter 1</string>
+    <!-- Sample chapter 2 title -->
+    <string name="sampleChapter2Text">Chapter 2</string>
+    <!-- Chapter number label with number parameter -->
+    <string name="chapterNumber">Chapter {number}</string>
+    <!-- Title for topic screen -->
+    <string name="topicScreenTitle">Topic</string>
+    <!-- Message for request timeout -->
+    <string name="requestTimedOutMessage">Request timed out. Check your connection.</string>
+    <!-- Message for network error -->
+    <string name="networkErrorMessage">Network error: %1$s</string>
+    <!-- Message for topic loading error -->
+    <string name="errorLoadingTopicMessage">Error loading topic: %1$s</string>
+    <!-- Message for failed topic loading -->
+    <string name="failedToLoadTopicMessage">Failed to load topic</string>
+    <!-- Message for data loaded from cache -->
+    <string name="dataLoadedFromCacheMessage">Data loaded from cache</string>
+    <!-- Fallback for missing chapter -->
+    <string name="unknownChapterText">Unknown chapter</string>
+    <!-- Label for magnet link -->
+    <string name="magnetLinkLabelText">Magnet link</string>
+    <!-- Message for magnet link copied -->
+    <string name="magnetLinkCopiedMessage">Magnet link copied to clipboard</string>
+    <!-- Message for copy to clipboard -->
+    <string name="copyToClipboardMessage">%1$s copied to clipboard</string>
+    <!-- Navigation text for library -->
+    <string name="navLibraryText">Library</string>
+    <!-- Navigation text for authentication -->
+    <string name="navAuthText">Connect</string>
+    <!-- Navigation text for search -->
+    <string name="navSearchText">Search</string>
+    <!-- Navigation text for settings -->
+    <string name="navSettingsText">Settings</string>
+    <!-- Navigation text for debug -->
+    <string name="navDebugText">Debug</string>
+    <!-- Title for login screen -->
+    <string name="authDialogTitle">Login</string>
+    <!-- Help text for authentication -->
+    <string name="authHelpText">Login to RuTracker to access audiobook search and downloads. Your credentials are stored securely.</string>
+    <!-- Message for successful cache clearing -->
+    <string name="cacheClearedSuccessfullyMessage">Cache cleared successfully</string>
+    <!-- Message for unknown download status -->
+    <string name="downloadStatusUnknownMessage">Download status unknown</string>
+    <!-- Message for failed log export -->
+    <string name="failedToExportLogsMessage">Failed to export logs</string>
+    <!-- Message for successful log export -->
+    <string name="logsExportedSuccessfullyMessage">Logs exported successfully</string>
+    <!-- Message for completed mirror health check -->
+    <string name="mirrorHealthCheckCompletedMessage">Mirror health check completed: %1$s/%2$s mirrors</string>
+    <!-- Message when no active mirrors available for testing -->
+    <string name="noActiveMirrorsMessage">No active mirrors to test</string>
+    <!-- Message when active mirror is set -->
+    <string name="activeMirrorSetMessage">Active mirror set: %1$s</string>
+    <!-- Message when failed to set active mirror -->
+    <string name="failedToSetActiveMirrorMessage">Failed to set active mirror: %1$s</string>
+    <!-- Text showing active mirror -->
+    <string name="activeMirrorText">Active mirror: %1$s</string>
+    <!-- Message when failed to set best mirror -->
+    <string name="failedToSetBestMirrorMessage">Failed to set best mirror: %1$s</string>
+    <!-- Message when active mirror is disabled and switched -->
+    <string name="activeMirrorDisabledMessage">Active mirror disabled. Switched to: %1$s</string>
+    <!-- Warning message when failed to select new active mirror -->
+    <string name="warningFailedToSelectNewActiveMirrorMessage">Warning: failed to select new active mirror: %1$s</string>
+    <!-- Message when URL is copied to clipboard -->
+    <string name="urlCopiedToClipboardMessage">URL copied to clipboard</string>
+    <!-- Title for edit priority dialog -->
+    <string name="editPriorityTitle">Edit Priority</string>
+    <!-- Helper text for priority input -->
+    <string name="priorityHelperText">Lower number = higher priority</string>
+    <!-- Save button text -->
+    <string name="saveButtonText">Save</string>
+    <!-- Message when priority is updated -->
+    <string name="priorityUpdatedMessage">Priority updated: %1$s</string>
+    <!-- Message when failed to update priority -->
+    <string name="failedToUpdatePriorityMessage">Failed to update priority: %1$s</string>
+    <!-- Title for delete mirror dialog -->
+    <string name="deleteMirrorTitle">Delete Mirror?</string>
+    <!-- Warning message for default mirror deletion -->
+    <string name="defaultMirrorWarningMessage">Warning: this is a default mirror. It will be removed from the list, but can be added again.</string>
+    <!-- Confirmation message for mirror deletion -->
+    <string name="confirmDeleteMirrorMessage">Are you sure you want to delete this mirror?</string>
+    <!-- Delete button text -->
+    <string name="deleteButtonText">Delete</string>
+    <!-- Message when mirror is deleted -->
+    <string name="mirrorDeletedMessage">Mirror deleted: %1$s</string>
+    <!-- Message when failed to delete mirror -->
+    <string name="failedToDeleteMirrorMessage">Failed to delete mirror: %1$s</string>
+    <!-- Message when URL format is invalid -->
+    <string name="urlMustStartWithHttpMessage">URL must start with http:// or https://</string>
+    <!-- Message for invalid URL format -->
+    <string name="invalidUrlFormatMessage">Invalid URL format</string>
+    <!-- Message when mirror already exists -->
+    <string name="mirrorAlreadyExistsMessage">This mirror already exists in the list</string>
+    <!-- Filter text for showing only active mirrors -->
+    <string name="onlyActiveFilterText">Only Active</string>
+    <!-- Filter text for showing only healthy mirrors -->
+    <string name="onlyHealthyFilterText">Only Healthy</string>
+    <!-- Sort option text for priority -->
+    <string name="sortByPriorityText">By Priority</string>
+    <!-- Sort option text for health -->
+    <string name="sortByHealthText">By Health</string>
+    <!-- Sort option text for speed -->
+    <string name="sortBySpeedText">By Speed</string>
+    <!-- Message when no mirrors match filters -->
+    <string name="noMirrorsMatchFiltersMessage">No mirrors match the filters</string>
+    <!-- Button text for setting best mirror -->
+    <string name="setBestMirrorButtonText">Set Best Mirror</string>
+    <!-- Text showing health score -->
+    <string name="healthScoreText">Health: %1$s%</string>
+    <!-- Tooltip for set as active button -->
+    <string name="setAsActiveTooltip">Set as active</string>
+    <!-- Tooltip for copy URL button -->
+    <string name="copyUrlTooltip">Copy URL</string>
+    <!-- Tooltip for delete mirror button -->
+    <string name="deleteMirrorTooltip">Delete mirror</string>
+    <!-- Label text for active status -->
+    <string name="activeLabelText">Active</string>
+    <!-- Message for failed cache clearing -->
+    <string name="failedToClearCacheMessage">Failed to clear cache: %1$s</string>
+    <!-- Message for failed mirror testing -->
+    <string name="failedToTestMirrorsMessage">Failed to test mirrors: %1$s</string>
+    <!-- Status for degraded mirror -->
+    <string name="mirrorStatusDegraded">Degraded</string>
+    <!-- Status for unhealthy mirror -->
+    <string name="mirrorStatusUnhealthy">Unhealthy</string>
+    <!-- Message prompting for credentials -->
+    <string name="pleaseEnterCredentials">Please enter username and password</string>
+    <!-- Message during connection testing -->
+    <string name="testingConnectionText">Testing connection...</string>
+    <!-- Title for favorites screen -->
+    <string name="favoritesTitle">Favorites</string>
+    <!-- Tooltip for refresh button -->
+    <string name="refreshTooltip">Refresh</string>
+    <!-- Message when no favorites -->
+    <string name="noFavoritesMessage">No favorite audiobooks</string>
+    <!-- Hint for empty favorites -->
+    <string name="addFavoritesHint">Add audiobooks to favorites from search results</string>
+    <!-- Button to navigate to search -->
+    <string name="goToSearchButton">Go to Search</string>
+    <!-- Message when added to favorites -->
+    <string name="addedToFavorites">Added to favorites</string>
+    <!-- Message when removed from favorites -->
+    <string name="removedFromFavorites">Removed from favorites</string>
+    <!-- Error message for failed removal -->
+    <string name="failedToRemoveFromFavorites">Failed to remove from favorites</string>
+    <!-- Tooltip for favorites button -->
+    <string name="favoritesTooltip">Favorites</string>
+    <!-- Tooltip for filter button -->
+    <string name="filterLibraryTooltip">Filter library</string>
+    <!-- Tooltip for add audiobook button -->
+    <string name="addAudiobookTooltip">Add audiobook</string>
+    <!-- Message when library is empty -->
+    <string name="libraryEmptyMessage">Your library is empty</string>
+    <!-- Hint for empty library -->
+    <string name="addAudiobooksHint">Add audiobooks to your library to start listening</string>
+    <!-- Button label for searching -->
+    <string name="searchForAudiobooksButton">Search for audiobooks</string>
+    <!-- Button label for importing files -->
+    <string name="importFromFilesButton">Import from Files</string>
+    <!-- Message during biometric authentication -->
+    <string name="biometricAuthInProgress">Please wait, biometric authentication in progress...</string>
+    <!-- Message for successful authorization -->
+    <string name="authorizationSuccessful">Authorization successful</string>
+    <!-- Title for authorization dialog -->
+    <string name="authorizationTitle">Authorization</string>
+    <!-- Message when biometric auth is unavailable -->
+    <string name="biometricUnavailableMessage">Biometric authentication is unavailable or failed. Open WebView to login?</string>
+    <!-- Button to open WebView login -->
+    <string name="openWebViewButton">Open WebView</string>
+    <!-- Error message for authorization check -->
+    <string name="authorizationCheckError">Error checking authorization: %1$s</string>
+    <!-- Message for failed authorization -->
+    <string name="authorizationFailedMessage">Authorization failed. Please check your login and password</string>
+    <!-- Error message for authorization page -->
+    <string name="authorizationPageError">Error opening authorization page: %1$s</string>
+    <!-- Label for filters section -->
+    <string name="filtersLabel">Filters:</string>
+    <!-- Button to reset filters -->
+    <string name="resetButton">Reset</string>
+    <!-- Fallback category name -->
+    <string name="otherCategory">Other</string>
+    <!-- Title for search history section -->
+    <string name="searchHistoryTitle">Search History</string>
+    <!-- Button to clear history -->
+    <string name="clearButton">Clear</string>
+    <!-- Error message for failed favorite addition -->
+    <string name="failedToAddToFavorites">Failed to add to favorites</string>
+    <!-- Button to load more results -->
+    <string name="loadMoreButton">Load more</string>
+    <!-- Button to allow permission -->
+    <string name="allowButton">Allow</string>
+    <!-- Menu item to copy magnet link -->
+    <string name="copyMagnetLink">Copy Magnet Link</string>
+    <!-- Menu item to download torrent -->
+    <string name="downloadTorrentMenu">Download Torrent</string>
+    <!-- Subtitle for torrent download -->
+    <string name="openTorrentInExternalApp">Open torrent file in external app</string>
+    <!-- Error message for failed torrent opening -->
+    <string name="failedToOpenTorrent">Failed to open torrent: %1$s</string>
+    <!-- Error message for unavailable URL -->
+    <string name="urlUnavailable">URL unavailable</string>
+    <!-- Error message for invalid URL -->
+    <string name="invalidUrlFormat">Invalid URL format: %1$s</string>
+    <!-- Generic error message -->
+    <string name="genericError">Error: %1$s</string>
+    <!-- Message for retrying connection -->
+    <string name="retryConnectionMessage">Retrying connection (%2$s/%1$s)...</string>
+    <!-- Error message for load failure -->
+    <string name="loadError">Load error: %1$s</string>
+    <!-- Error message for page load failure -->
+    <string name="pageLoadError">An error occurred while loading the page</string>
+    <!-- Message during security verification -->
+    <string name="securityVerificationInProgress">Security verification in progress - please wait...</string>
+    <!-- Button to open in browser -->
+    <string name="openInBrowserButton">Open in Browser</string>
+    <!-- Message for file download in browser -->
+    <string name="fileWillOpenInBrowser">The file will be opened in browser for download</string>
+    <!-- Button to reset filters -->
+    <string name="resetFiltersButton">Reset Filters</string>
+    <!-- Message when language is changed -->
+    <string name="languageChangedMessage">Language changed to {languageName}</string>
+    <!-- Title for follow system theme setting -->
+    <string name="followSystemTheme">Follow System Theme</string>
+    <!-- Description for RuTracker session section -->
+    <string name="rutrackerSessionDescription">RuTracker session management (cookie)</string>
+    <!-- Button text for WebView login -->
+    <string name="loginViaWebViewButton">Login to RuTracker via WebView</string>
+    <!-- Subtitle for WebView login button -->
+    <string name="loginViaWebViewSubtitle">Pass Cloudflare/captcha and save cookie for client</string>
+    <!-- Message when cookies are saved -->
+    <string name="cookiesSavedForHttpClient">Cookies saved for HTTP client</string>
+    <!-- Button text to clear session -->
+    <string name="clearSessionButton">Clear RuTracker session (cookie)</string>
+    <!-- Subtitle for clear session button -->
+    <string name="clearSessionSubtitle">Delete saved cookies and logout from account</string>
+    <!-- Message when session is cleared -->
+    <string name="sessionClearedMessage">RuTracker session cleared</string>
+    <!-- Title for metadata section -->
+    <string name="metadataSectionTitle">Audiobook Metadata</string>
+    <!-- Description for metadata section -->
+    <string name="metadataSectionDescription">Manage local audiobook metadata database</string>
+    <!-- Label for total records -->
+    <string name="totalRecordsLabel">Total records</string>
+    <!-- Label for last update -->
+    <string name="lastUpdateLabel">Last update</string>
+    <!-- Text shown during update -->
+    <string name="updatingText">Updating...</string>
+    <!-- Button text to update metadata -->
+    <string name="updateMetadataButton">Update Metadata</string>
+    <!-- Message when metadata update starts -->
+    <string name="metadataUpdateStartedMessage">Metadata update started...</string>
+    <!-- Message when metadata update completes -->
+    <string name="metadataUpdateCompletedMessage">Update completed: collected %1$s records</string>
+    <!-- Error message for metadata update -->
+    <string name="metadataUpdateError">Update error: %1$s</string>
+    <!-- Text for never date -->
+    <string name="neverDate">Never</string>
+    <!-- Text for days ago -->
+    <string name="daysAgo">%1$s days ago</string>
+    <!-- Text for hours ago -->
+    <string name="hoursAgo">%1$s hours ago</string>
+    <!-- Text for minutes ago -->
+    <string name="minutesAgo">%1$s minutes ago</string>
+    <!-- Text for just now -->
+    <string name="justNow">Just now</string>
+    <!-- Text for unknown date -->
+    <string name="unknownDate">Unknown</string>
+    <!-- Default playback speed -->
+    <string name="playbackSpeedDefault">1.0x</string>
+    <!-- Default skip duration -->
+    <string name="skipDurationDefault">15 seconds</string>
+    <!-- Button text to clear expired cache -->
+    <string name="clearExpiredCacheButton">Clear Expired Cache</string>
+    <!-- Title for permissions section -->
+    <string name="appPermissionsTitle">App Permissions</string>
+    <!-- Name for storage permission -->
+    <string name="storagePermissionName">Storage</string>
+    <!-- Description for storage permission -->
+    <string name="storagePermissionDescription">Save audiobook files and cache data</string>
+    <!-- Name for notifications permission -->
+    <string name="notificationsPermissionName">Notifications</string>
+    <!-- Description for notifications permission -->
+    <string name="notificationsPermissionDescription">Show playback controls and updates</string>
+    <!-- Button text to grant all permissions -->
+    <string name="grantAllPermissionsButton">Grant All Permissions</string>
+    <!-- Message when all permissions are granted -->
+    <string name="allPermissionsGranted">All permissions granted</string>
+    <!-- Message when file access is available -->
+    <string name="fileAccessAvailable">File access available</string>
+    <!-- Message when file access is unavailable -->
+    <string name="fileAccessUnavailable">File access unavailable</string>
+    <!-- Title for storage permission guidance dialog -->
+    <string name="storagePermissionGuidanceTitle">File Access Permission</string>
+    <!-- Message for storage permission guidance dialog -->
+    <string name="storagePermissionGuidanceMessage">To access audio files, you need to grant file access permission.</string>
+    <!-- Step 1 for storage permission guidance -->
+    <string name="storagePermissionGuidanceStep1">1. Open JaBook app settings</string>
+    <!-- Step 2 for storage permission guidance -->
+    <string name="storagePermissionGuidanceStep2">2. Go to Permissions section</string>
+    <!-- Step 3 for storage permission guidance -->
+    <string name="storagePermissionGuidanceStep3">3. Enable \"Files and media\" or \"Storage\" permission</string>
+    <!-- Title for MIUI storage permission guidance dialog -->
+    <string name="storagePermissionGuidanceMiuiTitle">File Access Permission (MIUI)</string>
+    <!-- Message for MIUI storage permission guidance dialog -->
+    <string name="storagePermissionGuidanceMiuiMessage">On Xiaomi/Redmi/Poco (MIUI) devices, you need to grant file access permission:</string>
+    <!-- Step 1 for MIUI storage permission guidance -->
+    <string name="storagePermissionGuidanceMiuiStep1">1. Open Settings → Apps → JaBook → Permissions</string>
+    <!-- Step 2 for MIUI storage permission guidance -->
+    <string name="storagePermissionGuidanceMiuiStep2">2. Enable \"Files and media\" or \"Storage\" permission</string>
+    <!-- Step 3 for MIUI storage permission guidance -->
+    <string name="storagePermissionGuidanceMiuiStep3">3. If access is limited, enable \"Manage all files\" in MIUI Security settings</string>
+    <!-- Note for MIUI storage permission guidance -->
+    <string name="storagePermissionGuidanceMiuiNote">Note: On some MIUI versions, you may need to additionally enable \"Manage all files\" in Settings → Security → Permission management.</string>
+    <!-- Title for ColorOS/RealmeUI storage permission guidance dialog -->
+    <string name="storagePermissionGuidanceColorosTitle">File Access Permission (ColorOS/RealmeUI)</string>
+    <!-- Message for ColorOS/RealmeUI storage permission guidance dialog -->
+    <string name="storagePermissionGuidanceColorosMessage">On Oppo/Realme (ColorOS/RealmeUI) devices, you need to grant file access permission:</string>
+    <!-- Step 1 for ColorOS/RealmeUI storage permission guidance -->
+    <string name="storagePermissionGuidanceColorosStep1">1. Open Settings → Apps → JaBook → Permissions</string>
+    <!-- Step 2 for ColorOS/RealmeUI storage permission guidance -->
+    <string name="storagePermissionGuidanceColorosStep2">2. Enable \"Files and media\" permission</string>
+    <!-- Step 3 for ColorOS/RealmeUI storage permission guidance -->
+    <string name="storagePermissionGuidanceColorosStep3">3. If access is limited, check \"Files and media\" settings in permissions section</string>
+    <!-- Note for ColorOS/RealmeUI storage permission guidance -->
+    <string name="storagePermissionGuidanceColorosNote">Note: On some ColorOS versions, you may need to additionally allow file access in security settings.</string>
+    <!-- Button text to open settings -->
+    <string name="openSettings">Open Settings</string>
+    <!-- Title for SAF fallback dialog -->
+    <string name="safFallbackTitle">Alternative File Access Method</string>
+    <!-- Message for SAF fallback dialog -->
+    <string name="safFallbackMessage">File access permissions are not working properly on your device. You can use the Storage Access Framework (SAF) to select folders manually. This method works without requiring special permissions.</string>
+    <!-- Message when user didn't check the permission checkbox in SAF folder picker -->
+    <string name="safPermissionCheckboxMessage">Please check the \'Allow access to this folder\' checkbox in the file picker dialog and try again. Without this checkbox, the app cannot access the selected folder.</string>
+    <!-- Message when folder access check fails after selection -->
+    <string name="safNoAccessMessage">No access to selected folder. Please check the \'Allow access to this folder\' checkbox in the file picker and try again.</string>
+    <!-- Title for hint dialog before folder picker -->
+    <string name="safFolderPickerHintTitle">Important: Check the checkbox</string>
+    <!-- Message for hint dialog before folder picker -->
+    <string name="safFolderPickerHintMessage">When selecting a folder, please make sure to check the \'Allow access to this folder\' checkbox in the file picker dialog. Without this checkbox, the app cannot access the selected folder.</string>
+    <!-- Warning about blocked Android/data and Android/obb folders -->
+    <string name="safAndroidDataObbWarning">Note: Access to Android/data and Android/obb folders is blocked on Android 11+ devices with security updates from March 2024. Please select a different folder.</string>
+    <!-- Benefits of using SAF fallback -->
+    <string name="safFallbackBenefits">Benefits of using SAF:\n• Works on all Android devices\n• No special permissions needed\n• You choose which folders to access</string>
+    <!-- Button to use SAF method -->
+    <string name="useSafMethod">Use Folder Selection</string>
+    <!-- Button to try permissions again -->
+    <string name="tryPermissionsAgain">Try Permissions Again</string>
+    <!-- Message when notifications are available -->
+    <string name="notificationsAvailable">Notifications available</string>
+    <!-- Message when notifications are unavailable -->
+    <string name="notificationsUnavailable">Notifications unavailable</string>
+    <!-- Status message for capabilities -->
+    <string name="capabilitiesStatus">Capabilities: %1$s/%2$s</string>
+    <!-- Title for backup and restore section -->
+    <string name="backupRestoreTitle">Backup &amp; Restore</string>
+    <!-- Description for backup and restore section -->
+    <string name="backupRestoreDescription">Export and import your data (favorites, history, metadata)</string>
+    <!-- Button text to export data -->
+    <string name="exportDataButton">Export Data</string>
+    <!-- Subtitle for export data button -->
+    <string name="exportDataSubtitle">Save all your data to a backup file</string>
+    <!-- Button text to import data -->
+    <string name="importDataButton">Import Data</string>
+    <!-- Subtitle for import data button -->
+    <string name="importDataSubtitle">Restore data from a backup file</string>
+    <!-- Message when exporting data -->
+    <string name="exportingDataMessage">Exporting data...</string>
+    <!-- Message when data export succeeds -->
+    <string name="dataExportedSuccessfullyMessage">Data exported successfully</string>
+    <!-- Error message for failed export -->
+    <string name="failedToExportMessage">Failed to export: %1$s</string>
+    <!-- Title for import backup dialog -->
+    <string name="importBackupTitle">Import Backup</string>
+    <!-- Confirmation message for import backup -->
+    <string name="importBackupConfirmationMessage">This will import data from the backup file. Existing data may be merged or replaced. Continue?</string>
+    <!-- Button text to import -->
+    <string name="importButton">Import</string>
+    <!-- Message when importing data -->
+    <string name="importingDataMessage">Importing data...</string>
+    <!-- Error message for failed import -->
+    <string name="failedToImportMessage">Failed to import: %1$s</string>
+    <!-- Tooltip for RuTracker login button -->
+    <string name="rutrackerLoginTooltip">RuTracker Login</string>
+    <!-- Tooltip for mirrors button -->
+    <string name="mirrorsTooltip">Mirrors</string>
+    <!-- Label showing current active mirror -->
+    <string name="currentMirrorLabel">Current mirror: {host}</string>
+    <!-- Error message when all mirrors fail -->
+    <string name="allMirrorsFailedMessage">All mirrors failed</string>
+    <!-- Message for unknown error -->
+    <string name="unknownError">Unknown error</string>
+    <!-- Error message when cannot connect to RuTracker mirrors -->
+    <string name="mirrorConnectionError">Could not connect to RuTracker mirrors. Check your internet connection or try selecting another mirror in settings</string>
+    <!-- Short error message when cannot connect to RuTracker mirrors -->
+    <string name="mirrorConnectionFailed">Could not connect to RuTracker mirrors</string>
+    <!-- Text for refresh button -->
+    <string name="refresh">Refresh</string>
+    <!-- Menu item for refreshing current search -->
+    <string name="refreshCurrentSearch">Refresh current search</string>
+    <!-- Menu item for clearing search cache -->
+    <string name="clearSearchCache">Clear search cache</string>
+    <!-- Message for successful cache clearing -->
+    <string name="cacheCleared">Cache cleared</string>
+    <!-- Message for successful clearing of all cache -->
+    <string name="allCacheCleared">All cache cleared</string>
+    <!-- Menu item for downloading via magnet link -->
+    <string name="downloadViaMagnet">Download via Magnet</string>
+    <!-- Message for download start -->
+    <string name="downloadStarted">Download started</string>
+    <string name="refreshChaptersFromTorrent">Refresh chapters from torrent</string>
+    <string name="chaptersRefreshed">Chapters refreshed from torrent</string>
+    <string name="failedToRefreshChapters">Failed to refresh chapters</string>
+    <string name="noChaptersFound">No chapters found in torrent</string>
+    <!-- Error message for failed download start -->
+    <string name="failedToStartDownload">Failed to start download</string>
+    <!-- Message when there are no active downloads -->
+    <string name="noActiveDownloads">No active downloads</string>
+    <!-- Text before cache expiration time -->
+    <string name="cacheExpires">Expires in</string>
+    <!-- Text when cache has expired -->
+    <string name="cacheExpired">Expired</string>
+    <!-- Text when cache expires soon -->
+    <string name="cacheExpiresSoon">Expires soon</string>
+    <!-- Abbreviation for days -->
+    <string name="days">days</string>
+    <!-- Abbreviation for hours -->
+    <string name="hours">hours</string>
+    <!-- Abbreviation for minutes -->
+    <string name="minutes">minutes</string>
+    <!-- Button to expand text -->
+    <string name="showMore">Show more</string>
+    <!-- Button to collapse text -->
+    <string name="showLess">Show less</string>
+    <!-- Title for folder selection dialog -->
+    <string name="selectFolderDialogTitle">Select Download Folder</string>
+    <!-- Instructions for selecting folder on Android 13+ -->
+    <string name="selectFolderDialogMessage">Please select the folder where downloaded audiobooks will be saved. In the file manager, navigate to the desired folder and tap \"Use this folder\" to confirm.</string>
+    <!-- Message when folder is selected successfully -->
+    <string name="folderSelectedSuccessMessage">Download folder selected successfully</string>
+    <!-- Message when folder selection is cancelled -->
+    <string name="folderSelectionCancelledMessage">Folder selection cancelled</string>
+    <!-- Current download folder path -->
+    <string name="currentDownloadFolder">Current folder: {path}</string>
+    <string name="defaultDownloadFolder">Default folder</string>
+    <!-- Message shown when user presses back button, asking to press again to exit -->
+    <string name="pressBackAgainToExit">Press back again to exit</string>
+    <!-- Message in filter dialog indicating filters are coming soon -->
+    <string name="filterOptionsComingSoon">Filter options will be available soon. You will be able to filter by:</string>
+    <!-- Filter option by category -->
+    <string name="filterByCategory">Category</string>
+    <!-- Filter option by author -->
+    <string name="filterByAuthor">Author</string>
+    <!-- Filter option by date added -->
+    <string name="filterByDate">Date Added</string>
+    <!-- Close button text -->
+    <string name="close">Close</string>
+    <!-- Button to open torrent in external client -->
+    <string name="openInExternalClient">Open in External Client</string>
+    <!-- Description for downloading torrent in app -->
+    <string name="downloadTorrentInApp">Download using built-in torrent client</string>
+    <!-- Message when torrent is opened in external client -->
+    <string name="openedInExternalClient">Opened in external torrent client</string>
+    <!-- Message when failed to open in external client -->
+    <string name="failedToOpenExternalClient">Failed to open in external client</string>
+    <!-- Message when magnet link is not available -->
+    <string name="noMagnetLinkAvailable">No magnet link available</string>
+    <!-- Title for recommended audiobooks section -->
+    <string name="recommended">Recommended</string>
+    <!-- Message when no results found for specific query -->
+    <string name="noResultsForQuery">Nothing found for query: \"{query}\"</string>
+    <!-- Suggestion to try different search keywords -->
+    <string name="tryDifferentKeywords">Try changing keywords</string>
+    <!-- Button to clear search field -->
+    <string name="clearSearch">Clear search</string>
+    <!-- Title for library folders section -->
+    <string name="libraryFolderTitle">Library Folders</string>
+    <!-- Description for library folders section -->
+    <string name="libraryFolderDescription">Select folders where your audiobooks are stored</string>
+    <!-- Default library folder text -->
+    <string name="defaultLibraryFolder">Default folder</string>
+    <!-- Title for add library folder button -->
+    <string name="addLibraryFolderTitle">Add Library Folder</string>
+    <!-- Subtitle for add library folder button -->
+    <string name="addLibraryFolderSubtitle">Add an additional folder to scan for audiobooks</string>
+    <!-- Title for all library folders expansion tile -->
+    <string name="allLibraryFoldersTitle">All Library Folders</string>
+    <!-- Text indicating primary library folder -->
+    <string name="primaryLibraryFolder">Primary folder</string>
+    <!-- Title for select library folder dialog -->
+    <string name="selectLibraryFolderDialogTitle">Select Library Folder</string>
+    <!-- Message for select library folder dialog -->
+    <string name="selectLibraryFolderDialogMessage">To select a library folder:\n\n1. Navigate to the desired folder in the file manager\n2. Tap \"Use this folder\" button in the top right corner\n\nThe selected folder will be used to scan for audiobooks.</string>
+    <!-- Title for migrate library folder dialog -->
+    <string name="migrateLibraryFolderTitle">Migrate Files?</string>
+    <!-- Message for migrate library folder dialog -->
+    <string name="migrateLibraryFolderMessage">Do you want to move your existing audiobooks from the old folder to the new folder?</string>
+    <!-- Yes button text -->
+    <string name="yes">Yes</string>
+    <!-- No button text -->
+    <string name="no">No</string>
+    <!-- Success message when library folder is selected -->
+    <string name="libraryFolderSelectedSuccessMessage">Library folder selected successfully</string>
+    <!-- Message when library folder already exists -->
+    <string name="libraryFolderAlreadyExistsMessage">This folder is already in the library folders list</string>
+    <!-- Success message when library folder is added -->
+    <string name="libraryFolderAddedSuccessMessage">Library folder added successfully</string>
+    <!-- Title for remove library folder dialog -->
+    <string name="removeLibraryFolderTitle">Remove Folder?</string>
+    <!-- Message for remove library folder dialog -->
+    <string name="removeLibraryFolderMessage">Are you sure you want to remove this folder from the library? This will not delete the files, only stop scanning this folder.</string>
+    <!-- Remove button text -->
+    <string name="remove">Remove</string>
+    <!-- Success message when library folder is removed -->
+    <string name="libraryFolderRemovedSuccessMessage">Library folder removed successfully</string>
+    <!-- Error message when library folder removal fails -->
+    <string name="libraryFolderRemoveFailedMessage">Failed to remove library folder</string>
+    <!-- Message shown during library folder migration -->
+    <string name="migratingLibraryFolderMessage">Migrating files...</string>
+    <!-- Success message when migration is completed -->
+    <string name="migrationCompletedSuccessMessage">Migration completed successfully</string>
+    <!-- Error message when migration fails -->
+    <string name="migrationFailedMessage">Migration failed</string>
+    <!-- Title for delete confirmation dialog -->
+    <string name="deleteConfirmationTitle">Delete Audiobook?</string>
+    <!-- Message for delete confirmation dialog -->
+    <string name="deleteConfirmationMessage">Are you sure you want to delete this audiobook?</string>
+    <!-- Warning message about permanent deletion -->
+    <string name="deleteWarningMessage">Files will be permanently deleted and cannot be recovered.</string>
+    <!-- Button to delete files physically -->
+    <string name="deleteFilesButton">Delete Files</string>
+    <!-- Button to remove from library (logical deletion) -->
+    <string name="removeFromLibraryButton">Remove from Library</string>
+    <!-- Title for remove from library dialog -->
+    <string name="removeFromLibraryTitle">Remove from Library?</string>
+    <!-- Message for remove from library dialog -->
+    <string name="removeFromLibraryMessage">This will remove the audiobook from your library but will not delete the files. You can add it back by rescanning.</string>
+    <!-- Message shown while removing from library -->
+    <string name="removingFromLibraryMessage">Removing...</string>
+    <!-- Success message when removed from library -->
+    <string name="removedFromLibrarySuccessMessage">Removed from library successfully</string>
+    <!-- Error message when removal from library fails -->
+    <string name="removeFromLibraryFailedMessage">Failed to remove from library</string>
+    <!-- Message shown while deleting files -->
+    <string name="deletingMessage">Deleting...</string>
+    <!-- Success message when files are deleted -->
+    <string name="deletedSuccessMessage">Files deleted successfully</string>
+    <!-- Error message when deletion fails -->
+    <string name="deleteFailedMessage">Failed to delete files</string>
+    <!-- Error message when trying to delete a file that is playing -->
+    <string name="fileInUseMessage">Cannot delete: File is currently being played</string>
+    <!-- Button to show information about audiobook -->
+    <string name="showInfoButton">Show Info</string>
+    <!-- Label for file path -->
+    <string name="path">Path</string>
+    <!-- Label for file count -->
+    <string name="fileCount">Files</string>
+    <!-- Label for total size -->
+    <string name="totalSize">Total Size</string>
+    <!-- Label for audiobook group name -->
+    <string name="audiobookGroupName">Group</string>
+    <!-- Title for storage management screen -->
+    <string name="storageManagementTitle">Storage Management</string>
+    <!-- Button to delete selected items -->
+    <string name="deleteSelectedButton">Delete Selected</string>
+    <!-- Title for storage summary section -->
+    <string name="storageSummaryTitle">Storage Summary</string>
+    <!-- Label for total library size -->
+    <string name="totalLibrarySize">Total Library Size</string>
+    <!-- Label for audiobook groups count -->
+    <string name="audiobookGroupsCount">Audiobook Groups</string>
+    <!-- Label for cache size -->
+    <string name="cacheSize">Cache Size</string>
+    <!-- Title for library folders section -->
+    <string name="libraryFoldersTitle">Library Folders</string>
+    <!-- Title for cache section -->
+    <string name="cacheSectionTitle">Cache</string>
+    <!-- Label for total cache size -->
+    <string name="totalCacheSize">Total Cache</string>
+    <!-- Button to clear playback cache -->
+    <string name="clearPlaybackCacheButton">Clear Playback Cache</string>
+    <!-- Title for audiobook groups section -->
+    <string name="audiobookGroupsTitle">Audiobook Groups</string>
+    <!-- Button to deselect all items -->
+    <string name="deselectAllButton">Deselect All</string>
+    <!-- Button to select all items -->
+    <string name="selectAllButton">Select All</string>
+    <!-- Message when no audiobooks are found -->
+    <string name="noAudiobooksMessage">No audiobooks found</string>
+    <!-- Title for delete selected dialog -->
+    <string name="deleteSelectedTitle">Delete Selected?</string>
+    <!-- Message for delete selected dialog -->
+    <string name="deleteSelectedMessage">Are you sure you want to delete {count} selected audiobook(s)?</string>
+    <!-- Result message after deleting selected items -->
+    <string name="deleteSelectedResultMessage">Deleted: {success}, Failed: {failed}</string>
+    <!-- Title for clear playback cache dialog -->
+    <string name="clearPlaybackCacheTitle">Clear Playback Cache?</string>
+    <!-- Message for clear playback cache dialog -->
+    <string name="clearPlaybackCacheMessage">This will clear the playback cache. Playback may be slower until cache is rebuilt.</string>
+    <!-- Message shown while clearing cache -->
+    <string name="clearingCacheMessage">Clearing cache...</string>
+    <!-- Success message when cache is cleared -->
+    <string name="cacheClearedSuccessMessage">Cache cleared successfully</string>
+    <!-- Title for clear all cache dialog -->
+    <string name="clearAllCacheTitle">Clear All Cache?</string>
+    <!-- Message for clear all cache dialog -->
+    <string name="clearAllCacheMessage">This will clear all cache including playback cache, temporary files, and old logs.</string>
+    <!-- Description for storage management section -->
+    <string name="storageManagementDescription">Manage library size, cache, and files</string>
+    <!-- Button to open storage management screen -->
+    <string name="openStorageManagementButton">Open Storage Management</string>
+    <!-- Message when some files were deleted successfully -->
+    <string name="partialDeletionSuccessMessage">Partially deleted: {deleted}/{total} files</string>
+    <!-- Button to show details -->
+    <string name="showDetailsButton">Details</string>
+    <!-- Error message when permission is denied for file deletion -->
+    <string name="permissionDeniedDeletionMessage">Permission denied: Cannot delete file</string>
+    <!-- Title for deletion details dialog -->
+    <string name="deletionDetailsTitle">Deletion Details</string>
+    <!-- Summary message for deletion details -->
+    <string name="deletionSummaryMessage">Deleted: {deleted}/{total} files</string>
+    <!-- Title for errors section -->
+    <string name="errorsTitle">Errors:</string>
+    <!-- Button to retry an operation -->
+    <string name="retryButton">Retry</string>
+    <!-- Title for background compatibility screen -->
+    <string name="backgroundWorkTitle">Background Work</string>
+    <!-- Tooltip for refresh button -->
+    <string name="refreshDiagnostics">Refresh diagnostics</string>
+    <!-- Section title for device information -->
+    <string name="deviceInformation">Device Information</string>
+    <!-- Label for device manufacturer -->
+    <string name="manufacturer">Manufacturer</string>
+    <!-- Label for custom ROM -->
+    <string name="customRom">Custom ROM</string>
+    <!-- Label for Android version -->
+    <string name="androidVersion">Android Version</string>
+    <!-- Label for App Standby Bucket -->
+    <string name="backgroundActivityMode">Background Activity Mode</string>
+    <!-- Status when compatibility is OK -->
+    <string name="compatibilityOk">Compatibility: OK</string>
+    <!-- Status when issues are detected -->
+    <string name="issuesDetected">Issues Detected</string>
+    <!-- Title for detected issues section -->
+    <string name="detectedIssues">Detected Issues:</string>
+    <!-- Title for recommendations section -->
+    <string name="recommendations">Recommendations</string>
+    <!-- Title for manufacturer settings section -->
+    <string name="manufacturerSettings">Manufacturer Settings</string>
+    <!-- Description for manufacturer settings section -->
+    <string name="manufacturerSettingsDescription">To ensure stable background operation, you need to configure manufacturer-specific device settings.</string>
+    <!-- Title for autostart settings -->
+    <string name="autostartApp">Autostart Application</string>
+    <!-- Subtitle for autostart settings -->
+    <string name="enableAutostart">Enable autostart for stable operation</string>
+    <!-- Title for battery optimization settings -->
+    <string name="batteryOptimization">Battery Optimization</string>
+    <!-- Subtitle for battery optimization settings -->
+    <string name="disableBatteryOptimization">Disable battery optimization for the application</string>
+    <!-- Title for background activity settings -->
+    <string name="backgroundActivity">Background Activity</string>
+    <!-- Subtitle for background activity settings -->
+    <string name="allowBackgroundActivity">Allow background activity</string>
+    <!-- Button to show instructions -->
+    <string name="showInstructions">Show Instructions</string>
+    <!-- Title for WorkManager diagnostics section -->
+    <string name="workManagerDiagnostics">WorkManager Diagnostics</string>
+    <!-- Title for last executions list -->
+    <string name="lastExecutions">Last Executions:</string>
+    <!-- Message when execution history is empty -->
+    <string name="executionHistoryEmpty">Execution history is empty</string>
+    <!-- Label for total executions -->
+    <string name="total">Total</string>
+    <!-- Label for successful executions -->
+    <string name="successful">Successful</string>
+    <!-- Label for failed executions -->
+    <string name="errors">Errors</string>
+    <!-- Label for average delay -->
+    <string name="avgDelay">Avg. Delay</string>
+    <!-- Abbreviation for minutes -->
+    <string name="minutesAbbr">min</string>
+    <!-- Delay information -->
+    <string name="delay">Delay: {minutes} min</string>
+    <!-- Error information -->
+    <string name="errorLabel">Error: {reason}</string>
+    <!-- Issue message for restricted standby bucket -->
+    <string name="appStandbyBucketRestricted">Application is in restricted background activity mode (Standby Bucket: {bucket})</string>
+    <!-- Recommendation to use app more frequently -->
+    <string name="useAppMoreFrequently">Use the application more frequently so the system moves it to active mode</string>
+    <!-- Issue message for aggressive battery optimization -->
+    <string name="aggressiveBatteryOptimization">Device from manufacturer with aggressive battery optimization detected ({manufacturer}, {rom})</string>
+    <!-- Recommendation to configure autostart and battery -->
+    <string name="configureAutostartAndBattery">It is recommended to configure autostart and disable battery optimization for the application</string>
+    <!-- Recommendation to open manufacturer settings -->
+    <string name="openManufacturerSettings">Open manufacturer settings through the application menu</string>
+    <!-- Recommendation for Android 14+ -->
+    <string name="android14ForegroundServices">On Android 14+, make sure Foreground Services start correctly</string>
+    <!-- Event message when compatibility issues are detected -->
+    <string name="compatibilityIssuesDetected">Background work issues detected</string>
+    <!-- Event message when WorkManager task is delayed -->
+    <string name="workManagerTaskDelayed">WorkManager task \"{taskName}\" delayed by {hours} hours (expected: {minutes} minutes)</string>
+    <!-- Event message when foreground service is killed -->
+    <string name="foregroundServiceKilled">Foreground Service \"{serviceName}\" was unexpectedly terminated by the system</string>
+    <!-- App Standby Bucket status: Active -->
+    <string name="standbyBucketActive">Actively Used</string>
+    <!-- App Standby Bucket status: Working Set -->
+    <string name="standbyBucketWorkingSet">Frequently Used</string>
+    <!-- App Standby Bucket status: Frequent -->
+    <string name="standbyBucketFrequent">Regularly Used</string>
+    <!-- App Standby Bucket status: Rare -->
+    <string name="standbyBucketRare">Rarely Used</string>
+    <!-- App Standby Bucket status: Never -->
+    <string name="standbyBucketNever">Never Used (Restricted)</string>
+    <!-- App Standby Bucket status: Unknown -->
+    <string name="standbyBucketUnknown">Unknown ({bucket})</string>
+    <!-- App Standby Bucket description: Active -->
+    <string name="standbyBucketActiveUsed">Actively Used</string>
+    <!-- App Standby Bucket description: Frequently -->
+    <string name="standbyBucketFrequentlyUsed">Frequently Used</string>
+    <!-- App Standby Bucket description: Regularly -->
+    <string name="standbyBucketRegularlyUsed">Regularly Used</string>
+    <!-- App Standby Bucket description: Rarely -->
+    <string name="standbyBucketRarelyUsed">Rarely Used</string>
+    <!-- App Standby Bucket description: Never -->
+    <string name="standbyBucketNeverUsed">Never Used (Restricted)</string>
+    <!-- Title for manufacturer settings dialog -->
+    <string name="manufacturerSettingsTitle">Settings for Stable Operation</string>
+    <!-- Description for manufacturer settings dialog -->
+    <string name="manufacturerSettingsDialogDescription">To ensure stable operation, you need to configure the following settings:</string>
+    <!-- Step 1: Enable autostart -->
+    <string name="enableAutostartStep">1. Enable application autostart</string>
+    <!-- Step 2: Disable battery optimization -->
+    <string name="disableBatteryOptimizationStep">2. Disable battery optimization for the application</string>
+    <!-- Step 3: Allow background activity -->
+    <string name="allowBackgroundActivityStep">3. Allow background activity</string>
+    <!-- Message showing detected ROM -->
+    <string name="detectedRom">Detected ROM: {rom}</string>
+    <!-- Button to skip -->
+    <string name="skip">Skip</string>
+    <!-- Button to acknowledge -->
+    <string name="gotIt">Got It</string>
+    <!-- Title for background compatibility banner -->
+    <string name="backgroundCompatibilityBannerTitle">Background Operation Settings</string>
+    <!-- Message for background compatibility banner -->
+    <string name="backgroundCompatibilityBannerMessage">To ensure stable background operation, you may need to configure device settings.</string>
+    <!-- Button to dismiss banner or dialog -->
+    <string name="dismiss">Dismiss</string>
+    <!-- Message for successful login -->
+    <string name="loginSuccessfulMessage">Login successful!</string>
+    <!-- Button to open settings -->
+    <string name="openSettingsButton">Open Settings</string>
+    <!-- Title for compatibility and diagnostics section -->
+    <string name="compatibilityDiagnosticsTitle">Compatibility &amp; Diagnostics</string>
+    <!-- Subtitle for compatibility and diagnostics section -->
+    <string name="compatibilityDiagnosticsSubtitle">Compatibility check and manufacturer settings configuration</string>
+    <!-- Button to select folder -->
+    <string name="selectFolderButton">Select Folder</string>
+    <!-- Button to continue -->
+    <string name="continueButton">Continue</string>
+    <!-- Error message when adding folder fails -->
+    <string name="errorAddingFolder">Error adding folder: %1$s</string>
+    <!-- Error message when audiobook group is missing -->
+    <string name="noAudiobookGroupProvided">No audiobook group provided</string>
+    <!-- Notification message when sleep timer pauses playback -->
+    <string name="sleepTimerPaused">Sleep timer: Playback paused</string>
+    <!-- Error message when speed change fails -->
+    <string name="failedToChangeSpeed">Failed to change speed: %1$s</string>
+    <!-- Button to cancel timer -->
+    <string name="cancelTimerButton">Cancel timer</string>
+    <!-- Label for end of chapter -->
+    <string name="endOfChapterLabel">End of chapter</string>
+    <!-- Label for at end of chapter -->
+    <string name="atEndOfChapterLabel">At end of chapter</string>
+    <!-- Tooltip for sleep timer with duration -->
+    <string name="sleepTimerTooltip">Sleep timer: {duration}</string>
+    <!-- Tooltip for setting sleep timer -->
+    <string name="setSleepTimerTooltip">Set sleep timer</string>
+    <!-- Sleep timer duration in minutes -->
+    <string name="sleepTimerMinutes">{minutes} min.</string>
+    <!-- Sleep timer duration - 1 hour -->
+    <string name="sleepTimerHour">1 hour</string>
+    <!-- Message that app will exit due to sleep timer -->
+    <string name="sleepTimerAppWillExit">Sleep timer: App will exit</string>
+    <!-- Label for items in trash -->
+    <string name="itemsInTrashLabel">Items in Trash</string>
+    <!-- Label for trash size -->
+    <string name="trashSizeLabel">Trash Size</string>
+    <!-- Button to manage trash -->
+    <string name="manageTrashButton">Manage Trash</string>
+    <!-- Singular form of file -->
+    <string name="fileLabel">file</string>
+    <!-- Plural form of file -->
+    <string name="filesLabel">files</string>
+    <!-- Error message when loading trash fails -->
+    <string name="failedToLoadTrash">Failed to load trash: %1$s</string>
+    <!-- Message when item is restored -->
+    <string name="itemRestoredSuccessfully">Item restored successfully</string>
+    <!-- Error message when restore fails -->
+    <string name="failedToRestoreItem">Failed to restore item</string>
+    <!-- Error message when restoring item fails -->
+    <string name="errorRestoringItem">Error restoring item: %1$s</string>
+    <!-- Title for permanently delete dialog -->
+    <string name="permanentlyDeleteTitle">Permanently Delete</string>
+    <!-- Confirmation message for permanent deletion -->
+    <string name="permanentlyDeleteMessage">Are you sure you want to permanently delete \"{name}\"? This action cannot be undone.</string>
+    <!-- Message when item is permanently deleted -->
+    <string name="itemPermanentlyDeleted">Item permanently deleted</string>
+    <!-- Error message when deletion fails -->
+    <string name="failedToDeleteItem">Failed to delete item</string>
+    <!-- Error message when deleting item fails -->
+    <string name="errorDeletingItem">Error deleting item: %1$s</string>
+    <!-- Title for clear all trash dialog -->
+    <string name="clearAllTrashTitle">Clear All Trash</string>
+    <!-- Confirmation message for clearing all trash -->
+    <string name="clearAllTrashMessage">Are you sure you want to permanently delete all items in trash? This action cannot be undone.</string>
+    <!-- Error message when file picker is already open -->
+    <string name="filePickerAlreadyOpen">File picker is already open. Please close it first.</string>
+    <!-- Button to apply changes -->
+    <string name="applyButton">Apply</string>
+    <!-- Sort option for last message -->
+    <string name="lastMessageSort">Last message</string>
+    <!-- Sort option for topic name -->
+    <string name="topicNameSort">Topic name</string>
+    <!-- Sort option for posting time -->
+    <string name="postingTimeSort">Posting time</string>
+    <!-- Error message when operation times out -->
+    <string name="operationTimedOut">Operation timed out. Please try again.</string>
+    <!-- Error message when permission is denied for downloads -->
+    <string name="permissionDeniedDownloads">Permission denied. Please check app permissions in settings.</string>
+    <!-- Error message when download is not found -->
+    <string name="downloadNotFound">Download not found. It may have been removed.</string>
+    <!-- Generic error message -->
+    <string name="anErrorOccurred">An error occurred. Please try again.</string>
+    <!-- Error message during initialization -->
+    <string name="initializationError">Initialization error: %1$s</string>
+    <!-- Critical error message -->
+    <string name="criticalError">Critical error: %1$s</string>
+    <!-- Error message when checking capabilities fails -->
+    <string name="capabilityCheckError">Error checking capabilities: %1$s</string>
+    <!-- Message when files are selected -->
+    <string name="filesSelected">Files selected: %1$s</string>
+    <!-- Error message when file selection fails -->
+    <string name="fileSelectionError">Error selecting files: %1$s</string>
+    <!-- Message when images are selected -->
+    <string name="imagesSelected">Images selected: %1$s</string>
+    <!-- Error message when image selection fails -->
+    <string name="imageSelectionError">Error selecting images: %1$s</string>
+    <!-- Title for test notification -->
+    <string name="testNotificationTitle">Test notification</string>
+    <!-- Body text for test notification -->
+    <string name="testNotificationBody">This is a test notification from JaBook</string>
+    <!-- Message when notification is sent -->
+    <string name="notificationSent">Notification sent</string>
+    <!-- Error message when notification fails -->
+    <string name="failedToSendNotification">Failed to send notification (channel not implemented)</string>
+    <!-- Message showing Bluetooth availability -->
+    <string name="bluetoothAvailable">Bluetooth available: %1$s</string>
+    <!-- Message showing paired devices count -->
+    <string name="pairedDevicesCount">Paired devices: %1$s</string>
+    <!-- Error message when Bluetooth check fails -->
+    <string name="bluetoothCheckError">Error checking Bluetooth: %1$s</string>
+    <!-- Title for system capabilities section -->
+    <string name="systemCapabilitiesTitle">System Capabilities</string>
+    <!-- Name for file access capability -->
+    <string name="fileAccessCapability">File Access</string>
+    <!-- Name for image access capability -->
+    <string name="imageAccessCapability">Image Access</string>
+    <!-- Name for camera capability -->
+    <string name="cameraCapability">Camera</string>
+    <!-- Message when photo is taken -->
+    <string name="photoTaken">Photo taken: %1$s</string>
+    <!-- Message when photo is not taken -->
+    <string name="photoNotTaken">Photo not taken</string>
+    <!-- Error message when camera fails -->
+    <string name="cameraError">Camera error: %1$s</string>
+    <!-- Name for notifications capability -->
+    <string name="notificationsCapability">Notifications</string>
+    <!-- Button to explain capabilities -->
+    <string name="capabilityExplanationButton">Explain Capabilities</string>
+    <!-- Button to test capability -->
+    <string name="testButton">Test</string>
+    <!-- Title for permissions onboarding dialog -->
+    <string name="permissionsForJaBookTitle">Permissions for JaBook</string>
+    <!-- Title for file access permission -->
+    <string name="fileAccessPermissionTitle">File Access</string>
+    <!-- Description for file access permission -->
+    <string name="fileAccessPermissionDescription">Needed to save and play audiobooks. On Android 11+, you\'ll need to enable \"All files access\" in system settings.</string>
+    <!-- Title for notifications permission -->
+    <string name="notificationsPermissionTitle">Notifications</string>
+    <!-- Title for battery optimization permission -->
+    <string name="batteryOptimizationPermissionTitle">Battery Optimization</string>
+    <!-- Description for battery optimization permission -->
+    <string name="batteryOptimizationPermissionDescription">So the app can work in background for playback.</string>
+    <!-- Message explaining why permissions are needed -->
+    <string name="permissionsHelpMessage">These permissions will help provide a better app experience.</string>
+    <!-- Label for URL display -->
+    <string name="urlLabel">URL: %1$s</string>
+    <!-- Title for RuTracker section -->
+    <string name="rutrackerTitle">RuTracker</string>
+    <!-- Button text for WebView login -->
+    <string name="webViewLoginButton">Login to RuTracker via WebView</string>
+    <!-- Subtitle for WebView login button -->
+    <string name="webViewLoginSubtitle">Pass Cloudflare/captcha and save cookies for client</string>
+    <!-- Success message when cookies are saved -->
+    <string name="cookieSavedMessage">Cookies saved for HTTP client</string>
+    <!-- Error message when search results parsing fails due to encoding issue -->
+    <string name="failedToParseSearchResultsEncoding">Failed to parse search results due to encoding issue. This may be a temporary server problem. Please try again. If the problem persists, try changing the mirror in Settings → Sources.</string>
+    <!-- Error message when search results parsing fails due to page structure change -->
+    <string name="failedToParseSearchResultsStructure">Failed to parse search results. The page structure may have changed. Please try again. If the problem persists, try changing the mirror in Settings → Sources.</string>
+    <!-- Error message when search fails -->
+    <string name="searchFailedMessage">Search failed: {errorType}</string>
+    <!-- Sort option label for topic title -->
+    <string name="topicTitleSort">Topic title</string>
+    <!-- Sort option label for post time -->
+    <string name="postTimeSort">Post time</string>
+    <!-- Success message when local stream server starts -->
+    <string name="localStreamServerStarted">Local stream server started on http://{host}:{port}</string>
+    <!-- Error message when stream server fails to start -->
+    <string name="failedToStartStreamServer">Failed to start stream server: {error}</string>
+    <!-- Success message when local stream server stops -->
+    <string name="localStreamServerStopped">Local stream server stopped</string>
+    <!-- Error message when stream server fails to stop -->
+    <string name="failedToStopStreamServer">Failed to stop stream server: {error}</string>
+    <!-- Error message when book ID parameter is missing -->
+    <string name="missingBookIdParameter">Missing book ID parameter</string>
+    <!-- Error message when file index parameter is invalid -->
+    <string name="invalidFileIndexParameter">Invalid file index parameter</string>
+    <!-- Error message when file is not found -->
+    <string name="fileNotFound">File not found</string>
+    <!-- Error message for streaming errors -->
+    <string name="streamingError">Streaming error</string>
+    <!-- Error message when range header is invalid -->
+    <string name="invalidRangeHeader">Invalid range header</string>
+    <!-- Error message when requested range cannot be satisfied -->
+    <string name="requestedRangeNotSatisfiable">Requested range not satisfiable</string>
+    <!-- Error message for range request errors -->
+    <string name="rangeRequestError">Range request error</string>
+    <!-- Error message for static file errors -->
+    <string name="staticFileError">Static file error</string>
+    <!-- Error message when audio service fails to start -->
+    <string name="failedToStartAudioService">Failed to start audio service: {error}</string>
+    <!-- Error message when media playback fails -->
+    <string name="failedToPlayMedia">Failed to play media: {error}</string>
+    <!-- Error message when media pause fails -->
+    <string name="failedToPauseMedia">Failed to pause media: {error}</string>
+    <!-- Error message when media stop fails -->
+    <string name="failedToStopMedia">Failed to stop media: {error}</string>
+    <!-- Error message when seek operation fails -->
+    <string name="failedToSeek">Failed to seek: {error}</string>
+    <!-- Error message when setting playback speed fails -->
+    <string name="failedToSetSpeed">Failed to set speed: {error}</string>
+    <!-- Error message when logger initialization fails -->
+    <string name="failedToInitializeLogger">Failed to initialize logger</string>
+    <!-- Error message when log writing fails -->
+    <string name="failedToWriteLog">Failed to write log</string>
+    <!-- Error message when log rotation fails -->
+    <string name="logRotationFailed">Log rotation failed</string>
+    <!-- Error message when log rotation fails -->
+    <string name="failedToRotateLogs">Failed to rotate logs</string>
+    <!-- Error message when cleaning old logs fails -->
+    <string name="failedToCleanOldLogs">Failed to clean old logs</string>
+    <!-- Error message when sharing logs fails -->
+    <string name="errorSharingLogs">Error sharing logs: {error}</string>
+    <!-- Error message when sharing logs fails -->
+    <string name="failedToShareLogs">Failed to share logs</string>
+    <!-- Error message when reading logs fails -->
+    <string name="failedToReadLogs">Failed to read logs</string>
+    <!-- Error message when CacheManager is not initialized -->
+    <string name="cacheManagerNotInitialized">CacheManager not initialized</string>
+    <!-- Error message when parsing search results fails -->
+    <string name="failedToParseSearchResults">Failed to parse search results: {error}</string>
+    <!-- Error message when parsing topic details fails -->
+    <string name="failedToParseTopicDetails">Failed to parse topic details: {error}</string>
+    <!-- Error message when parsing categories fails -->
+    <string name="failedToParseCategories">Failed to parse categories</string>
+    <!-- Error message when parsing category topics fails -->
+    <string name="failedToParseCategoryTopics">Failed to parse category topics</string>
+    <!-- Category name for radio plays -->
+    <string name="radioPlayCategory">Radio Play</string>
+    <!-- Category name for audiobooks -->
+    <string name="audiobookCategory">Audiobook</string>
+    <!-- Category name for biographies -->
+    <string name="biographyCategory">Biography</string>
+    <!-- Category name for memoirs -->
+    <string name="memoirsCategory">Memoirs</string>
+    <!-- Category name for history -->
+    <string name="historyCategory">History</string>
+    <!-- Label for added date -->
+    <string name="addedLabel">Added</string>
+    <!-- Error message when magnet URL is missing info hash -->
+    <string name="invalidMagnetUrlMissingHash">Invalid magnet URL: missing info hash</string>
+    <!-- Error message when info hash has invalid length -->
+    <string name="invalidInfoHashLength">Invalid info hash length</string>
+    <!-- Error message when download fails to start with error details -->
+    <string name="failedToStartDownloadWithError">Failed to start download: {error}</string>
+    <!-- Error message when torrent download is not found -->
+    <string name="downloadNotFoundTorrent">Download not found</string>
+    <!-- Error message when download pause fails -->
+    <string name="failedToPauseDownload">Failed to pause download: {error}</string>
+    <!-- Error message when download resume fails -->
+    <string name="failedToResumeDownload">Failed to resume download: {error}</string>
+    <!-- Error message when download removal fails -->
+    <string name="failedToRemoveDownload">Failed to remove download: {error}</string>
+    <!-- Error message when getting active downloads fails -->
+    <string name="failedToGetActiveDownloads">Failed to get active downloads: {error}</string>
+    <!-- Error message when torrent manager shutdown fails -->
+    <string name="failedToShutdownTorrentManager">Failed to shutdown torrent manager: {error}</string>
+    <!-- Error message when no healthy endpoints are available -->
+    <string name="noHealthyEndpointsAvailable">No healthy endpoints available</string>
+    <!-- Error message when AuthRepositoryProvider is not properly configured -->
+    <string name="authRepositoryProviderMustBeOverridden">AuthRepositoryProvider must be overridden with proper context</string>
+    <!-- Deprecated message for using EndpointManager.getActiveEndpoint() -->
+    <string name="useEndpointManagerGetActiveEndpoint">Use EndpointManager.getActiveEndpoint() for dynamic mirror selection</string>
+    <!-- Error message when CacheManager is not initialized in config -->
+    <string name="cacheManagerNotInitializedConfig">CacheManager not initialized</string>
+    <!-- Error message when search fails with specific message -->
+    <string name="searchFailedWithMessage">Search failed: {message}</string>
+    <!-- Error message when audiobook search fails -->
+    <string name="failedToSearchAudiobooks">Failed to search audiobooks</string>
+    <!-- Error message when fetching categories fails -->
+    <string name="failedToFetchCategories">Failed to fetch categories: {message}</string>
+    <!-- Error message when getting categories fails -->
+    <string name="failedToGetCategories">Failed to get categories</string>
+    <!-- Error message when getting category audiobooks fails with message -->
+    <string name="failedToGetCategoryAudiobooksWithMessage">Failed to get category audiobooks: {message}</string>
+    <!-- Error message when getting category audiobooks fails -->
+    <string name="failedToGetCategoryAudiobooks">Failed to get category audiobooks</string>
+    <!-- Error message when fetching audiobook details fails -->
+    <string name="failedToFetchAudiobookDetails">Failed to fetch audiobook details: {message}</string>
+    <!-- Error message when getting audiobook details fails -->
+    <string name="failedToGetAudiobookDetails">Failed to get audiobook details</string>
+    <!-- Error message when fetching new releases fails -->
+    <string name="failedToFetchNewReleases">Failed to fetch new releases: {message}</string>
+    <!-- Error message when saving credentials fails -->
+    <string name="failedToSaveCredentials">Failed to save credentials: {error}</string>
+    <!-- Error message when retrieving credentials fails -->
+    <string name="failedToRetrieveCredentials">Failed to retrieve credentials: {error}</string>
+    <!-- Error message when clearing credentials fails -->
+    <string name="failedToClearCredentials">Failed to clear credentials: {error}</string>
+    <!-- Error message when there are no credentials to export -->
+    <string name="noCredentialsToExport">No credentials to export</string>
+    <!-- Error message when export format is unsupported -->
+    <string name="unsupportedExportFormat">Unsupported export format: {format}</string>
+    <!-- Error message when CSV format is invalid -->
+    <string name="invalidCsvFormat">Invalid CSV format</string>
+    <!-- Error message when CSV data is invalid -->
+    <string name="invalidCsvData">Invalid CSV data</string>
+    <!-- Error message when JSON format is invalid -->
+    <string name="invalidJsonFormat">Invalid JSON format</string>
+    <!-- Error message when import format is unsupported -->
+    <string name="unsupportedImportFormat">Unsupported import format: {format}</string>
+    <!-- Error message when importing credentials fails -->
+    <string name="failedToImportCredentials">Failed to import credentials: {error}</string>
+    <!-- Generic error message with error details -->
+    <string name="errorWithDetails">Error: {error}</string>
+    <!-- Singular form of 'file' -->
+    <string name="fileSingular">file</string>
+    <!-- Plural form of 'file' -->
+    <string name="filePlural">files</string>
+    <!-- Confirmation message for deleting selected audiobooks -->
+    <string name="deleteSelectedAudiobooksConfirmation">Are you sure you want to delete {count} selected audiobook(s)?</string>
+    <!-- Description of what clearing playback cache does -->
+    <string name="clearPlaybackCacheDescription">This will clear the playback cache. Playback may be slower until cache is rebuilt.</string>
+    <!-- Description of what clearing all cache does -->
+    <string name="clearAllCacheDescription">This will clear all cache including playback cache, temporary files, and old logs.</string>
+    <!-- Title for session expired error dialog -->
+    <string name="sessionExpiredTitle">Session Expired</string>
+    <!-- Title for invalid credentials error dialog -->
+    <string name="invalidCredentialsTitle">Authorization Error</string>
+    <!-- Message for invalid credentials error -->
+    <string name="invalidCredentialsMessage">Invalid username or password. Please check your credentials.</string>
+    <!-- Title for login required error dialog -->
+    <string name="loginRequiredTitle">Authentication Required</string>
+    <!-- Message for login required error -->
+    <string name="loginRequiredMessage">You need to log in to perform this action.</string>
+    <!-- Title for general authorization error dialog -->
+    <string name="authorizationErrorTitle">Authorization Error</string>
+    <!-- Message for access denied error -->
+    <string name="accessDeniedMessage">Access denied. Please check your credentials or log in again.</string>
+    <!-- Title for network error dialog -->
+    <string name="networkErrorTitle">Network Error</string>
+    <!-- Message for network request failed error -->
+    <string name="networkRequestFailedMessage">Failed to complete the request. Please check your internet connection.</string>
+    <!-- Generic error message -->
+    <string name="errorOccurredMessage">An error occurred while performing the operation.</string>
+    <!-- Snackbar message for session expired -->
+    <string name="sessionExpiredSnackBar">Session expired. Please log in again.</string>
+    <!-- Snackbar message for invalid credentials -->
+    <string name="invalidCredentialsSnackBar">Invalid username or password.</string>
+    <!-- Snackbar message for authorization error -->
+    <string name="authorizationErrorSnackBar">Authorization error. Please check your credentials.</string>
+    <!-- Snackbar message for network error -->
+    <string name="networkErrorSnackBar">Network error. Please check your connection.</string>
+    <!-- Message when captcha verification is required -->
+    <string name="captchaVerificationRequired">Captcha verification required. Please try again later.</string>
+    <!-- Network error message asking user to check connection -->
+    <string name="networkErrorCheckConnection">Network error. Please check your connection and try again.</string>
+    <!-- Message when authentication fails -->
+    <string name="authenticationFailedMessage">Authentication failed. Please check your credentials and try again.</string>
+    <!-- Login failed message with error details -->
+    <string name="loginFailedWithError">Login failed: {error}</string>
+    <!-- Error message when no accessible audio files are found -->
+    <string name="noAccessibleAudioFiles">No accessible audio files found</string>
+    <!-- About screen title -->
+    <string name="aboutTitle">About</string>
+    <!-- App slogan -->
+    <string name="aboutAppSlogan">Modern audiobook player for torrents</string>
+    <!-- Label for app version -->
+    <string name="appVersion">App Version</string>
+    <!-- Label for build number -->
+    <string name="buildNumber">Build</string>
+    <!-- Label for package ID -->
+    <string name="packageId">Package ID</string>
+    <!-- License section title -->
+    <string name="licenseTitle">License</string>
+    <!-- License description -->
+    <string name="licenseDescription">JaBook is distributed under the Apache 2.0 license. Tap to view the full license text and list of third-party libraries.</string>
+    <!-- Menu item for main license -->
+    <string name="mainLicense">Main License</string>
+    <!-- Menu item for third-party libraries -->
+    <string name="thirdPartyLicenses">Third-Party Libraries</string>
+    <!-- Menu item for Telegram channel -->
+    <string name="telegramChannel">Telegram Channel</string>
+    <!-- Subtitle for Telegram channel -->
+    <string name="openTelegramChannel">Open channel in Telegram</string>
+    <!-- Menu item for contacting developer -->
+    <string name="contactDeveloper">Contact Developer</string>
+    <!-- Subtitle for email client -->
+    <string name="openEmailClient">Open email client</string>
+    <!-- Menu item for supporting project -->
+    <string name="supportProject">Support Project</string>
+    <!-- Subtitle for supporting project -->
+    <string name="supportProjectDescription">Donate or support development</string>
+    <!-- Menu item for GitHub repository -->
+    <string name="githubRepository">GitHub</string>
+    <!-- Subtitle for GitHub repository -->
+    <string name="githubRepositoryDescription">Source code and changelog</string>
+    <!-- Menu item for changelog -->
+    <string name="changelog">Changelog</string>
+    <!-- Subtitle for changelog -->
+    <string name="changelogDescription">Version history and updates</string>
+    <!-- Menu item for GitHub issues -->
+    <string name="issues">Issues</string>
+    <!-- Subtitle for issues -->
+    <string name="issuesDescription">Report bugs and request features</string>
+    <!-- About developer section title -->
+    <string name="aboutDeveloper">About Developer</string>
+    <!-- Text about developer -->
+    <string name="aboutDeveloperText">JaBook is developed by Jabook Contributors team. This is an open source project created for convenient listening to audiobooks from open sources and torrents. No ads, no registration — just pure listening.</string>
+    <!-- Button for copying information -->
+    <string name="copyInfo">Copy</string>
+    <!-- Message after copying -->
+    <string name="infoCopied">Info copied</string>
+    <!-- Error message when opening link fails -->
+    <string name="failedToOpenLink">Failed to open link</string>
+    <!-- Error message when opening email client fails -->
+    <string name="failedToOpenEmail">Failed to open email client</string>
+    <!-- Subtitle for viewing license in app -->
+    <string name="viewInApp">View in app</string>
+    <!-- Subtitle for viewing licenses -->
+    <string name="viewLicenses">View licenses</string>
+    <!-- Menu item for viewing license on GitHub -->
+    <string name="licenseOnGitHub">License on GitHub</string>
+    <!-- Subtitle for viewing license file -->
+    <string name="viewLicenseFile">View LICENSE file</string>
+    <!-- Subtitle for 4PDA forum -->
+    <string name="appDiscussionQuestionsReviews">App discussion, questions and reviews</string>
+    <!-- Developer team name -->
+    <string name="jabookContributors">Jabook Contributors</string>
+    <!-- GitHub service name -->
+    <string name="github">GitHub</string>
+    <!-- Accessibility label for version section -->
+    <string name="versionInformationLongPress">Version information. Long press to copy.</string>
+    <!-- Default value for unknown data -->
+    <string name="unknown">Unknown</string>
+    <!-- Email subject for feedback -->
+    <string name="emailFeedbackSubject">JaBook - Feedback</string>
+    <!-- App label in email -->
+    <string name="emailFeedbackApp">App: JaBook</string>
+    <!-- Version label in email -->
+    <string name="emailFeedbackVersion">Version:</string>
+    <!-- Device label in email -->
+    <string name="emailFeedbackDevice">Device:</string>
+    <!-- Android version label in email -->
+    <string name="emailFeedbackAndroid">Android:</string>
+    <!-- Description label in email -->
+    <string name="emailFeedbackDescription">Description of issue / suggestion:</string>
+    <!-- Description of About section in settings -->
+    <string name="aboutSectionDescription">App information and links</string>
+    <!-- Subtitle for About section in settings -->
+    <string name="aboutSectionSubtitle">Version, license, and developer information</string>
+    <!-- 4PDA forum name -->
+    <string name="forum4Pda">4PDA</string>
+    <!-- Title for rewind duration setting -->
+    <string name="rewindDurationTitle">Rewind Duration</string>
+    <!-- Title for forward duration setting -->
+    <string name="forwardDurationTitle">Forward Duration</string>
+    <!-- Title for inactivity timeout setting -->
+    <string name="inactivityTimeoutTitle">Inactivity Timeout</string>
+    <!-- Label for inactivity timeout setting -->
+    <string name="inactivityTimeoutLabel">Set inactivity timeout</string>
+    <!-- Singular form of minute -->
+    <string name="minute">minute</string>
+    <!-- Label for rewind action -->
+    <string name="rewind">Rewind</string>
+    <!-- Label for forward action -->
+    <string name="forward">Forward</string>
+    <!-- Label for current playback position -->
+    <string name="currentPosition">Current</string>
+    <!-- Label for new playback position after skip -->
+    <string name="newPosition">New</string>
+    <!-- Label for seconds unit -->
+    <string name="secondsLabel">seconds</string>
+    <!-- Accessibility label for language settings section -->
+    <string name="languageSettingsLabel">Language settings</string>
+    <!-- Accessibility label for mirror settings section -->
+    <string name="mirrorSourceSettingsLabel">Mirror and source settings</string>
+    <!-- Accessibility label for RuTracker session section -->
+    <string name="rutrackerSessionLabel">RuTracker session management</string>
+    <!-- Accessibility label for metadata section -->
+    <string name="metadataManagementLabel">Metadata management</string>
+    <!-- Accessibility label for theme settings section -->
+    <string name="themeSettingsLabel">Theme settings</string>
+    <!-- Accessibility label for audio settings section -->
+    <string name="audioPlaybackSettingsLabel">Audio playback settings</string>
+    <!-- Accessibility label for download settings section -->
+    <string name="downloadSettingsLabel">Download settings</string>
+    <!-- Accessibility label for library folder settings section -->
+    <string name="libraryFolderSettingsLabel">Library folder settings</string>
+    <!-- Accessibility label for storage management section -->
+    <string name="storageManagementLabel">Storage management</string>
+    <!-- Accessibility label for cache settings section -->
+    <string name="cacheSettingsLabel">Cache settings</string>
+    <!-- Accessibility label for app permissions section -->
+    <string name="appPermissionsLabel">App permissions</string>
+    <!-- Accessibility label for about app section -->
+    <string name="aboutAppLabel">About app</string>
+    <!-- Accessibility label for background compatibility section -->
+    <string name="backgroundTaskCompatibilityLabel">Background task compatibility</string>
+    <!-- Accessibility label for backup and restore section -->
+    <string name="backupRestoreLabel">Backup and restore</string>
+    <!-- Button to enter selection mode for favorites -->
+    <string name="selectFavorites">Select</string>
+    <!-- Button to delete selected favorites -->
+    <string name="clearSelectedFavorites">Delete Selected</string>
+    <!-- Button to clear all favorites -->
+    <string name="clearAllFavorites">Clear All</string>
+    <!-- Title for clear all favorites confirmation dialog -->
+    <string name="clearAllFavoritesTitle">Clear All Favorites?</string>
+    <!-- Message for clear all favorites confirmation dialog -->
+    <string name="clearAllFavoritesMessage">This will remove all favorite audiobooks. This action cannot be undone.</string>
+    <!-- Message when favorites are cleared -->
+    <string name="favoritesCleared">Favorites cleared</string>
+    <!-- Message when favorites are deleted -->
+    <string name="favoritesDeleted">{count} favorite(s) deleted</string>
+    <!-- Message when trying to delete but no favorites are selected -->
+    <string name="noFavoritesSelected">No favorites selected</string>
+    <!-- Label for selected items count -->
+    <string name="selected">selected</string>
+    <!-- Label for sort options section in library filter dialog -->
+    <string name="sortByLabel">Sort by:</string>
+    <!-- Label for group options section in library filter dialog -->
+    <string name="groupByLabel">Group by:</string>
+    <!-- Sort option: name ascending -->
+    <string name="sortByNameAsc">Name (A-Z)</string>
+    <!-- Sort option: name descending -->
+    <string name="sortByNameDesc">Name (Z-A)</string>
+    <!-- Sort option: size ascending -->
+    <string name="sortBySizeAsc">Size (Smallest)</string>
+    <!-- Sort option: size descending -->
+    <string name="sortBySizeDesc">Size (Largest)</string>
+    <!-- Sort option: date ascending -->
+    <string name="sortByDateAsc">Date (Oldest)</string>
+    <!-- Sort option: date descending -->
+    <string name="sortByDateDesc">Date (Newest)</string>
+    <!-- Sort option: files ascending -->
+    <string name="sortByFilesAsc">Files (Fewest)</string>
+    <!-- Sort option: files descending -->
+    <string name="sortByFilesDesc">Files (Most)</string>
+    <!-- Group option: no grouping -->
+    <string name="groupByNone">None</string>
+    <!-- Group option: group by first letter -->
+    <string name="groupByFirstLetter">First Letter</string>
+    <!-- Message shown while scanning library for audiobooks -->
+    <string name="scanningLibrary">Scanning library...</string>
+    <!-- Title when manufacturer settings are not available -->
+    <string name="manufacturerSettingsNotAvailable">Settings Not Available</string>
+    <!-- Message when manufacturer settings are not available -->
+    <string name="manufacturerSettingsNotAvailableMessage">Manufacturer-specific settings are only available on Android devices.</string>
+    <!-- Default title for manufacturer settings instructions -->
+    <string name="manufacturerSettingsDefaultTitle">Settings for Stable Operation</string>
+    <!-- Default message for manufacturer settings instructions -->
+    <string name="manufacturerSettingsDefaultMessage">To ensure stable operation, you need to configure the following settings:</string>
+    <!-- Default step 1 for manufacturer settings -->
+    <string name="manufacturerSettingsDefaultStep1">1. Enable application autostart</string>
+    <!-- Default step 2 for manufacturer settings -->
+    <string name="manufacturerSettingsDefaultStep2">2. Disable battery optimization for the application</string>
+    <!-- Default step 3 for manufacturer settings -->
+    <string name="manufacturerSettingsDefaultStep3">3. Allow background activity</string>
+    <!-- Title for MIUI manufacturer settings -->
+    <string name="manufacturerSettingsMiuiTitle">MIUI Settings for Stable Operation</string>
+    <!-- Message for MIUI manufacturer settings -->
+    <string name="manufacturerSettingsMiuiMessage">On Xiaomi/Redmi/Poco devices, you need to configure the following settings:</string>
+    <!-- Step 1 for MIUI settings -->
+    <string name="manufacturerSettingsMiuiStep1">1. Autostart: Settings → Apps → Permission management → Autostart → Enable for {appName}</string>
+    <!-- Step 2 for MIUI settings -->
+    <string name="manufacturerSettingsMiuiStep2">2. Battery optimization: Settings → Battery → Battery optimization → Select {appName} → Don\'t optimize</string>
+    <!-- Step 3 for MIUI settings -->
+    <string name="manufacturerSettingsMiuiStep3">3. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow</string>
+    <!-- Title for EMUI manufacturer settings -->
+    <string name="manufacturerSettingsEmuiTitle">EMUI Settings for Stable Operation</string>
+    <!-- Message for EMUI manufacturer settings -->
+    <string name="manufacturerSettingsEmuiMessage">On Huawei/Honor devices, you need to configure the following settings:</string>
+    <!-- Step 1 for EMUI settings -->
+    <string name="manufacturerSettingsEmuiStep1">1. App protection: Settings → Apps → App protection → {appName} → Enable autostart</string>
+    <!-- Step 2 for EMUI settings -->
+    <string name="manufacturerSettingsEmuiStep2">2. Battery management: Settings → Battery → Battery management → {appName} → Don\'t optimize</string>
+    <!-- Step 3 for EMUI settings -->
+    <string name="manufacturerSettingsEmuiStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
+    <!-- Title for ColorOS/RealmeUI manufacturer settings -->
+    <string name="manufacturerSettingsColorosTitle">ColorOS/RealmeUI Settings for Stable Operation</string>
+    <!-- Message for ColorOS/RealmeUI manufacturer settings -->
+    <string name="manufacturerSettingsColorosMessage">On Oppo/Realme devices, you need to configure the following settings:</string>
+    <!-- Step 1 for ColorOS/RealmeUI settings -->
+    <string name="manufacturerSettingsColorosStep1">1. Autostart: Settings → Apps → Autostart → Enable for {appName}</string>
+    <!-- Step 2 for ColorOS/RealmeUI settings -->
+    <string name="manufacturerSettingsColorosStep2">2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize</string>
+    <!-- Step 3 for ColorOS/RealmeUI settings -->
+    <string name="manufacturerSettingsColorosStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
+    <!-- Title for OxygenOS manufacturer settings -->
+    <string name="manufacturerSettingsOxygenosTitle">OxygenOS Settings for Stable Operation</string>
+    <!-- Message for OxygenOS manufacturer settings -->
+    <string name="manufacturerSettingsOxygenosMessage">On OnePlus devices, you need to configure the following settings:</string>
+    <!-- Step 1 for OxygenOS settings -->
+    <string name="manufacturerSettingsOxygenosStep1">1. Autostart: Settings → Apps → Autostart → Enable for {appName}</string>
+    <!-- Step 2 for OxygenOS settings -->
+    <string name="manufacturerSettingsOxygenosStep2">2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize</string>
+    <!-- Step 3 for OxygenOS settings -->
+    <string name="manufacturerSettingsOxygenosStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
+    <!-- Title for FuntouchOS/OriginOS manufacturer settings -->
+    <string name="manufacturerSettingsFuntouchosTitle">FuntouchOS/OriginOS Settings for Stable Operation</string>
+    <!-- Message for FuntouchOS/OriginOS manufacturer settings -->
+    <string name="manufacturerSettingsFuntouchosMessage">On Vivo devices, you need to configure the following settings:</string>
+    <!-- Step 1 for FuntouchOS/OriginOS settings -->
+    <string name="manufacturerSettingsFuntouchosStep1">1. Autostart: Settings → Apps → Autostart → Enable for {appName}</string>
+    <!-- Step 2 for FuntouchOS/OriginOS settings -->
+    <string name="manufacturerSettingsFuntouchosStep2">2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize</string>
+    <!-- Step 3 for FuntouchOS/OriginOS settings -->
+    <string name="manufacturerSettingsFuntouchosStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
+    <!-- Title for Flyme manufacturer settings -->
+    <string name="manufacturerSettingsFlymeTitle">Flyme Settings for Stable Operation</string>
+    <!-- Message for Flyme manufacturer settings -->
+    <string name="manufacturerSettingsFlymeMessage">On Meizu devices, you need to configure the following settings:</string>
+    <!-- Step 1 for Flyme settings -->
+    <string name="manufacturerSettingsFlymeStep1">1. Autostart: Settings → Apps → Autostart → Enable for {appName}</string>
+    <!-- Step 2 for Flyme settings -->
+    <string name="manufacturerSettingsFlymeStep2">2. Battery optimization: Settings → Battery → Battery optimization → {appName} → Don\'t optimize</string>
+    <!-- Step 3 for Flyme settings -->
+    <string name="manufacturerSettingsFlymeStep3">3. Background activity: Settings → Apps → {appName} → Battery → Allow background activity</string>
+    <!-- Title for One UI manufacturer settings -->
+    <string name="manufacturerSettingsOneuiTitle">One UI Settings for Stable Operation</string>
+    <!-- Message for One UI manufacturer settings -->
+    <string name="manufacturerSettingsOneuiMessage">On Samsung devices, it is recommended to configure the following settings:</string>
+    <!-- Step 1 for One UI settings -->
+    <string name="manufacturerSettingsOneuiStep1">1. Battery optimization: Settings → Apps → {appName} → Battery → Don\'t optimize</string>
+    <!-- Step 2 for One UI settings -->
+    <string name="manufacturerSettingsOneuiStep2">2. Background activity: Settings → Apps → {appName} → Battery → Background activity → Allow</string>
+    <!-- Step 3 for One UI settings -->
+    <string name="manufacturerSettingsOneuiStep3">3. Autostart: Usually not required on Samsung, but you can check in app settings</string>
+    <!-- Track position indicator -->
+    <string name="trackOfTotal">Track {currentTrack} of {totalTracks}</string>
+    <!-- Tracks section title with plural -->
+    <string name="tracksTitle">{count, plural, =0{No tracks} =1{Track} other{Tracks}}</string>
+    <!-- No repeat mode -->
+    <string name="noRepeat">No repeat</string>
+    <!-- Repeat current track mode -->
+    <string name="repeatTrack">Repeat track</string>
+    <!-- Repeat entire playlist mode -->
+    <string name="repeatPlaylist">Repeat playlist</string>
+    <!-- Sleep timer label -->
+    <string name="timerLabel">Timer</string>
+    <!-- Playback speed label -->
+    <string name="speedLabel">Speed</string>
+    <!-- Rewind button label -->
+    <string name="rewindButton">Rewind</string>
+    <!-- Forward button label -->
+    <string name="forwardButton">Forward</string>
+    <!-- Play button label -->
+    <string name="playButton">Play</string>
+    <!-- Pause button label -->
+    <string name="pauseButton">Pause</string>
+    <!-- Next track button label -->
+    <string name="nextButton">Next</string>
+    <!-- Previous track button label -->
+    <string name="previousButton">Previous</string>
+    <!-- Title for access required dialog -->
+    <string name="accessRequired">Access Required</string>
+    <!-- Message when feature requires authentication -->
+    <string name="featureRequiresAuth">Feature \"{feature}\" requires authentication</string>
+    <!-- Message prompting user to sign in for feature access -->
+    <string name="signInToAccessFeature">Sign in to access this feature</string>
+    <!-- Button text to upgrade to full access -->
+    <string name="upgradeToFull">Upgrade to Full</string>
+    <!-- Title for restricted feature screen -->
+    <string name="restrictedFeature">Restricted Feature</string>
+    <!-- Message when feature is restricted -->
+    <string name="featureRestricted">This feature is restricted in demo mode</string>
+    <!-- Description for restricted feature -->
+    <string name="featureRestrictedDescription">To access this feature, please sign in to your account</string>
+    <!-- Button text to sign in and unlock features -->
+    <string name="signInToUnlock">Sign in to unlock</string>
+    <!-- Warning message shown in search screen when in guest mode -->
+    <string name="searchGuestModeWarning">Search is limited in guest mode. Some features may not work. Sign in for full access.</string>
+    <!-- Warning message shown in downloads screen when in guest mode -->
+    <string name="downloadsGuestModeWarning">Downloads are view-only in guest mode. Sign in to manage downloads.</string>
+    <!-- Button text to continue as guest -->
+    <string name="continueAsGuest">Continue as Guest</string>
+    <!-- Title for session expired dialog -->
+    <string name="sessionExpired">Session Expired</string>
+    <!-- Message for session expired -->
+    <string name="sessionExpiredMessage">Your session has expired. Please sign in again.</string>
+    <!-- Button text to sign in again -->
+    <string name="signInAgain">Sign In Again</string>
+    <!-- Title for authorization required dialog -->
+    <string name="authorizationRequired">Authorization Required</string>
+    <!-- Title for demo mode -->
+    <string name="demoMode">Demo Mode</string>
+    <!-- Description for demo mode -->
+    <string name="demoModeDescription">You are using demo mode with limited functionality</string>
+    <!-- Button text to upgrade to full access -->
+    <string name="upgradeToFullAccess">Upgrade to Full Access</string>
+    <!-- Message when search is restricted -->
+    <string name="searchRestricted">Search is restricted in demo mode</string>
+    <!-- Message when downloads are restricted -->
+    <string name="downloadRestricted">Downloads are restricted in demo mode</string>
+    <!-- Message when browsing is restricted -->
+    <string name="browseRestricted">Browsing is restricted in demo mode</string>
+    <!-- Account section or button -->
+    <string name="account">Account</string>
+    <!-- Compact player layout option -->
+    <string name="compactPlayerLayout">Compact Player Layout</string>
+    <!-- Standard player layout option -->
+    <string name="standardPlayerLayout">Standard Player Layout</string>
+    <!-- Adaptive navigation feature -->
+    <string name="adaptiveNavigation">Adaptive Navigation</string>
+    <!-- Small screen optimizations feature -->
+    <string name="smallScreenOptimizations">Small Screen Optimizations</string>
+    <!-- Navigation and UI strings -->
+    <string name="back">Back</string>
+    <string name="sort">Sort</string>
+    <string name="filters">Filters</string>
+    <string name="searchOnlineRutracker">Search Online on Rutracker</string>
+    <string name="noLocalBooksFound">No local books found for "%1$s"</string>
+    <string name="clearAll">Clear All</string>
+    <string name="delete">Delete</string>
+    <string name="addToFavorites">Add to favorites</string>
+    <string name="removeFromFavorites">Remove from favorites</string>
+    <string name="errorWithMessage">Error: %1$s</string>
+</resources>
