@@ -1,5 +1,5 @@
 #!/bin/bash
-# Check that all Dart files have correct copyright header
+# Check that all Kotlin files have correct copyright header
 
 set -euo pipefail
 
@@ -7,7 +7,7 @@ CURRENT_YEAR=$(date +%Y)
 COPYRIGHT="Copyright $CURRENT_YEAR Jabook Contributors"
 ERRORS=0
 
-# Find all Dart files and check copyright
+# Find all Kotlin files and check copyright
 while IFS= read -r -d '' file; do
     # Check if file has copyright
     if ! grep -q "Copyright.*Jabook" "$file" 2>/dev/null; then
@@ -20,15 +20,10 @@ while IFS= read -r -d '' file; do
             ERRORS=$((ERRORS + 1))
         fi
     fi
-done < <(find . -name "*.dart" \
-    -not -path "./.dart_tool/*" \
+done < <(find . -name "*.kt" \
     -not -path "./.git/*" \
     -not -path "./hack/*" \
     -not -path "./build/*" \
-    -not -path "./lib/l10n/*" \
-    -not -path "./.flutter-plugins*" \
-    -not -path "./.packages" \
-    -not -path "./packages/*" \
     -not -path "./test_results/*" \
     -print0)
 
