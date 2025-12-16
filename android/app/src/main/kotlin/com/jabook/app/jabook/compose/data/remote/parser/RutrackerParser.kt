@@ -36,13 +36,17 @@ class RutrackerParser
         companion object {
             private const val TAG = "RutrackerParser"
 
-            // CSS Selectors for search results
-            private const val ROW_SELECTOR = "tr.hl-tr"
-            private const val TITLE_SELECTOR = "a.torTopic, a[href*=\"viewtopic.php?t=\"]"
-            private const val AUTHOR_SELECTOR = "a.pmed, .topicAuthor a"
-            private const val SIZE_SELECTOR = "a.f-dl.dl-stub"
-            private const val SEEDERS_SELECTOR = "span.seed, span.seedmed"
-            private const val LEECHERS_SELECTOR = "span.leech, span.leechmed"
+            // CSS Selectors for search results - updated from test_results/jabook reference
+            private const val ROW_SELECTOR = "tr.hl-tr, tr[data-topic_id]"
+            private const val TITLE_SELECTOR = "a.torTopic, a.torTopic.tt-text, a[href*=\"viewtopic.php?t=\"]"
+            private const val AUTHOR_SELECTOR = "a.pmed, .topicAuthor a, a[href*=\"profile.php\"]"
+            private const val SIZE_SELECTOR = "span.small, a.f-dl.dl-stub, td.small, .small"
+
+            // Use comprehensive seeders classes from reference: seed and seedmed (both with and without b tag)
+            private const val SEEDERS_SELECTOR = "span.seed, span.seed b, span.seedmed, span.seedmed b, .seed, .seedmed"
+
+            // Use comprehensive leechers classes from reference: leech and leechmed (both with and without b tag)
+            private const val LEECHERS_SELECTOR = "span.leech, span.leech b, span.leechmed, span.leechmed b, .leech, .leechmed"
             private const val DOWNLOAD_HREF_SELECTOR = "a[href^=\"dl.php?t=\"]"
             private const val MAGNET_LINK_SELECTOR = "a.magnet-link, a[href^=\"magnet:\"]"
 
@@ -102,24 +106,53 @@ class RutrackerParser
             val titleElement = row.selectFirst(TITLE_SELECTOR) ?: return null
             val title = titleElement.text().ifEmpty { return null }
 
-            // Extract author
-            val authorElement = row.selectFirst(AUTHOR_SELECTOR)
-            val author = authorElement?.text() ?: "Unknown"
+            // Extract author with multiple fallback selectors
+            val authorElement =
+                row.selectFirst(AUTHOR_SELECTOR)
+                    ?: row.selectFirst("a.topicAuthor")
+                    ?: row.selectFirst("td:nth-child(3) a")
+            val author =
+                authorElement?.text()?.trim()?.ifEmpty { null } ?: run {
+                    Log.w(TAG, "Author not found for topic $topicId, tried selectors: $AUTHOR_SELECTOR")
+                    "Unknown"
+                }
 
             // Extract category (from parent table or data attribute)
             val category = row.attr("data-forum_id").ifEmpty { "Audiobooks" }
 
-            // Extract size
-            val sizeElement = row.selectFirst(SIZE_SELECTOR)
-            val size = sizeElement?.text() ?: "Unknown"
+            // Extract size with multiple fallback selectors
+            val sizeElement =
+                row.selectFirst(SIZE_SELECTOR)
+                    ?: row.selectFirst("td.tor-size")
+                    ?: row.selectFirst("a[href*='dl.php']")
+                    ?: row.select("td").getOrNull(5) // Size often in 6th column
+            val size =
+                sizeElement?.text()?.trim()?.ifEmpty { null } ?: run {
+                    Log.w(TAG, "Size not found for topic $topicId, tried selectors: $SIZE_SELECTOR")
+                    "Unknown"
+                }
 
-            // Extract seeders
-            val seedersElement = row.selectFirst(SEEDERS_SELECTOR)
-            val seeders = seedersElement?.text()?.toIntOrNull() ?: 0
+            // Extract seeders with fallback
+            val seedersElement =
+                row.selectFirst(SEEDERS_SELECTOR)
+                    ?: row.selectFirst("td.seed")
+                    ?: row.select("td").getOrNull(6) // Seeders often in 7th column
+            val seeders =
+                seedersElement?.text()?.toIntOrNull() ?: run {
+                    Log.d(TAG, "Seeders not found for topic $topicId, tried selectors: $SEEDERS_SELECTOR")
+                    0
+                }
 
-            // Extract leechers
-            val leechersElement = row.selectFirst(LEECHERS_SELECTOR)
-            val leechers = leechersElement?.text()?.toIntOrNull() ?: 0
+            // Extract leechers with fallback
+            val leechersElement =
+                row.selectFirst(LEECHERS_SELECTOR)
+                    ?: row.selectFirst("td.leech")
+                    ?: row.select("td").getOrNull(7) // Leechers often in 8th column
+            val leechers =
+                leechersElement?.text()?.toIntOrNull() ?: run {
+                    Log.d(TAG, "Leechers not found for topic $topicId, tried selectors: $LEECHERS_SELECTOR")
+                    0
+                }
 
             // Extract magnet link
             val magnetElement = row.selectFirst(MAGNET_LINK_SELECTOR)
@@ -128,6 +161,13 @@ class RutrackerParser
             // Extract torrent download URL
             val torrentElement = row.selectFirst(DOWNLOAD_HREF_SELECTOR)
             val torrentUrl = torrentElement?.attr("href")?.let { BASE_URL + it } ?: ""
+
+            // Extract cover URL from topic preview (if available in search results)
+            val coverUrl =
+                row.selectFirst("img[src]")?.attr("abs:src")
+                    ?: row.selectFirst("img.postImg")?.attr("abs:src")
+
+            Log.d(TAG, "Parsed result: topicId=$topicId, title=$title, author=$author, size=$size, coverUrl=$coverUrl")
 
             return SearchResult(
                 topicId = topicId,
@@ -139,6 +179,7 @@ class RutrackerParser
                 leechers = leechers,
                 magnetUrl = magnetUrl,
                 torrentUrl = torrentUrl,
+                coverUrl = coverUrl,
             )
         }
 

@@ -37,12 +37,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.jabook.app.jabook.compose.domain.model.Book
-import androidx.compose.ui.res.stringResource
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.domain.model.Book
 
 /**
  * Grouped view for audiobooks library.
@@ -165,7 +165,14 @@ private fun BookListItem(
                         } else {
                             Icons.Default.FavoriteBorder
                         },
-                    contentDescription = if (book.isFavorite) stringResource(R.string.removeFromFavorites) else stringResource(R.string.addToFavorites),
+                    contentDescription =
+                        if (book.isFavorite) {
+                            stringResource(
+                                R.string.removeFromFavorites,
+                            )
+                        } else {
+                            stringResource(R.string.addToFavorites)
+                        },
                     tint =
                         if (book.isFavorite) {
                             MaterialTheme.colorScheme.primary

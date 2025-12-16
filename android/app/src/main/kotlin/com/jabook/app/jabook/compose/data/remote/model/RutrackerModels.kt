@@ -38,6 +38,8 @@ data class SearchResult(
     val magnetUrl: String?,
     /** Torrent download URL */
     val torrentUrl: String,
+    /** Cover image URL (optional, may not be available in search results) */
+    val coverUrl: String? = null,
 )
 
 /**
