@@ -184,41 +184,44 @@ class StringResourceMigrator:
         return strings_replaced, strings_added
     
     def add_strings_to_xml(self, strings_dict: Dict[str, str], xml_file: Path, is_russian: bool = False):
-        """Add new strings to strings.xml"""
+        """Add new strings to strings.xml while preserving comments"""
         if not strings_dict:
             return
         
         print(f"\n📦 Adding {len(strings_dict)} new strings to {xml_file.name}")
         
-        # Read current XML
-        tree = ET.parse(xml_file)
-        root = tree.getroot()
-        
-        # Add new strings before closing tag
-        for key, value in sorted(strings_dict.items()):
-            # For Russian, we'd need translation - for now use English as placeholder
-            text_value = value if not is_russian else f"[RU] {value}"
-            
-            string_elem = ET.Element('string', name=key)
-            string_elem.text = text_value
-            root.append(string_elem)
-        
-        # Write back with proper formatting
-        tree.write(xml_file, encoding='utf-8', xml_declaration=True)
-        
-        # Re-format the XML (ElementTree doesn't preserve formatting well)
-        self._reformat_xml(xml_file)
-    
-    def _reformat_xml(self, xml_file: Path):
-        """Basic XML reformatting"""
+        # Read the file as text to preserve comments
         with open(xml_file, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Add newline before closing tag
-        content = content.replace('</resources>', '\n</resources>')
+        # Generate new string entries
+        new_entries = []
+        for key, value in sorted(strings_dict.items()):
+            # For Russian, mark as needing translation
+            text_value = value if not is_russian else f"[RU] {value}"
+            # Escape XML special characters
+            text_value = text_value.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&apos;')
+            new_entries.append(f'    <string name="{key}">{text_value}</string>')
         
-        with open(xml_file, 'w', encoding='utf-8') as f:
-            f.write(content)
+        # Find the closing </resources> tag and insert before it
+        closing_tag = '</resources>'
+        if closing_tag in content:
+            # Insert new entries before closing tag
+            insertion_point = content.rfind(closing_tag)
+            new_content = (
+                content[:insertion_point] +
+                '\n'.join(new_entries) + '\n' +
+                content[insertion_point:]
+            )
+            
+            # Write back
+            with open(xml_file, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+            
+            print(f"   ✅ Added {len(strings_dict)} string(s) while preserving comments")
+        else:
+            print(f"   ⚠️  Warning: Could not find closing </resources> tag in {xml_file.name}")
+
     
     def migrate_directory(self, directory: Path, dry_run: bool = False):
         """Migrate all Kotlin files in a directory"""
