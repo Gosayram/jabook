@@ -388,7 +388,7 @@
     <!-- Текст кнопки выхода -->
     <string name="logoutButtonText">Выйти</string>
     <!-- Запрос для ввода учетных данных -->
-    <string name="enterCredentialsText">Пожалуйста, введите имя пользователя и пароль</string>
+
     <!-- Сообщение во время входа в систему -->
     <string name="loggingInText">Вход в систему...</string>
     <!-- Сообщение об успешном входе -->
@@ -1447,9 +1447,9 @@
     <!-- Account label -->
     <string name="account">Аккаунт</string>
     <!-- Sign in button text -->
-    <string name="signIn">Войти</string>
+
     <!-- Sign out button text -->
-    <string name="signOut">Выйти</string>
+
     <!-- Compact player layout option -->
     <string name="compactPlayerLayout">Компактный плеер</string>
     <!-- Standard player layout option -->
@@ -2026,8 +2026,6 @@
     <string name="priorityDownloadinfopriorityname">Приоритет: ${downloadInfo.priority.name}</string>
     <!-- Приоритетное меню -->
     <string name="priorityMenu">Приоритетное меню</string>
-    <!-- rutracker.nl -->
-    <string name="rutrackernl">rutracker.nl</string>
     <!-- Поиск книг... -->
     <string name="searchBooks">Поиск книг...</string>
     <!-- $сеялки -->
@@ -2076,7 +2074,7 @@
     <!-- Резервное копирование настроек и данных Jabook -->
     <string name="backupOfJabookSettingsAndData">Резервное копирование настроек и данных Jabook</string>
     <!-- Кэш очищен: $clearedSizeFormatted -->
-    <string name="cacheClearedClearedsizeformatted">Кэш очищен: $clearedSizeFormatted</string>
+
     <!-- Кэш: Ошибка -->
     <string name="cacheError">Кэш: Ошибка</string>
     <!-- Управление кэшем -->
@@ -2110,8 +2108,6 @@
 
     <!-- Удалить выбранное -->
     <string name="deleteSelected">Удалить выбранное</string>
-    <!-- УСТАРЕВАНИЕ -->
-    <string name="deprecation">УСТАРЕВАНИЕ</string>
     <!-- Разработчик -->
     <string name="developer">Разработчик</string>
     <!-- Загрузка только через Wi-Fi -->
@@ -2135,8 +2131,6 @@
     <string name="lastCleanup">Последняя очистка</string>
     <!-- Заполнитель экрана лицензии -->
     <string name="licenseScreenPlaceholder">Заполнитель экрана лицензии</string>
-    <!-- Свет -->
-    <string name="light">Свет</string>
     <!-- Светлая тема -->
     <string name="lightTheme">Светлая тема</string>
     <!-- Ограничить скорость загрузки -->
@@ -2160,7 +2154,7 @@
     <!-- Сейчас играет -->
     <string name="nowPlaying">Сейчас играет</string>
     <!-- } кэшированных данных. Продолжать? -->
-    <string name="ofCachedDataContinue">} кэшированных данных. Продолжать?</string>
+
     <!-- Лицензии с открытым исходным кодом -->
     <string name="openSourceLicenses">Лицензии с открытым исходным кодом</string>
     <!-- Параметры -->
@@ -2313,4 +2307,16 @@
     <string name="форматIt">Формат: $it</string>
     <!-- Это зеркало уже добавлено -->
     <string name="этоЗеркалоУжеДобавлено">Это зеркало уже добавлено</string>
+
+    <!-- Раздел отладки - RuTracker -->
+    <string name="rutrackerTab">RuTracker</string>
+    <string name="authStatusTitle">Статус авторизации</string>
+    <string name="authenticated">✅ Авторизован</string>
+    <string name="notAuthenticated">❌ Не авторизован</string>
+    <string name="lastErrorPrefix">Последняя ошибка: %s</string>
+    <string name="validationResultsTitle">Результаты проверки</string>
+    <string name="profilePageCheck">Страница профиля: %s</string>
+    <string name="searchPageCheck">Страница поиска: %s</string>
+    <string name="indexPageCheck">Главная страница: %s</string>
+    <string name="mirrorConnectivityTitle">Доступность зеркал</string>
 </resources>

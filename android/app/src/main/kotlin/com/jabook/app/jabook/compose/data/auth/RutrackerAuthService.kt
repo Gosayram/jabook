@@ -41,7 +41,14 @@ class RutrackerAuthService
             private const val TAG = "RutrackerAuthService"
             private val CP1251 = Charset.forName("windows-1251")
             private val MEDIA_TYPE_FORM = "application/x-www-form-urlencoded".toMediaType()
+            private const val MAX_RETRIES = 3
+            private const val INITIAL_BACKOFF_MS = 1000L
+            private const val REQUEST_TIMEOUT_MS = 15000L
         }
+
+        private var _lastAuthError: String? = null
+        val lastAuthError: String?
+            get() = _lastAuthError
 
         /**
          * Attempt login with detailed logging.
@@ -72,8 +79,20 @@ class RutrackerAuthService
                     Log.d(TAG, "[$operationId] Request body built, content-type: application/x-www-form-urlencoded")
 
                     // Step 3: Send login request
+                    // Step 3: Send login request with retry
                     val requestStart = System.currentTimeMillis()
-                    val response = api.login(body)
+                    val response =
+                        retryWithBackoff(
+                            times = MAX_RETRIES,
+                            initialDelay = INITIAL_BACKOFF_MS,
+                        ) {
+                            // Apply timeout for the network call
+                            withContext(Dispatchers.IO) {
+                                kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
+                                    api.login(body)
+                                }
+                            }
+                        }
                     val requestDuration = System.currentTimeMillis() - requestStart
 
                     val statusCode = response.code()
@@ -119,6 +138,7 @@ class RutrackerAuthService
                         }
                         is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Error -> {
                             Log.w(TAG, "[$operationId] ❌ Authentication failed: ${result.message} (${totalDuration}ms)")
+                            _lastAuthError = result.message
                             AuthResult.Error(result.message)
                         }
                         is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Captcha -> {
@@ -141,6 +161,7 @@ class RutrackerAuthService
                 } catch (e: Exception) {
                     val duration = System.currentTimeMillis() - startTime
                     Log.e(TAG, "[$operationId] ⚠️ Unexpected error (${duration}ms)", e)
+                    _lastAuthError = e.message
                     return@withContext AuthResult.Error(e.message ?: "Unknown error")
                 }
             }
@@ -241,6 +262,28 @@ class RutrackerAuthService
                     Log.e(TAG, "[$validationId] Validation exception (${duration}ms)", e)
                     return@withContext false
                 }
+            }
+        }
+
+        /**
+         * Check basic connectivity to RuTracker.
+         * Used for diagnostics.
+         */
+        suspend fun checkConnectivity(operationId: String? = null): Boolean {
+            val checkId = operationId?.let { "${it}_conn" } ?: "conn_check_${System.currentTimeMillis()}"
+            return try {
+                Log.d(TAG, "[$checkId] Checking connectivity...")
+                val response = api.getIndex()
+                if (response.isSuccessful) {
+                    Log.i(TAG, "[$checkId] Connectivity check passed (HTTP ${response.code()})")
+                    true
+                } else {
+                    Log.w(TAG, "[$checkId] Connectivity check failed (HTTP ${response.code()})")
+                    false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "[$checkId] Connectivity check failed with exception", e)
+                false
             }
         }
 
@@ -368,15 +411,49 @@ class RutrackerAuthService
          * Test 3: Validate via index page access.
          * Final fallback - checks if forum index is accessible.
          */
-        private suspend fun validateIndexPage(operationId: String): Boolean =
+        private suspend fun validateIndexPage(operationId: String): Boolean {
             try {
-                // Note: We need to add getIndex() to RutrackerApi
-                // For now, we'll reuse profile check as fallback
-                // TODO: Add api.getIndex() endpoint
-                Log.d(TAG, "[$operationId] Index check: not implemented, using profile fallback")
-                false
+                // Test 3: Index page (final fallback) using api.getIndex()
+                val response = api.getIndex()
+                if (response.isSuccessful) {
+                    val bodyString = response.body()?.string()?.lowercase() ?: ""
+                    val isValidIndex = bodyString.contains("форум") || bodyString.contains("rutracker.org")
+                    Log.d(TAG, "[$operationId] Index check: HTTP ${response.code()}, validContent=$isValidIndex")
+                    return isValidIndex
+                } else {
+                    Log.w(TAG, "[$operationId] Index check failed: HTTP ${response.code()}")
+                    return false
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "[$operationId] Index check exception", e)
-                false
+                return false
             }
+        }
+
+        /**
+         * Helper function to retry operations with exponential backoff.
+         */
+        private suspend fun <T> retryWithBackoff(
+            times: Int,
+            initialDelay: Long,
+            maxDelay: Long = 10000L,
+            factor: Double = 2.0,
+            block: suspend () -> T,
+        ): T {
+            var currentDelay = initialDelay
+            repeat(times - 1) { attempt ->
+                try {
+                    return block()
+                } catch (e: Exception) {
+                    // Only retry on specific network exceptions
+                    if (e !is java.io.IOException && e !is java.net.SocketTimeoutException) {
+                        throw e
+                    }
+                    Log.w(TAG, "Operation failed, retrying in ${currentDelay}ms (attempt ${attempt + 1}/$times)", e)
+                    kotlinx.coroutines.delay(currentDelay)
+                    currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelay)
+                }
+            }
+            return block() // Last attempt
+        }
     }

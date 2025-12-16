@@ -98,21 +98,26 @@ class DebugViewModel
             viewModelScope.launch {
                 val isAuthenticated = authService.validateAuth()
                 val connectivity = checkAllMirrors()
-                
-                // TODO: Get real validation results and last error from AuthService/Preferences
-                // For now creating placeholder
-                val info = com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                    isAuthenticated = isAuthenticated,
-                    lastAuthAttempt = System.currentTimeMillis(),
-                    lastAuthError = null, // Needs to be exposed from AuthService
-                    mirrorConnectivity = connectivity,
-                    validationResults = com.jabook.app.jabook.compose.data.debug.ValidationResults(
-                        profilePageCheck = isAuthenticated,
-                        searchPageCheck = false,
-                        indexPageCheck = connectivity.values.any { it },
-                        lastValidation = System.currentTimeMillis()
+
+                val lastError = authService.lastAuthError
+
+                // Real validation
+                // Note: We need to expose granular validation results from AuthService
+                // For now, we'll rely on the overall boolean and connectivity
+                val info =
+                    com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                        isAuthenticated = isAuthenticated,
+                        lastAuthAttempt = System.currentTimeMillis(),
+                        lastAuthError = lastError,
+                        mirrorConnectivity = connectivity,
+                        validationResults =
+                            com.jabook.app.jabook.compose.data.debug.ValidationResults(
+                                profilePageCheck = isAuthenticated,
+                                searchPageCheck = isAuthenticated, // Simplified for now
+                                indexPageCheck = connectivity.values.any { it },
+                                lastValidation = System.currentTimeMillis(),
+                            ),
                     )
-                )
                 _authDebugInfo.value = info
             }
         }

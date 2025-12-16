@@ -14,8 +14,6 @@
 
 package com.jabook.app.jabook.compose.data.debug
 
-import com.jabook.app.jabook.compose.data.auth.AuthError
-
 /**
  * Data class containing diagnostic information for RuTracker authentication and connectivity.
  */
@@ -24,7 +22,7 @@ data class AuthDebugInfo(
     val lastAuthAttempt: Long? = null,
     val lastAuthError: String? = null,
     val mirrorConnectivity: Map<String, Boolean> = emptyMap(),
-    val validationResults: ValidationResults? = null
+    val validationResults: ValidationResults? = null,
 )
 
 /**
@@ -34,14 +32,15 @@ data class ValidationResults(
     val profilePageCheck: Boolean,
     val searchPageCheck: Boolean,
     val indexPageCheck: Boolean,
-    val lastValidation: Long
+    val lastValidation: Long,
 )
 
 /**
  * Extension to display validation check as emoji
  */
-fun Boolean?.toIcon(): String = when(this) {
-    true -> "✅"
-    false -> "❌"
-    null -> "❓"
-}
+fun Boolean?.toIcon(): String =
+    when (this) {
+        true -> "✅"
+        false -> "❌"
+        null -> "❓"
+    }

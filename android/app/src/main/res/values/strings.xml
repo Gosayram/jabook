@@ -2303,4 +2303,16 @@
     <string name="форматIt">Формат: $it</string>
     <!-- Это зеркало уже добавлено -->
     <string name="этоЗеркалоУжеДобавлено">Это зеркало уже добавлено</string>
+
+    <!-- Debug Section - RuTracker -->
+    <string name="rutrackerTab">RuTracker</string>
+    <string name="authStatusTitle">Authentication Status</string>
+    <string name="authenticated">✅ Authenticated</string>
+    <string name="notAuthenticated">❌ Not Authenticated</string>
+    <string name="lastErrorPrefix">Last Error: %s</string>
+    <string name="validationResultsTitle">Validation Results</string>
+    <string name="profilePageCheck">Profile Page: %s</string>
+    <string name="searchPageCheck">Search Page: %s</string>
+    <string name="indexPageCheck">Index Page: %s</string>
+    <string name="mirrorConnectivityTitle">Mirror Connectivity</string>
 </resources>

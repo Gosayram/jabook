@@ -91,4 +91,7 @@ interface RutrackerApi {
      */
     @GET("profile.php?mode=viewprofile")
     suspend fun getProfile(): Response<ResponseBody>
+
+    @GET("index.php")
+    suspend fun getIndex(): Response<ResponseBody>
 }

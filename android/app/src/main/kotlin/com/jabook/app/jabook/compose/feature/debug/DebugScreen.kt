@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.feature.debug
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,6 +26,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -49,13 +53,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.jabook.app.jabook.compose.data.debug.AuthDebugInfo
-import com.jabook.app.jabook.compose.data.debug.ValidationResults
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.debug.toIcon
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 
 /**
  * Debug screen with tabs for Logs, Mirrors, Cache, and RuTracker Diagnostics.
@@ -68,13 +67,13 @@ fun DebugScreen(
     onNavigateBack: () -> Unit,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf(
-        stringResource(R.string.logsTab),
-        stringResource(R.string.rutrackerTab),
-        stringResource(R.string.mirrorsTooltip),
-        stringResource(R.string.cacheSectionTitle)
-    )
+    val tabs =
+        listOf(
+            stringResource(R.string.logsTab),
+            stringResource(R.string.rutrackerTab),
+            stringResource(R.string.mirrorsTooltip),
+            stringResource(R.string.cacheSectionTitle),
+        )
 
     val uiState by viewModel.uiState.collectAsState()
     val logs by viewModel.logs.collectAsState()
@@ -212,84 +211,87 @@ private fun CacheTab() {
 @Composable
 private fun RutrackerTab(viewModel: DebugViewModel) {
     val authInfo by viewModel.authDebugInfo.collectAsState()
-    
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
     ) {
         // Auth Status
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = stringResource(R.string.authStatusTitle),
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Spacer(modifier = Modifier.padding(4.dp))
-                
+
                 Text(
-                    text = if (authInfo?.isAuthenticated == true) 
-                        stringResource(R.string.authenticated) 
-                    else 
-                        stringResource(R.string.notAuthenticated)
+                    text =
+                        if (authInfo?.isAuthenticated == true) {
+                            stringResource(R.string.authenticated)
+                        } else {
+                            stringResource(R.string.notAuthenticated)
+                        },
                 )
-                
+
                 authInfo?.lastAuthError?.let { error ->
                     Spacer(modifier = Modifier.padding(4.dp))
                     Text(
                         text = stringResource(R.string.lastErrorPrefix, error),
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.padding(8.dp))
-        
+
         // Validation Results
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = stringResource(R.string.validationResultsTitle),
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Spacer(modifier = Modifier.padding(4.dp))
-                
+
                 Text(stringResource(R.string.profilePageCheck, authInfo?.validationResults?.profilePageCheck.toIcon()))
                 Text(stringResource(R.string.searchPageCheck, authInfo?.validationResults?.searchPageCheck.toIcon()))
                 Text(stringResource(R.string.indexPageCheck, authInfo?.validationResults?.indexPageCheck.toIcon()))
             }
         }
-        
+
         Spacer(modifier = Modifier.padding(8.dp))
-        
+
         // Mirror Connectivity
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = stringResource(R.string.mirrorConnectivityTitle),
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
                 )
                 Spacer(modifier = Modifier.padding(4.dp))
-                
+
                 authInfo?.mirrorConnectivity?.forEach { (mirror, isReachable) ->
                     Row {
                         Text(
                             text = "${if (isReachable) "✅" else "❌"} $mirror",
-                            modifier = Modifier.padding(vertical = 2.dp)
+                            modifier = Modifier.padding(vertical = 2.dp),
                         )
                     }
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.padding(16.dp))
-        
+
         // Refresh button
         Button(
             onClick = { viewModel.refreshAuthDebugInfo() },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null)
             Spacer(modifier = Modifier.padding(4.dp))
