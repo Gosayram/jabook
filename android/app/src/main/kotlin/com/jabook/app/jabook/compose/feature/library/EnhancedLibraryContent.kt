@@ -28,11 +28,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.designsystem.component.BookCard
 import com.jabook.app.jabook.compose.domain.model.Book
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 
 /**
  * Enhanced library screen with sections for different book lists.

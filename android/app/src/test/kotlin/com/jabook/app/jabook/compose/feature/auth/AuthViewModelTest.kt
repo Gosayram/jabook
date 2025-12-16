@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
@@ -36,8 +38,6 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {

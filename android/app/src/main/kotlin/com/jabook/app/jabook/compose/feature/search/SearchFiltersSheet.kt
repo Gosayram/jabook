@@ -46,11 +46,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.jabook.app.jabook.compose.domain.model.SearchFilters
-import androidx.compose.ui.res.stringResource
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.domain.model.SearchFilters
 
 /**
  * Bottom sheet for search filters.
@@ -172,7 +172,7 @@ fun SearchFiltersSheet(
 
 private fun formatSize(mb: Float): String {
     if (mb >= 1024) {
-        return stringResource(R.string.1fGb).format(mb / 1024)
+        return String.format("%.1f GB", mb / 1024)
     }
-    return stringResource(R.string.0fMb).format(mb)
+    return String.format("%.0f MB", mb)
 }

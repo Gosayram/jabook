@@ -44,7 +44,9 @@ class RutrackerAuthService
         }
 
         /**
-         * Attempt login.
+         * Attempt login with detailed logging.
+         * Based on Flutter's robust authentication implementation.
+         *
          * @return AuthResult with status and optional captcha data
          */
         suspend fun login(
@@ -52,36 +54,93 @@ class RutrackerAuthService
             captchaCode: String? = null,
             captchaData: CaptchaData? = null,
         ): AuthResult {
+            val operationId = "auth_login_${System.currentTimeMillis()}"
+            val startTime = System.currentTimeMillis()
+
             return withContext(Dispatchers.IO) {
                 try {
-                    // Encode params to CP1251
-                    val postData = buildPostData(credentials, captchaCode, captchaData)
-                    val body = postData.toRequestBody(MEDIA_TYPE_FORM)
+                    Log.i(TAG, "[$operationId] Authentication started for user: ${credentials.username}")
 
+                    // Step 1: Encode credentials to CP1251
+                    val encodeStart = System.currentTimeMillis()
+                    val postData = buildPostData(credentials, captchaCode, captchaData)
+                    val encodeDuration = System.currentTimeMillis() - encodeStart
+                    Log.d(TAG, "[$operationId] Credentials encoded to CP1251 (${encodeDuration}ms), data length: ${postData.length}")
+
+                    // Step 2: Build request body
+                    val body = postData.toRequestBody(MEDIA_TYPE_FORM)
+                    Log.d(TAG, "[$operationId] Request body built, content-type: application/x-www-form-urlencoded")
+
+                    // Step 3: Send login request
+                    val requestStart = System.currentTimeMillis()
                     val response = api.login(body)
+                    val requestDuration = System.currentTimeMillis() - requestStart
+
+                    val statusCode = response.code()
+                    val isRedirect = statusCode in 300..399
                     val rawBody = response.body()?.bytes() ?: ByteArray(0)
 
-                    // Decode body
+                    Log.i(
+                        TAG,
+                        "[$operationId] Login request completed: HTTP $statusCode, " +
+                            "isRedirect=$isRedirect, responseSize=${rawBody.size} bytes (${requestDuration}ms)",
+                    )
+
+                    // Step 4: Decode response body
+                    val decodeStart = System.currentTimeMillis()
                     val bodyString = String(rawBody, CP1251)
+                    val decodeDuration = System.currentTimeMillis() - decodeStart
+                    Log.d(TAG, "[$operationId] Response decoded from CP1251 (${decodeDuration}ms)")
 
-                    if (!response.isSuccessful && response.code() !in 300..399) {
-                        return@withContext AuthResult.Error("HTTP Error: ${response.code()}")
+                    // Step 5: Check HTTP status
+                    if (!response.isSuccessful && statusCode !in 300..399) {
+                        val errorMsg = "HTTP Error: $statusCode"
+                        Log.w(TAG, "[$operationId] Authentication failed: $errorMsg")
+                        return@withContext AuthResult.Error(errorMsg)
                     }
 
-                    // Use Parser
-                    return@withContext when (val result = parser.parseLoginResponse(bodyString)) {
-                        is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Success -> AuthResult.Success
-                        is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Error ->
-                            AuthResult.Error(
-                                result.message,
-                            )
-                        is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Captcha ->
-                            AuthResult.Captcha(
-                                result.data,
-                            )
+                    // Step 6: Parse login response
+                    val parseStart = System.currentTimeMillis()
+                    val result = parser.parseLoginResponse(bodyString)
+                    val parseDuration = System.currentTimeMillis() - parseStart
+
+                    val totalDuration = System.currentTimeMillis() - startTime
+                    Log.d(
+                        TAG,
+                        "[$operationId] Response parsed (${parseDuration}ms), " +
+                            "total: ${totalDuration}ms (encode:${encodeDuration}ms, request:${requestDuration}ms, parse:${parseDuration}ms)",
+                    )
+
+                    // Step 7: Convert result and log outcome
+                    return@withContext when (result) {
+                        is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Success -> {
+                            Log.i(TAG, "[$operationId] ✅ Authentication successful (${totalDuration}ms)")
+                            AuthResult.Success
+                        }
+                        is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Error -> {
+                            Log.w(TAG, "[$operationId] ❌ Authentication failed: ${result.message} (${totalDuration}ms)")
+                            AuthResult.Error(result.message)
+                        }
+                        is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Captcha -> {
+                            Log.i(TAG, "[$operationId] 🔐 Captcha required (${totalDuration}ms)")
+                            AuthResult.Captcha(result.data)
+                        }
                     }
+                } catch (e: java.net.SocketTimeoutException) {
+                    val duration = System.currentTimeMillis() - startTime
+                    Log.e(TAG, "[$operationId] ⏱️ Request timeout (${duration}ms)", e)
+                    return@withContext AuthResult.Error("Request timeout. Please check your connection.")
+                } catch (e: java.net.UnknownHostException) {
+                    val duration = System.currentTimeMillis() - startTime
+                    Log.e(TAG, "[$operationId] 🌐 Network error - unknown host (${duration}ms)", e)
+                    return@withContext AuthResult.Error("Cannot reach RuTracker. Check internet connection or try another mirror.")
+                } catch (e: java.io.IOException) {
+                    val duration = System.currentTimeMillis() - startTime
+                    Log.e(TAG, "[$operationId] 🌐 Network I/O error (${duration}ms)", e)
+                    return@withContext AuthResult.Error("Network error: ${e.message}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Login failed", e)
+                    val duration = System.currentTimeMillis() - startTime
+                    Log.e(TAG, "[$operationId] ⚠️ Unexpected error (${duration}ms)", e)
                     return@withContext AuthResult.Error(e.message ?: "Unknown error")
                 }
             }

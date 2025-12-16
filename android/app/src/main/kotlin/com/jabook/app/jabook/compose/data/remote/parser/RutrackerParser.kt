@@ -314,50 +314,55 @@ class RutrackerParser
         }
 
         /**
-         * Parse login response HTML.
+         * Parse login response from HTML with detailed logging.
          *
          * @param html HTML content from login response
          * @return LoginResult
          */
         fun parseLoginResponse(html: String): LoginResult {
-            try {
-                // Check for explicit errors first
-                if (html.contains("неверный пароль", ignoreCase = true) ||
-                    html.contains("wrong password", ignoreCase = true)
-                ) {
-                    return LoginResult.Error("Invalid username or password")
-                }
+            android.util.Log.d(TAG, "Parsing login response, html length: ${html.length}")
 
-                // Check for captcha
-                if (html.contains("введите код подтверждения", ignoreCase = true) ||
-                    html.contains("site want captcha", ignoreCase = true)
-                ) {
-                    val captchaData = extractCaptcha(html)
-                    return if (captchaData != null) {
-                        LoginResult.Captcha(captchaData)
-                    } else {
-                        LoginResult.Error("Captcha required but failed to parse")
-                    }
-                }
+            val document = Jsoup.parse(html)
+            val lowerHtml = html.lowercase()
 
-                // Check for success indicators
-                // "Выход" (Logout) link presence or redirect to index
-                if (html.contains("login.php?logout=1") || html.contains("mode=logout")) {
-                    return LoginResult.Success
-                }
-
-                // Fallback: if no error and no captcha, assume success or redirect happened
-                // This is a heuristic; ideally we rely on cookies, but this parser checks the body.
-                // If the body is small/empty it might be a redirect.
-                if (html.length < 500 && !html.contains("login")) {
-                    return LoginResult.Success
-                }
-
-                return LoginResult.Error("Unknown login response")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse login response", e)
-                return LoginResult.Error(e.message ?: "Parser Error")
+            // Check for ERROR: wrong username/password (PRIORITY!)
+            // Russian: "неверный пароль" or "неверное имя пользователя"
+            if (lowerHtml.contains("неверн")) {
+                android.util.Log.w(TAG, "Login failed: Invalid credentials detected in response")
+                return LoginResult.Error("Invalid username or password")
             }
+
+            // Check for CAPTCHA requirement
+            // Russian: "введите код подтверждения" or "введите код с картинки"
+            if (lowerHtml.contains("введите код") || lowerHtml.contains("cap_code")) {
+                android.util.Log.i(TAG, "Captcha required, extracting captcha data")
+                val captchaData = extractCaptcha(html)
+                if (captchaData != null) {
+                    return LoginResult.Captcha(captchaData)
+                } else {
+                    android.util.Log.w(TAG, "Captcha detected but extraction failed")
+                    return LoginResult.Error("Captcha required but couldn't extract data")
+                }
+            }
+
+            // Check for successful login
+            // Success indicators:
+            // - No login form present
+            // - Logout link present
+            // - User profile links
+            val hasLoginForm = lowerHtml.contains("name=\\\"login_username\\\"")
+            val hasLogout =
+                lowerHtml.contains("login.php?logout=1") ||
+                    lowerHtml.contains("mode=logout")
+
+            if (!hasLoginForm || hasLogout) {
+                android.util.Log.i(TAG, "Login successful (hasLoginForm=$hasLoginForm, hasLogout=$hasLogout)")
+                return LoginResult.Success
+            }
+
+            // Unknown error
+            android.util.Log.w(TAG, "Login failed: Unknown error (no specific markers found)")
+            return LoginResult.Error("Authentication failed. Please try again.")
         }
 
         private fun extractCaptcha(html: String): com.jabook.app.jabook.compose.domain.model.CaptchaData? {

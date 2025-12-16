@@ -50,15 +50,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
 import com.jabook.app.jabook.compose.domain.model.HistorySortOrder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 
 /**
  * Download History Screen.
@@ -327,7 +327,7 @@ private fun HistoryCard(
  * Format timestamp to readable date.
  */
 private fun formatDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat(stringResource(R.string.ddmmyyyyHhmm), Locale.getDefault())
+    val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
 
@@ -339,5 +339,5 @@ private fun formatBytes(bytes: Long): String =
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> String.format(stringResource(R.string.2fGb), bytes / (1024.0 * 1024.0 * 1024.0))
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     }

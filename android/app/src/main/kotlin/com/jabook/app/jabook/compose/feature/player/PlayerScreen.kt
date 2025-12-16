@@ -57,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -66,11 +67,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.lyricist.LocalStrings
 import coil3.compose.AsyncImage
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 import kotlin.time.Duration.Companion.milliseconds
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 
 /**
  * Player screen - full screen audio player.
@@ -338,7 +338,14 @@ private fun PlayerContent(
                             } else {
                                 Icons.Filled.PlayArrow
                             },
-                        contentDescription = if (state.isPlaying) stringResource(R.string.pauseButton) else stringResource(R.string.playButton),
+                        contentDescription =
+                            if (state.isPlaying) {
+                                stringResource(
+                                    R.string.pauseButton,
+                                )
+                            } else {
+                                stringResource(R.string.playButton)
+                            },
                         modifier = Modifier.size(48.dp),
                     )
                 }

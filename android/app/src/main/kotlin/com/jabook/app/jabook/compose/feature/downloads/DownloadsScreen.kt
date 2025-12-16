@@ -51,16 +51,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.domain.model.DownloadFilter
 import com.jabook.app.jabook.compose.domain.model.DownloadInfo
 import com.jabook.app.jabook.compose.domain.model.DownloadPriority
 import com.jabook.app.jabook.compose.domain.model.DownloadState
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 
 /**
  * Downloads screen showing active downloads.
@@ -344,5 +344,5 @@ private fun formatBytes(bytes: Long): String =
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> String.format(stringResource(R.string.2fGb), bytes / (1024.0 * 1024.0 * 1024.0))
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     }

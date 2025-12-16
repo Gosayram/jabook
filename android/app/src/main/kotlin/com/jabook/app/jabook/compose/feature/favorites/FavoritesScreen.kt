@@ -55,13 +55,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.ui.favorites.FavoritesViewModel
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 
 /**
  * Favorites screen displaying user's favorite audiobooks.
@@ -334,7 +334,14 @@ private fun FavoriteListItem(
                 IconButton(onClick = onToggleFavorite) {
                     Icon(
                         if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = if (isFavorite) stringResource(R.string.removeFromFavorites) else stringResource(R.string.addToFavorites),
+                        contentDescription =
+                            if (isFavorite) {
+                                stringResource(
+                                    R.string.removeFromFavorites,
+                                )
+                            } else {
+                                stringResource(R.string.addToFavorites)
+                            },
                         tint = if (isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

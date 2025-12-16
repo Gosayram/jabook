@@ -20,11 +20,11 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.compose.ui.res.stringResource
 import androidx.core.app.NotificationCompat
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import android.app.NotificationManager as AndroidNotificationManager
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 
 /**
  * Helper class for creating notifications for AudioPlayerService.
