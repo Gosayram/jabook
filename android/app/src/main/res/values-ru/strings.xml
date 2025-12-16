@@ -1970,10 +1970,6 @@
     <string name="noBooksInLibrary">В вашей библиотеке пока нет книг.\nДобавьте книги, чтобы начать!</string>
     <string name="storagePermissionRequired">Для сканирования книг требуется разрешение на доступ к хранилищу</string>
     <string name="foundBooksMessage">Найдено книг: %1$d</string>
-    <!-- Отмена -->
-    <string name="cancel1">Отмена</string>
-    <!-- Очистить все избранное? -->
-    <string name="clearAllFavorites1">Очистить все избранное?</string>
     <!-- Выбрать -->
     <string name="select">Выбрать</string>
     <!-- Это приведет к удалению всех любимых аудиокниг. Это действие невозможно отменить. -->

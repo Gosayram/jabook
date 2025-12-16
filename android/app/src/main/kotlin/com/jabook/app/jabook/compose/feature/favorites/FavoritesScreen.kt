@@ -357,7 +357,7 @@ private fun ClearAllFavoritesDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.clearAllFavorites1)) },
+        title = { Text(stringResource(R.string.clearAllFavoritesTitle)) },
         text = {
             Text(stringResource(R.string.thisWillRemoveAllFavoriteAudiobooksThisActionCanno))
         },
@@ -368,7 +368,7 @@ private fun ClearAllFavoritesDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel1))
+                Text(stringResource(R.string.cancel))
             }
         },
     )
