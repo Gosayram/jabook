@@ -213,6 +213,16 @@ class StringResourceMigrator:
         # All lowercase technical identifiers (method names, variables)
         if text.islower() and len(text) > 3 and ' ' not in text:
             return True
+            
+        # Format specifiers (e.g. %.2f, %d, %s)
+        if '%' in text and re.search(r'%[\d\.]*[dfs]', text):
+            return True
+
+        # Date format patterns (e.g. dd.MM.yyyy, HH:mm)
+        # Heuristic: contains date/time characters and separators
+        if re.search(r'[dMyHhms]{2,}', text) and ('.' in text or ':' in text or '/' in text or '-' in text):
+             if 'yyyy' in text or 'HH:mm' in text or 'dd.MM' in text:
+                 return True
         
         # Looks good - likely UI text
         return False

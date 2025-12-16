@@ -2062,16 +2062,7 @@
     <string name="отменитьТаймер">Отменить таймер</string>
     <!-- Повторить -->
     <string name="повторить">Повторить</string>
-    <!-- %.0f МБ -->
-    <string name="0fMb">%.0f МБ</string>
-    <!-- %.1f ГБ -->
-    <string name="1fGb">%.1f ГБ</string>
-    <!-- %.2f ГБ -->
-    <string name="2fGb">%.2f ГБ</string>
-    <!-- %.2f КБ -->
-    <string name="2fKb">%.2f КБ</string>
-    <!-- %.2f МБ -->
-    <string name="2fMb">%.2f МБ</string>
+
     <!-- Добавьте аудиокниги, чтобы начать -->
     <string name="addAudiobooksToGetStarted">Добавьте аудиокниги, чтобы начать</string>
     <!-- Все книги -->
@@ -2116,8 +2107,7 @@
     <string name="darkTheme">Темная тема</string>
     <!-- Данные: Ошибка -->
     <string name="dataError">Данные: Ошибка</string>
-    <!-- дд.ММ.гггг ЧЧ:мм -->
-    <string name="ddmmyyyyHhmm">дд.ММ.гггг ЧЧ:мм</string>
+
     <!-- Удалить выбранное -->
     <string name="deleteSelected">Удалить выбранное</string>
     <!-- УСТАРЕВАНИЕ -->

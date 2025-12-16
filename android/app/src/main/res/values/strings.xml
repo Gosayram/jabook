@@ -2056,16 +2056,7 @@
     <string name="отменитьТаймер">Отменить таймер</string>
     <!-- Повторить -->
     <string name="повторить">Повторить</string>
-    <!-- %.0f MB -->
-    <string name="0fMb">%.0f MB</string>
-    <!-- %.1f GB -->
-    <string name="1fGb">%.1f GB</string>
-    <!-- %.2f GB -->
-    <string name="2fGb">%.2f GB</string>
-    <!-- %.2f KB -->
-    <string name="2fKb">%.2f KB</string>
-    <!-- %.2f MB -->
-    <string name="2fMb">%.2f MB</string>
+
     <!-- Add audiobooks to get started -->
     <string name="addAudiobooksToGetStarted">Add audiobooks to get started</string>
     <!-- All Books -->
@@ -2110,8 +2101,7 @@
     <string name="darkTheme">Dark Theme</string>
     <!-- Data: Error -->
     <string name="dataError">Data: Error</string>
-    <!-- dd.MM.yyyy HH:mm -->
-    <string name="ddmmyyyyHhmm">dd.MM.yyyy HH:mm</string>
+
     <!-- Delete selected -->
     <string name="deleteSelected">Delete selected</string>
     <!-- Developer -->
