@@ -35,6 +35,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Bottom sheet for managing sleep timer.
@@ -135,7 +137,7 @@ fun SleepTimerSheet(
                             },
                             modifier = Modifier.fillMaxWidth(0.7f),
                         ) {
-                            Text("Отменить таймер")
+                            Text(stringResource(R.string.отменитьТаймер))
                         }
                     }
                 }

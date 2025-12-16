@@ -34,6 +34,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 @Composable
 fun PermissionScreen(
@@ -135,7 +137,7 @@ fun PermissionScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Grant Storage Access")
+                Text(stringResource(R.string.grantStorageAccess))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -147,7 +149,7 @@ fun PermissionScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Open Settings")
+                Text(stringResource(R.string.openSettingsButton))
             }
         }
     }

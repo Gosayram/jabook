@@ -69,6 +69,8 @@ import coil3.compose.AsyncImage
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Player screen - full screen audio player.
@@ -127,7 +129,7 @@ fun PlayerScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                         )
                     }
                 },
@@ -315,7 +317,7 @@ private fun PlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.SkipPrevious,
-                        contentDescription = "Previous chapter",
+                        contentDescription = stringResource(R.string.previousChapter),
                         modifier = Modifier.size(48.dp),
                     )
                 }
@@ -348,7 +350,7 @@ private fun PlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.SkipNext,
-                        contentDescription = "Next chapter",
+                        contentDescription = stringResource(R.string.nextChapter),
                         modifier = Modifier.size(48.dp),
                     )
                 }
@@ -368,7 +370,7 @@ private fun PlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Speed,
-                        contentDescription = "Playback Speed",
+                        contentDescription = stringResource(R.string.playbackSpeedTitle),
                         modifier = Modifier.padding(end = 8.dp),
                     )
                     Text(text = "${playbackSpeed}x")
@@ -381,7 +383,7 @@ private fun PlayerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Timer,
-                        contentDescription = "Sleep Timer",
+                        contentDescription = stringResource(R.string.sleepTimer),
                         modifier = Modifier.padding(end = 8.dp),
                     )
                     Text(

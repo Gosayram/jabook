@@ -57,6 +57,8 @@ import com.jabook.app.jabook.compose.domain.model.HistorySortOrder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Download History Screen.
@@ -80,7 +82,7 @@ fun DownloadHistoryScreen(
         topBar = {
             if (!searchActive) {
                 TopAppBar(
-                    title = { Text("Download History") },
+                    title = { Text(stringResource(R.string.downloadHistory)) },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -102,42 +104,42 @@ fun DownloadHistoryScreen(
                             onDismissRequest = { showSortMenu = false },
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Newest First") },
+                                text = { Text(stringResource(R.string.newestFirst)) },
                                 onClick = {
                                     viewModel.updateSortOrder(HistorySortOrder.DATE_DESC)
                                     showSortMenu = false
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Oldest First") },
+                                text = { Text(stringResource(R.string.oldestFirst)) },
                                 onClick = {
                                     viewModel.updateSortOrder(HistorySortOrder.DATE_ASC)
                                     showSortMenu = false
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Title A-Z") },
+                                text = { Text(stringResource(R.string.titleAz)) },
                                 onClick = {
                                     viewModel.updateSortOrder(HistorySortOrder.TITLE_ASC)
                                     showSortMenu = false
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Title Z-A") },
+                                text = { Text(stringResource(R.string.titleZa)) },
                                 onClick = {
                                     viewModel.updateSortOrder(HistorySortOrder.TITLE_DESC)
                                     showSortMenu = false
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Largest First") },
+                                text = { Text(stringResource(R.string.largestFirst)) },
                                 onClick = {
                                     viewModel.updateSortOrder(HistorySortOrder.SIZE_DESC)
                                     showSortMenu = false
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Smallest First") },
+                                text = { Text(stringResource(R.string.smallestFirst)) },
                                 onClick = {
                                     viewModel.updateSortOrder(HistorySortOrder.SIZE_ASC)
                                     showSortMenu = false
@@ -155,7 +157,7 @@ fun DownloadHistoryScreen(
                             onDismissRequest = { showOptionsMenu = false },
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Clear All History") },
+                                text = { Text(stringResource(R.string.clearAllHistory)) },
                                 onClick = {
                                     viewModel.clearHistory()
                                     showOptionsMenu = false
@@ -165,7 +167,7 @@ fun DownloadHistoryScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Delete Old (>30 days)") },
+                                text = { Text(stringResource(R.string.deleteOld30Days)) },
                                 onClick = {
                                     viewModel.deleteOldEntries()
                                     showOptionsMenu = false
@@ -196,7 +198,7 @@ fun DownloadHistoryScreen(
                     androidx.compose.material3.TextField(
                         value = searchQuery,
                         onValueChange = viewModel::updateSearchQuery,
-                        placeholder = { Text("Search books...") },
+                        placeholder = { Text(stringResource(R.string.searchBooks)) },
                         leadingIcon = { Icon(Icons.Default.Search, null) },
                         trailingIcon = {
                             IconButton(onClick = {

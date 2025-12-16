@@ -1968,4 +1968,92 @@
     <string name="select">Select</string>
     <!-- This will remove all favorite audiobooks. This action cannot be undone. -->
     <string name="thisWillRemoveAllFavoriteAudiobooksThisActionCanno">This will remove all favorite audiobooks. This action cannot be undone.</string>
+    <!-- Available -->
+    <string name="available">Available</string>
+    <!-- Cache statistics - Coming soon -->
+    <string name="cacheStatisticsComingSoon">Cache statistics - Coming soon</string>
+    <!-- Cancel download -->
+    <string name="cancelDownload">Cancel download</string>
+    <!-- Clear All History -->
+    <string name="clearAllHistory">Clear All History</string>
+    <!-- Clear Cache? -->
+    <string name="clearCache">Clear Cache?</string>
+    <!-- Count -->
+    <string name="count">Count</string>
+    <!-- Delete Old (>30 days) -->
+    <string name="deleteOld30Days">Delete Old (&gt;30 days)</string>
+    <!-- Download History -->
+    <string name="downloadHistory">Download History</string>
+    <!-- Empty -->
+    <string name="empty">Empty</string>
+    <!-- Grant Storage Access -->
+    <string name="grantStorageAccess">Grant Storage Access</string>
+    <!-- Import Backup? -->
+    <string name="importBackup">Import Backup?</string>
+    <!-- Initializing... -->
+    <string name="initializing">Initializing...</string>
+    <!-- Initializing audio player... -->
+    <string name="initializingAudioPlayer">Initializing audio player...</string>
+    <!-- Largest First -->
+    <string name="largestFirst">Largest First</string>
+    <!-- $leechers -->
+    <string name="leechers">$leechers</string>
+    <!-- Leechers -->
+    <string name="leechers1">Leechers</string>
+    <!-- Loading logs... -->
+    <string name="loadingLogs">Loading logs...</string>
+    <!-- Mirrors testing - Coming soon -->
+    <string name="mirrorsTestingComingSoon">Mirrors testing - Coming soon</string>
+    <!-- Newest First -->
+    <string name="newestFirst">Newest First</string>
+    <!-- Next chapter -->
+    <string name="nextChapter">Next chapter</string>
+    <!-- No logs available -->
+    <string name="noLogsAvailable">No logs available</string>
+    <!-- Oldest First -->
+    <string name="oldestFirst">Oldest First</string>
+    <!-- Playback cannot be resumed automatically. Please open the app to continue. -->
+    <string name="playbackCannotBeResumedAutomaticallyPleaseOpenTheA">Playback cannot be resumed automatically. Please open the app to continue.</string>
+    <!-- Previous chapter -->
+    <string name="previousChapter">Previous chapter</string>
+    <!-- Priority: ${downloadInfo.priority.name} -->
+    <string name="priorityDownloadinfopriorityname">Priority: ${downloadInfo.priority.name}</string>
+    <!-- Priority menu -->
+    <string name="priorityMenu">Priority menu</string>
+    <!-- rutracker.nl -->
+    <string name="rutrackernl">rutracker.nl</string>
+    <!-- Search books... -->
+    <string name="searchBooks">Search books...</string>
+    <!-- $seeders -->
+    <string name="seeders">$seeders</string>
+    <!-- Seeders -->
+    <string name="seeders1">Seeders</string>
+    <!-- Share logs -->
+    <string name="shareLogs">Share logs</string>
+    <!-- Sleep Timer -->
+    <string name="sleepTimer">Sleep Timer</string>
+    <!-- Smallest First -->
+    <string name="smallestFirst">Smallest First</string>
+    <!-- Tap to open app and resume playback -->
+    <string name="tapToOpenAppAndResumePlayback">Tap to open app and resume playback</string>
+    <!-- Title A-Z -->
+    <string name="titleAz">Title A-Z</string>
+    <!-- Title Z-A -->
+    <string name="titleZa">Title Z-A</string>
+    <!-- Unavailable -->
+    <string name="unavailable">Unavailable</string>
+    <!-- Детали книги -->
+    <string name="деталиКниги">Детали книги</string>
+    <!-- Добавить -->
+    <string name="добавить">Добавить</string>
+    <!-- Добавить зеркало -->
+    <string name="добавитьЗеркало">Добавить зеркало</string>
+    <!-- Домен -->
+    <string name="домен">Домен</string>
+    <!-- Отмена -->
+    <string name="отмена">Отмена</string>
+    <!-- Отменить таймер -->
+    <string name="отменитьТаймер">Отменить таймер</string>
+    <!-- Повторить -->
+    <string name="повторить">Повторить</string>
 </resources>

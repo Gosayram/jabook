@@ -31,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Standard empty state screen with icon and message.
@@ -55,7 +57,7 @@ fun EmptyState(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = "Empty",
+            contentDescription = stringResource(R.string.empty),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 16.dp),
         )

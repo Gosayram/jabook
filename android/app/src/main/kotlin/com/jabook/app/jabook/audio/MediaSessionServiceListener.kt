@@ -5,6 +5,8 @@ import android.os.Build
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSessionService
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * MediaSessionService.Listener implementation.
@@ -76,11 +78,11 @@ class MediaSessionServiceListener(
                         NotificationHelper.CHANNEL_ID,
                     ).setSmallIcon(android.R.drawable.ic_media_play)
                     .setContentTitle("JaBook Audio")
-                    .setContentText("Tap to open app and resume playback")
+                    .setContentText(stringResource(R.string.tapToOpenAppAndResumePlayback))
                     .setStyle(
                         androidx.core.app.NotificationCompat
                             .BigTextStyle()
-                            .bigText("Playback cannot be resumed automatically. Please open the app to continue."),
+                            .bigText(stringResource(R.string.playbackCannotBeResumedAutomaticallyPleaseOpenTheA)),
                     ).setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
                     .setAutoCancel(true)
 

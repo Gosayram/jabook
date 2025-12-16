@@ -61,6 +61,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Topic Screen - displays detailed information about a RuTracker topic.
@@ -97,10 +99,10 @@ fun TopicScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Детали книги") },
+                title = { Text(stringResource(R.string.деталиКниги)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
@@ -108,7 +110,7 @@ fun TopicScreen(
         floatingActionButton = {
             if (uiState is TopicUiState.Success && authStatus is AuthStatus.Authenticated) {
                 FloatingActionButton(onClick = viewModel::downloadTorrent) {
-                    Icon(Icons.Filled.Download, contentDescription = "Download")
+                    Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.downloadButtonText))
                 }
             }
         },
@@ -266,11 +268,11 @@ private fun SeedersLeechersChip(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         AssistChip(
             onClick = {},
-            label = { Text("$seeders") },
+            label = { Text(stringResource(R.string.seeders)) },
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowUpward,
-                    contentDescription = "Seeders",
+                    contentDescription = stringResource(R.string.seeders1),
                     tint = Color(0xFF4CAF50), // Green
                 )
             },
@@ -278,11 +280,11 @@ private fun SeedersLeechersChip(
 
         AssistChip(
             onClick = {},
-            label = { Text("$leechers") },
+            label = { Text(stringResource(R.string.leechers)) },
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowDownward,
-                    contentDescription = "Leechers",
+                    contentDescription = stringResource(R.string.leechers1),
                     tint = Color(0xFFFF9800), // Orange
                 )
             },
@@ -373,7 +375,7 @@ private fun ErrorContent(
         Spacer(Modifier.height(16.dp))
 
         Button(onClick = onRetry) {
-            Text("Повторить")
+            Text(stringResource(R.string.повторить))
         }
     }
 }

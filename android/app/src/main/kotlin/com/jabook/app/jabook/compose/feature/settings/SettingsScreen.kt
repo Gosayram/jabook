@@ -62,6 +62,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cafe.adriel.lyricist.LocalStrings
 import com.jabook.app.jabook.compose.data.model.AppTheme
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Settings screen for app configuration.
@@ -328,7 +330,7 @@ fun SettingsScreen(
             if (showImportConfirmation) {
                 AlertDialog(
                     onDismissRequest = { showImportConfirmation = false },
-                    title = { Text("Import Backup?") },
+                    title = { Text(stringResource(R.string.importBackup)) },
                     text = {
                         Text(
                             "This will replace your current settings. Are you sure you want to continue?",
@@ -341,12 +343,12 @@ fun SettingsScreen(
                                 showImportConfirmation = false
                             },
                         ) {
-                            Text("Import")
+                            Text(stringResource(R.string.importButton))
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showImportConfirmation = false }) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.cancel))
                         }
                     },
                 )
@@ -451,7 +453,7 @@ fun SettingsScreen(
             if (showClearCacheDialog) {
                 AlertDialog(
                     onDismissRequest = { showClearCacheDialog = false },
-                    title = { Text("Clear Cache?") },
+                    title = { Text(stringResource(R.string.clearCache)) },
                     text = {
                         Text(
                             "This will delete ${cacheStats?.let { formatBytes(it.totalSize) } ?: "all"} of cached data. Continue?",
@@ -464,12 +466,12 @@ fun SettingsScreen(
                                 showClearCacheDialog = false
                             },
                         ) {
-                            Text("Clear")
+                            Text(stringResource(R.string.clearButton))
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showClearCacheDialog = false }) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.cancel))
                         }
                     },
                 )
@@ -839,7 +841,7 @@ private fun MirrorOption(
             healthStatus == true -> {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Available",
+                    contentDescription = stringResource(R.string.available),
                     tint =
                         androidx.compose.ui.graphics
                             .Color(0xFF4CAF50),
@@ -853,7 +855,7 @@ private fun MirrorOption(
             healthStatus == false -> {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Unavailable",
+                    contentDescription = stringResource(R.string.unavailable),
                     tint =
                         androidx.compose.ui.graphics
                             .Color(0xFFF44336),
@@ -908,7 +910,7 @@ private fun AddMirrorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Добавить зеркало") },
+        title = { Text(stringResource(R.string.добавитьЗеркало)) },
         text = {
             Column {
                 Text(
@@ -919,8 +921,8 @@ private fun AddMirrorDialog(
                 OutlinedTextField(
                     value = currentValue,
                     onValueChange = onValueChange,
-                    label = { Text("Домен") },
-                    placeholder = { Text("rutracker.nl") },
+                    label = { Text(stringResource(R.string.домен)) },
+                    placeholder = { Text(stringResource(R.string.rutrackernl)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -934,12 +936,12 @@ private fun AddMirrorDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Добавить")
+                Text(stringResource(R.string.добавить))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.отмена))
             }
         },
     )

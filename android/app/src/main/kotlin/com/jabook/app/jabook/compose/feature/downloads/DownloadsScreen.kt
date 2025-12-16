@@ -59,6 +59,8 @@ import com.jabook.app.jabook.compose.domain.model.DownloadFilter
 import com.jabook.app.jabook.compose.domain.model.DownloadInfo
 import com.jabook.app.jabook.compose.domain.model.DownloadPriority
 import com.jabook.app.jabook.compose.domain.model.DownloadState
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Downloads screen showing active downloads.
@@ -81,12 +83,12 @@ fun DownloadsScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Downloads") },
+                title = { Text(stringResource(R.string.downloads)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                         )
                     }
                 },
@@ -190,7 +192,7 @@ private fun DownloadCard(
                                 DownloadPriority.NORMAL -> Icons.Default.Remove
                                 DownloadPriority.LOW -> Icons.Default.ArrowDownward
                             },
-                        contentDescription = "Priority: ${downloadInfo.priority.name}",
+                        contentDescription = stringResource(R.string.priorityDownloadinfopriorityname),
                         tint =
                             when (downloadInfo.priority) {
                                 DownloadPriority.URGENT -> MaterialTheme.colorScheme.error
@@ -222,7 +224,7 @@ private fun DownloadCard(
                         IconButton(onClick = { showPriorityMenu = true }) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Priority menu",
+                                contentDescription = stringResource(R.string.priorityMenu),
                             )
                         }
 
@@ -246,7 +248,7 @@ private fun DownloadCard(
                     IconButton(onClick = onCancel) {
                         Icon(
                             imageVector = Icons.Default.Cancel,
-                            contentDescription = "Cancel download",
+                            contentDescription = stringResource(R.string.cancelDownload),
                         )
                     }
                 }

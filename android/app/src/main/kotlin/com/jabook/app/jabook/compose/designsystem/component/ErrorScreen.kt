@@ -31,6 +31,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Standard error screen with icon, message, and optional retry action.
@@ -55,7 +57,7 @@ fun ErrorScreen(
     ) {
         Icon(
             imageVector = Icons.Filled.Error,
-            contentDescription = "Error",
+            contentDescription = stringResource(R.string.error),
             tint = MaterialTheme.colorScheme.error,
             modifier = Modifier.padding(bottom = 16.dp),
         )
@@ -70,7 +72,7 @@ fun ErrorScreen(
         if (onRetry != null) {
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = onRetry) {
-                Text("Retry")
+                Text(stringResource(R.string.retryButton))
             }
         }
     }

@@ -48,6 +48,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Debug screen with tabs for Logs, Mirrors, and Cache.
@@ -77,15 +79,15 @@ fun DebugScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Debug") },
+                title = { Text(stringResource(R.string.navDebugText)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.refreshDebugData() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
                 },
             )
@@ -94,7 +96,7 @@ fun DebugScreen(
             if (selectedTab == 0) {
                 // Show Share FAB only on Logs tab
                 FloatingActionButton(onClick = { viewModel.shareLogs() }) {
-                    Icon(Icons.Default.Share, contentDescription = "Share logs")
+                    Icon(Icons.Default.Share, contentDescription = stringResource(R.string.shareLogs))
                 }
             }
         },
@@ -144,7 +146,7 @@ private fun LogsTab(
     ) {
         when (uiState) {
             is DebugUiState.Loading -> {
-                Text("Loading logs...")
+                Text(stringResource(R.string.loadingLogs))
             }
             is DebugUiState.Error -> {
                 Text(
@@ -154,7 +156,7 @@ private fun LogsTab(
             }
             else -> {
                 if (logs.isEmpty()) {
-                    Text("No logs available")
+                    Text(stringResource(R.string.noLogsAvailable))
                 } else {
                     Text(
                         text = logs,
@@ -176,7 +178,7 @@ private fun MirrorsTab(viewModel: DebugViewModel) {
                 .fillMaxSize()
                 .padding(16.dp),
     ) {
-        Text("Mirrors testing - Coming soon")
+        Text(stringResource(R.string.mirrorsTestingComingSoon))
         // TODO: Implement mirrors list and testing
     }
 }
@@ -189,7 +191,7 @@ private fun CacheTab() {
                 .fillMaxSize()
                 .padding(16.dp),
     ) {
-        Text("Cache statistics - Coming soon")
+        Text(stringResource(R.string.cacheStatisticsComingSoon))
         // TODO: Implement cache statistics
     }
 }

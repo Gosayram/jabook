@@ -23,6 +23,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import android.app.NotificationManager as AndroidNotificationManager
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Helper class for creating notifications for AudioPlayerService.
@@ -61,7 +63,7 @@ internal class NotificationHelper(
         return NotificationCompat
             .Builder(context, CHANNEL_ID)
             .setContentTitle("JaBook Audio")
-            .setContentText("Initializing audio player...")
+            .setContentText(stringResource(R.string.initializingAudioPlayer))
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -81,7 +83,7 @@ internal class NotificationHelper(
         return NotificationCompat
             .Builder(context, CHANNEL_ID)
             .setContentTitle("JaBook Audio")
-            .setContentText("Initializing...")
+            .setContentText(stringResource(R.string.initializing))
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)

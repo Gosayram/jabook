@@ -52,6 +52,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * WebView screen for displaying web content.
@@ -120,7 +122,7 @@ fun WebViewScreen(
                                     } else {
                                         Icons.Filled.Close
                                     },
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.back),
                             )
                         }
                     },

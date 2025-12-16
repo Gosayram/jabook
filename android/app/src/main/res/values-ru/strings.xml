@@ -1974,4 +1974,92 @@
     <string name="select">Выбрать</string>
     <!-- Это приведет к удалению всех любимых аудиокниг. Это действие невозможно отменить. -->
     <string name="thisWillRemoveAllFavoriteAudiobooksThisActionCanno">Это приведет к удалению всех любимых аудиокниг. Это действие невозможно отменить.</string>
+    <!-- Доступный -->
+    <string name="available">Доступный</string>
+    <!-- Статистика кэша – скоро появится -->
+    <string name="cacheStatisticsComingSoon">Статистика кэша – скоро появится</string>
+    <!-- Отменить загрузку -->
+    <string name="cancelDownload">Отменить загрузку</string>
+    <!-- Очистить всю историю -->
+    <string name="clearAllHistory">Очистить всю историю</string>
+    <!-- Очистить кэш? -->
+    <string name="clearCache">Очистить кэш?</string>
+    <!-- Считать -->
+    <string name="count">Считать</string>
+    <!-- Удалить старое (>30 дней) -->
+    <string name="deleteOld30Days">Удалить старое (&gt;30 дней)</string>
+    <!-- История загрузки -->
+    <string name="downloadHistory">История загрузки</string>
+    <!-- Пустой -->
+    <string name="empty">Пустой</string>
+    <!-- Предоставить доступ к хранилищу -->
+    <string name="grantStorageAccess">Предоставить доступ к хранилищу</string>
+    <!-- Импортировать резервную копию? -->
+    <string name="importBackup">Импортировать резервную копию?</string>
+    <!-- Инициализация... -->
+    <string name="initializing">Инициализация...</string>
+    <!-- Инициализация аудиоплеера... -->
+    <string name="initializingAudioPlayer">Инициализация аудиоплеера...</string>
+    <!-- Самый большой первый -->
+    <string name="largestFirst">Самый большой первый</string>
+    <!-- $личеры -->
+    <string name="leechers">$личеры</string>
+    <!-- Пиявки -->
+    <string name="leechers1">Пиявки</string>
+    <!-- Загрузка журналов... -->
+    <string name="loadingLogs">Загрузка журналов...</string>
+    <!-- Тестирование зеркал - Скоро -->
+    <string name="mirrorsTestingComingSoon">Тестирование зеркал - Скоро</string>
+    <!-- Новейшие сначала -->
+    <string name="newestFirst">Новейшие сначала</string>
+    <!-- Следующая глава -->
+    <string name="nextChapter">Следующая глава</string>
+    <!-- Нет доступных журналов -->
+    <string name="noLogsAvailable">Нет доступных журналов</string>
+    <!-- Сначала самый старый -->
+    <string name="oldestFirst">Сначала самый старый</string>
+    <!-- Воспроизведение не может быть возобновлено автоматически. Пожалуйста, откройте приложение, чтобы продолжить. -->
+    <string name="playbackCannotBeResumedAutomaticallyPleaseOpenTheA">Воспроизведение не может быть возобновлено автоматически. Пожалуйста, откройте приложение, чтобы продолжить.</string>
+    <!-- Предыдущая глава -->
+    <string name="previousChapter">Предыдущая глава</string>
+    <!-- Приоритет: ${downloadInfo.priority.name} -->
+    <string name="priorityDownloadinfopriorityname">Приоритет: ${downloadInfo.priority.name}</string>
+    <!-- Приоритетное меню -->
+    <string name="priorityMenu">Приоритетное меню</string>
+    <!-- rutracker.nl -->
+    <string name="rutrackernl">rutracker.nl</string>
+    <!-- Поиск книг... -->
+    <string name="searchBooks">Поиск книг...</string>
+    <!-- $сеялки -->
+    <string name="seeders">$сеялки</string>
+    <!-- Сеялки -->
+    <string name="seeders1">Сеялки</string>
+    <!-- Поделиться журналами -->
+    <string name="shareLogs">Поделиться журналами</string>
+    <!-- Таймер сна -->
+    <string name="sleepTimer">Таймер сна</string>
+    <!-- Самый маленький первый -->
+    <string name="smallestFirst">Самый маленький первый</string>
+    <!-- Нажмите, чтобы открыть приложение и возобновить воспроизведение. -->
+    <string name="tapToOpenAppAndResumePlayback">Нажмите, чтобы открыть приложение и возобновить воспроизведение.</string>
+    <!-- Название от А до Я -->
+    <string name="titleAz">Название от А до Я</string>
+    <!-- Название Z-A -->
+    <string name="titleZa">Название Z-A</string>
+    <!-- Недоступно -->
+    <string name="unavailable">Недоступно</string>
+    <!-- Детали книги -->
+    <string name="деталиКниги">Детали книги</string>
+    <!-- Добавить -->
+    <string name="добавить">Добавить</string>
+    <!-- Добавить зеркало -->
+    <string name="добавитьЗеркало">Добавить зеркало</string>
+    <!-- Домен -->
+    <string name="домен">Домен</string>
+    <!-- Отмена -->
+    <string name="отмена">Отмена</string>
+    <!-- Отменить таймер -->
+    <string name="отменитьТаймер">Отменить таймер</string>
+    <!-- Повторить -->
+    <string name="повторить">Повторить</string>
 </resources>

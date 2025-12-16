@@ -49,6 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
+import androidx.compose.ui.res.stringResource
+import com.jabook.app.jabook.R
 
 /**
  * Bottom sheet for search filters.
@@ -96,7 +98,7 @@ fun SearchFiltersSheet(
                     style = MaterialTheme.typography.titleLarge,
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Filled.Close, contentDescription = "Close")
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close))
                 }
             }
 
@@ -108,7 +110,7 @@ fun SearchFiltersSheet(
             OutlinedTextField(
                 value = minSeeders,
                 onValueChange = { if (it.all { char -> char.isDigit() }) minSeeders = it },
-                label = { Text("Count") },
+                label = { Text(stringResource(R.string.count)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -137,7 +139,7 @@ fun SearchFiltersSheet(
                         onDismiss()
                     },
                 ) {
-                    Text("Reset")
+                    Text(stringResource(R.string.resetButton))
                 }
                 Spacer(Modifier.width(8.dp))
                 Button(
@@ -159,7 +161,7 @@ fun SearchFiltersSheet(
                         onDismiss()
                     },
                 ) {
-                    Text("Apply")
+                    Text(stringResource(R.string.applyButton))
                 }
             }
 
