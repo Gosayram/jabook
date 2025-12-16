@@ -259,3 +259,6 @@ android/app/schemas/
 
 # Localization backup directory
 .backup/
+
+# Virtual environment
+scripts/.venv/
