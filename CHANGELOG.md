@@ -18,18 +18,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `autoPlay` parameter to `loadAndPlayAudio` to control immediate playback after loading
 - Add debug screen for viewing and sharing logs and integrate it into navigation
 - Add download history screen with search and sort functionality, and enable drag-and-drop reordering for the download queue
 - Add dynamic color support to `JabookTheme` for Android 12+ devices
 - Add fade-in and fade-out navigation transitions to PlayerScreen
 - Add favorites feature with new data model, DAO, repository, ViewModel, and database migration
 - Add Favorites screen with navigation and audiobook management capabilities
+- Add grouped and grid library view modes with user preference persistence
 - Add login concurrency protection and multi-tier authentication validation
 - Add Makefile targets for string migration and improve script to reuse existing strings and enhance translation robustness
 - Add online audiobook search via Rutracker
 - Add permission management and refactor Rutracker authentication to improve WebView cookie synchronization
+- Add RuTracker debug tab displaying authentication status, validation results, and mirror connectivity
+- Add RuTracker diagnostics tab displaying authentication status, validation results, and mirror connectivity
 - Add script to automate Kotlin Compose hardcoded string migration to resources
 - Add swipe gestures and notification controls to mini player
+- Auto-initialize player with book data upon UI state success and update the library list view icon to be auto-mirrored
+- Enhance Rutracker authentication with detailed logging, robust error handling, and new debug info
+- Feat: Implement seek forward/backward controls in the player and refactor playback speed persistence to user preferences
 - Implement app data backup and restore functionality for settings and book metadata
 - Implement cache management in settings, allowing users to view and clear app cache
 - Implement custom audio notification manager with media session integration and enable shared element transitions
@@ -53,11 +60,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add `run-beta` and `run-beta-debug` Makefile targets and update `install-beta` to use `adb`
+- Add Apache 2.0 license header to all files
 - Add comprehensive architecture documentation in Quarto format with 45+ Mermaid diagrams
 - Add deprecation suppression for hiltViewModel in feature screens
 - Add logic to request necessary permissions on app launch based on Android version
 - Add topic details screen with its viewmodel and navigation route
 - Added ignore packages for copyright validation
+- Added ktlint-strace for make hook
 - Auto markdown formatter
 - Broaden string migration's file and technical string exclusion rules and streamline string replacement
 - Bump Android SDK versions, enable ABI splits with universal APK generation, remove desugaring, and adapt Makefile for new APK output structure
@@ -69,7 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean up unused imports and apply minor formatting to settings and topic screens
 - Enhance foreground service initialization for Android 14+ and standardize notification ID
 - Enhance screen reader experience by adding semantic descriptions and roles to various UI components
+- Enhance string migration script safety and remove problematic string resources
 - Exclude test_results folder for copyright heads
+- Externalize favorite button content descriptions using string resources
 - Externalize hardcoded strings in various Compose screens and add new string resources
 - Extract MainActivity logic to handlers and fix missing methods
 - Gitignore
@@ -80,9 +91,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement jumpToTrack functionality, increase playback position saving frequency, and add extensive logging for audio bridge events
 - Improve changelog generation mechanism
 - Improve code formatting and organize imports
+- Improve string resource handling by consolidating access, fixing formatting, and removing obsolete keys
 - Improve translate quality and checking dry-run mechanism
 - Make Text() string extraction regex more flexible to include additional arguments
 - Migrate player to new bridge API with Kotlin state persistence
+- Migrate string management from custom `Strings.kt` to standard `R.string` resources
 - Migrate to DataStore + Tink encryption for credentials
 - Migrate to Java 21 and replace kapt with KSP for Room
 - Polish navigation UI and resolve deprecations
@@ -90,6 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-change clean params for linting
 - Refactor audio player service architecture
 - Refine hardcoded string detection in `migrate_strings.py` to exclude non-UI files and technical strings
+- Remove format strings for numbers and dates from `strings.xml` and update migration script to identify them as technical
+- Remove Lyricist i18n dependencies
 - Remove redundant changelog generation confirmation message
 - Remove unused backup build file
 - Remove unused calls for defalt params into compile
@@ -98,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reorganize makefile automation and fix hack scripts
 - Streamline Gradle configuration, enable build caching, remove integration test plugin workaround, disable default WorkManager initialization, and generalize DataMigrationManager's DataStore usage
 - Unification into one abstraction for easily linting
+- Update copyright script to target Kotlin files instead of Dart and remove Flutter-specific exclusions
 - Update Hilt `@ApplicationContext` parameter annotation syntax and add `viewModel` import
 - Update Hilt ViewModel imports and add trailing comma to enum definition + enhance downloads mechanism
 - Update ProGuard rules by removing Flutter configurations and adding rules for Compose, Hilt, Room, DataStore, Media3, and WorkManager
@@ -113,6 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix playback position restoration and prevent playlist loading conflicts
 - Flutter media start
 - HttpCache validation
+- Migrate copyright management scripts from Dart to Kotlin files
 - Move Lyricist's `ProvideStrings` to `JabookApp` and update `LocalStrings` imports
 - Player validation
 - Prevent KTagLib FDSAN errors by using separate file descriptors for metadata/artwork and enhance debug logs with comprehensive device info
@@ -125,6 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolve kotlinx-serialization version conflict in kapt and suppress manifest warnings
 - Room version and build namespace for validation
 - Update beta APK installation to use arm64-v8a specific build
+- Use default view list icon instead of auto-mirrored in library screen
 
 ### Security
 
