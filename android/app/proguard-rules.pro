@@ -183,6 +183,8 @@
 # Keep data models (for JSON/serialization)
 -keep class com.jabook.app.jabook.compose.domain.model.** { *; }
 -keep class com.jabook.app.jabook.compose.data.local.entity.** { *; }
+-keep class com.jabook.app.jabook.compose.navigation.** { *; }
+-keep class com.jabook.app.jabook.compose.data.backup.** { *; }
 
 # ============================================================================
 # R8 Optimization Settings
