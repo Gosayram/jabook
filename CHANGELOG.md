@@ -19,8 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `@Keep` annotation to navigation route data classes
+- Add `AuthInterceptor` for automatic re-authentication, integrate it into `NetworkModule`, and remove `PlayerScreen`'s `TopAppBar`
 - Add `autoPlay` parameter to `loadAndPlayAudio` to control immediate playback after loading
 - Add back navigation icon to the player screen with localized content description
+- Add customizable font selection to app settings, allowing users to choose between default and system fonts
 - Add debug screen for viewing and sharing logs and integrate it into navigation
 - Add download history screen with search and sort functionality, and enable drag-and-drop reordering for the download queue
 - Add dynamic color support to `JabookTheme` for Android 12+ devices
@@ -28,20 +30,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add favorites feature with new data model, DAO, repository, ViewModel, and database migration
 - Add Favorites screen with navigation and audiobook management capabilities
 - Add grouped and grid library view modes with user preference persistence
+- Add loading and error states to BookCard cover image
 - Add login concurrency protection and multi-tier authentication validation
 - Add Makefile targets for string migration and improve script to reuse existing strings and enhance translation robustness
 - Add online audiobook search via Rutracker
 - Add per-book customizable rewind and fast-forward durations via a new player settings sheet
 - Add permission management and refactor Rutracker authentication to improve WebView cookie synchronization
 - Add ProGuard rules to keep navigation and backup classes from obfuscation
+- Add pull-to-refresh to LibraryScreen to trigger library scan with runtime storage permission checks
 - Add RuTracker debug tab displaying authentication status, validation results, and mirror connectivity
 - Add RuTracker diagnostics tab displaying authentication status, validation results, and mirror connectivity
 - Add script to automate Kotlin Compose hardcoded string migration to resources
 - Add support for custom audiobook scan paths with dedicated settings UI and database persistence
 - Add swipe gestures and notification controls to mini player
+- Apply zero window insets to TopAppBar in multiple feature screens, refine search bar logic, and update debug/topic screen titles
 - Auto-initialize player with book data upon UI state success and update the library list view icon to be auto-mirrored
 - Enhance backup/restore to include books, favorites, search history, scan paths, and extended settings
 - Enhance Rutracker authentication with detailed logging, robust error handling, and new debug info
+- Enhance settings screen with improved cache clearing messages, customizable slider value formatting, and direct links to GitHub resources
 - Externalize UI strings to resources for internationalization in player, settings, and library features
 - Feat: Implement seek forward/backward controls in the player and refactor playback speed persistence to user preferences
 - Implement adaptive navigation using window size classes to display NavigationRail or BottomBar
@@ -52,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement download history tracking and add new download speed and concurrency settings
 - Implement local audiobook scanning, sleep timer, and playback speed controls, and display download messages
 - Implement main navigation and integrate core screens
+- Implement MediaInfo parsing and models, and display details on the topic screen
 - Implement multi-stage cookie persistence using new DAO, entity, and manager, integrated into the authentication flow and database
 - Implement native streaming torrent downloads
 - Implement user-configurable download location and Wi-Fi only download settings, and add library scanning functionality
@@ -79,6 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added ignore packages for copyright validation
 - Added ktlint-strace for make hook
 - Adjust Makefile build output paths by removing 'android/' prefix and trailing slashes
+- Adjust SettingsScreen layout by adding top bar window insets, removing a horizontal divider, and reducing a spacer's height
+- Apply system bar padding to player screen content and set fixed height and zero elevation for the navigation bar
 - Auto markdown formatter
 - Broaden string migration's file and technical string exclusion rules and streamline string replacement
 - Bump Android SDK versions, enable ABI splits with universal APK generation, remove desugaring, and adapt Makefile for new APK output structure
@@ -96,7 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exclude test_results folder for copyright heads
 - Externalize favorite button content descriptions using string resources
 - Externalize hardcoded strings in various Compose screens and add new string resources
+- Externalize library folder management and other UI strings for localization in settings screens
 - Extract MainActivity logic to handlers and fix missing methods
+- Fmt
 - Gitignore
 - Ignore backup file
 - Ignore xml backup
@@ -129,14 +140,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed all flutter code from project; prepate to migrate native Kotlin code
 - Rename string resource keys to English for improved clarity and maintainability
 - Reorganize makefile automation and fix hack scripts
+- Replace hardcoded "Logged in as" string with a string resource
 - Script for Android startup log analysis and enhance Kotlin serialization ProGuard rules for R8 Full Mode
+- Simplify BookCard image loading state handling and improve accessibility
 - Simplify ProGuard rules by removing redundant library-specific configurations and refining Kotlinx Serialization rules for `@SerialName`
 - Streamline Gradle configuration, enable build caching, remove integration test plugin workaround, disable default WorkManager initialization, and generalize DataMigrationManager's DataStore usage
 - Unification into one abstraction for easily linting
 - Update copyright script to target Kotlin files instead of Dart and remove Flutter-specific exclusions
 - Update Hilt `@ApplicationContext` parameter annotation syntax and add `viewModel` import
 - Update Hilt ViewModel imports and add trailing comma to enum definition + enhance downloads mechanism
+- Update Kotlinx Serialization ProGuard rules for enhanced R8 compatibility, adding specific keeps for core classes, `@SerialName` fields, and navigation routes
 - Update ProGuard rules by removing Flutter configurations and adding rules for Compose, Hilt, Room, DataStore, Media3, and WorkManager
+- Use Provider for AuthRepository injection in AuthInterceptor and condense its KDoc
 
 ### Fixed
 
@@ -157,6 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move Lyricist's `ProvideStrings` to `JabookApp` and update `LocalStrings` imports
 - Player validation
 - Prevent KTagLib FDSAN errors by using separate file descriptors for metadata/artwork and enhance debug logs with comprehensive device info
+- Remove `TopAppBar` from player screen and simplify search placeholder text
 - Remove old BridgeModule between Kotlin and Flutter
 - Removed unused flutter params
 - Removed unused flutter tests, implementations, libs
@@ -166,6 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolve kotlinx-serialization version conflict in kapt and suppress manifest warnings
 - Room version and build namespace for validation
 - Rutracker search parsing by adding cover URL extraction and enhancing selector robustness for existing fields
+- Temporarily disable mini-player functionality and its PlayerViewModel instantiation, adding TODOs for future state management
 - Update beta APK installation to use arm64-v8a specific build
 - Use default view list icon instead of auto-mirrored in library screen
 
