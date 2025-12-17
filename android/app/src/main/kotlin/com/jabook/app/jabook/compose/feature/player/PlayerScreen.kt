@@ -237,7 +237,7 @@ private fun PlayerContent(
         modifier = modifier.fillMaxSize(),
         contentPadding =
             androidx.compose.foundation.layout
-                .PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+                .PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -467,7 +467,25 @@ private fun PlayerContent(
                         modifier = Modifier.padding(end = 8.dp),
                     )
                     Text(
-                        text = String.format("%.2f", playbackSpeed).trimEnd('0').trimEnd('.') + "x",
+                        text =
+                            run {
+                                val formattedSpeed =
+                                    if (playbackSpeed % 1.0f == 0.0f) {
+                                        // Whole number - show without decimal
+                                        playbackSpeed.toInt().toString()
+                                    } else {
+                                        // Decimal - format with locale
+                                        val locale = java.util.Locale.getDefault()
+                                        val isRussian = locale.language == "ru"
+                                        val symbols =
+                                            java.text.DecimalFormatSymbols(
+                                                if (isRussian) locale else java.util.Locale.US,
+                                            )
+                                        val formatter = java.text.DecimalFormat("#.##", symbols)
+                                        formatter.format(playbackSpeed)
+                                    }
+                                "${formattedSpeed}x"
+                            },
                     )
                 }
 

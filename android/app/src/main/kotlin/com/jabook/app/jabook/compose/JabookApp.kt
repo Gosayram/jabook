@@ -144,11 +144,8 @@ fun JabookApp(
 
                         // Bottom navigation bar
                         JabookBottomBar(
-                            destinations = appState.topLevelDestinations,
-                            currentDestination = appState.currentDestination,
-                            onNavigateToDestination = { destination ->
-                                appState.navigateToTopLevelDestination(destination)
-                            },
+                            appState = appState,
+                            onNavigateToDestination = appState::navigateToTopLevelDestination,
                         )
                     }
                 }
@@ -195,31 +192,29 @@ fun JabookApp(
 /**
  * Bottom navigation bar for top-level destinations.
  *
- * @param destinations List of top-level destinations to show
  * @param currentDestination Current navigation destination
  * @param onNavigateToDestination Callback when a destination is selected
  */
 @Composable
 private fun JabookBottomBar(
-    destinations: List<TopLevelDestination>,
-    currentDestination: androidx.navigation.NavDestination?,
+    appState: JabookAppState,
     onNavigateToDestination: (TopLevelDestination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavigationBar(
-        modifier = modifier.height(64.dp), // Reduced from ~72-80dp
+        modifier = Modifier.height(88.dp),
         tonalElevation = 0.dp,
     ) {
-        destinations.forEach { destination ->
-            val isSelected = currentDestination.isTopLevelDestinationInHierarchy(destination)
+        appState.topLevelDestinations.forEach { destination ->
+            val selected = appState.currentDestination.isTopLevelDestinationInHierarchy(destination)
 
             NavigationBarItem(
-                selected = isSelected,
+                selected = selected,
                 onClick = { onNavigateToDestination(destination) },
                 icon = {
                     Icon(
                         imageVector =
-                            if (isSelected) {
+                            if (selected) {
                                 destination.selectedIcon
                             } else {
                                 destination.unselectedIcon
