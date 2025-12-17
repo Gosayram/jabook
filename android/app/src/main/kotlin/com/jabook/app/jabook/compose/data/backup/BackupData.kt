@@ -26,8 +26,9 @@ data class BackupData(
     val timestamp: String,
     val settings: AppSettings,
     val bookMetadata: List<BookBackup> = emptyList(),
-    val favorites: List<String> = emptyList(),
-    val searchHistory: List<String> = emptyList(),
+    val favorites: List<FavoriteBackup> = emptyList(),
+    val searchHistory: List<SearchHistoryBackup> = emptyList(),
+    val scanPaths: List<ScanPathBackup> = emptyList(),
 )
 
 /**
@@ -40,10 +41,22 @@ data class AppSettings(
     val theme: String,
     val autoPlayNext: Boolean,
     val playbackSpeed: Float,
+    val limitDownloadSpeed: Boolean = false,
+    val maxDownloadSpeedKb: Int = 0,
+    val maxConcurrentDownloads: Int = 1,
+    val rewindDurationSeconds: Int = 10,
+    val forwardDurationSeconds: Int = 30,
+    val languageCode: String = "system",
+    val useDynamicColors: Boolean = true,
+    // Notifications
+    val notificationsEnabled: Boolean = true,
+    val downloadNotifications: Boolean = true,
+    val playerNotifications: Boolean = true,
     // Proto Settings
     val wifiOnlyDownload: Boolean,
     val downloadPath: String,
     val currentMirror: String,
+    val customMirrors: List<String> = emptyList(),
     val autoSwitchMirror: Boolean,
 )
 
@@ -59,6 +72,51 @@ data class BookBackup(
     val lastPosition: Long = 0,
     val duration: Long = 0,
     val coverPath: String? = null,
+    val totalProgress: Float = 0f,
+    val isCompleted: Boolean = false,
+    val downloadStatus: String = "NOT_DOWNLOADED",
+    val addedDate: Long = 0,
+    val rewindDuration: Int? = null,
+    val forwardDuration: Int? = null,
+)
+
+/**
+ * Scan path backup.
+ */
+@Serializable
+data class ScanPathBackup(
+    val path: String,
+    val addedDate: Long,
+)
+
+/**
+ * Search history backup.
+ */
+@Serializable
+data class SearchHistoryBackup(
+    val query: String,
+    val timestamp: Long,
+    val resultCount: Int = 0,
+)
+
+/**
+ * Favorite book backup.
+ */
+@Serializable
+data class FavoriteBackup(
+    val bookId: String,
+    val title: String,
+    val author: String,
+    val category: String,
+    val size: String,
+    val magnetUrl: String,
+    val coverUrl: String? = null,
+    val performer: String? = null,
+    val genres: String? = null,
+    val addedDate: Long,
+    val duration: String? = null,
+    val bitrate: String? = null,
+    val audioCodec: String? = null,
 )
 
 /**

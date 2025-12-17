@@ -19,6 +19,10 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
+import com.jabook.app.jabook.compose.data.local.entity.BookEntity
+import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
+import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
+import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
@@ -74,8 +78,9 @@ class BackupService
                             timestamp = DateTimeFormatter.formatCurrentISO8601(),
                             settings = collectSettings(),
                             bookMetadata = collectBookMetadata(),
-                            favorites = emptyList(), // TODO: when favorites implemented
-                            searchHistory = emptyList(), // TODO: when history implemented
+                            favorites = collectFavorites(),
+                            searchHistory = collectSearchHistory(),
+                            scanPaths = collectScanPaths(),
                         )
 
                     // 2. Serialize to JSON
@@ -139,16 +144,20 @@ class BackupService
                     stats.settingsRestored = true
                     Log.d(TAG, "Settings restored")
 
-                    // Import book metadata (TODO: when Room entities ready)
-                    backupData.bookMetadata.forEach { book ->
-                        // TODO: database.bookDao().insert(book.toEntity())
-                        Log.d(TAG, "Book metadata available: ${book.title}")
-                    }
+                    // Import book metadata
+                    restoreBooks(backupData.bookMetadata)
                     stats.booksRestored = backupData.bookMetadata.size
 
-                    // Import favorites & history (TODO: when implemented)
+                    // Import favorites
+                    restoreFavorites(backupData.favorites)
                     stats.favoritesRestored = backupData.favorites.size
+
+                    // Import search history
+                    restoreSearchHistory(backupData.searchHistory)
                     stats.historyRestored = backupData.searchHistory.size
+
+                    // Import scan paths
+                    restoreScanPaths(backupData.scanPaths)
 
                     Log.d(TAG, "Import complete: $stats")
                     stats
@@ -173,6 +182,17 @@ class BackupService
                 downloadPath = protoSettings.downloadPath,
                 currentMirror = protoSettings.selectedMirror,
                 autoSwitchMirror = protoSettings.autoSwitchMirror,
+                limitDownloadSpeed = protoSettings.limitDownloadSpeed,
+                maxDownloadSpeedKb = protoSettings.maxDownloadSpeedKb,
+                maxConcurrentDownloads = protoSettings.maxConcurrentDownloads,
+                rewindDurationSeconds = protoSettings.rewindDurationSeconds,
+                forwardDurationSeconds = protoSettings.forwardDurationSeconds,
+                languageCode = protoSettings.languageCode,
+                useDynamicColors = protoSettings.useDynamicColors,
+                notificationsEnabled = protoSettings.notificationsEnabled,
+                downloadNotifications = protoSettings.downloadNotifications,
+                playerNotifications = protoSettings.playerNotifications,
+                customMirrors = protoSettings.customMirrorsList,
             )
         }
 
@@ -180,10 +200,72 @@ class BackupService
          * Collects book metadata from database.
          */
         private suspend fun collectBookMetadata(): List<BookBackup> {
-            // TODO: Query Room database for books when entities ready
-            // For now, return empty list
-            return emptyList()
+            val books = database.booksDao().getAllBooksFlow().first()
+            return books.map { entity ->
+                BookBackup(
+                    id = entity.id,
+                    title = entity.title,
+                    author = entity.author,
+                    lastPosition = entity.currentPosition,
+                    duration = entity.totalDuration,
+                    coverPath = entity.coverUrl,
+                    totalProgress = entity.totalProgress,
+                    isCompleted = entity.currentPosition >= entity.totalDuration * 0.98, // heuristic
+                    downloadStatus = entity.downloadStatus,
+                    addedDate = entity.addedDate,
+                    rewindDuration = entity.rewindDuration,
+                    forwardDuration = entity.forwardDuration,
+                )
+            }
         }
+
+        /**
+         * Collects scan paths.
+         */
+        private suspend fun collectScanPaths(): List<ScanPathBackup> =
+            database.scanPathDao().getAllPathsList().map { entity ->
+                ScanPathBackup(
+                    path = entity.path,
+                    addedDate = entity.addedDate,
+                )
+            }
+
+        private suspend fun collectFavorites(): List<FavoriteBackup> {
+            try {
+                return database.favoriteDao().getAllFavorites().first().map { entity ->
+                    FavoriteBackup(
+                        bookId = entity.topicId,
+                        title = entity.title,
+                        author = entity.author,
+                        category = entity.category,
+                        size = entity.size,
+                        magnetUrl = entity.magnetUrl,
+                        coverUrl = entity.coverUrl,
+                        performer = entity.performer,
+                        genres = entity.genres,
+                        addedDate = DateTimeFormatter.parseISO8601ToMillis(entity.addedDate),
+                        duration = entity.duration,
+                        bitrate = entity.bitrate,
+                        audioCodec = entity.audioCodec,
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to collect favorites", e)
+                return emptyList()
+            }
+        }
+
+        /**
+         * Collects search history.
+         */
+        private suspend fun collectSearchHistory(): List<SearchHistoryBackup> =
+            database.searchHistoryDao().getRecentSearches(limit = 1000).first().map { entity ->
+                SearchHistoryBackup(
+                    query = entity.query,
+                    timestamp = entity.timestamp,
+                    resultCount = entity.resultCount,
+                )
+            }
 
         /**
          * Restores settings from backup.
@@ -191,8 +273,12 @@ class BackupService
         private suspend fun restoreSettings(settings: AppSettings) {
             try {
                 // Restore UserPreferences
-                val theme = AppTheme.valueOf(settings.theme)
-                userPreferencesRepository.setTheme(theme)
+                try {
+                    val theme = AppTheme.valueOf(settings.theme)
+                    userPreferencesRepository.setTheme(theme)
+                } catch (e: Exception) {
+                    // Ignore invalid theme enum
+                }
                 userPreferencesRepository.setAutoPlayNext(settings.autoPlayNext)
                 userPreferencesRepository.setPlaybackSpeed(settings.playbackSpeed)
 
@@ -201,11 +287,148 @@ class BackupService
                 protoSettingsRepository.updateDownloadPath(settings.downloadPath)
                 protoSettingsRepository.updateSelectedMirror(settings.currentMirror)
                 protoSettingsRepository.updateAutoSwitchMirror(settings.autoSwitchMirror)
+                protoSettingsRepository.updateLimitDownloadSpeed(settings.limitDownloadSpeed)
+                protoSettingsRepository.updateMaxDownloadSpeed(settings.maxDownloadSpeedKb)
+                protoSettingsRepository.updateMaxConcurrentDownloads(settings.maxConcurrentDownloads)
+                protoSettingsRepository.updateAudioSettings(
+                    rewindSeconds = settings.rewindDurationSeconds,
+                    forwardSeconds = settings.forwardDurationSeconds,
+                )
+                protoSettingsRepository.updateLanguage(settings.languageCode)
+                protoSettingsRepository.updateDynamicColors(settings.useDynamicColors)
+                protoSettingsRepository.updateNotificationSettings(
+                    notificationsEnabled = settings.notificationsEnabled,
+                    downloadNotifications = settings.downloadNotifications,
+                    playerNotifications = settings.playerNotifications,
+                )
+                settings.customMirrors.forEach {
+                    protoSettingsRepository.addCustomMirror(it)
+                }
 
                 Log.d(TAG, "All settings restored successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to restore some settings", e)
-                throw e
+                // Don't throw, allow partial restore
+            }
+        }
+
+        /**
+         * Restores books to database.
+         */
+        private suspend fun restoreBooks(books: List<BookBackup>) {
+            val dao = database.booksDao()
+            // We only want to update existing books or insert phantom ones?
+            // Actually, for backup/restore, if we don't have the book files, we can't really "restore" the book
+            // fully unless we treat it as a not-downloaded book.
+            // Strategy: Check if book exists. If yes, update progress/settings.
+            // If no, we can skip OR insert as "NOT_DOWNLOADED".
+            // Let's insert as NOT_DOWNLOADED to preserve history/progress if user eventually re-downloads/re-adds.
+            // However, we need more metadata to insert a valid book (description, chapters etc used to be needed).
+            // BookEntity requires title, author, totalDuration etc.
+            // BookBackup has most of this.
+
+            books.forEach { backup ->
+                val existing = dao.getBookById(backup.id)
+                if (existing != null) {
+                    // Update existing
+                    dao.updatePlaybackProgress(
+                        bookId = backup.id,
+                        position = backup.lastPosition,
+                        progress = backup.totalProgress,
+                        chapterIndex = 0, // We don't backup chapter index currently, default to 0 or calc
+                        timestamp = System.currentTimeMillis(), // or maintain last played
+                    )
+                    dao.updateBookSettings(
+                        bookId = backup.id,
+                        rewindDuration = backup.rewindDuration,
+                        forwardDuration = backup.forwardDuration,
+                    )
+                } else {
+                    // Insert new (stub for history)
+                    // Note: We might lack chapters structure here, so playback might be broken until scan/download
+                    dao.insertBook(
+                        BookEntity(
+                            id = backup.id,
+                            title = backup.title,
+                            author = backup.author,
+                            coverUrl = backup.coverPath,
+                            description = null,
+                            totalDuration = backup.duration,
+                            currentPosition = backup.lastPosition,
+                            totalProgress = backup.totalProgress,
+                            downloadStatus = "NOT_DOWNLOADED", // Reset download status
+                            addedDate = backup.addedDate,
+                            rewindDuration = backup.rewindDuration,
+                            forwardDuration = backup.forwardDuration,
+                            isFavorite = false, // Will be set by favorite restore
+                        ),
+                    )
+                }
+            }
+        }
+
+        /**
+         * Restores favorites.
+         */
+        private suspend fun restoreFavorites(favorites: List<FavoriteBackup>) {
+            val bookDao = database.booksDao()
+            val favoriteDao = database.favoriteDao()
+
+            favorites.forEach { fav ->
+                // 1. Mark as favorite in BooksDao (if exists as a book)
+                bookDao.updateFavoriteStatus(fav.bookId, true)
+
+                // 2. Insert into FavoriteDao (for remote/search results)
+                val addedDateStr = DateTimeFormatter.formatISO8601(fav.addedDate)
+                favoriteDao.insertFavorite(
+                    com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity(
+                        topicId = fav.bookId,
+                        title = fav.title,
+                        author = fav.author,
+                        category = fav.category,
+                        size = fav.size,
+                        magnetUrl = fav.magnetUrl,
+                        coverUrl = fav.coverUrl,
+                        performer = fav.performer,
+                        genres = fav.genres,
+                        addedDate = addedDateStr,
+                        addedToFavorites = addedDateStr, // Use addedDate as fallback
+                        duration = fav.duration,
+                        bitrate = fav.bitrate,
+                        audioCodec = fav.audioCodec,
+                    ),
+                )
+            }
+        }
+
+        /**
+         * Restores search history.
+         */
+        private suspend fun restoreSearchHistory(history: List<SearchHistoryBackup>) {
+            val dao = database.searchHistoryDao()
+            history.forEach { item ->
+                dao.insertSearch(
+                    SearchHistoryEntity(
+                        query = item.query,
+                        timestamp = item.timestamp,
+                        resultCount = item.resultCount,
+                    ),
+                )
+            }
+        }
+
+        /**
+         * Restores scan paths.
+         */
+        private suspend fun restoreScanPaths(paths: List<ScanPathBackup>) {
+            val dao = database.scanPathDao()
+            paths.forEach { item ->
+                dao.insertPath(
+                    ScanPathEntity(
+                        path = item.path,
+                        addedDate = item.addedDate,
+                    ),
+                )
             }
         }
 

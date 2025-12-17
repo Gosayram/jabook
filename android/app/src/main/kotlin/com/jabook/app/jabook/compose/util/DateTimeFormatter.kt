@@ -155,4 +155,20 @@ object DateTimeFormatter {
         val tz = getDeviceTimeZone()
         return tz.getOffset(System.currentTimeMillis()) / (1000 * 60)
     }
+
+    /**
+     * Parse ISO 8601 string to timestamp in milliseconds.
+     * Handles standard ISO format with 'T' separator and 'Z' timezone.
+     *
+     * @param isoString ISO 8601 formatted string
+     * @return Unix timestamp in milliseconds, or 0 if parsing fails
+     */
+    fun parseISO8601ToMillis(isoString: String): Long =
+        try {
+            val sdf = SimpleDateFormat(FORMAT_ISO_8601, Locale.US)
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
+            sdf.parse(isoString)?.time ?: 0L
+        } catch (e: Exception) {
+            0L
+        }
 }
