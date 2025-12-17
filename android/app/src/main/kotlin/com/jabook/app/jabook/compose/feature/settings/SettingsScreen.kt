@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.settings
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -63,6 +64,18 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.model.AppTheme
+
+private object GitHubUrls {
+    const val REPOSITORY = "https://github.com/Gosayram/jabook"
+    const val LICENSE = "$REPOSITORY/blob/main/LICENSE"
+    const val CHANGELOG = "$REPOSITORY/blob/main/CHANGELOG.md"
+    const val APACHE_LICENSE = "https://www.apache.org/licenses/LICENSE-2.0"
+
+    fun releaseTag(version: String): String {
+        val cleanVersion = version.replace("-dev", "").replace("-beta", "").replace("-prod", "")
+        return "$REPOSITORY/releases/tag/$cleanVersion"
+    }
+}
 
 /**
  * Settings screen for app configuration.
@@ -279,22 +292,22 @@ fun SettingsScreen(
             if (protoSettings.limitDownloadSpeed) {
                 SettingsSliderItem(
                     title = stringResource(R.string.maxSpeed),
-                    subtitle = "${protoSettings.maxDownloadSpeedKb} KB/s",
-                    value = protoSettings.maxDownloadSpeedKb.toFloat(),
+                    sliderValue = protoSettings.maxDownloadSpeedKb.toFloat(),
+                    onValueChange = { viewModel.updateMaxDownloadSpeed(it.toInt()) },
                     valueRange = 100f..10000f,
                     steps = 98,
-                    onValueChange = { viewModel.updateMaxDownloadSpeed(it.toInt()) },
+                    valueFormatter = { "${it.toInt()} KB/s" },
                 )
             }
 
             // Concurrent Downloads
             SettingsSliderItem(
                 title = stringResource(R.string.concurrentDownloads),
-                subtitle = "${protoSettings.maxConcurrentDownloads} downloads",
-                value = protoSettings.maxConcurrentDownloads.toFloat(),
-                valueRange = 1f..10f,
-                steps = 8,
+                sliderValue = protoSettings.maxConcurrentDownloads.toFloat(),
                 onValueChange = { viewModel.updateMaxConcurrentDownloads(it.toInt()) },
+                valueRange = 1f..5f,
+                steps = 3,
+                valueFormatter = { "${it.toInt()}" },
             )
 
             HorizontalDivider()
@@ -458,7 +471,7 @@ fun SettingsScreen(
             // Clear all cache button
             SettingsItem(
                 title = stringResource(R.string.clearAllCacheButton),
-                subtitle = cacheStats?.let { "Free up ${formatBytes(it.totalSize)}" } ?: "",
+                subtitle = cacheStats?.let { stringResource(R.string.freeUpCacheSize, formatBytes(it.totalSize)) } ?: "",
                 onClick = {
                     if (cacheOperation != CacheOperationState.Clearing) {
                         showClearCacheDialog = true
@@ -473,7 +486,10 @@ fun SettingsScreen(
                     title = { Text(stringResource(R.string.clearCache)) },
                     text = {
                         Text(
-                            "This will delete ${cacheStats?.let { formatBytes(it.totalSize) } ?: "all"} of cached data. Continue?",
+                            stringResource(
+                                R.string.clearCacheConfirmation,
+                                cacheStats?.let { formatBytes(it.totalSize) } ?: "all",
+                            ),
                         )
                     },
                     confirmButton = {
@@ -553,64 +569,30 @@ fun SettingsScreen(
 
             SettingsSliderItem(
                 title = stringResource(R.string.playbackSpeed),
-                subtitle = String.format("%.1fx", userPreferences?.playbackSpeed ?: 1.0f),
-                value = userPreferences?.playbackSpeed ?: 1.0f,
-                valueRange = 0.5f..2.0f,
-                steps = 14, // 0.5, 0.6, ..., 2.0
+                sliderValue = userPreferences?.playbackSpeed ?: 1.0f,
                 onValueChange = viewModel::updatePlaybackSpeed,
+                valueRange = 0.5f..2.0f,
+                steps = 14,
+                valueFormatter = { String.format("%.1fx", it) },
             )
 
             // Seek Intervals
             SettingsSliderItem(
                 title = stringResource(R.string.rewindDurationTitle),
-                subtitle =
-                    String.format(
-                        stringResource(R.string.secondsSuffix),
-                        if (protoSettings.rewindDurationSeconds >
-                            0
-                        ) {
-                            protoSettings.rewindDurationSeconds
-                        } else {
-                            10
-                        },
-                    ),
-                value =
-                    (
-                        if (protoSettings.rewindDurationSeconds > 0) {
-                            protoSettings.rewindDurationSeconds
-                        } else {
-                            10
-                        }
-                    ).toFloat(),
-                valueRange = 5f..60f,
-                steps = 10, // (60-5)/5 - 1 = 10 steps of size 5
+                sliderValue = protoSettings.rewindDurationSeconds.toFloat(),
                 onValueChange = { viewModel.updateAudioSettings(rewindSeconds = it.toInt()) },
+                valueRange = 5f..60f,
+                steps = 10,
+                valueFormatter = { "${it.toInt()}s" },
             )
 
             SettingsSliderItem(
                 title = stringResource(R.string.forwardDurationTitle),
-                subtitle =
-                    String.format(
-                        stringResource(R.string.secondsSuffix),
-                        if (protoSettings.forwardDurationSeconds >
-                            0
-                        ) {
-                            protoSettings.forwardDurationSeconds
-                        } else {
-                            30
-                        },
-                    ),
-                value =
-                    (
-                        if (protoSettings.forwardDurationSeconds > 0) {
-                            protoSettings.forwardDurationSeconds
-                        } else {
-                            30
-                        }
-                    ).toFloat(),
-                valueRange = 5f..60f,
-                steps = 10,
+                sliderValue = protoSettings.forwardDurationSeconds.toFloat(),
                 onValueChange = { viewModel.updateAudioSettings(forwardSeconds = it.toInt()) },
+                valueRange = 5f..120f,
+                steps = 22,
+                valueFormatter = { "${it.toInt()}s" },
             )
 
             // Reset Global Book Settings
@@ -655,6 +637,11 @@ fun SettingsScreen(
             SettingsItem(
                 title = stringResource(R.string.version),
                 subtitle = getVersionName(context),
+                onClick = {
+                    val url = GitHubUrls.releaseTag(getVersionName(context))
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    context.startActivity(intent)
+                },
             )
 
             HorizontalDivider()
@@ -666,7 +653,7 @@ fun SettingsScreen(
                     val intent =
                         android.content.Intent(
                             android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://github.com/Gosayram/jabook/blob/main/LICENSE"),
+                            android.net.Uri.parse(GitHubUrls.LICENSE),
                         )
                     context.startActivity(intent)
                 },
@@ -679,7 +666,7 @@ fun SettingsScreen(
                     val intent =
                         android.content.Intent(
                             android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://github.com/Gosayram/jabook/blob/main/CHANGELOG.md"),
+                            android.net.Uri.parse(GitHubUrls.CHANGELOG),
                         )
                     context.startActivity(intent)
                 },
@@ -692,7 +679,7 @@ fun SettingsScreen(
                     val intent =
                         android.content.Intent(
                             android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://github.com/Gosayram/jabook"),
+                            android.net.Uri.parse(GitHubUrls.REPOSITORY),
                         )
                     context.startActivity(intent)
                 },
@@ -705,7 +692,7 @@ fun SettingsScreen(
                     val intent =
                         android.content.Intent(
                             android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://www.apache.org/licenses/LICENSE-2.0"),
+                            android.net.Uri.parse(GitHubUrls.APACHE_LICENSE),
                         )
                     context.startActivity(intent)
                 },
@@ -827,13 +814,14 @@ private fun SettingsSwitchItem(
 private fun SettingsSliderItem(
     title: String,
     subtitle: String? = null,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int,
+    sliderValue: Float,
     onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
+    valueFormatter: (Float) -> String = { it.toString() },
     modifier: Modifier = Modifier,
 ) {
-    var sliderValue by remember(value) { mutableStateOf(value) }
+    var currentValue by remember(sliderValue) { mutableStateOf(sliderValue) }
 
     Column(
         modifier =
@@ -841,30 +829,67 @@ private fun SettingsSliderItem(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        // Title and subtitle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
 
-        if (subtitle != null) {
-            Spacer(modifier = Modifier.height(4.dp))
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Current value display
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = valueFormatter(currentValue),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Slider(
-            value = sliderValue,
-            onValueChange = { sliderValue = it },
-            onValueChangeFinished = { onValueChange(sliderValue) },
-            valueRange = valueRange,
-            steps = steps,
+        // Slider with min/max labels
+        Row(
             modifier = Modifier.fillMaxWidth(),
-        )
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Min label
+            Text(
+                text = valueFormatter(valueRange.start),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            // Slider
+            Slider(
+                value = currentValue,
+                onValueChange = { currentValue = it },
+                onValueChangeFinished = { onValueChange(currentValue) },
+                valueRange = valueRange,
+                steps = steps,
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+            )
+
+            // Max label
+            Text(
+                text = valueFormatter(valueRange.endInclusive),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

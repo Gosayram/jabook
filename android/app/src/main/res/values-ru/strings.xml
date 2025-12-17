@@ -1964,6 +1964,10 @@
     <string name="clearAllHistory">Очистить всю историю</string>
     <!-- Очистить кэш? -->
     <string name="clearCache">Очистить кэш?</string>
+    <!-- Освободить размер кэша -->
+    <string name="freeUpCacheSize">Освободить %s</string>
+    <!-- Подтверждение очистки кэша -->
+    <string name="clearCacheConfirmation">Это удалит %s кэшированных данных. Продолжить?</string>
     <!-- Считать -->
     <string name="count">Считать</string>
     <!-- Удалить старое (>30 дней) -->

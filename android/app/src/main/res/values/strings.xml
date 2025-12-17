@@ -1956,8 +1956,12 @@
     <string name="cancelDownload">Cancel download</string>
     <!-- Clear All History -->
     <string name="clearAllHistory">Clear All History</string>
-    <!-- Clear Cache? -->
+    <!-- Clear cache confirmation -->
     <string name="clearCache">Clear Cache?</string>
+    <!-- Free up cache size -->
+    <string name="freeUpCacheSize">Free up %s</string>
+    <!-- Clear cache confirmation message -->
+    <string name="clearCacheConfirmation">This will delete %s of cached data. Continue?</string>
     <!-- Count -->
     <string name="count">Count</string>
     <!-- Delete Old (>30 days) -->
