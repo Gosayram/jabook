@@ -20,23 +20,17 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 
 /**
- * Interceptor that detects session expiration and attempts automatic re-authentication.
- *
- * Checks for:
- * - 401 Unauthorized responses
- * - 403 Forbidden responses
- * - Redirects to login page
- *
- * If session has expired, attempts to re-login with stored credentials.
+ * Intercepts HTTP responses to detect session expiry and automatically re-authenticate.
  */
 @Singleton
 class AuthInterceptor
     @Inject
     constructor(
-        private val authRepository: AuthRepository,
+        private val authRepository: Provider<AuthRepository>,
     ) : Interceptor {
         companion object {
             private const val TAG = "AuthInterceptor"
@@ -67,11 +61,11 @@ class AuthInterceptor
                 // Try to re-authenticate with stored credentials
                 runBlocking {
                     try {
-                        val credentials = authRepository.getStoredCredentials()
+                        val credentials = authRepository.get().getStoredCredentials()
                         if (credentials != null) {
                             Log.i(TAG, "Attempting automatic re-authentication...")
 
-                            val loginResult = authRepository.login(credentials)
+                            val loginResult = authRepository.get().login(credentials)
                             if (loginResult.isSuccess) {
                                 Log.i(TAG, "Automatic re-authentication successful")
 
