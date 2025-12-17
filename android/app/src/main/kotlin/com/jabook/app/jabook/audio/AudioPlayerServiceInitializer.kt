@@ -210,17 +210,26 @@ class AudioPlayerServiceInitializer(
             // Create intent for clicking the notification
             val sessionActivity = service.getBackStackedActivity() ?: service.getSingleTopActivity()
 
+            // Create callback instance
+            val callback =
+                AudioPlayerLibrarySessionCallback(
+                    service,
+                    service.playerPersistenceManager,
+                    { filePath -> service.getDurationForFile(filePath) },
+                )
+
+            // Create and store notification provider
+            val notificationProvider = AudioPlayerNotificationProvider(service)
+            service.customMediaNotificationProvider = notificationProvider
+
             // Build MediaLibrarySession
             val sessionBuilder =
-                MediaLibrarySession.Builder(
-                    service,
-                    service.exoPlayer,
-                    AudioPlayerLibrarySessionCallback(
+                MediaLibrarySession
+                    .Builder(
                         service,
-                        service.playerPersistenceManager,
-                        { filePath -> service.getDurationForFile(filePath) },
-                    ),
-                )
+                        service.exoPlayer,
+                        callback,
+                    )
 
             // Set session activity (PendingIntent)
             // This is CRITICAL for Android 12+ media controls to work properly
@@ -231,6 +240,9 @@ class AudioPlayerServiceInitializer(
             }
 
             service.mediaLibrarySession = sessionBuilder.build()
+
+            // Set custom layout for notification buttons (Rewind/Forward)
+            service.mediaLibrarySession?.setCustomLayout(callback.customCommands)
 
             // Assign to legacy field for compatibility
             service.mediaSession = service.mediaLibrarySession
@@ -247,7 +259,9 @@ class AudioPlayerServiceInitializer(
                     service.exoPlayer,
                 )
 
-            // Initialize NotificationManager with MediaSession integration
+            // Initialize NotificationManager only for non-session purposes or fallback
+            // We use Media3's DefaultMediaNotificationProvider for the actual media notification
+            // But we keep this initialized in case other parts of the app rely on it
             service.notificationManager =
                 NotificationManager(
                     context = service,

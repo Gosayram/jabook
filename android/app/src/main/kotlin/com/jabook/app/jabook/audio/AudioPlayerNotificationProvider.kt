@@ -89,21 +89,8 @@ class AudioPlayerNotificationProvider(
         actionFactory: MediaNotification.ActionFactory,
         onNotificationChangedCallback: MediaNotification.Provider.Callback,
     ): MediaNotification {
-        // We just delegate to the default provider, but because of our custom BitmapLoader,
-        // it will skip artwork if isMinimalNotification is true.
-        // We just delegate to the default provider, but because of our custom BitmapLoader,
-        // it will skip artwork if isMinimalNotification is true.
-        // If NotificationManager is initialized, use it to create the notification
-        // This ensures consistent UI with custom actions (Rewind, Forward) and correct MediaSession token
-        if (service.notificationManager != null) {
-            val notification = service.notificationManager!!.createNotification()
-            return MediaNotification(
-                NotificationHelper.NOTIFICATION_ID,
-                notification,
-            )
-        }
-
-        // Fallback to default provider
+        // Use DefaultMediaNotificationProvider which handles MediaStyle automatically
+        // This ensures Quick Settings controls support (Android 11+) and SeekBar (Android 13+)
         val mediaNotification =
             defaultProvider.createNotification(
                 mediaSession,
@@ -112,8 +99,7 @@ class AudioPlayerNotificationProvider(
                 onNotificationChangedCallback,
             )
 
-        // CRITICAL: Force use of NotificationHelper.NOTIFICATION_ID (1) to match startForeground
-        // This prevents creating a second notification with a different ID (default is 1001)
+        // Ensure we use consistently the same notification ID
         return MediaNotification(
             NotificationHelper.NOTIFICATION_ID,
             mediaNotification.notification,

@@ -42,7 +42,7 @@ class AudioPlayerLibrarySessionCallback(
     // TODO: Implement library operations (onGetLibraryRoot, onGetItem, onGetChildren)
     // For now, these are not needed as we're not using library browsing features
 
-    private val customCommands =
+    val customCommands =
         listOf(
             androidx.media3.session.CommandButton
                 .Builder(com.jabook.app.jabook.R.drawable.ic_rewind)
