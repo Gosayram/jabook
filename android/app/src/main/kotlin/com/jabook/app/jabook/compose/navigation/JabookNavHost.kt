@@ -208,6 +208,18 @@ fun JabookNavHost(
                 onNavigateToDebug = {
                     navController.navigate(DebugRoute)
                 },
+                onNavigateToScanSettings = {
+                    navController.navigate(ScanSettingsRoute)
+                },
+            )
+        }
+
+        // Scan Settings Screen
+        composable<ScanSettingsRoute> {
+            com.jabook.app.jabook.compose.feature.settings.ScanSettingsScreen(
+                onNavigateUp = {
+                    navController.navigateUp()
+                },
             )
         }
 

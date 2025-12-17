@@ -36,11 +36,13 @@ class MediaStoreBookScanner
     constructor(
         @param:ApplicationContext private val context: Context,
         private val metadataParser: AudioMetadataParser,
+        private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
     ) : LocalBookScanner {
         override suspend fun scanAudiobooks(): Result<List<ScannedBook>> =
             withContext(Dispatchers.IO) {
                 try {
-                    val audioFiles = queryAudioFiles()
+                    val allowedPaths = scanPathDao.getAllPathsList().map { it.path }
+                    val audioFiles = queryAudioFiles(allowedPaths)
                     val groupedByAlbum = groupFilesByAlbum(audioFiles)
                     val scannedBooks =
                         groupedByAlbum.mapNotNull { (album, files) ->
@@ -53,7 +55,7 @@ class MediaStoreBookScanner
                 }
             }
 
-        private fun queryAudioFiles(): List<AudioFileInfo> {
+        private fun queryAudioFiles(allowedPaths: List<String>): List<AudioFileInfo> {
             val projection =
                 arrayOf(
                     MediaStore.Audio.Media._ID,
@@ -65,44 +67,72 @@ class MediaStoreBookScanner
                     MediaStore.Audio.Media.TITLE,
                 )
 
-            val selection = "${MediaStore.Audio.Media.IS_MUSIC} = 1"
+            // We query all music/audio files and filter in code for flexibility
+            // Ideally we would add selection for paths, but LIKE with many paths is complex in SQL
+            val selection = "${MediaStore.Audio.Media.IS_MUSIC} = 1 OR ${MediaStore.Audio.Media.IS_AUDIOBOOK} = 1"
 
             val audioFiles = mutableListOf<AudioFileInfo>()
 
-            context.contentResolver
-                .query(
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                    projection,
-                    selection,
-                    null,
-                    null,
-                )?.use { cursor ->
-                    val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                    val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-                    val pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                    val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-                    val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                    val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                    val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            try {
+                context.contentResolver
+                    .query(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        projection,
+                        selection,
+                        null,
+                        null,
+                    )?.use { cursor ->
+                        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                        val nameColumn =
+                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                        val pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                        val durationColumn =
+                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                        val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                        val artistColumn =
+                            cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                        val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
 
-                    while (cursor.moveToNext()) {
-                        val filePath = cursor.getString(pathColumn)
-                        // Only include files that exist
-                        if (File(filePath).exists()) {
-                            audioFiles.add(
-                                AudioFileInfo(
-                                    id = cursor.getLong(idColumn),
-                                    displayName = cursor.getString(nameColumn),
-                                    filePath = filePath,
-                                    duration = cursor.getLong(durationColumn),
-                                    album = cursor.getString(albumColumn),
-                                    artist = cursor.getString(artistColumn),
-                                    title = cursor.getString(titleColumn),
-                                ),
-                            )
+                        val defaultFolders = listOf("Audiobooks", "Podcasts", "Books")
+
+                        while (cursor.moveToNext()) {
+                            val filePath = cursor.getString(pathColumn)
+                            // Filter Logic
+                            val shouldInclude =
+                                if (allowedPaths.isEmpty()) {
+                                    // Default: Look for "Audiobooks", "Podcasts", "Books" in path
+                                    defaultFolders.any {
+                                        filePath.contains(it, ignoreCase = true)
+                                    }
+                                } else {
+                                    // Custom: Must start with one of the allowed paths
+                                    allowedPaths.any { filePath.startsWith(it) }
+                                }
+
+                            if (shouldInclude && File(filePath).exists()) {
+                                audioFiles.add(
+                                    AudioFileInfo(
+                                        id = cursor.getLong(idColumn),
+                                        displayName = cursor.getString(nameColumn),
+                                        filePath = filePath,
+                                        duration = cursor.getLong(durationColumn),
+                                        album = cursor.getString(albumColumn),
+                                        artist = cursor.getString(artistColumn),
+                                        title = cursor.getString(titleColumn),
+                                    ),
+                                )
+                            }
                         }
                     }
-                }
+            } catch (e: Exception) {
+                // Handle IllegalArgumentException for IS_AUDIOBOOK on older APIs if needed
+                // But MediaStore should just ignore valid columns?
+                // Actually IS_AUDIOBOOK was added in API 29.
+                // If running on older API, this might throw IllegalArgumentException "Invalid column IS_AUDIOBOOK".
+                // We should safeguard the selection string.
+                android.util.Log.e("BookScanner", "Error querying MediaStore", e)
+                return emptyList()
+            }
 
             return audioFiles
         }

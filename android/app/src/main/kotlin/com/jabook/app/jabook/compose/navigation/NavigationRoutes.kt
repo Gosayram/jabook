@@ -95,3 +95,6 @@ data class TopicRoute(
  */
 @Serializable
 object FavoritesRoute
+
+@Serializable
+object ScanSettingsRoute

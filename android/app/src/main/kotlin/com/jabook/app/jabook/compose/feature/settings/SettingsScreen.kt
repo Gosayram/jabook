@@ -77,6 +77,7 @@ import com.jabook.app.jabook.compose.data.model.AppTheme
 fun SettingsScreen(
     onNavigateToAuth: () -> Unit,
     onNavigateToDebug: () -> Unit = {},
+    onNavigateToScanSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -216,6 +217,16 @@ fun SettingsScreen(
                     },
                 )
             }
+
+            HorizontalDivider()
+
+            // Library Section
+            SettingsSection(title = "Library")
+            SettingsItem(
+                title = "Library Folders",
+                subtitle = "Manage folders to scan for audiobooks",
+                onClick = onNavigateToScanSettings,
+            )
 
             HorizontalDivider()
 

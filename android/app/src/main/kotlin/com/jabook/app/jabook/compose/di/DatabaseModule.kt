@@ -136,6 +136,26 @@ object DatabaseModule {
             }
         }
 
+    /**
+     * Database migration from version 8 to version 9.
+     *
+     * Adds scan_paths table for custom scan directory configuration.
+     */
+    private val MIGRATION_8_9 =
+        object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `scan_paths` (
+                        `path` TEXT NOT NULL, 
+                        `added_date` INTEGER NOT NULL, 
+                        PRIMARY KEY(`path`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
     @Provides
     @Singleton
     fun provideJabookDatabase(
@@ -152,6 +172,7 @@ object DatabaseModule {
                 MIGRATION_4_5,
                 MIGRATION_5_6,
                 MIGRATION_6_7,
+                MIGRATION_8_9,
             ).build()
 
     @Provides
@@ -174,4 +195,7 @@ object DatabaseModule {
 
     @Provides
     fun provideFavoriteDao(database: JabookDatabase): FavoriteDao = database.favoriteDao()
+
+    @Provides
+    fun provideScanPathDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.ScanPathDao = database.scanPathDao()
 }

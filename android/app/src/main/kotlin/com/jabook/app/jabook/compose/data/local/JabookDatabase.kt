@@ -22,6 +22,7 @@ import com.jabook.app.jabook.compose.data.local.dao.CookiesDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
+import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
@@ -29,18 +30,21 @@ import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
+import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 
 /**
  * The Room database for this app.
  *
- * Version 4: Added CookieEntity for multi-stage cookie persistence.
- * Version 3: Added SearchHistoryEntity for search history persistence.
- * Version 2: Added new fields to BookEntity and ChapterEntity for
+ * Database version 2: Added new fields to BookEntity and ChapterEntity for
  * enhanced library and playback features.
+ * Database version 3: Added SearchHistoryEntity for search history persistence.
+ * Database version 4: Added CookieEntity for multi-stage cookie persistence.
  * Database version 5: Added download_queue table for download queue management.
  * Database version 6: Added download_history table for tracking completed/failed downloads.
  * Database version 7: Added favorites table for favorite audiobooks management.
+ * Database version 8: Fix some issues with database migration.
+ * Database version 9: Added scan_paths table for custom scan directory configuration.
  */
 @Database(
     entities = [
@@ -51,8 +55,9 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
         DownloadQueueEntity::class,
         DownloadHistoryEntity::class,
         FavoriteEntity::class,
+        ScanPathEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 abstract class JabookDatabase : RoomDatabase() {
@@ -69,4 +74,6 @@ abstract class JabookDatabase : RoomDatabase() {
     abstract fun downloadHistoryDao(): DownloadHistoryDao
 
     abstract fun favoriteDao(): FavoriteDao
+
+    abstract fun scanPathDao(): ScanPathDao
 }

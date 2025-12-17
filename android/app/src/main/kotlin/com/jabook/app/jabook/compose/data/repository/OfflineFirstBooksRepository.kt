@@ -41,6 +41,7 @@ class OfflineFirstBooksRepository
     @Inject
     constructor(
         private val booksDao: BooksDao,
+        private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
     ) : BooksRepository {
         override fun getAllBooks(): Flow<List<Book>> = booksDao.getAllBooksFlow().map { it.toBooks() }
 
@@ -119,5 +120,22 @@ class OfflineFirstBooksRepository
         override suspend fun refresh() {
             // No-op for offline-first implementation
             // In a network-enabled version, this would fetch from remote
+        }
+
+        override fun getScanPaths(): Flow<List<String>> =
+            scanPathDao.getAllPaths().map { entities ->
+                entities.map { it.path }
+            }
+
+        override suspend fun addScanPath(path: String) {
+            scanPathDao.insertPath(
+                com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity(
+                    path = path,
+                ),
+            )
+        }
+
+        override suspend fun removeScanPath(path: String) {
+            scanPathDao.deletePathByString(path)
         }
     }

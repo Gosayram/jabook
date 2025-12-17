@@ -99,4 +99,19 @@ interface BooksRepository {
      * Reset all per-book playback settings to global defaults.
      */
     suspend fun resetAllBookSettings()
+
+    /**
+     * Get allowed scan paths.
+     */
+    fun getScanPaths(): Flow<List<String>>
+
+    /**
+     * Add a directory to the scan paths.
+     */
+    suspend fun addScanPath(path: String)
+
+    /**
+     * Remove a directory from the scan paths.
+     */
+    suspend fun removeScanPath(path: String)
 }
