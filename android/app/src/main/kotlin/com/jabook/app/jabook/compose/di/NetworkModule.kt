@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.di
 
+import com.jabook.app.jabook.compose.data.network.AuthInterceptor
 import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
@@ -94,18 +95,20 @@ object NetworkModule {
     fun provideDynamicBaseUrlInterceptor(mirrorManager: MirrorManager): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(mirrorManager)
 
     /**
-     * Provide OkHttp client with cookie persistence, dynamic base URL, and logging.
+     * Provide OkHttp client with cookie persistence, auto re-auth, dynamic base URL, and logging.
      */
     @Provides
     @Singleton
     fun provideOkHttpClient(
         cookieJar: PersistentCookieJar,
+        authInterceptor: AuthInterceptor,
         loggingInterceptor: HttpLoggingInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
     ): OkHttpClient =
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
+            .addInterceptor(authInterceptor) // Auto re-authentication
             .addInterceptor(dynamicBaseUrlInterceptor) // Add BEFORE logging for cleaner logs
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
