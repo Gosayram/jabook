@@ -109,6 +109,9 @@ fun LibraryScreen(
         }
     }
 
+    // Get context for permission check in pull-to-refresh
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -168,7 +171,30 @@ fun LibraryScreen(
                 .WindowInsets(0, 0, 0, 0),
         modifier = modifier,
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+            isRefreshing = scanState is ScanState.Scanning,
+            onRefresh = {
+                val permission =
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        android.Manifest.permission.READ_MEDIA_AUDIO
+                    } else {
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+                    }
+                // Check permission and start scan using pre-obtained context
+                val hasPermission =
+                    androidx.core.content.ContextCompat.checkSelfPermission(
+                        context,
+                        permission,
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                if (hasPermission) {
+                    viewModel.startLibraryScan()
+                } else {
+                    permissionLauncher.launch(permission)
+                }
+            },
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
             when (uiState) {
                 is LibraryUiState.Loading -> {
                     LoadingScreen(message = stringResource(R.string.loadingLibrary))
