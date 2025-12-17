@@ -2049,7 +2049,14 @@
     <!-- Chapter $number -->
     <!-- Choose app theme -->
     <string name="chooseAppTheme">Choose app theme</string>
-    <!-- Clear Cache -->
+    <!-- Font settings title -->
+    <string name="fontTitle">Font</string>
+    <!-- Choose font family -->
+    <string name="chooseFontFamily">Choose font family</string>
+    <!-- Default app font -->
+    <string name="defaultFont">Default</string>
+    <!-- System font -->
+    <string name="systemFont">System</string>
     <!-- Completed -->
     <string name="completed">Completed</string>
     <!-- Completed downloads will appear here -->

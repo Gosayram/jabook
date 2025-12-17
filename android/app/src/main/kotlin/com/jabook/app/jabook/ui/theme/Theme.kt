@@ -107,6 +107,7 @@ private val ProdDarkColorScheme =
  *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
  * @param isBetaFlavor Whether this is beta/dev/stage flavor (true) or prod (false). Defaults to true.
+ * @param useSystemFont Whether to use system fonts (true) or app's default fonts (false)
  * @param content The composable content to be themed.
  */
 @Composable
@@ -115,6 +116,7 @@ fun JabookTheme(
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     isBetaFlavor: Boolean = true,
+    useSystemFont: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colorScheme =
@@ -135,6 +137,16 @@ fun JabookTheme(
             else -> ProdLightColorScheme
         }
 
+    // Create typography based on font preference
+    val typography =
+        if (useSystemFont) {
+            // Use system default fonts (respects device font settings)
+            createTypography(androidx.compose.ui.text.font.FontFamily.Default)
+        } else {
+            // Use app's custom fonts
+            Typography
+        }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -150,7 +162,7 @@ fun JabookTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = typography,
         content = content,
     )
 }

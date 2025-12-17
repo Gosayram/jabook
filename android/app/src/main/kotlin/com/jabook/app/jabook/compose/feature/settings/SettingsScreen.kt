@@ -529,6 +529,16 @@ fun SettingsScreen(
                 )
             }
 
+            SettingsItem(
+                title = stringResource(R.string.fontTitle),
+                subtitle = stringResource(R.string.chooseFontFamily),
+            ) {
+                FontSelector(
+                    selectedFont = userPreferences?.font ?: com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
+                    onFontSelected = viewModel::updateFont,
+                )
+            }
+
             HorizontalDivider()
 
             // Playback Section
@@ -893,6 +903,63 @@ private fun ThemeSelector(
 @Composable
 private fun ThemeOption(
     theme: AppTheme,
+    label: String,
+    selected: Boolean,
+    onSelected: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = selected,
+                    onClick = onSelected,
+                    role = Role.RadioButton,
+                ).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null, // Handled by parent Row
+        )
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun FontSelector(
+    selectedFont: com.jabook.app.jabook.compose.data.model.AppFont,
+    onFontSelected: (com.jabook.app.jabook.compose.data.model.AppFont) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        FontOption(
+            font = com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
+            label = stringResource(R.string.defaultFont),
+            selected = selectedFont == com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
+            onSelected = { onFontSelected(com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT) },
+        )
+
+        FontOption(
+            font = com.jabook.app.jabook.compose.data.model.AppFont.SYSTEM,
+            label = stringResource(R.string.systemFont),
+            selected = selectedFont == com.jabook.app.jabook.compose.data.model.AppFont.SYSTEM,
+            onSelected = { onFontSelected(com.jabook.app.jabook.compose.data.model.AppFont.SYSTEM) },
+        )
+    }
+}
+
+@Composable
+private fun FontOption(
+    font: com.jabook.app.jabook.compose.data.model.AppFont,
     label: String,
     selected: Boolean,
     onSelected: () -> Unit,

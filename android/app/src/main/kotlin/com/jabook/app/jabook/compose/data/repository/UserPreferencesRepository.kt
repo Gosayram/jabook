@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.compose.data.model.AppFont
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
@@ -56,4 +57,9 @@ interface UserPreferencesRepository {
      * Update playback speed preference.
      */
     suspend fun setPlaybackSpeed(speed: Float)
+
+    /**
+     * Update font preference.
+     */
+    suspend fun setFont(font: AppFont)
 }

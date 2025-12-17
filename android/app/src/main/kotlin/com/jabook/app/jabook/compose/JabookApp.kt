@@ -105,10 +105,20 @@ fun JabookApp(
             }
         }
 
+    val useSystemFont =
+        when (uiState) {
+            is MainActivityUiState.Loading -> false
+            is MainActivityUiState.Success -> {
+                (uiState as MainActivityUiState.Success).userData.font ==
+                    com.jabook.app.jabook.compose.data.model.AppFont.SYSTEM
+            }
+        }
+
     // Setup Lyricist for type-safe localization - REMOVED, using standard Android resources
     JabookTheme(
         darkTheme = darkTheme,
         isBetaFlavor = isBetaFlavor,
+        useSystemFont = useSystemFont,
     ) {
         // TODO: Implement proper mini-player state management
         // PlayerViewModel cannot be instantiated at app root level because it requires

@@ -112,6 +112,12 @@ class SettingsViewModel
             }
         }
 
+        fun updateFont(font: com.jabook.app.jabook.compose.data.model.AppFont) {
+            viewModelScope.launch {
+                userPreferencesRepository.setFont(font)
+            }
+        }
+
         fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)

@@ -41,6 +41,7 @@ data class AppSettings(
     val theme: String,
     val autoPlayNext: Boolean,
     val playbackSpeed: Float,
+    val font: String = "DEFAULT",
     val limitDownloadSpeed: Boolean = false,
     val maxDownloadSpeedKb: Int = 0,
     val maxConcurrentDownloads: Int = 1,

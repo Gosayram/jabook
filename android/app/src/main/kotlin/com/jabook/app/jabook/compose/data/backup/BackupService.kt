@@ -178,6 +178,7 @@ class BackupService
                 theme = userPrefs.theme.name,
                 autoPlayNext = userPrefs.autoPlayNext,
                 playbackSpeed = userPrefs.playbackSpeed,
+                font = userPrefs.font.name,
                 wifiOnlyDownload = protoSettings.wifiOnlyDownload,
                 downloadPath = protoSettings.downloadPath,
                 currentMirror = protoSettings.selectedMirror,
@@ -281,6 +282,16 @@ class BackupService
                 }
                 userPreferencesRepository.setAutoPlayNext(settings.autoPlayNext)
                 userPreferencesRepository.setPlaybackSpeed(settings.playbackSpeed)
+
+                // Restore font preference
+                try {
+                    val font =
+                        com.jabook.app.jabook.compose.data.model.AppFont
+                            .valueOf(settings.font)
+                    userPreferencesRepository.setFont(font)
+                } catch (e: Exception) {
+                    // Ignore invalid font enum, keep default
+                }
 
                 // Restore ProtoSettings
                 protoSettingsRepository.updateWifiOnly(settings.wifiOnlyDownload)

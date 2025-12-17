@@ -20,6 +20,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.jabook.app.jabook.compose.data.model.AppFont
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
@@ -46,6 +47,7 @@ class DataStoreUserPreferencesRepository
             private val VIEW_MODE = stringPreferencesKey("view_mode")
             private val AUTO_PLAY_NEXT = booleanPreferencesKey("auto_play_next")
             private val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
+            private val FONT = stringPreferencesKey("font")
         }
 
         override val userData: Flow<UserData> =
@@ -77,6 +79,14 @@ class DataStoreUserPreferencesRepository
                         } ?: LibraryViewMode.LIST,
                     autoPlayNext = preferences[AUTO_PLAY_NEXT] ?: true,
                     playbackSpeed = preferences[PLAYBACK_SPEED] ?: 1.0f,
+                    font =
+                        preferences[FONT]?.let { fontName ->
+                            try {
+                                AppFont.valueOf(fontName)
+                            } catch (e: IllegalArgumentException) {
+                                AppFont.DEFAULT
+                            }
+                        } ?: AppFont.DEFAULT,
                 )
             }
 
@@ -107,6 +117,12 @@ class DataStoreUserPreferencesRepository
         override suspend fun setPlaybackSpeed(speed: Float) {
             dataStore.edit { preferences ->
                 preferences[PLAYBACK_SPEED] = speed
+            }
+        }
+
+        override suspend fun setFont(font: AppFont) {
+            dataStore.edit { preferences ->
+                preferences[FONT] = font.name
             }
         }
     }

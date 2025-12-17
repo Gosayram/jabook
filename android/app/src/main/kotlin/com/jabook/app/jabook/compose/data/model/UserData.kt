@@ -25,6 +25,7 @@ data class UserData(
     val viewMode: LibraryViewMode = LibraryViewMode.LIST,
     val autoPlayNext: Boolean = true,
     val playbackSpeed: Float = 1.0f,
+    val font: AppFont = AppFont.DEFAULT,
 )
 
 /**

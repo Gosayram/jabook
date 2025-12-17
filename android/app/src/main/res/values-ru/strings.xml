@@ -2058,7 +2058,15 @@
     <!-- Глава $номер -->
     <!-- Выберите тему приложения -->
     <string name="chooseAppTheme">Выберите тему приложения</string>
-    <!-- Очистить кэш -->
+    <!-- Настройки шрифта -->
+    <string name="fontTitle">Шрифт</string>
+    <!-- Выберите шрифт -->
+    <string name="chooseFontFamily">Выберите шрифт</string>
+    <!-- Шрифт по умолчанию -->
+    <string name="defaultFont">По умолчанию</string>
+    <!-- Системный шрифт -->
+    <string name="systemFont">Системный</string>
+    <!-- Очистка кеша... -->
     <!-- Завершенный -->
     <string name="completed">Завершенный</string>
     <!-- Завершенные загрузки появятся здесь. -->
