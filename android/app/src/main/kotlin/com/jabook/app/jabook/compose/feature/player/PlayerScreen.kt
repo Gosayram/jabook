@@ -237,9 +237,9 @@ private fun PlayerContent(
         modifier = modifier.fillMaxSize(),
         contentPadding =
             androidx.compose.foundation.layout
-                .PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
+                .PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // Book cover
         item {
