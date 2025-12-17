@@ -18,7 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `@Keep` annotation to navigation route data classes
 - Add `autoPlay` parameter to `loadAndPlayAudio` to control immediate playback after loading
+- Add back navigation icon to the player screen with localized content description
 - Add debug screen for viewing and sharing logs and integrate it into navigation
 - Add download history screen with search and sort functionality, and enable drag-and-drop reordering for the download queue
 - Add dynamic color support to `JabookTheme` for Android 12+ devices
@@ -29,14 +31,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add login concurrency protection and multi-tier authentication validation
 - Add Makefile targets for string migration and improve script to reuse existing strings and enhance translation robustness
 - Add online audiobook search via Rutracker
+- Add per-book customizable rewind and fast-forward durations via a new player settings sheet
 - Add permission management and refactor Rutracker authentication to improve WebView cookie synchronization
+- Add ProGuard rules to keep navigation and backup classes from obfuscation
 - Add RuTracker debug tab displaying authentication status, validation results, and mirror connectivity
 - Add RuTracker diagnostics tab displaying authentication status, validation results, and mirror connectivity
 - Add script to automate Kotlin Compose hardcoded string migration to resources
+- Add support for custom audiobook scan paths with dedicated settings UI and database persistence
 - Add swipe gestures and notification controls to mini player
 - Auto-initialize player with book data upon UI state success and update the library list view icon to be auto-mirrored
+- Enhance backup/restore to include books, favorites, search history, scan paths, and extended settings
 - Enhance Rutracker authentication with detailed logging, robust error handling, and new debug info
+- Externalize UI strings to resources for internationalization in player, settings, and library features
 - Feat: Implement seek forward/backward controls in the player and refactor playback speed persistence to user preferences
+- Implement adaptive navigation using window size classes to display NavigationRail or BottomBar
 - Implement app data backup and restore functionality for settings and book metadata
 - Implement cache management in settings, allowing users to view and clear app cache
 - Implement custom audio notification manager with media session integration and enable shared element transitions
@@ -48,8 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement native streaming torrent downloads
 - Implement user-configurable download location and Wi-Fi only download settings, and add library scanning functionality
 - Improve authentication with strict validation and WebView cookie synchronization, and update Android runtime permission requests
+- Initialize player only with non-empty chapters and eagerly start player state flow to avoid race conditions
 - Internationalize favorites screen dialog and menu texts by adding new string resources
 - Introduce Jetpack Compose UI with new data layer for books and refactor audio player components: phase 1 and 2
+- Introduce mini player and compact book list view, and enhance debug screen with auto-refresh and error handling
 - Introduce pre-commit hook and script for automated cleaning of duplicate Android string resources
 - Localize search screen by extracting strings to resources and adding an ARB to XML conversion script
 - Migrate to Gradle 9 for comprehensive building experience
@@ -59,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add `report` target to analyze startup logs and generate a debug report
 - Add `run-beta` and `run-beta-debug` Makefile targets and update `install-beta` to use `adb`
 - Add Apache 2.0 license header to all files
 - Add comprehensive architecture documentation in Quarto format with 45+ Mermaid diagrams
@@ -67,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add topic details screen with its viewmodel and navigation route
 - Added ignore packages for copyright validation
 - Added ktlint-strace for make hook
+- Adjust Makefile build output paths by removing 'android/' prefix and trailing slashes
 - Auto markdown formatter
 - Broaden string migration's file and technical string exclusion rules and streamline string replacement
 - Bump Android SDK versions, enable ABI splits with universal APK generation, remove desugaring, and adapt Makefile for new APK output structure
@@ -76,7 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Centralize date and time formatting with a new DateTimeFormatter utility and apply it to backup and settings
 - Clean up each cache before compilation testing
 - Clean up unused imports and apply minor formatting to settings and topic screens
+- Consolidate and simplify R8 rules for Kotlinx Serialization, Hilt, and other libraries
 - Enhance foreground service initialization for Android 14+ and standardize notification ID
+- Enhance ProGuard rules for Kotlinx Serialization, Hilt, Room, and Retrofit, and remove `@SerialName` annotations from navigation routes
 - Enhance screen reader experience by adding semantic descriptions and roles to various UI components
 - Enhance string migration script safety and remove problematic string resources
 - Exclude test_results folder for copyright heads
@@ -93,16 +107,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve code formatting and organize imports
 - Improve string resource handling by consolidating access, fixing formatting, and removing obsolete keys
 - Improve translate quality and checking dry-run mechanism
+- Localize default string resources to English and update `TestComposeScreen` usage
 - Make Text() string extraction regex more flexible to include additional arguments
 - Migrate player to new bridge API with Kotlin state persistence
 - Migrate string management from custom `Strings.kt` to standard `R.string` resources
 - Migrate to DataStore + Tink encryption for credentials
 - Migrate to Java 21 and replace kapt with KSP for Room
+- Optimize ProGuard rules for Kotlinx Serialization, Hilt, Room, and DataStore Proto, remove Gson, and use `@SerialName` in navigation routes
 - Polish navigation UI and resolve deprecations
 - Preserve XML comments and formatting when adding new strings to `strings.xml`
 - Re-change clean params for linting
 - Refactor audio player service architecture
 - Refine hardcoded string detection in `migrate_strings.py` to exclude non-UI files and technical strings
+- Remove devDebugKotlin compilation from Makefile's compile target
 - Remove format strings for numbers and dates from `strings.xml` and update migration script to identify them as technical
 - Remove Lyricist i18n dependencies
 - Remove redundant changelog generation confirmation message
@@ -110,7 +127,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove unused calls for defalt params into compile
 - Remove unused flutter collab code from Kotlin
 - Removed all flutter code from project; prepate to migrate native Kotlin code
+- Rename string resource keys to English for improved clarity and maintainability
 - Reorganize makefile automation and fix hack scripts
+- Script for Android startup log analysis and enhance Kotlin serialization ProGuard rules for R8 Full Mode
+- Simplify ProGuard rules by removing redundant library-specific configurations and refining Kotlinx Serialization rules for `@SerialName`
 - Streamline Gradle configuration, enable build caching, remove integration test plugin workaround, disable default WorkManager initialization, and generalize DataMigrationManager's DataStore usage
 - Unification into one abstraction for easily linting
 - Update copyright script to target Kotlin files instead of Dart and remove Flutter-specific exclusions
@@ -120,9 +140,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Add empty MIGRATION_7_8 to resolve database migration issues
+- Add ProGuard rules for Navigation Compose SavedStateHandle serialization and remove explicit kotlinx-serialization-json dependency
 - Copyright validation folders
 - Disable KTagLib on Android 16+ due to FDSAN incompatibility and simplify ParcelFileDescriptor handling in metadata parsing
+- Display book cover images in search results
 - Duplicated and numeric strings with similar params for each project
+- Extend KTagLib disablement to Android 11+ (API 30) due to FDSAN incompatibility
 - Fix chapter mismatch, player freeze, and local playback
 - Fix compilation errors and improve playback position saving
 - Fix logical relation with called alias param for each task in makefile
@@ -141,6 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolve Kotlin 2.2.0 compilation errors and update dependencies
 - Resolve kotlinx-serialization version conflict in kapt and suppress manifest warnings
 - Room version and build namespace for validation
+- Rutracker search parsing by adding cover URL extraction and enhancing selector robustness for existing fields
 - Update beta APK installation to use arm64-v8a specific build
 - Use default view list icon instead of auto-mirrored in library screen
 
