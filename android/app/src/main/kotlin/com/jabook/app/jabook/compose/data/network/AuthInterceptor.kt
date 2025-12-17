@@ -57,7 +57,8 @@ class AuthInterceptor
             val sessionExpired =
                 response.code == 401 ||
                     response.code == 403 ||
-                    response.request.url.encodedPath.contains(LOGIN_PAGE_MARKER)
+                    response.request.url.encodedPath
+                        .contains(LOGIN_PAGE_MARKER)
 
             if (sessionExpired) {
                 Log.w(TAG, "Session expired detected (code=${response.code}, url=${response.request.url})")
