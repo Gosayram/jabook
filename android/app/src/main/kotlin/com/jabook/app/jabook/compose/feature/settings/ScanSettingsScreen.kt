@@ -43,9 +43,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jabook.app.jabook.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,12 +79,12 @@ fun ScanSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Library Folders") },
+                title = { Text(stringResource(R.string.libraryFoldersTitle)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.backButton),
                         )
                     }
                 },
@@ -92,7 +94,7 @@ fun ScanSettingsScreen(
             FloatingActionButton(
                 onClick = { folderPickerLauncher.launch(null) },
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Folder")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.addFolder))
             }
         },
     ) { padding ->
@@ -118,11 +120,11 @@ fun ScanSettingsScreen(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = "No custom folders added",
+                        text = stringResource(R.string.noCustomFoldersAdded),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = "Scanning default folders: Audiobooks, Podcasts",
+                        text = stringResource(R.string.scanningDefaultFoldersAudiobooksPodcasts),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
@@ -175,7 +177,7 @@ fun ScanPathItem(
         IconButton(onClick = onDelete) {
             Icon(
                 imageVector = Icons.Default.Delete,
-                contentDescription = "Remove",
+                contentDescription = stringResource(R.string.remove),
                 tint = MaterialTheme.colorScheme.error,
             )
         }

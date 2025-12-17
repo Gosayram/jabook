@@ -221,10 +221,10 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Library Section
-            SettingsSection(title = "Library")
+            SettingsSection(title = stringResource(R.string.library))
             SettingsItem(
-                title = "Library Folders",
-                subtitle = "Manage folders to scan for audiobooks",
+                title = stringResource(R.string.libraryFoldersTitle),
+                subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
                 onClick = onNavigateToScanSettings,
             )
 
@@ -610,7 +610,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.resetAllBookSettings),
                 subtitle =
                     stringResource(R.string.resetAllBookSettingsConfirmation)
-                        .substringBefore("\n"), // Use first line as subtitle or full desc
+                        .substringBefore(stringResource(R.string.n)), // Use first line as subtitle or full desc
                 onClick = { showResetBookSettingsDialog = true },
             )
 

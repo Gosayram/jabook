@@ -2281,4 +2281,14 @@
     <string name="useGlobalSettings">Использовать общие настройки</string>
     <!-- Свои настройки -->
     <string name="customSettings">Свои настройки</string>
+    <!-- Добавить папку -->
+    <string name="addFolder">Добавить папку</string>
+    <!-- Управление папками для сканирования аудиокниг -->
+    <string name="manageFoldersToScanForAudiobooks">Управление папками для сканирования аудиокниг</string>
+    <!-- \п -->
+    <string name="n">\п</string>
+    <!-- Пользовательские папки не добавлены -->
+    <string name="noCustomFoldersAdded">Пользовательские папки не добавлены</string>
+    <!-- Сканирование папок по умолчанию: аудиокниги, подкасты. -->
+    <string name="scanningDefaultFoldersAudiobooksPodcasts">Сканирование папок по умолчанию: аудиокниги, подкасты.</string>
 </resources>
