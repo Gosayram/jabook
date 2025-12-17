@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.navigation
 
+import androidx.annotation.Keep
 import kotlinx.serialization.Serializable
 
 /**
@@ -35,6 +36,7 @@ object LibraryRoute
  *
  * @param bookId Unique identifier of the book to play
  */
+@Keep
 @Serializable
 data class PlayerRoute(
     val bookId: String,
@@ -45,6 +47,7 @@ data class PlayerRoute(
  *
  * @param url URL to load in the WebView
  */
+@Keep
 @Serializable
 data class WebViewRoute(
     val url: String,
@@ -85,6 +88,7 @@ object DebugRoute
  *
  * @param topicId Unique identifier of the topic
  */
+@Keep
 @Serializable
 data class TopicRoute(
     val topicId: String,
