@@ -21,6 +21,8 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -39,6 +41,7 @@ import dagger.hilt.android.AndroidEntryPoint
  *
  * @see MainActivity for the current Flutter-based implementation
  */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @AndroidEntryPoint
 class ComposeMainActivity : ComponentActivity() {
     companion object {
@@ -61,7 +64,13 @@ class ComposeMainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
-            JabookApp(intent = deepLinkIntent)
+            val windowSizeClass =
+                androidx.compose.material3.windowsizeclass
+                    .calculateWindowSizeClass(this)
+            JabookApp(
+                windowSizeClass = windowSizeClass,
+                intent = deepLinkIntent,
+            )
         }
     }
 
