@@ -105,7 +105,7 @@ fun SettingsScreen(
             when (val status = authStatus) {
                 is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> {
                     SettingsItem(
-                        title = "Logged in as ${status.username}",
+                        title = stringResource(R.string.loggedInAs, status.username),
                         subtitle = stringResource(R.string.tapToLogout),
                         onClick = { viewModel.logout() },
                     )

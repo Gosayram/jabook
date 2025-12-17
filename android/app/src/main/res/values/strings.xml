@@ -2142,6 +2142,8 @@
     <!-- System default -->
     <!-- Tap to logout -->
     <string name="tapToLogout">Tap to logout</string>
+    <!-- Logged in as %s -->
+    <string name="loggedInAs">Logged in as %s</string>
     <!-- This will clear all cached data. Downloaded audiobooks will not be affected. Continue? -->
     <string name="thisWillClearAllCachedDataDownloadedAudiobooksWill">This will clear all cached data. Downloaded audiobooks will not be affected. Continue?</string>
     <!-- This will replace your current settings. Are you sure you want to continue? -->
