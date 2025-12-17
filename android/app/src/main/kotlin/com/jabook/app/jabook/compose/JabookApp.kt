@@ -109,9 +109,15 @@ fun JabookApp(
         darkTheme = darkTheme,
         isBetaFlavor = isBetaFlavor,
     ) {
-        // Get player state for mini-player
-        val playerViewModel: com.jabook.app.jabook.compose.feature.player.PlayerViewModel = hiltViewModel()
-        val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
+        // TODO: Implement proper mini-player state management
+        // PlayerViewModel cannot be instantiated at app root level because it requires
+        // navigation arguments (PlayerRoute) from SavedStateHandle.
+        // Options:
+        // 1. Create MiniPlayerViewModel without navigation dependencies
+        // 2. Use AudioPlayerController + repository to get current book
+        // For now, mini-player is disabled to fix crash.
+        // val playerViewModel: PlayerViewModel = hiltViewModel()
+        // val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
 
         val showNavRail = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
@@ -122,44 +128,8 @@ fun JabookApp(
                 if (!showNavRail) {
                     androidx.compose.foundation.layout.Column {
                         // Mini player (Compact view: above navigation bar)
-                        if (playerUiState is com.jabook.app.jabook.compose.feature.player.PlayerUiState.Success) {
-                            val successState =
-                                playerUiState as com.jabook.app.jabook.compose.feature.player.PlayerUiState.Success
-                            val isOnPlayerScreen =
-                                appState.currentDestination?.route?.contains(
-                                    "player",
-                                    ignoreCase = true,
-                                ) == true
-
-                            if (!isOnPlayerScreen) {
-                                // Calculate progress (0.0 to 1.0)
-                                val durationMillis =
-                                    successState.currentChapter?.duration?.inWholeMilliseconds ?: 1L
-                                val progress =
-                                    (
-                                        successState.currentPosition.toFloat() / durationMillis
-                                    ).coerceIn(0f, 1f)
-
-                                com.jabook.app.jabook.compose.feature.player.MiniPlayer(
-                                    coverUrl = successState.book.coverUrl,
-                                    title = successState.book.title,
-                                    author = successState.book.author,
-                                    isPlaying = successState.isPlaying,
-                                    progress = progress,
-                                    onPlayPauseClick = {
-                                        if (successState.isPlaying) {
-                                            playerViewModel.pause()
-                                        } else {
-                                            playerViewModel.play()
-                                        }
-                                    },
-                                    onMiniPlayerClick = {
-                                        appState.navController.navigate("player/${successState.book.id}")
-                                    },
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                )
-                            }
-                        }
+                        // TODO: Re-enable after implementing proper state management
+                        // Mini-player temporarily disabled until MiniPlayerViewModel is created
 
                         // Bottom navigation bar
                         JabookBottomBar(
@@ -203,45 +173,8 @@ fun JabookApp(
                     }
 
                     // Mini player (Expanded view: bottom of content area)
-                    if (showNavRail && playerUiState is com.jabook.app.jabook.compose.feature.player.PlayerUiState.Success) {
-                        val successState =
-                            playerUiState as com.jabook.app.jabook.compose.feature.player.PlayerUiState.Success
-                        val isOnPlayerScreen =
-                            appState.currentDestination?.route?.contains(
-                                "player",
-                                ignoreCase = true,
-                            ) == true
-
-                        if (!isOnPlayerScreen) {
-                            // Calculate progress (0.0 to 1.0)
-                            val durationMillis =
-                                successState.currentChapter?.duration?.inWholeMilliseconds ?: 1L
-                            val progress =
-                                (successState.currentPosition.toFloat() / durationMillis).coerceIn(
-                                    0f,
-                                    1f,
-                                )
-
-                            com.jabook.app.jabook.compose.feature.player.MiniPlayer(
-                                coverUrl = successState.book.coverUrl,
-                                title = successState.book.title,
-                                author = successState.book.author,
-                                isPlaying = successState.isPlaying,
-                                progress = progress,
-                                onPlayPauseClick = {
-                                    if (successState.isPlaying) {
-                                        playerViewModel.pause()
-                                    } else {
-                                        playerViewModel.play()
-                                    }
-                                },
-                                onMiniPlayerClick = {
-                                    appState.navController.navigate("player/${successState.book.id}")
-                                },
-                                modifier = Modifier.padding(16.dp),
-                            )
-                        }
-                    }
+                    // TODO: Re-enable after implementing proper state management
+                    // Mini-player temporarily disabled until MiniPlayerViewModel is created
                 }
             }
         }
