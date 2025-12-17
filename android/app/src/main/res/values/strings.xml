@@ -2163,7 +2163,7 @@
     <string name="autoPlayNextChapter">Auto-play next chapter when current ends</string>
     <string name="autoSwitching">Auto-switching</string>
     <string name="autoPlayNextChapterTitle">Auto-play next chapter</string>
-    <string name="bitrateFormat">Bitrate: $it</string>
+    <string name="bitrateFormat">Bitrate: %s</string>
     <string name="browser">Browser</string>
     <string name="enterMirrorUrl">Enter mirror URL</string>
     <string name="enterRutrackerMirrorDomain">Enter RuTracker mirror domain</string>
@@ -2173,7 +2173,7 @@
     <string name="playbackWillStopAutomatically">Playback will stop automatically</string>
     <string name="chooseAppThemeTitle">Choose app theme</string>
     <string name="chapterNumberFormat">Chapter $number</string>
-    <string name="durationFormat">Duration: $it</string>
+    <string name="durationFormat">Duration: %s</string>
     <string name="addCustomMirror">Add custom mirror</string>
     <string name="addAudiobooksToStart">Add audiobooks to start</string>
     <string name="loadingEllipsis">Loading...</string>
@@ -2206,7 +2206,7 @@
     <string name="darkThemeName">Тёмная</string>
     <string name="deleteAction">Удалить</string>
     <string name="files">Файлы</string>
-    <string name="formatFormat">Формат: $it</string>
+    <string name="formatFormat">Формат: %s</string>
     <string name="mirrorAlreadyAddedError">Это зеркало уже добавлено</string>
 
     <!-- Debug Section - RuTracker -->

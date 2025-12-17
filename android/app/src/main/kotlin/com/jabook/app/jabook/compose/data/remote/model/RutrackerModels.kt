@@ -80,6 +80,8 @@ data class TopicDetails(
     val audioCodec: String?,
     /** Description/content */
     val description: String?,
+    /** Structured MediaInfo data */
+    val mediaInfo: MediaInfo? = null,
     /** Related audiobooks from same series */
     val relatedBooks: List<RelatedBook>,
 )

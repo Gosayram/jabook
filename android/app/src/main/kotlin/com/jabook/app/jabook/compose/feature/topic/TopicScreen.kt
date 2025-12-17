@@ -213,21 +213,21 @@ private fun TopicDetailsContent(
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    details.duration?.let {
+                    details.duration?.let { duration ->
                         Text(
-                            text = stringResource(R.string.durationFormat),
+                            text = stringResource(R.string.durationFormat, duration),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
-                    details.bitrate?.let {
+                    details.bitrate?.let { bitrate ->
                         Text(
-                            text = stringResource(R.string.bitrateFormat),
+                            text = stringResource(R.string.bitrateFormat, bitrate),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
-                    details.audioCodec?.let {
+                    details.audioCodec?.let { codec ->
                         Text(
-                            text = stringResource(R.string.formatFormat),
+                            text = stringResource(R.string.formatFormat, codec),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
@@ -242,17 +242,57 @@ private fun TopicDetailsContent(
             }
         }
 
-        // File List Header
-        item {
-            Text(
-                text = stringResource(R.string.files),
-                style = MaterialTheme.typography.titleMedium,
-            )
+        // MediaInfo Section
+        details.mediaInfo?.let { mediaInfo ->
+            // Video tracks
+            if (mediaInfo.video.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Видео",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                items(mediaInfo.video) { video ->
+                    Column(Modifier.padding(vertical = 4.dp)) {
+                        video.codec?.let { Text("Кодек: $it", style = MaterialTheme.typography.bodyMedium) }
+                        video.resolution?.let { Text("Разрешение: $it", style = MaterialTheme.typography.bodyMedium) }
+                        video.bitrate?.let { Text("Битрейт: $it", style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
+            }
+
+            // Audio tracks
+            if (mediaInfo.audio.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Аудио",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                items(mediaInfo.audio) { audio ->
+                    Column(Modifier.padding(vertical = 4.dp)) {
+                        audio.codec?.let { Text("Кодек: $it", style = MaterialTheme.typography.bodyMedium) }
+                        audio.bitrate?.let { Text("Битрейт: $it", style = MaterialTheme.typography.bodyMedium) }
+                        audio.channels?.let { Text("Каналы: $it", style = MaterialTheme.typography.bodyMedium) }
+                        audio.language?.let { Text("Язык: $it", style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
+            }
         }
 
-        // File List
-        items(details.genres) { file ->
-            FileListItem(file = file)
+        // File List Header
+        if (details.genres.isNotEmpty()) {
+            item {
+                Text(
+                    text = stringResource(R.string.files),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+
+            // File List (using genres as placeholder - should be actual file list)
+            items(details.genres) { file ->
+                FileListItem(file = file)
+            }
         }
     }
 }

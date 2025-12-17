@@ -32,7 +32,9 @@ import javax.inject.Singleton
 @Singleton
 class RutrackerParser
     @Inject
-    constructor() {
+    constructor(
+        private val mediaInfoParser: MediaInfoParser,
+    ) {
         companion object {
             private const val TAG = "RutrackerParser"
 
@@ -162,16 +164,28 @@ class RutrackerParser
             val torrentElement = row.selectFirst(DOWNLOAD_HREF_SELECTOR)
             val torrentUrl = torrentElement?.attr("href")?.let { BASE_URL + it } ?: ""
 
-            // Extract cover URL from topic preview (if available in search results)
+            // Extract cover URL with improved selectors
+            // Try multiple approaches to find cover images
             val coverUrl =
+                // First try: direct image in search result row
                 row.selectFirst("img[src]")?.attr("abs:src")
+                    // Second try: preview images
                     ?: row.selectFirst("img.postImg")?.attr("abs:src")
+                    ?: row.selectFirst("img.preview")?.attr("abs:src")
+                    // Third try: thumbnail class
+                    ?: row.selectFirst("img.thumbnail")?.attr("abs:src")
+                    // Fourth try: any image with specific patterns
+                    ?: row.selectFirst("img[src*='static.t-ru.org']")?.attr("abs:src")
+                    ?: row.selectFirst("img[src*='i.rutracker.cc']")?.attr("abs:src")
 
             Log.d(TAG, "Parsed result: topicId=$topicId, title=$title, author=$author, size=$size, coverUrl=$coverUrl")
 
+            // Clean the title to remove technical details
+            val cleanedTitle = cleanTitle(title)
+
             return SearchResult(
                 topicId = topicId,
-                title = title,
+                title = cleanedTitle,
                 author = author,
                 category = category,
                 size = size,
@@ -218,9 +232,16 @@ class RutrackerParser
                 // Extract metadata from post body
                 val metadata = extractMetadata(postBody)
 
+                // Clean the title
+                val cleanedTitle = cleanTitle(title)
+
+                // Extract and parse MediaInfo if present in description
+                val descriptionText = postBody?.text() ?: ""
+                val parsedMediaInfo = mediaInfoParser.parse(descriptionText)
+
                 return TopicDetails(
                     topicId = topicId,
-                    title = title,
+                    title = cleanedTitle,
                     author = metadata["author"],
                     performer = metadata["performer"],
                     category = "Audiobooks",
@@ -235,7 +256,8 @@ class RutrackerParser
                     duration = metadata["duration"],
                     bitrate = metadata["bitrate"],
                     audioCodec = metadata["codec"],
-                    description = postBody?.text(),
+                    description = descriptionText,
+                    mediaInfo = parsedMediaInfo,
                     relatedBooks = extractRelatedBooks(postBody),
                 )
             } catch (e: Exception) {
@@ -337,6 +359,75 @@ class RutrackerParser
             }
 
             return related.take(10) // Limit to 10 related books
+        }
+
+        /**
+         * Clean title by removing technical details.
+         *
+         * Removes:
+         * - Content in square brackets ([...])
+         * - Quality indicators (WEB-DL, BDRip, etc.)
+         * - Resolution (1080p, 720p, etc.)
+         * - File formats (MKV, MP4, AVI, etc.)
+         *
+         * @param rawTitle Raw title from Rutracker
+         * @return Cleaned, human-readable title
+         */
+        private fun cleanTitle(rawTitle: String): String {
+            var cleaned = rawTitle
+
+            // Remove content in square brackets: [1962, СССР, рисованный мультфильм]
+            cleaned = cleaned.replace(Regex("\\[.*?\\]"), "")
+
+            // Remove quality indicators
+            val qualityPatterns =
+                listOf(
+                    "WEB-DL",
+                    "WEBRip",
+                    "BDRip",
+                    "DVDRip",
+                    "HDTV",
+                    "BluRay",
+                    "Blu-Ray",
+                    "BD-Rip",
+                    "Web-DL",
+                    "WebRip",
+                )
+            for (pattern in qualityPatterns) {
+                cleaned = cleaned.replace(Regex("\\b$pattern\\b", RegexOption.IGNORE_CASE), "")
+            }
+
+            // Remove resolutions: 1080p, 720p, 2160p, etc.
+            cleaned = cleaned.replace(Regex("\\b\\d{3,4}[pi]\\b", RegexOption.IGNORE_CASE), "")
+
+            // Remove file formats
+            val formatPatterns =
+                listOf(
+                    "MKV",
+                    "MP4",
+                    "AVI",
+                    "MOV",
+                    "WMV",
+                    "FLV",
+                    "M4V",
+                    "MP3",
+                    "AAC",
+                    "FLAC",
+                    "OGG",
+                    "WAV",
+                    "M4A",
+                )
+            for (pattern in formatPatterns) {
+                cleaned = cleaned.replace(Regex("\\b$pattern\\b", RegexOption.IGNORE_CASE), "")
+            }
+
+            // Remove extra whitespace and trim
+            cleaned = cleaned.replace(Regex("\\s+"), " ").trim()
+
+            // Remove trailing/leading dashes, commas, and periods
+            cleaned = cleaned.trim('-', ',', '.', ' ')
+
+            return cleaned.ifEmpty { rawTitle } // Return original if cleaning results in empty string
         }
 
         /**

@@ -2177,7 +2177,7 @@
     <string name="autoPlayNextChapterTitle">Автопроигрывание настоящей главы</string>
     <!-- Библиотека -->
     <!-- Битрейт: $it -->
-    <string name="bitrateFormat">Битрейт: $it</string>
+    <string name="bitrateFormat">Битрейт: %s</string>
     <!-- Браузер -->
     <string name="browser">Браузер</string>
     <!-- Введите URL-адрес зеркала -->
@@ -2197,7 +2197,7 @@
     <!-- Глава $номер -->
     <string name="chapterNumberFormat">Глава $номер</string>
     <!-- Длительность: $it -->
-    <string name="durationFormat">Длительность: $it</string>
+    <string name="durationFormat">Длительность: %s</string>
     <!-- Добавить свое зеркало -->
     <string name="addCustomMirror">Добавить свое зеркало</string>
     <!-- добавьте аудиокниги, чтобы начать -->
@@ -2243,7 +2243,7 @@
     <string name="darkThemeName">Тёмная</string>
     <string name="deleteAction">Удалить</string>
     <string name="files">Файлы</string>
-    <string name="formatFormat">Формат: $it</string>
+    <string name="formatFormat">Формат: %s</string>
     <string name="mirrorAlreadyAddedError">Это зеркало уже добавлено</string>
     <!-- Раздел отладки - RuTracker -->
     <string name="rutrackerTab">RuTracker</string>
