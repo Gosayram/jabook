@@ -14,8 +14,6 @@
 
 package com.jabook.app.jabook.audio
 
-import android.content.pm.ServiceInfo
-import android.os.Build
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
@@ -31,32 +29,9 @@ class AudioPlayerServiceInitializer(
     fun initialize() {
         android.util.Log.i("AudioPlayerService", "Initializing service components...")
 
-        // strict mode for foreground service on Android 14+
-        // We must start foreground BEFORE creating MediaSession to avoid ANR/Freecess
-        try {
-            // Create legacy notification channel for "Initializing..." notification
-            val notificationHelper = NotificationHelper(service)
-            service.notificationHelper = notificationHelper
-            // Channel is created inside createMinimalNotification
-
-            val notification = notificationHelper.createMinimalNotification()
-
-            // CRITICAL for Samsung/Android 14+: Specify foreground service type
-            if (Build.VERSION.SDK_INT >= 29) {
-                service.startForeground(
-                    NotificationHelper.NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
-                )
-            } else {
-                service.startForeground(NotificationHelper.NOTIFICATION_ID, notification)
-            }
-            android.util.Log.d("AudioPlayerService", "Started foreground service with Initializing notification")
-        } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to start foreground service", e)
-        }
-
         // Initialize helper classes
+        service.notificationHelper = NotificationHelper(service)
+
         // Note: Order matters due to dependencies
 
         // 1. DurationManager (already initialized as val in Service)

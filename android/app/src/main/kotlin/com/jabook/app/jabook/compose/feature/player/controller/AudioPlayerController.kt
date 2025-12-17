@@ -154,6 +154,26 @@ class AudioPlayerController
 
             val service = AudioPlayerService.getInstance()
             if (service != null) {
+                // Check if we are already playing this book to avoid restarting
+                val currentPaths = service.currentFilePaths
+                if (currentPaths == filePaths) {
+                    android.util.Log.i("AudioPlayerController", "Book already loaded. Skipping setPlaylist to prevent restart.")
+
+                    // Handle seeking if needed (e.g. user clicked a specific chapter)
+                    // Only seek if significantly different to allow resume logic to work
+                    if (initialChapterIndex != exoPlayer.currentMediaItemIndex) {
+                        service.seekToTrack(initialChapterIndex)
+                    }
+                    if (initialPosition > 0 && Math.abs(exoPlayer.currentPosition - initialPosition) > 1000) {
+                        service.seekTo(initialPosition)
+                    }
+
+                    if (autoPlay && !exoPlayer.isPlaying) {
+                        play()
+                    }
+                    return
+                }
+
                 service.setPlaylist(
                     filePaths = filePaths,
                     initialTrackIndex = initialChapterIndex,
