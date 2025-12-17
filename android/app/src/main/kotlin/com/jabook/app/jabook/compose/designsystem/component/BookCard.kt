@@ -40,9 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImagePainter
 import coil3.compose.SubcomposeAsyncImage
-import coil3.compose.SubcomposeAsyncImageContent
 
 /**
  * Book card component for displaying audiobook information.
@@ -89,53 +87,46 @@ fun BookCard(
             // Cover image with 2:3 aspect ratio (standard book cover)
             SubcomposeAsyncImage(
                 model = coverUrl,
-                contentDescription = null, // Decorative, title is read from Text below
+                contentDescription = title,
                 modifier =
-                    imageModifier
+                    Modifier
                         .fillMaxWidth()
                         .aspectRatio(2f / 3f)
                         .clip(MaterialTheme.shapes.medium),
                 contentScale = ContentScale.Crop,
-            ) {
-                val state = painter.state
-                when (state) {
-                    is AsyncImagePainter.State.Loading -> {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(2f / 3f)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
+                loading = {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(2f / 3f)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     }
-                    is AsyncImagePainter.State.Error -> {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(2f / 3f)
-                                    .background(MaterialTheme.colorScheme.errorContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.BrokenImage,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.size(48.dp),
-                            )
-                        }
+                },
+                error = {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(2f / 3f)
+                                .background(MaterialTheme.colorScheme.errorContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BrokenImage,
+                            contentDescription = "Failed to load cover",
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                        )
                     }
-                    else -> {
-                        SubcomposeAsyncImageContent()
-                    }
-                }
-            }
+                },
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
