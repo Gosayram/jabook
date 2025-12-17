@@ -4,15 +4,28 @@
 -keepattributes Signature, InnerClasses, EnclosingMethod
 -keepclassmembers class **$WhenMappings { <fields>; }
 
-# -------- Kotlinx Serialization (IRONCLAD - NO OBFUSCATION) --------
-# Completely keep serializable classes and their members.
-# This prevents ALL renaming issues.
--keep @kotlinx.serialization.Serializable class ** { *; }
+# -------- Kotlinx Serialization (ENHANCED - R8 FULL MODE COMPATIBLE) --------
 
-# Keep generated serializers
--keep class **$$serializer { *; }
+# Keep all kotlinx.serialization core classes
+-keep class kotlinx.serialization.** { *; }
+-keep interface kotlinx.serialization.** { *; }
 
-# Keep serializer companion objects
+# Keep all @Serializable classes WITHOUT obfuscation
+-keep @kotlinx.serialization.Serializable class ** {
+    *;
+}
+
+# Keep all fields marked with @SerialName
+-keepclassmembers class ** {
+    @kotlinx.serialization.SerialName <fields>;
+}
+
+# Keep generated serializers ($$serializer classes)
+-keep class **$$serializer {
+    *;
+}
+
+# Keep serializer() methods in companion objects
 -keepclassmembers class * {
     static ** Companion;
 }
@@ -20,8 +33,22 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
+# Keep navigation routes specifically (belt-and-suspenders approach)
+-keep class com.jabook.app.jabook.compose.navigation.** implements kotlinx.serialization.KSerializer { *; }
+-keep class com.jabook.app.jabook.compose.navigation.**Route {
+    *;
+}
+-keep class com.jabook.app.jabook.compose.navigation.**Route$$serializer {
+    *;
+}
+
+# Prevent R8 from removing or inlining serialization descriptors
+-keepclassmembers class kotlinx.serialization.internal.** {
+    *;
+}
+
 # Keep all serialization annotations
--keepattributes *Annotation*, InnerClasses, Signature, EnclosingMethod
+-keepattributes *Annotation*, InnerClasses, Signature, EnclosingMethod, RuntimeVisibleAnnotations
 
 # -------- Hilt (Dependency Injection) --------
 # Keep entry points and generated components
