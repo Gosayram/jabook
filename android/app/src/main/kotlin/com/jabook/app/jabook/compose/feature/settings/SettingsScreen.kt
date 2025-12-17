@@ -100,6 +100,9 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.navSettingsText)) },
+                windowInsets =
+                    androidx.compose.foundation.layout
+                        .WindowInsets(0, 0, 0, 0),
             )
         },
         modifier = modifier,
@@ -698,8 +701,6 @@ fun SettingsScreen(
                 },
             )
 
-            HorizontalDivider()
-
             // Developer Tools Section
             SettingsSection(title = stringResource(R.string.developer))
 
@@ -709,7 +710,7 @@ fun SettingsScreen(
                 onClick = onNavigateToDebug,
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
