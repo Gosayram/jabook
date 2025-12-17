@@ -91,6 +91,7 @@ class AudioPlayerNotificationProvider(
     ): MediaNotification {
         // Use DefaultMediaNotificationProvider which handles MediaStyle automatically
         // This ensures Quick Settings controls support (Android 11+) and SeekBar (Android 13+)
+        android.util.Log.d("AudioPlayerNotificationProvider", "createNotification called. Session: ${mediaSession.token}")
         val mediaNotification =
             defaultProvider.createNotification(
                 mediaSession,
@@ -98,6 +99,7 @@ class AudioPlayerNotificationProvider(
                 actionFactory,
                 onNotificationChangedCallback,
             )
+        android.util.Log.d("AudioPlayerNotificationProvider", "Notification created: ${mediaNotification.notification}")
 
         // Ensure we use consistently the same notification ID
         return MediaNotification(

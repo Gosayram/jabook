@@ -99,7 +99,14 @@ class AudioPlayerService : MediaLibraryService() {
     internal var metadataManager: MetadataManager? = null
 
     // Store the custom provider to access it in onUpdateNotification
+    // Use custom setter to delegate to the protected setMediaNotificationProvider method
     internal var customMediaNotificationProvider: AudioPlayerNotificationProvider? = null
+        set(value) {
+            field = value
+            if (value != null) {
+                setMediaNotificationProvider(value)
+            }
+        }
 
     // Helper for player state
     internal var playerStateHelper: PlayerStateHelper? = null

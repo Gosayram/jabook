@@ -218,11 +218,11 @@ class AudioPlayerController
         private fun startService() {
             try {
                 val intent = Intent(context, AudioPlayerService::class.java)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
+                // Use startService instead of startForegroundService.
+                // Since the app is in the foreground, we are allowed to start the service.
+                // MediaLibraryService will internally handle promoting it to foreground
+                // when playback starts and notification is posted.
+                context.startService(intent)
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerController", "Failed to start service", e)
             }

@@ -418,19 +418,8 @@ class NotificationManager(
                         "NotificationManager",
                         "Failed to extract native token, trying direct approach: ${e.message}",
                     )
-                    // Fallback: try to use SessionToken directly (may work in some Media3 versions)
-                    // This will likely fail but worth trying
-                    try {
-                        val sessionTokenField = mediaStyle.javaClass.getDeclaredField("mToken")
-                        sessionTokenField.isAccessible = true
-                        sessionTokenField.set(mediaStyle, sessionToken)
-                        android.util.Log.d(
-                            "NotificationManager",
-                            "MediaStyle configured with SessionToken using reflection",
-                        )
-                    } catch (e2: Exception) {
-                        android.util.Log.e("NotificationManager", "Failed to set MediaSession token: ${e2.message}")
-                    }
+                    // Fallback removed to avoid obfuscation issues (mToken field missing)
+                    android.util.Log.w("NotificationManager", "Skipping reflection fallback for mToken")
                 }
             } catch (e: Exception) {
                 android.util.Log.e(

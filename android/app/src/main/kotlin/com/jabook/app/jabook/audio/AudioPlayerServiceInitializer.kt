@@ -193,7 +193,7 @@ class AudioPlayerServiceInitializer(
                     { filePath -> service.getDurationForFile(filePath) },
                 )
 
-            // Create and store notification provider
+            // Create and store notification provider (setter calls setMediaNotificationProvider internally)
             val notificationProvider = AudioPlayerNotificationProvider(service)
             service.customMediaNotificationProvider = notificationProvider
 
