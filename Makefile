@@ -148,28 +148,28 @@ ktlint-strace:
 build-dev:
 	@echo "Building dev debug APK..."
 	@cd android && ./gradlew :app:assembleDevDebug
-	@echo "✅ Dev debug APK built at: android/app/build/outputs/apk/dev/debug/"
+	@echo "✅ Dev debug APK built at: build/app/outputs/apk/dev/debug"
 
 # Build beta release APK
 .PHONY: build-beta
 build-beta:
 	@echo "Building beta release APK..."
 	@cd android && ./gradlew :app:assembleBetaRelease
-	@echo "✅ Beta release APK built at: android/app/build/outputs/apk/beta/release/"
+	@echo "✅ Beta release APK built at: build/app/outputs/apk/beta/release"
 
 # Build prod release APK
 .PHONY: build-prod
 build-prod:
 	@echo "Building prod release APK..."
 	@cd android && ./gradlew :app:assembleProdRelease
-	@echo "✅ Prod release APK built at: android/app/build/outputs/apk/prod/release/"
+	@echo "✅ Prod release APK built at: build/app/outputs/apk/prod/release"
 
 # Build prod App Bundle (AAB)
 .PHONY: build-bundle-prod
 build-bundle-prod:
 	@echo "Building prod App Bundle (AAB)..."
 	@cd android && ./gradlew :app:bundleProdRelease
-	@echo "✅ Prod AAB built at: android/app/build/outputs/bundle/prodRelease/"
+	@echo "✅ Prod AAB built at: build/app/outputs/bundle/prodRelease"
 
 # ========================================
 # Signing Commands
@@ -231,7 +231,7 @@ build-signed-apk: use-existing-android-cert patch-gradle-signing
 build-signed-apk-beta: use-existing-android-cert patch-gradle-signing
 	@echo "Building signed beta APKs..."
 	@cd android && ./gradlew :app:assembleBetaRelease
-	@echo "✅ Signed beta APKs built at: android/app/build/outputs/apk/beta/release/"
+	@echo "✅ Signed beta APKs built at: build/app/outputs/apk/beta/release"
 
 # ========================================
 # Copy APK Commands
