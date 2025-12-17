@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.navigation
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -25,20 +24,12 @@ import kotlinx.serialization.Serializable
  */
 
 /**
- * Library screen route - shows list of audiobooks.
- * This is typically the start destination of the app.
- */
-@Serializable
-object LibraryRoute
-
-/**
- * Player screen route - shows audio player with playback controls.
+ * Player screen route - plays the audiobook.
  *
  * @param bookId Unique identifier of the book to play
  */
 @Serializable
 data class PlayerRoute(
-    @SerialName("bookId")
     val bookId: String,
 )
 
@@ -49,7 +40,6 @@ data class PlayerRoute(
  */
 @Serializable
 data class WebViewRoute(
-    @SerialName("url")
     val url: String,
 )
 
@@ -72,33 +62,38 @@ object SearchRoute
 object DownloadsRoute
 
 /**
- * Download History screen route - shows history of downloads.
- */
-@Serializable
-object DownloadHistoryRoute
-
-/**
  * Debug screen route - shows debug tools and logs.
  */
 @Serializable
 object DebugRoute
 
 /**
- * Topic details screen route - shows detailed information about a RuTracker topic.
+ * Library screen route - displays user's books.
+ */
+@Serializable
+object LibraryRoute
+
+/**
+ * Favorites screen route - displays favorite books.
+ */
+@Serializable
+object FavoritesRoute
+
+/**
+ * Topic screen route - displays books for a specific topic/category.
  *
- * @param topicId Unique identifier of the topic
+ * @param topicId The unique identifier of the topic
  */
 @Serializable
 data class TopicRoute(
-    @SerialName("topicId")
     val topicId: String,
 )
 
 /**
- * Favorites screen route - shows user's favorite audiobooks.
+ * Download History screen route - displays download history.
  */
 @Serializable
-object FavoritesRoute
+object DownloadHistoryRoute
 
 @Serializable
 object ScanSettingsRoute

@@ -4,38 +4,56 @@
 -keepattributes Signature, InnerClasses, EnclosingMethod
 -keepclassmembers class **$WhenMappings { <fields>; }
 
-# -------- Kotlinx Serialization (with @SerialName) --------
-# Keep @Serializable classes
--keep,allowobfuscation @kotlinx.serialization.Serializable class **
+# -------- Kotlinx Serialization (IRONCLAD - NO OBFUSCATION) --------
+# Completely keep serializable classes and their members.
+# This prevents ALL renaming issues.
+-keep @kotlinx.serialization.Serializable class ** { *; }
 
 # Keep generated serializers
 -keep class **$$serializer { *; }
 
-# CRITICAL: Keep @SerialName annotation values
--keep @interface kotlinx.serialization.SerialName
--keepclassmembers @kotlinx.serialization.Serializable class ** {
-    @kotlinx.serialization.SerialName <fields>;
+# Keep serializer companion objects
+-keepclassmembers class * {
+    static ** Companion;
 }
-
-# Keep serializer companion method
--if @kotlinx.serialization.Serializable class **
--keepclassmembers class <1>$Companion {
+-keepclassmembers class **$Companion {
     kotlinx.serialization.KSerializer serializer(...);
 }
 
 # Keep all serialization annotations
--keepattributes RuntimeVisibleAnnotations,AnnotationDefault
+-keepattributes *Annotation*, InnerClasses, Signature, EnclosingMethod
 
-# -------- Native Methods (JNI - cannot be obfuscated) --------
--keepclasseswithmembernames,includedescriptorclasses class * { native <methods>; }
+# -------- Hilt (Dependency Injection) --------
+# Keep entry points and generated components
+-keep class * extends dagger.hilt.android.HiltAndroidApp
+-keep @dagger.hilt.android.AndroidEntryPoint class *
+-keep @dagger.hilt.android.lifecycle.HiltViewModel class *
+-keep class **_Factory { *; }
+-keep class **_HiltComponents { *; }
+
+# -------- Room (Database) --------
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class * { *; }
+-keep class **_Impl { *; }
+
+# -------- DataStore Proto --------
+-keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences { *; }
+-keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences$* { *; }
+
+# -------- Retrofit / OkHttp --------
+-keepattributes Signature, InnerClasses, EnclosingMethod
+-keepclassmembers,allowshrinking,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}
+
+# -------- Native Methods --------
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
 
 # -------- Entry Points (Activities) --------
 -keep class com.jabook.app.jabook.MainActivity
 -keep class com.jabook.app.jabook.compose.ComposeMainActivity
-
-# -------- DataStore Proto (app-specific) --------
--keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences { *; }
--keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences$* { *; }
 
 # -------- Android Framework (required) --------
 -keepclassmembers enum * { 
@@ -43,7 +61,7 @@
     public static ** valueOf(java.lang.String); 
 }
 
-# -------- Remove Debug Logs --------
+# -------- Logging --------
 -assumenosideeffects class android.util.Log {
     public static *** v(...);
     public static *** d(...);
