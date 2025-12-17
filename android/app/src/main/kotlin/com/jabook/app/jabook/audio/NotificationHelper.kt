@@ -61,9 +61,9 @@ internal class NotificationHelper(
 
         return NotificationCompat
             .Builder(context, CHANNEL_ID)
-            .setContentTitle("JaBook Audio")
+            .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(context.getString(R.string.initializingAudioPlayer))
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -81,9 +81,9 @@ internal class NotificationHelper(
 
         return NotificationCompat
             .Builder(context, CHANNEL_ID)
-            .setContentTitle("JaBook Audio")
+            .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(context.getString(R.string.initializing))
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
@@ -100,10 +100,10 @@ internal class NotificationHelper(
                 val channel =
                     NotificationChannel(
                         channelId,
-                        "JaBook Audio Playback",
+                        context.getString(R.string.notification_channel_name),
                         AndroidNotificationManager.IMPORTANCE_LOW,
                     ).apply {
-                        description = "Audio playback controls"
+                        description = context.getString(R.string.notification_channel_description)
                         setShowBadge(false)
                     }
                 val notificationManager =

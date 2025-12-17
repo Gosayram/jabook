@@ -45,14 +45,14 @@ class AudioPlayerLibrarySessionCallback(
     private val customCommands =
         listOf(
             androidx.media3.session.CommandButton
-                .Builder(androidx.media3.session.CommandButton.ICON_REWIND)
-                .setDisplayName("Rewind 15s")
+                .Builder(com.jabook.app.jabook.R.drawable.ic_rewind)
+                .setDisplayName(service.getString(com.jabook.app.jabook.R.string.rewind))
                 .setSessionCommand(
                     androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY),
                 ).build(),
             androidx.media3.session.CommandButton
-                .Builder(androidx.media3.session.CommandButton.ICON_FAST_FORWARD)
-                .setDisplayName("Forward 30s")
+                .Builder(com.jabook.app.jabook.R.drawable.ic_forward)
+                .setDisplayName(service.getString(com.jabook.app.jabook.R.string.forward))
                 .setSessionCommand(
                     androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY),
                 ).build(),

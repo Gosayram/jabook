@@ -66,6 +66,10 @@ class AudioPlayerService : MediaLibraryService() {
     @Inject
     lateinit var playerPersistenceManager: PlayerPersistenceManager
 
+    // Settings repository for MediaSession synchronization
+    @Inject
+    lateinit var settingsRepository: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
+
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
     // Keep mediaSession for backward compatibility during migration
@@ -285,6 +289,7 @@ class AudioPlayerService : MediaLibraryService() {
      * user navigates to the previous activity when pressing back.
      *
      * Based on Media3 DemoPlaybackService example.
+     * Updated to use deep link for direct navigation to PlayerScreen.
      */
     internal fun getSingleTopActivity(): PendingIntent? {
         val immutableFlag =
@@ -298,7 +303,9 @@ class AudioPlayerService : MediaLibraryService() {
             0,
             Intent(this, ComposeMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra("open_player", true) // Signal to Flutter to open player screen
+                // Use deep link to navigate directly to PlayerScreen
+                // This works with Compose Navigation's navDeepLink
+                data = android.net.Uri.parse("jabook://player")
             },
             immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT,
         )

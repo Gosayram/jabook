@@ -134,7 +134,7 @@ fun JabookNavHost(
         composable<PlayerRoute>(
             deepLinks =
                 listOf(
-                    androidx.navigation.navDeepLink { uriPattern = "jabook://player/{bookId}" },
+                    androidx.navigation.navDeepLink<PlayerRoute>(basePath = "jabook://player"),
                 ),
             enterTransition = {
                 androidx.compose.animation.fadeIn(

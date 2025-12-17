@@ -194,6 +194,11 @@ class AudioPlayerServiceInitializer(
         initializeMediaSession()
 
         service.isFullyInitializedFlag = true
+
+        // Start settings synchronization to MediaSession
+        // This ensures system media controls always reflect current app settings
+        initializeSettingsSync()
+
         android.util.Log.i("AudioPlayerService", "Service components initialized successfully")
     }
 
@@ -258,6 +263,25 @@ class AudioPlayerServiceInitializer(
             service.notificationManager?.setNotificationType(service.isMinimalNotification)
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
+        }
+    }
+
+    /**
+     * Initializes settings synchronization for MediaSession custom commands.
+     * Observes user preferences and updates skip durations dynamically.
+     */
+    private fun initializeSettingsSync() {
+        try {
+            val settingsSync =
+                MediaSessionSettingsSync(
+                    settingsRepository = service.settingsRepository,
+                    service = service,
+                    scope = service.playerServiceScope,
+                )
+            settingsSync.start()
+            android.util.Log.i("AudioPlayerService", "Settings sync initialized successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to initialize settings sync", e)
         }
     }
 }

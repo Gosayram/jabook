@@ -2286,4 +2286,8 @@
     <string name="noCustomFoldersAdded">No custom folders added</string>
     <!-- Scanning default folders: Audiobooks, Podcasts -->
     <string name="scanningDefaultFoldersAudiobooksPodcasts">Scanning default folders: Audiobooks, Podcasts</string>
+    <!-- Notification strings -->
+    <string name="notification_title">JaBook Audio</string>
+    <string name="notification_channel_name">JaBook Audio Playback</string>
+    <string name="notification_channel_description">Audio playback controls</string>
 </resources>

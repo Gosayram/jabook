@@ -2323,4 +2323,8 @@
     <string name="noCustomFoldersAdded">Пользовательские папки не добавлены</string>
     <!-- Сканирование папок по умолчанию: аудиокниги, подкасты. -->
     <string name="scanningDefaultFoldersAudiobooksPodcasts">Сканирование папок по умолчанию: аудиокниги, подкасты.</string>
+    <!-- Строки уведомлений -->
+    <string name="notification_title">JaBook Аудио</string>
+    <string name="notification_channel_name">Воспроизведение JaBook</string>
+    <string name="notification_channel_description">Управление воспроизведением аудио</string>
 </resources>
