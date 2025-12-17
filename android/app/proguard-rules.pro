@@ -5,37 +5,43 @@
 -keepclassmembers class **$WhenMappings { <fields>; }
 -keepattributes *Annotation*, Signature, Exceptions, InnerClasses, EnclosingMethod
 
-# -------- Kotlinx Serialization (R8 full mode safe) --------
--keep @kotlinx.serialization.Serializable class ** { *; }
--keepclassmembers @kotlinx.serialization.Serializable class ** { <init>(...); <fields>; *** Companion; }
+# -------- Kotlinx Serialization (optimized for @SerialName) --------
+# Keep @Serializable classes and their serializers
+-keep,allowobfuscation @kotlinx.serialization.Serializable class **
+
+# Keep generated serializers
 -keep,includedescriptorclasses class **$$serializer { *; }
--keepclasseswithmembers class ** { kotlinx.serialization.KSerializer serializer(...); }
 
-# -------- Navigation routes (type-safe / toRoute) --------
--keep @kotlinx.serialization.Serializable class com.jabook.app.jabook.compose.navigation.** { *; }
--keep class com.jabook.app.jabook.compose.navigation.**$$serializer { *; }
--keepnames class com.jabook.app.jabook.compose.navigation.**
+# Keep serializer companion objects
+-if @kotlinx.serialization.Serializable class **
+-keepclassmembers class <1> {
+    static <1>$Companion Companion;
+}
+-if @kotlinx.serialization.Serializable class **
+-keepclassmembers class <1>$Companion {
+    kotlinx.serialization.KSerializer serializer(...);
+}
 
-# -------- Hilt --------
--keep class * extends dagger.hilt.android.HiltAndroidApp { *; }
--keep @dagger.hilt.android.HiltAndroidApp class * { *; }
--keep @dagger.hilt.android.AndroidEntryPoint class * { *; }
--keepclassmembers class * { @dagger.hilt.android.lifecycle.HiltViewModel <init>(...); }
--keep class **_HiltComponents { *; }
--keep class **_HiltModules* { *; }
--keep class **_Factory { *; }
--keep class **_MembersInjector { *; }
+# Keep @SerialName and other serialization annotations
+-keepattributes RuntimeVisibleAnnotations
 
-# -------- Room --------
--keep class * extends androidx.room.RoomDatabase { *; }
+
+
+# -------- Hilt (optimized) --------
+-keep class * extends dagger.hilt.android.HiltAndroidApp
+-keep @dagger.hilt.android.AndroidEntryPoint class *
+-keepclassmembers class * {
+    @javax.inject.Inject <init>(...);
+}
+
+# -------- Room (optimized) --------
+-keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class * { *; }
--keep class **.*_Impl { *; }
 -dontwarn androidx.room.paging.**
 
-# -------- DataStore (Proto) --------
--keepclassmembers class * extends androidx.datastore.preferences.protobuf.GeneratedMessageLite { <fields>; }
--keep class **.*$Builder { *; }
+# -------- DataStore Proto (specific) --------
 -keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences { *; }
+-keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences$* { *; }
 
 # -------- WorkManager --------
 -keep class * extends androidx.work.Worker { *; }
@@ -59,12 +65,7 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
 
-# -------- Gson (only for reflection-based adapters) --------
--keep class * implements com.google.gson.TypeAdapter
--keep class * implements com.google.gson.TypeAdapterFactory
--keep class * implements com.google.gson.JsonSerializer
--keep class * implements com.google.gson.JsonDeserializer
--keepclassmembers class * { @com.google.gson.annotations.SerializedName <fields>; }
+# -------- Gson REMOVED (app uses kotlinx.serialization) --------
 
 # -------- Torrent / JNI --------
 -keep class com.frostwire.jlibtorrent.** { *; }
