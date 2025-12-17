@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.data.model.AppTheme
 
 private object GitHubUrls {
@@ -570,13 +571,14 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::updateAutoPlayNext,
             )
 
+            // Playback Speed
             SettingsSliderItem(
                 title = stringResource(R.string.playbackSpeed),
                 sliderValue = userPreferences?.playbackSpeed ?: 1.0f,
-                onValueChange = viewModel::updatePlaybackSpeed,
-                valueRange = 0.5f..2.0f,
-                steps = 14,
-                valueFormatter = { String.format("%.1fx", it) },
+                onValueChange = { viewModel.updatePlaybackSpeed(it) },
+                valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
+                steps = PlaybackSpeedConstants.SLIDER_STEPS,
+                valueFormatter = { PlaybackSpeedConstants.formatSpeed(it) },
             )
 
             // Seek Intervals

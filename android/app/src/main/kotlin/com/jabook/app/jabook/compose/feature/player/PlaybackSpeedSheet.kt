@@ -20,7 +20,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -32,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 
 /**
  * Bottom sheet for selecting playback speed.
@@ -46,49 +50,59 @@ fun PlaybackSpeedSheet(
     currentSpeed: Float,
     onSpeedSelected: (Float) -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-    sheetState: SheetState =
-        androidx.compose.material3.rememberModalBottomSheetState(),
+    sheetState: SheetState,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        modifier = modifier,
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(16.dp),
         ) {
             Text(
                 text = stringResource(R.string.playbackSpeed),
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 16.dp),
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+            HorizontalDivider()
 
-            speeds.forEach { speed ->
-                ListItem(
-                    headlineContent = {
-                        Text("${speed}x")
-                    },
-                    leadingContent = {
-                        RadioButton(
-                            selected = speed == currentSpeed,
-                            onClick = null,
-                        )
-                    },
-                    modifier =
-                        Modifier.clickable {
+            LazyColumn {
+                items(PlaybackSpeedConstants.generateSpeedsList()) { speed ->
+                    SpeedOption(
+                        speed = speed,
+                        isSelected = speed == currentSpeed,
+                        onClick = {
                             onSpeedSelected(speed)
                             onDismiss()
                         },
-                )
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun SpeedOption(
+    speed: Float,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = {
+            Text(PlaybackSpeedConstants.formatSpeed(speed))
+        },
+        leadingContent = {
+            RadioButton(
+                selected = isSelected,
+                onClick = null,
+            )
+        },
+        modifier = Modifier.clickable(onClick = onClick),
+    )
 }
