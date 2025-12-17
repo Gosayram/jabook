@@ -4,7 +4,7 @@
     <!-- Title for search screen -->
     <string name="searchAudiobooks">Search Audiobooks</string>
     <!-- Placeholder text for search field -->
-    <string name="searchPlaceholder">Enter title, author, or keywords</string>
+    <string name="searchPlaceholder">Enter query</string>
     <!-- Title for library screen -->
     <string name="libraryTitle">Library</string>
     <!-- Title for player screen -->

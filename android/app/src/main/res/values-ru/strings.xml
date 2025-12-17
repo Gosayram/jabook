@@ -4,7 +4,7 @@
     <!-- Заголовок экрана поиска -->
     <string name="searchAudiobooks">Поиск аудиокниг</string>
     <!-- Текст-заполнитель для поля поиска -->
-    <string name="searchPlaceholder">Введите название, автора или ключевые слова</string>
+    <string name="searchPlaceholder">Введите запрос</string>
     <!-- Заголовок экрана библиотеки -->
     <string name="libraryTitle">Библиотека</string>
     <!-- Заголовок экрана плеера -->
