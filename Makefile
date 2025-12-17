@@ -61,6 +61,7 @@ help:
 	@echo "  make fmt-l10n                      - Format l10n files (cleanup duplicates)"
 	@echo "  make strings                       - Migrate hardcoded strings to resources"
 	@echo "  make strings-check                 - Dry-run migration (no changes)"
+	@echo "  make report                        - Analyze startup_profile.log and generate debug report"
 	@echo ""
 	@echo "Device Commands:"
 	@echo "  make run                           - Install and run APK on device"
@@ -432,6 +433,18 @@ strings:
 strings-check:
 	@echo "🔍 DRY RUN - Checking hardcoded strings..."
 	@scripts/.venv/bin/python3 scripts/migrate_strings.py android --dry-run
+
+# Analyze startup logs and generate debug report
+.PHONY: report
+report:
+	@echo "📊 Analyzing startup_profile.log..."
+	@if [ ! -f "startup_profile.log" ]; then \
+		echo "❌ Error: startup_profile.log not found"; \
+		echo "Run 'make run-beta-debug' first to generate the log"; \
+		exit 1; \
+	fi
+	@python3 scripts/analyze_startup_log.py startup_profile.log --output .debug-report-docs.md
+	@echo "✅ Debug report saved to .debug-report-docs.md"
 
 
 # ========================================
