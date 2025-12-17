@@ -134,7 +134,15 @@ fun JabookApp(
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            snackbarHost = { androidx.compose.material3.SnackbarHost(appState.snackbarHostState) },
+            snackbarHost = {
+                androidx.compose.material3.SnackbarHost(
+                    hostState = appState.snackbarHostState,
+                    modifier =
+                        Modifier.padding(
+                            bottom = if (!showNavRail) 100.dp else 16.dp,
+                        ),
+                )
+            },
             bottomBar = {
                 if (!showNavRail) {
                     androidx.compose.foundation.layout.Column {
