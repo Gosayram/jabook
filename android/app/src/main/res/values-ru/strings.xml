@@ -1968,6 +1968,22 @@
     <string name="freeUpCacheSize">Освободить %s</string>
     <!-- Подтверждение очистки кэша -->
     <string name="clearCacheConfirmation">Это удалит %s кэшированных данных. Продолжить?</string>
+    <!-- Нажмите на главу для перехода и воспроизведения -->
+    <string name="selectChapterNote">Нажмите на главу для перехода и воспроизведения</string>
+    <!-- Видео -->
+    <string name="videoLabel">Видео</string>
+    <!-- Аудио -->
+    <string name="audioLabel">Аудио</string>
+    <!-- Кодек: %s -->
+    <string name="codecLabel">Кодек: %s</string>
+    <!-- Разрешение: %s -->
+    <string name="resolutionLabel">Разрешение: %s</string>
+    <!-- Битрейт: %s -->
+    <string name="bitrateLabel">Битрейт: %s</string>
+    <!-- Каналы: %s -->
+    <string name="channelsLabel">Каналы: %s</string>
+    <!-- Язык: %s -->
+    <string name="languageLabel">Язык: %s</string>
     <!-- Считать -->
     <string name="count">Считать</string>
     <!-- Удалить старое (>30 дней) -->

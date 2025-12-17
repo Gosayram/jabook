@@ -257,15 +257,20 @@ private fun TopicDetailsContent(
             if (mediaInfo.video.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Видео",
+                        text = stringResource(R.string.videoLabel),
                         style = MaterialTheme.typography.titleMedium,
                     )
                 }
                 items(mediaInfo.video) { video ->
                     Column(Modifier.padding(vertical = 4.dp)) {
-                        video.codec?.let { Text("Кодек: $it", style = MaterialTheme.typography.bodyMedium) }
-                        video.resolution?.let { Text("Разрешение: $it", style = MaterialTheme.typography.bodyMedium) }
-                        video.bitrate?.let { Text("Битрейт: $it", style = MaterialTheme.typography.bodyMedium) }
+                        video.codec?.let { Text(stringResource(R.string.codecLabel, it), style = MaterialTheme.typography.bodyMedium) }
+                        video.resolution?.let {
+                            Text(
+                                stringResource(R.string.resolutionLabel, it),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        video.bitrate?.let { Text(stringResource(R.string.bitrateLabel, it), style = MaterialTheme.typography.bodyMedium) }
                     }
                 }
             }
@@ -274,16 +279,26 @@ private fun TopicDetailsContent(
             if (mediaInfo.audio.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Аудио",
+                        text = stringResource(R.string.audioLabel),
                         style = MaterialTheme.typography.titleMedium,
                     )
                 }
                 items(mediaInfo.audio) { audio ->
                     Column(Modifier.padding(vertical = 4.dp)) {
-                        audio.codec?.let { Text("Кодек: $it", style = MaterialTheme.typography.bodyMedium) }
-                        audio.bitrate?.let { Text("Битрейт: $it", style = MaterialTheme.typography.bodyMedium) }
-                        audio.channels?.let { Text("Каналы: $it", style = MaterialTheme.typography.bodyMedium) }
-                        audio.language?.let { Text("Язык: $it", style = MaterialTheme.typography.bodyMedium) }
+                        audio.codec?.let { Text(stringResource(R.string.codecLabel, it), style = MaterialTheme.typography.bodyMedium) }
+                        audio.bitrate?.let { Text(stringResource(R.string.bitrateLabel, it), style = MaterialTheme.typography.bodyMedium) }
+                        audio.channels?.let {
+                            Text(
+                                stringResource(R.string.channelsLabel, it),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        audio.language?.let {
+                            Text(
+                                stringResource(R.string.languageLabel, it),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
                     }
                 }
             }

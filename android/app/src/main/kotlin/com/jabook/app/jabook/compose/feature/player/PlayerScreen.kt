@@ -114,6 +114,7 @@ fun PlayerScreen(
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
+    var showChapterSheet by remember { mutableStateOf(false) }
 
     // Handle back gesture for swipe-to-dismiss
     androidx.activity.compose.BackHandler {
@@ -138,6 +139,18 @@ fun PlayerScreen(
             onStartTimer = viewModel::startSleepTimer,
             onCancelTimer = viewModel::cancelSleepTimer,
             onDismiss = { showSleepTimerSheet = false },
+        )
+    }
+
+    // Chapter Selector Sheet
+    if (showChapterSheet && uiState is PlayerUiState.Success) {
+        val chapterSheetState = rememberModalBottomSheetState()
+        ChapterSelectorSheet(
+            chapters = (uiState as PlayerUiState.Success).chapters,
+            currentChapterIndex = (uiState as PlayerUiState.Success).currentChapterIndex,
+            onChapterSelected = viewModel::skipToChapter,
+            onDismiss = { showChapterSheet = false },
+            sheetState = chapterSheetState,
         )
     }
 
@@ -181,6 +194,7 @@ fun PlayerScreen(
                         onSeekForward = viewModel::seekForward,
                         onSeekBackward = viewModel::seekBackward,
                         onSelectChapter = viewModel::skipToChapter,
+                        onChapterClick = { showChapterSheet = true },
                         onSpeedClick = { showSpeedSheet = true },
                         onSleepTimerClick = { showSleepTimerSheet = true },
                         sharedTransitionScope = sharedTransitionScope,
@@ -212,6 +226,7 @@ private fun PlayerContent(
     onSeekForward: () -> Unit,
     onSeekBackward: () -> Unit,
     onSelectChapter: (Int) -> Unit,
+    onChapterClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -222,9 +237,9 @@ private fun PlayerContent(
         modifier = modifier.fillMaxSize(),
         contentPadding =
             androidx.compose.foundation.layout
-                .PaddingValues(24.dp),
+                .PaddingValues(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // Book cover
         item {
@@ -245,7 +260,7 @@ private fun PlayerContent(
                 contentDescription = state.book.title,
                 modifier =
                     imageModifier
-                        .fillMaxWidth(0.7f)
+                        .fillMaxWidth(0.85f)
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -327,11 +342,34 @@ private fun PlayerContent(
             }
         }
 
+        // Current Chapter Button
+        item {
+            FilledTonalButton(
+                onClick = onChapterClick,
+                modifier = Modifier.fillMaxWidth(0.9f),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SkipNext,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+                state.currentChapter?.let { chapter ->
+                    Text(
+                        text =
+                            com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                                chapter,
+                                state.currentChapterIndex,
+                            ),
+                    )
+                }
+            }
+        }
+
         // Playback controls
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Skip previous
@@ -450,29 +488,6 @@ private fun PlayerContent(
                             },
                     )
                 }
-            }
-        }
-
-        // Chapter List Header
-        if (state.chapters.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = stringResource(R.string.chaptersLabelText),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            // Chapter List Items
-            items(state.chapters.size) { index ->
-                val chapter = state.chapters[index]
-                com.jabook.app.jabook.compose.feature.player.ChapterItem(
-                    chapter = chapter,
-                    index = index + 1,
-                    isCurrent = index == state.currentChapterIndex,
-                    onClick = { onSelectChapter(index) },
-                )
             }
         }
     }

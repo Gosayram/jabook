@@ -1960,6 +1960,22 @@
     <string name="clearCache">Clear Cache?</string>
     <!-- Free up cache size -->
     <string name="freeUpCacheSize">Free up %s</string>
+    <!-- Tap a chapter to jump and start playback -->
+    <string name="selectChapterNote">Tap a chapter to jump and start playback</string>
+    <!-- Video -->
+    <string name="videoLabel">Video</string>
+    <!-- Audio -->
+    <string name="audioLabel">Audio</string>
+    <!-- Codec: %s -->
+    <string name="codecLabel">Codec: %s</string>
+    <!-- Resolution: %s -->
+    <string name="resolutionLabel">Resolution: %s</string>
+    <!-- Bitrate: %s -->
+    <string name="bitrateLabel">Bitrate: %s</string>
+    <!-- Channels: %s -->
+    <string name="channelsLabel">Channels: %s</string>
+    <!-- Language: %s -->
+    <string name="languageLabel">Language: %s</string>
     <!-- Clear cache confirmation message -->
     <string name="clearCacheConfirmation">This will delete %s of cached data. Continue?</string>
     <!-- Count -->
