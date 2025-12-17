@@ -137,6 +137,18 @@ object DatabaseModule {
         }
 
     /**
+     * Database migration from version 7 to version 8.
+     *
+     * Fixes issues with database migration (no schema changes).
+     */
+    private val MIGRATION_7_8 =
+        object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // No schema changes
+            }
+        }
+
+    /**
      * Database migration from version 8 to version 9.
      *
      * Adds scan_paths table for custom scan directory configuration.
@@ -172,6 +184,7 @@ object DatabaseModule {
                 MIGRATION_4_5,
                 MIGRATION_5_6,
                 MIGRATION_6_7,
+                MIGRATION_7_8,
                 MIGRATION_8_9,
             ).build()
 
