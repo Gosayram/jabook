@@ -48,12 +48,13 @@ class Media3MetadataParser
             }
 
         private fun parseWithKTagLib(file: File): AudioMetadata? {
-            // CRITICAL: Disable KTagLib on Android 16+ (API 36) due to FDSAN incompatibility.
-            // KTagLib's native code (libktaglib.so) uses fdopen() which violates Android 16's
-            // strict file descriptor ownership tracking (fdsan), causing SIGABRT crashes.
-            // MediaMetadataRetriever is a reliable fallback for all Android versions.
-            if (android.os.Build.VERSION.SDK_INT >= 36) {
-                android.util.Log.d("MetadataParser", "Skipping KTagLib on Android 16+ (FDSAN incompatibility)")
+            // CRITICAL: Disable KTagLib on Android 11+ (API 30) due to FDSAN incompatibility.
+            // Starting from Android 11, fdsan (file descriptor sanitizer) considers ownership
+            // mismatches fatal errors and will abort the app.
+            // KTagLib's native code (libktaglib.so) uses fdopen() which violates this ownership tracking.
+            // MediaMetadataRetriever is a reliable fallback for all Android versions where KTagLib crashes.
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                android.util.Log.d("MetadataParser", "Skipping KTagLib on Android 11+ (FDSAN incompatibility)")
                 return null
             }
 
