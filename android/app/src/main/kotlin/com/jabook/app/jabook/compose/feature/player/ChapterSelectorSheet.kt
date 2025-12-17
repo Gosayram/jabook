@@ -26,8 +26,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -35,13 +37,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
@@ -68,6 +77,25 @@ fun ChapterSelectorSheet(
     sheetState: SheetState,
 ) {
     val listState = rememberLazyListState()
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Filter chapters by search query
+    val filteredChapters =
+        remember(chapters, searchQuery) {
+            if (searchQuery.isBlank()) {
+                chapters.mapIndexed { index, chapter -> index to chapter }
+            } else {
+                chapters
+                    .mapIndexed { index, chapter -> index to chapter }
+                    .filter { (index, chapter) ->
+                        val chapterName = ChapterUtils.formatChapterName(chapter, index)
+                        val chapterNumber = ChapterUtils.extractChapterNumber(chapter.title, index)
+                        searchQuery.toIntOrNull()?.let { searchNum ->
+                            chapterNumber == searchNum
+                        } ?: chapterName.contains(searchQuery, ignoreCase = true)
+                    }
+            }
+        }
 
     // Auto-scroll to current chapter when sheet opens
     LaunchedEffect(currentChapterIndex) {
@@ -101,6 +129,29 @@ fun ChapterSelectorSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Search field
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text(stringResource(R.string.searchChapterPlaceholder)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = null,
+                    )
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                colors =
+                    TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             HorizontalDivider()
 
             // Chapter list
@@ -108,13 +159,13 @@ fun ChapterSelectorSheet(
                 state = listState,
                 modifier = Modifier.weight(1f, fill = false),
             ) {
-                itemsIndexed(chapters) { index, chapter ->
+                itemsIndexed(filteredChapters) { _, (originalIndex, chapter) ->
                     ChapterSelectorItem(
                         chapter = chapter,
-                        index = index,
-                        isCurrent = index == currentChapterIndex,
+                        index = originalIndex,
+                        isCurrent = originalIndex == currentChapterIndex,
                         onClick = {
-                            onChapterSelected(index)
+                            onChapterSelected(originalIndex)
                             onDismiss()
                         },
                     )

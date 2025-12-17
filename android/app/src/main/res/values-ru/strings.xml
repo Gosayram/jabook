@@ -1984,6 +1984,8 @@
     <string name="channelsLabel">Каналы: %s</string>
     <!-- Язык: %s -->
     <string name="languageLabel">Язык: %s</string>
+    <!-- Введите номер главы -->
+    <string name="searchChapterPlaceholder">Введите номер главы</string>
     <!-- Считать -->
     <string name="count">Считать</string>
     <!-- Удалить старое (>30 дней) -->

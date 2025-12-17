@@ -237,7 +237,7 @@ private fun PlayerContent(
         modifier = modifier.fillMaxSize(),
         contentPadding =
             androidx.compose.foundation.layout
-                .PaddingValues(16.dp),
+                .PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -466,7 +466,9 @@ private fun PlayerContent(
                         contentDescription = stringResource(R.string.playbackSpeedTitle),
                         modifier = Modifier.padding(end = 8.dp),
                     )
-                    Text(text = "${playbackSpeed}x")
+                    Text(
+                        text = String.format("%.2f", playbackSpeed).trimEnd('0').trimEnd('.') + "x",
+                    )
                 }
 
                 // Sleep Timer Button

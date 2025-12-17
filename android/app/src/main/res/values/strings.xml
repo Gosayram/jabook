@@ -1976,6 +1976,8 @@
     <string name="channelsLabel">Channels: %s</string>
     <!-- Language: %s -->
     <string name="languageLabel">Language: %s</string>
+    <!-- Enter chapter number -->
+    <string name="searchChapterPlaceholder">Enter chapter number</string>
     <!-- Clear cache confirmation message -->
     <string name="clearCacheConfirmation">This will delete %s of cached data. Continue?</string>
     <!-- Count -->
