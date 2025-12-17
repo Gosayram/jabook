@@ -9,6 +9,8 @@
     <string name="libraryTitle">Library</string>
     <!-- Title for player screen -->
     <string name="playerTitle">Player</string>
+    <!-- Content description for navigate back button -->
+    <string name="navigateBack">Navigate back</string>
     <!-- Title for settings screen -->
     <string name="settingsTitle">Settings</string>
     <!-- Title for debug screen -->

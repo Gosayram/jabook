@@ -9,6 +9,8 @@
     <string name="libraryTitle">Библиотека</string>
     <!-- Заголовок экрана плеера -->
     <string name="playerTitle">Плеер</string>
+    <!-- Описание кнопки навигации назад -->
+    <string name="navigateBack">Назад</string>
     <!-- Заголовок экрана настроек -->
     <string name="settingsTitle">Настройки</string>
     <!-- Заголовок экрана отладки -->
