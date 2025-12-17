@@ -275,8 +275,6 @@ dependencies {
     // Compose Navigation
     implementation("androidx.navigation:navigation-compose:2.9.6")
     implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
-    // Navigation with kotlinx.serialization for type-safe routing
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
     // Lifecycle & ViewModel for Compose
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")

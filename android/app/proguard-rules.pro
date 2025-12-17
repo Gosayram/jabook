@@ -53,6 +53,27 @@
 # Prevent class name obfuscation for @Serializable classes
 -keepnames @kotlinx.serialization.Serializable class **
 
+# ============================================================================
+# Navigation Compose + SavedStateHandle Serialization
+# ============================================================================
+# CRITICAL: SavedStateHandle.toRoute<T>() uses kotlinx.serialization internally
+# These rules prevent R8 from breaking navigation argument deserialization
+
+# Keep NavType implementations for custom serializers
+-keep class androidx.navigation.** { *; }
+-keep interface androidx.navigation.** { *; }
+
+# Keep SavedStateHandle methods used by Navigation
+-keepclassmembers class androidx.lifecycle.SavedStateHandle {
+    public ** get(java.lang.String);
+    public void set(java.lang.String, **);
+}
+
+# Explicitly keep navigation route data classes and their serializers
+-keep class com.jabook.app.jabook.compose.navigation.** { *; }
+-keep class com.jabook.app.jabook.compose.navigation.**$$serializer { *; }
+
+
 
 # ============================================================================
 # Jetpack Compose
