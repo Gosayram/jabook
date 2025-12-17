@@ -116,6 +116,9 @@ fun LibraryScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.library)) },
+                windowInsets =
+                    androidx.compose.foundation.layout
+                        .WindowInsets(0, 0, 0, 0),
                 actions = {
                     // View mode toggle
                     ViewModeToggle(

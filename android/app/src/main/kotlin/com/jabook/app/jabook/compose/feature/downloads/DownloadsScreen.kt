@@ -84,6 +84,9 @@ fun DownloadsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.downloads)) },
+                windowInsets =
+                    androidx.compose.foundation.layout
+                        .WindowInsets(0, 0, 0, 0),
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(

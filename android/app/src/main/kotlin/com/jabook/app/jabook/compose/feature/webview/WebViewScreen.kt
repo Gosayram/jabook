@@ -107,6 +107,9 @@ fun WebViewScreen(
                             overflow = TextOverflow.Ellipsis,
                         )
                     },
+                    windowInsets =
+                        androidx.compose.foundation.layout
+                            .WindowInsets(0, 0, 0, 0),
                     navigationIcon = {
                         IconButton(onClick = {
                             if (canGoBack) {

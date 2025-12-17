@@ -83,6 +83,9 @@ fun DownloadHistoryScreen(
             if (!searchActive) {
                 TopAppBar(
                     title = { Text(stringResource(R.string.downloadHistory)) },
+                    windowInsets =
+                        androidx.compose.foundation.layout
+                            .WindowInsets(0, 0, 0, 0),
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))

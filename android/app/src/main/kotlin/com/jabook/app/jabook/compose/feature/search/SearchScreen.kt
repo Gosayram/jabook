@@ -146,21 +146,21 @@ fun SearchScreen(
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent,
                             ),
-                        trailingIcon =
-                            if (searchQuery.isNotEmpty()) {
-                                {
-                                    IconButton(onClick = viewModel::clearSearch) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Clear,
-                                            contentDescription = stringResource(R.string.clearSearch),
-                                        )
-                                    }
+                        trailingIcon = {
+                            if (searchQuery.isNotBlank()) {
+                                IconButton(onClick = viewModel::clearSearch) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Clear,
+                                        contentDescription = stringResource(R.string.clearSearch),
+                                    )
                                 }
-                            } else {
-                                null
-                            },
+                            }
+                        },
                     )
                 },
+                windowInsets =
+                    androidx.compose.foundation.layout
+                        .WindowInsets(0, 0, 0, 0),
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(

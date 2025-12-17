@@ -80,6 +80,9 @@ fun ScanSettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.libraryFoldersTitle)) },
+                windowInsets =
+                    androidx.compose.foundation.layout
+                        .WindowInsets(0, 0, 0, 0),
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
                         Icon(
