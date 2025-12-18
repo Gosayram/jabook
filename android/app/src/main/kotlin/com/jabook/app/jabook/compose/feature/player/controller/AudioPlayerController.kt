@@ -145,6 +145,8 @@ class AudioPlayerController
             initialChapterIndex: Int = 0,
             initialPosition: Long = 0,
             autoPlay: Boolean = false,
+            metadata: Map<String, String>? = null,
+            bookId: String? = null,
         ) {
             startService()
 
@@ -176,8 +178,10 @@ class AudioPlayerController
 
                 service.setPlaylist(
                     filePaths = filePaths,
+                    metadata = metadata,
                     initialTrackIndex = initialChapterIndex,
                     initialPosition = initialPosition,
+                    groupPath = bookId,
                     callback = { success, _ ->
                         if (success && autoPlay) {
                             play()

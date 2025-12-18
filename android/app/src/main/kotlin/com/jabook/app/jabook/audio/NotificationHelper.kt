@@ -94,7 +94,7 @@ internal class NotificationHelper(
      *
      * @param channelId Channel ID to ensure exists
      */
-    private fun ensureNotificationChannel(channelId: String) {
+    internal fun ensureNotificationChannel(channelId: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
                 val channel =

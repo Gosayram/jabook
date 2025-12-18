@@ -148,6 +148,14 @@ class PlayerViewModel
                             initialChapterIndex = state.currentChapterIndex,
                             initialPosition = state.currentPosition,
                             autoPlay = true, // Auto-play after loading
+                            metadata =
+                                mapOf(
+                                    "title" to state.book.title,
+                                    "author" to state.book.author,
+                                    "bookTitle" to state.book.title, // For fallback
+                                    "artist" to state.book.author, // For fallback
+                                ),
+                            bookId = bookId,
                         )
                         isBookLoaded = true
                     }
@@ -239,6 +247,14 @@ class PlayerViewModel
                         initialChapterIndex = state.currentChapterIndex,
                         initialPosition = state.currentPosition,
                         autoPlay = false, // Don't auto-play on init
+                        metadata =
+                            mapOf(
+                                "title" to state.book.title,
+                                "author" to state.book.author,
+                                "bookTitle" to state.book.title, // For fallback
+                                "artist" to state.book.author, // For fallback
+                            ),
+                        bookId = bookId,
                     )
                     isBookLoaded = true
                 }

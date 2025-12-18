@@ -38,6 +38,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
+import com.jabook.app.jabook.compose.navigation.LibraryRoute
+import com.jabook.app.jabook.compose.navigation.PlayerRoute
 import com.jabook.app.jabook.compose.navigation.TopLevelDestination
 import com.jabook.app.jabook.compose.navigation.rememberJabookAppState
 import com.jabook.app.jabook.ui.theme.JabookTheme
@@ -88,6 +90,20 @@ fun JabookApp(
     // Handle deep links when intent changes
     androidx.compose.runtime.LaunchedEffect(intent) {
         if (intent != null) {
+            if (intent.getBooleanExtra("navigate_to_player", false)) {
+                // Check if book_id is passed for direct navigation
+                val bookId = intent.getStringExtra("book_id")
+
+                if (bookId != null) {
+                    // Navigate directly to the player screen for this book
+                    appState.navController.navigate(PlayerRoute(bookId = bookId))
+                } else {
+                    // Fallback to library if no book ID (or maybe last played book?)
+                    // Without book ID we can't open the player screen directly as it requires an ID
+                    appState.navController.navigate(LibraryRoute)
+                }
+            }
+
             appState.navController.handleDeepLink(intent)
         }
     }

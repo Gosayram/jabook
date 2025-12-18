@@ -62,6 +62,7 @@ class ComposeMainActivity : ComponentActivity() {
         // Handle initial intent
         deepLinkIntent = intent
         handleIntent(intent)
+        handleIntentExtras(intent)
 
         setContent {
             val windowSizeClass =
@@ -81,6 +82,7 @@ class ComposeMainActivity : ComponentActivity() {
         deepLinkIntent = intent
         // Handle intent when activity is already running (singleTop mode)
         handleIntent(intent)
+        handleIntentExtras(intent)
     }
 
     /**
@@ -107,6 +109,17 @@ class ComposeMainActivity : ComponentActivity() {
             else -> {
                 Log.w(TAG, "Unknown scheme: ${data.scheme}")
             }
+        }
+    }
+
+    // Handle special intent extras that don't use a scheme
+    private fun handleIntentExtras(intent: Intent?) {
+        if (intent?.getBooleanExtra("navigate_to_player", false) == true) {
+            Log.d(TAG, "Handling navigate_to_player extra")
+            // TODO: Navigate to player screen
+            // For now, we will just bring the activity to front (which happens automatically)
+            // But we should signal the JabookApp composable to switch to Player tab
+            // This requires exposing a state or event that JabookApp observes
         }
     }
 

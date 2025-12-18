@@ -26,6 +26,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
+import androidx.media3.ui.PlayerNotificationManager
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import dagger.hilt.android.AndroidEntryPoint
@@ -74,6 +75,11 @@ class AudioPlayerService : MediaLibraryService() {
 
     // Keep mediaSession for backward compatibility during migration
     internal var mediaSession: MediaSession? = null
+
+    // PlayerNotificationManager for direct notification control (androidx.media3.ui)
+    // Replaces MediaNotification.Provider which doesn't work with background service warmup
+    private var playerNotificationManager: PlayerNotificationManager? = null
+
     internal var notificationManager: NotificationManager? = null
     internal var notificationHelper: NotificationHelper? = null
     internal var mediaSessionManager: MediaSessionManager? = null
@@ -368,22 +374,11 @@ class AudioPlayerService : MediaLibraryService() {
             AudioPlayerServiceInitializer(this).initialize()
             android.util.Log.e("JABOOK_SERVICE", "[OK] AudioPlayerServiceInitializer completed")
 
-            // CRITICAL: Set Media Notification Provider for MediaLibraryService
-            // Media3 does NOT automatically show notifications without explicit provider!
-            // This must be called AFTER initialization and from within the Service (protected method)
-            android.util.Log.e("JABOOK_SERVICE", "Setting MediaNotificationProvider...")
-            try {
-                val notificationProvider = AudioPlayerNotificationProvider(this)
-                setMediaNotificationProvider(notificationProvider)
-                android.util.Log.e("JABOOK_SERVICE", "[SUCCESS] AudioPlayerNotificationProvider SET!")
-                android.util.Log.i(
-                    "AudioPlayerService",
-                    "AudioPlayerNotificationProvider set successfully with Glide integration",
-                )
-            } catch (e: Exception) {
-                android.util.Log.e("JABOOK_SERVICE", "[FAILED] to set notification provider!", e)
-                android.util.Log.e("AudioPlayerService", "Failed to set notification provider", e)
-            }
+            // Initialize PlayerNotificationManager (androidx.media3.ui)
+            // This provides direct notification control that works with background service warmup
+            android.util.Log.e("JABOOK_SERVICE", "Initializing PlayerNotificationManager...")
+            setupPlayerNotificationManager()
+            android.util.Log.e("JABOOK_SERVICE", "[OK] PlayerNotificationManager initialized")
 
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
@@ -848,10 +843,167 @@ class AudioPlayerService : MediaLibraryService() {
         lifecycleManager?.onTaskRemoved(rootIntent) ?: super.onTaskRemoved(rootIntent)
     }
 
+    @OptIn(UnstableApi::class)
+    private fun setupPlayerNotificationManager() {
+        // CRITICAL: Create notification channel BEFORE PlayerNotificationManager
+        // Otherwise Android will crash with "invalid channel for service notification"
+        notificationHelper?.ensureNotificationChannel(NotificationHelper.CHANNEL_ID)
+            ?: android.util.Log.e("AudioPlayerService", "NotificationHelper is null, channel may not be created!")
+
+        playerNotificationManager =
+            PlayerNotificationManager
+                .Builder(this, NotificationHelper.NOTIFICATION_ID, NotificationHelper.CHANNEL_ID)
+                .setMediaDescriptionAdapter(
+                    object : PlayerNotificationManager.MediaDescriptionAdapter {
+                        override fun getCurrentContentTitle(player: Player): CharSequence {
+                            // 1. Prefer player.mediaMetadata (it combines sources)
+                            val metadata = player.mediaMetadata
+                            val serviceMetadata = this@AudioPlayerService.currentMetadata
+
+                            val rawTitle =
+                                metadata.title?.toString()
+                                    ?: serviceMetadata?.get("title")
+                                    ?: serviceMetadata?.get("trackTitle")
+                                    ?: ""
+
+                            // Remove flavor suffix (" - Dev", " - Beta", " - Prod") if present
+                            return rawTitle.replace(Regex(" - (Dev|Beta|Prod)$"), "").ifEmpty {
+                                this@AudioPlayerService.getString(com.jabook.app.jabook.R.string.app_name)
+                            }
+                        }
+
+                        override fun createCurrentContentIntent(player: Player): PendingIntent? {
+                            val intent =
+                                Intent(this@AudioPlayerService, ComposeMainActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                    putExtra("navigate_to_player", true)
+                                    // Add book_id if available for direct navigation
+                                    // currentGroupPath usually contains the book ID or path
+                                    this@AudioPlayerService.playlistManager?.currentGroupPath?.let { path ->
+                                        // Usually path is like "downloads/book_id" or just "book_id"
+                                        // For now, pass it as book_id
+                                        putExtra("book_id", path.substringAfterLast("/"))
+                                    }
+                                }
+                            return PendingIntent.getActivity(
+                                this@AudioPlayerService,
+                                0,
+                                intent,
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                            )
+                        }
+
+                        override fun getCurrentContentText(player: Player): CharSequence? {
+                            // ARTIST
+                            val artist = player.mediaMetadata.artist?.toString()
+                            val serviceMetadata = this@AudioPlayerService.currentMetadata
+                            return artist ?: serviceMetadata?.get("artist") ?: serviceMetadata?.get("author")
+                        }
+
+                        override fun getCurrentSubText(player: Player): CharSequence? {
+                            // ALBUM / BOOK TITLE
+                            val album = player.mediaMetadata.albumTitle?.toString()
+                            val serviceMetadata = this@AudioPlayerService.currentMetadata
+                            return album ?: serviceMetadata?.get("album") ?: serviceMetadata?.get("bookTitle")
+                        }
+
+                        override fun getCurrentLargeIcon(
+                            player: Player,
+                            callback: PlayerNotificationManager.BitmapCallback,
+                        ): android.graphics.Bitmap? {
+                            player.mediaMetadata.artworkUri?.let { artworkUri ->
+                                com.bumptech.glide.Glide
+                                    .with(this@AudioPlayerService)
+                                    .asBitmap()
+                                    .load(artworkUri)
+                                    .into(
+                                        object : com.bumptech.glide.request.target.CustomTarget<android.graphics.Bitmap>() {
+                                            override fun onResourceReady(
+                                                resource: android.graphics.Bitmap,
+                                                transition: com.bumptech.glide.request.transition.Transition<in android.graphics.Bitmap>?,
+                                            ) {
+                                                callback.onBitmap(resource)
+                                            }
+
+                                            override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {}
+                                        },
+                                    )
+                            }
+                            return null
+                        }
+                    },
+                ).setNotificationListener(
+                    object : PlayerNotificationManager.NotificationListener {
+                        override fun onNotificationCancelled(
+                            notificationId: Int,
+                            dismissedByUser: Boolean,
+                        ) {
+                            stopForeground(STOP_FOREGROUND_REMOVE)
+                            stopSelf()
+                        }
+
+                        override fun onNotificationPosted(
+                            notificationId: Int,
+                            notification: android.app.Notification,
+                            ongoing: Boolean,
+                        ) {
+                            if (ongoing) {
+                                startForeground(notificationId, notification)
+                            } else {
+                                stopForeground(STOP_FOREGROUND_DETACH)
+                            }
+                        }
+                    },
+                ).setSmallIconResourceId(com.jabook.app.jabook.R.drawable.ic_notification_logo)
+                .build()
+
+        // listener to force refresh notification when metadata changes
+        exoPlayer.addListener(
+            object : Player.Listener {
+                override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
+                    android.util.Log.e("PlayerNotification", "onMediaMetadataChanged: invalidating notification")
+                    playerNotificationManager?.invalidate()
+                }
+
+                override fun onMediaItemTransition(
+                    mediaItem: androidx.media3.common.MediaItem?,
+                    reason: Int,
+                ) {
+                    android.util.Log.e("PlayerNotification", "onMediaItemTransition: invalidating notification")
+                    playerNotificationManager?.invalidate()
+                }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_READY) {
+                        playerNotificationManager?.invalidate()
+                    }
+                }
+
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    playerNotificationManager?.invalidate()
+                }
+            },
+        )
+
+        playerNotificationManager?.setPlayer(exoPlayer)
+        mediaLibrarySession?.let { playerNotificationManager?.setMediaSessionToken(it.platformToken) }
+        playerNotificationManager?.setUseNextAction(true)
+        playerNotificationManager?.setUsePreviousAction(true)
+        playerNotificationManager?.setUsePlayPauseActions(true)
+        playerNotificationManager?.setUseStopAction(false)
+
+        // Force initial refresh
+        playerNotificationManager?.invalidate()
+    }
+
     override fun onDestroy() {
         // TODO: Flutter bridge removed
         // bridgePlayerListener?.release()
         // bridgePlayerListener = null
+
+        // Clean up PlayerNotificationManager
+        playerNotificationManager?.setPlayer(null)
+        playerNotificationManager = null
 
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()
