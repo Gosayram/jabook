@@ -63,19 +63,29 @@ class AudioPlayerLibrarySessionCallback(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
-        val connectionResult =
-            MediaSession.ConnectionResult
-                .AcceptedResultBuilder(session)
-                .setAvailableSessionCommands(
-                    MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-                        .buildUpon()
-                        .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY))
-                        .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY))
-                        .build(),
-                ).setMediaButtonPreferences(customCommands)
-                .build()
+        // Following Media3 official pattern: only set media button preferences for system controllers
+        // (notification, automotive, auto companion). Regular app controllers get default commands.
+        if (
+            session.isMediaNotificationController(controller) ||
+            session.isAutomotiveController(controller) ||
+            session.isAutoCompanionController(controller)
+        ) {
+            val availableCommands =
+                MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                    .buildUpon()
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY))
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY))
+                    .build()
 
-        return connectionResult
+            return MediaSession.ConnectionResult
+                .AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(availableCommands)
+                .setMediaButtonPreferences(customCommands)
+                .build()
+        }
+
+        // Default commands for regular app controllers (without custom buttons)
+        return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
     }
 
     override fun onCustomCommand(
@@ -112,6 +122,16 @@ class AudioPlayerLibrarySessionCallback(
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<MediaItem>> =
         CoroutineScope(Dispatchers.IO).future {
+            // Log recommended media art size for optimization (Android Auto provides size hints)
+            val recommendedArtSize = MediaMetadataExtrasHelper.getRecommendedArtSize(params)
+            android.util.Log.d(
+                "LibrarySession",
+                "Recommended media art size: ${recommendedArtSize}px (from Android Auto/browser)",
+            )
+
+            // Create content style preferences for Android Auto
+            val rootExtras = MediaMetadataExtrasHelper.createRootExtras()
+
             val rootItem =
                 MediaItem
                     .Builder()
@@ -119,12 +139,21 @@ class AudioPlayerLibrarySessionCallback(
                     .setMediaMetadata(
                         MediaMetadata
                             .Builder()
-                            .setTitle("Library")
+                            .setTitle(service.getString(com.jabook.app.jabook.R.string.media3_library_root_title))
                             .setIsBrowsable(true)
                             .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                            .setExtras(rootExtras)
                             .build(),
                     ).build()
-            LibraryResult.ofItem(rootItem, params)
+
+            // Return root with style preferences in params too
+            val resultParams =
+                MediaLibraryService.LibraryParams
+                    .Builder()
+                    .setExtras(rootExtras)
+                    .build()
+
+            LibraryResult.ofItem(rootItem, resultParams)
         }
 
     override fun onGetItem(
@@ -141,7 +170,7 @@ class AudioPlayerLibrarySessionCallback(
                         .setMediaMetadata(
                             MediaMetadata
                                 .Builder()
-                                .setTitle("Library")
+                                .setTitle(service.getString(com.jabook.app.jabook.R.string.media3_library_root_title))
                                 .setIsBrowsable(true)
                                 .build(),
                         ).build()
@@ -233,6 +262,34 @@ class AudioPlayerLibrarySessionCallback(
                         }
                     }
 
+                    // Create comprehensive metadata extras (completion, download status, grouping, etc.)
+                    val totalDuration = persistedState.filePaths.sumOf { getDurationForFile(it) ?: 0L }
+                    val metadataExtras =
+                        CompletionStatusHelper
+                            .createCompletionExtras(
+                                positionMs = persistedState.currentPosition,
+                                durationMs = totalDuration,
+                            ).apply {
+                                // Download status: check if files exist locally
+                                val isDownloaded = persistedState.filePaths.all { File(it).exists() }
+                                MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
+
+                                // Content grouping for series
+                                persistedState.metadata?.get("series")?.let { series ->
+                                    MediaMetadataExtrasHelper.run { addContentGroup(series) }
+                                }
+
+                                // Explicit content flag
+                                val isExplicit = persistedState.metadata?.get("isExplicit")?.toBoolean() ?: false
+                                MediaMetadataExtrasHelper.run { addExplicitFlag(isExplicit) }
+
+                                // Grid view for books with cover art
+                                MediaMetadataExtrasHelper.run {
+                                    addPlayableStyle(MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
+                                }
+                            }
+                    metadataBuilder.setExtras(metadataExtras)
+
                     items.add(
                         MediaItem
                             .Builder()
@@ -322,6 +379,22 @@ class AudioPlayerLibrarySessionCallback(
                             }
                         }
                     }
+
+                    // Add comprehensive metadata for search results
+                    val totalDuration = persistedState.filePaths.sumOf { getDurationForFile(it) ?: 0L }
+                    val metadataExtras =
+                        CompletionStatusHelper
+                            .createCompletionExtras(
+                                positionMs = persistedState.currentPosition,
+                                durationMs = totalDuration,
+                            ).apply {
+                                val isDownloaded = persistedState.filePaths.all { File(it).exists() }
+                                MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
+                                persistedState.metadata?.get("series")?.let { MediaMetadataExtrasHelper.run { addContentGroup(it) } }
+                                val isExplicit = persistedState.metadata?.get("isExplicit")?.toBoolean() ?: false
+                                MediaMetadataExtrasHelper.run { addExplicitFlag(isExplicit) }
+                            }
+                    metadataBuilder.setExtras(metadataExtras)
 
                     items.add(
                         MediaItem

@@ -193,18 +193,16 @@ class AudioPlayerServiceInitializer(
                     { filePath -> service.getDurationForFile(filePath) },
                 )
 
-            // Create and store notification provider (setter calls setMediaNotificationProvider internally)
-            val notificationProvider = AudioPlayerNotificationProvider(service)
-            service.customMediaNotificationProvider = notificationProvider
-
-            // Build MediaLibrarySession
+            // Build MediaLibrarySession - Media3 handles notifications automatically
+            // DO NOT set custom notification provider or media button preferences in Builder
+            // These must be handled in the Callback's onConnect method
             val sessionBuilder =
                 MediaLibrarySession
                     .Builder(
                         service,
                         service.exoPlayer,
                         callback,
-                    ).setMediaButtonPreferences(callback.customCommands)
+                    )
 
             // Set session activity (PendingIntent)
             // This is CRITICAL for Android 12+ media controls to work properly
@@ -216,8 +214,13 @@ class AudioPlayerServiceInitializer(
 
             service.mediaLibrarySession = sessionBuilder.build()
 
-            // Set custom layout for notification buttons (Rewind/Forward)
-            service.mediaLibrarySession?.setCustomLayout(callback.customCommands)
+            // Reserve space for skip buttons in notification (prevents jumping when buttons change)
+            // Following Media3 official pattern from DemoPlaybackService
+            service.mediaLibrarySession?.sessionExtras =
+                androidx.core.os.bundleOf(
+                    androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV to true,
+                    androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT to true,
+                )
 
             // Assign to legacy field for compatibility
             service.mediaSession = service.mediaLibrarySession

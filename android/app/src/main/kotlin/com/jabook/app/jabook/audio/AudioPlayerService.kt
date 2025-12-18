@@ -98,16 +98,6 @@ class AudioPlayerService : MediaLibraryService() {
     internal var positionManager: PositionManager? = null
     internal var metadataManager: MetadataManager? = null
 
-    // Store the custom provider to access it in onUpdateNotification
-    // Use custom setter to delegate to the protected setMediaNotificationProvider method
-    internal var customMediaNotificationProvider: AudioPlayerNotificationProvider? = null
-        set(value) {
-            field = value
-            if (value != null) {
-                setMediaNotificationProvider(value)
-            }
-        }
-
     // Helper for player state
     internal var playerStateHelper: PlayerStateHelper? = null
     internal var unloadManager: UnloadManager? = null
@@ -357,16 +347,9 @@ class AudioPlayerService : MediaLibraryService() {
         // This is required for Android 12+ when system doesn't allow foreground service start
         setListener(MediaSessionServiceListener(this))
 
-        // Set custom MediaNotification.Provider to handle "Minimal Notification" mode
-        // We use the DefaultMediaNotificationProvider but intercept Bitmap loading
-        // Set custom MediaNotification.Provider to handle "Minimal Notification" mode
-        // We use the DefaultMediaNotificationProvider but intercept Bitmap loading
-        val provider = AudioPlayerNotificationProvider(this)
-        customMediaNotificationProvider = provider
-        setMediaNotificationProvider(provider)
-
         // Initialize service components using extracted initializer
-        // This handles all complex logic previously directly in onCreate
+        // Media3 automatically manages notifications - no custom provider needed
+
         AudioPlayerServiceInitializer(this).initialize()
     }
 

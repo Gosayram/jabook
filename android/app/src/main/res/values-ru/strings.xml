@@ -2331,4 +2331,10 @@
     <!-- Переопределение канала Media3 по умолчанию -->
     <string name="media3_notification_channel_name">@string/notification_channel_name</string>
     <string name="media3_notification_channel_description">@string/notification_channel_description</string>
+    
+    <!-- Строки библиотеки Media3 -->
+    <string name="media3_library_root_title">Библиотека</string>
+    <string name="media3_completion_not_started">Не начато</string>
+    <string name="media3_completion_in_progress">В процессе</string>
+    <string name="media3_completion_completed">Завершено</string>
 </resources>

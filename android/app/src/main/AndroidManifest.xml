@@ -98,6 +98,13 @@
         tools:targetApi="34"
         tools:ignore="NamespaceTypo,MissingClass">
         
+        <!-- Android Auto support - enables audiobook playback in cars -->
+        <!-- Users can browse library, control playback with steering wheel, use voice commands -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/auto_app_desc" />
+        
+
         <!-- requestLegacyExternalStorage removed: not supported on Android 11+ (API 30+) -->
         <!-- App uses app-specific directory which doesn't require this attribute -->
         <!-- App-specific directory path: /storage/emulated/0/Android/data/com.jabook.app.jabook/files/JabookAudio -->
@@ -179,6 +186,14 @@
                 <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
             </intent-filter>
         </service>
+
+        <!-- Media3 MediaButtonReceiver - handles media button intents from headsets/Bluetooth -->
+        <receiver android:name="androidx.media3.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
 
         <!-- Download foreground service -->
         <service
