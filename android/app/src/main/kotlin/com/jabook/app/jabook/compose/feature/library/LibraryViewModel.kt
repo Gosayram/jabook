@@ -86,11 +86,7 @@ class LibraryViewModel
             viewModelScope.launch {
                 userPreferencesRepository.userData.collect { userData ->
                     _viewMode.value = userData.viewMode
-
-                    // Load saved sort order
-                    if (userData.sortOrder != null) {
-                        _sortOrder.value = userData.sortOrder
-                    }
+                    _sortOrder.value = userData.sortOrder
                 }
             }
         }
