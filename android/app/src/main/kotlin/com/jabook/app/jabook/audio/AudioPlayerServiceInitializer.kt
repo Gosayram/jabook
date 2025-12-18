@@ -237,12 +237,12 @@ class AudioPlayerServiceInitializer(
                     service.exoPlayer,
                 )
 
-            // Legacy NotificationManager is no longer needed with Media3
-            // Media3 DefaultMediaNotificationProvider handles notifications
+            // Legacy NotificationManager is no longer needed - Media3 handles everything
+            // Keep reference null to prevent duplicate notifications
             service.notificationManager = null
 
-            // Set notification type based on service state
-            service.notificationManager?.setNotificationType(service.isMinimalNotification)
+            // Note: setMediaNotificationProvider must be called from AudioPlayerService.onCreate()
+            // as it's a protected method in MediaSessionService
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
         }

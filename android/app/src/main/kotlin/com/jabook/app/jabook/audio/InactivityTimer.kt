@@ -45,10 +45,11 @@ class InactivityTimer(
 
     companion object {
         /**
-         * Default inactivity timeout: 60 minutes (3600 seconds).
+         * Default inactivity timeout: 40 minutes (2400 seconds).
+         * Service will automatically stop after 40 minutes of inactivity.
          * Can be configured via AudioSettingsManager (Dart) and passed through MethodChannel.
          */
-        const val DEFAULT_INACTIVITY_TIMEOUT_SECONDS = 3600L // 60 minutes
+        const val DEFAULT_INACTIVITY_TIMEOUT_SECONDS = 2400L // 40 minutes
 
         /**
          * Minimum inactivity timeout: 10 minutes (600 seconds).

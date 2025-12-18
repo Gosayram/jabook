@@ -355,9 +355,22 @@ class AudioPlayerService : MediaLibraryService() {
         PlayerPerformanceLogger.log("Service", "listener set")
 
         // Initialize service components using extracted initializer
-        // Media3 automatically manages notifications - no custom provider needed
-
+        //  Media3 automatically manages notifications - no custom provider needed
         AudioPlayerServiceInitializer(this).initialize()
+
+        // CRITICAL: Set Media Notification Provider for MediaLibraryService
+        // Media3 does NOT automatically show notifications without explicit provider!
+        // This must be called AFTER initialization and from within the Service (protected method)
+        try {
+            val notificationProvider = AudioPlayerNotificationProvider(this)
+            setMediaNotificationProvider(notificationProvider)
+            android.util.Log.i(
+                "AudioPlayerService",
+                "AudioPlayerNotificationProvider set successfully with Glide integration",
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to set notification provider", e)
+        }
 
         PlayerPerformanceLogger.log("Service", "initialization complete")
         PlayerPerformanceLogger.summary()
