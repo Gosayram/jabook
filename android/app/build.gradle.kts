@@ -286,6 +286,11 @@ dependencies {
     // Coil3 for async image loading in Compose
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
 
+    // Glide for optimized artwork loading in notifications
+    // Used specifically for Media3 BitmapLoader and notification cover art
+    implementation("com.github.bumptech.glide:glide:5.0.5")
+    ksp("com.github.bumptech.glide:ksp:5.0.5")
+
     // Lyricist dependency removed
 
     // Note: Google Play Core is NOT needed as a dependency

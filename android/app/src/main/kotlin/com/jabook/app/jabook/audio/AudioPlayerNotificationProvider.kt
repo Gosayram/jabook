@@ -21,7 +21,6 @@ import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.session.BitmapLoader // Deprecated but still used in Media3 1.8.0
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -39,11 +38,11 @@ import com.google.common.util.concurrent.ListenableFuture
 class AudioPlayerNotificationProvider(
     private val service: AudioPlayerService,
 ) : MediaNotification.Provider {
-    // We use DataSourceBitmapLoader as the delegate for standard loading
-    // It's the standard implementation for loading bitmaps from URIs
-    private val defaultBitmapLoader = DataSourceBitmapLoader(service)
+    // Use GlideBitmapLoader for better performance and caching (inspired by Easybook)
+    // Glide provides superior memory management and async loading compared to DataSourceBitmapLoader
+    private val glideBitmapLoader = GlideBitmapLoader(service)
 
-    // Create a custom BitmapLoader that conditionally fails/skips loading
+    // Create a custom BitmapLoader that conditionally fails/skips loading for minimal mode
     // Note: BitmapLoader is deprecated in Media3 but still required for compatibility
     @Suppress("DEPRECATION")
     private val minimalBitmapLoader =
@@ -54,25 +53,26 @@ class AudioPlayerNotificationProvider(
                     // This causes DefaultMediaNotificationProvider to use fallback/no artwork
                     return Futures.immediateFailedFuture(Exception("Minimal mode"))
                 }
-                return defaultBitmapLoader.loadBitmap(uri)
+                // Use Glide for better performance
+                return glideBitmapLoader.loadBitmap(uri)
             }
 
-            override fun supportsMimeType(mimeType: String): Boolean = defaultBitmapLoader.supportsMimeType(mimeType)
+            override fun supportsMimeType(mimeType: String): Boolean = glideBitmapLoader.supportsMimeType(mimeType)
 
             override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> {
                 if (service.isMinimalNotification) {
                     return Futures.immediateFailedFuture(Exception("Minimal mode"))
                 }
-                return defaultBitmapLoader.decodeBitmap(data)
+                // Use Glide for better performance
+                return glideBitmapLoader.decodeBitmap(data)
             }
 
-            override fun loadBitmapFromMetadata(metadata: MediaMetadata): ListenableFuture<Bitmap> {
+            override fun loadBitmapFromMetadata(metadata: MediaMetadata): ListenableFuture<Bitmap>? {
                 if (service.isMinimalNotification) {
                     return Futures.immediateFailedFuture(Exception("Minimal mode"))
                 }
-                // Handle nullable return type
-                return defaultBitmapLoader.loadBitmapFromMetadata(metadata)
-                    ?: Futures.immediateFailedFuture(Exception("Bitmap not found"))
+                // Use Glide for better performance
+                return glideBitmapLoader.loadBitmapFromMetadata(metadata)
             }
         }
 

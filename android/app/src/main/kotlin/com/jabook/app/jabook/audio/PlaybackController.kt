@@ -76,11 +76,32 @@ internal class PlaybackController(
 
     /**
      * Pauses playback.
+     *
+     * Inspired by Easybook: rewinds 2 seconds on pause for better UX.
+     * This helps users resume from a slightly earlier position, which is useful
+     * for audiobooks where context is important.
      */
     fun pause() {
         playerServiceScope.launch {
             try {
-                getActivePlayer().playWhenReady = false
+                val player = getActivePlayer()
+
+                // Easybook feature: Rewind 2 seconds on pause (lines 286-294 in Easybook PlaybackService)
+                // This helps users resume from a slightly earlier position
+                if (player.playWhenReady &&
+                    player.playbackState != Player.STATE_ENDED &&
+                    player.playbackState != Player.STATE_IDLE
+                ) {
+                    val currentPos = player.currentPosition
+                    val newPos = (currentPos - 2000L).coerceAtLeast(0L)
+                    android.util.Log.d(
+                        "AudioPlayerService",
+                        "Pause: rewinding 2s for better resume (${currentPos}ms -> ${newPos}ms)",
+                    )
+                    player.seekTo(newPos)
+                }
+
+                player.playWhenReady = false
                 // Note: We don't abandon AudioFocus on pause - we keep it for quick resume
                 // AudioFocus will be abandoned when service is stopped
 
