@@ -172,13 +172,3 @@ class MediaStoreBookScanner
             )
         }
     }
-
-private data class AudioFileInfo(
-    val id: Long,
-    val displayName: String,
-    val filePath: String,
-    val duration: Long,
-    val album: String?,
-    val artist: String?,
-    val title: String?,
-)

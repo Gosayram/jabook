@@ -79,7 +79,7 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindLocalBookScanner(
-        impl: com.jabook.app.jabook.compose.data.local.scanner.MediaStoreBookScanner,
+        impl: com.jabook.app.jabook.compose.data.local.scanner.HybridBookScanner,
     ): com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 
     @Binds
