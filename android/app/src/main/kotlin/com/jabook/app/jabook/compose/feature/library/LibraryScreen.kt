@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Refresh
@@ -35,6 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -120,6 +125,14 @@ fun LibraryScreen(
                     androidx.compose.foundation.layout
                         .WindowInsets(0, 0, 0, 0),
                 actions = {
+                    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+
+                    // Sort menu
+                    SortOrderMenu(
+                        currentSortOrder = sortOrder,
+                        onSortOrderChanged = viewModel::onSortOrderChanged,
+                    )
+
                     // View mode toggle
                     ViewModeToggle(
                         currentMode = viewMode,
@@ -397,3 +410,91 @@ private fun ViewModeToggle(
  * Helper extension to check if view mode is a grid variant.
  */
 private fun LibraryViewMode.isGrid() = this == LibraryViewMode.GRID_COMPACT || this == LibraryViewMode.GRID_COMFORTABLE
+
+/**
+ * Sort order menu.
+ */
+@Composable
+private fun SortOrderMenu(
+    currentSortOrder: com.jabook.app.jabook.compose.data.model.BookSortOrder,
+    onSortOrderChanged: (com.jabook.app.jabook.compose.data.model.BookSortOrder) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Sort,
+                contentDescription = stringResource(R.string.sort_by),
+            )
+        }
+
+        androidx.compose.material3.DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            com.jabook.app.jabook.compose.data.model.BookSortOrder.entries.forEach { order ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = {
+                        Text(
+                            text =
+                                when (order) {
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
+                                        stringResource(
+                                            R.string.sort_by_activity,
+                                        )
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_TITLE ->
+                                        stringResource(
+                                            R.string.sort_by_title,
+                                        )
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_AUTHOR ->
+                                        stringResource(
+                                            R.string.sort_by_author,
+                                        )
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_DATE_ADDED ->
+                                        stringResource(
+                                            R.string.sort_by_date_added,
+                                        )
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
+                                        stringResource(
+                                            R.string.sort_by_title,
+                                        )
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC -> "${stringResource(
+                                        R.string.sort_by_title,
+                                    )} (Z-A)"
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
+                                        stringResource(
+                                            R.string.sort_by_author,
+                                        )
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC -> "${stringResource(
+                                        R.string.sort_by_author,
+                                    )} (Z-A)"
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
+                                        stringResource(
+                                            R.string.sort_by_date_added,
+                                        )
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_PLAYED ->
+                                        stringResource(
+                                            R.string.sort_by_activity,
+                                        )
+                                },
+                        )
+                    },
+                    onClick = {
+                        onSortOrderChanged(order)
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        if (order == currentSortOrder) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                            )
+                        }
+                    },
+                )
+            }
+        }
+    }
+}

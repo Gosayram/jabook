@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.coroutines.flow.Flow
@@ -29,7 +30,7 @@ interface BooksRepository {
      * Get all books as a Flow.
      * The Flow will emit whenever the underlying data changes.
      */
-    fun getAllBooks(): Flow<List<Book>>
+    fun getAllBooks(sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY): Flow<List<Book>>
 
     /**
      * Get a single book by ID.

@@ -38,18 +38,6 @@ enum class AppTheme {
 }
 
 /**
- * Book sorting options for Library screen.
- */
-enum class BookSortOrder {
-    RECENTLY_PLAYED,
-    RECENTLY_ADDED,
-    TITLE_ASC,
-    TITLE_DESC,
-    AUTHOR_ASC,
-    AUTHOR_DESC,
-}
-
-/**
  * Library view mode options.
  */
 enum class LibraryViewMode {

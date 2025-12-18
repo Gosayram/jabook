@@ -96,6 +96,17 @@ internal class PlayerConfigurator(
                     updateActualTrackIndex = { index -> service.updateActualTrackIndex(index) },
                     isPlaylistLoading = { service.playlistManager?.isPlaylistLoading ?: false },
                     storeCurrentMediaItem = { }, // TODO: Flutter bridge removed
+                    updateLastPlayedTimestamp = { bookId ->
+                        service.playerServiceScope.launch {
+                            service.playerPersistenceManager.updateLastPlayed(bookId)
+                        }
+                    },
+                    markBookCompleted = { bookId ->
+                        service.playerServiceScope.launch {
+                            service.playerPersistenceManager.markCompleted(bookId)
+                        }
+                    },
+                    getCurrentBookId = { service.currentGroupPath },
                 )
 
             activePlayer.addListener(playerListener!!)

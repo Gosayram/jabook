@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.domain.model.toBook
@@ -42,8 +43,125 @@ class OfflineFirstBooksRepository
     constructor(
         private val booksDao: BooksDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
+        private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
     ) : BooksRepository {
-        override fun getAllBooks(): Flow<List<Book>> = booksDao.getAllBooksFlow().map { it.toBooks() }
+        override fun getAllBooks(sortOrder: BookSortOrder): Flow<List<Book>> =
+            booksDao.getAllBooksFlow().map { entities ->
+                val books = entities.toBooks()
+                when (sortOrder) {
+                    BookSortOrder.BY_ACTIVITY -> {
+                        // Gather player state for all books
+                        // Since this is inside a suspend map, we can call suspend functions
+                        val booksWithStatus =
+                            books.map { book ->
+                                val state = playerPersistenceManager.getPlayerState(book.id)
+                                val status =
+                                    if (state != null) {
+                                        val percentage =
+                                            com.jabook.app.jabook.audio.CompletionStatusHelper.calculateCompletionPercentage(
+                                                state.positionMs,
+                                                state.durationMs,
+                                            )
+                                        com.jabook.app.jabook.audio.CompletionStatusHelper
+                                            .getCompletionStatus(percentage)
+                                    } else {
+                                        androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+                                    }
+
+                                BookWithStatus(
+                                    book = book,
+                                    completionStatus = status,
+                                    lastPlayedTimestamp = state?.lastPlayedTimestamp ?: 0L,
+                                    completedTimestamp = state?.completedTimestamp ?: 0L,
+                                )
+                            }
+                        booksWithStatus.sortByActivity()
+                    }
+                    BookSortOrder.BY_TITLE, BookSortOrder.TITLE_ASC -> books.sortedBy { it.title.lowercase() }
+                    BookSortOrder.TITLE_DESC -> books.sortedByDescending { it.title.lowercase() }
+                    BookSortOrder.BY_AUTHOR, BookSortOrder.AUTHOR_ASC -> books.sortedBy { it.author?.lowercase() ?: "" }
+                    BookSortOrder.AUTHOR_DESC -> books.sortedByDescending { it.author?.lowercase() ?: "" }
+                    BookSortOrder.BY_DATE_ADDED, BookSortOrder.RECENTLY_ADDED -> books.sortedByDescending { it.addedDate }
+                    BookSortOrder.RECENTLY_PLAYED -> {
+                        // Alias to BY_ACTIVITY for now
+                        val booksWithStatus =
+                            books.map { book ->
+                                val state = playerPersistenceManager.getPlayerState(book.id)
+                                val status =
+                                    if (state != null) {
+                                        val percentage =
+                                            com.jabook.app.jabook.audio.CompletionStatusHelper.calculateCompletionPercentage(
+                                                state.positionMs,
+                                                state.durationMs,
+                                            )
+                                        com.jabook.app.jabook.audio.CompletionStatusHelper
+                                            .getCompletionStatus(percentage)
+                                    } else {
+                                        androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+                                    }
+
+                                BookWithStatus(
+                                    book = book,
+                                    completionStatus = status,
+                                    lastPlayedTimestamp = state?.lastPlayedTimestamp ?: 0L,
+                                    completedTimestamp = state?.completedTimestamp ?: 0L,
+                                )
+                            }
+                        booksWithStatus.sortByActivity()
+                    }
+                }
+            }
+
+        private data class BookWithStatus(
+            val book: Book,
+            val completionStatus: Int,
+            val lastPlayedTimestamp: Long,
+            val completedTimestamp: Long,
+        )
+
+        private fun List<BookWithStatus>.sortByActivity(): List<Book> =
+            this
+                .sortedWith(
+                    compareBy<BookWithStatus> { book ->
+                        // Primary: Completion status priority
+                        when (book.completionStatus) {
+                            // In Progress - first
+                            androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED -> 0
+                            // Not Started - middle
+                            androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED -> 1
+                            // Completed - last
+                            androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED -> 2
+                            else -> 3
+                        }
+                    }.thenByDescending { book ->
+                        // Secondary: For In Progress - most recent first
+                        if (book.completionStatus ==
+                            androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+                        ) {
+                            book.lastPlayedTimestamp
+                        } else {
+                            0L
+                        }
+                    }.thenBy { book ->
+                        // Tertiary: For Not Started - alphabetical by title
+                        if (book.completionStatus == androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED) {
+                            book.book.title.lowercase()
+                        } else {
+                            ""
+                        }
+                    }.thenBy { book ->
+                        // Quaternary: For Completed - most recent completed LAST (oldest completed first in the group?)
+                        // Request said: "последние завершённые ниже" (completed recently -> bottom)
+                        // If we want "recently completed" at the very bottom, we sort by completedTimestamp ASCENDING.
+                        // If A completed today (large TS) and B completed yesterday (small TS).
+                        // We want A below B. So Ascending TS.
+                        if (book.completionStatus == androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED) {
+                            book.completedTimestamp
+                        } else {
+                            0L
+                        }
+                    },
+                ).map { it.book }
 
         override fun getBook(bookId: String): Flow<Book?> = booksDao.getBookFlow(bookId).map { it?.toBook() }
 

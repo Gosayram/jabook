@@ -196,6 +196,41 @@ class PlayerPersistenceManager
                 }
             }
 
+        suspend fun updateLastPlayed(bookId: String) {
+            val currentState = getPlayerState(bookId)
+            val newState =
+                if (currentState != null) {
+                    currentState.copy(lastPlayedTimestamp = System.currentTimeMillis())
+                } else {
+                    PlayerState(
+                        bookId = bookId,
+                        positionMs = 0,
+                        durationMs = 0,
+                        filePaths = emptyList(),
+                        lastPlayedTimestamp = System.currentTimeMillis(),
+                    )
+                }
+            savePlayerState(newState)
+        }
+
+        suspend fun markCompleted(bookId: String) {
+            val currentState = getPlayerState(bookId)
+            if (currentState != null && currentState.completedTimestamp == 0L) {
+                savePlayerState(currentState.copy(completedTimestamp = System.currentTimeMillis()))
+            } else if (currentState == null) {
+                // edge case: completed but never played? unlikely but possible
+                savePlayerState(
+                    PlayerState(
+                        bookId = bookId,
+                        positionMs = 0,
+                        durationMs = 0,
+                        filePaths = emptyList(),
+                        completedTimestamp = System.currentTimeMillis(),
+                    ),
+                )
+            }
+        }
+
         private fun sanitizeGroupPath(path: String): String = path.replace(Regex("[^\\w\\-.]"), "_")
     }
 

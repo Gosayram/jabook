@@ -52,6 +52,9 @@ internal class PlayerListener(
     private val updateActualTrackIndex: ((Int) -> Unit)? = null, // Callback to update actual track index
     private val isPlaylistLoading: (() -> Boolean)? = null, // Check if playlist is currently loading
     private val storeCurrentMediaItem: (() -> Unit)? = null, // Callback to store current media item for playback resumption
+    private val updateLastPlayedTimestamp: ((String) -> Unit)? = null, // Callback to update last played timestamp
+    private val markBookCompleted: ((String) -> Unit)? = null, // Callback to mark book as completed
+    private val getCurrentBookId: (() -> String?)? = null, // Get current book ID
 ) : Player.Listener {
     private var retryCount = 0
     private val maxRetries = 3
@@ -189,6 +192,11 @@ internal class PlayerListener(
                     // Set flag to prevent further playback
                     setIsBookCompleted(true)
 
+                    // Mark book as completed for activity sorting
+                    getCurrentBookId?.invoke()?.let { bookId ->
+                        markBookCompleted?.invoke(bookId)
+                    }
+
                     // Save last track index so getState() can return correct index even if ExoPlayer resets it
                     setLastCompletedTrackIndex?.invoke(lastIndex)
                     android.util.Log.d(
@@ -308,8 +316,14 @@ internal class PlayerListener(
 
             // Save position when playback starts (critical event)
             // This ensures position is saved immediately when user resumes playback
+            // Save position when playback starts (critical event)
+            // This ensures position is saved immediately when user resumes playback
             if (isPlaying && playbackState == Player.STATE_READY) {
                 android.util.Log.v("AudioPlayerService", "Playback started, position will be saved periodically")
+                // Update last played timestamp for activity sorting
+                getCurrentBookId?.invoke()?.let { bookId ->
+                    updateLastPlayedTimestamp?.invoke(bookId)
+                }
             }
 
             // Restart sleep timer check when playback starts (if timer is active)

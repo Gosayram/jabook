@@ -129,6 +129,11 @@ interface SettingsRepository {
     suspend fun updateMaxConcurrentDownloads(count: Int)
 
     /**
+     * Update library sort order.
+     */
+    suspend fun updateLibrarySortOrder(sortOrder: String)
+
+    /**
      * Reset all settings to defaults.
      */
     suspend fun resetToDefaults()
@@ -280,6 +285,12 @@ class ProtoSettingsRepository
         override suspend fun updateMaxConcurrentDownloads(count: Int) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setMaxConcurrentDownloads(count).build()
+            }
+        }
+
+        override suspend fun updateLibrarySortOrder(sortOrder: String) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setLibrarySortOrder(sortOrder).build()
             }
         }
 

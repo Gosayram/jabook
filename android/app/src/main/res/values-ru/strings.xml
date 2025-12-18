@@ -2337,4 +2337,10 @@
     <string name="media3_completion_not_started">Не начато</string>
     <string name="media3_completion_in_progress">В процессе</string>
     <string name="media3_completion_completed">Завершено</string>
+    <!-- Опции сортировки библиотеки -->
+    <string name="sort_by">Сортировка</string>
+    <string name="sort_by_activity">По активности</string>
+    <string name="sort_by_title">По названию</string>
+    <string name="sort_by_author">По автору</string>
+    <string name="sort_by_date_added">По дате добавления</string>
 </resources>

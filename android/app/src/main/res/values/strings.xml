@@ -2300,4 +2300,10 @@
     <string name="media3_completion_not_started">Not Started</string>
     <string name="media3_completion_in_progress">In Progress</string>
     <string name="media3_completion_completed">Completed</string>
+    <!-- Library Sort Options -->
+    <string name="sort_by">Sort by</string>
+    <string name="sort_by_activity">Activity</string>
+    <string name="sort_by_title">Title</string>
+    <string name="sort_by_author">Author</string>
+    <string name="sort_by_date_added">Date Added</string>
 </resources>

@@ -33,10 +33,12 @@ import com.jabook.app.jabook.compose.domain.usecase.library.GetRecentlyPlayedBoo
 import com.jabook.app.jabook.compose.domain.usecase.library.SearchBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -52,6 +54,7 @@ import javax.inject.Inject
  * - Search and sorting (in-memory)
  * - Book deletion via DeleteBookUseCase
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class LibraryViewModel
     @Inject
@@ -71,7 +74,7 @@ class LibraryViewModel
         val searchQuery: StateFlow<String> = _searchQuery
 
         // Sort order state
-        private val _sortOrder = MutableStateFlow(BookSortOrder.RECENTLY_PLAYED)
+        private val _sortOrder = MutableStateFlow(BookSortOrder.BY_ACTIVITY)
         val sortOrder: StateFlow<BookSortOrder> = _sortOrder
 
         // View mode state
@@ -79,10 +82,15 @@ class LibraryViewModel
         val viewMode: StateFlow<LibraryViewMode> = _viewMode
 
         init {
-            // Load saved view mode from preferences
+            // Load saved settings from preferences
             viewModelScope.launch {
                 userPreferencesRepository.userData.collect { userData ->
                     _viewMode.value = userData.viewMode
+
+                    // Load saved sort order
+                    if (userData.sortOrder != null) {
+                        _sortOrder.value = userData.sortOrder
+                    }
                 }
             }
         }
@@ -91,46 +99,37 @@ class LibraryViewModel
          * UI state combining books data with loading/error states.
          */
         val uiState: StateFlow<LibraryUiState> =
-            combine(
-                getLibraryUseCase(),
-                _searchQuery,
-                _sortOrder,
-            ) { books, query, order ->
-                try {
-                    val filteredBooks =
-                        if (query.isBlank()) {
-                            books
-                        } else {
-                            books.filter { book ->
-                                book.title.contains(query, ignoreCase = true) ||
-                                    book.author.contains(query, ignoreCase = true)
+            _sortOrder
+                .flatMapLatest { order ->
+                    combine(
+                        getLibraryUseCase(order),
+                        _searchQuery,
+                    ) { books, query ->
+                        try {
+                            val filteredBooks =
+                                if (query.isBlank()) {
+                                    books
+                                } else {
+                                    books.filter { book ->
+                                        book.title.contains(query, ignoreCase = true) ||
+                                            book.author.contains(query, ignoreCase = true)
+                                    }
+                                }
+
+                            if (filteredBooks.isEmpty()) {
+                                LibraryUiState.Empty
+                            } else {
+                                LibraryUiState.Success(filteredBooks)
                             }
+                        } catch (e: Exception) {
+                            LibraryUiState.Error(e.message ?: "Unknown error")
                         }
-
-                    val sortedBooks =
-                        when (order) {
-                            BookSortOrder.RECENTLY_PLAYED ->
-                                filteredBooks.sortedByDescending { it.lastPlayedDate ?: 0 }
-                            BookSortOrder.RECENTLY_ADDED -> filteredBooks.sortedByDescending { it.addedDate }
-                            BookSortOrder.TITLE_ASC -> filteredBooks.sortedBy { it.title }
-                            BookSortOrder.TITLE_DESC -> filteredBooks.sortedByDescending { it.title }
-                            BookSortOrder.AUTHOR_ASC -> filteredBooks.sortedBy { it.author }
-                            BookSortOrder.AUTHOR_DESC -> filteredBooks.sortedByDescending { it.author }
-                        }
-
-                    if (sortedBooks.isEmpty()) {
-                        LibraryUiState.Empty
-                    } else {
-                        LibraryUiState.Success(sortedBooks)
                     }
-                } catch (e: Exception) {
-                    LibraryUiState.Error(e.message ?: "Unknown error")
-                }
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = LibraryUiState.Loading,
-            )
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = LibraryUiState.Loading,
+                )
 
         /**
          * Update search query.
@@ -144,6 +143,9 @@ class LibraryViewModel
          */
         fun onSortOrderChanged(order: BookSortOrder) {
             _sortOrder.value = order
+            viewModelScope.launch {
+                userPreferencesRepository.setSortOrder(order)
+            }
         }
 
         /**
