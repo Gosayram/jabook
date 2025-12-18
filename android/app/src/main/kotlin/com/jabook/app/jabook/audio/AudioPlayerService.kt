@@ -340,40 +340,63 @@ class AudioPlayerService : MediaLibraryService() {
 
     @OptIn(UnstableApi::class) // MediaSessionService.setListener
     override fun onCreate() {
-        PlayerPerformanceLogger.start("service_onCreate")
-        PlayerPerformanceLogger.log("Service", "onCreate() started")
+        // CRITICAL: Use Log.e (ERROR) level - ProGuard won't strip these
+        android.util.Log.e("JABOOK_SERVICE", "============================================")
+        android.util.Log.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() START")
+        android.util.Log.e("JABOOK_SERVICE", "============================================")
 
-        super.onCreate()
-        instance = this
-
-        PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
-
-        // Set MediaSessionService.Listener for handling foreground service start exceptions
-        // This is required for Android 12+ when system doesn't allow foreground service start
-        setListener(MediaSessionServiceListener(this))
-
-        PlayerPerformanceLogger.log("Service", "listener set")
-
-        // Initialize service components using extracted initializer
-        //  Media3 automatically manages notifications - no custom provider needed
-        AudioPlayerServiceInitializer(this).initialize()
-
-        // CRITICAL: Set Media Notification Provider for MediaLibraryService
-        // Media3 does NOT automatically show notifications without explicit provider!
-        // This must be called AFTER initialization and from within the Service (protected method)
         try {
-            val notificationProvider = AudioPlayerNotificationProvider(this)
-            setMediaNotificationProvider(notificationProvider)
-            android.util.Log.i(
-                "AudioPlayerService",
-                "AudioPlayerNotificationProvider set successfully with Glide integration",
-            )
-        } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to set notification provider", e)
-        }
+            PlayerPerformanceLogger.start("service_onCreate")
+            PlayerPerformanceLogger.log("Service", "onCreate() started")
 
-        PlayerPerformanceLogger.log("Service", "initialization complete")
-        PlayerPerformanceLogger.summary()
+            super.onCreate()
+            instance = this
+            android.util.Log.e("JABOOK_SERVICE", "[OK] super.onCreate() completed")
+
+            PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
+
+            // Set MediaSessionService.Listener for handling foreground service start exceptions
+            // This is required for Android 12+ when system doesn't allow foreground service start
+            setListener(MediaSessionServiceListener(this))
+            android.util.Log.e("JABOOK_SERVICE", "[OK] setListener completed")
+
+            PlayerPerformanceLogger.log("Service", "listener set")
+
+            // Initialize service components using extracted initializer
+            //  Media3 automatically manages notifications - no custom provider needed
+            android.util.Log.e("JABOOK_SERVICE", "Starting AudioPlayerServiceInitializer...")
+            AudioPlayerServiceInitializer(this).initialize()
+            android.util.Log.e("JABOOK_SERVICE", "[OK] AudioPlayerServiceInitializer completed")
+
+            // CRITICAL: Set Media Notification Provider for MediaLibraryService
+            // Media3 does NOT automatically show notifications without explicit provider!
+            // This must be called AFTER initialization and from within the Service (protected method)
+            android.util.Log.e("JABOOK_SERVICE", "Setting MediaNotificationProvider...")
+            try {
+                val notificationProvider = AudioPlayerNotificationProvider(this)
+                setMediaNotificationProvider(notificationProvider)
+                android.util.Log.e("JABOOK_SERVICE", "[SUCCESS] AudioPlayerNotificationProvider SET!")
+                android.util.Log.i(
+                    "AudioPlayerService",
+                    "AudioPlayerNotificationProvider set successfully with Glide integration",
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("JABOOK_SERVICE", "[FAILED] to set notification provider!", e)
+                android.util.Log.e("AudioPlayerService", "Failed to set notification provider", e)
+            }
+
+            PlayerPerformanceLogger.log("Service", "initialization complete")
+            PlayerPerformanceLogger.summary()
+
+            android.util.Log.e("JABOOK_SERVICE", "============================================")
+            android.util.Log.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() COMPLETE")
+            android.util.Log.e("JABOOK_SERVICE", "============================================")
+        } catch (e: Exception) {
+            android.util.Log.e("JABOOK_SERVICE", "[CRASH] in onCreate()!", e)
+            android.util.Log.e("JABOOK_SERVICE", "Exception: ${e.message}")
+            android.util.Log.e("JABOOK_SERVICE", "Stack trace: ${e.stackTraceToString()}")
+            throw e // Re-throw to crash properly
+        }
     }
 
     override fun onStartCommand(

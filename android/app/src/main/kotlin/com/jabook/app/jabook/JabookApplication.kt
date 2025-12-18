@@ -52,6 +52,18 @@ class JabookApplication :
         // Schedule periodic sync
         syncManager.schedulePeriodicSync()
 
+        // CRITICAL: Start AudioPlayerService for warmup
+        // This ensures instant playback readiness without delay on first play
+        // Service will initialize MediaSession, ExoPlayer, and notification provider
+        try {
+            android.util.Log.i("JabookApplication", "Starting AudioPlayerService warmup...")
+            val serviceIntent = android.content.Intent(this, com.jabook.app.jabook.audio.AudioPlayerService::class.java)
+            startService(serviceIntent)
+            android.util.Log.i("JabookApplication", "AudioPlayerService warmup initiated")
+        } catch (e: Exception) {
+            android.util.Log.e("JabookApplication", "Failed to start AudioPlayerService warmup", e)
+        }
+
         android.util.Log.d("JabookApplication", "Application created with Hilt support")
     }
 }
