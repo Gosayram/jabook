@@ -50,6 +50,7 @@ class BackupService
         private val database: JabookDatabase,
         private val userPreferencesRepository: UserPreferencesRepository,
         private val protoSettingsRepository: ProtoSettingsRepository,
+        private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
     ) {
         companion object {
             private const val TAG = "BackupService"
@@ -174,14 +175,28 @@ class BackupService
             val userPrefs = userPreferencesRepository.userData.first()
             val protoSettings = protoSettingsRepository.userPreferences.first()
 
+            // Defaults for empty values
+            val defaultDownloadPath = "JabookAudio"
+            val defaultMirrors =
+                listOf(
+                    "https://rutracker.org",
+                    "https://rutracker.net",
+                    "https://rutracker.nl",
+                )
+
             return AppSettings(
                 theme = userPrefs.theme.name,
                 autoPlayNext = userPrefs.autoPlayNext,
                 playbackSpeed = userPrefs.playbackSpeed,
                 font = userPrefs.font.name,
                 wifiOnlyDownload = protoSettings.wifiOnlyDownload,
-                downloadPath = protoSettings.downloadPath,
-                currentMirror = protoSettings.selectedMirror,
+                // Use default if empty
+                downloadPath = protoSettings.downloadPath.ifEmpty { defaultDownloadPath },
+                // Use first custom mirror or first default mirror if empty
+                currentMirror =
+                    protoSettings.selectedMirror.ifEmpty {
+                        protoSettings.customMirrorsList.firstOrNull() ?: defaultMirrors.first()
+                    },
                 autoSwitchMirror = protoSettings.autoSwitchMirror,
                 limitDownloadSpeed = protoSettings.limitDownloadSpeed,
                 maxDownloadSpeedKb = protoSettings.maxDownloadSpeedKb,
@@ -203,6 +218,14 @@ class BackupService
         private suspend fun collectBookMetadata(): List<BookBackup> {
             val books = database.booksDao().getAllBooksFlow().first()
             return books.map { entity ->
+                // Read timestamps from PlayerPersistence
+                val playerState =
+                    try {
+                        playerPersistenceManager.getPlayerState(entity.id)
+                    } catch (e: Exception) {
+                        null
+                    }
+
                 BookBackup(
                     id = entity.id,
                     title = entity.title,
@@ -211,11 +234,14 @@ class BackupService
                     duration = entity.totalDuration,
                     coverPath = entity.coverUrl,
                     totalProgress = entity.totalProgress,
-                    isCompleted = entity.currentPosition >= entity.totalDuration * 0.98, // heuristic
+                    isCompleted = entity.currentPosition >= entity.totalDuration * 0.98,
                     downloadStatus = entity.downloadStatus,
                     addedDate = entity.addedDate,
                     rewindDuration = entity.rewindDuration,
                     forwardDuration = entity.forwardDuration,
+                    // Save activity timestamps
+                    lastPlayedTimestamp = playerState?.lastPlayedTimestamp ?: 0L,
+                    completedTimestamp = playerState?.completedTimestamp ?: 0L,
                 )
             }
         }
@@ -328,35 +354,41 @@ class BackupService
          */
         private suspend fun restoreBooks(books: List<BookBackup>) {
             val dao = database.booksDao()
-            // We only want to update existing books or insert phantom ones?
-            // Actually, for backup/restore, if we don't have the book files, we can't really "restore" the book
-            // fully unless we treat it as a not-downloaded book.
-            // Strategy: Check if book exists. If yes, update progress/settings.
-            // If no, we can skip OR insert as "NOT_DOWNLOADED".
-            // Let's insert as NOT_DOWNLOADED to preserve history/progress if user eventually re-downloads/re-adds.
-            // However, we need more metadata to insert a valid book (description, chapters etc used to be needed).
-            // BookEntity requires title, author, totalDuration etc.
-            // BookBackup has most of this.
 
             books.forEach { backup ->
                 val existing = dao.getBookById(backup.id)
                 if (existing != null) {
-                    // Update existing
+                    // Update existing book
                     dao.updatePlaybackProgress(
                         bookId = backup.id,
                         position = backup.lastPosition,
                         progress = backup.totalProgress,
-                        chapterIndex = 0, // We don't backup chapter index currently, default to 0 or calc
-                        timestamp = System.currentTimeMillis(), // or maintain last played
+                        chapterIndex = 0,
+                        timestamp = backup.lastPlayedTimestamp.takeIf { it > 0 } ?: System.currentTimeMillis(),
                     )
                     dao.updateBookSettings(
                         bookId = backup.id,
                         rewindDuration = backup.rewindDuration,
                         forwardDuration = backup.forwardDuration,
                     )
+
+                    // Restore timestamps to PlayerPersistence
+                    try {
+                        playerPersistenceManager.savePlayerState(
+                            com.jabook.app.jabook.audio.PlayerState(
+                                bookId = backup.id,
+                                positionMs = backup.lastPosition,
+                                durationMs = backup.duration,
+                                filePaths = emptyList(),
+                                lastPlayedTimestamp = backup.lastPlayedTimestamp,
+                                completedTimestamp = backup.completedTimestamp,
+                            ),
+                        )
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to restore timestamps for ${backup.id}", e)
+                    }
                 } else {
-                    // Insert new (stub for history)
-                    // Note: We might lack chapters structure here, so playback might be broken until scan/download
+                    // Insert new book (stub for history)
                     dao.insertBook(
                         BookEntity(
                             id = backup.id,
@@ -367,13 +399,29 @@ class BackupService
                             totalDuration = backup.duration,
                             currentPosition = backup.lastPosition,
                             totalProgress = backup.totalProgress,
-                            downloadStatus = "NOT_DOWNLOADED", // Reset download status
+                            downloadStatus = "NOT_DOWNLOADED",
                             addedDate = backup.addedDate,
                             rewindDuration = backup.rewindDuration,
                             forwardDuration = backup.forwardDuration,
-                            isFavorite = false, // Will be set by favorite restore
+                            isFavorite = false,
                         ),
                     )
+
+                    // Restore timestamps for new book too
+                    try {
+                        playerPersistenceManager.savePlayerState(
+                            com.jabook.app.jabook.audio.PlayerState(
+                                bookId = backup.id,
+                                positionMs = backup.lastPosition,
+                                durationMs = backup.duration,
+                                filePaths = emptyList(),
+                                lastPlayedTimestamp = backup.lastPlayedTimestamp,
+                                completedTimestamp = backup.completedTimestamp,
+                            ),
+                        )
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to restore timestamps for new book ${backup.id}", e)
+                    }
                 }
             }
         }

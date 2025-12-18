@@ -153,5 +153,61 @@ class PlayerPersistenceManager
             }
         }
 
+        // NEW: Per-book state for Backup/Restore & Activity Sorting
+        suspend fun savePlayerState(state: PlayerState) =
+            withContext(Dispatchers.IO) {
+                try {
+                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    val json =
+                        JSONObject().apply {
+                            put("bookId", state.bookId)
+                            put("positionMs", state.positionMs)
+                            put("durationMs", state.durationMs)
+                            put("lastPlayedTimestamp", state.lastPlayedTimestamp)
+                            put("completedTimestamp", state.completedTimestamp)
+                            put("playCount", state.playCount)
+                            // We don't necessarily need filePaths in this light state
+                        }
+                    prefs.edit().putString("book_state_${state.bookId}", json.toString()).apply()
+                } catch (e: Exception) {
+                    android.util.Log.e("PlayerPersistence", "Failed to save player state for ${state.bookId}", e)
+                }
+            }
+
+        suspend fun getPlayerState(bookId: String): PlayerState? =
+            withContext(Dispatchers.IO) {
+                try {
+                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    val jsonString = prefs.getString("book_state_$bookId", null) ?: return@withContext null
+                    val json = JSONObject(jsonString)
+
+                    PlayerState(
+                        bookId = json.getString("bookId"),
+                        positionMs = json.optLong("positionMs", 0),
+                        durationMs = json.optLong("durationMs", 0),
+                        filePaths = emptyList(), // Not stored here
+                        lastPlayedTimestamp = json.optLong("lastPlayedTimestamp", 0),
+                        completedTimestamp = json.optLong("completedTimestamp", 0),
+                        playCount = json.optInt("playCount", 0),
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("PlayerPersistence", "Failed to get player state for $bookId", e)
+                    null
+                }
+            }
+
         private fun sanitizeGroupPath(path: String): String = path.replace(Regex("[^\\w\\-.]"), "_")
     }
+
+/**
+ * Lightweight state for backup and sorting
+ */
+data class PlayerState(
+    val bookId: String,
+    val positionMs: Long,
+    val durationMs: Long,
+    val filePaths: List<String>,
+    val lastPlayedTimestamp: Long = 0L,
+    val completedTimestamp: Long = 0L,
+    val playCount: Int = 0,
+)

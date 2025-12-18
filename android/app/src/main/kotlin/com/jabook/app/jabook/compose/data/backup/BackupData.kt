@@ -79,6 +79,9 @@ data class BookBackup(
     val addedDate: Long = 0,
     val rewindDuration: Int? = null,
     val forwardDuration: Int? = null,
+    // Activity timestamps for sorting by activity
+    val lastPlayedTimestamp: Long = 0, // When last played
+    val completedTimestamp: Long = 0, // When completed (if completed)
 )
 
 /**
