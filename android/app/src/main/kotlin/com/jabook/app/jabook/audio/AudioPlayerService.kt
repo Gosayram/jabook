@@ -340,17 +340,27 @@ class AudioPlayerService : MediaLibraryService() {
 
     @OptIn(UnstableApi::class) // MediaSessionService.setListener
     override fun onCreate() {
+        PlayerPerformanceLogger.start("service_onCreate")
+        PlayerPerformanceLogger.log("Service", "onCreate() started")
+
         super.onCreate()
         instance = this
+
+        PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
 
         // Set MediaSessionService.Listener for handling foreground service start exceptions
         // This is required for Android 12+ when system doesn't allow foreground service start
         setListener(MediaSessionServiceListener(this))
 
+        PlayerPerformanceLogger.log("Service", "listener set")
+
         // Initialize service components using extracted initializer
         // Media3 automatically manages notifications - no custom provider needed
 
         AudioPlayerServiceInitializer(this).initialize()
+
+        PlayerPerformanceLogger.log("Service", "initialization complete")
+        PlayerPerformanceLogger.summary()
     }
 
     override fun onStartCommand(
