@@ -116,6 +116,26 @@ fun PlayerScreen(
     var showSettingsSheet by remember { mutableStateOf(false) }
     var showChapterSheet by remember { mutableStateOf(false) }
 
+    // Request notification permission on Android 13+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        val permissionLauncher =
+            androidx.activity.compose.rememberLauncherForActivityResult(
+                contract =
+                    androidx.activity.result.contract.ActivityResultContracts
+                        .RequestPermission(),
+                onResult = { isGranted ->
+                    if (!isGranted) {
+                        // TODO: Show rationale or snackbar if needed
+                        android.util.Log.w("PlayerScreen", "Notification permission denied")
+                    }
+                },
+            )
+
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     // Handle back gesture for swipe-to-dismiss
     androidx.activity.compose.BackHandler {
         onNavigateBack()

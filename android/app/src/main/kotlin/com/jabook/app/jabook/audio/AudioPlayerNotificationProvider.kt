@@ -76,12 +76,21 @@ class AudioPlayerNotificationProvider(
             }
         }
 
-    // Build the default provider with our intercepted BitmapLoader
-    private val defaultProvider =
+    // Build the default provider with explicit channel configuration
+    // Note: DefaultMediaNotificationProvider.Builder only supports setChannelId() in Media3
+    // Small icon is configured via drawable resource override (media3_notification_small_icon.xml)
+    private val defaultProvider: DefaultMediaNotificationProvider =
         DefaultMediaNotificationProvider
             .Builder(service)
+            .setChannelId(NotificationHelper.CHANNEL_ID)
             // .setBitmapLoader(minimalBitmapLoader) // Unresolved in Media3 1.8.0
             .build()
+            .also {
+                android.util.Log.i(
+                    "AudioPlayerNotificationProvider",
+                    "DefaultMediaNotificationProvider built with Channel ID: ${NotificationHelper.CHANNEL_ID}",
+                )
+            }
 
     override fun createNotification(
         mediaSession: MediaSession,

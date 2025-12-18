@@ -204,7 +204,7 @@ class AudioPlayerServiceInitializer(
                         service,
                         service.exoPlayer,
                         callback,
-                    )
+                    ).setMediaButtonPreferences(callback.customCommands)
 
             // Set session activity (PendingIntent)
             // This is CRITICAL for Android 12+ media controls to work properly
@@ -234,19 +234,9 @@ class AudioPlayerServiceInitializer(
                     service.exoPlayer,
                 )
 
-            // Initialize NotificationManager only for non-session purposes or fallback
-            // We use Media3's DefaultMediaNotificationProvider for the actual media notification
-            // But we keep this initialized in case other parts of the app rely on it
-            service.notificationManager =
-                NotificationManager(
-                    context = service,
-                    player = service.exoPlayer,
-                    mediaSession = service.mediaLibrarySession,
-                    metadata = service.currentMetadata,
-                    embeddedArtworkPath = service.embeddedArtworkPath,
-                    rewindSeconds = service.mediaSessionManager?.getRewindDuration() ?: 15L,
-                    forwardSeconds = service.mediaSessionManager?.getForwardDuration() ?: 30L,
-                )
+            // Legacy NotificationManager is no longer needed with Media3
+            // Media3 DefaultMediaNotificationProvider handles notifications
+            service.notificationManager = null
 
             // Set notification type based on service state
             service.notificationManager?.setNotificationType(service.isMinimalNotification)

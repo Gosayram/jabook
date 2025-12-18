@@ -169,7 +169,7 @@
         <!-- Native Media3 audio player service -->
         <service
             android:name=".audio.AudioPlayerService"
-            android:exported="false"
+            android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
