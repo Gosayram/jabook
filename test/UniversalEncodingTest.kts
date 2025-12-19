@@ -131,11 +131,22 @@ object EncodingDetector {
     }
 
     private fun fixMojibake(text: String): Triple<String, String, Double>? {
+        // Don't try to fix CJK, Greek, Arabic, Latin-dominant text
+        val hasCJK = text.any { it in '\u4E00'..'\u9FFF' }
+        val hasGreek = text.any { it in '\u0370'..'\u03FF' }
+        val hasArabic = text.any { it in '\u0600'..'\u06FF' }
+        val latinCount = text.count { it in 'A'..'Z' || it in 'a'..'z' }
+        val hasSignificantLatin = latinCount > 0 && latinCount.toDouble() / text.length > 0.5
+
+        if (hasCJK || hasGreek || hasArabic || hasSignificantLatin) {
+            return null
+        }
+
         if (containsCyrillic(text) && calculateConfidence(text) > 0.7) return null
 
         val targetEncodings = listOf("windows-1251", "KOI8-R", "windows-1252", "ISO-8859-5", "CP866")
         var bestResult: Triple<String, String, Double>? = null
-        var bestScore = 0.5
+        var bestScore = 0.65 // Raised to avoid false positives
 
         for (target in targetEncodings) {
             try {
@@ -161,7 +172,7 @@ object EncodingDetector {
         val hasCJK = cleanText.any { it in '\u4E00'..'\u9FFF' }
         val currentConf = calculateConfidence(cleanText)
         
-        if (hasCyrillic && !hasCJK && currentConf > 0.7) {
+        if (hasCyrillic && !hasCJK && currentConf > 0.65) {
             return Pair(cleanText, null)
         }
 
@@ -279,9 +290,9 @@ fun readRawId3Tags(file: File): Map<String, ByteArray> {
 }
 
 fun main() {
-    val dir = File("test_results")
+    val dir = File("../test_results")
     if (!dir.exists()) {
-        println("Directory test_results not found!")
+        println("Directory ../test_results not found!")
         System.exit(1)
     }
 

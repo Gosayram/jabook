@@ -72,16 +72,13 @@ class EncodingDetector
 
             // Check for BOMs (Byte Order Marks)
             if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) {
-                Log.w(TAG, "Detected UTF-8 BOM")
                 return Charsets.UTF_8
             }
             if (bytes.size >= 2) {
                 if (bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte()) {
-                    Log.w(TAG, "Detected UTF-16BE BOM")
                     return Charsets.UTF_16 // Use generic UTF-16 to consume BOM
                 }
                 if (bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte()) {
-                    Log.w(TAG, "Detected UTF-16LE BOM")
                     return Charsets.UTF_16 // Use generic UTF-16 to consume BOM
                 }
             }
@@ -92,11 +89,9 @@ class EncodingDetector
                     val charset = Charset.forName(hintCharset)
                     val decoded = String(bytes, charset)
                     if (!decoded.contains('\uFFFD')) {
-                        Log.w(TAG, "Using hint encoding: $hintCharset")
                         return charset
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Hint encoding failed: $hintCharset")
                 }
             }
 
@@ -114,7 +109,6 @@ class EncodingDetector
 
             // Check if valid UTF-8
             if (isValidUtf8(sample.toByteArray())) {
-                Log.w(TAG, "Heuristic: detected UTF-8")
                 return Charsets.UTF_8
             }
 
@@ -146,12 +140,10 @@ class EncodingDetector
                         Charset.forName("KOI8-R")
                     }
 
-                Log.w(TAG, "Heuristic: detected ${charset.name()} (cyrillic ratio: $cyrillicRatio)")
                 return charset
             }
 
             // Default to UTF-8
-            Log.w(TAG, "Heuristic: defaulting to UTF-8")
             return Charsets.UTF_8
         }
 
@@ -184,13 +176,11 @@ class EncodingDetector
                     val charset = Charset.forName(encoding)
                     val decoded = String(bytes, charset)
                     if (!decoded.contains('\uFFFD')) {
-                        Log.w(TAG, "Successfully decoded with declared encoding: $encoding")
                         // Strip BOM if present
                         val clean = decoded.replace("\uFEFF", "")
                         return Pair(clean, encoding)
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to decode with declared encoding: $encoding")
                 }
             }
 
@@ -334,6 +324,12 @@ class EncodingDetector
                 }
             }
 
+            // IMPORTANT: Heavy penalty for control characters (indicates corrupted encoding like ISO-8859-5)
+            val controlChars = text.count { it.code < 32 && it != '\n' && it != '\r' && it != '\t' }
+            if (controlChars > 0) {
+                score -= 0.5 // Heavy penalty - control chars indicate garbage
+            }
+
             return score.coerceIn(0.0, 1.0)
         }
 
@@ -341,14 +337,27 @@ class EncodingDetector
          * Fix mojibake (garbled text) using correct algorithm.
          */
         private fun fixMojibake(text: String): Triple<String, String, Double>? {
-            if (containsCyrillic(text) && calculateConfidence(text) > 0.7) {
+            // Don't try to fix CJK, Greek, Arabic, Latin-dominant text
+            val hasCJK = text.any { it in '\u4E00'..'\u9FFF' }
+            val hasGreek = text.any { it in '\u0370'..'\u03FF' }
+            val hasArabic = text.any { it in '\u0600'..'\u06FF' }
+            val latinCount = text.count { it in 'A'..'Z' || it in 'a'..'z' }
+            val hasSignificantLatin = latinCount > 0 && latinCount.toDouble() / text.length > 0.5
+
+            if (hasCJK || hasGreek || hasArabic || hasSignificantLatin) {
+                return null
+            }
+
+            // CRITICAL: If text already has good Cyrillic confidence, DON'T try to fix!
+            // This prevents "reverse mojibake" where valid UTF-8 gets corrupted
+            if (containsCyrillic(text) && calculateConfidence(text) > 0.75) {
                 return null
             }
 
             val targetEncodings =
                 listOf("windows-1251", "KOI8-R", "windows-1252", "ISO-8859-5", "CP866")
             var bestResult: Triple<String, String, Double>? = null
-            var bestScore = 0.5 // Lower threshold
+            var bestScore = 0.65 // Raised threshold to avoid false positives (was 0.5)
 
             for (target in targetEncodings) {
                 try {
@@ -388,8 +397,8 @@ class EncodingDetector
             val hasCyrillic = containsCyrillic(cleanText)
             val currentConf = calculateConfidence(cleanText)
 
-            // Lower threshold from 0.7 to 0.55 to accept more valid text
-            if (hasCyrillic && currentConf > 0.55) {
+            // Raised threshold from 0.55 to 0.65 to prevent CP866 false positives
+            if (hasCyrillic && currentConf > 0.65) {
                 return Pair(cleanText, null)
             }
 
@@ -408,6 +417,9 @@ class EncodingDetector
                 )
             for (source in sourceCharsets) {
                 for (target in RUSSIAN_CHARSETS) {
+                    // Skip problematic encodings that cause false positives
+                    if (target == "ISO-8859-5" || target == "CP866") continue
+
                     try {
                         val bytes = cleanText.toByteArray(Charset.forName(source))
                         val fixed = String(bytes, Charset.forName(target))
