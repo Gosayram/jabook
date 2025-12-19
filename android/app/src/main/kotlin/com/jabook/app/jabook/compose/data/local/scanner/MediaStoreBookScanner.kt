@@ -153,10 +153,13 @@ class MediaStoreBookScanner
 
             val chapters =
                 files
-                    .sortedBy { it.displayName }
+                    .sortedWith(createChapterComparator())
                     .mapIndexed { index, file ->
                         // Apply encoding detector to chapter titles
-                        val rawTitle = file.title ?: "Chapter ${index + 1}"
+                        // Use filename without extension if no title tag
+                        val rawTitle =
+                            file.title?.takeIf { it.isNotBlank() }
+                                ?: java.io.File(file.displayName).nameWithoutExtension
                         val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
 
                         if (detectedEncoding != null) {
@@ -182,5 +185,58 @@ class MediaStoreBookScanner
                 totalDuration = chapters.sumOf { it.duration },
                 coverArt = metadata?.coverArt,
             )
+        }
+
+        private data class ChapterInfo(
+            val partNumber: Int = 0,
+            val chapterNumber: Int = 0,
+            val hasNumber: Boolean = false,
+        ) {
+            fun toSortKey(): Int = partNumber * 1000 + chapterNumber
+        }
+
+        private fun createChapterComparator(): Comparator<AudioFileInfo> =
+            compareBy<AudioFileInfo> { file ->
+                val filename = file.displayName.lowercase()
+                when {
+                    filename.contains("пролог") || filename.contains("prologue") -> 0
+                    extractChapterInfo(file.displayName).hasNumber -> 1
+                    filename.contains("эпилог") || filename.contains("epilogue") -> 3
+                    else -> 2
+                }
+            }.thenBy { file ->
+                val info = extractChapterInfo(file.displayName)
+                if (info.hasNumber) info.toSortKey() else Int.MAX_VALUE
+            }.thenBy { file ->
+                file.displayName.lowercase()
+            }
+
+        private fun extractChapterInfo(filename: String): ChapterInfo {
+            val clean = filename.lowercase()
+
+            val partMatch =
+                Regex("""част[\u044cяи]\s*(\d+)""").find(clean)
+                    ?: Regex("""part\s*(\d+)""").find(clean)
+            val partNum = partMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+            val patterns =
+                listOf(
+                    Regex("""глава\s*(\d+)""", RegexOption.IGNORE_CASE),
+                    Regex("""chapter\s*(\d+)""", RegexOption.IGNORE_CASE),
+                    Regex("""(\d+)\s*[-._]"""),
+                    Regex("""^(\d+)"""),
+                )
+
+            var chapterNum = 0
+            var found = false
+            for (pattern in patterns) {
+                pattern.find(clean)?.let {
+                    chapterNum = it.groupValues[1].toIntOrNull() ?: 0
+                    found = true
+                    return@let
+                }
+            }
+
+            return ChapterInfo(partNum, chapterNum, found)
         }
     }
