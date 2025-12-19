@@ -78,8 +78,12 @@ class LibraryViewModel
         val sortOrder: StateFlow<BookSortOrder> = _sortOrder
 
         // View mode state
-        private val _viewMode = MutableStateFlow(LibraryViewMode.LIST)
+        private val _viewMode = MutableStateFlow(LibraryViewMode.LIST_COMPACT)
         val viewMode: StateFlow<LibraryViewMode> = _viewMode
+
+        // Selected book for properties dialog
+        private val _selectedBookForProperties = MutableStateFlow<Book?>(null)
+        val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
 
         init {
             // Load saved settings from preferences
@@ -207,6 +211,27 @@ class LibraryViewModel
                 deleteBookUseCase(bookId)
                 // Result handling can be added if needed for user feedback
             }
+        }
+
+        /**
+         * Show book properties dialog.
+         */
+        fun showBookProperties(bookId: String) {
+            viewModelScope.launch {
+                // Find book from current UI state
+                val book =
+                    (uiState.value as? LibraryUiState.Success)?.books?.find {
+                        it.id == bookId
+                    }
+                _selectedBookForProperties.value = book
+            }
+        }
+
+        /**
+         * Hide book properties dialog.
+         */
+        fun hideBookProperties() {
+            _selectedBookForProperties.value = null
         }
 
         // Library scan state

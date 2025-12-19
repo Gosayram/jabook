@@ -37,6 +37,7 @@ class MediaStoreBookScanner
         @param:ApplicationContext private val context: Context,
         private val metadataParser: AudioMetadataParser,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
+        private val encodingDetector: com.jabook.app.jabook.compose.data.local.parser.EncodingDetector,
     ) : LocalBookScanner {
         override suspend fun scanAudiobooks(): Result<List<ScannedBook>> =
             withContext(Dispatchers.IO) {
@@ -154,9 +155,20 @@ class MediaStoreBookScanner
                 files
                     .sortedBy { it.displayName }
                     .mapIndexed { index, file ->
+                        // Apply encoding detector to chapter titles
+                        val rawTitle = file.title ?: "Chapter ${index + 1}"
+                        val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
+
+                        if (detectedEncoding != null) {
+                            android.util.Log.d(
+                                "BookScanner",
+                                "📖 Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)",
+                            )
+                        }
+
                         ScannedChapter(
                             filePath = file.filePath,
-                            title = file.title ?: "Chapter ${index + 1}",
+                            title = fixedTitle,
                             index = index,
                             duration = file.duration,
                         )

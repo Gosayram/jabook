@@ -37,6 +37,8 @@ class DirectFileSystemScanner
     constructor(
         private val metadataParser: AudioMetadataParser,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
+        private val bookIdentifier: BookIdentifier,
+        private val encodingDetector: com.jabook.app.jabook.compose.data.local.parser.EncodingDetector,
     ) : LocalBookScanner {
         override suspend fun scanAudiobooks(): Result<List<ScannedBook>> =
             withContext(Dispatchers.IO) {
@@ -59,10 +61,21 @@ class DirectFileSystemScanner
 
                     // Group by album and create scanned books
                     val groupedByAlbum = groupFilesByAlbum(audioFiles)
+
+                    android.util.Log.d(
+                        "DirectFileScanner",
+                        "Scanning stats: ${audioFiles.size} audio files found, grouped into ${groupedByAlbum.size} books",
+                    )
+
                     val scannedBooks =
-                        groupedByAlbum.mapNotNull { (album, files) ->
-                            createScannedBook(album, files)
+                        groupedByAlbum.mapNotNull { (groupingKey, files) ->
+                            createScannedBook(groupingKey, files)
                         }
+
+                    android.util.Log.i(
+                        "DirectFileScanner",
+                        "Scan complete: ${scannedBooks.size} books successfully created",
+                    )
 
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {
@@ -92,6 +105,10 @@ class DirectFileSystemScanner
                             val audioInfo = createAudioFileInfo(file)
                             if (audioInfo != null) {
                                 result.add(audioInfo)
+                                android.util.Log.v(
+                                    "DirectFileScanner",
+                                    "Found audio file: ${file.name} (album: ${audioInfo.album ?: "none"})",
+                                )
                             }
                         }
                     }
@@ -130,43 +147,101 @@ class DirectFileSystemScanner
             }
 
         /**
-         * Group audio files by album name.
+         * Group audio files by album name, with directory fallback.
+         *
+         * Uses composite key (album/directory + artist) to avoid duplicates.
          */
-        private fun groupFilesByAlbum(files: List<AudioFileInfo>): Map<String, List<AudioFileInfo>> =
-            files
-                .filter { it.album != null && it.album.isNotBlank() }
-                .groupBy { it.album!! }
+        private fun groupFilesByAlbum(files: List<AudioFileInfo>): Map<String, List<AudioFileInfo>> {
+            val totalFiles = files.size
+            android.util.Log.d("DirectFileScanner", "Grouping $totalFiles files into books...")
+
+            // Group by composite key (album or directory + artist)
+            val grouped =
+                files.groupBy { fileInfo ->
+                    val directory = java.io.File(fileInfo.filePath).parent ?: ""
+                    bookIdentifier.generateGroupingKey(
+                        directory = directory,
+                        album = fileInfo.album,
+                        artist = fileInfo.artist,
+                    )
+                }
+
+            // Log files without album metadata
+            val filesWithoutAlbum = files.count { it.album.isNullOrBlank() }
+            if (filesWithoutAlbum > 0) {
+                android.util.Log.w(
+                    "DirectFileScanner",
+                    "$filesWithoutAlbum files have no album metadata (will group by directory)",
+                )
+            }
+
+            android.util.Log.d(
+                "DirectFileScanner",
+                "Grouped into ${grouped.size} books (before: $totalFiles files)",
+            )
+
+            return grouped
+        }
 
         /**
          * Create ScannedBook from grouped files.
          */
         private suspend fun createScannedBook(
-            album: String,
+            groupingKey: String,
             files: List<AudioFileInfo>,
         ): ScannedBook? {
             val firstFile = files.firstOrNull() ?: return null
             val metadata = metadataParser.parseMetadata(firstFile.filePath)
 
+            val directory = File(firstFile.filePath).parent ?: ""
+
+            // Generate unique book ID
+            val bookId =
+                bookIdentifier.generateBookId(
+                    directory = directory,
+                    album = metadata?.album,
+                    artist = metadata?.albumArtist ?: metadata?.artist,
+                )
+
             val chapters =
                 files
                     .sortedBy { it.displayName }
                     .mapIndexed { index, file ->
+                        // Apply encoding detector to chapter titles
+                        val rawTitle = file.title ?: "Chapter ${index + 1}"
+                        val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
+
+                        if (detectedEncoding != null) {
+                            android.util.Log.d(
+                                "DirectFileScanner",
+                                "📖 Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)",
+                            )
+                        }
+
                         ScannedChapter(
                             filePath = file.filePath,
-                            title = file.title ?: "Chapter ${index + 1}",
+                            title = fixedTitle,
                             index = index,
                             duration = file.duration,
                         )
                     }
 
-            return ScannedBook(
-                directory = File(firstFile.filePath).parent ?: "",
-                title = metadata?.album ?: album,
-                author = metadata?.albumArtist ?: metadata?.artist ?: firstFile.artist ?: "Unknown",
-                chapters = chapters,
-                totalDuration = chapters.sumOf { it.duration },
-                coverArt = metadata?.coverArt,
+            val book =
+                ScannedBook(
+                    directory = directory,
+                    title = metadata?.album ?: File(directory).name,
+                    author = metadata?.albumArtist ?: metadata?.artist ?: firstFile.artist ?: "Unknown",
+                    chapters = chapters,
+                    totalDuration = chapters.sumOf { it.duration },
+                    coverArt = metadata?.coverArt,
+                )
+
+            android.util.Log.d(
+                "DirectFileScanner",
+                "Created book '${book.title}' by ${book.author} (${chapters.size} chapters, ID: $bookId)",
             )
+
+            return book
         }
 
         companion object {

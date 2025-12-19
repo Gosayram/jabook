@@ -202,7 +202,7 @@ class AudioPlayerServiceInitializer(
                         service,
                         service.exoPlayer,
                         callback,
-                    )
+                    ).setId("jabook_media_session") // Unique session ID to prevent conflicts
 
             // Set session activity (PendingIntent)
             // This is CRITICAL for Android 12+ media controls to work properly

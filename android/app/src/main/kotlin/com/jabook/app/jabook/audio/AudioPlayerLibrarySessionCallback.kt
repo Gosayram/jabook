@@ -65,6 +65,15 @@ class AudioPlayerLibrarySessionCallback(
     ): MediaSession.ConnectionResult {
         // Following Media3 official pattern: only set media button preferences for system controllers
         // (notification, automotive, auto companion). Regular app controllers get default commands.
+        //
+        // CRITICAL FIX: Removed .setMediaButtonPreferences(customCommands) call
+        // Reason: Media3's MediaSessionLegacyStub cannot properly convert CommandButton to
+        // PlaybackStateCompat.CustomAction, causing "You must specify an icon resource id" crash.
+        // The legacy stub tries to create CustomAction without icon resource, even though our
+        // CommandButton has icons specified. This is a Media3 internal conversion issue.
+        //
+        // Custom commands (rewind/forward) are still available via SessionCommands,
+        // but won't appear as notification buttons to avoid legacy conversion crash.
         if (
             session.isMediaNotificationController(controller) ||
             session.isAutomotiveController(controller) ||
@@ -80,7 +89,6 @@ class AudioPlayerLibrarySessionCallback(
             return MediaSession.ConnectionResult
                 .AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(availableCommands)
-                .setMediaButtonPreferences(customCommands)
                 .build()
         }
 

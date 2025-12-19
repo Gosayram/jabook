@@ -111,3 +111,21 @@
 -dontwarn javax.xml.stream.**
 -dontwarn org.apache.tika.**
 -dontwarn edu.umd.cs.findbugs.annotations.**
+
+# -------- Media3 (CRITICAL - prevents CrashLoop) --------
+# Keep MediaSession and CommandButton classes to prevent obfuscation issues
+-keep class androidx.media3.session.** { *; }
+-keep class androidx.media3.common.Player$Listener { *; }
+-keep interface androidx.media3.common.Player$Listener { *; }
+
+# Keep CommandButton.Builder to prevent icon resource ID obfuscation
+-keep class androidx.media3.session.CommandButton { *; }
+-keep class androidx.media3.session.CommandButton$Builder { *; }
+-keepclassmembers class androidx.media3.session.CommandButton$Builder {
+    *;
+}
+
+# Keep MediaLibrarySession callback methods
+-keep class * extends androidx.media3.session.MediaLibraryService$MediaLibrarySession$Callback {
+    *;
+}

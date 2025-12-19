@@ -14,15 +14,28 @@
 
 package com.jabook.app.jabook.compose.data.model
 
+/**
+ * Sort order options for library books.
+ */
 enum class BookSortOrder {
+    /** Sort by last activity (most recently played first) */
     BY_ACTIVITY,
-    BY_TITLE,
-    BY_AUTHOR,
-    BY_DATE_ADDED,
-    RECENTLY_PLAYED,
-    RECENTLY_ADDED,
+
+    /** Sort by title ascending (A-Z, А-Я) */
     TITLE_ASC,
+
+    /** Sort by title descending (Z-A, Я-А) */
     TITLE_DESC,
+
+    /** Sort by author ascending (A-Z, А-Я) */
     AUTHOR_ASC,
+
+    /** Sort by author descending (Z-A, Я-А) */
     AUTHOR_DESC,
+
+    /** Sort by date added (newest first) */
+    RECENTLY_ADDED,
+
+    /** Sort by date added (oldest first) */
+    OLDEST_FIRST,
 }

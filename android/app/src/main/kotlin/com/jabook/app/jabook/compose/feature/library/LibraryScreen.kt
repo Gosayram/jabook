@@ -20,9 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.outlined.List
-import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GridView
@@ -120,7 +118,7 @@ fun LibraryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.library)) },
+                title = { }, // Empty title for more space
                 windowInsets =
                     androidx.compose.foundation.layout
                         .WindowInsets(0, 0, 0, 0),
@@ -221,24 +219,12 @@ fun LibraryScreen(
 
                     // Switch based on view mode
                     when (viewMode) {
-                        LibraryViewMode.LIST -> {
-                            EnhancedLibraryContent(
-                                allBooks = books,
-                                recentlyPlayed = recentlyPlayed,
-                                inProgress = inProgress,
-                                favorites = favorites,
-                                onBookClick = onBookClick,
-                                onToggleFavorite = viewModel::toggleFavorite,
-                                modifier = Modifier.fillMaxSize(),
-                                sharedTransitionScope = sharedTransitionScope,
-                                animatedVisibilityScope = animatedVisibilityScope,
-                            )
-                        }
                         LibraryViewMode.LIST_COMPACT -> {
                             BooksCompactListView(
                                 books = books,
                                 onBookClick = onBookClick,
                                 onToggleFavorite = viewModel::toggleFavorite,
+                                onBookLongPress = viewModel::showBookProperties,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
@@ -250,14 +236,7 @@ fun LibraryScreen(
                                 viewMode = viewMode,
                                 onBookClick = onBookClick,
                                 onToggleFavorite = viewModel::toggleFavorite,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
-                        LibraryViewMode.GROUPED_LETTER -> {
-                            BooksGroupedView(
-                                books = books,
-                                onBookClick = onBookClick,
-                                onToggleFavorite = viewModel::toggleFavorite,
+                                onBookLongPress = viewModel::showBookProperties,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
@@ -276,6 +255,15 @@ fun LibraryScreen(
                     )
                 }
             }
+        }
+
+        // Book properties dialog
+        val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
+        selectedBook?.let { book ->
+            BookPropertiesDialog(
+                book = book,
+                onDismiss = viewModel::hideBookProperties,
+            )
         }
     }
 }
@@ -330,37 +318,16 @@ private fun ViewModeToggle(
     androidx.compose.foundation.layout.Row(modifier = modifier) {
         // List view
         IconButton(
-            onClick = { onModeChanged(LibraryViewMode.LIST) },
-        ) {
-            Icon(
-                imageVector =
-                    if (currentMode == LibraryViewMode.LIST) {
-                        Icons.AutoMirrored.Filled.List
-                    } else {
-                        Icons.AutoMirrored.Outlined.List
-                    },
-                contentDescription = stringResource(R.string.viewModeList),
-                tint =
-                    if (currentMode == LibraryViewMode.LIST) {
-                        androidx.compose.material3.MaterialTheme.colorScheme.primary
-                    } else {
-                        androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-            )
-        }
-
-        // Compact list view
-        IconButton(
             onClick = { onModeChanged(LibraryViewMode.LIST_COMPACT) },
         ) {
             Icon(
                 imageVector =
                     if (currentMode == LibraryViewMode.LIST_COMPACT) {
-                        Icons.AutoMirrored.Filled.ViewList
+                        Icons.AutoMirrored.Filled.List
                     } else {
-                        Icons.AutoMirrored.Outlined.ViewList
+                        Icons.AutoMirrored.Outlined.List
                     },
-                contentDescription = stringResource(R.string.compactListView),
+                contentDescription = stringResource(R.string.viewModeList),
                 tint =
                     if (currentMode == LibraryViewMode.LIST_COMPACT) {
                         androidx.compose.material3.MaterialTheme.colorScheme.primary
@@ -444,39 +411,29 @@ private fun SortOrderMenu(
                                         stringResource(
                                             R.string.sort_by_activity,
                                         )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_TITLE ->
-                                        stringResource(
-                                            R.string.sort_by_title,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_AUTHOR ->
-                                        stringResource(
-                                            R.string.sort_by_author,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_DATE_ADDED ->
-                                        stringResource(
-                                            R.string.sort_by_date_added,
-                                        )
                                     com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
                                         stringResource(
-                                            R.string.sort_by_title,
+                                            R.string.sort_title_asc,
                                         )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC -> "${stringResource(
-                                        R.string.sort_by_title,
-                                    )} (Z-A)"
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
+                                        stringResource(
+                                            R.string.sort_title_desc,
+                                        )
                                     com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
                                         stringResource(
-                                            R.string.sort_by_author,
+                                            R.string.sort_author_asc,
                                         )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC -> "${stringResource(
-                                        R.string.sort_by_author,
-                                    )} (Z-A)"
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
+                                        stringResource(
+                                            R.string.sort_author_desc,
+                                        )
                                     com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
                                         stringResource(
-                                            R.string.sort_by_date_added,
+                                            R.string.sort_recently_added,
                                         )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_PLAYED ->
+                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
                                         stringResource(
-                                            R.string.sort_by_activity,
+                                            R.string.sort_oldest_first,
                                         )
                                 },
                         )

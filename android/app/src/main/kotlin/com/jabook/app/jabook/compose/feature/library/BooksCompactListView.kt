@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -53,6 +54,7 @@ import com.jabook.app.jabook.compose.domain.model.Book
  * @param books List of books to display
  * @param onBookClick Callback when book is clicked
  * @param onToggleFavorite Callback to toggle favorite status
+ * @param onBookLongPress Callback when book is long-pressed
  * @param modifier Modifier
  */
 @Composable
@@ -60,6 +62,7 @@ fun BooksCompactListView(
     books: List<Book>,
     onBookClick: (String) -> Unit,
     onToggleFavorite: (String, Boolean) -> Unit,
+    onBookLongPress: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -72,6 +75,7 @@ fun BooksCompactListView(
                 book = book,
                 onBookClick = onBookClick,
                 onToggleFavorite = onToggleFavorite,
+                onBookLongPress = onBookLongPress,
             )
         }
     }
@@ -85,17 +89,20 @@ private fun CompactBookCard(
     book: Book,
     onBookClick: (String) -> Unit,
     onToggleFavorite: (String, Boolean) -> Unit,
+    onBookLongPress: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
-        onClick = { onBookClick(book.id) },
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .combinedClickable(
+                        onClick = { onBookClick(book.id) },
+                        onLongClick = { onBookLongPress(book.id) },
+                    ).padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Compact cover image (48dp square)

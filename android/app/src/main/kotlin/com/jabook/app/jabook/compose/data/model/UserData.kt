@@ -21,8 +21,8 @@ package com.jabook.app.jabook.compose.data.model
  */
 data class UserData(
     val theme: AppTheme = AppTheme.SYSTEM,
-    val sortOrder: BookSortOrder = BookSortOrder.RECENTLY_PLAYED,
-    val viewMode: LibraryViewMode = LibraryViewMode.LIST,
+    val sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY,
+    val viewMode: LibraryViewMode = LibraryViewMode.LIST_COMPACT,
     val autoPlayNext: Boolean = true,
     val playbackSpeed: Float = 1.0f,
     val font: AppFont = AppFont.DEFAULT,
@@ -41,10 +41,7 @@ enum class AppTheme {
  * Library view mode options.
  */
 enum class LibraryViewMode {
-    /** Standard list view (default) */
-    LIST,
-
-    /** Compact list view - denser layout with smaller cards */
+    /** Compact list view */
     LIST_COMPACT,
 
     /** Grid view - compact (3 cols phone, 6 tablet) */
@@ -52,7 +49,4 @@ enum class LibraryViewMode {
 
     /** Grid view - comfortable (2 cols phone, 4 tablet) */
     GRID_COMFORTABLE,
-
-    /** Grouped by first letter with sticky headers */
-    GROUPED_LETTER,
 }

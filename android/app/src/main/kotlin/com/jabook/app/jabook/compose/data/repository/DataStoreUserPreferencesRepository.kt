@@ -66,17 +66,17 @@ class DataStoreUserPreferencesRepository
                             try {
                                 BookSortOrder.valueOf(sortName)
                             } catch (e: IllegalArgumentException) {
-                                BookSortOrder.RECENTLY_PLAYED
+                                BookSortOrder.BY_ACTIVITY
                             }
-                        } ?: BookSortOrder.RECENTLY_PLAYED,
+                        } ?: BookSortOrder.BY_ACTIVITY,
                     viewMode =
                         preferences[VIEW_MODE]?.let { modeName ->
                             try {
                                 LibraryViewMode.valueOf(modeName)
                             } catch (e: IllegalArgumentException) {
-                                LibraryViewMode.LIST
+                                LibraryViewMode.LIST_COMPACT
                             }
-                        } ?: LibraryViewMode.LIST,
+                        } ?: LibraryViewMode.LIST_COMPACT,
                     autoPlayNext = preferences[AUTO_PLAY_NEXT] ?: true,
                     playbackSpeed = preferences[PLAYBACK_SPEED] ?: 1.0f,
                     font =

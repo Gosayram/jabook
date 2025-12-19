@@ -14,7 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -23,16 +25,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.domain.model.Book
 
@@ -54,6 +65,7 @@ fun BooksGridView(
     viewMode: LibraryViewMode,
     onBookClick: (String) -> Unit,
     onToggleFavorite: (String, Boolean) -> Unit,
+    onBookLongPress: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isTablet = isTabletDevice()
@@ -79,6 +91,7 @@ fun BooksGridView(
                 book = book,
                 onBookClick = onBookClick,
                 onToggleFavorite = onToggleFavorite,
+                onBookLongPress = onBookLongPress,
             )
         }
     }
@@ -92,23 +105,67 @@ private fun BookGridItem(
     book: Book,
     onBookClick: (String) -> Unit,
     onToggleFavorite: (String, Boolean) -> Unit,
+    onBookLongPress: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
         onClick = { onBookClick(book.id) },
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = { onBookClick(book.id) },
+                    onLongClick = { onBookLongPress(book.id) },
+                ),
     ) {
         Column {
-            // Cover image (aspect ratio 0.7 for book covers)
-            AsyncImage(
-                model = book.coverUrl,
-                contentDescription = book.title,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(0.7f),
-                contentScale = ContentScale.Crop,
-            )
+            // Cover image with favorite button overlay
+            Box {
+                AsyncImage(
+                    model = book.coverUrl,
+                    contentDescription = book.title,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(0.7f),
+                    contentScale = ContentScale.Crop,
+                )
+
+                // Favorite button in top-right corner
+                IconButton(
+                    onClick = { onToggleFavorite(book.id, !book.isFavorite) },
+                    modifier = Modifier.align(Alignment.TopEnd),
+                ) {
+                    Icon(
+                        imageVector =
+                            if (book.isFavorite) {
+                                Icons.Filled.Favorite
+                            } else {
+                                Icons.Outlined.FavoriteBorder
+                            },
+                        contentDescription =
+                            if (book.isFavorite) {
+                                stringResource(R.string.removeFromFavorites)
+                            } else {
+                                stringResource(R.string.addToFavorites)
+                            },
+                        tint =
+                            if (book.isFavorite) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                    )
+                }
+            }
+
+            // Progress indicator
+            if (book.progress > 0f) {
+                LinearProgressIndicator(
+                    progress = { book.progress },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             // Title and author
             Column(

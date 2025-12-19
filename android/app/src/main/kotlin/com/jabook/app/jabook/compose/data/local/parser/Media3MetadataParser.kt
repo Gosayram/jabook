@@ -30,7 +30,9 @@ import javax.inject.Singleton
 @Singleton
 class Media3MetadataParser
     @Inject
-    constructor() : AudioMetadataParser {
+    constructor(
+        private val encodingDetector: EncodingDetector,
+    ) : AudioMetadataParser {
         private val kTagLib by lazy { KTagLib() }
 
         override suspend fun parseMetadata(filePath: String): AudioMetadata? =
@@ -70,12 +72,12 @@ class Media3MetadataParser
                     val audioProps = metadata.audioProperties
 
                     AudioMetadata(
-                        title = props["TITLE"]?.firstOrNull(),
-                        artist = props["ARTIST"]?.firstOrNull(),
-                        album = props["ALBUM"]?.firstOrNull(),
-                        albumArtist = props["ALBUMARTIST"]?.firstOrNull(),
+                        title = fixEncodingIfNeeded(props["TITLE"]?.firstOrNull()),
+                        artist = fixEncodingIfNeeded(props["ARTIST"]?.firstOrNull()),
+                        album = fixEncodingIfNeeded(props["ALBUM"]?.firstOrNull()),
+                        albumArtist = fixEncodingIfNeeded(props["ALBUMARTIST"]?.firstOrNull()),
                         duration = (audioProps?.duration ?: 0).toLong(),
-                        genre = props["GENRE"]?.firstOrNull(),
+                        genre = fixEncodingIfNeeded(props["GENRE"]?.firstOrNull()),
                         year = props["DATE"]?.firstOrNull(),
                         trackNumber = props["TRACKNUMBER"]?.firstOrNull()?.toIntOrNull(),
                         coverArt = artwork,
@@ -85,6 +87,25 @@ class Media3MetadataParser
                 android.util.Log.w("MetadataParser", "KTagLib parsing failed", e)
                 null
             }
+        }
+
+        /**
+         * Fix encoding issues in metadata strings.
+         * Attempts to fix garbled Russian text that was incorrectly decoded.
+         */
+        private fun fixEncodingIfNeeded(text: String?): String? {
+            if (text.isNullOrBlank()) return text
+
+            val (fixed, detectedEncoding) = encodingDetector.fixGarbledText(text)
+
+            if (detectedEncoding != null) {
+                android.util.Log.e(
+                    "MetadataParser",
+                    "📝 ENCODING FIX APPLIED: '$text' -> '$fixed' (encoding: $detectedEncoding)",
+                )
+            }
+
+            return fixed.takeIf { it.isNotBlank() }
         }
 
         private fun parseWithMediaMetadataRetriever(filePath: String): AudioMetadata? =
@@ -115,13 +136,21 @@ class Media3MetadataParser
                     val trackNumber = trackStr?.toIntOrNull()
                     val coverArt = retriever.embeddedPicture
 
+                    // Log if metadata is empty (indicates potential scanning issue)
+                    if (title.isNullOrBlank() && album.isNullOrBlank() && artist.isNullOrBlank()) {
+                        android.util.Log.w(
+                            "MetadataParser",
+                            "No metadata found in file: $filePath - may cause missing books",
+                        )
+                    }
+
                     AudioMetadata(
-                        title = title?.takeIf { it.isNotBlank() },
-                        artist = artist?.takeIf { it.isNotBlank() },
-                        album = album?.takeIf { it.isNotBlank() },
-                        albumArtist = albumArtist?.takeIf { it.isNotBlank() },
+                        title = fixEncodingIfNeeded(title),
+                        artist = fixEncodingIfNeeded(artist),
+                        album = fixEncodingIfNeeded(album),
+                        albumArtist = fixEncodingIfNeeded(albumArtist),
                         duration = duration,
-                        genre = genre?.takeIf { it.isNotBlank() },
+                        genre = fixEncodingIfNeeded(genre),
                         year = year?.takeIf { it.isNotBlank() },
                         trackNumber = trackNumber,
                         coverArt = coverArt,

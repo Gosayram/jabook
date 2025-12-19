@@ -2339,8 +2339,24 @@
     <string name="media3_completion_completed">Завершено</string>
     <!-- Опции сортировки библиотеки -->
     <string name="sort_by">Сортировка</string>
-    <string name="sort_by_activity">По активности</string>
     <string name="sort_by_title">По названию</string>
     <string name="sort_by_author">По автору</string>
     <string name="sort_by_date_added">По дате добавления</string>
+    <!-- Book Properties Dialog -->
+    <string name="bookProperties">Свойства книги</string>
+    <string name="title">Название</string>
+    <string name="author">Автор</string>
+    <string name="dateAdded">Дата добавления</string>
+    <string name="directory">Директория</string>
+    <string name="duration">Длительность</string>
+    <string name="size">Размер</string>
+    <string name="progress">Прогресс</string>
+    <!-- Опции сортировки -->
+    <string name="sort_by_activity">По активности</string>
+    <string name="sort_title_asc">Название (А-Я)</string>
+    <string name="sort_title_desc">Название (Я-А)</string>
+    <string name="sort_author_asc">Автор (А-Я)</string>
+    <string name="sort_author_desc">Автор (Я-А)</string>
+    <string name="sort_recently_added">Недавно добавленные</string>
+    <string name="sort_oldest_first">Сначала старые</string>
 </resources>

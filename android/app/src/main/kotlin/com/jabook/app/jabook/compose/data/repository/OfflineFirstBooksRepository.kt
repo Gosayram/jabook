@@ -77,38 +77,37 @@ class OfflineFirstBooksRepository
                             }
                         booksWithStatus.sortByActivity()
                     }
-                    BookSortOrder.BY_TITLE, BookSortOrder.TITLE_ASC -> books.sortedBy { it.title.lowercase() }
-                    BookSortOrder.TITLE_DESC -> books.sortedByDescending { it.title.lowercase() }
-                    BookSortOrder.BY_AUTHOR, BookSortOrder.AUTHOR_ASC -> books.sortedBy { it.author?.lowercase() ?: "" }
-                    BookSortOrder.AUTHOR_DESC -> books.sortedByDescending { it.author?.lowercase() ?: "" }
-                    BookSortOrder.BY_DATE_ADDED, BookSortOrder.RECENTLY_ADDED -> books.sortedByDescending { it.addedDate }
-                    BookSortOrder.RECENTLY_PLAYED -> {
-                        // Alias to BY_ACTIVITY for now
-                        val booksWithStatus =
-                            books.map { book ->
-                                val state = playerPersistenceManager.getPlayerState(book.id)
-                                val status =
-                                    if (state != null) {
-                                        val percentage =
-                                            com.jabook.app.jabook.audio.CompletionStatusHelper.calculateCompletionPercentage(
-                                                state.positionMs,
-                                                state.durationMs,
-                                            )
-                                        com.jabook.app.jabook.audio.CompletionStatusHelper
-                                            .getCompletionStatus(percentage)
-                                    } else {
-                                        androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
-                                    }
-
-                                BookWithStatus(
-                                    book = book,
-                                    completionStatus = status,
-                                    lastPlayedTimestamp = state?.lastPlayedTimestamp ?: 0L,
-                                    completedTimestamp = state?.completedTimestamp ?: 0L,
-                                )
+                    BookSortOrder.TITLE_ASC -> {
+                        // Use locale-aware collator for proper alphabetical sorting
+                        val collator =
+                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
+                                strength = java.text.Collator.PRIMARY // Ignore case
                             }
-                        booksWithStatus.sortByActivity()
+                        books.sortedWith(compareBy(collator) { it.title })
                     }
+                    BookSortOrder.TITLE_DESC -> {
+                        val collator =
+                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
+                                strength = java.text.Collator.PRIMARY
+                            }
+                        books.sortedWith(compareByDescending(collator) { it.title })
+                    }
+                    BookSortOrder.AUTHOR_ASC -> {
+                        val collator =
+                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
+                                strength = java.text.Collator.PRIMARY
+                            }
+                        books.sortedWith(compareBy(collator) { it.author })
+                    }
+                    BookSortOrder.AUTHOR_DESC -> {
+                        val collator =
+                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
+                                strength = java.text.Collator.PRIMARY
+                            }
+                        books.sortedWith(compareByDescending(collator) { it.author })
+                    }
+                    BookSortOrder.RECENTLY_ADDED -> books.sortedByDescending { it.addedDate }
+                    BookSortOrder.OLDEST_FIRST -> books.sortedBy { it.addedDate }
                 }
             }
 

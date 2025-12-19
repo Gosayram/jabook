@@ -2302,8 +2302,24 @@
     <string name="media3_completion_completed">Completed</string>
     <!-- Library Sort Options -->
     <string name="sort_by">Sort by</string>
-    <string name="sort_by_activity">Activity</string>
     <string name="sort_by_title">Title</string>
     <string name="sort_by_author">Author</string>
     <string name="sort_by_date_added">Date Added</string>
+    <!-- Book Properties Dialog -->
+    <string name="bookProperties">Book Properties</string>
+    <string name="title">Title</string>
+    <string name="author">Author</string>
+    <string name="dateAdded">Date Added</string>
+    <string name="directory">Directory</string>
+    <string name="duration">Duration</string>
+    <string name="size">Size</string>
+    <string name="progress">Progress</string>
+    <!-- Sort options -->
+    <string name="sort_by_activity">By Activity</string>
+    <string name="sort_title_asc">Title (A-Z)</string>
+    <string name="sort_title_desc">Title (Z-A)</string>
+    <string name="sort_author_asc">Author (A-Z)</string>
+    <string name="sort_author_desc">Author (Z-A)</string>
+    <string name="sort_recently_added">Recently Added</string>
+    <string name="sort_oldest_first">Oldest First</string>
 </resources>
