@@ -91,20 +91,31 @@ class Media3MetadataParser
 
         /**
          * Fix encoding issues in metadata strings.
-         * Attempts to fix garbled Russian text that was incorrectly decoded.
+         *
+         * CRITICAL FIX (2025-12-20): MediaMetadataRetriever and KTagLib both properly decode
+         * UTF-16LE/BE tags. Don't blindly apply fixGarbledText() to ALL text - this BREAKS
+         * correct UTF-16 tags by corrupting them into CJK/Greek mojibake!
+         *
+         * ONLY apply fixGarbledText() if text shows ACTUAL mojibake indicators:
+         * - Has Cyrillic (indicates Russian text)
+         * - ALSO has CJK/Greek/Arabic (indicates corruption, e.g. "襞諛梭嬀", "Ρετψετ")
+         *
+         * Proper UTF-16 text like "Глава 12" should pass through unchanged.
          */
         private fun fixEncodingIfNeeded(text: String?): String? {
             if (text.isNullOrBlank()) return text
 
-            val (fixed, detectedEncoding) = encodingDetector.fixGarbledText(text)
+            val hasCyrillic = text.any { it in '\u0400'..'\u04FF' }
+            val hasCJK = text.any { it in '\u4E00'..'\u9FFF' }
+            val hasGreek = text.any { it in '\u0370'..'\u03FF' }
+            val hasArabic = text.any { it in '\u0600'..'\u06FF' }
+            val hasMojibake = hasCyrillic && (hasCJK || hasGreek || hasArabic)
 
-            if (detectedEncoding != null) {
-                android.util.Log.e(
-                    "MetadataParser",
-                    "📝 ENCODING FIX APPLIED: '$text' -> '$fixed' (encoding: $detectedEncoding)",
-                )
+            if (!hasMojibake) {
+                return text.takeIf { it.isNotBlank() }
             }
 
+            val (fixed, detectedEncoding) = encodingDetector.fixGarbledText(text)
             return fixed.takeIf { it.isNotBlank() }
         }
 
