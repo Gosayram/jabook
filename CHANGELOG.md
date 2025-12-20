@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `AuthInterceptor` for automatic re-authentication, integrate it into `NetworkModule`, and remove `PlayerScreen`'s `TopAppBar`
 - Add `autoPlay` parameter to `loadAndPlayAudio` to control immediate playback after loading
 - Add back navigation icon to the player screen with localized content description
+- Add book properties dialog, improve file system scanning with robust book identification and encoding detection, and refactor library display views
+- Add chapter search functionality to the player, improve playback speed display formatting, and adjust player padding
+- Add chapter selection UI with chapter utilities and localization strings
+- Add conditional bottom padding to the SnackbarHost
+- Add custom icons and localized strings for media session controls and notifications, and synchronize player settings
 - Add customizable font selection to app settings, allowing users to choose between default and system fonts
 - Add debug screen for viewing and sharing logs and integrate it into navigation
 - Add download history screen with search and sort functionality, and enable drag-and-drop reordering for the download queue
@@ -36,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add online audiobook search via Rutracker
 - Add per-book customizable rewind and fast-forward durations via a new player settings sheet
 - Add permission management and refactor Rutracker authentication to improve WebView cookie synchronization
+- Add player performance logger and integrate it into AudioPlayerService initialization
 - Add ProGuard rules to keep navigation and backup classes from obfuscation
 - Add pull-to-refresh to LibraryScreen to trigger library scan with runtime storage permission checks
 - Add RuTracker debug tab displaying authentication status, validation results, and mirror connectivity
@@ -46,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Apply zero window insets to TopAppBar in multiple feature screens, refine search bar logic, and update debug/topic screen titles
 - Auto-initialize player with book data upon UI state success and update the library list view icon to be auto-mirrored
 - Enhance backup/restore to include books, favorites, search history, scan paths, and extended settings
+- Enhance chapter sorting logic with numerical and special chapter handling, and improve title extraction by falling back to filename
+- Enhance Media3 integration with rich metadata, completion status, and improved Android Auto support
 - Enhance Rutracker authentication with detailed logging, robust error handling, and new debug info
 - Enhance settings screen with improved cache clearing messages, customizable slider value formatting, and direct links to GitHub resources
 - Externalize UI strings to resources for internationalization in player, settings, and library features
@@ -56,22 +64,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement custom audio notification manager with media session integration and enable shared element transitions
 - Implement download filtering, priority management, and queue reordering with a new database table
 - Implement download history tracking and add new download speed and concurrency settings
+- Implement hybrid local book scanning with direct file system access for custom paths and introduce shared audio file info
 - Implement local audiobook scanning, sleep timer, and playback speed controls, and display download messages
 - Implement main navigation and integrate core screens
 - Implement MediaInfo parsing and models, and display details on the topic screen
 - Implement multi-stage cookie persistence using new DAO, entity, and manager, integrated into the authentication flow and database
 - Implement native streaming torrent downloads
+- Implement real-time library scan progress with UI integration and metadata caching
 - Implement user-configurable download location and Wi-Fi only download settings, and add library scanning functionality
 - Improve authentication with strict validation and WebView cookie synchronization, and update Android runtime permission requests
 - Initialize player only with non-empty chapters and eagerly start player state flow to avoid race conditions
+- Integrate Glide for optimized notification artwork loading, replacing DataSourceBitmapLoader
 - Internationalize favorites screen dialog and menu texts by adding new string resources
 - Introduce Jetpack Compose UI with new data layer for books and refactor audio player components: phase 1 and 2
+- Introduce library sorting by activity, title, author, and date added, and track book completion and last played times
 - Introduce mini player and compact book list view, and enhance debug screen with auto-refresh and error handling
 - Introduce pre-commit hook and script for automated cleaning of duplicate Android string resources
+- Introduce unified book card, actions provider, and display modes for consistent book presentation and selection across Library, Search, and Favorites
 - Localize search screen by extracting strings to resources and adding an ARB to XML conversion script
+- Migrate media notifications from custom provider to `androidx.media3.ui.PlayerNotificationManager` for improved background service reliability
 - Migrate to Gradle 9 for comprehensive building experience
 - Mirror management with dynamic base URL, health checks, and persistent settings
+- Persist book activity timestamps in player state and integrate into backup/restore functionality
+- Prevent audio playlist reloads and configure Media3 notification channels
+- Proactively start audio player service for warmup, enhance its startup logging and error handling, and increment the build version
 - Replace hardcoded UI strings with string resources for localization across various screens and components
+- Request Android 13+ notification permission, export audio service, and refine Media3 notification and media session integration
 - Update FileProvider paths to include logs, downloads, and audiobooks, and align AndroidManifest authority and resource
 
 ### Changed
@@ -86,8 +104,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added ignore packages for copyright validation
 - Added ktlint-strace for make hook
 - Adjust Makefile build output paths by removing 'android/' prefix and trailing slashes
+- Adjust PlayerScreen content padding and vertical item spacing
 - Adjust SettingsScreen layout by adding top bar window insets, removing a horizontal divider, and reducing a spacer's height
 - Apply system bar padding to player screen content and set fixed height and zero elevation for the navigation bar
+- Audio player notification and session initialization to use `DefaultMediaNotificationProvider` with a small icon and set custom commands
 - Auto markdown formatter
 - Broaden string migration's file and technical string exclusion rules and streamline string replacement
 - Bump Android SDK versions, enable ABI splits with universal APK generation, remove desugaring, and adapt Makefile for new APK output structure
@@ -95,6 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump packages
 - Bump pub build
 - Centralize date and time formatting with a new DateTimeFormatter utility and apply it to backup and settings
+- Centralize playback speed constants and update player and settings UI to utilize them
 - Clean up each cache before compilation testing
 - Clean up unused imports and apply minor formatting to settings and topic screens
 - Consolidate and simplify R8 rules for Kotlinx Serialization, Hilt, and other libraries
@@ -116,6 +137,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement jumpToTrack functionality, increase playback position saving frequency, and add extensive logging for audio bridge events
 - Improve changelog generation mechanism
 - Improve code formatting and organize imports
+- Improve encoding detection and mojibake fixing by removing verbose logs, adding control character penalties, and adjusting confidence thresholds to prevent false positives
+- Improve playback speed display formatting, refactor bottom navigation bar to use app state, and adjust UI paddings
 - Improve string resource handling by consolidating access, fixing formatting, and removing obsolete keys
 - Improve translate quality and checking dry-run mechanism
 - Localize default string resources to English and update `TestComposeScreen` usage
@@ -144,6 +167,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Script for Android startup log analysis and enhance Kotlin serialization ProGuard rules for R8 Full Mode
 - Simplify BookCard image loading state handling and improve accessibility
 - Simplify ProGuard rules by removing redundant library-specific configurations and refining Kotlinx Serialization rules for `@SerialName`
+- Streamline audio player service initialization and notification provider setup, and remove reflection fallback for media style token
 - Streamline Gradle configuration, enable build caching, remove integration test plugin workaround, disable default WorkManager initialization, and generalize DataMigrationManager's DataStore usage
 - Unification into one abstraction for easily linting
 - Update copyright script to target Kotlin files instead of Dart and remove Flutter-specific exclusions
@@ -158,6 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add empty MIGRATION_7_8 to resolve database migration issues
 - Add ProGuard rules for Navigation Compose SavedStateHandle serialization and remove explicit kotlinx-serialization-json dependency
 - Copyright validation folders
+- Correct Media3 notification initialization and reduce default inactivity timeout
 - Disable KTagLib on Android 16+ due to FDSAN incompatibility and simplify ParcelFileDescriptor handling in metadata parsing
 - Display book cover images in search results
 - Duplicated and numeric strings with similar params for each project
@@ -172,8 +197,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move Lyricist's `ProvideStrings` to `JabookApp` and update `LocalStrings` imports
 - Player validation
 - Prevent KTagLib FDSAN errors by using separate file descriptors for metadata/artwork and enhance debug logs with comprehensive device info
+- Refine metadata encoding correction to prevent UTF-16 corruption by selectively applying `fixGarbledText` based on mojibake detection
 - Remove `TopAppBar` from player screen and simplify search placeholder text
 - Remove old BridgeModule between Kotlin and Flutter
+- Remove redundant null check for sort order assignment
 - Removed unused flutter params
 - Removed unused flutter tests, implementations, libs
 - Resolve audio player bridging and playlist sorting issues
