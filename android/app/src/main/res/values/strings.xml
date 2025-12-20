@@ -2322,4 +2322,7 @@
     <string name="sort_author_desc">Author (Z-A)</string>
     <string name="sort_recently_added">Recently Added</string>
     <string name="sort_oldest_first">Oldest First</string>
+    <string name="share">Share</string>
+    <string name="addToPlaylist">Add to Playlist</string>
+    <string name="bookInfo">Book Info</string>
 </resources>

@@ -25,8 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -34,11 +32,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -70,7 +66,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
-import com.jabook.app.jabook.compose.designsystem.component.BookCard
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
 import kotlinx.coroutines.launch
@@ -322,25 +317,21 @@ private fun LocalSearchResults(
         }
 
         else -> {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 150.dp),
+            // Use UnifiedBooksView for local results
+            com.jabook.app.jabook.compose.feature.library.UnifiedBooksView(
+                books = results,
+                displayMode = com.jabook.app.jabook.compose.domain.model.BookDisplayMode.GRID_COMPACT,
+                actionsProvider =
+                    com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
+                        onBookClick = onBookClick,
+                        onBookLongPress = {},
+                        onToggleFavorite = { _, _ -> },
+                        favoriteIds = emptySet(),
+                        showProgress = false,
+                        showFavoriteButton = false,
+                    ),
                 modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                items(
-                    items = results,
-                    key = { it.id },
-                ) { book ->
-                    BookCard(
-                        title = book.title,
-                        author = book.author,
-                        coverUrl = book.coverUrl,
-                        onClick = { onBookClick(book.id) },
-                    )
-                }
-            }
+            )
         }
     }
 }
@@ -409,7 +400,7 @@ private fun SearchHistoryList(
 }
 
 /**
- * Online search results.
+ * Online search results using unified components.
  */
 @Composable
 private fun OnlineSearchResults(
@@ -424,66 +415,48 @@ private fun OnlineSearchResults(
             message = stringResource(R.string.noResults),
         )
     } else {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 150.dp),
-            modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            items(
-                items = results,
-                key = { it.topicId },
-            ) { result ->
-                OnlineBookCard(
-                    result = result,
+        // Convert SearchResults to Books for unified display
+        val booksFromResults =
+            results.map { result ->
+                com.jabook.app.jabook.compose.domain.model.Book(
+                    id = result.topicId,
+                    title = result.title,
+                    author = result.author,
+                    coverUrl = result.coverUrl,
+                    description = null,
+                    totalDuration = kotlin.time.Duration.ZERO,
+                    currentPosition = kotlin.time.Duration.ZERO,
+                    progress = 0f,
+                    currentChapterIndex = 0,
+                    downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
+                    downloadProgress = 0f,
+                    localPath = null,
+                    addedDate = System.currentTimeMillis(),
+                    lastPlayedDate = null,
                     isFavorite = favoriteIds.contains(result.topicId),
-                    onClick = { onBookClick(result) },
-                    onToggleFavorite = { onToggleFavorite(result) },
+                    sourceUrl = result.torrentUrl,
                 )
             }
-        }
-    }
-}
 
-/**
- * Card for online search result.
- */
-@Composable
-private fun OnlineBookCard(
-    result: SearchResult,
-    isFavorite: Boolean,
-    onClick: () -> Unit,
-    onToggleFavorite: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(modifier = modifier) {
-        // Using BookCard with online data
-        BookCard(
-            title = result.title,
-            author = result.author,
-            coverUrl = result.coverUrl, // Use cover URL from search results
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        // Favorite Button
-        IconButton(
-            onClick = onToggleFavorite,
-            modifier = Modifier.align(Alignment.TopEnd),
-        ) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                contentDescription =
-                    if (isFavorite) {
-                        stringResource(
-                            R.string.removeFromFavorites,
-                        )
-                    } else {
-                        stringResource(R.string.addToFavorites)
+        com.jabook.app.jabook.compose.feature.library.UnifiedBooksView(
+            books = booksFromResults,
+            displayMode = com.jabook.app.jabook.compose.domain.model.BookDisplayMode.GRID_COMPACT,
+            actionsProvider =
+                com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
+                    onBookClick = { bookId ->
+                        // Find original SearchResult by topicId
+                        results.find { it.topicId == bookId }?.let(onBookClick)
                     },
-                tint = if (isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+                    onBookLongPress = {},
+                    onToggleFavorite = { bookId, _ ->
+                        // Find original SearchResult by topicId
+                        results.find { it.topicId == bookId }?.let(onToggleFavorite)
+                    },
+                    favoriteIds = favoriteIds,
+                    showProgress = false,
+                    showFavoriteButton = true,
+                ),
+            modifier = modifier.fillMaxSize(),
+        )
     }
 }

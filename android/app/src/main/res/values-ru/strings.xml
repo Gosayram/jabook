@@ -2359,4 +2359,7 @@
     <string name="sort_author_desc">Автор (Я-А)</string>
     <string name="sort_recently_added">Недавно добавленные</string>
     <string name="sort_oldest_first">Сначала старые</string>
+    <string name="share">Поделиться</string>
+    <string name="addToPlaylist">Добавить в плейлист</string>
+    <string name="bookInfo">Инфо о книге</string>
 </resources>

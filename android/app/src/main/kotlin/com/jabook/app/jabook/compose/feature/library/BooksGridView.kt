@@ -48,17 +48,30 @@ import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.domain.model.Book
 
 /**
- * Grid view for audiobooks library.
+ * Grid view for displaying books with adaptive column count.
  *
- * Displays books in a responsive grid layout with configurable column counts
- * based on device size and selected view mode.
+ * **DEPRECATED:** Use [UnifiedBooksView] with [BookDisplayMode.GRID_COMPACT] or
+ * [BookDisplayMode.GRID_COMFORTABLE] instead.
  *
  * @param books List of books to display
  * @param viewMode Current grid view mode (GRID_COMPACT or GRID_COMFORTABLE)
  * @param onBookClick Callback when book is clicked
  * @param onToggleFavorite Callback to toggle favorite status
+ * @param onBookLongPress Callback when book is long-pressed
  * @param modifier Modifier
+ *
+ * @see com.jabook.app.jabook.compose.feature.library.UnifiedBooksView
+ * @see com.jabook.app.jabook.compose.domain.model.BookDisplayMode
  */
+@Deprecated(
+    message = "Use UnifiedBooksView with BookDisplayMode.GRID_COMPACT or GRID_COMFORTABLE instead",
+    replaceWith =
+        ReplaceWith(
+            "UnifiedBooksView(books, displayMode, actionsProvider)",
+            "com.jabook.app.jabook.compose.feature.library.UnifiedBooksView",
+            "com.jabook.app.jabook.compose.domain.model.BookDisplayMode",
+        ),
+)
 @Composable
 fun BooksGridView(
     books: List<Book>,

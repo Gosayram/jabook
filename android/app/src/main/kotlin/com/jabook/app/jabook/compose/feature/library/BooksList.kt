@@ -27,15 +27,31 @@ import com.jabook.app.jabook.compose.designsystem.component.BookCard
 import com.jabook.app.jabook.compose.domain.model.Book
 
 /**
- * Grid list of books using Material3 LazyVerticalGrid.
+ * Legacy list component for displaying books.
  *
- * Displays books in an adaptive grid with 2 columns minimum.
- * Uses the BookCard component from the design system.
+ * **DEPRECATED:** Use [UnifiedBooksView] with [BookDisplayMode.LIST_DEFAULT] instead.
+ *
+ * This component lacks features like favorite button, progress indicators, and
+ * long press actions that are available in UnifiedBooksView.
  *
  * @param books List of books to display
  * @param onBookClick Callback when a book is clicked
  * @param modifier Modifier for the grid
+ *
+ * @see com.jabook.app.jabook.compose.feature.library.UnifiedBooksView
+ * @see com.jabook.app.jabook.compose.domain.model.BookDisplayMode
  */
+@Deprecated(
+    message =
+        "Use UnifiedBooksView with BookDisplayMode.LIST_DEFAULT instead. " +
+            "UnifiedBooksView provides favorite button, progress indicators, and long press actions.",
+    replaceWith =
+        ReplaceWith(
+            "UnifiedBooksView(books, displayMode, actionsProvider)",
+            "com.jabook.app.jabook.compose.feature.library.UnifiedBooksView",
+            "com.jabook.app.jabook.compose.domain.model.BookDisplayMode",
+        ),
+)
 @Composable
 fun BooksList(
     books: List<Book>,

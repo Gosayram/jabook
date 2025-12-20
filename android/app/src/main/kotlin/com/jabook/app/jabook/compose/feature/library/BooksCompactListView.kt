@@ -48,15 +48,22 @@ import com.jabook.app.jabook.compose.domain.model.Book
 /**
  * Compact list view for audiobooks library.
  *
- * Displays books in a dense list layout with smaller cards,
- * showing cover, title, author, and favorite toggle.
+ * Compact list view for displaying books with small covers.
  *
- * @param books List of books to display
- * @param onBookClick Callback when book is clicked
- * @param onToggleFavorite Callback to toggle favorite status
- * @param onBookLongPress Callback when book is long-pressed
- * @param modifier Modifier
+ * **DEPRECATED:** Use [UnifiedBooksView] with [BookDisplayMode.LIST_COMPACT] instead.
+ *
+ * @see com.jabook.app.jabook.compose.feature.library.UnifiedBooksView
+ * @see com.jabook.app.jabook.compose.domain.model.BookDisplayMode
  */
+@Deprecated(
+    message = "Use UnifiedBooksView with BookDisplayMode.LIST_COMPACT instead",
+    replaceWith =
+        ReplaceWith(
+            "UnifiedBooksView(books, displayMode, actionsProvider)",
+            "com.jabook.app.jabook.compose.feature.library.UnifiedBooksView",
+            "com.jabook.app.jabook.compose.domain.model.BookDisplayMode",
+        ),
+)
 @Composable
 fun BooksCompactListView(
     books: List<Book>,

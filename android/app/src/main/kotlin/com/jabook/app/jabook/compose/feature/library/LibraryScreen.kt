@@ -48,6 +48,8 @@ import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
+import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 import kotlinx.coroutines.launch
 
 /**
@@ -216,31 +218,18 @@ fun LibraryScreen(
 
                 is LibraryUiState.Success -> {
                     val books = (uiState as LibraryUiState.Success).books
+                    val actionsProvider =
+                        viewModel.createBookActionsProvider(
+                            onBookClick = onBookClick,
+                        )
 
-                    // Switch based on view mode
-                    when (viewMode) {
-                        LibraryViewMode.LIST_COMPACT -> {
-                            BooksCompactListView(
-                                books = books,
-                                onBookClick = onBookClick,
-                                onToggleFavorite = viewModel::toggleFavorite,
-                                onBookLongPress = viewModel::showBookProperties,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
-                        LibraryViewMode.GRID_COMPACT,
-                        LibraryViewMode.GRID_COMFORTABLE,
-                        -> {
-                            BooksGridView(
-                                books = books,
-                                viewMode = viewMode,
-                                onBookClick = onBookClick,
-                                onToggleFavorite = viewModel::toggleFavorite,
-                                onBookLongPress = viewModel::showBookProperties,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
-                    }
+                    // Use unified view for all display modes
+                    UnifiedBooksView(
+                        books = books,
+                        displayMode = viewMode.toBookDisplayMode(),
+                        actionsProvider = actionsProvider,
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
 
                 is LibraryUiState.Empty -> {
@@ -285,9 +274,19 @@ private fun LibraryContent(
             }
 
             is LibraryUiState.Success -> {
-                BooksList(
+                // Using simple provider since this deprecated composable
+                // doesn't have access to favorites or other state
+                val simpleProvider =
+                    BookActionsProvider(
+                        onBookClick = onBookClick,
+                        onBookLongPress = {},
+                        onToggleFavorite = { _, _ -> },
+                    )
+
+                UnifiedBooksView(
                     books = uiState.books,
-                    onBookClick = onBookClick,
+                    displayMode = BookDisplayMode.GRID_COMPACT,
+                    actionsProvider = simpleProvider,
                 )
             }
 
@@ -455,3 +454,14 @@ private fun SortOrderMenu(
         }
     }
 }
+
+/**
+ * Converts LibraryViewMode to BookDisplayMode.
+ * Temporary helper during migration period.
+ */
+private fun LibraryViewMode.toBookDisplayMode(): com.jabook.app.jabook.compose.domain.model.BookDisplayMode =
+    when (this) {
+        LibraryViewMode.LIST_COMPACT -> com.jabook.app.jabook.compose.domain.model.BookDisplayMode.LIST_COMPACT
+        LibraryViewMode.GRID_COMPACT -> com.jabook.app.jabook.compose.domain.model.BookDisplayMode.GRID_COMPACT
+        LibraryViewMode.GRID_COMFORTABLE -> com.jabook.app.jabook.compose.domain.model.BookDisplayMode.GRID_COMFORTABLE
+    }

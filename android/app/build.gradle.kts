@@ -296,6 +296,31 @@ dependencies {
     // Note: Google Play Core is NOT needed as a dependency
     // Flutter references these classes but they're not actually used
     // ProGuard rules in proguard-rules.pro handle R8 warnings with -dontwarn
+
+    // Testing dependencies
+    // JUnit 4 for unit tests
+    testImplementation("junit:junit:4.13.2")
+
+    // Kotlin Test
+    testImplementation("org.jetbrains.kotlin:kotlin-test:2.2.21")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.2.21")
+
+    // Mockito for mocking
+    testImplementation("org.mockito:mockito-core:5.21.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:6.1.0")
+
+    // Coroutines Test
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+
+    // AndroidX Test - Core library
+    testImplementation("androidx.test:core:1.7.0")
+    testImplementation("androidx.test.ext:junit:1.3.0")
+
+    // Robolectric for Android framework testing
+    testImplementation("org.robolectric:robolectric:4.16")
+
+    // Truth for fluent assertions (optional but recommended)
+    testImplementation("com.google.truth:truth:1.4.5")
 }
 
 // ktlint configuration

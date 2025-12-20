@@ -323,3 +323,52 @@ class SearchViewModel
             }
         }
     }
+
+/**
+ * Creates a BookActionsProvider for local search results.
+ */
+fun SearchViewModel.createLocalBookActionsProvider(
+    onBookClick: (String) -> Unit,
+): com.jabook.app.jabook.compose.domain.model.BookActionsProvider =
+    com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
+        onBookClick = onBookClick,
+        onBookLongPress = {}, // No long press for search results
+        onToggleFavorite = { _, _ -> }, // No favorite for local books in search
+        favoriteIds = emptySet(),
+        showProgress = false, // Don't show progress in search
+        showFavoriteButton = false, // Don't show favorite button for local results
+    )
+
+/**
+ * Creates a BookActionsProvider for online search results (SearchResult).
+ *
+ * Note: onBookClick takes the full SearchResult instead of just ID.
+ */
+fun SearchViewModel.createOnlineBookActionsProvider(
+    onBookClick: (com.jabook.app.jabook.compose.data.remote.model.SearchResult) -> Unit,
+    onToggleFavorite: (com.jabook.app.jabook.compose.data.remote.model.SearchResult) -> Unit,
+): Pair<
+    com.jabook.app.jabook.compose.domain.model.BookActionsProvider,
+    (
+        String,
+    ) -> com.jabook.app.jabook.compose.data.remote.model.SearchResult?,
+> {
+    // We need a way to map book ID back to SearchResult for callbacks
+    val currentResults = mutableMapOf<String, com.jabook.app.jabook.compose.data.remote.model.SearchResult>()
+
+    val provider =
+        com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
+            onBookClick = { bookId ->
+                currentResults[bookId]?.let(onBookClick)
+            },
+            onBookLongPress = {}, // No long press for online results
+            onToggleFavorite = { bookId, _ ->
+                currentResults[bookId]?.let(onToggleFavorite)
+            },
+            favoriteIds = favoriteIds.value,
+            showProgress = false,
+            showFavoriteButton = true, // Show favorite button for online results
+        )
+
+    return provider to { id -> currentResults[id] }
+}

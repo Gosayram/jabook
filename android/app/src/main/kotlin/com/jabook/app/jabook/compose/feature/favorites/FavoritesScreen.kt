@@ -14,32 +14,25 @@
 
 package com.jabook.app.jabook.compose.feature.favorites
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -54,7 +47,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -281,76 +273,45 @@ private fun FavoritesList(
     onToggleFavorite: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(vertical = 8.dp),
-    ) {
-        items(favorites, key = { it.topicId }) { favorite ->
-            FavoriteListItem(
-                favorite = favorite,
+    // Convert FavoriteEntities to Books for unified display
+    val booksFromFavorites =
+        favorites.map { favorite ->
+            com.jabook.app.jabook.compose.domain.model.Book(
+                id = favorite.topicId,
+                title = favorite.title,
+                author = favorite.author,
+                coverUrl = favorite.coverUrl?.takeIf { it.isNotEmpty() },
+                description = null,
+                totalDuration = kotlin.time.Duration.ZERO,
+                currentPosition = kotlin.time.Duration.ZERO,
+                progress = 0f,
+                currentChapterIndex = 0,
+                downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
+                downloadProgress = 0f,
+                localPath = null,
+                addedDate = System.currentTimeMillis(),
+                lastPlayedDate = null,
                 isFavorite = favoriteIds.contains(favorite.topicId),
-                isSelectionMode = isSelectionMode,
-                isSelected = selectedIds.contains(favorite.topicId),
-                onToggleSelection = { onToggleSelection(favorite.topicId) },
-                onClick = { onItemClick(favorite.topicId) },
-                onLongClick = { onItemLongClick(favorite.topicId) },
-                onToggleFavorite = { onToggleFavorite(favorite.topicId) },
+                sourceUrl = favorite.magnetUrl.takeIf { it.isNotEmpty() },
             )
         }
-    }
-}
 
-/**
- * Individual favorite list item.
- */
-@Composable
-private fun FavoriteListItem(
-    favorite: FavoriteEntity,
-    isFavorite: Boolean,
-    isSelectionMode: Boolean,
-    isSelected: Boolean,
-    onToggleSelection: () -> Unit,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    onToggleFavorite: () -> Unit,
-) {
-    ListItem(
-        headlineContent = { Text(favorite.title) },
-        supportingContent = {
-            if (favorite.author.isNotEmpty()) {
-                Text(favorite.author)
-            }
-        },
-        leadingContent = {
-            if (isSelectionMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = { onToggleSelection() },
-                )
-            }
-        },
-        trailingContent = {
-            if (!isSelectionMode) {
-                IconButton(onClick = onToggleFavorite) {
-                    Icon(
-                        if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription =
-                            if (isFavorite) {
-                                stringResource(
-                                    R.string.removeFromFavorites,
-                                )
-                            } else {
-                                stringResource(R.string.addToFavorites)
-                            },
-                        tint = if (isFavorite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        },
-        modifier =
-            Modifier
-                .clickable(onClick = onClick)
-                .fillMaxWidth(),
+    com.jabook.app.jabook.compose.feature.library.UnifiedBooksView(
+        books = booksFromFavorites,
+        displayMode = com.jabook.app.jabook.compose.domain.model.BookDisplayMode.LIST_DEFAULT,
+        actionsProvider =
+            com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
+                onBookClick = onItemClick,
+                onBookLongPress = onItemLongClick,
+                onToggleFavorite = { id, _ -> onToggleFavorite(id) },
+                favoriteIds = favoriteIds,
+                showProgress = false,
+                showFavoriteButton = !isSelectionMode, // Hide favorite button in selection mode
+            ),
+        isSelectionMode = isSelectionMode,
+        selectedIds = selectedIds,
+        onToggleSelection = onToggleSelection,
+        modifier = modifier.fillMaxWidth(),
     )
 }
 

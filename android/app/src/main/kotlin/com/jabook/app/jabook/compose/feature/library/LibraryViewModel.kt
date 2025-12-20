@@ -324,3 +324,28 @@ sealed interface ScanState {
         val error: String,
     ) : ScanState
 }
+
+/**
+ * Creates a BookActionsProvider from the current ViewModel state.
+ *
+ * This extension function consolidates all book actions into a single provider
+ * that can be passed to UI components, ensuring consistent behavior across
+ * all display modes.
+ *
+ * @param onBookClick Optional override for book click action
+ * @return BookActionsProvider configured with current ViewModel state
+ */
+fun LibraryViewModel.createBookActionsProvider(
+    onBookClick: (String) -> Unit,
+): com.jabook.app.jabook.compose.domain.model.BookActionsProvider {
+    val favoriteIds = favoriteBooks.value.map { it.id }.toSet()
+
+    return com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
+        onBookClick = onBookClick,
+        onBookLongPress = ::showBookProperties,
+        onToggleFavorite = ::toggleFavorite,
+        favoriteIds = favoriteIds,
+        showProgress = true,
+        showFavoriteButton = true,
+    )
+}

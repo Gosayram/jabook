@@ -31,8 +31,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.compose.designsystem.component.BookCard
+import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
+import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 
 /**
  * Enhanced library screen with sections for different book lists.
@@ -146,12 +148,18 @@ fun EnhancedLibraryContent(
                                     Modifier
                                 }
 
-                            BookCard(
-                                title = book.title,
-                                author = book.author,
-                                coverUrl = book.coverUrl,
-                                onClick = { onBookClick(book.id) },
-                                onLongClick = { onToggleFavorite(book.id, !book.isFavorite) },
+                            UnifiedBookCard(
+                                book = book,
+                                displayMode = BookDisplayMode.GRID_COMPACT,
+                                actionsProvider =
+                                    BookActionsProvider(
+                                        onBookClick = onBookClick,
+                                        onBookLongPress = {},
+                                        onToggleFavorite = { _, isFavorite -> onToggleFavorite(book.id, isFavorite) },
+                                        favoriteIds = emptySet(),
+                                        showProgress = true,
+                                        showFavoriteButton = false,
+                                    ),
                                 imageModifier = imageModifier,
                             )
                         }
@@ -206,13 +214,19 @@ private fun BookSection(
                         Modifier
                     }
 
-                BookCard(
-                    title = book.title,
-                    author = book.author,
-                    coverUrl = book.coverUrl,
-                    onClick = { onBookClick(book.id) },
-                    onLongClick = { onToggleFavorite(book.id, !book.isFavorite) },
-                    modifier = Modifier.fillMaxWidth(0.4f), // Width for horizontal list
+                UnifiedBookCard(
+                    book = book,
+                    displayMode = BookDisplayMode.GRID_COMPACT,
+                    actionsProvider =
+                        BookActionsProvider(
+                            onBookClick = onBookClick,
+                            onBookLongPress = {},
+                            onToggleFavorite = { _, isFavorite -> onToggleFavorite(book.id, isFavorite) },
+                            favoriteIds = emptySet(),
+                            showProgress = true,
+                            showFavoriteButton = false,
+                        ),
+                    modifier = Modifier.fillMaxWidth(0.4f),
                     imageModifier = imageModifier,
                 )
             }
