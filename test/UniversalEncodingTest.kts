@@ -60,14 +60,19 @@ object EncodingDetector {
         val sample = bytes.take(1000)
         if (isValidUtf8(sample.toByteArray())) return Charsets.UTF_8
 
-        val win1251Count = sample.count { (it.toInt() and 0xFF) in 0xC0..0xFF }
-        val koi8rCount = sample.count { (it.toInt() and 0xFF) in 0xA0..0xFF }
-        val cyrillicRatio = win1251Count.toFloat() / sample.size
+        val win1251 = Charset.forName("windows-1251")
+        val koi8r = Charset.forName("KOI8-R")
 
-        if (cyrillicRatio > 0.1f) {
-            return if (win1251Count > koi8rCount) Charset.forName("windows-1251") 
-                   else Charset.forName("KOI8-R")
+        val sWin = String(sample.toByteArray(), win1251)
+        val sKoi = String(sample.toByteArray(), koi8r)
+
+        val confWin = calculateConfidence(sWin)
+        val confKoi = calculateConfidence(sKoi)
+
+        if (confWin > 0.0 || confKoi > 0.0) {
+            return if (confWin >= confKoi) win1251 else koi8r
         }
+        
         return Charsets.UTF_8
     }
 

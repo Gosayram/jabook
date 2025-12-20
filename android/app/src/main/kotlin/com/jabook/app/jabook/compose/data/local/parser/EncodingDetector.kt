@@ -112,35 +112,17 @@ class EncodingDetector
                 return Charsets.UTF_8
             }
 
-            // Check for Windows-1251 patterns (common Russian encoding)
-            // Windows-1251 uses 0xC0-0xFF for Cyrillic
-            val win1251Count =
-                sample.count { byte ->
-                    val unsigned = byte.toInt() and 0xFF
-                    unsigned in 0xC0..0xFF
-                }
+            val win1251 = Charset.forName("windows-1251")
+            val koi8r = Charset.forName("KOI8-R")
 
-            // Check for KOI8-R patterns
-            // KOI8-R uses 0xC0-0xFF for Cyrillic but different mapping
-            val koi8rCount =
-                sample.count { byte ->
-                    val unsigned = byte.toInt() and 0xFF
-                    unsigned in 0xA0..0xFF
-                }
+            val sWin = String(sample.toByteArray(), win1251)
+            val sKoi = String(sample.toByteArray(), koi8r)
 
-            // If more than 10% of bytes are Cyrillic-range
-            val cyrillicRatio = win1251Count.toFloat() / sample.size
+            val confWin = calculateConfidence(sWin)
+            val confKoi = calculateConfidence(sKoi)
 
-            if (cyrillicRatio > 0.1f) {
-                // More high bytes suggest Windows-1251 over KOI8-R
-                val charset =
-                    if (win1251Count > koi8rCount) {
-                        Charset.forName("windows-1251")
-                    } else {
-                        Charset.forName("KOI8-R")
-                    }
-
-                return charset
+            if (confWin > 0.0 || confKoi > 0.0) {
+                return if (confWin >= confKoi) win1251 else koi8r
             }
 
             // Default to UTF-8
