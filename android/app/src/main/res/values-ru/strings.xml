@@ -2362,4 +2362,11 @@
     <string name="share">Поделиться</string>
     <string name="addToPlaylist">Добавить в плейлист</string>
     <string name="bookInfo">Инфо о книге</string>
+    <string name="scan_library">Сканировать библиотеку</string>
+    <string name="tap_to_scan_now">Нажмите для поиска новых книг</string>
+    <string name="scan_status_discovery">Поиск файлов (%d)...</string>
+    <string name="scan_status_parsing">Парсинг: %1$s (%2$d/%3$d)</string>
+    <string name="scan_status_saving">Сохранение в базу данных...</string>
+    <string name="scan_status_complete">Сканирование завершено. Добавлено книг: %1$d.</string>
+    <string name="scan_status_error">Ошибка: %1$s</string>
 </resources>

@@ -14,7 +14,13 @@
 
 package com.jabook.app.jabook.compose.data.local.scanner
 
+import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,6 +43,15 @@ class HybridBookScanner
         private val directScanner: DirectFileSystemScanner,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
     ) : LocalBookScanner {
+        // Merge progress from both scanners (one is active at a time)
+        override val scanProgress: kotlinx.coroutines.flow.StateFlow<ScanProgress> =
+            merge(mediaStoreScanner.scanProgress, directScanner.scanProgress)
+                .stateIn(
+                    scope = CoroutineScope(Dispatchers.Default),
+                    started = SharingStarted.Lazily,
+                    initialValue = ScanProgress.Idle,
+                )
+
         override suspend fun scanAudiobooks(): Result<List<ScannedBook>> {
             val customPaths = scanPathDao.getAllPathsList()
 

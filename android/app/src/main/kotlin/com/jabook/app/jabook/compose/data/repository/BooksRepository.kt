@@ -54,6 +54,11 @@ interface BooksRepository {
     suspend fun addBook(book: Book)
 
     /**
+     * Add multiple books with their chapters efficiently.
+     */
+    suspend fun addBooks(booksWithChapters: List<Pair<Book, List<Chapter>>>)
+
+    /**
      * Update an existing book.
      */
     suspend fun updateBook(book: Book)
@@ -105,6 +110,11 @@ interface BooksRepository {
      * Get allowed scan paths.
      */
     fun getScanPaths(): Flow<List<String>>
+
+    /**
+     * Get real-time progress of library scanning.
+     */
+    fun getScanProgress(): Flow<com.jabook.app.jabook.compose.data.model.ScanProgress>
 
     /**
      * Add a directory to the scan paths.

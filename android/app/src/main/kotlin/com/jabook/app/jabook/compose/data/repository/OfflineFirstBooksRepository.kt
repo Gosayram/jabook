@@ -44,7 +44,10 @@ class OfflineFirstBooksRepository
         private val booksDao: BooksDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
+        private val localBookScanner: com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner,
     ) : BooksRepository {
+        override fun getScanProgress(): Flow<com.jabook.app.jabook.compose.data.model.ScanProgress> = localBookScanner.scanProgress
+
         override fun getAllBooks(sortOrder: BookSortOrder): Flow<List<Book>> =
             booksDao.getAllBooksFlow().map { entities ->
                 val books = entities.toBooks()
@@ -170,6 +173,16 @@ class OfflineFirstBooksRepository
 
         override suspend fun addBook(book: Book) {
             booksDao.insertBook(book.toEntity())
+        }
+
+        override suspend fun addBooks(booksWithChapters: List<Pair<Book, List<Chapter>>>) {
+            val bookEntities = booksWithChapters.map { it.first.toEntity() }
+            val chapterEntities =
+                booksWithChapters.flatMap { (_, chapters) ->
+                    chapters.map { it.toEntity() }
+                }
+
+            booksDao.insertBooksWithChapters(bookEntities, chapterEntities)
         }
 
         override suspend fun updateBook(book: Book) {

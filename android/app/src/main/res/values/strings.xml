@@ -2325,4 +2325,11 @@
     <string name="share">Share</string>
     <string name="addToPlaylist">Add to Playlist</string>
     <string name="bookInfo">Book Info</string>
+    <string name="scan_library">Scan Library</string>
+    <string name="tap_to_scan_now">Tap to scan for new books</string>
+    <string name="scan_status_discovery">Discovering files (%d)...</string>
+    <string name="scan_status_parsing">Parsing: %1$s (%2$d/%3$d)</string>
+    <string name="scan_status_saving">Saving to database...</string>
+    <string name="scan_status_complete">Scan complete. Added %1$d books.</string>
+    <string name="scan_status_error">Error: %1$s</string>
 </resources>

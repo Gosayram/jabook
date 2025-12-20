@@ -65,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.data.model.AppTheme
+import com.jabook.app.jabook.compose.data.model.ScanProgress
 
 private object GitHubUrls {
     const val REPOSITORY = "https://github.com/Gosayram/jabook"
@@ -239,6 +240,38 @@ fun SettingsScreen(
 
             // Library Section
             SettingsSection(title = stringResource(R.string.library))
+
+            // Scan Progress
+            val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
+            SettingsItem(
+                title = stringResource(R.string.scan_library),
+                subtitle =
+                    when (val p = scanProgress) {
+                        is ScanProgress.Idle -> stringResource(R.string.tap_to_scan_now)
+                        is ScanProgress.Discovery -> stringResource(R.string.scan_status_discovery, p.fileCount)
+                        is ScanProgress.Parsing -> stringResource(R.string.scan_status_parsing, p.currentBook, p.progress, p.total)
+                        is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
+                        is ScanProgress.Completed -> stringResource(R.string.scan_status_complete, p.booksAdded)
+                        is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
+                    },
+                onClick =
+                    if (scanProgress is ScanProgress.Idle ||
+                        scanProgress is ScanProgress.Completed ||
+                        scanProgress is ScanProgress.Error
+                    ) {
+                        { viewModel.scanLibrary() }
+                    } else {
+                        null
+                    },
+            ) {
+                // Show progress bar for active states
+                if (scanProgress is ScanProgress.Discovery || scanProgress is ScanProgress.Parsing || scanProgress is ScanProgress.Saving) {
+                    androidx.compose.material3.LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    )
+                }
+            }
+
             SettingsItem(
                 title = stringResource(R.string.libraryFoldersTitle),
                 subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),

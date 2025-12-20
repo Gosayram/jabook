@@ -17,6 +17,8 @@ package com.jabook.app.jabook.compose.feature.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.data.backup.BackupService
 import com.jabook.app.jabook.compose.data.backup.ImportStats
 import com.jabook.app.jabook.compose.data.cache.CacheManager
@@ -24,11 +26,14 @@ import com.jabook.app.jabook.compose.data.cache.CacheStatistics
 import com.jabook.app.jabook.compose.data.cache.CacheType
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
+import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.ThemeMode
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
+import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -51,11 +56,25 @@ class SettingsViewModel
         private val settingsRepository: SettingsRepository,
         private val userPreferencesRepository: UserPreferencesRepository, // Keep for migration
         private val authRepository: com.jabook.app.jabook.compose.domain.repository.AuthRepository,
+        private val booksRepository: BooksRepository,
         private val mirrorManager: MirrorManager,
         private val backupService: BackupService,
         private val cacheManager: CacheManager,
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
+        private val workManager: WorkManager,
     ) : ViewModel() {
+        val scanProgress: StateFlow<ScanProgress> =
+            booksRepository.getScanProgress().stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = ScanProgress.Idle,
+            )
+
+        fun scanLibrary() {
+            val workRequest = OneTimeWorkRequestBuilder<LibraryScanWorker>().build()
+            workManager.enqueue(workRequest)
+        }
+
         // Exposure of auth status for UI
         val authStatus =
             authRepository.authStatus.stateIn(

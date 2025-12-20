@@ -17,9 +17,11 @@ package com.jabook.app.jabook.compose.data.local.scanner
 import android.content.Context
 import android.provider.MediaStore
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
+import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
@@ -39,19 +41,32 @@ class MediaStoreBookScanner
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val encodingDetector: com.jabook.app.jabook.compose.data.local.parser.EncodingDetector,
     ) : LocalBookScanner {
+        private val _scanProgress = kotlinx.coroutines.flow.MutableStateFlow<ScanProgress>(ScanProgress.Idle)
+        override val scanProgress: kotlinx.coroutines.flow.StateFlow<ScanProgress> = _scanProgress.asStateFlow()
+
         override suspend fun scanAudiobooks(): Result<List<ScannedBook>> =
             withContext(Dispatchers.IO) {
                 try {
+                    _scanProgress.value = ScanProgress.Discovery(0)
+
                     val allowedPaths = scanPathDao.getAllPathsList().map { it.path }
                     val audioFiles = queryAudioFiles(allowedPaths)
+                    _scanProgress.value = ScanProgress.Discovery(audioFiles.size)
+
                     val groupedByAlbum = groupFilesByAlbum(audioFiles)
+                    val totalAlbums = groupedByAlbum.size
+
                     val scannedBooks =
-                        groupedByAlbum.mapNotNull { (album, files) ->
+                        groupedByAlbum.entries.mapIndexedNotNull { index, (album, files) ->
+                            _scanProgress.value = ScanProgress.Parsing(album, index + 1, totalAlbums)
                             createScannedBook(album, files)
                         }
+
+                    _scanProgress.value = ScanProgress.Saving
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {
                     android.util.Log.e("BookScanner", "Scan failed", e)
+                    _scanProgress.value = ScanProgress.Error(e.message ?: "Unknown error")
                     Result.Error(e)
                 }
             }

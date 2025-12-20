@@ -18,6 +18,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
@@ -137,6 +138,19 @@ interface BooksDao {
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChapters(chapters: List<ChapterEntity>)
+
+    /**
+     * Insert books and chapters in a single transaction.
+     * efficient for batch updates.
+     */
+    @Transaction
+    suspend fun insertBooksWithChapters(
+        books: List<BookEntity>,
+        chapters: List<ChapterEntity>,
+    ) {
+        insertBooks(books)
+        insertChapters(chapters)
+    }
 
     /**
      * Update a book.

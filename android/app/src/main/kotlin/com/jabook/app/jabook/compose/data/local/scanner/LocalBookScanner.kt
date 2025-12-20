@@ -14,6 +14,9 @@
 
 package com.jabook.app.jabook.compose.data.local.scanner
 
+import com.jabook.app.jabook.compose.data.model.ScanProgress
+import kotlinx.coroutines.flow.StateFlow
+
 /**
  * Represents a scanned audiobook with all its chapters.
  *
@@ -83,6 +86,11 @@ data class ScannedChapter(
  * Scanner for discovering audiobooks in local storage.
  */
 interface LocalBookScanner {
+    /**
+     * Observable state of the current scanning process.
+     */
+    val scanProgress: StateFlow<ScanProgress>
+
     /**
      * Scan local storage for audiobooks.
      *
