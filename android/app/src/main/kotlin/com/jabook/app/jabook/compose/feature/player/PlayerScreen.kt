@@ -169,6 +169,7 @@ fun PlayerScreen(
             chapters = (uiState as PlayerUiState.Success).chapters,
             currentChapterIndex = (uiState as PlayerUiState.Success).currentChapterIndex,
             onChapterSelected = viewModel::skipToChapter,
+            onChaptersReordered = viewModel::reorderChapters,
             onDismiss = { showChapterSheet = false },
             sheetState = chapterSheetState,
         )

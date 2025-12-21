@@ -265,10 +265,27 @@ fun SettingsScreen(
                     },
             ) {
                 // Show progress bar for active states
+                // Show progress bar for active states
                 if (scanProgress is ScanProgress.Discovery || scanProgress is ScanProgress.Parsing || scanProgress is ScanProgress.Saving) {
-                    androidx.compose.material3.LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    )
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        androidx.compose.material3.LinearProgressIndicator(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                        )
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = { viewModel.cancelScan() },
+                                modifier = Modifier.padding(top = 8.dp),
+                            ) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        }
+                    }
                 }
             }
 
@@ -277,6 +294,38 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
                 onClick = onNavigateToScanSettings,
             )
+
+            // Chapter Normalization
+            var showNormalizeDialog by remember { mutableStateOf(false) }
+
+            SettingsItem(
+                title = stringResource(R.string.normalizeChapterTitles),
+                subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
+                onClick = { showNormalizeDialog = true },
+            )
+
+            if (showNormalizeDialog) {
+                AlertDialog(
+                    onDismissRequest = { showNormalizeDialog = false },
+                    title = { Text(stringResource(R.string.normalizeChapterTitles)) },
+                    text = { Text(stringResource(R.string.normalizeChapterTitlesConfirmation)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.normalizeAllChapters()
+                                showNormalizeDialog = false
+                            },
+                        ) {
+                            Text(stringResource(R.string.normalizeButton))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showNormalizeDialog = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    },
+                )
+            }
 
             HorizontalDivider()
 

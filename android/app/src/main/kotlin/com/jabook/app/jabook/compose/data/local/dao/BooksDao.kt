@@ -60,6 +60,12 @@ interface BooksDao {
     suspend fun getBookById(bookId: String): BookEntity?
 
     /**
+     * Gets all books (one-shot).
+     */
+    @Query("SELECT * FROM books ORDER BY title ASC")
+    suspend fun getAllBooks(): List<BookEntity>
+
+    /**
      * Get all chapters for a book, ordered by chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId ORDER BY chapter_index ASC")

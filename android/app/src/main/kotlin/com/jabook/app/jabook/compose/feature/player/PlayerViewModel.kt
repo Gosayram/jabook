@@ -58,6 +58,7 @@ class PlayerViewModel
         private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
         private val sleepTimerRepository: com.jabook.app.jabook.compose.data.repository.SleepTimerRepository,
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
+        private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
     ) : ViewModel() {
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
@@ -258,6 +259,12 @@ class PlayerViewModel
                     )
                     isBookLoaded = true
                 }
+            }
+        }
+
+        fun reorderChapters(newOrderedIds: List<String>) {
+            viewModelScope.launch {
+                booksRepository.updateChapterOrder(bookId, newOrderedIds)
             }
         }
     }

@@ -109,6 +109,14 @@
     <string name="quickActions">Quick Actions</string>
     <!-- Label for scan local files action -->
     <string name="scanLocalFiles">Scan Local Files</string>
+    <!-- Label for normalize chapter titles action -->
+    <string name="normalizeChapterTitles">Normalize Chapter Titles</string>
+    <!-- Description for normalize chapter titles action -->
+    <string name="normalizeChapterTitlesDesc">Rename all chapters to a consistent format (e.g. Chapter 1, Prologue)</string>
+    <!-- Confirmation message for normalization -->
+    <string name="normalizeChapterTitlesConfirmation">This will rename chapters in your database for all books. Physical files will NOT be modified. This action cannot be undone.</string>
+    <!-- Button text for normalization -->
+    <string name="normalizeButton">Normalize</string>
     <!-- Message for upcoming features -->
     <string name="featureComingSoon">Feature coming soon</string>
     <!-- Label for change mirror action -->
@@ -477,6 +485,12 @@
     <string name="byAuthorText">by: %1$s</string>
     <!-- Label for chapters section -->
     <string name="chaptersLabelText">Chapters</string>
+    <!-- Button text for edit -->
+    <string name="edit">Edit</string>
+    <!-- Instruction for reordering chapters -->
+    <string name="reorderChaptersInstruction">Use arrows to change chapter order</string>
+    <!-- Note for selecting chapter -->
+    <string name="selectChapterNote">Tap a chapter to jump and start playback</string>
     <!-- Message for upcoming download feature -->
     <string name="downloadFunctionalityComingSoonMessage">Download functionality coming soon!</string>
     <!-- Sample audiobook title -->
@@ -1961,7 +1975,7 @@
     <!-- Free up cache size -->
     <string name="freeUpCacheSize">Free up %s</string>
     <!-- Tap a chapter to jump and start playback -->
-    <string name="selectChapterNote">Tap a chapter to jump and start playback</string>
+
     <!-- Video -->
     <string name="videoLabel">Video</string>
     <!-- Audio -->

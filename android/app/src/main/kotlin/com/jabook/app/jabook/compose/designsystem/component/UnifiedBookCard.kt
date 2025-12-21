@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -119,7 +120,6 @@ private fun GridBookCard(
     val isFavorite = actionsProvider.isFavorite(book.id)
 
     Card(
-        onClick = { actionsProvider.onBookClick(book.id) },
         modifier =
             modifier
                 .fillMaxWidth()
@@ -287,17 +287,6 @@ private fun ListBookCard(
                     contentScale = ContentScale.Crop,
                 )
 
-                // Progress indicator overlay for list mode
-                if (actionsProvider.showProgress && book.progress > 0f) {
-                    LinearProgressIndicator(
-                        progress = { book.progress },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.BottomCenter),
-                    )
-                }
-
                 // Download progress indicator for list mode
                 if (actionsProvider.showDownloadStatus && book.isDownloading) {
                     Box(
@@ -324,7 +313,7 @@ private fun ListBookCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Title and author
+            // Title, author and progress
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center,
@@ -342,6 +331,19 @@ private fun ListBookCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                // Progress indicator in the text column
+                if (actionsProvider.showProgress && book.progress > 0f) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { book.progress },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(4.dp),
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
                     )
                 }
             }

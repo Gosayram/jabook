@@ -118,7 +118,9 @@ fun BookPropertiesDialog(
 
                 // File size (if available)
                 book.localPath?.let { path ->
+                    // Simplified size calculation without accessing non-existent chapters prop
                     val size = calculateDirectorySize(path)
+
                     if (size > 0) {
                         PropertyRow(
                             label = stringResource(R.string.size),

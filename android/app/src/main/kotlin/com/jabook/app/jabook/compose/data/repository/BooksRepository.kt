@@ -125,4 +125,20 @@ interface BooksRepository {
      * Remove a directory from the scan paths.
      */
     suspend fun removeScanPath(path: String)
+
+    /**
+     * Normalize chapter titles for all books in the library.
+     * E.g. "01 - Chapter" -> "Chapter 1", preserving "Prologue" etc.
+     */
+    suspend fun normalizeAllChapters()
+
+    /**
+     * Update the order of chapters for a specific book.
+     * @param bookId The ID of the book.
+     * @param newOrderedIds List of chapter IDs in the desired order.
+     */
+    suspend fun updateChapterOrder(
+        bookId: String,
+        newOrderedIds: List<String>,
+    )
 }

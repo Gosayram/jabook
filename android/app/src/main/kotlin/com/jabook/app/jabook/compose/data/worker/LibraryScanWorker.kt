@@ -26,9 +26,13 @@ import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import com.jabook.app.jabook.compose.data.local.scanner.ScannedBook
+import com.jabook.app.jabook.compose.data.model.ScanProgress
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import com.jabook.app.jabook.compose.domain.model.Result as DomainResult
@@ -47,37 +51,94 @@ class LibraryScanWorker
         private val chaptersDao: ChaptersDao,
     ) : CoroutineWorker(appContext, params) {
         override suspend fun doWork(): ListenableWorker.Result =
-            try {
-                setProgress(workDataOf("status" to "Scanning..."))
+            withContext(Dispatchers.IO) {
+                try {
+                    setProgress(workDataOf("status" to "Starting scan..."))
 
-                when (val result = bookScanner.scanAudiobooks()) {
-                    is DomainResult.Success -> {
-                        val books = result.data
-                        setProgress(workDataOf("status" to "Found ${books.size} books"))
-
-                        // Insert books
-                        for (book in books) {
-                            insertScannedBook(book)
+                    // Watchdog: Cancel scan if no progress for 3 minutes
+                    val scannerJob =
+                        async {
+                            bookScanner.scanAudiobooks()
                         }
 
-                        ListenableWorker.Result.success(
-                            workDataOf("booksFound" to books.size),
-                        )
+                    val watchdogJob =
+                        launch {
+                            var lastProgress = bookScanner.scanProgress.value
+                            var lastUpdate = System.currentTimeMillis()
+
+                            while (true) {
+                                kotlinx.coroutines.delay(5000) // Check every 5s
+
+                                val currentProgress = bookScanner.scanProgress.value
+                                if (currentProgress != lastProgress) {
+                                    lastProgress = currentProgress
+                                    lastUpdate = System.currentTimeMillis()
+
+                                    // Update WorkManager progress for system visibility
+                                    val status =
+                                        when (currentProgress) {
+                                            is ScanProgress.Discovery -> "Found ${currentProgress.fileCount} files"
+                                            is ScanProgress.Parsing -> "Processing: ${currentProgress.progress}/${currentProgress.total}"
+                                            else -> "Scanning..."
+                                        }
+                                    setProgress(workDataOf("status" to status))
+                                } else {
+                                    // No progress change
+                                    if (System.currentTimeMillis() - lastUpdate > 3 * 60 * 1000) {
+                                        // 3 minutes timeout!
+                                        if (currentProgress is ScanProgress.Parsing ||
+                                            currentProgress is ScanProgress.Discovery
+                                        ) {
+                                            android.util.Log.e("LibraryScanWorker", "Watchdog triggered: Scan stuck for 3 minutes")
+                                            scannerJob.cancel(
+                                                kotlinx.coroutines.CancellationException(
+                                                    "Scan timeout: watchdog detected hang",
+                                                ),
+                                            )
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    val result = scannerJob.await()
+                    watchdogJob.cancel()
+
+                    when (result) {
+                        is DomainResult.Success -> {
+                            val books = result.data
+                            setProgress(workDataOf("status" to "Found ${books.size} books"))
+
+                            // Insert books
+                            for (book in books) {
+                                insertScannedBook(book)
+                            }
+
+                            ListenableWorker.Result.success(
+                                workDataOf("booksFound" to books.size),
+                            )
+                        }
+                        is DomainResult.Error -> {
+                            ListenableWorker.Result.failure(
+                                workDataOf("error" to (result.message ?: "Unknown error")),
+                            )
+                        }
+                        is DomainResult.Loading -> {
+                            ListenableWorker.Result.retry()
+                        }
                     }
-                    is DomainResult.Error -> {
-                        ListenableWorker.Result.failure(
-                            workDataOf("error" to (result.message ?: "Unknown error")),
-                        )
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) {
+                        android.util.Log.w("LibraryScanWorker", "Scan cancelled (Watchdog or User)")
+                        // Return failure so it doesn't retry automatically if cancelled by user/watchdog
+                        return@withContext ListenableWorker.Result.failure()
                     }
-                    is DomainResult.Loading -> {
-                        ListenableWorker.Result.retry()
-                    }
+                    android.util.Log.e("LibraryScanWorker", "Scan failed", e)
+                    ListenableWorker.Result.failure(
+                        workDataOf("error" to (e.message ?: "Unknown error")),
+                    )
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("LibraryScanWorker", "Scan failed", e)
-                ListenableWorker.Result.failure(
-                    workDataOf("error" to (e.message ?: "Unknown error")),
-                )
             }
 
         private suspend fun insertScannedBook(scannedBook: ScannedBook) {

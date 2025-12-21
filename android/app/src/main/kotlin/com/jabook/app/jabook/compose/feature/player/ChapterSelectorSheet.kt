@@ -28,6 +28,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -73,33 +75,50 @@ fun ChapterSelectorSheet(
     chapters: List<Chapter>,
     currentChapterIndex: Int,
     onChapterSelected: (Int) -> Unit,
+    onChaptersReordered: (List<String>) -> Unit,
     onDismiss: () -> Unit,
     sheetState: SheetState,
 ) {
     val listState = rememberLazyListState()
     var searchQuery by remember { mutableStateOf("") }
+    var isEditing by remember { mutableStateOf(false) }
 
-    // Filter chapters by search query
-    val filteredChapters =
-        remember(chapters, searchQuery) {
-            if (searchQuery.isBlank()) {
-                chapters.mapIndexed { index, chapter -> index to chapter }
+    // Local list for reordering
+    var editedChapters by remember { mutableStateOf(chapters) }
+
+    // Sync editedChapters when entering edit mode or when chapters change (if not editing)
+    LaunchedEffect(chapters, isEditing) {
+        if (!isEditing) {
+            editedChapters = chapters
+        }
+    }
+
+    // Filter chapters by search query (only valid when not editing)
+    val displayChapters =
+        remember(chapters, editedChapters, searchQuery, isEditing) {
+            if (isEditing) {
+                // Return all chapters in current edited order
+                editedChapters.mapIndexed { index, chapter -> index to chapter }
             } else {
-                chapters
-                    .mapIndexed { index, chapter -> index to chapter }
-                    .filter { (index, chapter) ->
-                        val chapterName = ChapterUtils.formatChapterName(chapter, index)
-                        val chapterNumber = ChapterUtils.extractChapterNumber(chapter.title, index)
-                        searchQuery.toIntOrNull()?.let { searchNum ->
-                            chapterNumber == searchNum
-                        } ?: chapterName.contains(searchQuery, ignoreCase = true)
-                    }
+                if (searchQuery.isBlank()) {
+                    chapters.mapIndexed { index, chapter -> index to chapter }
+                } else {
+                    chapters
+                        .mapIndexed { index, chapter -> index to chapter }
+                        .filter { (index, chapter) ->
+                            val chapterName = ChapterUtils.formatChapterName(chapter, index)
+                            val chapterNumber = ChapterUtils.extractChapterNumber(chapter.title, index)
+                            searchQuery.toIntOrNull()?.let { searchNum ->
+                                chapterNumber == searchNum
+                            } ?: chapterName.contains(searchQuery, ignoreCase = true)
+                        }
+                }
             }
         }
 
     // Auto-scroll to current chapter when sheet opens
     LaunchedEffect(currentChapterIndex) {
-        if (currentChapterIndex >= 0 && currentChapterIndex < chapters.size) {
+        if (currentChapterIndex >= 0 && currentChapterIndex < chapters.size && !isEditing) {
             listState.animateScrollToItem(currentChapterIndex)
         }
     }
@@ -114,41 +133,85 @@ fun ChapterSelectorSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            // Header
-            Text(
-                text = stringResource(R.string.chaptersLabelText),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
+            // Header with Edit button
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.chaptersLabelText),
+                    style = MaterialTheme.typography.titleLarge,
+                )
 
-            Text(
-                text = stringResource(R.string.selectChapterNote),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+                // Edit / Done / Cancel buttons
+                Row {
+                    if (isEditing) {
+                        // Cancel
+                        androidx.compose.material3.TextButton(
+                            onClick = { isEditing = false },
+                        ) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        // Done (Save)
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                onChaptersReordered(editedChapters.map { it.id })
+                                isEditing = false
+                            },
+                        ) {
+                            Text(stringResource(R.string.doneButtonText))
+                        }
+                    } else {
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                editedChapters = chapters
+                                isEditing = true
+                                searchQuery = "" // Clear search when editing
+                            },
+                        ) {
+                            Text(stringResource(R.string.edit))
+                        }
+                    }
+                }
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            if (!isEditing) {
+                Text(
+                    text = stringResource(R.string.selectChapterNote),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
 
-            // Search field
-            TextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(stringResource(R.string.searchChapterPlaceholder)) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = null,
-                    )
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                colors =
-                    TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-            )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Search field
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.searchChapterPlaceholder)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                        )
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors =
+                        TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.reorderChaptersInstruction),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -159,14 +222,32 @@ fun ChapterSelectorSheet(
                 state = listState,
                 modifier = Modifier.weight(1f, fill = false),
             ) {
-                itemsIndexed(filteredChapters) { _, (originalIndex, chapter) ->
+                itemsIndexed(displayChapters) { listIndex, (originalIndex, chapter) ->
                     ChapterSelectorItem(
                         chapter = chapter,
-                        index = originalIndex,
-                        isCurrent = originalIndex == currentChapterIndex,
+                        index = if (isEditing) listIndex else originalIndex,
+                        // Don't highlight current in edit mode
+                        isCurrent = !isEditing && originalIndex == currentChapterIndex,
+                        isEditing = isEditing,
                         onClick = {
-                            onChapterSelected(originalIndex)
-                            onDismiss()
+                            if (!isEditing) {
+                                onChapterSelected(originalIndex)
+                                onDismiss()
+                            }
+                        },
+                        onMoveUp = {
+                            if (listIndex > 0) {
+                                val newList = editedChapters.toMutableList()
+                                java.util.Collections.swap(newList, listIndex, listIndex - 1)
+                                editedChapters = newList
+                            }
+                        },
+                        onMoveDown = {
+                            if (listIndex < editedChapters.size - 1) {
+                                val newList = editedChapters.toMutableList()
+                                java.util.Collections.swap(newList, listIndex, listIndex + 1)
+                                editedChapters = newList
+                            }
                         },
                     )
                 }
@@ -185,13 +266,16 @@ private fun ChapterSelectorItem(
     chapter: Chapter,
     index: Int,
     isCurrent: Boolean,
+    isEditing: Boolean = false,
     onClick: () -> Unit,
+    onMoveUp: () -> Unit = {},
+    onMoveDown: () -> Unit = {},
 ) {
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(enabled = !isEditing, onClick = onClick)
                 .background(
                     if (isCurrent) {
                         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
@@ -232,8 +316,16 @@ private fun ChapterSelectorItem(
             )
         }
 
-        // Play indicator for current chapter
-        if (isCurrent) {
+        if (isEditing) {
+            Row {
+                androidx.compose.material3.IconButton(onClick = onMoveUp) {
+                    Icon(androidx.compose.material.icons.Icons.Default.ArrowUpward, contentDescription = "Move Up")
+                }
+                androidx.compose.material3.IconButton(onClick = onMoveDown) {
+                    Icon(androidx.compose.material.icons.Icons.Default.ArrowDownward, contentDescription = "Move Down")
+                }
+            }
+        } else if (isCurrent) {
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
                 contentDescription = null,

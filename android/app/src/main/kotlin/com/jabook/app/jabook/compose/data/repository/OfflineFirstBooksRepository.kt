@@ -42,6 +42,7 @@ class OfflineFirstBooksRepository
     @Inject
     constructor(
         private val booksDao: BooksDao,
+        private val chaptersDao: com.jabook.app.jabook.compose.data.local.dao.ChaptersDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
         private val localBookScanner: com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner,
@@ -267,5 +268,57 @@ class OfflineFirstBooksRepository
 
         override suspend fun removeScanPath(path: String) {
             scanPathDao.deletePathByString(path)
+        }
+
+        override suspend fun normalizeAllChapters() {
+            val books = booksDao.getAllBooks()
+
+            for (book in books) {
+                val chapters = chaptersDao.getChaptersByBookId(book.id)
+                if (chapters.isEmpty()) continue
+
+                val titles = chapters.map { it.title }
+                val normalizedTitles =
+                    com.jabook.app.jabook.compose.domain.util.ChapterNormalizer
+                        .normalizeTitles(titles)
+
+                // Only update if changes found
+                var changed = false
+                val updatedChapters =
+                    chapters.mapIndexed { index, chapter ->
+                        if (chapter.title != normalizedTitles[index]) {
+                            changed = true
+                            chapter.copy(title = normalizedTitles[index])
+                        } else {
+                            chapter
+                        }
+                    }
+
+                if (changed) {
+                    chaptersDao.insertAll(updatedChapters)
+                }
+            }
+        }
+
+        override suspend fun updateChapterOrder(
+            bookId: String,
+            newOrderedIds: List<String>,
+        ) {
+            val chapters = chaptersDao.getChaptersByBookId(bookId)
+            if (chapters.isEmpty()) return
+
+            val chapterMap = chapters.associateBy { it.id }
+            val updatedChapters = mutableListOf<com.jabook.app.jabook.compose.data.local.entity.ChapterEntity>()
+
+            newOrderedIds.forEachIndexed { index, id ->
+                val chapter = chapterMap[id]
+                if (chapter != null && chapter.chapterIndex != index) {
+                    updatedChapters.add(chapter.copy(chapterIndex = index))
+                }
+            }
+
+            if (updatedChapters.isNotEmpty()) {
+                chaptersDao.insertAll(updatedChapters)
+            }
         }
     }

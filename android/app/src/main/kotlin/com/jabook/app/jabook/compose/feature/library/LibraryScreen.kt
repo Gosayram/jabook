@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.library
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -38,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -117,143 +119,154 @@ fun LibraryScreen(
     // Get context for permission check in pull-to-refresh
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { }, // Empty title for more space
-                windowInsets =
-                    androidx.compose.foundation.layout
-                        .WindowInsets(0, 0, 0, 0),
-                actions = {
-                    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { }, // Empty title for more space
+                    windowInsets =
+                        androidx.compose.foundation.layout
+                            .WindowInsets(0, 0, 0, 0),
+                    actions = {
+                        val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
-                    // Sort menu
-                    SortOrderMenu(
-                        currentSortOrder = sortOrder,
-                        onSortOrderChanged = viewModel::onSortOrderChanged,
-                    )
+                        // Sort menu
+                        SortOrderMenu(
+                            currentSortOrder = sortOrder,
+                            onSortOrderChanged = viewModel::onSortOrderChanged,
+                        )
 
-                    // View mode toggle
-                    ViewModeToggle(
-                        currentMode = viewMode,
-                        onModeChanged = viewModel::onViewModeChanged,
-                    )
+                        // View mode toggle
+                        ViewModeToggle(
+                            currentMode = viewMode,
+                            onModeChanged = viewModel::onViewModeChanged,
+                        )
 
-                    // Search button
-                    IconButton(onClick = onNavigateToSearch) {
+                        // Search button
+                        IconButton(onClick = onNavigateToSearch) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.search),
+                            )
+                        }
+                        // Downloads button
+                        IconButton(onClick = onNavigateToDownloads) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = stringResource(R.string.downloads),
+                            )
+                        }
+                    },
+                )
+            },
+            floatingActionButton = {
+                androidx.compose.material3.FloatingActionButton(
+                    onClick = {
+                        val permission =
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                android.Manifest.permission.READ_MEDIA_AUDIO
+                            } else {
+                                android.Manifest.permission.READ_EXTERNAL_STORAGE
+                            }
+                        permissionLauncher.launch(permission)
+                    },
+                ) {
+                    if (scanState is ScanState.Scanning) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.padding(8.dp),
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    } else {
                         Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = stringResource(R.string.search),
+                            imageVector = androidx.compose.material.icons.Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.scanLibrary),
                         )
                     }
-                    // Downloads button
-                    IconButton(onClick = onNavigateToDownloads) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = stringResource(R.string.downloads),
-                        )
-                    }
-                },
-            )
-        },
-        floatingActionButton = {
-            androidx.compose.material3.FloatingActionButton(
-                onClick = {
+                }
+            },
+            contentWindowInsets =
+                androidx.compose.foundation.layout
+                    .WindowInsets(0, 0, 0, 0),
+            modifier = Modifier.fillMaxSize(),
+        ) { padding ->
+            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = scanState is ScanState.Scanning,
+                onRefresh = {
                     val permission =
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                             android.Manifest.permission.READ_MEDIA_AUDIO
                         } else {
                             android.Manifest.permission.READ_EXTERNAL_STORAGE
                         }
-                    permissionLauncher.launch(permission)
-                },
-            ) {
-                if (scanState is ScanState.Scanning) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        modifier = Modifier.padding(8.dp),
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                } else {
-                    Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.scanLibrary),
-                    )
-                }
-            }
-        },
-        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
-        contentWindowInsets =
-            androidx.compose.foundation.layout
-                .WindowInsets(0, 0, 0, 0),
-        modifier = modifier,
-    ) { padding ->
-        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = scanState is ScanState.Scanning,
-            onRefresh = {
-                val permission =
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                        android.Manifest.permission.READ_MEDIA_AUDIO
+                    // Check permission and start scan using pre-obtained context
+                    val hasPermission =
+                        androidx.core.content.ContextCompat.checkSelfPermission(
+                            context,
+                            permission,
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                    if (hasPermission) {
+                        viewModel.startLibraryScan()
                     } else {
-                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+                        permissionLauncher.launch(permission)
                     }
-                // Check permission and start scan using pre-obtained context
-                val hasPermission =
-                    androidx.core.content.ContextCompat.checkSelfPermission(
-                        context,
-                        permission,
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                },
+                modifier = Modifier.padding(padding).fillMaxSize(),
+            ) {
+                when (uiState) {
+                    is LibraryUiState.Loading -> {
+                        LoadingScreen(message = stringResource(R.string.loadingLibrary))
+                    }
 
-                if (hasPermission) {
-                    viewModel.startLibraryScan()
-                } else {
-                    permissionLauncher.launch(permission)
-                }
-            },
-            modifier = Modifier.padding(padding).fillMaxSize(),
-        ) {
-            when (uiState) {
-                is LibraryUiState.Loading -> {
-                    LoadingScreen(message = stringResource(R.string.loadingLibrary))
-                }
+                    is LibraryUiState.Success -> {
+                        val books = (uiState as LibraryUiState.Success).books
+                        val actionsProvider =
+                            viewModel.createBookActionsProvider(
+                                onBookClick = onBookClick,
+                            )
 
-                is LibraryUiState.Success -> {
-                    val books = (uiState as LibraryUiState.Success).books
-                    val actionsProvider =
-                        viewModel.createBookActionsProvider(
-                            onBookClick = onBookClick,
+                        // Use unified view for all display modes
+                        UnifiedBooksView(
+                            books = books,
+                            displayMode = viewMode.toBookDisplayMode(),
+                            actionsProvider = actionsProvider,
+                            modifier = Modifier.fillMaxSize(),
                         )
+                    }
 
-                    // Use unified view for all display modes
-                    UnifiedBooksView(
-                        books = books,
-                        displayMode = viewMode.toBookDisplayMode(),
-                        actionsProvider = actionsProvider,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                    is LibraryUiState.Empty -> {
+                        EmptyState(
+                            message = stringResource(R.string.noBooksInLibrary),
+                        )
+                    }
 
-                is LibraryUiState.Empty -> {
-                    EmptyState(
-                        message = stringResource(R.string.noBooksInLibrary),
-                    )
+                    is LibraryUiState.Error -> {
+                        ErrorScreen(
+                            message = (uiState as LibraryUiState.Error).message,
+                        )
+                    }
                 }
+            }
 
-                is LibraryUiState.Error -> {
-                    ErrorScreen(
-                        message = (uiState as LibraryUiState.Error).message,
-                    )
-                }
+            // Book properties dialog
+            val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
+            selectedBook?.let { book ->
+                BookPropertiesDialog(
+                    book = book,
+                    onDismiss = viewModel::hideBookProperties,
+                )
             }
         }
 
-        // Book properties dialog
-        val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
-        selectedBook?.let { book ->
-            BookPropertiesDialog(
-                book = book,
-                onDismiss = viewModel::hideBookProperties,
-            )
-        }
+        androidx.compose.material3.SnackbarHost(
+            hostState = snackbarHostState,
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp)
+                    .padding(top = 16.dp)
+                    .statusBarsPadding(),
+        )
     }
 }
 

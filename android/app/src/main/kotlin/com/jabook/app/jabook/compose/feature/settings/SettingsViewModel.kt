@@ -71,8 +71,15 @@ class SettingsViewModel
             )
 
         fun scanLibrary() {
-            val workRequest = OneTimeWorkRequestBuilder<LibraryScanWorker>().build()
+            val workRequest =
+                OneTimeWorkRequestBuilder<LibraryScanWorker>()
+                    .addTag("library_scan")
+                    .build()
             workManager.enqueue(workRequest)
+        }
+
+        fun cancelScan() {
+            workManager.cancelAllWorkByTag("library_scan")
         }
 
         // Exposure of auth status for UI
@@ -433,6 +440,15 @@ class SettingsViewModel
         fun resetAllBookSettings() {
             viewModelScope.launch {
                 updateBookSettingsUseCase.resetAll()
+            }
+        }
+
+        /**
+         * Normalizes all chapter titles (e.g. "Chapter 1").
+         */
+        fun normalizeAllChapters() {
+            viewModelScope.launch {
+                booksRepository.normalizeAllChapters()
             }
         }
     }

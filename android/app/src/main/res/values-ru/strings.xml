@@ -111,6 +111,14 @@
     <string name="scanLocalFiles">Сканировать локальные файлы</string>
     <!-- Сообщение о предстоящих функциях -->
     <string name="featureComingSoon">Функция скоро появится</string>
+    <!-- Метка для нормализации названий глав -->
+    <string name="normalizeChapterTitles">Нормализация названий глав</string>
+    <!-- Описание действия нормализации -->
+    <string name="normalizeChapterTitlesDesc">Переименовать все главы в единый формат (например: Глава 1, Пролог)</string>
+    <!-- Подтверждение нормализации -->
+    <string name="normalizeChapterTitlesConfirmation">Это действие переименует главы в базе данных для всех книг. Физические файлы НЕ будут изменены. Это действие нельзя отменить.</string>
+    <!-- Текст кнопки нормализации -->
+    <string name="normalizeButton">Нормализовать</string>
     <!-- Метка для действия смены зеркала -->
     <string name="changeMirror">Сменить зеркало</string>
     <!-- Метка для действия проверки соединения -->
@@ -481,6 +489,12 @@
     <string name="byAuthorText">автор: %1$s</string>
     <!-- Метка для раздела глав -->
     <string name="chaptersLabelText">Главы</string>
+    <!-- Текст кнопки редактирования -->
+    <string name="edit">Изменить</string>
+    <!-- Инструкция по изменению порядка глав -->
+    <string name="reorderChaptersInstruction">Используйте стрелки для изменения порядка</string>
+    <!-- Примечание по выбору главы -->
+    <string name="selectChapterNote">Нажмите на главу для начала воспроизведения</string>
     <!-- Сообщение о предстоящей функции загрузки -->
     <string name="downloadFunctionalityComingSoonMessage">Функция загрузки скоро появится!</string>
     <!-- Пример названия аудиокниги -->
@@ -1969,7 +1983,6 @@
     <!-- Подтверждение очистки кэша -->
     <string name="clearCacheConfirmation">Это удалит %s кэшированных данных. Продолжить?</string>
     <!-- Нажмите на главу для перехода и воспроизведения -->
-    <string name="selectChapterNote">Нажмите на главу для перехода и воспроизведения</string>
     <!-- Видео -->
     <string name="videoLabel">Видео</string>
     <!-- Аудио -->

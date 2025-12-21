@@ -76,10 +76,11 @@ class DirectFileSystemScanner
 
                     _scanProgress.value = ScanProgress.Discovery(0)
 
-                    // PHASE 1: FAST SCAN - No metadata parsing (20× faster!)
+                    // PHASE 1: FAST SCAN - No metadata parsing
                     android.util.Log.i("DirectFileScanner", "⚡ Phase 1: Fast scan (no metadata)")
                     val fastFiles = mutableListOf<FastFileInfo>()
                     for (path in customPaths) {
+                        ensureActive() // Check for cancellation
                         val directory = File(path)
                         if (directory.exists() && directory.isDirectory) {
                             scanDirectoryFast(directory, fastFiles)
@@ -87,34 +88,113 @@ class DirectFileSystemScanner
                         }
                     }
 
+                    val totalFiles = fastFiles.size
                     android.util.Log.i(
                         "DirectFileScanner",
-                        "Found ${fastFiles.size} audio files (fast scan)",
+                        "Found $totalFiles audio files (fast scan)",
                     )
 
-                    // PHASE 2: GROUP by directory BEFORE metadata parsing
+                    // PHASE 2: GROUP by directory
                     val groupedByDir = fastFiles.groupBy { it.directory }
                     android.util.Log.i(
                         "DirectFileScanner",
                         "📚 Grouped into ${groupedByDir.size} books (by directory)",
                     )
 
-                    // PHASE 3: Parse metadata ONLY for first file of each book
-                    android.util.Log.i("DirectFileScanner", "⚡ Phase 3: Parsing metadata for ${groupedByDir.size} books")
+                    // PHASE 3: Parse metadata for ALL files (Fix for missing duration)
+                    android.util.Log.i("DirectFileScanner", "⚡ Phase 3: Parsing metadata (Full Scan)")
 
                     val scannedBooks = mutableListOf<ScannedBook>()
-                    var parsedCount = 0
-                    val totalBooks = groupedByDir.size
+                    var processedFilesCount = 0
 
                     groupedByDir.entries.forEachIndexed { index, (dir, files) ->
-                        // Emit Parsing progress
-                        val bookName = File(dir).name
-                        _scanProgress.value = ScanProgress.Parsing(bookName, index + 1, totalBooks)
+                        ensureActive() // Check for cancellation
 
-                        val book = createScannedBookLazy(dir, files) // Parse only 1st file!
-                        if (book != null) {
-                            scannedBooks.add(book)
+                        val bookName = File(dir).name
+
+                        // Sort files before parsing (to maintain chapter order)
+                        val sortedFiles =
+                            files.sortedWith(
+                                compareBy(
+                                    { file -> getFileCategory(file.displayName) },
+                                    { file -> extractChapterInfo(file.displayName).toSortKey() },
+                                    { file -> file.displayName.lowercase() },
+                                ),
+                            )
+
+                        // Detect Book Metadata from FIRST file (as fallback if others fail, or for Album name)
+                        // We still use the first file for Book-level metadata (Author/Cover) usually
+                        val firstFile = sortedFiles.first()
+                        val firstFileMetadata = metadataCache.getOrParse(File(firstFile.filePath), metadataParser)
+
+                        val bookTitle = firstFileMetadata?.album ?: File(dir).name
+                        val bookAuthor = firstFileMetadata?.albumArtist ?: firstFileMetadata?.artist ?: "Unknown"
+
+                        val chapters = mutableListOf<ScannedChapter>()
+
+                        // Parse EVERY file to get duration
+                        for ((chapterIndex, fileInfo) in sortedFiles.withIndex()) {
+                            ensureActive() // Granular cancellation check
+
+                            // Update progress per FILE
+                            processedFilesCount++
+                            _scanProgress.value = ScanProgress.Parsing(bookTitle, processedFilesCount, totalFiles)
+
+                            val file = File(fileInfo.filePath)
+                            // Parse metadata -> needed for Duration
+                            val metadata = metadataCache.getOrParse(file, metadataParser)
+
+                            // Determine Chapter Title
+                            val rawTitle = file.nameWithoutExtension
+                            // Mojibake detection
+                            val hasCyrillic = rawTitle.any { it in '\u0400'..'\u04FF' }
+                            val hasCJK = rawTitle.any { it in '\u4E00'..'\u9FFF' }
+                            val hasGreek = rawTitle.any { it in '\u0370'..'\u03FF' }
+                            val hasMojibake = hasCyrillic && (hasCJK || hasGreek)
+
+                            val fixedTitle =
+                                if (hasMojibake) {
+                                    val (fixed, _) = encodingDetector.fixGarbledText(rawTitle)
+                                    fixed
+                                } else {
+                                    metadata?.title ?: rawTitle
+                                }
+
+                            // If title tag is prevalent but same as book title, prefer filename or number?
+                            // Current logic uses filename-based cleanup mostly.
+                            // Let's stick to existing logic: filename based name usually, but here we can use metadata title if available?
+                            // The original createScannedBookLazy used filename.
+                            // The createScannedBook used "metadata?.title" but fallback to filename?
+                            // Actually createScannedBookLazy used "rawTitle" (filename).
+                            // Let's use metadata title if available, as we are parsing it now!
+                            // But wait, ID3 tags often have garbage. Filename is safer for chapters?
+                            // User asked to "Parse metadata... for duration".
+                            // Let's use filename for title consistency (as per existing Lazy logic) but ADD duration.
+
+                            val finalTitle = if (hasMojibake) fixedTitle else rawTitle
+
+                            chapters.add(
+                                ScannedChapter(
+                                    filePath = fileInfo.filePath,
+                                    title = finalTitle,
+                                    index = chapterIndex,
+                                    duration = metadata?.duration ?: 0L, // HERE IS THE FIX
+                                ),
+                            )
                         }
+
+                        // Create Book
+                        val book =
+                            ScannedBook(
+                                directory = dir,
+                                title = bookTitle,
+                                author = bookAuthor,
+                                chapters = chapters,
+                                totalDuration = chapters.sumOf { it.duration },
+                                coverArt = firstFileMetadata?.coverArt,
+                            )
+
+                        scannedBooks.add(book)
                     }
 
                     android.util.Log.i(
@@ -122,24 +202,19 @@ class DirectFileSystemScanner
                         "Scan complete: ${scannedBooks.size} books successfully created",
                     )
 
-                    _scanProgress.value = ScanProgress.Saving // Intermediate state before return
-
-                    // Reset to Idle after a short delay (or let Repostiory handle it?
-                    // Scanner job is done here, but usually UI wants to see "Completed"
-                    // We'll return Result, and let the caller/worker handle final "Completed" or we can emit it here briefly
+                    _scanProgress.value = ScanProgress.Saving
 
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) {
+                        android.util.Log.i("DirectFileScanner", "Scan cancelled")
+                        throw e
+                    }
                     android.util.Log.e("DirectFileScanner", "Scan failed", e)
                     _scanProgress.value = ScanProgress.Error(e.message ?: "Unknown error")
                     Result.Error(e)
                 } finally {
-                    // Keep last state for a moment? Or relying on Repository to bridge it?
-                    // If we reset immediately, UI might miss "Completed".
-                    // For now, leave it in final state (Error or Saving -> which transitions to Success in worker)
-                    // Actually, let's reset to Idle after some time in a separate coroutine so this scope doesn't block?
-                    // No, better to leave it, and let next scan reset it.
-                    // OR: emit Idle at start.
+                    // Cleanup if needed
                 }
             }
 
