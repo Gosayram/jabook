@@ -2382,4 +2382,12 @@
     <string name="scan_status_saving">Сохранение в базу данных...</string>
     <string name="scan_status_complete">Сканирование завершено. Добавлено книг: %1$d.</string>
     <string name="scan_status_error">Ошибка: %1$s</string>
+    <!-- Описание кнопки перемещения главы вверх -->
+    <string name="moveUp">Переместить вверх</string>
+    <!-- Описание кнопки перемещения главы вниз -->
+    <string name="moveDown">Переместить вниз</string>
+    <!-- Описание ошибки загрузки обложки -->
+    <string name="failedToLoadCover">Не удалось загрузить обложку</string>
+    <!-- Префикс главы, например Глава 1 -->
+    <string name="chapter_prefix">Глава</string>
 </resources>

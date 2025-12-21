@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
@@ -120,7 +121,7 @@ fun BookCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.BrokenImage,
-                            contentDescription = "Failed to load cover",
+                            contentDescription = stringResource(com.jabook.app.jabook.R.string.failedToLoadCover),
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.onErrorContainer,
                         )

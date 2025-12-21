@@ -94,8 +94,9 @@ fun ChapterSelectorSheet(
     }
 
     // Filter chapters by search query (only valid when not editing)
+    val chapterPrefix = stringResource(R.string.chapter_prefix)
     val displayChapters =
-        remember(chapters, editedChapters, searchQuery, isEditing) {
+        remember(chapters, editedChapters, searchQuery, isEditing, chapterPrefix) {
             if (isEditing) {
                 // Return all chapters in current edited order
                 editedChapters.mapIndexed { index, chapter -> index to chapter }
@@ -106,7 +107,7 @@ fun ChapterSelectorSheet(
                     chapters
                         .mapIndexed { index, chapter -> index to chapter }
                         .filter { (index, chapter) ->
-                            val chapterName = ChapterUtils.formatChapterName(chapter, index)
+                            val chapterName = ChapterUtils.formatChapterName(chapter, index, chapterPrefix)
                             val chapterNumber = ChapterUtils.extractChapterNumber(chapter.title, index)
                             searchQuery.toIntOrNull()?.let { searchNum ->
                                 chapterNumber == searchNum
@@ -289,7 +290,7 @@ private fun ChapterSelectorItem(
         // Chapter info
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = ChapterUtils.formatChapterName(chapter, index),
+                text = ChapterUtils.formatChapterName(chapter, index, stringResource(R.string.chapter_prefix)),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight =
                     if (isCurrent) {
@@ -319,10 +320,13 @@ private fun ChapterSelectorItem(
         if (isEditing) {
             Row {
                 androidx.compose.material3.IconButton(onClick = onMoveUp) {
-                    Icon(androidx.compose.material.icons.Icons.Default.ArrowUpward, contentDescription = "Move Up")
+                    Icon(androidx.compose.material.icons.Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.moveUp))
                 }
                 androidx.compose.material3.IconButton(onClick = onMoveDown) {
-                    Icon(androidx.compose.material.icons.Icons.Default.ArrowDownward, contentDescription = "Move Down")
+                    Icon(
+                        androidx.compose.material.icons.Icons.Default.ArrowDownward,
+                        contentDescription = stringResource(R.string.moveDown),
+                    )
                 }
             }
         } else if (isCurrent) {

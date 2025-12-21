@@ -380,6 +380,7 @@ private fun PlayerContent(
                             com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
                                 chapter,
                                 state.currentChapterIndex,
+                                stringResource(R.string.chapter_prefix),
                             ),
                     )
                 }
