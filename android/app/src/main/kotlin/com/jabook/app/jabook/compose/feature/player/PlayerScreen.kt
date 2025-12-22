@@ -278,7 +278,7 @@ fun PlayerScreen(
                 }
             }
         },
-        modifier = modifier,
+        modifier = modifier.background(MaterialTheme.colorScheme.background),
     )
 }
 
