@@ -123,7 +123,7 @@ fun SearchFiltersPane(
 
             // Size Range
             Text(
-                text = "Size Range",
+                text = stringResource(R.string.sizeRange),
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(

@@ -79,7 +79,7 @@ fun BookDetailPane(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Book Details") },
+                title = { Text(text = stringResource(R.string.bookDetails)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(
@@ -102,7 +102,7 @@ fun BookDetailPane(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "Select a book to view details",
+                    text = stringResource(R.string.selectBookToViewDetails),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -192,7 +192,7 @@ fun BookDetailPane(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (book.isFavorite) "Unfavorite" else "Favorite",
+                                text = stringResource(if (book.isFavorite) R.string.unfavorite else R.string.favorite),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -204,21 +204,21 @@ fun BookDetailPane(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         MetadataRow(
-                            label = "Total Duration",
+                            label = stringResource(R.string.totalDuration),
                             value = formatDuration(book.totalDuration.inWholeMilliseconds),
                         )
                         MetadataRow(
-                            label = "Current Position",
+                            label = stringResource(R.string.currentPosition),
                             value = formatDuration(book.currentPosition.inWholeMilliseconds),
                         )
                         MetadataRow(
-                            label = "Progress",
+                            label = stringResource(R.string.progress),
                             value = "${(book.progress * 100).toInt()}%",
                         )
                         if (book.isDownloaded) {
                             MetadataRow(
-                                label = "Download Status",
-                                value = "Downloaded",
+                                label = stringResource(R.string.downloadStatus),
+                                value = stringResource(R.string.downloaded),
                             )
                         }
                     }

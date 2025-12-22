@@ -25,7 +25,6 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -148,9 +147,6 @@ fun LibraryScreen(
                         topBar = {
                             TopAppBar(
                                 title = { }, // Empty title for more space
-                                windowInsets =
-                                    androidx.compose.foundation.layout
-                                        .WindowInsets(0, 0, 0, 0),
                                 actions = {
                                     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
@@ -183,34 +179,6 @@ fun LibraryScreen(
                                 },
                             )
                         },
-                        floatingActionButton = {
-                            androidx.compose.material3.FloatingActionButton(
-                                onClick = {
-                                    val permission =
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                            android.Manifest.permission.READ_MEDIA_AUDIO
-                                        } else {
-                                            android.Manifest.permission.READ_EXTERNAL_STORAGE
-                                        }
-                                    permissionLauncher.launch(permission)
-                                },
-                            ) {
-                                if (scanState is ScanState.Scanning) {
-                                    androidx.compose.material3.CircularProgressIndicator(
-                                        modifier = Modifier.padding(8.dp),
-                                        color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = androidx.compose.material.icons.Icons.Default.Refresh,
-                                        contentDescription = stringResource(R.string.scanLibrary),
-                                    )
-                                }
-                            }
-                        },
-                        contentWindowInsets =
-                            androidx.compose.foundation.layout
-                                .WindowInsets(0, 0, 0, 0),
                         modifier = Modifier.fillMaxSize(),
                     ) { padding ->
                         androidx.compose.material3.pulltorefresh.PullToRefreshBox(

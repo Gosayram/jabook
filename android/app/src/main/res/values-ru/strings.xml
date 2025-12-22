@@ -2390,4 +2390,25 @@
     <string name="failedToLoadCover">Не удалось загрузить обложку</string>
     <!-- Префикс главы, например Глава 1 -->
     <string name="chapter_prefix">Глава</string>
+    <!-- Сообщения статуса сканирования библиотеки -->
+    <string name="scan_status_starting">Начало сканирования...</string>
+    <string name="scan_status_preparing">Подготовка %1$d книг для базы данных...</string>
+    <string name="scan_status_processing_covers">Обработка обложек...</string>
+    <string name="scan_status_completed_saving">Завершено сохранение %1$d книг</string>
+    <string name="libraryUnknownError">Неизвестная ошибка</string>
+    <!-- Строки панели деталей книги -->
+    <string name="selectBookToViewDetails">Выберите книгу для просмотра деталей</string>
+    <string name="favorite">Избранное</string>
+    <string name="unfavorite">Удалить из избранного</string>
+    <string name="totalDuration">Общая длительность</string>
+    <string name="downloadStatus">Статус загрузки</string>
+    <string name="downloaded">Загружено</string>
+    <!-- Строки панели глав плеера -->
+    <string name="currentlyPlaying">Сейчас играет</string>
+    <!-- Строки панели фильтров поиска -->
+    <string name="sizeRange">Диапазон размера</string>
+    <!-- Помощники форматирования длительности - не отображаются напрямую, а используются в коде -->
+    <string name="durationHoursMinutes">%1$dч %2$dм</string>
+    <string name="durationMinutes">%1$dм</string>
+    <string name="durationSeconds">%1$dс</string>
 </resources>

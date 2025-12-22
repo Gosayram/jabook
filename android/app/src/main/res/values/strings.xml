@@ -2354,4 +2354,25 @@
     <string name="failedToLoadCover">Failed to load cover</string>
     <!-- Chapter prefix e.g. Chapter 1 -->
     <string name="chapter_prefix">Chapter</string>
+    <!-- Library scan progress status messages -->
+    <string name="scan_status_starting">Starting scan...</string>
+    <string name="scan_status_preparing">Preparing %1$d books for database...</string>
+    <string name="scan_status_processing_covers">Processing cover art...</string>
+    <string name="scan_status_completed_saving">Completed saving %1$d books</string>
+    <string name="libraryUnknownError">Unknown error</string>
+    <!-- Book detail pane strings -->
+    <string name="selectBookToViewDetails">Select a book to view details</string>
+    <string name="favorite">Favorite</string>
+    <string name="unfavorite">Unfavorite</string>
+    <string name="totalDuration">Total Duration</string>
+    <string name="downloadStatus">Download Status</string>
+    <string name="downloaded">Downloaded</string>
+    <!-- Player chapter pane strings -->
+    <string name="currentlyPlaying">Currently playing</string>
+    <!-- Search filters pane strings -->
+    <string name="sizeRange">Size Range</string>
+    <!-- Duration format helpers - not directly displayed but used in code -->
+    <string name="durationHoursMinutes">%1$dh %2$dm</string>
+    <string name="durationMinutes">%1$dm</string>
+    <string name="durationSeconds">%1$ds</string>
 </resources>

@@ -39,8 +39,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -77,7 +79,7 @@ fun PlayerChapterPane(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Chapters",
+                    text = stringResource(R.string.chaptersLabelText),
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
@@ -191,7 +193,7 @@ private fun ChapterListItem(
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Currently playing",
+                    contentDescription = stringResource(R.string.currentlyPlaying),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp),
                 )
