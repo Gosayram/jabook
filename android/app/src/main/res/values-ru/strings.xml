@@ -2042,9 +2042,8 @@
     <string name="priorityMenu">Приоритетное меню</string>
     <!-- Поиск книг... -->
     <string name="searchBooks">Поиск книг...</string>
-    <!-- $сеялки -->
-    <string name="seeders">$сеялки</string>
-    <!-- Сеялки -->
+    <!-- Сиды -->
+    <string name="seeders">сиды</string>
     <!-- Поделиться журналами -->
     <string name="shareLogs">Поделиться журналами</string>
     <!-- Таймер сна -->

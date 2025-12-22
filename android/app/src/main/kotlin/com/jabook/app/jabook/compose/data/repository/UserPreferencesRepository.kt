@@ -62,4 +62,9 @@ interface UserPreferencesRepository {
      * Update font preference.
      */
     suspend fun setFont(font: AppFont)
+
+    /**
+     * Update chapter title normalization preference.
+     */
+    suspend fun setNormalizeChapterTitles(enabled: Boolean)
 }

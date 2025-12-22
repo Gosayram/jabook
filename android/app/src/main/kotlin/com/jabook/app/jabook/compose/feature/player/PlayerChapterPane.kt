@@ -77,6 +77,7 @@ fun PlayerChapterPane(
     chapters: List<Chapter>,
     currentChapterIndex: Int,
     onChapterClick: (Int) -> Unit,
+    normalizeEnabled: Boolean, // NEW: normalization preference
     modifier: Modifier = Modifier,
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -182,6 +183,7 @@ fun PlayerChapterPane(
                     chapter = chapter,
                     index = index,
                     isSelected = index == currentChapterIndex,
+                    normalizeEnabled = normalizeEnabled,
                     onClick = { onChapterClick(index) },
                 )
             }
@@ -197,6 +199,7 @@ private fun ChapterListItem(
     chapter: Chapter,
     index: Int,
     isSelected: Boolean,
+    normalizeEnabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -249,11 +252,16 @@ private fun ChapterListItem(
             // Chapter info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
-                        chapter = chapter,
-                        index = index,
-                        localizedPrefix = stringResource(R.string.chapter_prefix)
-                    ),
+                    text =
+                        if (normalizeEnabled) {
+                            com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                                chapter = chapter,
+                                index = index,
+                                localizedPrefix = stringResource(R.string.chapter_prefix),
+                            )
+                        } else {
+                            chapter.title // Original title
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,

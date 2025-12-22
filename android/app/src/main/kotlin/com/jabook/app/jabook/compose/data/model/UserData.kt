@@ -26,6 +26,7 @@ data class UserData(
     val autoPlayNext: Boolean = true,
     val playbackSpeed: Float = 1.0f,
     val font: AppFont = AppFont.DEFAULT,
+    val normalizeChapterTitles: Boolean = false, // Default: OFF
 )
 
 /**

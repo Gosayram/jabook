@@ -292,37 +292,14 @@ fun SettingsScreen(
                 onClick = onNavigateToScanSettings,
             )
 
-            // Chapter Normalization
-            var showNormalizeDialog by remember { mutableStateOf(false) }
-
-            SettingsItem(
+            // Chapter Normalization Toggle
+            val userPrefs by viewModel.userPreferences.collectAsStateWithLifecycle()
+            SettingsSwitchItem(
                 title = stringResource(R.string.normalizeChapterTitles),
                 subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
-                onClick = { showNormalizeDialog = true },
+                checked = userPrefs?.normalizeChapterTitles ?: false,
+                onCheckedChange = { viewModel.updateNormalizeChapterTitles(it) },
             )
-
-            if (showNormalizeDialog) {
-                AlertDialog(
-                    onDismissRequest = { showNormalizeDialog = false },
-                    title = { Text(stringResource(R.string.normalizeChapterTitles)) },
-                    text = { Text(stringResource(R.string.normalizeChapterTitlesConfirmation)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.normalizeAllChapters()
-                                showNormalizeDialog = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.normalizeButton))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showNormalizeDialog = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
-                )
-            }
 
             HorizontalDivider()
 

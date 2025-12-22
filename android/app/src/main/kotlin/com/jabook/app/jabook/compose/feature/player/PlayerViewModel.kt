@@ -130,6 +130,18 @@ class PlayerViewModel
                 )
 
         /**
+         * Chapter title normalization preference.
+         */
+        val normalizeChapterTitles: StateFlow<Boolean> =
+            userPreferencesRepository.userData
+                .map { it.normalizeChapterTitles }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = false,
+                )
+
+        /**
          * Current sleep timer state.
          */
         val sleepTimerState: StateFlow<com.jabook.app.jabook.compose.domain.model.SleepTimerState> =

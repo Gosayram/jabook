@@ -48,6 +48,7 @@ class DataStoreUserPreferencesRepository
             private val AUTO_PLAY_NEXT = booleanPreferencesKey("auto_play_next")
             private val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
             private val FONT = stringPreferencesKey("font")
+            private val NORMALIZE_CHAPTER_TITLES = booleanPreferencesKey("normalize_chapter_titles")
         }
 
         override val userData: Flow<UserData> =
@@ -87,6 +88,7 @@ class DataStoreUserPreferencesRepository
                                 AppFont.DEFAULT
                             }
                         } ?: AppFont.DEFAULT,
+                    normalizeChapterTitles = preferences[NORMALIZE_CHAPTER_TITLES] ?: false,
                 )
             }
 
@@ -123,6 +125,12 @@ class DataStoreUserPreferencesRepository
         override suspend fun setFont(font: AppFont) {
             dataStore.edit { preferences ->
                 preferences[FONT] = font.name
+            }
+        }
+
+        override suspend fun setNormalizeChapterTitles(enabled: Boolean) {
+            dataStore.edit { preferences ->
+                preferences[NORMALIZE_CHAPTER_TITLES] = enabled
             }
         }
     }

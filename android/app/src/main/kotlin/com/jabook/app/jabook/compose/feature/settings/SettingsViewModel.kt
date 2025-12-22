@@ -144,6 +144,12 @@ class SettingsViewModel
             }
         }
 
+        fun updateNormalizeChapterTitles(enabled: Boolean) {
+            viewModelScope.launch {
+                userPreferencesRepository.setNormalizeChapterTitles(enabled)
+            }
+        }
+
         fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)

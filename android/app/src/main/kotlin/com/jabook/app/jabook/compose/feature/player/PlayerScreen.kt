@@ -108,6 +108,7 @@ fun PlayerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
+    val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
 
     // Auto-initialize player when book data is ready
     // Only initialize once when we have Success state with actual chapters
@@ -261,6 +262,7 @@ fun PlayerScreen(
                     PlayerChapterPane(
                         chapters = state.chapters,
                         currentChapterIndex = state.currentChapterIndex,
+                        normalizeEnabled = normalizeEnabled,
                         onChapterClick = { chapterIndex ->
                             viewModel.skipToChapter(chapterIndex)
                             // On compact screens, navigate back after selection
