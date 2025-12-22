@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -46,20 +45,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.Chapter
-import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -83,7 +79,6 @@ fun PlayerChapterPane(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val lazyListState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
 
     // Adaptive padding based on available width
     androidx.compose.foundation.layout.BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -130,26 +125,12 @@ fun PlayerChapterPane(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Search/Jump field
+                    // Search field
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { newValue ->
-                            // Allow only numbers
-                            if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
-                                searchQuery = newValue
-
-                                // Auto-jump when valid number entered
-                                val chapterNum = newValue.toIntOrNull()
-                                if (chapterNum != null && chapterNum in 1..chapters.size) {
-                                    val targetIndex = chapterNum - 1
-                                    scope.launch {
-                                        lazyListState.animateScrollToItem(targetIndex)
-                                    }
-                                }
-                            }
-                        },
+                        onValueChange = { searchQuery = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(stringResource(R.string.jumpToChapterNumber)) },
+                        placeholder = { Text(stringResource(R.string.search)) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,
@@ -167,26 +148,44 @@ fun PlayerChapterPane(
                             }
                         },
                         singleLine = true,
-                        keyboardOptions =
-                            KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                imeAction = ImeAction.Go,
-                            ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions =
-                            KeyboardActions(
-                                onGo = {
-                                    val chapterNum = searchQuery.toIntOrNull()
-                                    if (chapterNum != null && chapterNum in 1..chapters.size) {
-                                        onChapterClick(chapterNum - 1)
-                                        searchQuery = ""
-                                    }
-                                },
-                            ),
+                            KeyboardActions(onDone = {
+                                // Hide keyboard
+                                defaultKeyboardAction(ImeAction.Done)
+                            }),
                     )
                 }
             }
 
             HorizontalDivider()
+
+            // Filter chapters
+            val chapterPrefix = stringResource(R.string.chapter_prefix)
+            val filteredChapters =
+                remember(chapters, searchQuery, normalizeEnabled, chapterPrefix) {
+                    chapters
+                        .mapIndexed { index, chapter -> index to chapter }
+                        .filter { (index, chapter) ->
+                            if (searchQuery.isBlank()) {
+                                true
+                            } else {
+                                val titleToSearch =
+                                    if (normalizeEnabled) {
+                                        com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                                            chapter = chapter,
+                                            index = index,
+                                            localizedPrefix = chapterPrefix,
+                                        )
+                                    } else {
+                                        chapter.title
+                                    }
+
+                                (index + 1).toString().contains(searchQuery) ||
+                                    titleToSearch.contains(searchQuery, ignoreCase = true)
+                            }
+                        }
+                }
 
             // Chapter list
             LazyColumn(
@@ -194,13 +193,17 @@ fun PlayerChapterPane(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(8.dp),
             ) {
-                itemsIndexed(chapters) { index, chapter ->
+                items(
+                    count = filteredChapters.size,
+                    key = { index -> filteredChapters[index].first },
+                ) { listIndex ->
+                    val (originalIndex, chapter) = filteredChapters[listIndex]
                     ChapterListItem(
                         chapter = chapter,
-                        index = index,
-                        isSelected = index == currentChapterIndex,
+                        index = originalIndex,
+                        isSelected = originalIndex == currentChapterIndex,
                         normalizeEnabled = normalizeEnabled,
-                        onClick = { onChapterClick(index) },
+                        onClick = { onChapterClick(originalIndex) },
                     )
                 }
             }

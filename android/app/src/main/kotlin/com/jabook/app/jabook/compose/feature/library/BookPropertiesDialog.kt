@@ -135,8 +135,6 @@ fun BookPropertiesDialog(
                         value = "${(book.progress * 100).toInt()}%",
                     )
                 }
-
-
             }
         }
     }
