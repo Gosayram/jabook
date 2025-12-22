@@ -15,24 +15,18 @@
 package com.jabook.app.jabook.compose
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -146,115 +140,55 @@ fun JabookApp(
         // val playerViewModel: PlayerViewModel = hiltViewModel()
         // val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
 
-        val showNavRail = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+        // 🎯 NavigationSuiteScaffold automatically adapts navigation to screen size
+        // - Compact: Bottom navigation bar
+        // - Medium/Expanded: Navigation rail
+        // - Large/Extra-large: Wide navigation rail or drawer
+        NavigationSuiteScaffold(
+            navigationItems = {
+                appState.topLevelDestinations.forEach { destination ->
+                    val selected = appState.currentDestination.isTopLevelDestinationInHierarchy(destination)
 
-        Scaffold(
+                    NavigationSuiteItem(
+                        icon = {
+                            Icon(
+                                imageVector =
+                                    if (selected) {
+                                        destination.selectedIcon
+                                    } else {
+                                        destination.unselectedIcon
+                                    },
+                                contentDescription = stringResource(destination.iconTextId),
+                            )
+                        },
+                        label = { Text(stringResource(destination.titleTextId)) },
+                        selected = selected,
+                        onClick = { appState.navigateToTopLevelDestination(destination) },
+                    )
+                }
+            },
             modifier = Modifier.fillMaxSize(),
-            snackbarHost = {
+        ) {
+            // Main content area
+            Box(modifier = Modifier.fillMaxSize()) {
+                @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+                androidx.compose.animation.SharedTransitionLayout {
+                    JabookNavHost(
+                        appState = appState,
+                        modifier = Modifier.fillMaxSize(),
+                        sharedTransitionScope = this,
+                    )
+                }
+
+                // Snackbar host positioned above navigation
                 androidx.compose.material3.SnackbarHost(
                     hostState = appState.snackbarHostState,
                     modifier =
-                        Modifier.padding(
-                            bottom = if (!showNavRail) 100.dp else 16.dp,
-                        ),
+                        Modifier
+                            .align(androidx.compose.ui.Alignment.BottomCenter)
+                            .padding(bottom = 16.dp),
                 )
-            },
-            bottomBar = {
-                if (!showNavRail) {
-                    androidx.compose.foundation.layout.Column {
-                        // Mini player (Compact view: above navigation bar)
-                        // TODO: Re-enable after implementing proper state management
-                        // Mini-player temporarily disabled until MiniPlayerViewModel is created
-
-                        // Bottom navigation bar
-                        JabookBottomBar(
-                            appState = appState,
-                            onNavigateToDestination = appState::navigateToTopLevelDestination,
-                        )
-                    }
-                }
-            },
-        ) { padding ->
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-            ) {
-                if (showNavRail) {
-                    com.jabook.app.jabook.compose.designsystem.component.JabookNavigationRail(
-                        destinations = appState.topLevelDestinations,
-                        currentDestination = appState.currentDestination,
-                        onNavigateToDestination = { destination ->
-                            appState.navigateToTopLevelDestination(destination)
-                        },
-                        modifier = Modifier.fillMaxHeight(), // Should be safe inside Row
-                    )
-                }
-
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
-                        androidx.compose.animation.SharedTransitionLayout {
-                            JabookNavHost(
-                                appState = appState,
-                                modifier = Modifier.fillMaxSize(),
-                                sharedTransitionScope = this,
-                            )
-                        }
-                    }
-
-                    // Mini player (Expanded view: bottom of content area)
-                    // TODO: Re-enable after implementing proper state management
-                    // Mini-player temporarily disabled until MiniPlayerViewModel is created
-                }
             }
-        }
-    }
-}
-
-/**
- * Bottom navigation bar for top-level destinations.
- *
- * @param currentDestination Current navigation destination
- * @param onNavigateToDestination Callback when a destination is selected
- */
-@Composable
-private fun JabookBottomBar(
-    appState: JabookAppState,
-    onNavigateToDestination: (TopLevelDestination) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    NavigationBar(
-        modifier = Modifier.height(88.dp),
-        tonalElevation = 0.dp,
-    ) {
-        appState.topLevelDestinations.forEach { destination ->
-            val selected = appState.currentDestination.isTopLevelDestinationInHierarchy(destination)
-
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onNavigateToDestination(destination) },
-                icon = {
-                    Icon(
-                        imageVector =
-                            if (selected) {
-                                destination.selectedIcon
-                            } else {
-                                destination.unselectedIcon
-                            },
-                        contentDescription =
-                            androidx.compose.ui.res
-                                .stringResource(destination.iconTextId),
-                    )
-                },
-                label = {
-                    Text(
-                        androidx.compose.ui.res
-                            .stringResource(destination.titleTextId),
-                    )
-                },
-            )
         }
     }
 }

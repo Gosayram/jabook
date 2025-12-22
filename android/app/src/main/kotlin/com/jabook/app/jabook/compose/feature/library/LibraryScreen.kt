@@ -14,10 +14,10 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -34,6 +34,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.layout.AnimatedPane
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
+import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
+import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,11 +64,12 @@ import kotlinx.coroutines.launch
  *
  * This is the main entry point for the library feature.
  * It handles the different UI states and delegates to specific composables.
+ * Uses Material 3 Adaptive ListDetailPaneScaffold for proper list-detail pattern on larger screens.
  *
  * @param onBookClick Callback when a book is clicked
  * @param viewModel ViewModel provided by Hilt
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun LibraryScreen(
     onBookClick: (String) -> Unit,
@@ -76,9 +82,6 @@ fun LibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
-    val recentlyPlayed by viewModel.recentlyPlayed.collectAsStateWithLifecycle()
-    val inProgress by viewModel.inProgress.collectAsStateWithLifecycle()
-    val favorites by viewModel.favoriteBooks.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -119,153 +122,215 @@ fun LibraryScreen(
     // Get context for permission check in pull-to-refresh
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { }, // Empty title for more space
-                    windowInsets =
-                        androidx.compose.foundation.layout
-                            .WindowInsets(0, 0, 0, 0),
-                    actions = {
-                        val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+    // 🎯 Navigator for ListDetailPaneScaffold
+    val navigator = rememberListDetailPaneScaffoldNavigator<String>()
 
-                        // Sort menu
-                        SortOrderMenu(
-                            currentSortOrder = sortOrder,
-                            onSortOrderChanged = viewModel::onSortOrderChanged,
-                        )
+    // Track selected book ID locally since navigator's currentDestination is internal
+    var selectedBookId by remember { mutableStateOf<String?>(null) }
 
-                        // View mode toggle
-                        ViewModeToggle(
-                            currentMode = viewMode,
-                            onModeChanged = viewModel::onViewModeChanged,
-                        )
-
-                        // Search button
-                        IconButton(onClick = onNavigateToSearch) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = stringResource(R.string.search),
-                            )
-                        }
-                        // Downloads button
-                        IconButton(onClick = onNavigateToDownloads) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = stringResource(R.string.downloads),
-                            )
-                        }
-                    },
-                )
-            },
-            floatingActionButton = {
-                androidx.compose.material3.FloatingActionButton(
-                    onClick = {
-                        val permission =
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                android.Manifest.permission.READ_MEDIA_AUDIO
-                            } else {
-                                android.Manifest.permission.READ_EXTERNAL_STORAGE
-                            }
-                        permissionLauncher.launch(permission)
-                    },
-                ) {
-                    if (scanState is ScanState.Scanning) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            modifier = Modifier.padding(8.dp),
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Default.Refresh,
-                            contentDescription = stringResource(R.string.scanLibrary),
-                        )
-                    }
-                }
-            },
-            contentWindowInsets =
-                androidx.compose.foundation.layout
-                    .WindowInsets(0, 0, 0, 0),
-            modifier = Modifier.fillMaxSize(),
-        ) { padding ->
-            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-                isRefreshing = scanState is ScanState.Scanning,
-                onRefresh = {
-                    val permission =
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                            android.Manifest.permission.READ_MEDIA_AUDIO
-                        } else {
-                            android.Manifest.permission.READ_EXTERNAL_STORAGE
-                        }
-                    // Check permission and start scan using pre-obtained context
-                    val hasPermission =
-                        androidx.core.content.ContextCompat.checkSelfPermission(
-                            context,
-                            permission,
-                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-                    if (hasPermission) {
-                        viewModel.startLibraryScan()
-                    } else {
-                        permissionLauncher.launch(permission)
-                    }
-                },
-                modifier = Modifier.padding(padding).fillMaxSize(),
-            ) {
-                when (uiState) {
-                    is LibraryUiState.Loading -> {
-                        LoadingScreen(message = stringResource(R.string.loadingLibrary))
-                    }
-
-                    is LibraryUiState.Success -> {
-                        val books = (uiState as LibraryUiState.Success).books
-                        val actionsProvider =
-                            viewModel.createBookActionsProvider(
-                                onBookClick = onBookClick,
-                            )
-
-                        // Use unified view for all display modes
-                        UnifiedBooksView(
-                            books = books,
-                            displayMode = viewMode.toBookDisplayMode(),
-                            actionsProvider = actionsProvider,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-
-                    is LibraryUiState.Empty -> {
-                        EmptyState(
-                            message = stringResource(R.string.noBooksInLibrary),
-                        )
-                    }
-
-                    is LibraryUiState.Error -> {
-                        ErrorScreen(
-                            message = (uiState as LibraryUiState.Error).message,
-                        )
-                    }
-                }
-            }
-
-            // Book properties dialog
-            val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
-            selectedBook?.let { book ->
-                BookPropertiesDialog(
-                    book = book,
-                    onDismiss = viewModel::hideBookProperties,
-                )
-            }
+    // Handle back navigation from detail pane
+    BackHandler(navigator.canNavigateBack()) {
+        scope.launch {
+            navigator.navigateBack()
+            selectedBookId = null
         }
+    }
 
+    Box(modifier = modifier.fillMaxSize()) {
+        // 🎯 ListDetailPaneScaffold - Material 3 Adaptive component
+        ListDetailPaneScaffold(
+            directive = navigator.scaffoldDirective,
+            value = navigator.scaffoldValue,
+            listPane = {
+                AnimatedPane(modifier = Modifier) {
+                    // List pane content - book library
+                    Scaffold(
+                        topBar = {
+                            TopAppBar(
+                                title = { }, // Empty title for more space
+                                windowInsets =
+                                    androidx.compose.foundation.layout
+                                        .WindowInsets(0, 0, 0, 0),
+                                actions = {
+                                    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+
+                                    // Sort menu
+                                    SortOrderMenu(
+                                        currentSortOrder = sortOrder,
+                                        onSortOrderChanged = viewModel::onSortOrderChanged,
+                                    )
+
+                                    // View mode toggle
+                                    ViewModeToggle(
+                                        currentMode = viewMode,
+                                        onModeChanged = viewModel::onViewModeChanged,
+                                    )
+
+                                    // Search button
+                                    IconButton(onClick = onNavigateToSearch) {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = stringResource(R.string.search),
+                                        )
+                                    }
+                                    // Downloads button
+                                    IconButton(onClick = onNavigateToDownloads) {
+                                        Icon(
+                                            imageVector = Icons.Default.Download,
+                                            contentDescription = stringResource(R.string.downloads),
+                                        )
+                                    }
+                                },
+                            )
+                        },
+                        floatingActionButton = {
+                            androidx.compose.material3.FloatingActionButton(
+                                onClick = {
+                                    val permission =
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                            android.Manifest.permission.READ_MEDIA_AUDIO
+                                        } else {
+                                            android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                        }
+                                    permissionLauncher.launch(permission)
+                                },
+                            ) {
+                                if (scanState is ScanState.Scanning) {
+                                    androidx.compose.material3.CircularProgressIndicator(
+                                        modifier = Modifier.padding(8.dp),
+                                        color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = androidx.compose.material.icons.Icons.Default.Refresh,
+                                        contentDescription = stringResource(R.string.scanLibrary),
+                                    )
+                                }
+                            }
+                        },
+                        contentWindowInsets =
+                            androidx.compose.foundation.layout
+                                .WindowInsets(0, 0, 0, 0),
+                        modifier = Modifier.fillMaxSize(),
+                    ) { padding ->
+                        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                            isRefreshing = scanState is ScanState.Scanning,
+                            onRefresh = {
+                                val permission =
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                        android.Manifest.permission.READ_MEDIA_AUDIO
+                                    } else {
+                                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                    }
+                                // Check permission and start scan using pre-obtained context
+                                val hasPermission =
+                                    androidx.core.content.ContextCompat.checkSelfPermission(
+                                        context,
+                                        permission,
+                                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                                if (hasPermission) {
+                                    viewModel.startLibraryScan()
+                                } else {
+                                    permissionLauncher.launch(permission)
+                                }
+                            },
+                            modifier = Modifier.padding(padding).fillMaxSize(),
+                        ) {
+                            when (uiState) {
+                                is LibraryUiState.Loading -> {
+                                    LoadingScreen(message = stringResource(R.string.loadingLibrary))
+                                }
+
+                                is LibraryUiState.Success -> {
+                                    val books = (uiState as LibraryUiState.Success).books
+                                    val actionsProvider =
+                                        viewModel.createBookActionsProvider(
+                                            onBookClick = { bookId ->
+                                                // Navigate to detail pane and track selection
+                                                selectedBookId = bookId
+                                                scope.launch {
+                                                    navigator.navigateTo(
+                                                        ListDetailPaneScaffoldRole.Detail,
+                                                        bookId,
+                                                    )
+                                                }
+                                            },
+                                        )
+
+                                    // Use unified view for all display modes
+                                    UnifiedBooksView(
+                                        books = books,
+                                        displayMode = viewMode.toBookDisplayMode(),
+                                        actionsProvider = actionsProvider,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
+
+                                is LibraryUiState.Empty -> {
+                                    EmptyState(
+                                        message = stringResource(R.string.noBooksInLibrary),
+                                    )
+                                }
+
+                                is LibraryUiState.Error -> {
+                                    ErrorScreen(
+                                        message = (uiState as LibraryUiState.Error).message,
+                                    )
+                                }
+                            }
+                        }
+
+                        // Book properties dialog
+                        val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
+                        selectedBook?.let { book ->
+                            BookPropertiesDialog(
+                                book = book,
+                                onDismiss = viewModel::hideBookProperties,
+                            )
+                        }
+                    }
+                }
+            },
+            detailPane = {
+                AnimatedPane(modifier = Modifier) {
+                    // Detail pane content - use locally tracked selection
+                    if (selectedBookId != null && uiState is LibraryUiState.Success) {
+                        val books = (uiState as LibraryUiState.Success).books
+                        val selectedBook = books.find { it.id == selectedBookId }
+
+                        BookDetailPane(
+                            book = selectedBook,
+                            onPlayClick = {
+                                // Navigate to player when play is clicked
+                                selectedBookId?.let { onBookClick(it) }
+                            },
+                            onClose = {
+                                scope.launch {
+                                    navigator.navigateBack()
+                                    selectedBookId = null
+                                }
+                            },
+                            onToggleFavorite = {
+                                // Toggle favorite for this book
+                                selectedBook?.let { book ->
+                                    viewModel.toggleFavorite(book.id, !book.isFavorite)
+                                }
+                            },
+                        )
+                    }
+                }
+            },
+            modifier = modifier,
+        )
+
+        // Snackbar at the top
         androidx.compose.material3.SnackbarHost(
             hostState = snackbarHostState,
             modifier =
                 Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 16.dp)
-                    .padding(top = 16.dp)
-                    .statusBarsPadding(),
+                    .padding(top = 16.dp),
         )
     }
 }

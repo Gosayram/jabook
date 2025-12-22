@@ -272,6 +272,15 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
+    // Material 3 Adaptive - Official adaptive UI components
+    val adaptiveVersion = "1.3.0-alpha05"
+    implementation("androidx.compose.material3.adaptive:adaptive:$adaptiveVersion")
+    implementation("androidx.compose.material3.adaptive:adaptive-layout:$adaptiveVersion")
+    implementation("androidx.compose.material3.adaptive:adaptive-navigation:$adaptiveVersion")
+
+    // NavigationSuiteScaffold for adaptive navigation
+    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-alpha11")
+
     // Compose Navigation
     implementation("androidx.navigation:navigation-compose:2.9.6")
     implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
