@@ -49,7 +49,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.layout.AnimatedPane
+import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
+import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
+import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +71,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
+import com.jabook.app.jabook.compose.domain.model.SearchFilters
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
 import kotlinx.coroutines.launch
 
@@ -86,7 +91,7 @@ import kotlinx.coroutines.launch
  * @param onOnlineBookClick Callback when online search result is clicked
  * @param viewModel ViewModel provided by Hilt
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
 fun SearchScreen(
@@ -104,179 +109,206 @@ fun SearchScreen(
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
 
-    var showFiltersSheet by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
+
+    // Navigator for SupportingPaneScaffold
+    val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
     val scope = rememberCoroutineScope()
 
-    if (showFiltersSheet) {
-        SearchFiltersSheet(
-            filters = filters,
-            onApplyFilters = {
-                viewModel.updateFilters(it)
-            },
-            onDismiss = {
-                scope.launch { sheetState.hide() }.invokeOnCompletion {
-                    if (!sheetState.isVisible) showFiltersSheet = false
-                }
-            },
-            sheetState = sheetState,
-        )
-    }
+    // Removed filter sheet - using adaptive pane instead
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    TextField(
-                        value = searchQuery,
-                        onValueChange = viewModel::onSearchQueryChanged,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
-                        singleLine = true,
-                        colors =
-                            TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                            ),
-                        trailingIcon = {
-                            if (searchQuery.isNotBlank()) {
-                                IconButton(onClick = viewModel::clearSearch) {
+    // SupportingPaneScaffold for adaptive filter display
+    SupportingPaneScaffold(
+        directive = scaffoldNavigator.scaffoldDirective,
+        value = scaffoldNavigator.scaffoldValue,
+        mainPane = {
+            AnimatedPane(modifier = Modifier) {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = {
+                                TextField(
+                                    value = searchQuery,
+                                    onValueChange = viewModel::onSearchQueryChanged,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
+                                    singleLine = true,
+                                    colors =
+                                        TextFieldDefaults.colors(
+                                            focusedContainerColor = Color.Transparent,
+                                            unfocusedContainerColor = Color.Transparent,
+                                            focusedIndicatorColor = Color.Transparent,
+                                            unfocusedIndicatorColor = Color.Transparent,
+                                        ),
+                                    trailingIcon = {
+                                        if (searchQuery.isNotBlank()) {
+                                            IconButton(onClick = viewModel::clearSearch) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Clear,
+                                                    contentDescription = stringResource(R.string.clearSearch),
+                                                )
+                                            }
+                                        }
+                                    },
+                                )
+                            },
+                            windowInsets =
+                                androidx.compose.foundation.layout
+                                    .WindowInsets(0, 0, 0, 0),
+                            navigationIcon = {
+                                IconButton(onClick = onNavigateBack) {
                                     Icon(
-                                        imageVector = Icons.Filled.Clear,
-                                        contentDescription = stringResource(R.string.clearSearch),
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = stringResource(R.string.back),
                                     )
                                 }
-                            }
-                        },
-                    )
-                },
-                windowInsets =
-                    androidx.compose.foundation.layout
-                        .WindowInsets(0, 0, 0, 0),
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-                actions = {
-                    // Sort Button
-                    Box {
-                        IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort))
-                        }
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false },
-                        ) {
-                            SearchSortOrder.entries.forEach { order ->
-                                DropdownMenuItem(
-                                    text = { Text(order.name.replace("_", " ")) },
+                            },
+                            actions = {
+                                // Sort Button
+                                Box {
+                                    IconButton(onClick = { showSortMenu = true }) {
+                                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort))
+                                    }
+                                    DropdownMenu(
+                                        expanded = showSortMenu,
+                                        onDismissRequest = { showSortMenu = false },
+                                    ) {
+                                        SearchSortOrder.entries.forEach { order ->
+                                            DropdownMenuItem(
+                                                text = { Text(order.name.replace("_", " ")) },
+                                                onClick = {
+                                                    viewModel.updateSortOrder(order)
+                                                    showSortMenu = false
+                                                },
+                                                leadingIcon =
+                                                    if (order == sortOrder) {
+                                                        { Icon(Icons.Filled.Check, contentDescription = null) }
+                                                    } else {
+                                                        null
+                                                    },
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Filter Button - toggles supporting pane
+                                IconButton(
                                     onClick = {
-                                        viewModel.updateSortOrder(order)
-                                        showSortMenu = false
+                                        scope.launch {
+                                            if (scaffoldNavigator.canNavigateBack()) {
+                                                scaffoldNavigator.navigateBack()
+                                            } else {
+                                                scaffoldNavigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
+                                            }
+                                        }
                                     },
-                                    leadingIcon =
-                                        if (order == sortOrder) {
-                                            { Icon(Icons.Filled.Check, contentDescription = null) }
-                                        } else {
-                                            null
-                                        },
+                                ) {
+                                    Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filters))
+                                }
+                            },
+                        )
+                    },
+                ) { padding ->
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                                .padding(16.dp),
+                    ) {
+                        // Online search button
+                        if (searchQuery.isNotEmpty()) {
+                            Button(
+                                onClick = viewModel::searchOnline,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.Filled.Search, contentDescription = null)
+                                Spacer(Modifier.padding(4.dp))
+                                Text(stringResource(R.string.searchOnlineRutracker))
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+                        }
+
+                        // Content based on UI state
+                        when (val state = uiState) {
+                            is SearchUiState.Idle -> {
+                                // Show local results only
+                                LocalSearchResults(
+                                    query = searchQuery,
+                                    results = localResults,
+                                    searchHistory = searchHistory,
+                                    onBookClick = onBookClick,
+                                    onHistoryItemClick = { query ->
+                                        viewModel.onSearchQueryChanged(query)
+                                        // Optionally trigger online search automatically or just set query
+                                    },
+                                    onHistoryItemDelete = viewModel::deleteSearchHistoryItem,
+                                    onClearHistory = viewModel::clearSearchHistory,
                                 )
                             }
+
+                            is SearchUiState.Loading -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+
+                            is SearchUiState.Success -> {
+                                OnlineSearchResults(
+                                    results = state.onlineResults,
+                                    favoriteIds = favoriteIds,
+                                    onBookClick = onOnlineBookClick,
+                                    onToggleFavorite = viewModel::toggleFavorite,
+                                )
+                            }
+
+                            is SearchUiState.Error -> {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.errorWithMessage, state.message),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Button(onClick = viewModel::searchOnline) {
+                                        Text(stringResource(R.string.retry))
+                                    }
+                                }
+                            }
                         }
                     }
-
-                    // Filter Button
-                    IconButton(onClick = { showFiltersSheet = true }) {
-                        Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filters))
-                    }
-                },
-            )
+                }
+            }
+        },
+        supportingPane = {
+            AnimatedPane(modifier = Modifier) {
+                // Show filters pane
+                SearchFiltersPane(
+                    filters = filters,
+                    onApplyFilters = { newFilters ->
+                        viewModel.updateFilters(newFilters)
+                        // On compact screens, navigate back after applying
+                        scope.launch {
+                            if (scaffoldNavigator.canNavigateBack()) {
+                                scaffoldNavigator.navigateBack()
+                            }
+                        }
+                    },
+                    onReset = {
+                        viewModel.updateFilters(SearchFilters())
+                    },
+                )
+            }
         },
         modifier = modifier,
-    ) { padding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
-        ) {
-            // Online search button
-            if (searchQuery.isNotEmpty()) {
-                Button(
-                    onClick = viewModel::searchOnline,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Filled.Search, contentDescription = null)
-                    Spacer(Modifier.padding(4.dp))
-                    Text(stringResource(R.string.searchOnlineRutracker))
-                }
-
-                Spacer(Modifier.height(16.dp))
-            }
-
-            // Content based on UI state
-            when (val state = uiState) {
-                is SearchUiState.Idle -> {
-                    // Show local results only
-                    LocalSearchResults(
-                        query = searchQuery,
-                        results = localResults,
-                        searchHistory = searchHistory,
-                        onBookClick = onBookClick,
-                        onHistoryItemClick = { query ->
-                            viewModel.onSearchQueryChanged(query)
-                            // Optionally trigger online search automatically or just set query
-                        },
-                        onHistoryItemDelete = viewModel::deleteSearchHistoryItem,
-                        onClearHistory = viewModel::clearSearchHistory,
-                    )
-                }
-
-                is SearchUiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-
-                is SearchUiState.Success -> {
-                    OnlineSearchResults(
-                        results = state.onlineResults,
-                        favoriteIds = favoriteIds,
-                        onBookClick = onOnlineBookClick,
-                        onToggleFavorite = viewModel::toggleFavorite,
-                    )
-                }
-
-                is SearchUiState.Error -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.errorWithMessage, state.message),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick = viewModel::searchOnline) {
-                            Text(stringResource(R.string.retry))
-                        }
-                    }
-                }
-            }
-        }
-    }
+    )
 }
 
 /**

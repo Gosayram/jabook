@@ -51,11 +51,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.layout.AnimatedPane
+import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
+import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
+import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +80,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -89,7 +96,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param onNavigateBack Callback to navigate back
  * @param viewModel ViewModel provided by Hilt
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun PlayerScreen(
     onNavigateBack: () -> Unit,
@@ -114,7 +121,10 @@ fun PlayerScreen(
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
-    var showChapterSheet by remember { mutableStateOf(false) }
+
+    // Navigator for SupportingPaneScaffold
+    val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
+    val scope = rememberCoroutineScope()
 
     // Request notification permission on Android 13+
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -162,18 +172,7 @@ fun PlayerScreen(
         )
     }
 
-    // Chapter Selector Sheet
-    if (showChapterSheet && uiState is PlayerUiState.Success) {
-        val chapterSheetState = rememberModalBottomSheetState()
-        ChapterSelectorSheet(
-            chapters = (uiState as PlayerUiState.Success).chapters,
-            currentChapterIndex = (uiState as PlayerUiState.Success).currentChapterIndex,
-            onChapterSelected = viewModel::skipToChapter,
-            onChaptersReordered = viewModel::reorderChapters,
-            onDismiss = { showChapterSheet = false },
-            sheetState = chapterSheetState,
-        )
-    }
+    // Removed Chapter Selector Sheet - using adaptive pane instead
 
     // Player Settings Sheet
     if (showSettingsSheet && uiState is PlayerUiState.Success) {
@@ -186,52 +185,92 @@ fun PlayerScreen(
         )
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-    ) { padding ->
-        Box(
-            modifier =
-                Modifier
-                    .padding(padding)
-                    .windowInsetsPadding(WindowInsets.systemBars),
-        ) {
-            when (val state = uiState) {
-                is PlayerUiState.Loading -> {
-                    LoadingScreen(message = "Loading player...")
-                }
+    // SupportingPaneScaffold for adaptive chapter display
+    SupportingPaneScaffold(
+        directive = scaffoldNavigator.scaffoldDirective,
+        value = scaffoldNavigator.scaffoldValue,
+        mainPane = {
+            AnimatedPane(modifier = Modifier) {
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                ) { padding ->
+                    Box(
+                        modifier =
+                            Modifier
+                                .padding(padding)
+                                .windowInsetsPadding(WindowInsets.systemBars),
+                    ) {
+                        when (val state = uiState) {
+                            is PlayerUiState.Loading -> {
+                                LoadingScreen(message = "Loading player...")
+                            }
 
-                is PlayerUiState.Success -> {
-                    PlayerContent(
-                        state = state,
-                        playbackSpeed = playbackSpeed,
-                        sleepTimerState = sleepTimerState,
-                        onPlayPause = {
-                            if (state.isPlaying) viewModel.pause() else viewModel.play()
+                            is PlayerUiState.Success -> {
+                                PlayerContent(
+                                    state = state,
+                                    playbackSpeed = playbackSpeed,
+                                    sleepTimerState = sleepTimerState,
+                                    onPlayPause = {
+                                        if (state.isPlaying) viewModel.pause() else viewModel.play()
+                                    },
+                                    onSkipNext = viewModel::skipToNext,
+                                    onSkipPrevious = viewModel::skipToPrevious,
+                                    onSeek = viewModel::seekTo,
+                                    onSeekForward = viewModel::seekForward,
+                                    onSeekBackward = viewModel::seekBackward,
+                                    onSelectChapter = viewModel::skipToChapter,
+                                    onChapterClick = {
+                                        // Toggle chapters pane on medium/expanded screens
+                                        scope.launch {
+                                            if (scaffoldNavigator.canNavigateBack()) {
+                                                scaffoldNavigator.navigateBack()
+                                            } else {
+                                                scaffoldNavigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
+                                            }
+                                        }
+                                    },
+                                    onSpeedClick = { showSpeedSheet = true },
+                                    onSleepTimerClick = { showSleepTimerSheet = true },
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                )
+                            }
+
+                            is PlayerUiState.Error -> {
+                                ErrorScreen(
+                                    message = state.message,
+                                    onRetry = onNavigateBack,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        supportingPane = {
+            AnimatedPane(modifier = Modifier) {
+                // Show chapter pane only when we have chapters
+                if (uiState is PlayerUiState.Success) {
+                    val state = uiState as PlayerUiState.Success
+                    PlayerChapterPane(
+                        chapters = state.chapters,
+                        currentChapterIndex = state.currentChapterIndex,
+                        onChapterClick = { chapterIndex ->
+                            viewModel.skipToChapter(chapterIndex)
+                            // On compact screens, navigate back after selection
+                            scope.launch {
+                                if (scaffoldNavigator.canNavigateBack()) {
+                                    scaffoldNavigator.navigateBack()
+                                }
+                            }
                         },
-                        onSkipNext = viewModel::skipToNext,
-                        onSkipPrevious = viewModel::skipToPrevious,
-                        onSeek = viewModel::seekTo,
-                        onSeekForward = viewModel::seekForward,
-                        onSeekBackward = viewModel::seekBackward,
-                        onSelectChapter = viewModel::skipToChapter,
-                        onChapterClick = { showChapterSheet = true },
-                        onSpeedClick = { showSpeedSheet = true },
-                        onSleepTimerClick = { showSleepTimerSheet = true },
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                    )
-                }
-
-                is PlayerUiState.Error -> {
-                    ErrorScreen(
-                        message = state.message,
-                        onRetry = onNavigateBack,
                     )
                 }
             }
-        }
-    }
+        },
+        modifier = modifier,
+    )
 }
 
 @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
