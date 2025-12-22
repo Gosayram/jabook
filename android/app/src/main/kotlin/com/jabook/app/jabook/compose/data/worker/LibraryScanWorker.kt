@@ -29,14 +29,11 @@ import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import com.jabook.app.jabook.compose.domain.model.Result as DomainResult
 
 /**
@@ -122,29 +119,20 @@ class LibraryScanWorker
                             val books = result.data
                             setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_preparing, books.size)))
 
-                            // Prepare all entities and cover art jobs
+                            // Prepare entities (no cover processing - UI loads from folder)
                             val bookEntities = mutableListOf<BookEntity>()
                             val chapterEntities = mutableListOf<ChapterEntity>()
-                            val coverArtJobs = mutableListOf<kotlinx.coroutines.Deferred<Pair<String, String?>>>()
 
-                            // Phase 1: Prepare entities and start cover art saving in parallel
                             for (book in books) {
                                 val bookId = "local-${book.directory.hashCode()}"
 
-                                // Start cover art saving asynchronously (non-blocking)
-                                val coverArtJob =
-                                    async(Dispatchers.IO) {
-                                        bookId to saveCoverArt(bookId, book.coverArt)
-                                    }
-                                coverArtJobs.add(coverArtJob)
-
-                                // Prepare book entity (cover URL will be set later)
+                                // Create book without cover - UI finds cover.jpg in folder
                                 bookEntities.add(
                                     BookEntity(
                                         id = bookId,
                                         title = book.title,
                                         author = book.author,
-                                        coverUrl = null, // Will update after cover art is saved
+                                        coverUrl = null, // UI loads from folder
                                         description = null,
                                         totalDuration = book.totalDuration,
                                         localPath = book.directory,
@@ -171,23 +159,9 @@ class LibraryScanWorker
                                 )
                             }
 
-                            // Phase 2: Batch insert all books and chapters
+                            // Single batch insert - no cover processing!
                             setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_saving)))
                             booksDao.insertBooksWithChapters(bookEntities, chapterEntities)
-
-                            // Phase 3: Wait for cover art and update book records
-                            setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_processing_covers)))
-                            val coverResults = coverArtJobs.awaitAll()
-
-                            // Update books with cover URLs
-                            for ((bookId, coverUrl) in coverResults) {
-                                if (coverUrl != null) {
-                                    val bookEntity = bookEntities.find { it.id == bookId }
-                                    bookEntity?.let {
-                                        booksDao.updateBook(it.copy(coverUrl = coverUrl))
-                                    }
-                                }
-                            }
 
                             setProgress(
                                 workDataOf(
@@ -221,25 +195,5 @@ class LibraryScanWorker
                 }
             }
 
-        private suspend fun saveCoverArt(
-            bookId: String,
-            coverArt: ByteArray?,
-        ): String? {
-            if (coverArt == null) return null
-
-            return withContext(Dispatchers.IO) {
-                try {
-                    val coversDir = File(applicationContext.filesDir, "covers")
-                    coversDir.mkdirs()
-
-                    val coverFile = File(coversDir, "$bookId.jpg")
-                    coverFile.writeBytes(coverArt)
-
-                    coverFile.absolutePath
-                } catch (e: Exception) {
-                    android.util.Log.e("LibraryScanWorker", "Failed to save cover art", e)
-                    null
-                }
-            }
-        }
+        // Cover art removed - UI loads from book folder (cover.jpg/cover.jpeg)
     }
