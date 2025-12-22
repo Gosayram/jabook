@@ -249,7 +249,11 @@ private fun ChapterListItem(
             // Chapter info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = chapter.title,
+                    text = com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                        chapter = chapter,
+                        index = index,
+                        localizedPrefix = stringResource(R.string.chapter_prefix)
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
