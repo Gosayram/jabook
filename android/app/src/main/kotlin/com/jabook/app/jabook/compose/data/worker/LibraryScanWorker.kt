@@ -119,14 +119,52 @@ class LibraryScanWorker
                             val books = result.data
                             setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_preparing, books.size)))
 
-                            // Prepare entities (no cover processing - UI loads from folder)
+                            // Phase 1: Extract covers from metadata and save to app storage
+                            val coversDir = java.io.File(applicationContext.filesDir, "covers")
+                            if (!coversDir.exists()) coversDir.mkdirs()
+
+                            for (book in books) {
+                                if (isStopped) break // Cancellation check
+
+                                try {
+                                    // 1. Check if cover exists in book folder (torrent/user provided)
+                                    val folderCover = java.io.File(book.directory, "cover.jpg")
+                                    if (folderCover.exists()) continue // Skip if present
+
+                                    // 2. Check if already extracted
+                                    val bookId = "local-${book.directory.hashCode()}"
+                                    val appCoverFile = java.io.File(coversDir, "$bookId.jpg")
+                                    if (appCoverFile.exists()) continue // Skip if already extracted
+
+                                    // 3. Extract from metadata
+                                    val firstChapter = book.chapters.firstOrNull()
+                                    if (firstChapter != null) {
+                                        val retriever = android.media.MediaMetadataRetriever()
+                                        retriever.setDataSource(firstChapter.filePath)
+                                        val coverData = retriever.embeddedPicture
+                                        retriever.release()
+
+                                        if (coverData != null) {
+                                            appCoverFile.writeBytes(coverData)
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.w("LibraryScanWorker", "Failed to extract cover for ${book.title}: ${e.message}")
+                                }
+                            }
+
+                            if (isStopped) {
+                                return@withContext ListenableWorker.Result.failure()
+                            }
+
+                            // Phase 2: Prepare entities
                             val bookEntities = mutableListOf<BookEntity>()
                             val chapterEntities = mutableListOf<ChapterEntity>()
 
                             for (book in books) {
                                 val bookId = "local-${book.directory.hashCode()}"
 
-                                // Create book without cover - UI finds cover.jpg in folder
+                                // Create book - cover extracted from metadata and saved as cover.jpg
                                 bookEntities.add(
                                     BookEntity(
                                         id = bookId,

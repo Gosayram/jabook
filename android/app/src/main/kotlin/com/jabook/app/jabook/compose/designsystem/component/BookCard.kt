@@ -60,7 +60,7 @@ import coil3.compose.SubcomposeAsyncImage
 fun BookCard(
     title: String,
     author: String,
-    coverUrl: String?,
+    coverUrl: Any?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,

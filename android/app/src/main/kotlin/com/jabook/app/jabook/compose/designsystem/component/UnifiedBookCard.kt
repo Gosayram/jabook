@@ -41,12 +41,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
@@ -143,8 +145,9 @@ private fun GridBookCard(
                     )
                 }
 
+                val context = LocalContext.current
                 AsyncImage(
-                    model = book.coverUrl,
+                    model = CoverUtils.getCoverModel(book, context),
                     contentDescription = book.title,
                     modifier =
                         imageModifier.then(
@@ -280,8 +283,9 @@ private fun ListBookCard(
 
             // Cover image
             Box {
+                val context = LocalContext.current
                 AsyncImage(
-                    model = book.coverUrl,
+                    model = CoverUtils.getCoverModel(book, context),
                     contentDescription = book.title,
                     modifier = Modifier.size(coverSize.dp),
                     contentScale = ContentScale.Crop,

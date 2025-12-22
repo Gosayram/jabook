@@ -67,6 +67,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -77,6 +78,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
@@ -322,8 +324,9 @@ private fun PlayerContent(
                     Modifier
                 }
 
+            val context = LocalContext.current
             AsyncImage(
-                model = state.book.coverUrl,
+                model = CoverUtils.getCoverModel(state.book, context),
                 contentDescription = state.book.title,
                 modifier =
                     imageModifier

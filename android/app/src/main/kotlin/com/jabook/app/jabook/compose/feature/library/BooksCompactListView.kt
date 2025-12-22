@@ -38,11 +38,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.domain.model.Book
 
 /**
@@ -113,8 +115,9 @@ private fun CompactBookCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Compact cover image (48dp square)
+            val context = LocalContext.current
             AsyncImage(
-                model = book.coverUrl,
+                model = CoverUtils.getCoverModel(book, context),
                 contentDescription = book.title,
                 modifier = Modifier.size(48.dp),
                 contentScale = ContentScale.Crop,

@@ -22,7 +22,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.designsystem.component.BookCard
 import com.jabook.app.jabook.compose.domain.model.Book
 
@@ -69,10 +71,11 @@ fun BooksList(
             items = books,
             key = { book -> book.id },
         ) { book ->
+            val context = LocalContext.current
             BookCard(
                 title = book.title,
                 author = book.author,
-                coverUrl = book.coverUrl,
+                coverUrl = CoverUtils.getCoverModel(book, context),
                 onClick = { onBookClick(book.id) },
             )
         }

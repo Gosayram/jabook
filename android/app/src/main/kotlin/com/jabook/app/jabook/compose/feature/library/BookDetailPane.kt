@@ -47,11 +47,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.domain.model.Book
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -119,8 +121,9 @@ fun BookDetailPane(
             ) {
                 // Book cover
                 item {
+                    val context = LocalContext.current
                     AsyncImage(
-                        model = book.coverUrl,
+                        model = CoverUtils.getCoverModel(book, context),
                         contentDescription = book.title,
                         modifier =
                             Modifier
