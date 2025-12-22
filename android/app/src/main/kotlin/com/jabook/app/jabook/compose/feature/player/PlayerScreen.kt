@@ -149,7 +149,7 @@ fun PlayerScreen(
 
     // Handle back gesture - prioritize chapters pane, then screen exit
     androidx.activity.compose.BackHandler {
-        scope.launch {
+        scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
             if (scaffoldNavigator.canNavigateBack()) {
                 scaffoldNavigator.navigateBack()
             } else {
@@ -266,7 +266,7 @@ fun PlayerScreen(
                         onChapterClick = { chapterIndex ->
                             viewModel.skipToChapter(chapterIndex)
                             // On compact screens, navigate back after selection
-                            scope.launch {
+                            scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
                                 if (scaffoldNavigator.canNavigateBack()) {
                                     scaffoldNavigator.navigateBack()
                                 }

@@ -16,8 +16,12 @@ package com.jabook.app.jabook.compose.feature.library
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -292,13 +296,26 @@ fun LibraryScreen(
             modifier = modifier,
         )
 
-        // Snackbar at the top
+        // Adaptive Snackbar (bottom, compact, themed)
         androidx.compose.material3.SnackbarHost(
             hostState = snackbarHostState,
             modifier =
                 Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 16.dp),
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.navigationBars)
+                    .padding(bottom = 16.dp, start = 16.dp, end = 16.dp),
+            snackbar = { snackbarData ->
+                androidx.compose.material3.Snackbar(
+                    snackbarData = snackbarData,
+                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = androidx.compose.material3.MaterialTheme.colorScheme.inverseOnSurface,
+                    shape =
+                        androidx.compose.foundation.shape
+                            .RoundedCornerShape(12.dp),
+                    // Compact on tablets
+                    modifier = Modifier.widthIn(max = 600.dp),
+                )
+            },
         )
     }
 }

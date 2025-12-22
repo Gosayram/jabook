@@ -55,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.Chapter
@@ -84,111 +85,127 @@ fun PlayerChapterPane(
     val lazyListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    Column(modifier = modifier.fillMaxSize()) {
-        // Header with search
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            tonalElevation = 1.dp,
-        ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+    // Adaptive padding based on available width
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val horizontalPadding: Dp =
+            when {
+                maxWidth < 400.dp -> 12.dp // Compact phone
+                maxWidth < 600.dp -> 16.dp // Normal phone
+                maxWidth < 840.dp -> 24.dp // Large phone/small tablet
+                else -> 32.dp // Tablet
+            }
+        val verticalPadding: Dp =
+            when {
+                maxWidth < 600.dp -> 12.dp // Phone
+                else -> 16.dp // Tablet
+            }
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header with search
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                tonalElevation = 1.dp,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
                 ) {
-                    Text(
-                        text = stringResource(R.string.chaptersLabelText),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                    Text(
-                        text = "${currentChapterIndex + 1}/${chapters.size}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.chaptersLabelText),
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        Text(
+                            text = "${currentChapterIndex + 1}/${chapters.size}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Search/Jump field
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { newValue ->
+                            // Allow only numbers
+                            if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
+                                searchQuery = newValue
+
+                                // Auto-jump when valid number entered
+                                val chapterNum = newValue.toIntOrNull()
+                                if (chapterNum != null && chapterNum in 1..chapters.size) {
+                                    val targetIndex = chapterNum - 1
+                                    scope.launch {
+                                        lazyListState.animateScrollToItem(targetIndex)
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(stringResource(R.string.jumpToChapterNumber)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = stringResource(R.string.clearSearch),
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        keyboardOptions =
+                            KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Go,
+                            ),
+                        keyboardActions =
+                            KeyboardActions(
+                                onGo = {
+                                    val chapterNum = searchQuery.toIntOrNull()
+                                    if (chapterNum != null && chapterNum in 1..chapters.size) {
+                                        onChapterClick(chapterNum - 1)
+                                        searchQuery = ""
+                                    }
+                                },
+                            ),
                     )
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Search/Jump field
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { newValue ->
-                        // Allow only numbers
-                        if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
-                            searchQuery = newValue
-
-                            // Auto-jump when valid number entered
-                            val chapterNum = newValue.toIntOrNull()
-                            if (chapterNum != null && chapterNum in 1..chapters.size) {
-                                val targetIndex = chapterNum - 1
-                                scope.launch {
-                                    lazyListState.animateScrollToItem(targetIndex)
-                                }
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text(stringResource(R.string.jumpToChapterNumber)) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = stringResource(R.string.clearSearch),
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    keyboardOptions =
-                        KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Go,
-                        ),
-                    keyboardActions =
-                        KeyboardActions(
-                            onGo = {
-                                val chapterNum = searchQuery.toIntOrNull()
-                                if (chapterNum != null && chapterNum in 1..chapters.size) {
-                                    onChapterClick(chapterNum - 1)
-                                    searchQuery = ""
-                                }
-                            },
-                        ),
-                )
             }
-        }
 
-        HorizontalDivider()
+            HorizontalDivider()
 
-        // Chapter list
-        LazyColumn(
-            state = lazyListState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(8.dp),
-        ) {
-            itemsIndexed(chapters) { index, chapter ->
-                ChapterListItem(
-                    chapter = chapter,
-                    index = index,
-                    isSelected = index == currentChapterIndex,
-                    normalizeEnabled = normalizeEnabled,
-                    onClick = { onChapterClick(index) },
-                )
+            // Chapter list
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(8.dp),
+            ) {
+                itemsIndexed(chapters) { index, chapter ->
+                    ChapterListItem(
+                        chapter = chapter,
+                        index = index,
+                        isSelected = index == currentChapterIndex,
+                        normalizeEnabled = normalizeEnabled,
+                        onClick = { onChapterClick(index) },
+                    )
+                }
             }
-        }
-    }
+        } // Column
+    } // BoxWithConstraints
 }
 
 /**
