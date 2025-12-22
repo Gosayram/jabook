@@ -117,95 +117,110 @@ class LibraryScanWorker
                     when (result) {
                         is DomainResult.Success -> {
                             val books = result.data
-                            setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_preparing, books.size)))
 
-                            // Phase 1: Extract covers from metadata and save to app storage
+                            // Chunk processing to avoid UI hangs and memory spikes
+                            val batchSize = 20
+                            val batches = books.chunked(batchSize)
+
                             val coversDir = java.io.File(applicationContext.filesDir, "covers")
                             if (!coversDir.exists()) coversDir.mkdirs()
 
-                            for (book in books) {
-                                if (isStopped) break // Cancellation check
+                            var booksSaved = 0
 
-                                try {
-                                    // 1. Check if cover exists in book folder (torrent/user provided)
-                                    val folderCover = java.io.File(book.directory, "cover.jpg")
-                                    if (folderCover.exists()) continue // Skip if present
+                            batches.forEachIndexed { _, batch ->
+                                if (isStopped) return@withContext ListenableWorker.Result.failure()
 
-                                    // 2. Check if already extracted
-                                    val bookId = "local-${book.directory.hashCode()}"
-                                    val appCoverFile = java.io.File(coversDir, "$bookId.jpg")
-                                    if (appCoverFile.exists()) continue // Skip if already extracted
-
-                                    // 3. Extract from metadata
-                                    val firstChapter = book.chapters.firstOrNull()
-                                    if (firstChapter != null) {
-                                        val retriever = android.media.MediaMetadataRetriever()
-                                        retriever.setDataSource(firstChapter.filePath)
-                                        val coverData = retriever.embeddedPicture
-                                        retriever.release()
-
-                                        if (coverData != null) {
-                                            appCoverFile.writeBytes(coverData)
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    android.util.Log.w("LibraryScanWorker", "Failed to extract cover for ${book.title}: ${e.message}")
-                                }
-                            }
-
-                            if (isStopped) {
-                                return@withContext ListenableWorker.Result.failure()
-                            }
-
-                            // Phase 2: Prepare entities
-                            val bookEntities = mutableListOf<BookEntity>()
-                            val chapterEntities = mutableListOf<ChapterEntity>()
-
-                            for (book in books) {
-                                val bookId = "local-${book.directory.hashCode()}"
-
-                                // Create book - cover extracted from metadata and saved as cover.jpg
-                                bookEntities.add(
-                                    BookEntity(
-                                        id = bookId,
-                                        title = book.title,
-                                        author = book.author,
-                                        coverUrl = null, // UI loads from folder
-                                        description = null,
-                                        totalDuration = book.totalDuration,
-                                        localPath = book.directory,
-                                        addedDate = System.currentTimeMillis(),
-                                        downloadStatus = "DOWNLOADED",
-                                        isDownloaded = true,
+                                setProgress(
+                                    workDataOf(
+                                        "status" to
+                                            applicationContext.getString(
+                                                R.string.scan_status_preparing,
+                                                booksSaved + 1,
+                                            ),
                                     ),
                                 )
 
-                                // Prepare chapters
-                                chapterEntities.addAll(
-                                    book.chapters.map { chapter ->
-                                        ChapterEntity(
-                                            id = "$bookId-chapter-${chapter.index}",
-                                            bookId = bookId,
-                                            title = chapter.title,
-                                            chapterIndex = chapter.index,
-                                            fileIndex = chapter.index,
-                                            duration = chapter.duration,
-                                            fileUrl = chapter.filePath,
-                                            isDownloaded = true,
+                                val bookEntities = mutableListOf<BookEntity>()
+                                val chapterEntities = mutableListOf<ChapterEntity>()
+
+                                for (book in batch) {
+                                    // 1. Cover Extraction
+                                    try {
+                                        val folderCover = java.io.File(book.directory, "cover.jpg")
+                                        val bookId = "local-${book.directory.hashCode()}"
+
+                                        if (!folderCover.exists()) {
+                                            val appCoverFile = java.io.File(coversDir, "$bookId.jpg")
+                                            if (!appCoverFile.exists()) {
+                                                val firstChapter = book.chapters.firstOrNull()
+                                                if (firstChapter != null) {
+                                                    val retriever = android.media.MediaMetadataRetriever()
+                                                    try {
+                                                        retriever.setDataSource(firstChapter.filePath)
+                                                        val coverData = retriever.embeddedPicture
+                                                        if (coverData != null) {
+                                                            appCoverFile.writeBytes(coverData)
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        // Ignore retrieval errors
+                                                    } finally {
+                                                        retriever.release()
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 2. Entity Creation
+                                        bookEntities.add(
+                                            BookEntity(
+                                                id = bookId,
+                                                title = book.title,
+                                                author = book.author,
+                                                coverUrl = null, // UI loads from folder or app dir via CoverUtils
+                                                description = null,
+                                                totalDuration = book.totalDuration,
+                                                localPath = book.directory,
+                                                addedDate = System.currentTimeMillis(),
+                                                downloadStatus = "DOWNLOADED",
+                                                isDownloaded = true,
+                                            ),
                                         )
-                                    },
-                                )
+
+                                        chapterEntities.addAll(
+                                            book.chapters.map { chapter ->
+                                                ChapterEntity(
+                                                    id = "$bookId-chapter-${chapter.index}",
+                                                    bookId = bookId,
+                                                    title = chapter.title,
+                                                    chapterIndex = chapter.index,
+                                                    fileIndex = chapter.index,
+                                                    duration = chapter.duration,
+                                                    fileUrl = chapter.filePath,
+                                                    isDownloaded = true,
+                                                )
+                                            },
+                                        )
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("LibraryScanWorker", "Error processing book ${book.title}", e)
+                                    }
+                                }
+
+                                // 3. Batch Insert
+                                if (bookEntities.isNotEmpty()) {
+                                    booksDao.insertBooksWithChapters(bookEntities, chapterEntities)
+                                    booksSaved += bookEntities.size
+
+                                    setProgress(
+                                        workDataOf(
+                                            "status" to
+                                                applicationContext.getString(
+                                                    R.string.scan_status_completed_saving,
+                                                    booksSaved,
+                                                ),
+                                        ),
+                                    )
+                                }
                             }
-
-                            // Single batch insert - no cover processing!
-                            setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_saving)))
-                            booksDao.insertBooksWithChapters(bookEntities, chapterEntities)
-
-                            setProgress(
-                                workDataOf(
-                                    "status" to applicationContext.getString(R.string.scan_status_completed_saving, books.size),
-                                ),
-                            )
 
                             ListenableWorker.Result.success(
                                 workDataOf("booksFound" to books.size),
