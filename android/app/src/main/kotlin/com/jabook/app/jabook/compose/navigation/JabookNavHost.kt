@@ -136,7 +136,6 @@ fun JabookNavHost(
                 listOf(
                     androidx.navigation.navDeepLink<PlayerRoute>(basePath = "jabook://player"),
                 ),
-
         ) { backStackEntry ->
             PlayerScreen(
                 onNavigateBack = {
