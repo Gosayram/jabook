@@ -102,9 +102,6 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.navSettingsText)) },
-                windowInsets =
-                    androidx.compose.foundation.layout
-                        .WindowInsets(0, 0, 0, 0),
             )
         },
         modifier = modifier,
@@ -846,6 +843,7 @@ private fun SettingsItem(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
 

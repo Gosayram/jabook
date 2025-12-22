@@ -146,7 +146,7 @@ fun LibraryScreen(
                     Scaffold(
                         topBar = {
                             TopAppBar(
-                                title = { }, // Empty title for more space
+                                title = { Text(stringResource(R.string.library)) },
                                 actions = {
                                     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 

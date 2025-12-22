@@ -2369,6 +2369,7 @@
     <string name="downloaded">Downloaded</string>
     <!-- Player chapter pane strings -->
     <string name="currentlyPlaying">Currently playing</string>
+    <string name="jumpToChapterNumber">Jump to chapter #...</string>
     <!-- Search filters pane strings -->
     <string name="sizeRange">Size Range</string>
     <!-- Duration format helpers - not directly displayed but used in code -->

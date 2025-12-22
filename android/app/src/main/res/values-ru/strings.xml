@@ -2405,6 +2405,7 @@
     <string name="downloaded">Загружено</string>
     <!-- Строки панели глав плеера -->
     <string name="currentlyPlaying">Сейчас играет</string>
+    <string name="jumpToChapterNumber">Перейти к главе №...</string>
     <!-- Строки панели фильтров поиска -->
     <string name="sizeRange">Диапазон размера</string>
     <!-- Помощники форматирования длительности - не отображаются напрямую, а используются в коде -->

@@ -27,23 +27,38 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.Chapter
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -64,28 +79,92 @@ fun PlayerChapterPane(
     onChapterClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+    val lazyListState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
     Column(modifier = modifier.fillMaxSize()) {
-        // Header
+        // Header with search
         Surface(
             modifier = Modifier.fillMaxWidth(),
             tonalElevation = 1.dp,
         ) {
-            Row(
+            Column(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(R.string.chaptersLabelText),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                Text(
-                    text = "${currentChapterIndex + 1}/${chapters.size}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.chaptersLabelText),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Text(
+                        text = "${currentChapterIndex + 1}/${chapters.size}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Search/Jump field
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { newValue ->
+                        // Allow only numbers
+                        if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
+                            searchQuery = newValue
+
+                            // Auto-jump when valid number entered
+                            val chapterNum = newValue.toIntOrNull()
+                            if (chapterNum != null && chapterNum in 1..chapters.size) {
+                                val targetIndex = chapterNum - 1
+                                scope.launch {
+                                    lazyListState.animateScrollToItem(targetIndex)
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.jumpToChapterNumber)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = stringResource(R.string.clearSearch),
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Go,
+                        ),
+                    keyboardActions =
+                        KeyboardActions(
+                            onGo = {
+                                val chapterNum = searchQuery.toIntOrNull()
+                                if (chapterNum != null && chapterNum in 1..chapters.size) {
+                                    onChapterClick(chapterNum - 1)
+                                    searchQuery = ""
+                                }
+                            },
+                        ),
                 )
             }
         }
@@ -94,6 +173,7 @@ fun PlayerChapterPane(
 
         // Chapter list
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(8.dp),
         ) {
@@ -206,6 +286,7 @@ private fun ChapterListItem(
  * Formats a duration in milliseconds to a human-readable string.
  * Examples: "1h 23m", "45m", "12s"
  */
+@Composable
 private fun formatChapterDuration(millis: Long): String {
     val duration = millis.milliseconds
     val hours = duration.inWholeHours
@@ -213,8 +294,8 @@ private fun formatChapterDuration(millis: Long): String {
     val seconds = (duration.inWholeSeconds % 60)
 
     return when {
-        hours > 0 -> "${hours}h ${minutes}m"
-        minutes > 0 -> "${minutes}m"
-        else -> "${seconds}s"
+        hours > 0 -> stringResource(R.string.durationHoursMinutes, hours, minutes)
+        minutes > 0 -> stringResource(R.string.durationMinutes, minutes)
+        else -> stringResource(R.string.durationSeconds, seconds)
     }
 }

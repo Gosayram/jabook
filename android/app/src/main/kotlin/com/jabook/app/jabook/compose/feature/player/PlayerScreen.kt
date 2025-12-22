@@ -146,9 +146,15 @@ fun PlayerScreen(
         }
     }
 
-    // Handle back gesture for swipe-to-dismiss
+    // Handle back gesture - prioritize chapters pane, then screen exit
     androidx.activity.compose.BackHandler {
-        onNavigateBack()
+        scope.launch {
+            if (scaffoldNavigator.canNavigateBack()) {
+                scaffoldNavigator.navigateBack()
+            } else {
+                onNavigateBack()
+            }
+        }
     }
 
     // Playback Speed Sheet
@@ -193,7 +199,6 @@ fun PlayerScreen(
             AnimatedPane(modifier = Modifier) {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 ) { padding ->
                     Box(
                         modifier =
