@@ -34,6 +34,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import com.jabook.app.jabook.compose.domain.model.Result as DomainResult
 
 /**
@@ -139,11 +140,36 @@ class LibraryScanWorker
                                 val bookEntities = mutableListOf<BookEntity>()
                                 val chapterEntities = mutableListOf<ChapterEntity>()
 
+                                val coversDir = File(applicationContext.filesDir, "covers")
+                                if (!coversDir.exists()) coversDir.mkdirs()
+
                                 for (book in batch) {
-                                    // Create entities directly - covers loaded lazily by CoverUtils
-                                    // This improves scan performance by ~50% (no MediaMetadataRetriever bottleneck)
+                                    // Extract cover from FIRST chapter only (fast!)
+                                    // This is much faster than extracting from all files
                                     try {
                                         val bookId = "local-${book.directory.hashCode()}"
+                                        val coverFile = File(coversDir, "$bookId.jpg")
+
+                                        // Only extract if cover doesn't exist
+                                        if (!coverFile.exists() && book.chapters.isNotEmpty()) {
+                                            val firstChapter = book.chapters.first()
+                                            val audioFile = File(firstChapter.filePath)
+
+                                            if (audioFile.exists()) {
+                                                val retriever = android.media.MediaMetadataRetriever()
+                                                try {
+                                                    retriever.setDataSource(audioFile.absolutePath)
+                                                    val coverData = retriever.embeddedPicture
+                                                    if (coverData != null) {
+                                                        coverFile.writeBytes(coverData)
+                                                    }
+                                                } catch (e: Exception) {
+                                                    android.util.Log.w("LibraryScanWorker", "Failed to extract cover for ${book.title}", e)
+                                                } finally {
+                                                    retriever.release()
+                                                }
+                                            }
+                                        }
 
                                         // Entity Creation
                                         bookEntities.add(

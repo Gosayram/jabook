@@ -62,6 +62,7 @@ class SettingsViewModel
         private val cacheManager: CacheManager,
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val workManager: WorkManager,
+        private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
     ) : ViewModel() {
         val scanProgress: StateFlow<ScanProgress> =
             booksRepository.getScanProgress().stateIn(
@@ -71,11 +72,22 @@ class SettingsViewModel
             )
 
         fun scanLibrary() {
-            val workRequest =
-                OneTimeWorkRequestBuilder<LibraryScanWorker>()
-                    .addTag("library_scan")
-                    .build()
-            workManager.enqueue(workRequest)
+            viewModelScope.launch {
+                // Check if scan folders are configured
+                val scanFolders = scanPathDao.getAllPathsList()
+                if (scanFolders.isEmpty()) {
+                    // No folders configured - skip scan
+                    android.util.Log.w("SettingsViewModel", "Scan skipped: no folders configured")
+                    return@launch
+                }
+
+                // Folders configured - proceed with scan
+                val workRequest =
+                    OneTimeWorkRequestBuilder<LibraryScanWorker>()
+                        .addTag("library_scan")
+                        .build()
+                workManager.enqueue(workRequest)
+            }
         }
 
         fun cancelScan() {
