@@ -96,4 +96,24 @@ class JabookAppState(
             TopLevelDestination.SETTINGS -> navController.navigate(SettingsRoute, topLevelNavOptions)
         }
     }
+
+    /**
+     * Navigates to the Library screen.
+     *
+     * This clears the back stack and navigates to the library as the root destination.
+     * Useful for returning to the main screen from anywhere in the app.
+     */
+    fun navigateToLibrary() {
+        navController.navigate(LibraryRoute) {
+            // Clear the entire back stack
+            popUpTo(navController.graph.findStartDestination().id) {
+                inclusive = false
+                saveState = false
+            }
+            // Single instance of library
+            launchSingleTop = true
+            // Don't restore state - fresh start
+            restoreState = false
+        }
+    }
 }

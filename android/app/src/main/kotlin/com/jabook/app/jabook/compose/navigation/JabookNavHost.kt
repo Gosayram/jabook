@@ -139,7 +139,7 @@ fun JabookNavHost(
         ) { backStackEntry ->
             PlayerScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    appState.navigateToLibrary()
                 },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
