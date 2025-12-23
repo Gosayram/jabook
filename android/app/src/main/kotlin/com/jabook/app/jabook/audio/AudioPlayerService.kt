@@ -34,6 +34,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.Cache
 import javax.inject.Inject
 
@@ -958,29 +959,52 @@ class AudioPlayerService : MediaLibraryService() {
                 .build()
 
         // listener to force refresh notification when metadata changes
+        // CRITICAL: Debounce notification updates to prevent spam
+        // Events can fire multiple times rapidly (e.g., onMediaItemTransition + onMediaMetadataChanged)
+        var notificationUpdateJob: kotlinx.coroutines.Job? = null
+        val debounceDelayMs = 300L // Wait 300ms before updating notification
+
         exoPlayer.addListener(
             object : Player.Listener {
                 override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
-                    android.util.Log.e("PlayerNotification", "onMediaMetadataChanged: invalidating notification")
-                    playerNotificationManager?.invalidate()
+                    // Debounce notification update
+                    notificationUpdateJob?.cancel()
+                    val service = this@AudioPlayerService
+                    notificationUpdateJob =
+                        service.playerServiceScope.launch {
+                            kotlinx.coroutines.delay(debounceDelayMs)
+                            android.util.Log.d("PlayerNotification", "onMediaMetadataChanged: invalidating notification (debounced)")
+                            service.playerNotificationManager?.invalidate()
+                        }
                 }
 
                 override fun onMediaItemTransition(
                     mediaItem: androidx.media3.common.MediaItem?,
                     reason: Int,
                 ) {
-                    android.util.Log.e("PlayerNotification", "onMediaItemTransition: invalidating notification")
-                    playerNotificationManager?.invalidate()
+                    // Debounce notification update
+                    notificationUpdateJob?.cancel()
+                    val service = this@AudioPlayerService
+                    notificationUpdateJob =
+                        service.playerServiceScope.launch {
+                            kotlinx.coroutines.delay(debounceDelayMs)
+                            android.util.Log.d("PlayerNotification", "onMediaItemTransition: invalidating notification (debounced)")
+                            service.playerNotificationManager?.invalidate()
+                        }
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
-                        playerNotificationManager?.invalidate()
+                        // Immediate update for READY state (important for initial load)
+                        android.util.Log.d("PlayerNotification", "onPlaybackStateChanged: READY, invalidating immediately")
+                        this@AudioPlayerService.playerNotificationManager?.invalidate()
                     }
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    playerNotificationManager?.invalidate()
+                    // Immediate update for play/pause (user expects instant feedback)
+                    android.util.Log.d("PlayerNotification", "onIsPlayingChanged: $isPlaying, invalidating immediately")
+                    this@AudioPlayerService.playerNotificationManager?.invalidate()
                 }
             },
         )
