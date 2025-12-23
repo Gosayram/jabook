@@ -221,6 +221,14 @@ class AudioPlayerController
 
         private fun startService() {
             try {
+                // CRITICAL FIX: Only start service if it's not already running
+                // Calling startService() when service is already running can trigger onCreate() again
+                if (AudioPlayerService.getInstance() != null) {
+                    android.util.Log.d("AudioPlayerController", "Service already running, skipping startService()")
+                    return
+                }
+
+                android.util.Log.i("AudioPlayerController", "Starting AudioPlayerService...")
                 val intent = Intent(context, AudioPlayerService::class.java)
                 // Use startService instead of startForegroundService.
                 // Since the app is in the foreground, we are allowed to start the service.
