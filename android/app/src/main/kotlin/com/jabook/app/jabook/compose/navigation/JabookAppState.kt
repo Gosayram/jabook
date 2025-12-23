@@ -112,7 +112,7 @@ class JabookAppState(
         navController.navigate(LibraryRoute) {
             // Clear the entire back stack INCLUDING the current destination
             popUpTo(navController.graph.findStartDestination().id) {
-                inclusive = true  // Remove everything including start destination
+                inclusive = true // Remove everything including start destination
                 saveState = false
             }
             // Single instance of library

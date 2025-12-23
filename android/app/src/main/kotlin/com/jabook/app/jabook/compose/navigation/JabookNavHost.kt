@@ -139,12 +139,16 @@ fun JabookNavHost(
             // Disable exit animations to prevent blank screen on back navigation
             popExitTransition = {
                 androidx.compose.animation.fadeOut(
-                    animationSpec = androidx.compose.animation.core.tween(0)
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(0),
                 )
             },
             exitTransition = {
                 androidx.compose.animation.fadeOut(
-                    animationSpec = androidx.compose.animation.core.tween(0)
+                    animationSpec =
+                        androidx.compose.animation.core
+                            .tween(0),
                 )
             },
         ) { backStackEntry ->
