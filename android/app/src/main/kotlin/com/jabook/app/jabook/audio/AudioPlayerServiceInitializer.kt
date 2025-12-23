@@ -196,13 +196,18 @@ class AudioPlayerServiceInitializer(
             // Build MediaLibrarySession - Media3 handles notifications automatically
             // DO NOT set custom notification provider or media button preferences in Builder
             // These must be handled in the Callback's onConnect method
+            // CRITICAL: Add PID to session ID to prevent duplicates when service is recreated
+            // Android can recreate Service without calling onDestroy, causing duplicate session IDs
+            val sessionId = "jabook_${android.os.Process.myPid()}"
+            android.util.Log.i("AudioPlayerService", "Creating MediaLibrarySession with ID: $sessionId")
+
             val sessionBuilder =
                 MediaLibrarySession
                     .Builder(
                         service,
                         service.exoPlayer,
                         callback,
-                    ).setId("jabook_media_session") // Unique session ID to prevent conflicts
+                    ).setId(sessionId) // Unique session ID per process to prevent conflicts
 
             // Set session activity (PendingIntent)
             // This is CRITICAL for Android 12+ media controls to work properly

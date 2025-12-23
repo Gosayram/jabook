@@ -350,6 +350,7 @@ class AudioPlayerService : MediaLibraryService() {
         // CRITICAL: Use Log.e (ERROR) level - ProGuard won't strip these
         android.util.Log.e("JABOOK_SERVICE", "============================================")
         android.util.Log.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() START")
+        android.util.Log.e("JABOOK_SERVICE", "PID: ${android.os.Process.myPid()}, Instance: ${System.identityHashCode(this)}")
         android.util.Log.e("JABOOK_SERVICE", "============================================")
 
         try {
@@ -1023,7 +1024,9 @@ class AudioPlayerService : MediaLibraryService() {
         playerNotificationManager?.setUsePlayPauseActions(true)
         playerNotificationManager?.setUseStopAction(false)
 
-        // Force initial refresh
+        // CRITICAL: Force immediate invalidate to ensure startForeground() is called within 5 seconds
+        // This prevents ForegroundServiceDidNotStartInTimeException crash
+        android.util.Log.d("PlayerNotification", "Forcing immediate invalidate for foreground state")
         playerNotificationManager?.invalidate()
     }
 
