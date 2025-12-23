@@ -40,11 +40,12 @@ help:
 	@echo "  make copy-apk                      - Copy prod APK files to ~/Downloads/Jabook"
 	@echo "  make copy-apk-beta                 - Copy beta APK files to ~/Downloads/Jabook"
 	@echo "  make build-and-copy                - Build prod APK and copy to Downloads"
-	@echo "  make build-beta-and-copy           - Build beta APK and copy to Downloads"
+	@echo "  make build-beta-and-copy           - Auto-increment build, build beta APK and copy to Downloads"
 	@echo "  make build-android-signed-apk-beta-copy - Alias for build-beta-and-copy"
 	@echo ""
 	@echo "Version Management:"
 	@echo "  make version                       - Show current version from .release-version"
+	@echo "  make increment-build               - Increment build number in .release-version"
 	@echo "  make update-version NEW_VERSION=x.y.z - Update version in .release-version"
 	@echo ""
 	@echo "Git Commands:"
@@ -282,8 +283,13 @@ build-and-copy: build-signed-apk copy-apk
 	@echo "✅ Build and copy complete!"
 
 .PHONY: build-beta-and-copy
-build-beta-and-copy: build-signed-apk-beta copy-apk-beta
+build-beta-and-copy: increment-build build-signed-apk-beta copy-apk-beta
 	@echo "✅ Beta build and copy complete!"
+
+# Increment build number in .release-version
+.PHONY: increment-build
+increment-build:
+	@bash scripts/increment-build.sh
 
 # Aliases matching old Makefile naming
 .PHONY: build-signed-apk-copy
