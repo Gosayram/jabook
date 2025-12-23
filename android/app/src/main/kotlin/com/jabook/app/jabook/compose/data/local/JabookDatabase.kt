@@ -45,6 +45,7 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
  * Database version 7: Added favorites table for favorite audiobooks management.
  * Database version 8: Fix some issues with database migration.
  * Database version 9: Added scan_paths table for custom scan directory configuration.
+ * Database version 10: Added index on chapter_index for faster chapter sorting.
  */
 @Database(
     entities = [
@@ -57,7 +58,7 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
         FavoriteEntity::class,
         ScanPathEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = false,
 )
 abstract class JabookDatabase : RoomDatabase() {

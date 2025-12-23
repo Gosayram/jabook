@@ -576,7 +576,7 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
-        // TODO: Implement position saving in Kotlin (Flutter bridge removed)
+
         // playbackPositionSaver?.startPeriodicPositionSaving()
     }
 
@@ -585,7 +585,7 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
-        // TODO: Implement position saving in Kotlin (Flutter bridge removed)
+
         // playbackPositionSaver?.savePosition("pause")
         // storeCurrentMediaItem()
         // playbackPositionSaver?.stopPeriodicPositionSaving()
@@ -596,7 +596,7 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
-        // TODO: Implement position saving in Kotlin (Flutter bridge removed)
+
         // playbackPositionSaver?.savePosition("stop")
         // storeCurrentMediaItem()
         // playbackPositionSaver?.stopPeriodicPositionSaving()
@@ -617,7 +617,6 @@ class AudioPlayerService : MediaLibraryService() {
     }
 
     internal fun saveCurrentPosition() {
-        // TODO: Implement position saving in Kotlin (Flutter bridge removed)
         positionManager?.saveCurrentPosition() ?: run {
             android.util.Log.e(
                 "AudioPlayerService",
@@ -634,7 +633,6 @@ class AudioPlayerService : MediaLibraryService() {
      */
     @OptIn(UnstableApi::class) // Player.listen, BitmapLoader
     internal fun storeCurrentMediaItem() {
-        // TODO: Implement position saving in Kotlin
     }
 
     fun seekTo(positionMs: Long) =
@@ -1031,10 +1029,6 @@ class AudioPlayerService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
-        // TODO: Flutter bridge removed
-        // bridgePlayerListener?.release()
-        // bridgePlayerListener = null
-
         // Clean up PlayerNotificationManager
         playerNotificationManager?.setPlayer(null)
         playerNotificationManager = null

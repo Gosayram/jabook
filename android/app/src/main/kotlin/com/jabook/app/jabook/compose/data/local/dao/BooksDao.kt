@@ -20,6 +20,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import kotlinx.coroutines.flow.Flow
@@ -156,6 +157,33 @@ interface BooksDao {
     ) {
         insertBooks(books)
         insertChapters(chapters)
+    }
+
+    /**
+     * Upsert (insert or update) books.
+     * Faster than INSERT OR REPLACE, avoids conflicts on re-scans.
+     */
+    @Upsert
+    suspend fun upsertBooks(books: List<BookEntity>)
+
+    /**
+     * Upsert (insert or update) chapters.
+     * Faster than INSERT OR REPLACE, avoids conflicts on re-scans.
+     */
+    @Upsert
+    suspend fun upsertChapters(chapters: List<ChapterEntity>)
+
+    /**
+     * Upsert books and chapters in a single transaction.
+     * Preferred for re-scans to avoid conflicts and improve performance.
+     */
+    @Transaction
+    suspend fun upsertBooksWithChapters(
+        books: List<BookEntity>,
+        chapters: List<ChapterEntity>,
+    ) {
+        upsertBooks(books)
+        upsertChapters(chapters)
     }
 
     /**

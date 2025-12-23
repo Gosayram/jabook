@@ -112,7 +112,10 @@ data class BookEntity(
             onDelete = androidx.room.ForeignKey.CASCADE,
         ),
     ],
-    indices = [androidx.room.Index(value = ["book_id"])],
+    indices = [
+        androidx.room.Index(value = ["book_id"]),
+        androidx.room.Index(value = ["chapter_index"]), // Faster sorting by chapter order
+    ],
 )
 data class ChapterEntity(
     @PrimaryKey

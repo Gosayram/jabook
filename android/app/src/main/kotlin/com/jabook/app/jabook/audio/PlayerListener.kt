@@ -48,7 +48,6 @@ internal class PlayerListener(
     private val setLastCompletedTrackIndex: ((Int) -> Unit)? = null,
     private val getLastCompletedTrackIndex: (() -> Int)? = null,
     private val getActualPlaylistSize: (() -> Int)? = null, // Get actual playlist size from filePaths
-    // private val playbackPositionSaver: PlaybackPositionSaver? = null, // TODO: Flutter bridge removed
     private val updateActualTrackIndex: ((Int) -> Unit)? = null, // Callback to update actual track index
     private val isPlaylistLoading: (() -> Boolean)? = null, // Check if playlist is currently loading
     private val storeCurrentMediaItem: (() -> Unit)? = null, // Callback to store current media item for playback resumption

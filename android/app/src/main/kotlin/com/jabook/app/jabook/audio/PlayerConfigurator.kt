@@ -95,7 +95,6 @@ internal class PlayerConfigurator(
                     // playbackPositionSaver removed - Flutter bridge no longer needed
                     updateActualTrackIndex = { index -> service.updateActualTrackIndex(index) },
                     isPlaylistLoading = { service.playlistManager?.isPlaylistLoading ?: false },
-                    storeCurrentMediaItem = { }, // TODO: Flutter bridge removed
                     updateLastPlayedTimestamp = { bookId ->
                         service.playerServiceScope.launch {
                             service.playerPersistenceManager.updateLastPlayed(bookId)
@@ -197,7 +196,6 @@ internal class PlayerConfigurator(
 
                 // Copy listener from singleton player (using instance from this class)
                 playerListener?.let { customExoPlayer?.addListener(it) }
-                // TODO: Flutter bridge removed - bridgePlayerListener not needed
 
                 android.util.Log.i(
                     "AudioPlayerService",

@@ -240,6 +240,9 @@ class LibraryViewModel
         private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
         val scanState: StateFlow<ScanState> = _scanState
 
+        // Track current scan work for cancellation
+        private var currentScanWorkId: java.util.UUID? = null
+
         /**
          * Start library scan for local audiobooks.
          */
@@ -263,6 +266,8 @@ class LibraryViewModel
                                 .build(),
                         ).build()
 
+                // Track work ID for cancellation
+                currentScanWorkId = scanRequest.id
                 workManager.enqueue(scanRequest)
 
                 // Observe work progress
@@ -289,6 +294,17 @@ class LibraryViewModel
                         }
                 }
             }
+        }
+
+        /**
+         * Cancel the currently running library scan.
+         */
+        fun cancelLibraryScan() {
+            currentScanWorkId?.let { workId ->
+                workManager.cancelWorkById(workId)
+                currentScanWorkId = null
+            }
+            _scanState.value = ScanState.Idle
         }
     }
 

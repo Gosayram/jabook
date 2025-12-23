@@ -85,19 +85,6 @@ class AudioPlayerServiceInitializer(
                 sendBroadcast = { service.sendBroadcast(it) },
             )
 
-        // TODO: Flutter bridge removed - PlaybackPositionSaver not needed in pure Kotlin app
-        // service.playbackPositionSaver =
-        //     PlaybackPositionSaver(
-        //         getActivePlayer = { service.getActivePlayer() },
-        //         getMethodChannel = { service.methodChannel },
-        //         context = service,
-        //         getGroupPath = { service.currentGroupPath },
-        //         isPlaylistLoading = { service.isPlaylistLoading },
-        //         getActualTrackIndex = { service.actualTrackIndex },
-        //         getCurrentFilePaths = { service.currentFilePaths },
-        //         getDurationForFile = { filePath -> service.getDurationForFile(filePath) },
-        //     )
-
         // 7. UnloadManager
         service.unloadManager =
             UnloadManager(
