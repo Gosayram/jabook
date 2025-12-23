@@ -119,6 +119,33 @@ class LibraryScanWorker
                         is DomainResult.Success -> {
                             val books = result.data
 
+                            // CRITICAL FIX: Clean up books whose directories were deleted
+                            // This ensures DB reflects actual filesystem state
+                            android.util.Log.d("LibraryScanWorker", "Checking for deleted books...")
+                            val existingBooks = booksDao.getAllBookPaths()
+                            var deletedCount = 0
+
+                            for (book in existingBooks) {
+                                if (book.localPath != null) {
+                                    val bookDir = java.io.File(book.localPath)
+                                    if (!bookDir.exists() || !bookDir.isDirectory) {
+                                        android.util.Log.i(
+                                            "LibraryScanWorker",
+                                            "Deleting book with non-existent path: ${book.localPath}",
+                                        )
+                                        booksDao.deleteById(book.id)
+                                        deletedCount++
+                                    }
+                                }
+                            }
+
+                            if (deletedCount > 0) {
+                                android.util.Log.i(
+                                    "LibraryScanWorker",
+                                    "Cleaned up $deletedCount deleted books from database",
+                                )
+                            }
+
                             // Chunk processing to avoid UI hangs and memory spikes
                             // Increased from 20 to 50 for better performance
                             val batchSize = 50

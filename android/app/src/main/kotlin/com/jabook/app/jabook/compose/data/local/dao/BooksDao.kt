@@ -277,9 +277,25 @@ interface BooksDao {
     suspend fun resetAllBookSettings()
 
     /**
+     * Gets all book IDs and local paths for validation.
+     * Used to check which books still exist on filesystem during scan.
+     */
+    @Query("SELECT id, local_path FROM books")
+    suspend fun getAllBookPaths(): List<BookPathInfo>
+
+    /**
      * Deletes a book by ID.
      * Chapters will be cascade deleted due to foreign key constraint.
      */
     @Query("DELETE FROM books WHERE id = :bookId")
     suspend fun deleteById(bookId: String)
 }
+
+/**
+ * Lightweight data class for book path validation.
+ * Only contains fields needed to check if book still exists.
+ */
+data class BookPathInfo(
+    val id: String,
+    @androidx.room.ColumnInfo(name = "local_path") val localPath: String?,
+)

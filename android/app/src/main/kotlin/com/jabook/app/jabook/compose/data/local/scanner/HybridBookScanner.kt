@@ -53,9 +53,27 @@ class HybridBookScanner
                 )
 
         override suspend fun scanAudiobooks(): Result<List<ScannedBook>> {
+            // CRITICAL FIX: Validate and clean up non-existent folders before scanning
+            // Remove folders that were deleted from filesystem
             val customPaths = scanPathDao.getAllPathsList()
+            var removedCount = 0
+            for (pathEntity in customPaths) {
+                val folder = java.io.File(pathEntity.path)
+                if (!folder.exists() || !folder.isDirectory) {
+                    android.util.Log.w("HybridScanner", "Removing non-existent scan folder: ${pathEntity.path}")
+                    scanPathDao.deletePath(pathEntity)
+                    removedCount++
+                }
+            }
 
-            return if (customPaths.isEmpty()) {
+            if (removedCount > 0) {
+                android.util.Log.i("HybridScanner", "Cleaned up $removedCount deleted scan folders")
+            }
+
+            // Get updated list after cleanup
+            val validPaths = scanPathDao.getAllPathsList()
+
+            return if (validPaths.isEmpty()) {
                 // No custom paths - use MediaStore (fast, indexed)
                 android.util.Log.d("HybridScanner", "Using MediaStore scanner (no custom paths)")
                 mediaStoreScanner.scanAudiobooks()
@@ -64,7 +82,7 @@ class HybridBookScanner
                 // This ignores .nomedia files (user's use case: hide images, show audio)
                 android.util.Log.d(
                     "HybridScanner",
-                    "Using direct file scanner (${customPaths.size} custom paths)",
+                    "Using direct file scanner (${validPaths.size} custom paths)",
                 )
                 directScanner.scanAudiobooks()
             }
