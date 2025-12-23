@@ -954,11 +954,12 @@ class AudioPlayerService : MediaLibraryService() {
                             notification: android.app.Notification,
                             ongoing: Boolean,
                         ) {
-                            if (ongoing) {
-                                startForeground(notificationId, notification)
-                            } else {
-                                stopForeground(STOP_FOREGROUND_DETACH)
-                            }
+                            // CRITICAL FIX: ALWAYS stay in foreground, even when paused
+                            // This keeps notification visible like quality music apps (Spotify, YouTube Music)
+                            // Previously: stopForeground(DETACH) when ongoing==false (paused) → notification disappeared
+                            // Now: Always startForeground → notification persists
+                            android.util.Log.d("AudioPlayerService", "onNotificationPosted: ongoing=$ongoing, staying in foreground")
+                            startForeground(notificationId, notification)
                         }
                     },
                 ).setSmallIconResourceId(com.jabook.app.jabook.R.drawable.ic_notification_logo)
