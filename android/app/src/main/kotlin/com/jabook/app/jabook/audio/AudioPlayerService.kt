@@ -377,10 +377,10 @@ class AudioPlayerService : MediaLibraryService() {
 
             // Initialize PlayerNotificationManager (androidx.media3.ui)
             // This provides direct notification control that works with background service warmup
-            // DISABLED: Using only Phone Speaker (system media control) via MediaLibrarySession
-            // android.util.Log.e("JABOOK_SERVICE", "Initializing PlayerNotificationManager...")
-            // setupPlayerNotificationManager()
-            // android.util.Log.e("JABOOK_SERVICE", "[OK] PlayerNotificationManager initialized")
+            // CRITICAL: This is NOT a fallback - it's what powers Phone Speaker integration!
+            android.util.Log.e("JABOOK_SERVICE", "Initializing PlayerNotificationManager...")
+            setupPlayerNotificationManager()
+            android.util.Log.e("JABOOK_SERVICE", "[OK] PlayerNotificationManager initialized")
 
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
@@ -1027,9 +1027,8 @@ class AudioPlayerService : MediaLibraryService() {
         // bridgePlayerListener = null
 
         // Clean up PlayerNotificationManager
-        // DISABLED: PlayerNotificationManager not used (Phone Speaker only)
-        // playerNotificationManager?.setPlayer(null)
-        // playerNotificationManager = null
+        playerNotificationManager?.setPlayer(null)
+        playerNotificationManager = null
 
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()
