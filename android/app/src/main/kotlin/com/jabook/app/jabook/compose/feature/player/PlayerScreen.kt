@@ -149,14 +149,11 @@ fun PlayerScreen(
         }
     }
 
-    // Handle back gesture - prioritize chapters pane, then screen exit
-    androidx.activity.compose.BackHandler {
-        scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
-            if (scaffoldNavigator.canNavigateBack()) {
-                scaffoldNavigator.navigateBack()
-            } else {
-                onNavigateBack()
-            }
+    // Handle back gesture - only intercept when chapters pane is open
+    // When pane is closed, default back behavior will call onNavigateBack() via NavHost
+    androidx.activity.compose.BackHandler(enabled = scaffoldNavigator.canNavigateBack()) {
+        scope.launch {
+            scaffoldNavigator.navigateBack()
         }
     }
 
