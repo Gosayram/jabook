@@ -847,6 +847,12 @@ class AudioPlayerService : MediaLibraryService() {
 
     @OptIn(UnstableApi::class)
     private fun setupPlayerNotificationManager() {
+        // Guard: Prevent duplicate initialization
+        if (playerNotificationManager != null) {
+            android.util.Log.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
+            return
+        }
+
         // CRITICAL: Create notification channel BEFORE PlayerNotificationManager
         // Otherwise Android will crash with "invalid channel for service notification"
         notificationHelper?.ensureNotificationChannel(NotificationHelper.CHANNEL_ID)
@@ -963,7 +969,7 @@ class AudioPlayerService : MediaLibraryService() {
         // CRITICAL: Debounce notification updates to prevent spam
         // Events can fire multiple times rapidly (e.g., onMediaItemTransition + onMediaMetadataChanged)
         var notificationUpdateJob: kotlinx.coroutines.Job? = null
-        val debounceDelayMs = 300L // Wait 300ms before updating notification
+        val debounceDelayMs = 150L // Wait 150ms before updating notification (balanced for responsiveness)
 
         exoPlayer.addListener(
             object : Player.Listener {
