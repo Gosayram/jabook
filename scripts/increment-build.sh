@@ -33,3 +33,13 @@ NEW_VERSION="${VERSION}+${NEW_BUILD}"
 echo "$NEW_VERSION" > "$RELEASE_VERSION_FILE"
 
 echo "✅ Build number incremented: $CURRENT_VERSION -> $NEW_VERSION"
+
+# Git commit and push
+echo "📝 Committing changes..."
+git add "$RELEASE_VERSION_FILE"
+git commit -m "[UPD] - bump patch version to $NEW_VERSION;"
+
+echo "📤 Pushing to remote..."
+git push
+
+echo "✅ Changes committed and pushed successfully"
