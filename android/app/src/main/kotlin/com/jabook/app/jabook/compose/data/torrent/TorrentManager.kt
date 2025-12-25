@@ -18,7 +18,11 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -32,12 +36,14 @@ class TorrentManager
     constructor(
         @param:ApplicationContext private val context: Context,
         private val sessionManager: TorrentSessionManager,
+        private val repository: TorrentDownloadRepository,
     ) {
         /** Current downloads */
         val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
             get() = sessionManager.downloadsFlow
 
         private var isInitialized = false
+        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         /**
          * Initialize torrent system
@@ -52,6 +58,9 @@ class TorrentManager
                 sessionManager.initSession()
                 isInitialized = true
                 Log.i(TAG, "TorrentManager initialized")
+
+                // Start observing downloads for DB sync
+                observeAndSyncToDatabase()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize", e)
                 throw e
@@ -184,6 +193,19 @@ class TorrentManager
                 context.startService(intent)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to stop download service", e)
+            }
+        }
+
+        /**
+         * Start observing downloads and sync to database
+         */
+        private fun observeAndSyncToDatabase() {
+            scope.launch {
+                downloadsFlow.collect { downloads ->
+                    if (downloads.isNotEmpty()) {
+                        repository.saveAll(downloads.values.toList())
+                    }
+                }
             }
         }
 

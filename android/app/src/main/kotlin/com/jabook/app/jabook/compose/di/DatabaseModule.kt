@@ -168,6 +168,48 @@ object DatabaseModule {
             }
         }
 
+    /**
+     * Database migration from version 9 to version 10.
+     *
+     * Adds index on chapter_index for faster chapter sorting.
+     */
+    private val MIGRATION_9_10 =
+        object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_chapters_chapter_index ON chapters(chapter_index)")
+            }
+        }
+
+    /**
+     * Database migration from version 10 to version 11.
+     *
+     * Adds torrent_downloads table for torrent download persistence.
+     */
+    private val MIGRATION_10_11 =
+        object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `torrent_downloads` (
+                        `hash` TEXT PRIMARY KEY NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `state` TEXT NOT NULL,
+                        `progress` REAL NOT NULL,
+                        `totalSize` INTEGER NOT NULL,
+                        `downloadedSize` INTEGER NOT NULL,
+                        `uploadedSize` INTEGER NOT NULL,
+                        `savePath` TEXT NOT NULL,
+                        `files` TEXT NOT NULL,
+                        `errorMessage` TEXT,
+                        `addedTime` INTEGER NOT NULL,
+                        `completedTime` INTEGER NOT NULL,
+                        `pauseReason` TEXT
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
     @Provides
     @Singleton
     fun provideJabookDatabase(
@@ -186,6 +228,8 @@ object DatabaseModule {
                 MIGRATION_6_7,
                 MIGRATION_7_8,
                 MIGRATION_8_9,
+                MIGRATION_9_10,
+                MIGRATION_10_11,
             ).build()
 
     @Provides
@@ -211,4 +255,8 @@ object DatabaseModule {
 
     @Provides
     fun provideScanPathDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.ScanPathDao = database.scanPathDao()
+
+    @Provides
+    fun provideTorrentDownloadDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao =
+        database.torrentDownloadDao()
 }
