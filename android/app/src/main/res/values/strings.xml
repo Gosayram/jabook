@@ -2398,6 +2398,40 @@
 
     <!-- Torrent Downloads -->
     <string name="torrent_downloads">Torrent Downloads</string>
+    <string name="torrent_pause">Pause torrent</string>
+    <string name="torrent_resume">Resume torrent</string>
+    <string name="torrent_stop">Stop torrent</string>
+
+    <!-- Torrent Actions -->
+    <string name="pause_download">Pause</string>
+    <string name="resume_download">Resume</string>
+    <string name="delete_download">Delete</string>
+
+    <!-- Torrent States -->
+    <string name="downloading_state">Downloading</string>
+    <string name="paused_state">Paused</string>
+    <string name="completed_state">Completed</string>
+    <string name="error_state">Error</string>
+    <string name="seeding_state">Seeding</string>
+    <string name="streaming_state">Streaming</string>
+    <string name="checking_state">Checking</string>
+    <string name="metadata_state">Getting info</string>
+    <string name="queued_state">Queued</string>
+    <string name="stopped_state">Stopped</string>
+    <string name="seeding_paused_state">Seeding (Paused)</string>
+    
+    <!-- Torrent Stats -->
+    <string name="size_gb">%.1f GB</string>
+    <string name="size_mb">%.1f MB</string>
+    <string name="size_kb">%.0f KB</string>
+    <string name="size_bytes">%d B</string>
+    <string name="duration_hm">%1$dh %2$dm</string>
+    <string name="duration_m">%1$dm</string>
+    <string name="duration_less_minute">&lt;1m</string>
+    
+    <string name="peers_seeds">Peers: %1$d (%2$d seeds)</string>
+    <string name="no_downloads">No downloads yet</string>
+    <string name="more_options">More options</string>
     <string name="torrent_downloads_channel_description">Notifications for torrent download progress</string>
     <string name="torrent_service_running">Download service running</string>
     <string name="tap_to_manage_downloads">Tap to manage downloads</string>
