@@ -210,6 +210,52 @@ object DatabaseModule {
             }
         }
 
+    /**
+     * Database migration from version 11 to version 12.
+     *
+     * Adds cached_topics and search_query_map tables for offline search persistence.
+     */
+    private val MIGRATION_11_12 =
+        object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create cached_topics table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `cached_topics` (
+                        `topic_id` TEXT PRIMARY KEY NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `author` TEXT NOT NULL,
+                        `category` TEXT NOT NULL,
+                        `size` TEXT NOT NULL,
+                        `seeders` INTEGER NOT NULL,
+                        `leechers` INTEGER NOT NULL,
+                        `magnet_url` TEXT,
+                        `torrent_url` TEXT NOT NULL,
+                        `cover_url` TEXT,
+                        `timestamp` INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+
+                // Create search_query_map table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `search_query_map` (
+                        `query` TEXT NOT NULL,
+                        `topic_id` TEXT NOT NULL,
+                        `rank` INTEGER NOT NULL,
+                        PRIMARY KEY(`query`, `topic_id`),
+                        FOREIGN KEY(`topic_id`) REFERENCES `cached_topics`(`topic_id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+
+                // Create indices for search_query_map
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_query_map_topic_id` ON `search_query_map` (`topic_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_query_map_query` ON `search_query_map` (`query`)")
+            }
+        }
+
     @Provides
     @Singleton
     fun provideJabookDatabase(
@@ -230,7 +276,12 @@ object DatabaseModule {
                 MIGRATION_8_9,
                 MIGRATION_9_10,
                 MIGRATION_10_11,
+                MIGRATION_11_12,
             ).build()
+
+    @Provides
+    fun provideOfflineSearchDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao =
+        database.offlineSearchDao()
 
     @Provides
     fun provideBooksDao(database: JabookDatabase): BooksDao = database.booksDao()

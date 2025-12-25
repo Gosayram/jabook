@@ -66,22 +66,33 @@ class RutrackerSearchViewModel
             viewModelScope.launch {
                 _searchState.value = SearchState.Loading
 
+                var isFirstEmission = true
+
                 repository
-                    .searchAudiobooks(query, forumIds)
-                    .onSuccess { results ->
-                        originalResults = results
-                        val filtered = applyFiltersAndSort(results)
-                        _searchState.value =
-                            if (filtered.isEmpty()) {
-                                SearchState.Empty
-                            } else {
-                                SearchState.Success(filtered)
+                    .searchAudiobooksFlow(query, forumIds)
+                    .collect { result ->
+                        val isCachedEmission = isFirstEmission
+                        isFirstEmission = false
+
+                        result
+                            .onSuccess { results ->
+                                originalResults = results
+                                val filtered = applyFiltersAndSort(results)
+                                _searchState.value =
+                                    if (filtered.isEmpty()) {
+                                        if (!isCachedEmission) SearchState.Empty else _searchState.value
+                                    } else {
+                                        SearchState.Success(filtered, isCached = isCachedEmission)
+                                    }
+                            }.onFailure { error ->
+                                val currentState = _searchState.value
+                                if (currentState !is SearchState.Success) {
+                                    _searchState.value =
+                                        SearchState.Error(
+                                            error.message,
+                                        )
+                                }
                             }
-                    }.onFailure { error ->
-                        _searchState.value =
-                            SearchState.Error(
-                                error.message, // Nullable - UI will localize if null
-                            )
                     }
             }
         }
@@ -117,11 +128,14 @@ class RutrackerSearchViewModel
             if (originalResults.isEmpty()) return
 
             val filtered = applyFiltersAndSort(originalResults)
+            // Preserve isCached state
+            val currentIsCached = (_searchState.value as? SearchState.Success)?.isCached ?: false
+
             _searchState.value =
                 if (filtered.isEmpty()) {
                     SearchState.Empty
                 } else {
-                    SearchState.Success(filtered)
+                    SearchState.Success(filtered, isCached = currentIsCached)
                 }
         }
 
@@ -203,6 +217,7 @@ sealed class SearchState {
     /** Search completed successfully */
     data class Success(
         val results: List<SearchResult>,
+        val isCached: Boolean = false,
     ) : SearchState()
 
     /** Search failed */

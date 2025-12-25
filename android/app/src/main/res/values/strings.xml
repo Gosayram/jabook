@@ -2450,4 +2450,5 @@
     <string name="deleteAllConfirmation">Are you sure you want to delete all downloads? This cannot be undone.</string>
     <!-- Button to confirm delete -->
     <string name="deleteButton">Delete</string>
+    <string name="results_from_cache">Results from cache</string>
 </resources>

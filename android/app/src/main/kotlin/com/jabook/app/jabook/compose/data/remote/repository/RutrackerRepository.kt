@@ -17,6 +17,9 @@ package com.jabook.app.jabook.compose.data.remote.repository
 import android.util.Log
 import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
 import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
+import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
+import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
+import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.AudiobookCategory
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
@@ -25,6 +28,10 @@ import com.jabook.app.jabook.compose.data.remote.parser.CategoryParser
 import com.jabook.app.jabook.compose.data.remote.parser.ParsingResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -49,6 +56,7 @@ class RutrackerRepository
         private val categoryParser: CategoryParser,
         private val authService: RutrackerAuthService,
         private val searchCache: RutrackerSearchCache,
+        private val offlineSearchDao: OfflineSearchDao,
     ) {
         companion object {
             private const val TAG = "RutrackerRepository"
@@ -69,58 +77,158 @@ class RutrackerRepository
         ): Result<List<SearchResult>> =
             withContext(Dispatchers.IO) {
                 try {
-                    // Check cache first
-                    val cached = searchCache.get(query, forumIds)
-                    if (cached != null) {
-                        Log.d(TAG, "Cache hit for query: $query (${cached.size} results)")
-                        return@withContext Result.success(cached)
+                    // 1. Try Memory Cache
+                    val memCached = searchCache.get(query, forumIds)
+                    if (memCached != null) {
+                        return@withContext Result.success(memCached)
                     }
 
-                    Log.d(TAG, "Cache miss - searching API for: $query, forumIds: $forumIds")
+                    // 2. Try Network
+                    val networkResult = fetchFromNetwork(query, forumIds)
 
-                    val response = api.searchTopics(query, forumIds)
-
-                    if (!response.isSuccessful) {
-                        Log.w(TAG, "Search failed: HTTP ${response.code()}")
-                        return@withContext Result.failure(
-                            Exception("HTTP ${response.code()}: ${response.message()}"),
-                        )
+                    if (networkResult.isSuccess) {
+                        return@withContext networkResult
                     }
 
-                    val rawBytes = response.body()?.toByteArray() ?: ByteArray(0)
-                    val contentType = response.headers()["Content-Type"]
+                    // 3. Fallback to Database (Offline Mode)
+                    // Only for general search (no specific forum filter usually in DB mapping unless we handle it)
+                    if (forumIds == null) {
+                        val dbResult =
+                            offlineSearchDao
+                                .getResultsForQuery(query)
+                                .map { list -> list.map { it.toSearchResult() } }
 
-                    // Use encoding-aware parsing
-                    val parsingResult = parser.parseSearchResultsWithEncoding(rawBytes, contentType)
+                        // We need to collect the first emission from Flow
+                        var dbList: List<SearchResult> = emptyList()
+                        dbResult.collect { dbList = it } // This is blocking effectively for the first value
 
-                    when (parsingResult) {
-                        is ParsingResult.Success -> {
-                            Log.i(TAG, "Search successful: ${parsingResult.data.size} results")
-                            // Cache successful results
-                            searchCache.put(query, forumIds, parsingResult.data)
-                            Result.success(parsingResult.data)
-                        }
-                        is ParsingResult.PartialSuccess -> {
-                            Log.w(
-                                TAG,
-                                "Search partial success: ${parsingResult.data.size} results, ${parsingResult.errors.size} errors",
-                            )
-                            // Cache and return partial results (better than nothing)
-                            searchCache.put(query, forumIds, parsingResult.data)
-                            Result.success(parsingResult.data)
-                        }
-                        is ParsingResult.Failure -> {
-                            Log.e(TAG, "Search parsing failed: ${parsingResult.errors.size} errors")
-                            val errorMsg =
-                                parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
-                            Result.failure(Exception(errorMsg))
+                        if (dbList.isNotEmpty()) {
+                            Log.i(TAG, "Network failed, returned ${dbList.size} results from DB")
+                            return@withContext Result.success(dbList)
                         }
                     }
+
+                    // Return network error if DB is empty
+                    networkResult
                 } catch (e: Exception) {
-                    Log.e(TAG, "Search error", e)
                     Result.failure(e)
                 }
             }
+
+        /**
+         * Search with Optimistic UI: Emits Cached results immediately, then Network results.
+         */
+        fun searchAudiobooksFlow(
+            query: String,
+            forumIds: String? = null,
+        ): Flow<Result<List<SearchResult>>> =
+            flow {
+                // 1. Emit DB Cache immediately (Optimistic UI)
+                if (forumIds == null) {
+                    try {
+                        // We use a separate collection here to just get the current state without observing indefinitely?
+                        // No, we can emit the DB flow primarily if we want live updates,
+                        // but here the requirement is "Show Cache -> Fetch Network -> Show Network".
+
+                        // Actually, let's just fetch once from DB for the initial state
+                        // We cannot easily use the DAO Flow logic here alongside network unless we merge sources.
+                        // Simpler approach: Manual Check.
+
+                        // However, since DAO returns Flow, we can collect it.
+                        // But users want to see network results eventually.
+
+                        // Let's TRY to get data from DAO first (manually getting one shot would be better but we defined Flow)
+                        // We will start collecting inside the flow builder.
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error reading cache", e)
+                    }
+                }
+
+                // Re-implementing simplified logic:
+
+                // A. Check Memory Cache
+                val memCached = searchCache.get(query, forumIds)
+                if (memCached != null) {
+                    emit(Result.success(memCached))
+                } else {
+                    // B. Emit DB Cache (if not in mem)
+                    if (forumIds == null) {
+                        // We need a one-shot fetch for "Optimistic" part.
+                        // Since DAO returns Flow, we can take(1).
+                        try {
+                            offlineSearchDao.getResultsForQuery(query).collect { entities ->
+                                if (entities.isNotEmpty()) {
+                                    emit(Result.success(entities.map { it.toSearchResult() }))
+                                }
+                                // Break after first emission to proceed to network?
+                                // Flow collection suspends... we need to be careful.
+                                throw BreakCollectionException()
+                            }
+                        } catch (e: BreakCollectionException) {
+                            // Continue
+                        } catch (e: Exception) {
+                            Log.w(TAG, "DB read failed", e)
+                        }
+                    }
+                }
+
+                // C. Fetch Network
+                val networkResult = fetchFromNetwork(query, forumIds)
+                emit(networkResult)
+            }.catch { e ->
+                emit(Result.failure(e))
+            }
+
+        private class BreakCollectionException : Exception()
+
+        private suspend fun fetchFromNetwork(
+            query: String,
+            forumIds: String?,
+        ): Result<List<SearchResult>> {
+            Log.d(TAG, "Searching API for: $query")
+            val response = api.searchTopics(query, forumIds)
+
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+            }
+
+            val rawBytes = response.body()?.toByteArray() ?: ByteArray(0)
+            val contentType = response.headers()["Content-Type"]
+            val parsingResult = parser.parseSearchResultsWithEncoding(rawBytes, contentType)
+
+            return when (parsingResult) {
+                is ParsingResult.Success -> {
+                    handleSuccess(query, forumIds, parsingResult.data)
+                    Result.success(parsingResult.data)
+                }
+                is ParsingResult.PartialSuccess -> {
+                    handleSuccess(query, forumIds, parsingResult.data)
+                    Result.success(parsingResult.data)
+                }
+                is ParsingResult.Failure -> {
+                    Result.failure(Exception(parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"))
+                }
+            }
+        }
+
+        private suspend fun handleSuccess(
+            query: String,
+            forumIds: String?,
+            results: List<SearchResult>,
+        ) {
+            // Memory Cache
+            searchCache.put(query, forumIds, results)
+
+            // DB Persistence (Only for generic searches without unexpected filters)
+            if (forumIds == null) {
+                try {
+                    val entities = results.map { it.toCachedTopicEntity() }
+                    offlineSearchDao.saveSearchResults(query, entities)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to save to DB", e)
+                }
+            }
+        }
 
         /**
          * Get topic details.

@@ -22,9 +22,11 @@ import com.jabook.app.jabook.compose.data.local.dao.CookiesDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
+import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
+import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
@@ -32,6 +34,7 @@ import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
+import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
 
@@ -49,6 +52,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 9: Added scan_paths table for custom scan directory configuration.
  * Database version 10: Added index on chapter_index for faster chapter sorting.
  * Database version 11: Added torrent_downloads table for torrent download persistence.
+ * Database version 12: Added cached_topics and search_query_map tables for offline search.
  */
 @Database(
     entities = [
@@ -61,8 +65,10 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         FavoriteEntity::class,
         ScanPathEntity::class,
         TorrentDownloadEntity::class,
+        CachedTopicEntity::class,
+        SearchQueryEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = false,
 )
 abstract class JabookDatabase : RoomDatabase() {
@@ -83,4 +89,6 @@ abstract class JabookDatabase : RoomDatabase() {
     abstract fun scanPathDao(): ScanPathDao
 
     abstract fun torrentDownloadDao(): TorrentDownloadDao
+
+    abstract fun offlineSearchDao(): OfflineSearchDao
 }
