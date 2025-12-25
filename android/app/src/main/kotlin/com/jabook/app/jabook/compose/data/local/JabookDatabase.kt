@@ -32,6 +32,8 @@ import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
+import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao
+import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
 
 /**
  * The Room database for this app.
@@ -46,6 +48,7 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
  * Database version 8: Fix some issues with database migration.
  * Database version 9: Added scan_paths table for custom scan directory configuration.
  * Database version 10: Added index on chapter_index for faster chapter sorting.
+ * Database version 11: Added torrent_downloads table for torrent download persistence.
  */
 @Database(
     entities = [
@@ -57,8 +60,9 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
         DownloadHistoryEntity::class,
         FavoriteEntity::class,
         ScanPathEntity::class,
+        TorrentDownloadEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = false,
 )
 abstract class JabookDatabase : RoomDatabase() {
@@ -77,4 +81,6 @@ abstract class JabookDatabase : RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
 
     abstract fun scanPathDao(): ScanPathDao
+
+    abstract fun torrentDownloadDao(): TorrentDownloadDao
 }
