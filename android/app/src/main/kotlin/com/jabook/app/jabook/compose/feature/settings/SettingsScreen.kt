@@ -548,7 +548,7 @@ fun SettingsScreen(
                         Text(
                             stringResource(
                                 R.string.clearCacheConfirmation,
-                                cacheStats?.let { formatBytes(it.totalSize) } ?: "all",
+                                cacheStats?.let { formatBytes(it.totalSize) } ?: stringResource(R.string.unknown),
                             ),
                         )
                     },

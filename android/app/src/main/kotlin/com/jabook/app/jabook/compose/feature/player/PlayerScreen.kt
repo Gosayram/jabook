@@ -548,6 +548,7 @@ private fun PlayerContent(
                                     } else {
                                         // Decimal - format with locale
                                         val locale = java.util.Locale.getDefault()
+                                        // skip-migration
                                         val isRussian = locale.language == "ru"
                                         val symbols =
                                             java.text.DecimalFormatSymbols(

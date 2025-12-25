@@ -86,7 +86,7 @@ fun BookDetailPane(
                     IconButton(onClick = onClose) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
+                            contentDescription = stringResource(R.string.close),
                         )
                     }
                 },

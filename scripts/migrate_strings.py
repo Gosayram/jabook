@@ -30,6 +30,14 @@ class StringResourceMigrator:
         self.new_strings: Dict[str, str] = {}
         self.enable_translation = enable_translation and HAS_REQUESTS
         
+        # Statistics for dry-run reporting
+        self.stats = {
+            'skipped_test_files': 0,
+            'skipped_non_ui_files': 0,
+            'files_processed': 0,
+            'files_with_strings': 0,
+        }
+        
     def load_existing_strings(self):
         """Load existing string keys and values from strings.xml"""
         if self.strings_xml_en.exists():
@@ -113,43 +121,103 @@ class StringResourceMigrator:
             'Test.kt'  # Exclude all test files (*Test.kt)
         ]
         
+        # Track why file was skipped for statistics
         if any(skip in file_str for skip in skip_patterns):
+            # Determine skip reason for statistics
+            if '/test/' in file_str or 'Test.kt' in file_str:
+                self.stats['skipped_test_files'] += 1
+            elif any(x in file_str for x in ['/data/', '/domain/', '/di/']):
+                self.stats['skipped_non_ui_files'] += 1
             return strings
             
         with open(kotlin_file, 'r', encoding='utf-8') as f:
-            for line_num, line in enumerate(f, 1):
-                # Skip comments
-                if line.strip().startswith('//'):
-                    continue
+            lines = f.readlines()
+            
+        in_annotation = False
+        annotation_depth = 0
+        in_block_comment = False
+        skip_next_line = False  # Flag for skip-migration marker
+        
+        for line_num, line in enumerate(lines, 1):
+            # Check if previous line had skip-migration marker
+            if skip_next_line:
+                skip_next_line = False
+                continue
+            
+            # Check for skip-migration marker
+            # Format: // skip-migration or // @skip-migration
+            if re.search(r'//\s*@?skip-migration', line, re.IGNORECASE):
+                skip_next_line = True
+                continue
+            
+            # Track block comments (/* */ and /** */)
+            # Check for start of block comment
+            if '/*' in line and not in_block_comment:
+                in_block_comment = True
+            
+            # Check for end of block comment
+            if '*/' in line and in_block_comment:
+                in_block_comment = False
+                # Skip this line too (it contains the closing */)
+                continue
+            
+            # Skip all lines while in block comment
+            if in_block_comment:
+                continue
+            
+            # Skip single-line comments
+            if line.strip().startswith('//'):
+                continue
+            
+            # Skip imports, package declarations
+            if line.strip().startswith(('import ', 'package ')):
+                continue
+            
+            # Track annotation blocks
+            # Start of annotation
+            if re.search(r'@(Suppress|Deprecated|SuppressLint|SuppressWarnings|Annotation)', line):
+                in_annotation = True
+                annotation_depth = 0
                 
-                # Skip imports, package declarations
-                if line.strip().startswith(('import ', 'package ')):
-                    continue
-                
-                # Skip logging statements - Log.d, Log.i, Log.e, println, logger, etc.
-                if re.search(r'(Log\.[diewtv]|println|logger\.|Timber\.)', line):
-                    continue
-                
-                # Skip annotations - @Suppress, @Deprecated, @SuppressLint, etc.
-                if re.search(r'@(Suppress|Deprecated|SuppressLint|SuppressWarnings|Annotation)', line):
-                    continue
+            # Track parentheses depth within annotation
+            if in_annotation:
+                annotation_depth += line.count('(') - line.count(')')
+                # End of annotation when depth returns to 0 and we've seen at least one (
+                if annotation_depth == 0 and '(' in line:
+                    in_annotation = False
+                # Skip all lines while in annotation
+                continue
+            
+            # Skip logging statements - Log.d, Log.i, Log.e, println, logger, etc.
+            if re.search(r'(Log\.[diewtv]|println|logger\.|Timber\.)', line):
+                continue
+            
+            # Skip string manipulation methods - .replace(), .split(), etc.
+            # These contain technical patterns, not UI text
+            if '.replace(' in line or '.split(' in line:
+                continue
+            
+            # Skip format patterns - DecimalFormat, SimpleDateFormat, etc.
+            # These contain technical patterns like "#.##", "yyyy-MM-dd"
+            if 'DecimalFormat(' in line or 'SimpleDateFormat(' in line or 'DateTimeFormatter' in line:
+                continue
 
-                # SAFETY: Skip lines with complex interpolation (nested braces, code in strings)
-                # These often contain nested quotes which regex struggles with,
-                # and usually require manual migration with format args anyway.
-                if '${' in line:
-                    continue
+            # SAFETY: Skip lines with complex interpolation (nested braces, code in strings)
+            # These often contain nested quotes which regex struggles with,
+            # and usually require manual migration with format args anyway.
+            if '${' in line:
+                continue
 
-                # SAFETY: Skip 'const val' declarations
-                # stringResource() cannot be used in const val (compile-time constant required)
-                if 'const val ' in line:
-                    continue
+            # SAFETY: Skip 'const val' declarations
+            # stringResource() cannot be used in const val (compile-time constant required)
+            if 'const val ' in line:
+                continue
 
-                # Find ALL string literals that look like UI text (not technical strings)
-                # Match: "any text" but exclude technical patterns
-                all_strings = re.findall(r'"([^"]+)"', line)
-                
-                for match in all_strings:
+            # Find ALL string literals that look like UI text (not technical strings)
+            # Match: "any text" but exclude technical patterns
+            all_strings = re.findall(r'"([^"]+)"', line)
+            
+            for match in all_strings:
                     # Skip if it's a technical string (not UI text)
                     if self._is_technical_string(match):
                         continue
@@ -182,6 +250,14 @@ class StringResourceMigrator:
         # Intent actions and categories
         if text.startswith('android.') or text.startswith('com.') or text.startswith('java.'):
             return True
+        
+        # Package paths (e.g., com.jabook.app.jabook.compose.feature.library.UnifiedBooksView)
+        # Multiple dots with lowercase package-style naming
+        if text.count('.') >= 2 and not text.endswith('.'):
+            # Check if looks like package/class path (lowercase.lowercase.ClassName pattern)
+            parts = text.split('.')
+            if len(parts) >= 3 and all(part.replace('_', '').replace('$', '').isalnum() for part in parts):
+                return True
             
         # Single letters or very short technical strings
         if len(text) <= 1:
@@ -255,15 +331,22 @@ class StringResourceMigrator:
         except ValueError:
             display_path = kotlin_file
         
-        print(f"\n📝 Processing: {display_path}")
-        
         # Find hardcoded strings
         hardcoded = self.find_hardcoded_strings(kotlin_file)
-        if not hardcoded:
-            print(f"   ✅ No hardcoded strings found")
+        
+        # In dry-run mode, skip files with no hardcoded strings (don't print anything)
+        if dry_run and not hardcoded:
             return 0, 0
         
-        print(f"   Found {len(hardcoded)} hardcoded string(s)")
+        # Only print header if file has strings to process
+        if hardcoded:
+            print(f"\n📝 Processing: {display_path}")
+            print(f"   Found {len(hardcoded)} hardcoded string(s)")
+        else:
+            # Not in dry-run, but no strings found
+            print(f"\n📝 Processing: {display_path}")
+            print(f"   ✅ No hardcoded strings found")
+            return 0, 0
         
         # Read file content
         with open(kotlin_file, 'r', encoding='utf-8') as f:
@@ -283,7 +366,7 @@ class StringResourceMigrator:
             # First check if this exact string value already exists
             if text in self.existing_values:
                 key = self.existing_values[text]
-                print(f"   ♻️  Reusing existing: '{key}' for '{text[:50]}...'")
+                print(f"   Line {line_num:3d}: ♻️  Reusing existing: '{key}' for '{text[:50]}...'")
                 replacements[text] = key
                 continue
             
@@ -306,7 +389,7 @@ class StringResourceMigrator:
             self.existing_keys.add(key)
             self.existing_values[text] = key
             strings_added += 1
-            print(f"   + New string: '{key}' = '{text[:50]}...'")
+            print(f"   Line {line_num:3d}: + New string: '{key}' = '{text[:50]}...'")
             
             # Store replacement
             replacements[text] = key
@@ -448,9 +531,27 @@ class StringResourceMigrator:
                 total_added += added
         
         print(f"\n📊 Summary:")
-        print(f"   Files modified: {files_modified}/{len(kotlin_files)}")
-        print(f"   Strings replaced: {total_replaced}")
-        print(f"   New strings added: {total_added}")
+        print(f"   Files processed: {len(kotlin_files)}")
+        
+        if dry_run:
+            # Show filtering statistics in dry-run mode
+            if self.stats['skipped_test_files'] > 0:
+                print(f"   ├─ Skipped (test files): {self.stats['skipped_test_files']}")
+            if self.stats['skipped_non_ui_files'] > 0:
+                print(f"   ├─ Skipped (non-UI/infrastructure): {self.stats['skipped_non_ui_files']}")
+            
+            clean_files = len(kotlin_files) - files_modified - self.stats['skipped_test_files'] - self.stats['skipped_non_ui_files']
+            if clean_files > 0:
+                print(f"   ├─ Clean (no hardcoded strings): {clean_files}")
+            
+            if files_modified > 0:
+                print(f"   └─ Need attention: {files_modified} file(s) with {total_replaced} string(s)")
+            else:
+                print(f"   └─ ✅ All UI files are clean!")
+        else:
+            print(f"   Files modified: {files_modified}/{len(kotlin_files)}")
+            print(f"   Strings replaced: {total_replaced}")
+            print(f"   New strings added: {total_added}")
         
         if not dry_run and self.new_strings:
             self.add_strings_to_xml(self.new_strings, self.strings_xml_en)
