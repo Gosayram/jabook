@@ -267,6 +267,21 @@ fun JabookNavHost(
                 onNavigateBack = {
                     navController.popBackStack()
                 },
+                onNavigateToDetails = { hash ->
+                    navController.navigate(TorrentDetailsRoute(hash))
+                },
+            )
+        }
+
+        // Torrent details screen
+        composable<TorrentDetailsRoute> {
+            com.jabook.app.jabook.compose.feature.torrent.TorrentDetailsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onPlayBook = { bookId ->
+                    navController.navigate(PlayerRoute(bookId = bookId))
+                },
             )
         }
 

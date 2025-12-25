@@ -153,6 +153,17 @@ class TorrentManager
         }
 
         /**
+         * Prioritize specific file (e.g. for streaming)
+         */
+        fun prioritizeFile(
+            hash: String,
+            fileIndex: Int,
+            priority: Int,
+        ) {
+            sessionManager.prioritizeFile(hash, fileIndex, priority)
+        }
+
+        /**
          * Shutdown torrent system
          */
         fun shutdown() {

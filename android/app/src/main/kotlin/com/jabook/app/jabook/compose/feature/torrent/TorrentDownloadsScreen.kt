@@ -62,6 +62,7 @@ import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 @Composable
 fun TorrentDownloadsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToDetails: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TorrentDownloadsViewModel = hiltViewModel(),
 ) {
@@ -171,7 +172,7 @@ fun TorrentDownloadsScreen(
                         onPauseClick = viewModel::pauseDownload,
                         onResumeClick = viewModel::resumeDownload,
                         onDeleteClick = { hash -> viewModel.deleteDownload(hash, true) },
-                        onItemClick = viewModel::selectDownload,
+                        onItemClick = { download -> onNavigateToDetails(download.hash) },
                         showCompletedOnly = showCompletedOnly,
                     )
                 }

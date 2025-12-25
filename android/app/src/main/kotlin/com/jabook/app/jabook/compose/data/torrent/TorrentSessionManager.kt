@@ -350,12 +350,30 @@ class TorrentSessionManager
                 else -> TorrentState.QUEUED
             }
 
+        /**
+         * Prioritize specific file
+         */
+        fun prioritizeFile(
+            hash: String,
+            fileIndex: Int,
+            priority: Int,
+        ) {
+            val handle = torrents[hash] ?: return
+            try {
+                handle.filePriority(fileIndex, org.libtorrent4j.Priority.fromSwig(priority))
+                updateDownloads()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to prioritize file", e)
+            }
+        }
+
         private fun mapFiles(
             torrentInfo: TorrentInfo,
             handle: TorrentHandle,
         ): List<TorrentFile> {
             val fileStorage = torrentInfo.files()
             val priorities = handle.filePriorities() // Returns Priority[]
+            val progress = handle.fileProgress(org.libtorrent4j.TorrentHandle.PIECE_GRANULARITY)
 
             return (0 until fileStorage.numFiles()).map { index ->
                 val priority =
@@ -364,12 +382,17 @@ class TorrentSessionManager
                     } else {
                         4 // Default priority
                     }
+
+                val size = fileStorage.fileSize(index)
+                val downloaded = if (index < progress.size) progress[index] else 0L
+                val fileProgress = if (size > 0) downloaded.toFloat() / size else 0f
+
                 TorrentFile(
                     index = index,
                     path = fileStorage.filePath(index),
-                    size = fileStorage.fileSize(index),
+                    size = size,
                     priority = priority,
-                    progress = 0f, // TODO: Calculate per-file progress
+                    progress = fileProgress,
                     isSelected = priority != 0,
                 )
             }

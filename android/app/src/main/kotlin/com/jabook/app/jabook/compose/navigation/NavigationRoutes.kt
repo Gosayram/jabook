@@ -64,6 +64,16 @@ data class DownloadsRoute(
 )
 
 /**
+ * Torrent Details screen route - shows files and details.
+ *
+ * @param hash Info hash of the torrent
+ */
+@Serializable
+data class TorrentDetailsRoute(
+    val hash: String,
+)
+
+/**
  * Debug screen route - shows debug tools and logs.
  */
 @Serializable
