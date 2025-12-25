@@ -17,7 +17,9 @@ package com.jabook.app.jabook.compose.feature.torrent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,6 +31,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -68,6 +73,47 @@ fun TorrentDownloadsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val showCompletedOnly by viewModel.showCompletedOnly.collectAsStateWithLifecycle()
+
+    var downloadToDelete by remember { mutableStateOf<TorrentDownload?>(null) }
+
+    if (downloadToDelete != null) {
+        var deleteFiles by remember { mutableStateOf(true) }
+        AlertDialog(
+            onDismissRequest = { downloadToDelete = null },
+            icon = { Icon(Icons.Default.Delete, contentDescription = null) },
+            title = { Text(stringResource(R.string.delete_download)) },
+            text = {
+                Column {
+                    Text("Are you sure you want to delete \"${downloadToDelete?.name}\"?")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 16.dp),
+                    ) {
+                        Checkbox(
+                            checked = deleteFiles,
+                            onCheckedChange = { deleteFiles = it },
+                        )
+                        Text("Also delete downloaded files")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteDownload(downloadToDelete!!.hash, deleteFiles)
+                        downloadToDelete = null
+                    },
+                ) {
+                    Text(stringResource(R.string.delete_download))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { downloadToDelete = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -171,7 +217,7 @@ fun TorrentDownloadsScreen(
                         errorDownloads = state.errorDownloads,
                         onPauseClick = viewModel::pauseDownload,
                         onResumeClick = viewModel::resumeDownload,
-                        onDeleteClick = { hash -> viewModel.deleteDownload(hash, true) },
+                        onDeleteClick = { download -> downloadToDelete = download },
                         onItemClick = { download -> onNavigateToDetails(download.hash) },
                         showCompletedOnly = showCompletedOnly,
                     )
@@ -190,7 +236,7 @@ private fun TorrentDownloadsList(
     errorDownloads: List<TorrentDownload>,
     onPauseClick: (String) -> Unit,
     onResumeClick: (String) -> Unit,
-    onDeleteClick: (String) -> Unit,
+    onDeleteClick: (TorrentDownload) -> Unit,
     onItemClick: (TorrentDownload) -> Unit,
     showCompletedOnly: Boolean,
     modifier: Modifier = Modifier,
@@ -211,7 +257,7 @@ private fun TorrentDownloadsList(
                         download = download,
                         onPauseClick = { onPauseClick(download.hash) },
                         onResumeClick = { onResumeClick(download.hash) },
-                        onDeleteClick = { onDeleteClick(download.hash) },
+                        onDeleteClick = { onDeleteClick(download) },
                         onItemClick = { onItemClick(download) },
                     )
                 }
@@ -227,7 +273,7 @@ private fun TorrentDownloadsList(
                         download = download,
                         onPauseClick = { onPauseClick(download.hash) },
                         onResumeClick = { onResumeClick(download.hash) },
-                        onDeleteClick = { onDeleteClick(download.hash) },
+                        onDeleteClick = { onDeleteClick(download) },
                         onItemClick = { onItemClick(download) },
                     )
                 }
@@ -244,7 +290,7 @@ private fun TorrentDownloadsList(
                     download = download,
                     onPauseClick = { onPauseClick(download.hash) },
                     onResumeClick = { onResumeClick(download.hash) },
-                    onDeleteClick = { onDeleteClick(download.hash) },
+                    onDeleteClick = { onDeleteClick(download) },
                     onItemClick = { onItemClick(download) },
                 )
             }
@@ -260,7 +306,7 @@ private fun TorrentDownloadsList(
                     download = download,
                     onPauseClick = { onPauseClick(download.hash) },
                     onResumeClick = { onResumeClick(download.hash) },
-                    onDeleteClick = { onDeleteClick(download.hash) },
+                    onDeleteClick = { onDeleteClick(download) },
                     onItemClick = { onItemClick(download) },
                 )
             }

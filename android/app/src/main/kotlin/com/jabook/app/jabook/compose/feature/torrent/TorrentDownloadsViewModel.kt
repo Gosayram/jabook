@@ -195,7 +195,12 @@ class TorrentDownloadsViewModel
          */
         fun deleteAllCompleted() {
             viewModelScope.launch {
-                repository.deleteAllCompleted()
+                val state = uiState.value
+                if (state is TorrentDownloadsUiState.Success) {
+                    state.completedDownloads.forEach { download ->
+                        torrentManager.removeTorrent(download.hash, deleteFiles = false)
+                    }
+                }
             }
         }
 
