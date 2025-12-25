@@ -24,6 +24,7 @@ import android.text.format.Formatter
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.compose.receiver.TorrentActionReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,6 +59,32 @@ class TorrentNotificationManager
                     .setCategory(NotificationCompat.CATEGORY_PROGRESS)
                     .setGroup(NOTIFICATION_GROUP_DOWNLOADS)
                     .setContentIntent(createOpenDownloadsIntent())
+
+            // Add actions
+            if (download.state == TorrentState.PAUSED) {
+                builder.addAction(
+                    android.R.drawable.ic_media_play,
+                    "Resume",
+                    createActionIntent(TorrentActionReceiver.ACTION_RESUME_TORRENT, download.hash),
+                )
+            } else if (download.state == TorrentState.DOWNLOADING ||
+                download.state == TorrentState.STREAMING ||
+                download.state == TorrentState.CHECKING ||
+                download.state == TorrentState.DOWNLOADING_METADATA
+            ) {
+                builder.addAction(
+                    android.R.drawable.ic_media_pause,
+                    "Pause",
+                    createActionIntent(TorrentActionReceiver.ACTION_PAUSE_TORRENT, download.hash),
+                )
+            }
+
+            // Allow cancelling from notification
+            builder.addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "Cancel",
+                createActionIntent(TorrentActionReceiver.ACTION_CANCEL_TORRENT, download.hash),
+            )
 
             // State-based styling
             when (download.state) {
@@ -113,7 +140,15 @@ class TorrentNotificationManager
                 .setGroup(NOTIFICATION_GROUP_DOWNLOADS)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setContentIntent(createOpenDownloadsIntent())
-                .build()
+                .addAction(
+                    android.R.drawable.ic_media_pause,
+                    "Pause All",
+                    createActionIntent(TorrentActionReceiver.ACTION_PAUSE_ALL),
+                ).addAction(
+                    android.R.drawable.ic_media_play,
+                    "Resume All",
+                    createActionIntent(TorrentActionReceiver.ACTION_RESUME_ALL),
+                ).build()
         }
 
         /**
@@ -157,6 +192,29 @@ class TorrentNotificationManager
                 seconds < 3600 -> "${seconds / 60}m"
                 else -> "${seconds / 3600}h ${(seconds % 3600) / 60}m"
             }
+
+        private fun createActionIntent(
+            action: String,
+            hash: String? = null,
+        ): PendingIntent {
+            val intent =
+                Intent(context, TorrentActionReceiver::class.java).apply {
+                    this.action = action
+                    if (hash != null) {
+                        putExtra(TorrentActionReceiver.EXTRA_TORRENT_HASH, hash)
+                    }
+                }
+
+            // Use unique request code to distinguish different hashes/actions
+            val requestCode = (hash?.hashCode() ?: 0) + action.hashCode()
+
+            return PendingIntent.getBroadcast(
+                context,
+                requestCode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
 
         private fun createOpenDownloadsIntent(): PendingIntent {
             val intent =
