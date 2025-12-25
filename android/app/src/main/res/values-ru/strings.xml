@@ -2411,4 +2411,8 @@
     <string name="durationHoursMinutes">%1$dч %2$dм</string>
     <string name="durationMinutes">%1$dм</string>
     <string name="durationSeconds">%1$dс</string>
+    <!-- Поиск в RuTracker-->
+    <string name="search_rutracker">Поиск в RuTracker</string>
+    <string name="search_query">Поиск запроса</string>
+    <string name="enter_search_query">Введите поисковый запрос чтобы начать</string>
 </resources>

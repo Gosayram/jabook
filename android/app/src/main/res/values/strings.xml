@@ -2376,4 +2376,10 @@
     <string name="durationHoursMinutes">%1$dh %2$dm</string>
     <string name="durationMinutes">%1$dm</string>
     <string name="durationSeconds">%1$ds</string>
+
+    <!-- RuTracker search screen -->
+    <string name="search_rutracker">Search RuTracker</string>
+    <string name="search_query">Search query</string>
+    <string name="enter_search_query">Enter search query to find audiobooks</string>
+
 </resources>
