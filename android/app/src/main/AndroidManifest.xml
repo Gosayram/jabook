@@ -202,6 +202,27 @@
             android:foregroundServiceType="dataSync">
         </service>
 
+        <!-- Torrent download foreground service -->
+        <service
+            android:name=".compose.data.torrent.TorrentDownloadService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Torrent notification action receiver -->
+        <receiver
+            android:name=".compose.receiver.TorrentActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.jabook.ACTION_PAUSE_TORRENT" />
+                <action android:name="org.jabook.ACTION_RESUME_TORRENT" />
+                <action android:name="org.jabook.ACTION_STOP_TORRENT" />
+                <action android:name="org.jabook.ACTION_CANCEL_TORRENT" />
+                <action android:name="org.jabook.ACTION_PAUSE_ALL" />
+                <action android:name="org.jabook.ACTION_RESUME_ALL" />
+            </intent-filter>
+        </receiver>
+
         <!-- MediaSession action receiver for Play/Pause commands -->
         <!-- This receiver handles Play/Pause actions through MediaSession, -->
         <!-- which is more reliable than PendingIntent on Samsung and other devices -->

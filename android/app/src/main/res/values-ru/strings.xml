@@ -2429,4 +2429,11 @@
     <string name="sort_size_desc">По размеру (больше)</string>
     <string name="sort_size_asc">По размеру (меньше)</string>
     <string name="filters_active">Активно фильтров: %d</string>
+    <!-- Торрент-загрузки -->
+    <string name="torrent_downloads">Торрент-загрузки</string>
+    <string name="torrent_downloads_channel_description">Уведомления о прогрессе загрузки торрентов</string>
+    <string name="torrent_service_running">Служба загрузки работает</string>
+    <string name="tap_to_manage_downloads">Нажмите для управления загрузками</string>
+    <string name="downloading_n_torrents">Загружается торрентов: %1$d</string>
+
 </resources>

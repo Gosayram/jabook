@@ -2396,4 +2396,11 @@
     <string name="sort_size_asc">Size (Small to Large)</string>
     <string name="filters_active">%d filters active</string>
 
+    <!-- Torrent Downloads -->
+    <string name="torrent_downloads">Torrent Downloads</string>
+    <string name="torrent_downloads_channel_description">Notifications for torrent download progress</string>
+    <string name="torrent_service_running">Download service running</string>
+    <string name="tap_to_manage_downloads">Tap to manage downloads</string>
+    <string name="downloading_n_torrents">Downloading %1$d torrents</string>
+
 </resources>

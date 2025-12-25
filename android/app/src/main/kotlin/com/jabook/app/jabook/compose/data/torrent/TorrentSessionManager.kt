@@ -1,0 +1,401 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose.data.torrent
+
+import android.content.Context
+import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import org.libtorrent4j.AlertListener
+import org.libtorrent4j.SessionManager
+import org.libtorrent4j.SessionParams
+import org.libtorrent4j.SettingsPack
+import org.libtorrent4j.TorrentHandle
+import org.libtorrent4j.TorrentInfo
+import org.libtorrent4j.TorrentStatus
+import org.libtorrent4j.alerts.AddTorrentAlert
+import org.libtorrent4j.alerts.Alert
+import org.libtorrent4j.alerts.AlertType
+import org.libtorrent4j.alerts.BlockFinishedAlert
+import org.libtorrent4j.alerts.MetadataReceivedAlert
+import org.libtorrent4j.alerts.StateChangedAlert
+import org.libtorrent4j.alerts.TorrentErrorAlert
+import org.libtorrent4j.alerts.TorrentFinishedAlert
+import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Manages libtorrent4j session and torrent operations
+ */
+@Singleton
+class TorrentSessionManager
+    @Inject
+    constructor(
+        @param:ApplicationContext private val context: Context,
+    ) {
+        private var session: SessionManager? = null
+        private val torrents = mutableMapOf<String, TorrentHandle>()
+
+        private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
+        val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
+
+        private val alertListener =
+            object : AlertListener {
+                override fun types(): IntArray =
+                    intArrayOf(
+                        AlertType.ADD_TORRENT.swig(),
+                        AlertType.STATE_CHANGED.swig(),
+                        AlertType.TORRENT_FINISHED.swig(),
+                        AlertType.TORRENT_ERROR.swig(),
+                        AlertType.METADATA_RECEIVED.swig(),
+                        AlertType.BLOCK_FINISHED.swig(),
+                    )
+
+                override fun alert(alert: Alert<*>) {
+                    when (alert) {
+                        is AddTorrentAlert -> handleAddTorrent(alert)
+                        is StateChangedAlert -> handleStateChanged(alert)
+                        is TorrentFinishedAlert -> handleTorrentFinished(alert)
+                        is TorrentErrorAlert -> handleTorrentError(alert)
+                        is MetadataReceivedAlert -> handleMetadataReceived(alert)
+                        is BlockFinishedAlert -> handleBlockFinished(alert)
+                    }
+                }
+            }
+
+        /**
+         * Initialize libtorrent session
+         */
+        fun initSession() {
+            if (session != null) {
+                Log.w(TAG, "Session already initialized")
+                return
+            }
+
+            try {
+                val settings =
+                    SettingsPack().apply {
+                        // Connection settings
+                        connectionsLimit(200)
+                        downloadRateLimit(0) // Unlimited by default
+                        uploadRateLimit(0) // Unlimited by default
+
+                        // DHT and other settings are enabled by default in libtorrent4j
+                        // Just keeping defaults
+
+                        // Performance settings
+                        activeDownloads(4)
+                        activeSeeds(4)
+                        activeLimit(8)
+                    }
+
+                val params = SessionParams(settings)
+                session =
+                    SessionManager().apply {
+                        addListener(alertListener)
+                        start(params)
+                    }
+
+                Log.i(TAG, "Torrent session initialized successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to initialize torrent session", e)
+                throw e
+            }
+        }
+
+        /**
+         * Add torrent from magnet URI
+         */
+        fun addTorrent(
+            magnetUri: String,
+            savePath: String,
+            selectedFileIndices: List<Int>? = null,
+        ): Result<String> {
+            val session =
+                this.session ?: return Result.failure(
+                    IllegalStateException("Session not initialized"),
+                )
+
+            return try {
+                // Parse magnet URI to get info hash
+                val hash =
+                    parseMagnetHash(magnetUri)
+                        ?: return Result.failure(IllegalArgumentException("Invalid magnet URI"))
+
+                // Check if already added
+                if (torrents.containsKey(hash)) {
+                    return Result.failure(IllegalStateException("Torrent already added"))
+                }
+
+                // Create save directory
+                val saveDir = File(savePath)
+                if (!saveDir.exists()) {
+                    saveDir.mkdirs()
+                }
+
+                // Add torrent - download(String magnetUri, File saveDir, torrent_flags_t flags)
+                // Using empty flags (defaults)
+                val flags = org.libtorrent4j.swig.torrent_flags_t()
+                session.download(magnetUri, saveDir, flags)
+
+                Log.i(TAG, "Added torrent: $hash to $savePath")
+                Result.success(hash)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to add torrent", e)
+                Result.failure(e)
+            }
+        }
+
+        /**
+         * Remove torrent
+         */
+        fun removeTorrent(
+            hash: String,
+            deleteFiles: Boolean = false,
+        ) {
+            val handle = torrents.remove(hash) ?: return
+
+            try {
+                session?.remove(handle)
+
+                if (deleteFiles) {
+                    val savePath = handle.savePath()
+                    File(savePath).deleteRecursively()
+                }
+
+                updateDownloads()
+                Log.i(TAG, "Removed torrent: $hash (deleteFiles=$deleteFiles)")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to remove torrent", e)
+            }
+        }
+
+        /**
+         * Pause torrent
+         */
+        fun pauseTorrent(hash: String) {
+            val handle = torrents[hash] ?: return
+
+            try {
+                handle.pause()
+                updateDownloads()
+                Log.i(TAG, "Paused torrent: $hash")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to pause torrent", e)
+            }
+        }
+
+        /**
+         * Resume torrent
+         */
+        fun resumeTorrent(hash: String) {
+            val handle = torrents[hash] ?: return
+
+            try {
+                handle.resume()
+                updateDownloads()
+                Log.i(TAG, "Resumed torrent: $hash")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resume torrent", e)
+            }
+        }
+
+        /**
+         * Enable sequential download for streaming
+         */
+        fun setSequentialDownload(
+            hash: String,
+            enabled: Boolean,
+        ) {
+            val handle = torrents[hash] ?: return
+
+            try {
+                // setFlags(flags, mask) - use TorrentFlags
+                val flags = if (enabled) org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD else org.libtorrent4j.swig.torrent_flags_t()
+                val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
+                handle.setFlags(flags, mask)
+                Log.i(TAG, "Set sequential download for $hash: $enabled")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to set sequential download", e)
+            }
+        }
+
+        /**
+         * Pause all torrents
+         */
+        fun pauseAll() {
+            torrents.values.forEach { it.pause() }
+            updateDownloads()
+        }
+
+        /**
+         * Resume all torrents
+         */
+        fun resumeAll() {
+            torrents.values.forEach { it.resume() }
+            updateDownloads()
+        }
+
+        /**
+         * Get current download info
+         */
+        fun getDownload(hash: String): TorrentDownload? = _downloadsFlow.value[hash]
+
+        /**
+         * Stop session and cleanup
+         */
+        fun stopSession() {
+            try {
+                torrents.clear()
+                session?.stop()
+                session = null
+                Log.i(TAG, "Session stopped")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping session", e)
+            }
+        }
+
+        // Alert handlers
+
+        private fun handleAddTorrent(alert: AddTorrentAlert) {
+            val handle = alert.handle()
+            val hash = handle.infoHash().toHex()
+            torrents[hash] = handle
+            updateDownloads()
+        }
+
+        private fun handleStateChanged(alert: StateChangedAlert) {
+            updateDownloads()
+        }
+
+        private fun handleTorrentFinished(alert: TorrentFinishedAlert) {
+            updateDownloads()
+        }
+
+        private fun handleTorrentError(alert: TorrentErrorAlert) {
+            val hash = alert.handle().infoHash().toHex()
+            Log.e(TAG, "Torrent error for $hash: ${alert.error()}")
+            updateDownloads()
+        }
+
+        private fun handleMetadataReceived(alert: MetadataReceivedAlert) {
+            updateDownloads()
+        }
+
+        private fun handleBlockFinished(alert: BlockFinishedAlert) {
+            // Update less frequently for performance
+            if (System.currentTimeMillis() % 1000 < 100) {
+                updateDownloads()
+            }
+        }
+
+        // Helper methods
+
+        private fun updateDownloads() {
+            val downloads =
+                torrents.mapValues { (hash, handle) ->
+                    createTorrentDownload(hash, handle)
+                }
+            _downloadsFlow.value = downloads
+        }
+
+        private fun createTorrentDownload(
+            hash: String,
+            handle: TorrentHandle,
+        ): TorrentDownload {
+            val status = handle.status()
+            val torrentInfo = handle.torrentFile()
+
+            return TorrentDownload(
+                hash = hash,
+                name = status.name(),
+                state = mapState(status.state()),
+                progress = status.progress(),
+                downloadSpeed = status.downloadRate().toLong(),
+                uploadSpeed = status.uploadRate().toLong(),
+                totalSize = status.totalWanted(),
+                downloadedSize = status.totalWantedDone(),
+                uploadedSize = status.allTimeUpload(),
+                numPeers = status.numPeers(),
+                numSeeds = status.numSeeds(),
+                eta = calculateEta(status),
+                savePath = handle.savePath(),
+                files = if (torrentInfo != null) mapFiles(torrentInfo, handle) else emptyList(),
+                errorMessage = null, // TODO: Get error from status
+            )
+        }
+
+        private fun mapState(state: TorrentStatus.State): TorrentState =
+            when (state) {
+                TorrentStatus.State.CHECKING_FILES -> TorrentState.CHECKING
+                TorrentStatus.State.DOWNLOADING_METADATA -> TorrentState.DOWNLOADING_METADATA
+                TorrentStatus.State.DOWNLOADING -> TorrentState.DOWNLOADING
+                TorrentStatus.State.SEEDING -> TorrentState.SEEDING
+                TorrentStatus.State.FINISHED -> TorrentState.COMPLETED
+                else -> TorrentState.QUEUED
+            }
+
+        private fun mapFiles(
+            torrentInfo: TorrentInfo,
+            handle: TorrentHandle,
+        ): List<TorrentFile> {
+            val fileStorage = torrentInfo.files()
+            val priorities = handle.filePriorities() // Returns Priority[]
+
+            return (0 until fileStorage.numFiles()).map { index ->
+                val priority =
+                    if (index < priorities.size) {
+                        priorities[index].swig().toInt()
+                    } else {
+                        4 // Default priority
+                    }
+                TorrentFile(
+                    index = index,
+                    path = fileStorage.filePath(index),
+                    size = fileStorage.fileSize(index),
+                    priority = priority,
+                    progress = 0f, // TODO: Calculate per-file progress
+                    isSelected = priority != 0,
+                )
+            }
+        }
+
+        private fun calculateEta(status: TorrentStatus): Long {
+            val remaining = status.totalWanted() - status.totalWantedDone()
+            val speed = status.downloadRate()
+
+            return if (speed > 0 && remaining > 0) {
+                remaining / speed
+            } else {
+                -1
+            }
+        }
+
+        private fun parseMagnetHash(magnetUri: String): String? {
+            val regex = "urn:btih:([a-fA-F0-9]{40})".toRegex()
+            return regex
+                .find(magnetUri)
+                ?.groupValues
+                ?.get(1)
+                ?.lowercase()
+        }
+
+        companion object {
+            private const val TAG = "TorrentSessionManager"
+        }
+    }
