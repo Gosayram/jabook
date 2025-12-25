@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `@Keep` annotation to navigation route data classes
 - Add `AuthInterceptor` for automatic re-authentication, integrate it into `NetworkModule`, and remove `PlayerScreen`'s `TopAppBar`
 - Add `autoPlay` parameter to `loadAndPlayAudio` to control immediate playback after loading
+- Add `ParsingResult` for graceful error handling and integrate defensive encoding for robust parsing
+- Add audiobook category data model and HTML parser for RuTracker
 - Add back navigation icon to the player screen with localized content description
 - Add book properties dialog, improve file system scanning with robust book identification and encoding detection, and refactor library display views
 - Add BookDetailPane composable to display detailed book information and integrate it into the library screen
@@ -37,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add fade-in and fade-out navigation transitions to PlayerScreen
 - Add favorites feature with new data model, DAO, repository, ViewModel, and database migration
 - Add Favorites screen with navigation and audiobook management capabilities
+- Add file utility for directory size and enhance torrent download deletion with a confirmation dialog and file removal option
 - Add grouped and grid library view modes with user preference persistence
 - Add loading and error states to BookCard cover image
 - Add login concurrency protection and multi-tier authentication validation
@@ -49,9 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add pull-to-refresh to LibraryScreen to trigger library scan with runtime storage permission checks
 - Add RuTracker debug tab displaying authentication status, validation results, and mirror connectivity
 - Add RuTracker diagnostics tab displaying authentication status, validation results, and mirror connectivity
+- Add RuTracker repository and search view model for audiobook search and details
+- Add RuTracker search screen with corresponding string resources
 - Add script to automate Kotlin Compose hardcoded string migration to resources
 - Add support for custom audiobook scan paths with dedicated settings UI and database persistence
+- Add support for initiating torrent downloads via magnet link passed to DownloadsRoute
 - Add swipe gestures and notification controls to mini player
+- Add torrent downloads screen, ViewModel, UI components, and associated string resources
+- Add torrent file selection dialog and update downloads screen navigation
 - Apply zero window insets to TopAppBar in multiple feature screens, refine search bar logic, and update debug/topic screen titles
 - Auto-initialize player with book data upon UI state success and update the library list view icon to be auto-mirrored
 - Chapter search to filter by title/number instead of auto-jumping to chapter numbers
@@ -81,20 +89,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement Material 3 Adaptive UI for PlayerScreen and SearchScreen
 - Implement MediaInfo parsing and models, and display details on the topic screen
 - Implement multi-stage cookie persistence using new DAO, entity, and manager, integrated into the authentication flow and database
+- Implement multi-strategy cover URL and topic field extractors for HTML parsing
 - Implement native streaming torrent downloads
+- Implement network monitoring to conditionally pause and resume torrent downloads based on network type and user preferences
 - Implement pull-to-refresh for library scanning, enhance library display with empty state, and add chapter reordering functionality
 - Implement real-time library scan progress with UI integration and metadata caching
+- Implement torrent details screen with file prioritization and per-file download progress
+- Implement torrent download management including service, notifications, and core logic
+- Implement torrent download persistence by adding a new database table and syncing manager state
 - Implement user preference to toggle chapter title normalization in player and settings
 - Implement user-configurable download location and Wi-Fi only download settings, and add library scanning functionality
 - Improve authentication with strict validation and WebView cookie synchronization, and update Android runtime permission requests
 - Initialize player only with non-empty chapters and eagerly start player state flow to avoid race conditions
 - Integrate Glide for optimized notification artwork loading, replacing DataSourceBitmapLoader
+- Integrate new interceptor to add browser-like headers, including Brotli, to network requests
 - Internationalize favorites screen dialog and menu texts by adding new string resources
 - Internationalize various UI and worker strings and refactor library scan worker for improved performance and batch processing
+- Introduce in-memory LRU cache for Rutracker search results, integrating it into the repository and cache management
 - Introduce Jetpack Compose UI with new data layer for books and refactor audio player components: phase 1 and 2
 - Introduce library sorting by activity, title, author, and date added, and track book completion and last played times
 - Introduce mini player and compact book list view, and enhance debug screen with auto-refresh and error handling
 - Introduce pre-commit hook and script for automated cleaning of duplicate Android string resources
+- Introduce Room persistence for torrent downloads with new entity, DAO, and repository
+- Introduce sorting and filtering functionality to the Rutracker search screen, including UI, ViewModel logic, and data models
 - Introduce unified book card, actions provider, and display modes for consistent book presentation and selection across Library, Search, and Favorites
 - Localize search screen by extracting strings to resources and adding an ARB to XML conversion script
 - Migrate media notifications from custom provider to `androidx.media3.ui.PlayerNotificationManager` for improved background service reliability
@@ -116,6 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add comprehensive architecture documentation in Quarto format with 45+ Mermaid diagrams
 - Add deprecation suppression for hiltViewModel in feature screens
 - Add logic to request necessary permissions on app launch based on Android version
+- Add RuTracker search screen and its navigation route
 - Add topic details screen with its viewmodel and navigation route
 - Added ignore packages for copyright validation
 - Added ktlint-strace for make hook
@@ -149,6 +167,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean up each cache before compilation testing
 - Clean up unused imports and apply minor formatting to settings and topic screens
 - Consolidate and simplify R8 rules for Kotlinx Serialization, Hilt, and other libraries
+- Delegate field and cover URL extraction to dedicated services using injected extractors
 - Disable PlayerNotificationManager in audio service
 - Enhance back gesture handling to always intercept and provide screen exit fallback
 - Enhance foreground service initialization for Android 14+ and standardize notification ID
