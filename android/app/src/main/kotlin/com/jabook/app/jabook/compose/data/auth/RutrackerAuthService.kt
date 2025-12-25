@@ -112,13 +112,13 @@ class RutrackerAuthService
                     val decodingResult = encodingHandler.decode(rawBody, contentType)
                     val bodyString = decodingResult.text
                     val decodeDuration = System.currentTimeMillis() - decodeStart
-                    
+
                     Log.d(
                         TAG,
                         "[$operationId] Response decoded with ${decodingResult.encoding}, " +
                             "confidence=${decodingResult.confidence}, hasMojibake=${decodingResult.hasMojibake} (${decodeDuration}ms)",
                     )
-                    
+
                     // Warn if encoding issues detected
                     if (decodingResult.hasMojibake) {
                         Log.w(TAG, "[$operationId] ⚠️ Mojibake detected in response, may affect parsing")
