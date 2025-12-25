@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add custom icons and localized strings for media session controls and notifications, and synchronize player settings
 - Add customizable font selection to app settings, allowing users to choose between default and system fonts
 - Add debug screen for viewing and sharing logs and integrate it into navigation
+- Add defensive encoding handler and decoding result for robust remote data decoding
 - Add download history screen with search and sort functionality, and enable drag-and-drop reordering for the download queue
 - Add dynamic color support to `JabookTheme` for Android 12+ devices
 - Add fade-in and fade-out navigation transitions to PlayerScreen
@@ -59,7 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhance Media3 integration with rich metadata, completion status, and improved Android Auto support
 - Enhance Rutracker authentication with detailed logging, robust error handling, and new debug info
 - Enhance settings screen with improved cache clearing messages, customizable slider value formatting, and direct links to GitHub resources
+- Enhance string migration script with improved filtering, statistics, and add string resource for unknown cache size
 - Externalize UI strings to resources for internationalization in player, settings, and library features
+- Extract audiobook covers during library scan and skip scan if no scan paths are configured
 - Extract embedded book covers during library scan and unify cover image loading across UI components
 - Feat: Implement seek forward/backward controls in the player and refactor playback speed persistence to user preferences
 - Feat: remove close button from BookPropertiesDialog
@@ -68,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement app data backup and restore functionality for settings and book metadata
 - Implement cache management in settings, allowing users to view and clear app cache
 - Implement chapter search/jump in player, display library screen title, and remove redundant TopAppBar window insets
+- Implement cleanup for non-existent scan paths and deleted books from the database
 - Implement custom audio notification manager with media session integration and enable shared element transitions
 - Implement download filtering, priority management, and queue reordering with a new database table
 - Implement download history tracking and add new download speed and concurrency settings
@@ -115,6 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add topic details screen with its viewmodel and navigation route
 - Added ignore packages for copyright validation
 - Added ktlint-strace for make hook
+- Added unique pid for each player session and fixing startForground issue
 - Adjust Makefile build output paths by removing 'android/' prefix and trailing slashes
 - Adjust PlayerScreen content padding and vertical item spacing
 - Adjust SettingsScreen layout by adding top bar window insets, removing a horizontal divider, and reducing a spacer's height
@@ -131,6 +136,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump patch version to 1.2.7+12
 - Bump patch version to 1.2.7+13
 - Bump patch version to 1.2.7+14
+- Bump patch version to 1.2.7+15
+- Bump patch version to 1.2.7+16
+- Bump patch version to 1.2.7+17
+- Bump patch version to 1.2.7+18
+- Bump patch version to 1.2.7+19
+- Bump patch version to 1.2.7+20
+- Bump patch version to 1.2.7+21
 - Bump pub build
 - Centralize date and time formatting with a new DateTimeFormatter utility and apply it to backup and settings
 - Centralize playback speed constants and update player and settings UI to utilize them
@@ -170,6 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrate string management from custom `Strings.kt` to standard `R.string` resources
 - Migrate to DataStore + Tink encryption for credentials
 - Migrate to Java 21 and replace kapt with KSP for Room
+- Optimize library scan performance and cleanup obsolete TODOs
 - Optimize ProGuard rules for Kotlinx Serialization, Hilt, Room, and DataStore Proto, remove Gson, and use `@SerialName` in navigation routes
 - Polish navigation UI and resolve deprecations
 - Preserve XML comments and formatting when adding new strings to `strings.xml`
@@ -192,12 +205,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace hardcoded "Logged in as" string with a string resource
 - Return  media player service initializer
 - Script for Android startup log analysis and enhance Kotlin serialization ProGuard rules for R8 Full Mode
+- Service warmup and using
 - Simplify BookCard image loading state handling and improve accessibility
 - Simplify ProGuard rules by removing redundant library-specific configurations and refining Kotlinx Serialization rules for `@SerialName`
 - Streamline audio player service initialization and notification provider setup, and remove reflection fallback for media style token
 - Streamline Gradle configuration, enable build caching, remove integration test plugin workaround, disable default WorkManager initialization, and generalize DataMigrationManager's DataStore usage
 - Unification into one abstraction for easily linting
 - Update chapter name formatting to accept a localized prefix and introduce new string resources for UI elements
+- Update CI workflows to improve Gradle wrapper generation and permissions; added checks for existing files and enhanced error handling
 - Update copyright script to target Kotlin files instead of Dart and remove Flutter-specific exclusions
 - Update Hilt `@ApplicationContext` parameter annotation syntax and add `viewModel` import
 - Update Hilt ViewModel imports and add trailing comma to enum definition + enhance downloads mechanism
@@ -215,6 +230,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disable KTagLib on Android 16+ due to FDSAN incompatibility and simplify ParcelFileDescriptor handling in metadata parsing
 - Display book cover images in search results
 - Duplicated and numeric strings with similar params for each project
+- Ensure audio player notification remains persistent by always calling startForeground instead of conditionally stopping it
 - Extend KTagLib disablement to Android 11+ (API 30) due to FDSAN incompatibility
 - Fix chapter mismatch, player freeze, and local playback
 - Fix compilation errors and improve playback position saving
@@ -234,6 +250,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove cover art processing from LibraryScanWorker, allowing UI to load covers directly from book folders
 - Remove old BridgeModule between Kotlin and Flutter
 - Remove redundant null check for sort order assignment
+- Remove unnecessary Flutter plugin loader from settings.gradle.kts; streamline project configuration
 - Removed unused flutter params
 - Removed unused flutter tests, implementations, libs
 - Resolve audio player bridging and playlist sorting issues
@@ -243,6 +260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolve player back navigation blank screen issue
 - Room version and build namespace for validation
 - Rutracker search parsing by adding cover URL extraction and enhancing selector robustness for existing fields
+- Skip test files in the string migration script
 - Temporarily disable mini-player functionality and its PlayerViewModel instantiation, adding TODOs for future state management
 - Update beta APK installation to use arm64-v8a specific build
 - Use default view list icon instead of auto-mirrored in library screen
