@@ -35,6 +35,8 @@ class RutrackerParser
     constructor(
         private val mediaInfoParser: MediaInfoParser,
         private val encodingHandler: com.jabook.app.jabook.compose.data.remote.encoding.DefensiveEncodingHandler,
+        private val fieldExtractor: DefensiveFieldExtractor,
+        private val coverExtractor: CoverUrlExtractor,
     ) {
         companion object {
             private const val TAG = "RutrackerParser"
@@ -230,39 +232,10 @@ class RutrackerParser
             // Extract category (from parent table or data attribute)
             val category = row.attr("data-forum_id").ifEmpty { "Audiobooks" }
 
-            // Extract size with multiple fallback selectors
-            val sizeElement =
-                row.selectFirst(SIZE_SELECTOR)
-                    ?: row.selectFirst("td.tor-size")
-                    ?: row.selectFirst("a[href*='dl.php']")
-                    ?: row.select("td").getOrNull(5) // Size often in 6th column
-            val size =
-                sizeElement?.text()?.trim()?.ifEmpty { null } ?: run {
-                    Log.w(TAG, "Size not found for topic $topicId, tried selectors: $SIZE_SELECTOR")
-                    "Unknown"
-                }
-
-            // Extract seeders with fallback
-            val seedersElement =
-                row.selectFirst(SEEDERS_SELECTOR)
-                    ?: row.selectFirst("td.seed")
-                    ?: row.select("td").getOrNull(6) // Seeders often in 7th column
-            val seeders =
-                seedersElement?.text()?.toIntOrNull() ?: run {
-                    Log.d(TAG, "Seeders not found for topic $topicId, tried selectors: $SEEDERS_SELECTOR")
-                    0
-                }
-
-            // Extract leechers with fallback
-            val leechersElement =
-                row.selectFirst(LEECHERS_SELECTOR)
-                    ?: row.selectFirst("td.leech")
-                    ?: row.select("td").getOrNull(7) // Leechers often in 8th column
-            val leechers =
-                leechersElement?.text()?.toIntOrNull() ?: run {
-                    Log.d(TAG, "Leechers not found for topic $topicId, tried selectors: $LEECHERS_SELECTOR")
-                    0
-                }
+            // Use DefensiveFieldExtractor for robust extraction
+            val size = fieldExtractor.extractSize(row, topicId)
+            val seeders = fieldExtractor.extractSeeders(row, topicId)
+            val leechers = fieldExtractor.extractLeechers(row, topicId)
 
             // Extract magnet link
             val magnetElement = row.selectFirst(MAGNET_LINK_SELECTOR)
@@ -358,7 +331,7 @@ class RutrackerParser
                     leechers = metadata["leechers"]?.toIntOrNull() ?: 0,
                     magnetUrl = magnetUrl,
                     torrentUrl = torrentUrl,
-                    coverUrl = extractCoverUrl(postBody),
+                    coverUrl = postBody?.let { coverExtractor.extract(it) },
                     genres = extractGenres(postBody),
                     addedDate = metadata["addedDate"],
                     duration = metadata["duration"],
