@@ -146,4 +146,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRutrackerApi(retrofit: Retrofit): RutrackerApi = retrofit.create(RutrackerApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideNetworkMonitor(
+        impl: com.jabook.app.jabook.compose.data.network.ConnectivityManagerNetworkMonitor,
+    ): com.jabook.app.jabook.compose.data.network.NetworkMonitor = impl
 }

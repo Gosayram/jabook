@@ -17,11 +17,16 @@ package com.jabook.app.jabook.compose.data.torrent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.jabook.app.jabook.compose.data.network.NetworkMonitor
+import com.jabook.app.jabook.compose.data.network.NetworkType
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,6 +42,8 @@ class TorrentManager
         @param:ApplicationContext private val context: Context,
         private val sessionManager: TorrentSessionManager,
         private val repository: TorrentDownloadRepository,
+        private val settingsRepository: SettingsRepository,
+        private val networkMonitor: NetworkMonitor,
     ) {
         /** Current downloads */
         val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
@@ -61,6 +68,9 @@ class TorrentManager
 
                 // Start observing downloads for DB sync
                 observeAndSyncToDatabase()
+
+                // Start observing network constraints
+                observeNetworkConstraints()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize", e)
                 throw e
@@ -216,6 +226,65 @@ class TorrentManager
                     if (downloads.isNotEmpty()) {
                         repository.saveAll(downloads.values.toList())
                     }
+                }
+            }
+        }
+
+        private val networkPausedTorrents = mutableSetOf<String>()
+        private var pausedByNetwork = false
+
+        private fun observeNetworkConstraints() {
+            scope.launch {
+                combine(
+                    settingsRepository.userPreferences,
+                    networkMonitor.networkType,
+                ) { prefs: UserPreferences, net: NetworkType ->
+                    Pair(prefs.wifiOnlyDownload, net)
+                }.collect { (wifiOnly, net) ->
+                    handleNetworkChange(wifiOnly, net)
+                }
+            }
+        }
+
+        private fun handleNetworkChange(
+            wifiOnly: Boolean,
+            net: NetworkType,
+        ) {
+            val isRestricted = wifiOnly && net == NetworkType.CELLULAR
+
+            if (isRestricted) {
+                if (!pausedByNetwork) {
+                    val currentDownloads = downloadsFlow.value
+
+                    // Identify active downloads to pause
+                    val active =
+                        currentDownloads.values
+                            .filter {
+                                it.state != TorrentState.PAUSED &&
+                                    it.state != TorrentState.ERROR &&
+                                    it.state != TorrentState.STOPPED
+                            }.map { it.hash }
+
+                    if (active.isNotEmpty()) {
+                        networkPausedTorrents.clear()
+                        networkPausedTorrents.addAll(active)
+
+                        Log.i(TAG, "Pausing ${active.size} torrents due to WiFi-only restriction")
+                        active.forEach { pauseTorrent(it) }
+                        pausedByNetwork = true
+
+                        // TODO: Show notification about paused downloads
+                    }
+                }
+            } else {
+                // WiFi, Ethernet, or restriction disabled
+                if (pausedByNetwork) {
+                    Log.i(TAG, "Resuming ${networkPausedTorrents.size} torrents (Restored from Network pause)")
+                    networkPausedTorrents.forEach { resumeTorrent(it) }
+                    networkPausedTorrents.clear()
+                    pausedByNetwork = false
+
+                    // TODO: Show notification about resumed downloads
                 }
             }
         }
