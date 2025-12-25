@@ -95,5 +95,11 @@ data class TopicRoute(
 @Serializable
 object DownloadHistoryRoute
 
+/**
+ * RuTracker Search screen route - search audiobooks on RuTracker.
+ */
+@Serializable
+object RutrackerSearchRoute
+
 @Serializable
 object ScanSettingsRoute

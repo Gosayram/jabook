@@ -241,6 +241,23 @@ fun JabookNavHost(
             )
         }
 
+        // RuTracker Search screen - dedicated RuTracker search
+        composable<RutrackerSearchRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://rutracker/search" },
+                ),
+        ) {
+            com.jabook.app.jabook.compose.feature.search.rutracker.RutrackerSearchScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onTopicClick = { topicId ->
+                    navController.navigate(TopicRoute(topicId = topicId))
+                },
+            )
+        }
+
         // Downloads screen - shows active downloads
         composable<DownloadsRoute>(
             deepLinks =
