@@ -59,7 +59,9 @@ object SearchRoute
  * Downloads screen route - shows active downloads.
  */
 @Serializable
-object DownloadsRoute
+data class DownloadsRoute(
+    val magnetLink: String? = null,
+)
 
 /**
  * Debug screen route - shows debug tools and logs.

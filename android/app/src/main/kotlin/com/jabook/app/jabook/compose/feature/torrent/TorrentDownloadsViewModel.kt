@@ -14,18 +14,24 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.os.Environment
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.compose.navigation.DownloadsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -59,7 +65,21 @@ class TorrentDownloadsViewModel
     constructor(
         private val torrentManager: TorrentManager,
         private val repository: TorrentDownloadRepository,
+        private val settingsRepository: SettingsRepository,
+        savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
+        init {
+            // Check for initial magnet link
+            try {
+                val route = savedStateHandle.toRoute<DownloadsRoute>()
+                route.magnetLink?.let { magnetLink ->
+                    addTorrent(magnetLink)
+                }
+            } catch (e: Exception) {
+                // Ignore if not navigated via route with args
+            }
+        }
+
         // Selected download for details view
         private val _selectedDownload = MutableStateFlow<TorrentDownload?>(null)
         val selectedDownload: StateFlow<TorrentDownload?> = _selectedDownload.asStateFlow()
@@ -203,6 +223,25 @@ class TorrentDownloadsViewModel
                     state.pausedDownloads.forEach { download ->
                         torrentManager.resumeTorrent(download.hash)
                     }
+                }
+            }
+        }
+
+        /**
+         * Add torrent from magnet link
+         */
+        fun addTorrent(magnetLink: String) {
+            viewModelScope.launch {
+                try {
+                    val prefs = settingsRepository.userPreferences.first()
+                    val downloadPath =
+                        prefs.downloadPath.ifEmpty {
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
+                        }
+
+                    torrentManager.addTorrent(magnetLink, downloadPath)
+                } catch (e: Exception) {
+                    // Handle error
                 }
             }
         }

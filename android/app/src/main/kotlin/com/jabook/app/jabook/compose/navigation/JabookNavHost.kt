@@ -122,7 +122,7 @@ fun JabookNavHost(
                     navController.navigate(SearchRoute)
                 },
                 onNavigateToDownloads = {
-                    navController.navigate(DownloadsRoute)
+                    navController.navigate(DownloadsRoute())
                 },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
@@ -174,8 +174,7 @@ fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onMagnetLinkDetected = { magnetUrl ->
-                    // TODO: Handle magnet link - start download
-                    // For now, just log or show toast
+                    navController.navigate(DownloadsRoute(magnetLink = magnetUrl))
                 },
             )
         }
