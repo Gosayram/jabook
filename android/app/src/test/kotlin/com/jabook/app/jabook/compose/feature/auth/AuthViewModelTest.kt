@@ -14,8 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
-import androidx.compose.ui.res.stringResource
-import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
@@ -107,7 +105,7 @@ class AuthViewModelTest {
     @Test
     fun `login failure with error updates state`() =
         runTest {
-            val errorMsg = stringResource(R.string.loginFailed)
+            val errorMsg = "Login failed"
             whenever(authRepository.login(any())).thenReturn(Result.failure(Exception(errorMsg)))
 
             viewModel.login("user", "pass", rememberMe = false)
@@ -121,13 +119,13 @@ class AuthViewModelTest {
     @Test
     fun `login failure with captcha updates state`() =
         runTest {
-            val captchaData = CaptchaData("http://url", stringResource(R.string.sid))
+            val captchaData = CaptchaData("http://url", "test-sid")
             whenever(authRepository.login(any())).thenReturn(Result.failure(CaptchaRequiredException(captchaData)))
 
             viewModel.login("user", "pass", rememberMe = true)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            assertEquals(stringResource(R.string.captchaRequired1), viewModel.uiState.value.error)
+            assertEquals("Captcha required", viewModel.uiState.value.error)
             assertEquals(captchaData, viewModel.uiState.value.captchaData)
         }
 
