@@ -33,6 +33,7 @@ class CacheManager
     constructor(
         @param:ApplicationContext private val context: Context,
         private val database: JabookDatabase,
+        private val rutrackerSearchCache: RutrackerSearchCache,
     ) {
         /**
          * Get total cache size in bytes.
@@ -120,8 +121,8 @@ class CacheManager
         private suspend fun clearSearchCache(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
-                    // TODO: Clear search-related data from Room when entities ready
-                    Log.d(TAG, "Search cache clearing placeholder")
+                    rutrackerSearchCache.clear()
+                    Log.d(TAG, "Search cache cleared successfully")
                     true
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to clear search cache", e)
@@ -177,8 +178,7 @@ class CacheManager
         private suspend fun getSearchCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    // TODO: Calculate search cache size from Room
-                    0L
+                    rutrackerSearchCache.getCacheSize()
                 } catch (e: Exception) {
                     0L
                 }

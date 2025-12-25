@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.remote.repository
 
 import android.util.Log
 import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
+import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.AudiobookCategory
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
@@ -47,6 +48,7 @@ class RutrackerRepository
         private val parser: RutrackerParser,
         private val categoryParser: CategoryParser,
         private val authService: RutrackerAuthService,
+        private val searchCache: RutrackerSearchCache,
     ) {
         companion object {
             private const val TAG = "RutrackerRepository"
@@ -67,7 +69,14 @@ class RutrackerRepository
         ): Result<List<SearchResult>> =
             withContext(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "Searching for: $query, forumIds: $forumIds")
+                    // Check cache first
+                    val cached = searchCache.get(query, forumIds)
+                    if (cached != null) {
+                        Log.d(TAG, "Cache hit for query: $query (${cached.size} results)")
+                        return@withContext Result.success(cached)
+                    }
+
+                    Log.d(TAG, "Cache miss - searching API for: $query, forumIds: $forumIds")
 
                     val response = api.searchTopics(query, forumIds)
 
@@ -87,6 +96,8 @@ class RutrackerRepository
                     when (parsingResult) {
                         is ParsingResult.Success -> {
                             Log.i(TAG, "Search successful: ${parsingResult.data.size} results")
+                            // Cache successful results
+                            searchCache.put(query, forumIds, parsingResult.data)
                             Result.success(parsingResult.data)
                         }
                         is ParsingResult.PartialSuccess -> {
@@ -94,7 +105,8 @@ class RutrackerRepository
                                 TAG,
                                 "Search partial success: ${parsingResult.data.size} results, ${parsingResult.errors.size} errors",
                             )
-                            // Return partial results (better than nothing)
+                            // Cache and return partial results (better than nothing)
+                            searchCache.put(query, forumIds, parsingResult.data)
                             Result.success(parsingResult.data)
                         }
                         is ParsingResult.Failure -> {
