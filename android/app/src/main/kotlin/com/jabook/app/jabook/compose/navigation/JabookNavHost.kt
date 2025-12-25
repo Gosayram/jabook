@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.jabook.app.jabook.compose.feature.downloads.DownloadsScreen
 import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
@@ -265,7 +264,7 @@ fun JabookNavHost(
                     androidx.navigation.navDeepLink { uriPattern = "jabook://downloads" },
                 ),
         ) {
-            DownloadsScreen(
+            com.jabook.app.jabook.compose.feature.torrent.TorrentDownloadsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 },
