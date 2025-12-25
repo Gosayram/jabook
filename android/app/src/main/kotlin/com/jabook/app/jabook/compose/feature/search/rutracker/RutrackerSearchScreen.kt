@@ -30,21 +30,28 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,6 +85,16 @@ fun RutrackerSearchScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val searchState by viewModel.searchState.collectAsState()
+    val filters by viewModel.filters.collectAsState()
+    val sortOrder by viewModel.sortOrder.collectAsState()
+
+    var showFilters by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
+
+    // Filter state for modal
+    var tempMinSeeders by remember { mutableIntStateOf(filters.minSeeders ?: 0) }
+    var tempMinSizeMb by remember { mutableIntStateOf(filters.minSizeMb ?: 0) }
+    var tempMaxSizeMb by remember { mutableIntStateOf(filters.maxSizeMb ?: 0) }
 
     Scaffold(
         topBar = {
@@ -88,6 +105,69 @@ fun RutrackerSearchScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.close),
+                        )
+                    }
+                },
+                actions = {
+                    // Sort button with menu
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.AutoMirrored.Filled.Sort, stringResource(R.string.sort))
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.sort_relevance)) },
+                                onClick = {
+                                    viewModel.updateSortOrder(RutrackerSortOrder.RELEVANCE)
+                                    showSortMenu = false
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.sort_seeders_desc)) },
+                                onClick = {
+                                    viewModel.updateSortOrder(RutrackerSortOrder.SEEDERS_DESC)
+                                    showSortMenu = false
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.sort_size_desc)) },
+                                onClick = {
+                                    viewModel.updateSortOrder(RutrackerSortOrder.SIZE_DESC)
+                                    showSortMenu = false
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.sort_size_asc)) },
+                                onClick = {
+                                    viewModel.updateSortOrder(RutrackerSortOrder.SIZE_ASC)
+                                    showSortMenu = false
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.sort_title_asc)) },
+                                onClick = {
+                                    viewModel.updateSortOrder(RutrackerSortOrder.TITLE_ASC)
+                                    showSortMenu = false
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.sort_title_desc)) },
+                                onClick = {
+                                    viewModel.updateSortOrder(RutrackerSortOrder.TITLE_DESC)
+                                    showSortMenu = false
+                                },
+                            )
+                        }
+                    }
+
+                    // Filter button
+                    IconButton(onClick = { showFilters = true }) {
+                        Icon(
+                            Icons.Filled.FilterList,
+                            contentDescription = stringResource(R.string.filters_and_sort),
                         )
                     }
                 },
@@ -178,6 +258,121 @@ fun RutrackerSearchScreen(
                     }
                 }
             }
+        }
+    }
+
+    // Show filters modal if enabled
+    if (showFilters) {
+        FilterBottomSheet(
+            filters = filters,
+            onDismiss = { showFilters = false },
+            onApply = { newFilters ->
+                viewModel.updateFilters(newFilters)
+            },
+        )
+    }
+}
+
+/**
+ * Filter bottom sheet for RuTracker search.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterBottomSheet(
+    filters: RutrackerSearchFilters,
+    onDismiss: () -> Unit,
+    onApply: (RutrackerSearchFilters) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var tempMinSeeders by remember { mutableIntStateOf(filters.minSeeders ?: 0) }
+    var tempMinSizeMb by remember { mutableIntStateOf(filters.minSizeMb ?: 0) }
+    var tempMaxSizeMb by remember { mutableIntStateOf(filters.maxSizeMb ?: 0) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+        ) {
+            Text(
+                stringResource(R.string.filters_and_sort),
+                style = MaterialTheme.typography.titleLarge,
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Min Seeders
+            OutlinedTextField(
+                value = if (tempMinSeeders == 0) "" else tempMinSeeders.toString(),
+                onValueChange = { tempMinSeeders = it.toIntOrNull() ?: 0 },
+                label = { Text(stringResource(R.string.min_seeders)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Min Size
+            OutlinedTextField(
+                value = if (tempMinSizeMb == 0) "" else tempMinSizeMb.toString(),
+                onValueChange = { tempMinSizeMb = it.toIntOrNull() ?: 0 },
+                label = { Text(stringResource(R.string.min_size_mb)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Max Size
+            OutlinedTextField(
+                value = if (tempMaxSizeMb == 0) "" else tempMaxSizeMb.toString(),
+                onValueChange = { tempMaxSizeMb = it.toIntOrNull() ?: 0 },
+                label = { Text(stringResource(R.string.max_size_mb)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Buttons row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // Reset button
+                TextButton(
+                    onClick = {
+                        tempMinSeeders = 0
+                        tempMinSizeMb = 0
+                        tempMaxSizeMb = 0
+                        onApply(RutrackerSearchFilters())
+                        onDismiss()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.reset_filters))
+                }
+
+                // Apply button
+                androidx.compose.material3.Button(
+                    onClick = {
+                        onApply(
+                            RutrackerSearchFilters(
+                                minSeeders = tempMinSeeders.takeIf { it > 0 },
+                                minSizeMb = tempMinSizeMb.takeIf { it > 0 },
+                                maxSizeMb = tempMaxSizeMb.takeIf { it > 0 },
+                            ),
+                        )
+                        onDismiss()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.apply_filters))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

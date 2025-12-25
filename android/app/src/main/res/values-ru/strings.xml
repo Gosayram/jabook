@@ -2415,4 +2415,18 @@
     <string name="search_rutracker">Поиск в RuTracker</string>
     <string name="search_query">Поиск запроса</string>
     <string name="enter_search_query">Введите поисковый запрос чтобы начать</string>
+
+    <!-- Фильтры и сортировка -->
+    <string name="filters_and_sort">Фильтры и сортировка</string>
+    <string name="apply_filters">Применить</string>
+    <string name="reset_filters">Сбросить</string>
+    <string name="filter_by">Фильтр:</string>
+    <string name="min_seeders">Мин. сидеров</string>
+    <string name="min_size_mb">Мин. размер (МБ)</string>
+    <string name="max_size_mb">Макс. размер (МБ)</string>
+    <string name="sort_relevance">По релевантности</string>
+    <string name="sort_seeders_desc">По сидерам (больше)</string>
+    <string name="sort_size_desc">По размеру (больше)</string>
+    <string name="sort_size_asc">По размеру (меньше)</string>
+    <string name="filters_active">Активно фильтров: %d</string>
 </resources>

@@ -2382,4 +2382,18 @@
     <string name="search_query">Search query</string>
     <string name="enter_search_query">Enter search query to find audiobooks</string>
 
+    <!-- Filters and Sorting -->
+    <string name="filters_and_sort">Filters &amp; Sort</string>
+    <string name="apply_filters">Apply</string>
+    <string name="reset_filters">Reset</string>
+    <string name="filter_by">Filter by:</string>
+    <string name="min_seeders">Min Seeders</string>
+    <string name="min_size_mb">Min Size (MB)</string>
+    <string name="max_size_mb">Max Size (MB)</string>
+    <string name="sort_relevance">Relevance</string>
+    <string name="sort_seeders_desc">Seeders (High to Low)</string>
+    <string name="sort_size_desc">Size (Large to Small)</string>
+    <string name="sort_size_asc">Size (Small to Large)</string>
+    <string name="filters_active">%d filters active</string>
+
 </resources>
