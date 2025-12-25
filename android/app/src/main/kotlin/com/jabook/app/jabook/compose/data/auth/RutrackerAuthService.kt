@@ -36,6 +36,7 @@ class RutrackerAuthService
     constructor(
         private val api: RutrackerApi,
         private val parser: com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser,
+        private val encodingHandler: com.jabook.app.jabook.compose.data.remote.encoding.DefensiveEncodingHandler,
     ) {
         companion object {
             private const val TAG = "RutrackerAuthService"
@@ -105,11 +106,23 @@ class RutrackerAuthService
                             "isRedirect=$isRedirect, responseSize=${rawBody.size} bytes (${requestDuration}ms)",
                     )
 
-                    // Step 4: Decode response body
+                    // Step 4: Decode response body with defensive encoding handler
                     val decodeStart = System.currentTimeMillis()
-                    val bodyString = String(rawBody, CP1251)
+                    val contentType = response.headers()["Content-Type"]
+                    val decodingResult = encodingHandler.decode(rawBody, contentType)
+                    val bodyString = decodingResult.text
                     val decodeDuration = System.currentTimeMillis() - decodeStart
-                    Log.d(TAG, "[$operationId] Response decoded from CP1251 (${decodeDuration}ms)")
+                    
+                    Log.d(
+                        TAG,
+                        "[$operationId] Response decoded with ${decodingResult.encoding}, " +
+                            "confidence=${decodingResult.confidence}, hasMojibake=${decodingResult.hasMojibake} (${decodeDuration}ms)",
+                    )
+                    
+                    // Warn if encoding issues detected
+                    if (decodingResult.hasMojibake) {
+                        Log.w(TAG, "[$operationId] ⚠️ Mojibake detected in response, may affect parsing")
+                    }
 
                     // Step 5: Check HTTP status
                     if (!response.isSuccessful && statusCode !in 300..399) {

@@ -34,6 +34,7 @@ class RutrackerParser
     @Inject
     constructor(
         private val mediaInfoParser: MediaInfoParser,
+        private val encodingHandler: com.jabook.app.jabook.compose.data.remote.encoding.DefensiveEncodingHandler,
     ) {
         companion object {
             private const val TAG = "RutrackerParser"
@@ -58,6 +59,113 @@ class RutrackerParser
             private const val TOR_SIZE_SELECTOR = "#tor-size-humn"
 
             private const val BASE_URL = "https://rutracker.org/forum/"
+        }
+
+        /**
+         * Parse search results from raw bytes with encoding detection.
+         *
+         * This method uses DefensiveEncodingHandler to properly decode
+         * RuTracker's windows-1251 or mixed encoding content.
+         *
+         * @param bytes Raw response bytes
+         * @param contentType Optional Content-Type header
+         * @return ParsingResult with search results
+         */
+        fun parseSearchResultsWithEncoding(
+            bytes: ByteArray,
+            contentType: String? = null,
+        ): ParsingResult<List<SearchResult>> {
+            // Decode with defensive handler
+            val decodingResult = encodingHandler.decode(bytes, contentType)
+
+            // Log encoding information
+            Log.d(
+                TAG,
+                "Decoded with ${decodingResult.encoding}, confidence=${decodingResult.confidence}, hasMojibake=${decodingResult.hasMojibake}",
+            )
+
+            // Warn if mojibake detected
+            if (decodingResult.hasMojibake) {
+                Log.w(TAG, "Mojibake detected in response, results may be corrupted")
+            }
+
+            // Parse the decoded HTML
+            return parseSearchResultsDefensive(decodingResult.text)
+        }
+
+        /**
+         * Parse search results with graceful error handling.
+         *
+         * Returns ParsingResult instead of crashing on errors.
+         *
+         * @param html Decoded HTML content
+         * @return ParsingResult with results, warnings, or errors
+         */
+        private fun parseSearchResultsDefensive(html: String): ParsingResult<List<SearchResult>> {
+            val errors = mutableListOf<ParsingError>()
+            val results = mutableListOf<SearchResult>()
+
+            try {
+                val document = Jsoup.parse(html)
+                val rows = document.select(ROW_SELECTOR)
+
+                if (rows.isEmpty()) {
+                    errors.add(
+                        ParsingError(
+                            field = "rows",
+                            reason = "No topic rows found with selector: $ROW_SELECTOR",
+                            severity = ErrorSeverity.CRITICAL,
+                            htmlSnippet = html.take(500),
+                        ),
+                    )
+                    return ParsingResult.Failure(errors, emptyList())
+                }
+
+                Log.d(TAG, "Found ${rows.size} topic rows")
+
+                for ((index, row) in rows.withIndex()) {
+                    try {
+                        val result = parseSearchResultRow(row)
+                        if (result != null) {
+                            results.add(result)
+                        } else {
+                            errors.add(
+                                ParsingError(
+                                    field = "row_$index",
+                                    reason = "Failed to extract required fields",
+                                    severity = ErrorSeverity.WARNING,
+                                    htmlSnippet = row.html().take(200),
+                                ),
+                            )
+                        }
+                    } catch (e: Exception) {
+                        errors.add(
+                            ParsingError(
+                                field = "row_$index",
+                                reason = "Exception: ${e.message}",
+                                severity = ErrorSeverity.ERROR,
+                            ),
+                        )
+                    }
+                }
+
+                // Determine result type based on success/error ratio
+                return when {
+                    errors.isEmpty() -> ParsingResult.Success(results)
+                    results.isNotEmpty() -> ParsingResult.PartialSuccess(results, errors)
+                    else -> ParsingResult.Failure(errors, emptyList())
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse search results", e)
+                errors.add(
+                    ParsingError(
+                        field = "document",
+                        reason = "Failed to parse HTML: ${e.message}",
+                        severity = ErrorSeverity.CRITICAL,
+                    ),
+                )
+                return ParsingResult.Failure(errors, emptyList())
+            }
         }
 
         /**
