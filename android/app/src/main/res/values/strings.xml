@@ -2440,4 +2440,14 @@
     <string name="tap_to_manage_downloads">Tap to manage downloads</string>
     <string name="downloading_n_torrents">Downloading %1$d torrents</string>
 
+    <!-- Title for storage usage -->
+    <string name="storageUsage">Storage Usage</string>
+    <!-- Label for delete all downloads -->
+    <string name="deleteAllDownloads">Delete All Downloads</string>
+    <!-- Description for delete all buttons -->
+    <string name="deleteAllDownloadsDesc">Removes all torrents and downloaded files</string>
+    <!-- Confirmation message for delete all -->
+    <string name="deleteAllConfirmation">Are you sure you want to delete all downloads? This cannot be undone.</string>
+    <!-- Button to confirm delete -->
+    <string name="deleteButton">Delete</string>
 </resources>

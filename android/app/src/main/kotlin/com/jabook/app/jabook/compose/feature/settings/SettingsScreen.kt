@@ -370,6 +370,50 @@ fun SettingsScreen(
                 valueFormatter = { "${it.toInt()}" },
             )
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Storage Usage
+            val torrentStorageSize by viewModel.torrentStorageSize.collectAsStateWithLifecycle()
+            LaunchedEffect(protoSettings.downloadPath) {
+                viewModel.loadTorrentStorageSize()
+            }
+
+            SettingsItem(
+                title = stringResource(R.string.storageUsage),
+                subtitle = formatBytes(torrentStorageSize),
+            )
+
+            var showDeleteAllDialog by remember { mutableStateOf(false) }
+
+            SettingsItem(
+                title = stringResource(R.string.deleteAllDownloads),
+                subtitle = stringResource(R.string.deleteAllDownloadsDesc),
+                onClick = { showDeleteAllDialog = true },
+            )
+
+            if (showDeleteAllDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteAllDialog = false },
+                    title = { Text(stringResource(R.string.deleteAllDownloads)) },
+                    text = { Text(stringResource(R.string.deleteAllConfirmation)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.deleteAllTorrentData(true)
+                                showDeleteAllDialog = false
+                            },
+                        ) {
+                            Text(stringResource(R.string.deleteButton))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteAllDialog = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    },
+                )
+            }
+
             HorizontalDivider()
 
             // Backup & Restore Section

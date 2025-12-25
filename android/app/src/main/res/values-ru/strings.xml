@@ -2475,4 +2475,14 @@
     <string name="selected_size_format">Выбрано: %s</string>
     <string name="download">Скачать</string>
 
+    <!-- Title for storage usage -->
+    <string name="storageUsage">Использование хранилища</string>
+    <!-- Label for delete all downloads -->
+    <string name="deleteAllDownloads">Удалить все загрузки</string>
+    <!-- Description for delete all buttons -->
+    <string name="deleteAllDownloadsDesc">Удаляет все торренты и загруженные файлы</string>
+    <!-- Confirmation message for delete all -->
+    <string name="deleteAllConfirmation">Вы уверены, что хотите удалить все загрузки? Это действие нельзя отменить.</string>
+    <!-- Button to confirm delete -->
+    <string name="deleteButton">Удалить</string>
 </resources>

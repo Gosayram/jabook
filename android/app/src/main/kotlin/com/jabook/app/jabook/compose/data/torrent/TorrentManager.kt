@@ -174,6 +174,17 @@ class TorrentManager
         }
 
         /**
+         * Delete all torrents
+         */
+        fun deleteAllTorrents(deleteFiles: Boolean) {
+            val hashes = downloadsFlow.value.keys.toList()
+            hashes.forEach { hash ->
+                sessionManager.removeTorrent(hash, deleteFiles)
+            }
+            stopDownloadService()
+        }
+
+        /**
          * Shutdown torrent system
          */
         fun shutdown() {

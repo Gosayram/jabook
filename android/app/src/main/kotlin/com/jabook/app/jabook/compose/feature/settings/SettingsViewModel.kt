@@ -31,9 +31,12 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.ThemeMode
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
+import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
+import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -41,6 +44,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -63,6 +67,7 @@ class SettingsViewModel
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val workManager: WorkManager,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
+        private val torrentManager: TorrentManager,
     ) : ViewModel() {
         val scanProgress: StateFlow<ScanProgress> =
             booksRepository.getScanProgress().stateIn(
@@ -323,6 +328,28 @@ class SettingsViewModel
         fun updateWifiOnly(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateWifiOnly(enabled)
+            }
+        }
+
+        private val _torrentStorageSize = MutableStateFlow<Long>(0L)
+        val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
+
+        fun loadTorrentStorageSize() {
+            viewModelScope.launch {
+                val path = protoSettings.value.downloadPath
+                if (path.isNotEmpty()) {
+                    val size = FileUtils.getDirectorySize(File(path))
+                    _torrentStorageSize.value = size
+                }
+            }
+        }
+
+        fun deleteAllTorrentData(deleteFiles: Boolean) {
+            viewModelScope.launch {
+                torrentManager.deleteAllTorrents(deleteFiles)
+                // Refresh size after a short delay to allow file system ops
+                kotlinx.coroutines.delay(500)
+                loadTorrentStorageSize()
             }
         }
 
