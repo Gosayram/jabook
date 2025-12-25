@@ -95,7 +95,7 @@ object NetworkModule {
     fun provideDynamicBaseUrlInterceptor(mirrorManager: MirrorManager): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(mirrorManager)
 
     /**
-     * Provide OkHttp client with cookie persistence, auto re-auth, dynamic base URL, and logging.
+     * Provide OkHttp client with cookie persistence, auto re-auth, dynamic base URL, proper headers, and logging.
      */
     @Provides
     @Singleton
@@ -104,13 +104,15 @@ object NetworkModule {
         authInterceptor: AuthInterceptor,
         loggingInterceptor: HttpLoggingInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
+        rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
     ): OkHttpClient =
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
+            .addInterceptor(rutrackerHeadersInterceptor) // Add browser-like headers (includes Brotli)
             .addInterceptor(authInterceptor) // Auto re-authentication
-            .addInterceptor(dynamicBaseUrlInterceptor) // Add BEFORE logging for cleaner logs
-            .addInterceptor(loggingInterceptor)
+            .addInterceptor(dynamicBaseUrlInterceptor) // Dynamic base URL for mirrors
+            .addInterceptor(loggingInterceptor) // Logging last for complete request/response
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
