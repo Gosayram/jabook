@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # trunk-ignore(checkov/CKV_GHA_3): contents:write required for GitHub releases
     permissions:
       contents: write
 
@@ -21,9 +22,11 @@ jobs:
           FULL_VERSION=$(cat .release-version)
           VERSION=$(echo "$FULL_VERSION" | cut -d+ -f1)
           BUILD=$(echo "$FULL_VERSION" | cut -d+ -f2)
-          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-          echo "BUILD=${BUILD}" >> "$GITHUB_ENV"
-          echo "FULL_VERSION=${FULL_VERSION}" >> "$GITHUB_ENV"
+          {
+            echo "VERSION=${VERSION}"
+            echo "BUILD=${BUILD}"
+            echo "FULL_VERSION=${FULL_VERSION}"
+          } >> "$GITHUB_ENV"
           echo "Extracted version: ${VERSION}, build: ${BUILD}"
 
       - name: Set up JDK 21
@@ -36,8 +39,28 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
 
+      - name: Generate Gradle Wrapper (if needed)
+        working-directory: android
+        run: |
+          if [ ! -f "gradlew" ]; then
+            echo "gradlew not found, generating wrapper..."
+            GRADLE_VERSION=9.2.1
+            # Download and extract Gradle
+            wget -q "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
+            unzip -q "gradle-${GRADLE_VERSION}-bin.zip"
+            # Generate wrapper using downloaded Gradle
+            "./gradle-${GRADLE_VERSION}/bin/gradle" wrapper --gradle-version ${GRADLE_VERSION}
+            # Cleanup
+            rm -rf "gradle-${GRADLE_VERSION}" "gradle-${GRADLE_VERSION}-bin.zip"
+          fi
+
       - name: Grant execute permission for gradlew
-        run: chmod +x android/gradlew
+        run: |
+          if [ -f "android/gradlew" ]; then
+            chmod +x android/gradlew
+          else
+            echo "Warning: android/gradlew not found, skipping chmod"
+          fi
 
       - name: Setup Android signing
         env:
@@ -48,25 +71,25 @@ jobs:
         run: |
           WORKSPACE_DIR="${{ github.workspace }}"
           KEYSTORE_PATH="${WORKSPACE_DIR}/.signing/release.keystore"
-          
+
           mkdir -p .signing
           echo "${KEYSTORE_BASE64_RAW}" | tr -d '\n\r\t ' | base64 -d > "${KEYSTORE_PATH}"
-          
+
           if [ ! -f "${KEYSTORE_PATH}" ]; then
             echo "ERROR: Keystore file was not created"
             exit 1
           fi
-          
+
           KEYSTORE_SIZE=$(stat -c%s "${KEYSTORE_PATH}" 2>/dev/null)
           if [ "$KEYSTORE_SIZE" -lt 1000 ]; then
             echo "ERROR: Keystore file too small (${KEYSTORE_SIZE} bytes)"
             exit 1
           fi
-          
+
           STORE_PASS=$(printf '%s' "${STORE_PASS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
           KEY_PASS=$(printf '%s' "${KEY_PASS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
           KEY_ALIAS=$(printf '%s' "${KEY_ALIAS_RAW}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr -d '\n\r')
-          
+
           mkdir -p android
           {
             echo "storeFile=${KEYSTORE_PATH}"
@@ -88,40 +111,43 @@ jobs:
         run: |
           mkdir -p release-apks
           RENAMED_APKS=""
-          
+
           # Check for universal APK
           if [ -f "android/app/build/outputs/apk/beta/release/app-beta-release.apk" ]; then
-            cp "android/app/build/outputs/apk/beta/release/app-beta-release.apk" "release-apks/Jabook_${VERSION}_beta_universal.apk"
+            UNIVERSAL_APK="android/app/build/outputs/apk/beta/release/app-beta-release.apk"
+            cp "${UNIVERSAL_APK}" "release-apks/Jabook_${VERSION}_beta_universal.apk"
             RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_universal.apk"$'\n'
           fi
-          
+
           # Check for architecture-specific APKs
           for arch in arm64-v8a armeabi-v7a x86_64; do
             APK_PATH="android/app/build/outputs/apk/beta/release/app-beta-${arch}-release.apk"
-            if [ -f "$APK_PATH" ]; then
+            if [ -f "${APK_PATH}" ]; then
               ARCH_SUFFIX="${arch}"
-              if [ "$arch" = "arm64-v8a" ]; then
+              if [ "${arch}" = "arm64-v8a" ]; then
                 ARCH_SUFFIX="v8a"
-              elif [ "$arch" = "armeabi-v7a" ]; then
+              elif [ "${arch}" = "armeabi-v7a" ]; then
                 ARCH_SUFFIX="v7a"
               fi
-              cp "$APK_PATH" "release-apks/Jabook_${VERSION}_beta_${ARCH_SUFFIX}.apk"
+              cp "${APK_PATH}" "release-apks/Jabook_${VERSION}_beta_${ARCH_SUFFIX}.apk"
               RENAMED_APKS="${RENAMED_APKS}release-apks/Jabook_${VERSION}_beta_${ARCH_SUFFIX}.apk"$'\n'
             fi
           done
-          
+
           RENAMED_APKS=$(echo "$RENAMED_APKS" | sed '/^$/d')
-          
-          if [ -z "$RENAMED_APKS" ]; then
+
+          if [ -z "${RENAMED_APKS}" ]; then
             echo "⚠️  Warning: No APK files found!"
-            echo "has_files=false" >> $GITHUB_OUTPUT
+            echo "has_files=false" >> "${GITHUB_OUTPUT}"
           else
             echo "✅ Renamed APK files:"
-            echo "$RENAMED_APKS"
-            echo "has_files=true" >> $GITHUB_OUTPUT
-            echo "files<<EOF" >> $GITHUB_OUTPUT
-            echo "$RENAMED_APKS" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            echo "${RENAMED_APKS}"
+            {
+              echo "has_files=true"
+              echo "files<<EOF"
+              echo "${RENAMED_APKS}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Generate changelog
@@ -163,6 +189,7 @@ jobs:
             <b>Репозиторий:</b> <code>${{ github.repository }}</code>
             <b>Автор:</b> <code>${{ github.actor }}</code>
 
-            📦 <a href="https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}">Скачать релиз</a>
+            📦 <a href="https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}">
+              Скачать релиз</a>
 
             ✅ Релиз успешно создан и готов к использованию!
