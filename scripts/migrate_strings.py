@@ -102,14 +102,15 @@ class StringResourceMigrator:
         # Skip non-UI files - be very selective about what we process
         file_str = str(kotlin_file)
         skip_patterns = [
-            '/data/', '/domain/', '/di/', '/util/', 
+            '/data/', '/domain/', '/di/', '/util/', '/test/',
             'ViewModel.kt', 'Repository.kt', 'Dao.kt', 'Entity.kt', 'Module.kt',
             '/audio/', '/download/', '/infrastructure/', '/torrent/', '/migration/',
             '/sync/', '/worker/', '/service/', '/receiver/', '/broadcast/',
             'Manager.kt', 'Helper.kt', 'Provider.kt', 'Factory.kt',
             'Mapper.kt', 'UseCase.kt', 'Processor.kt', 'Handler.kt',
             'Listener.kt', 'Observer.kt', 'Callback.kt',
-            'TestComposeScreen.kt' # Excluded by request
+            'TestComposeScreen.kt',  # Excluded by request
+            'Test.kt'  # Exclude all test files (*Test.kt)
         ]
         
         if any(skip in file_str for skip in skip_patterns):
