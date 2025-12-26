@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
@@ -235,10 +236,11 @@ fun RutrackerSearchScreen(
                                 OfflineIndicator()
                             }
                         }
-                        items(state.results, key = { it.topicId }) { result ->
+                        items(state.results, key = { it.result.topicId }) { uiModel ->
                             SearchResultCard(
-                                result = result,
-                                onClick = { onTopicClick(result.topicId) },
+                                result = uiModel.result,
+                                isInLibrary = uiModel.isInLibrary,
+                                onClick = { onTopicClick(uiModel.result.topicId) },
                             )
                         }
                     }
@@ -387,6 +389,7 @@ private fun FilterBottomSheet(
 @Composable
 private fun SearchResultCard(
     result: SearchResult,
+    isInLibrary: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -401,13 +404,30 @@ private fun SearchResultCard(
             modifier = Modifier.padding(12.dp),
         ) {
             // Title
-            Text(
-                result.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    result.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+
+                if (isInLibrary) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = stringResource(R.string.in_library),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.width(20.dp).height(20.dp),
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 

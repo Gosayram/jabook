@@ -19,6 +19,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
@@ -26,12 +27,14 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.navigation.DownloadsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -66,6 +69,7 @@ class TorrentDownloadsViewModel
         private val torrentManager: TorrentManager,
         private val repository: TorrentDownloadRepository,
         private val settingsRepository: SettingsRepository,
+        private val networkMonitor: NetworkMonitor,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         init {
@@ -79,6 +83,9 @@ class TorrentDownloadsViewModel
                 // Ignore if not navigated via route with args
             }
         }
+
+        private val _snackbarEvent = Channel<String>()
+        val snackbarEvent = _snackbarEvent.receiveAsFlow()
 
         // Selected download for details view
         private val _selectedDownload = MutableStateFlow<TorrentDownload?>(null)
@@ -152,6 +159,7 @@ class TorrentDownloadsViewModel
          */
         fun resumeDownload(hash: String) {
             viewModelScope.launch {
+                checkNetworkAndWarn()
                 torrentManager.resumeTorrent(hash)
             }
         }
@@ -238,6 +246,8 @@ class TorrentDownloadsViewModel
         fun addTorrent(magnetLink: String) {
             viewModelScope.launch {
                 try {
+                    checkNetworkAndWarn()
+
                     val prefs = settingsRepository.userPreferences.first()
                     val downloadPath =
                         prefs.downloadPath.ifEmpty {
@@ -248,6 +258,15 @@ class TorrentDownloadsViewModel
                 } catch (e: Exception) {
                     // Handle error
                 }
+            }
+        }
+
+        private suspend fun checkNetworkAndWarn() {
+            val prefs = settingsRepository.userPreferences.first()
+            val networkType = networkMonitor.networkType.first()
+
+            if (prefs.wifiOnlyDownload && networkType != com.jabook.app.jabook.compose.data.network.NetworkType.WIFI) {
+                _snackbarEvent.send("Download queued: Waiting for WiFi connection")
             }
         }
     }

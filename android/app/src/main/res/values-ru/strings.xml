@@ -2458,6 +2458,7 @@
     <string name="queued_state">В очереди</string>
     <string name="stopped_state">Остановлен</string>
     <string name="seeding_paused_state">Раздача (На паузе)</string>
+    <string name="in_library">В библиотеке</string>
 
     <!-- Статистика -->
     <string name="size_gb">%.1f ГБ</string>

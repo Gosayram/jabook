@@ -521,6 +521,8 @@
     <string name="dataLoadedFromCacheMessage">Data loaded from cache</string>
     <!-- Fallback for missing chapter -->
     <string name="unknownChapterText">Unknown chapter</string>
+    <!-- Label for In Library indicator -->
+    <string name="in_library">In Library</string>
     <!-- Label for magnet link -->
     <string name="magnetLinkLabelText">Magnet link</string>
     <!-- Message for magnet link copied -->

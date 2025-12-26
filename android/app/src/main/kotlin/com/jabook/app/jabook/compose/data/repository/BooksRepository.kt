@@ -141,4 +141,11 @@ interface BooksRepository {
         bookId: String,
         newOrderedIds: List<String>,
     )
+
+    /**
+     * Checks if a book exists by its source URL.
+     */
+    fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?>
+
+    suspend fun getBookBySourceUrl(sourceUrl: String): Book?
 }

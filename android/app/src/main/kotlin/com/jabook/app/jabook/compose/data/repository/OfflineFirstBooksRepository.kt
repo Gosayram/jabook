@@ -321,4 +321,9 @@ class OfflineFirstBooksRepository
                 chaptersDao.insertAll(updatedChapters)
             }
         }
+
+        override fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?> =
+            booksDao.getBookBySourceUrlFlow(sourceUrl).map { it?.toBook() }
+
+        override suspend fun getBookBySourceUrl(sourceUrl: String): Book? = booksDao.getBookBySourceUrl(sourceUrl)?.toBook()
     }

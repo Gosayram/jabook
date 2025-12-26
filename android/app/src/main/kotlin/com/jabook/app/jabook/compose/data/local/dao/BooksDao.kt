@@ -289,6 +289,18 @@ interface BooksDao {
      */
     @Query("DELETE FROM books WHERE id = :bookId")
     suspend fun deleteById(bookId: String)
+
+    /**
+     * Finds a book by its source URL (e.g. RuTracker topic link).
+     */
+    @Query("SELECT * FROM books WHERE source_url = :sourceUrl LIMIT 1")
+    fun getBookBySourceUrlFlow(sourceUrl: String): Flow<BookEntity?>
+
+    /**
+     * Finds a book by its source URL (one-shot).
+     */
+    @Query("SELECT * FROM books WHERE source_url = :sourceUrl LIMIT 1")
+    suspend fun getBookBySourceUrl(sourceUrl: String): BookEntity?
 }
 
 /**

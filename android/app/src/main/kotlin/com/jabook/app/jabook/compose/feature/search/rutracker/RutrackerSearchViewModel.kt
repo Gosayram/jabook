@@ -18,12 +18,25 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * UI model for search result with library status.
+ */
+data class SearchResultUi(
+    val result: SearchResult,
+    val isInLibrary: Boolean = false,
+)
 
 /**
  * ViewModel for RuTracker search functionality.
@@ -35,6 +48,7 @@ class RutrackerSearchViewModel
     @Inject
     constructor(
         private val repository: RutrackerRepository,
+        private val booksRepository: BooksRepository,
     ) : ViewModel() {
         private val _searchState = MutableStateFlow<SearchState>(SearchState.Empty)
         val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
@@ -47,6 +61,17 @@ class RutrackerSearchViewModel
 
         // Store original results for client-side filtering/sorting
         private var originalResults: List<SearchResult> = emptyList()
+
+        // Cache of library book source URLs to check "In Library" status against
+        private val librarySourceUrls: StateFlow<Set<String>> =
+            booksRepository
+                .getAllBooks()
+                .map { books -> books.mapNotNull { it.sourceUrl }.toSet() }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptySet(),
+                )
 
         /**
          * Search for audiobooks.
@@ -68,32 +93,49 @@ class RutrackerSearchViewModel
 
                 var isFirstEmission = true
 
-                repository
-                    .searchAudiobooksFlow(query, forumIds)
-                    .collect { result ->
-                        val isCachedEmission = isFirstEmission
-                        isFirstEmission = false
+                // Combine search results flow with library books flow
+                combine(
+                    repository.searchAudiobooksFlow(query, forumIds),
+                    librarySourceUrls,
+                ) { result, libraryUrls ->
+                    result to libraryUrls
+                }.collect { (result, libraryUrls) ->
+                    val isCachedEmission = isFirstEmission
+                    isFirstEmission = false
 
-                        result
-                            .onSuccess { results ->
-                                originalResults = results
-                                val filtered = applyFiltersAndSort(results)
-                                _searchState.value =
-                                    if (filtered.isEmpty()) {
-                                        if (!isCachedEmission) SearchState.Empty else _searchState.value
-                                    } else {
-                                        SearchState.Success(filtered, isCached = isCachedEmission)
-                                    }
-                            }.onFailure { error ->
-                                val currentState = _searchState.value
-                                if (currentState !is SearchState.Success) {
-                                    _searchState.value =
-                                        SearchState.Error(
-                                            error.message,
-                                        )
+                    result
+                        .onSuccess { results ->
+                            originalResults = results
+                            val filtered = applyFiltersAndSort(results)
+
+                            // Map to UI model
+                            val uiResults =
+                                filtered.map {
+                                    val inLib =
+                                        libraryUrls.contains(it.topicId) ||
+                                            libraryUrls.any { url -> url.contains(it.topicId) }
+                                    SearchResultUi(
+                                        result = it,
+                                        isInLibrary = inLib,
+                                    )
                                 }
+
+                            _searchState.value =
+                                if (filtered.isEmpty()) {
+                                    if (!isCachedEmission) SearchState.Empty else _searchState.value
+                                } else {
+                                    SearchState.Success(uiResults, isCached = isCachedEmission)
+                                }
+                        }.onFailure { error ->
+                            val currentState = _searchState.value
+                            if (currentState !is SearchState.Success) {
+                                _searchState.value =
+                                    SearchState.Error(
+                                        error.message,
+                                    )
                             }
-                    }
+                        }
+                }
             }
         }
 
@@ -130,12 +172,22 @@ class RutrackerSearchViewModel
             val filtered = applyFiltersAndSort(originalResults)
             // Preserve isCached state
             val currentIsCached = (_searchState.value as? SearchState.Success)?.isCached ?: false
+            val libraryUrls = librarySourceUrls.value
+
+            val uiResults =
+                filtered.map {
+                    val inLib = libraryUrls.any { url -> url.contains(it.topicId) }
+                    SearchResultUi(
+                        result = it,
+                        isInLibrary = inLib,
+                    )
+                }
 
             _searchState.value =
                 if (filtered.isEmpty()) {
                     SearchState.Empty
                 } else {
-                    SearchState.Success(filtered, isCached = currentIsCached)
+                    SearchState.Success(uiResults, isCached = currentIsCached)
                 }
         }
 
@@ -216,7 +268,7 @@ sealed class SearchState {
 
     /** Search completed successfully */
     data class Success(
-        val results: List<SearchResult>,
+        val results: List<SearchResultUi>,
         val isCached: Boolean = false,
     ) : SearchState()
 
