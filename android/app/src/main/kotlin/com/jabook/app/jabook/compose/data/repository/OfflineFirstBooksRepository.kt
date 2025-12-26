@@ -177,13 +177,21 @@ class OfflineFirstBooksRepository
         }
 
         override suspend fun addBooks(booksWithChapters: List<Pair<Book, List<Chapter>>>) {
-            val bookEntities = booksWithChapters.map { it.first.toEntity() }
-            val chapterEntities =
-                booksWithChapters.flatMap { (_, chapters) ->
-                    chapters.map { it.toEntity() }
-                }
+            // Process in batches to avoid large transactions that can lock the UI/DB
+            // Batch size of 50 is a good balance for SQLite
+            val batchSize = 50
 
-            booksDao.insertBooksWithChapters(bookEntities, chapterEntities)
+            booksWithChapters.chunked(batchSize).forEach { batch ->
+                val bookEntities = batch.map { it.first.toEntity() }
+                val chapterEntities =
+                    batch.flatMap { (_, chapters) ->
+                        chapters.map { it.toEntity() }
+                    }
+
+                // Use Upsert instead of Insert(REPLACE) to avoid unnecessary deletions/re-insertions
+                // which is safer for foreign keys and generally more performant
+                booksDao.upsertBooksWithChapters(bookEntities, chapterEntities)
+            }
         }
 
         override suspend fun updateBook(book: Book) {

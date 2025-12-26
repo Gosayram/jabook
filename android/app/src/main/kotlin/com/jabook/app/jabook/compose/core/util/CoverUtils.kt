@@ -50,10 +50,55 @@ object CoverUtils {
         context: android.content.Context,
     ): Any? {
         // Priority 1: cover.jpg in book folder (torrent/user provided)
+        // Priority 1: Check for common cover files in the book folder
         book.localPath?.let { path ->
-            val folderCover = File(path, "cover.jpg")
-            if (folderCover.exists()) {
-                return folderCover
+            val folder = File(path)
+            if (folder.exists() && folder.isDirectory) {
+                // Common names to check (case-insensitive approach below)
+                val commonNames = setOf("cover", "folder", "album", "front", "art")
+                val extensions = setOf("jpg", "jpeg", "png", "webp")
+
+                // First, check exact matches (fastest)
+                val candidates =
+                    commonNames.flatMap { name ->
+                        extensions.map { ext -> "$name.$ext" }
+                    }
+
+                // Check strict case first (Linux/Android is case sensitive)
+                for (name in candidates) {
+                    val file = File(folder, name)
+                    if (file.exists()) return file
+                }
+
+                // Fallback: simple case-insensitive search if directory listing isn't too huge
+                // This handles "Cover.jpg", "FOLDER.JPG", etc.
+                val files = folder.listFiles()
+                val imageFiles = mutableListOf<File>()
+
+                if (files != null) {
+                    for (file in files) {
+                        if (file.isFile) {
+                            val nameWithoutExt = file.nameWithoutExtension.lowercase()
+                            val ext = file.extension.lowercase()
+
+                            // Check common names
+                            if (nameWithoutExt in commonNames && ext in extensions) {
+                                return file
+                            }
+
+                            // Collect any valid image for fallback
+                            if (ext in extensions) {
+                                imageFiles.add(file)
+                            }
+                        }
+                    }
+                }
+
+                // Final Fallback: Random filename?
+                // Pick the largest image file (likely the high-res cover)
+                if (imageFiles.isNotEmpty()) {
+                    return imageFiles.maxByOrNull { it.length() }
+                }
             }
         }
 

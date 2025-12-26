@@ -466,7 +466,7 @@ class DirectFileSystemScanner
                     author = metadata?.albumArtist ?: metadata?.artist ?: "Unknown",
                     chapters = chapters,
                     totalDuration = 0L, // Unknown without parsing all files
-                    coverArt = metadata?.coverArt,
+                    coverArt = null, // Memory optimization: Worker extracts cover separately
                 )
 
             android.util.Log.d(
@@ -539,7 +539,7 @@ class DirectFileSystemScanner
                     author = metadata?.albumArtist ?: metadata?.artist ?: firstFile.artist ?: "Unknown",
                     chapters = chapters,
                     totalDuration = chapters.sumOf { it.duration },
-                    coverArt = metadata?.coverArt,
+                    coverArt = null, // Memory optimization: Worker extracts cover separately
                 )
 
             android.util.Log.d(
