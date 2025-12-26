@@ -79,15 +79,23 @@ class DebugViewModel
 
         fun clearOldLogFiles() {
             viewModelScope.launch {
-                debugLogService.clearOldLogFiles()
+                try {
+                    debugLogService.clearOldLogFiles()
+                } catch (e: Exception) {
+                    android.util.Log.e("DebugViewModel", "Failed to clear old log files", e)
+                }
             }
         }
 
         fun testAllMirrors() {
             viewModelScope.launch {
-                _uiState.value = DebugUiState.Loading
-                refreshAuthDebugInfo()
-                _uiState.value = DebugUiState.Success
+                try {
+                    _uiState.value = DebugUiState.Loading
+                    refreshAuthDebugInfo()
+                    _uiState.value = DebugUiState.Success
+                } catch (e: Exception) {
+                    _uiState.value = DebugUiState.Error(e.message ?: "Failed to test mirrors")
+                }
             }
         }
 
@@ -144,14 +152,22 @@ class DebugViewModel
 
         fun loadCacheStats() {
             viewModelScope.launch {
-                _cacheStats.value = rutrackerRepository.getCacheStatistics()
+                try {
+                    _cacheStats.value = rutrackerRepository.getCacheStatistics()
+                } catch (e: Exception) {
+                    android.util.Log.e("DebugViewModel", "Failed to load cache stats", e)
+                }
             }
         }
 
         fun clearCache() {
             viewModelScope.launch {
-                rutrackerRepository.clearSearchCache()
-                loadCacheStats()
+                try {
+                    rutrackerRepository.clearSearchCache()
+                    loadCacheStats()
+                } catch (e: Exception) {
+                    android.util.Log.e("DebugViewModel", "Failed to clear cache", e)
+                }
             }
         }
     }
