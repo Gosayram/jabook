@@ -34,13 +34,14 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BooksDao {
     /**
-     * Get all books ordered by most recently played first.
+     * Get all books ordered by favorites first, then most recently played.
      * Returns a Flow that emits whenever the database changes.
      */
     @Query(
         """
         SELECT * FROM books 
         ORDER BY 
+            is_favorite DESC,
             CASE WHEN last_played_date IS NULL THEN 0 ELSE 1 END DESC,
             last_played_date DESC,
             added_date DESC
