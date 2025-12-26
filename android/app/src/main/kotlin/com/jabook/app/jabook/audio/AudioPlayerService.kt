@@ -76,6 +76,9 @@ class AudioPlayerService : MediaLibraryService() {
     @Inject
     lateinit var settingsRepository: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 
+    @Inject
+    lateinit var audioOutputManager: AudioOutputManager
+
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
     // Keep mediaSession for backward compatibility during migration
@@ -383,6 +386,11 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("JABOOK_SERVICE", "Initializing PlayerNotificationManager...")
             setupPlayerNotificationManager()
             android.util.Log.e("JABOOK_SERVICE", "[OK] PlayerNotificationManager initialized")
+
+            // Initialize AudioOutputManager for proximity sensor handling (Speaker/Earpiece switching)
+            android.util.Log.e("JABOOK_SERVICE", "Setting up AudioOutputManager...")
+            setupAudioOutputManager()
+            android.util.Log.e("JABOOK_SERVICE", "[OK] AudioOutputManager setup completed")
 
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
@@ -1060,10 +1068,36 @@ class AudioPlayerService : MediaLibraryService() {
         playerNotificationManager?.invalidate()
     }
 
+    /**
+     * Sets up the AudioOutputManager to handle proximity sensor switching.
+     * Automatically monitors playback state to enable/disable sensor.
+     */
+    private fun setupAudioOutputManager() {
+        // Initial state check
+        if (exoPlayer.isPlaying) {
+            audioOutputManager.startMonitoring()
+        }
+
+        exoPlayer.addListener(
+            object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying) {
+                        audioOutputManager.startMonitoring()
+                    } else {
+                        audioOutputManager.stopMonitoring()
+                    }
+                }
+            },
+        )
+    }
+
     override fun onDestroy() {
         // Clean up PlayerNotificationManager
         playerNotificationManager?.setPlayer(null)
         playerNotificationManager = null
+
+        // Stop proximity monitoring
+        audioOutputManager.stopMonitoring()
 
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()
