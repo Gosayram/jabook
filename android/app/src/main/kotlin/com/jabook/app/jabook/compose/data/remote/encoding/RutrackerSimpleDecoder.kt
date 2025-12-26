@@ -66,62 +66,157 @@ class RutrackerSimpleDecoder
             return when {
                 detectedEncoding != null && isWindows1251(detectedEncoding) -> {
                     // Try Windows-1251 first, fallback to UTF-8
-                    try {
-                        val decoded = String(bytes, CP1251)
+                    val decoded1251 = String(bytes, CP1251)
+                    if (isValidDecoding(decoded1251)) {
                         Log.d(TAG, "Successfully decoded with Windows-1251 (from header)")
-                        decoded
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Windows-1251 decoding failed, trying UTF-8", e)
-                        try {
-                            val decoded = String(bytes, UTF8)
+                        decoded1251
+                    } else {
+                        Log.w(TAG, "Windows-1251 decoding produced invalid result, trying UTF-8")
+                        val decodedUtf8 = String(bytes, UTF8)
+                        if (isValidDecoding(decodedUtf8)) {
                             Log.d(TAG, "Successfully decoded with UTF-8 (fallback)")
-                            decoded
-                        } catch (e2: Exception) {
-                            Log.e(TAG, "Both Windows-1251 and UTF-8 decoding failed", e2)
-                            // Emergency fallback to Windows-1251 even if it fails
-                            String(bytes, CP1251)
+                            decodedUtf8
+                        } else {
+                            Log.e(TAG, "Both Windows-1251 and UTF-8 decoding produced invalid results, using Windows-1251")
+                            decoded1251
                         }
                     }
                 }
                 detectedEncoding != null && isUtf8(detectedEncoding) -> {
                     // Try UTF-8 first, fallback to Windows-1251 (RuTracker sometimes lies)
-                    try {
-                        val decoded = String(bytes, UTF8)
+                    val decodedUtf8 = String(bytes, UTF8)
+                    if (isValidDecoding(decodedUtf8)) {
                         Log.d(TAG, "Successfully decoded with UTF-8 (from header)")
-                        decoded
-                    } catch (e: Exception) {
-                        Log.w(TAG, "UTF-8 decoding failed, trying Windows-1251", e)
-                        try {
-                            val decoded = String(bytes, CP1251)
+                        decodedUtf8
+                    } else {
+                        Log.w(TAG, "UTF-8 decoding produced invalid result, trying Windows-1251")
+                        val decoded1251 = String(bytes, CP1251)
+                        if (isValidDecoding(decoded1251)) {
                             Log.d(TAG, "Successfully decoded with Windows-1251 (fallback)")
-                            decoded
-                        } catch (e2: Exception) {
-                            Log.e(TAG, "Both UTF-8 and Windows-1251 decoding failed", e2)
-                            // Emergency fallback to UTF-8 even if it fails
-                            String(bytes, UTF8)
+                            decoded1251
+                        } else {
+                            Log.e(TAG, "Both UTF-8 and Windows-1251 decoding produced invalid results, using UTF-8")
+                            decodedUtf8
                         }
                     }
                 }
                 else -> {
                     // No encoding specified - try Windows-1251 first (RuTracker default)
-                    try {
-                        val decoded = String(bytes, CP1251)
+                    val decoded1251 = String(bytes, CP1251)
+                    if (isValidDecoding(decoded1251)) {
                         Log.d(TAG, "Successfully decoded with Windows-1251 (default)")
-                        decoded
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Windows-1251 decoding failed, trying UTF-8", e)
-                        try {
-                            val decoded = String(bytes, UTF8)
+                        decoded1251
+                    } else {
+                        Log.w(TAG, "Windows-1251 decoding produced invalid result, trying UTF-8")
+                        val decodedUtf8 = String(bytes, UTF8)
+                        if (isValidDecoding(decodedUtf8)) {
                             Log.d(TAG, "Successfully decoded with UTF-8 (fallback)")
-                            decoded
-                        } catch (e2: Exception) {
-                            Log.e(TAG, "Both Windows-1251 and UTF-8 decoding failed", e2)
-                            // Emergency fallback to Windows-1251 even if it fails
-                            String(bytes, CP1251)
+                            decodedUtf8
+                        } else {
+                            Log.e(TAG, "Both Windows-1251 and UTF-8 decoding produced invalid results, using Windows-1251")
+                            decoded1251
                         }
                     }
                 }
             }
+        }
+
+        /**
+         * Check if decoded text is valid (not corrupted/mojibake).
+         *
+         * Valid HTML should contain:
+         * - HTML structure tags (<html>, <body>, etc.)
+         * - No replacement characters ()
+         * - No obvious mojibake patterns
+         * - Common RuTracker page elements
+         */
+        private fun isValidDecoding(text: String): Boolean {
+            if (text.isEmpty()) return false
+
+            // Check for replacement characters (indicates invalid encoding)
+            if (text.contains('\uFFFD')) {
+                Log.d(TAG, "Invalid: contains replacement characters")
+                return false
+            }
+
+            // Check for obvious mojibake patterns (common when Windows-1251 is decoded as UTF-8)
+            // These patterns appear when Cyrillic text is incorrectly decoded
+            val mojibakePatterns =
+                listOf(
+                    "Рђ",
+                    "Р СЊ",
+                    "вҐ",
+                    "в„–",
+                    "Р°",
+                    "РІ",
+                    "Р", // Common mojibake
+                )
+            if (mojibakePatterns.any { text.contains(it) }) {
+                Log.d(TAG, "Invalid: contains mojibake patterns")
+                return false
+            }
+
+            // Check for HTML structure (RuTracker responses should be HTML)
+            val hasHtmlStructure =
+                text.contains("<html", ignoreCase = true) ||
+                    text.contains("<body", ignoreCase = true) ||
+                    text.contains("<!doctype", ignoreCase = true)
+
+            // Check for common RuTracker page elements
+            val hasRutrackerContent =
+                text.contains("rutracker", ignoreCase = true) ||
+                    text.contains("форум", ignoreCase = true) ||
+                    text.contains("поиск", ignoreCase = true) ||
+                    text.contains("tracker.php", ignoreCase = true) ||
+                    text.contains("viewtopic.php", ignoreCase = true)
+
+            // Valid if has HTML structure AND (RuTracker content OR reasonable Cyrillic text)
+            if (!hasHtmlStructure) {
+                Log.d(TAG, "Invalid: no HTML structure found")
+                return false
+            }
+
+            // If has HTML structure, check for valid content
+            val isValid = hasRutrackerContent || containsValidCyrillic(text)
+            if (!isValid) {
+                Log.d(TAG, "Invalid: HTML structure found but no valid content")
+            }
+            return isValid
+        }
+
+        /**
+         * Check if text contains valid Cyrillic characters (not mojibake).
+         * Valid Cyrillic should have proper word boundaries and common Russian words.
+         */
+        private fun containsValidCyrillic(text: String): Boolean {
+            // Sample first 1000 characters for performance
+            val sample = text.take(1000)
+
+            // Check for Cyrillic characters
+            val hasCyrillic = sample.any { it in '\u0400'..'\u04FF' }
+            if (!hasCyrillic) return false
+
+            // Check for common Russian words/patterns that indicate valid decoding
+            val commonWords =
+                listOf(
+                    "и",
+                    "в",
+                    "на",
+                    "с",
+                    "по",
+                    "для",
+                    "это",
+                    "что",
+                    "как",
+                    "автор",
+                    "книга",
+                    "размер",
+                    "скачать",
+                    "торрент",
+                )
+
+            val lowerSample = sample.lowercase()
+            return commonWords.any { lowerSample.contains(it) }
         }
 
         /**
