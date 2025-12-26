@@ -83,11 +83,38 @@ class AuthRepositoryImpl
                     _authStatus.value = AuthStatus.Authenticated(username)
                     syncCookiesToWebView()
                 } else {
-                    // Cookies present but invalid (expired or guest mode), clear them
-                    logout()
+                    // Cookies present but invalid (expired or guest mode)
+                    android.util.Log.d("AuthRepository", "Session expired or invalid, attempting re-login if credentials exist")
+
+                    // Clear invalid cookies but DO NOT clear stored credentials (logout)
+                    cookieJar.clear()
+                    _authStatus.value = AuthStatus.Unauthenticated
+
+                    // Attempt automatic re-login if we have credentials
+                    val stored = secureStorage.getCredentials()
+                    if (stored != null) {
+                        android.util.Log.d("AuthRepository", "Found stored credentials, attempting auto-relogin")
+                        try {
+                            login(stored)
+                        } catch (e: Exception) {
+                            android.util.Log.w("AuthRepository", "Auto-relogin failed", e)
+                        }
+                    }
                 }
             } else {
-                _authStatus.value = AuthStatus.Unauthenticated
+                // No session cookie, check if we should auto-login
+                val stored = secureStorage.getCredentials()
+                if (stored != null && _authStatus.value !is AuthStatus.Authenticated) {
+                    android.util.Log.d("AuthRepository", "No session but found credentials, attempting auto-login")
+                    try {
+                        login(stored)
+                    } catch (e: Exception) {
+                        android.util.Log.w("AuthRepository", "Auto-login failed", e)
+                        _authStatus.value = AuthStatus.Unauthenticated
+                    }
+                } else {
+                    _authStatus.value = AuthStatus.Unauthenticated
+                }
             }
         }
 

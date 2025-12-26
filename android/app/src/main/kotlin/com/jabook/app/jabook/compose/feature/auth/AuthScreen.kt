@@ -44,6 +44,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,8 +53,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -77,28 +82,27 @@ fun AuthScreen(
     val uiState by viewModel.uiState.collectAsState()
     val authStatus by viewModel.authStatus.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(true) }
     var passwordVisible by remember { mutableStateOf(false) }
 
+    // Output of autofill logic is handled by the TextField state
+
     // Handle WebView Login Navigation
     LaunchedEffect(uiState.showWebViewLogin) {
         if (uiState.showWebViewLogin) {
             onNavigateToWebView("https://rutracker.org/forum/login.php")
-            // Use a proper mechanism to detect return.
-            // Since we navigate away, this effect might not be the best place to reset.
-            // But we can rely on onResume to trigger sync when returning.
         }
     }
 
     // Sync cookies on Resume (returning from WebView)
-    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner) {
         val observer =
-            androidx.lifecycle.LifecycleEventObserver { _, event ->
-                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
                     // If we were showing webview login (or generally just check), sync cookies
                     if (uiState.showWebViewLogin) {
                         viewModel.onWebViewLoginCompleted()
@@ -140,7 +144,6 @@ fun AuthScreen(
             verticalArrangement = Arrangement.Center,
         ) {
             // Logo or Header
-            // Using a placeholder icon or text for now
             Icon(
                 painter = painterResource(id = R.drawable.ic_launcher_foreground), // Placeholder
                 contentDescription = null,
@@ -166,8 +169,18 @@ fun AuthScreen(
                 value = username,
                 onValueChange = { username = it },
                 label = { Text(stringResource(R.string.username)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentType = ContentType.Username
+                        },
                 singleLine = true,
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next,
+                    ),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -176,7 +189,12 @@ fun AuthScreen(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text(stringResource(R.string.password)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentType = ContentType.Password
+                        },
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),

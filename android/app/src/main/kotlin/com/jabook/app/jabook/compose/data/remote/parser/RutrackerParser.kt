@@ -41,17 +41,28 @@ class RutrackerParser
         companion object {
             private const val TAG = "RutrackerParser"
 
-            // CSS Selectors for search results - UPDATED for 2025 based on actual HTML
-            private const val ROW_SELECTOR = "tr.hl-tr, tr[data-topic_id]"
-            private const val TITLE_SELECTOR = "a.torTopic, a.tt-text"
-            private const val AUTHOR_SELECTOR = "a.topicAuthor"
-            private const val SIZE_SELECTOR = "a.f-dl, a.dl-stub"
-            private const val SEEDERS_SELECTOR = "span.seedmed b, b.seedmed"
-            private const val LEECHERS_SELECTOR = "span.leechmed b, b.leechmed"
+            // CSS Selectors for search results - UPDATED for 2025 based on robust Dart implementation
+            // Primary and fallback selectors for rows
+            private val ROW_SELECTORS =
+                listOf(
+                    "tr.hl-tr",
+                    "tr[data-topic_id]",
+                    "table.forumline tr.hl-tr", // More specific
+                    "table.forumline tr[id^='t-']", // ID-based
+                    "tbody#TORRENT_LIST_TBODY tr", // Structure-based
+                )
+
+            private const val TITLE_SELECTOR = "a.torTopic, a.tt-text, a[href*='viewtopic.php?t=']"
+            private const val AUTHOR_SELECTOR = "a.topicAuthor, a.pmed, a[href*='profile.php']"
+            private const val SIZE_SELECTOR = "a.f-dl, a.dl-stub, span.small, td.small, div.small"
+
+            // Seeders/Leechers: include both with and without 'b' tag, and generic classes
+            private const val SEEDERS_SELECTOR = "span.seedmed b, b.seedmed, span.seed b, .seed b, .seedmed, .seed"
+            private const val LEECHERS_SELECTOR = "span.leechmed b, b.leechmed, span.leech b, .leech b, .leechmed, .leech"
 
             // Additional selectors
             private const val TOPIC_ID_ATTR = "data-topic_id"
-            private const val MAGNET_LINK_SELECTOR = "a.magnet-link"
+            private const val MAGNET_LINK_SELECTOR = "a.magnet-link, a[href^='magnet:']"
             private const val DOWNLOADS_SELECTOR = "td.vf-col-replies b"
             private const val DOWNLOAD_HREF_SELECTOR = "a[href^=\"dl.php?t=\"]"
 
@@ -109,13 +120,47 @@ class RutrackerParser
 
             try {
                 val document = Jsoup.parse(html)
-                val rows = document.select(ROW_SELECTOR)
+
+                // Try to find rows using multiple selectors strategy
+                var rows = org.jsoup.select.Elements()
+                var successfulSelector = ""
+
+                for (selector in ROW_SELECTORS) {
+                    val found = document.select(selector)
+                    if (found.isNotEmpty()) {
+                        // Filter out header/ad rows if generic selector used
+                        val validRows =
+                            found.filter { row ->
+                                // Basic validation: must have some content/structure
+                                !row.hasClass("vf-col-header-row") &&
+                                    !row.select(TITLE_SELECTOR).isEmpty()
+                            }
+
+                        if (validRows.isNotEmpty()) {
+                            rows = org.jsoup.select.Elements(validRows)
+                            successfulSelector = selector
+                            Log.d(TAG, "Found ${rows.size} rows using validation-checked selector: $selector")
+                            break
+                        }
+
+                        // If selected rows were all invalid, try next selector
+                    }
+                }
 
                 if (rows.isEmpty()) {
+                    // Check if it's just an empty result set (valid page, no results)
+                    val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
+                    val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
+
+                    if (isSearchPage || isIndexPage) {
+                        Log.i(TAG, "No rows found, but page looks like valid search/index page (empty results)")
+                        return ParsingResult.Success(emptyList())
+                    }
+
                     errors.add(
                         ParsingError(
                             field = "rows",
-                            reason = "No topic rows found with selector: $ROW_SELECTOR",
+                            reason = "No topic rows found with any selector. Tried: $ROW_SELECTORS",
                             severity = ErrorSeverity.CRITICAL,
                             htmlSnippet = html.take(500),
                         ),
@@ -123,22 +168,24 @@ class RutrackerParser
                     return ParsingResult.Failure(errors, emptyList())
                 }
 
-                Log.d(TAG, "Found ${rows.size} topic rows")
-
                 for ((index, row) in rows.withIndex()) {
                     try {
                         val result = parseSearchResultRow(row)
                         if (result != null) {
                             results.add(result)
                         } else {
-                            errors.add(
-                                ParsingError(
-                                    field = "row_$index",
-                                    reason = "Failed to extract required fields",
-                                    severity = ErrorSeverity.WARNING,
-                                    htmlSnippet = row.html().take(200),
-                                ),
-                            )
+                            // Only warn if we failed to parse a row that we thought was valid
+                            // But skip clogging logs if it's just a spacer/ad row that slipped through
+                            if (row.text().length > 50) {
+                                errors.add(
+                                    ParsingError(
+                                        field = "row_$index",
+                                        reason = "Failed to extract required fields",
+                                        severity = ErrorSeverity.WARNING,
+                                        htmlSnippet = row.html().take(200),
+                                    ),
+                                )
+                            }
                         }
                     } catch (e: Exception) {
                         errors.add(
@@ -178,34 +225,27 @@ class RutrackerParser
          */
         fun parseSearchResults(html: String): List<SearchResult> {
             Log.d(TAG, "=== PARSING SEARCH RESULTS ===")
-            Log.d(TAG, "HTML length: ${html.length}")
+            // internal implementation delegates to parseSearchResultsDefensive logic equivalent
+            // For backward compatibility / simple calls
 
             try {
                 val document = Jsoup.parse(html)
 
-                // Log table structure for diagnostics
-                val tables = document.select("table")
-                Log.d(TAG, "Found ${tables.size} tables")
-
-                val targetTable = document.select("table.vf-table, table.forumline")
-                Log.d(TAG, "Target tables (vf-table/forumline): ${targetTable.size}")
-
-                val rows = document.select(ROW_SELECTOR)
-                Log.d(TAG, "Rows selected by '$ROW_SELECTOR': ${rows.size}")
+                var rows = org.jsoup.select.Elements()
+                for (selector in ROW_SELECTORS) {
+                    val found = document.select(selector)
+                    if (found.isNotEmpty()) {
+                        val validRows = found.filter { !it.select(TITLE_SELECTOR).isEmpty() }
+                        if (validRows.isNotEmpty()) {
+                            rows = org.jsoup.select.Elements(validRows)
+                            Log.d(TAG, "Using selector '$selector': ${rows.size} rows")
+                            break
+                        }
+                    }
+                }
 
                 if (rows.isEmpty()) {
-                    Log.w(TAG, "⚠️ NO ROWS FOUND! Running diagnostics...")
-
-                    // Diagnostic - find any tr
-                    val allRows = document.select("table tr")
-                    Log.d(TAG, "Total table rows in document: ${allRows.size}")
-
-                    // Log first 3 rows for analysis
-                    allRows.take(3).forEachIndexed { idx, row ->
-                        Log.d(TAG, "Sample row $idx classes: ${row.classNames()}")
-                        Log.d(TAG, "Sample row $idx attrs: ${row.attributes().asList().take(5)}")
-                    }
-
+                    Log.w(TAG, "⚠️ NO ROWS FOUND with any selector! Running diagnostics...")
                     return emptyList()
                 }
 
@@ -220,8 +260,6 @@ class RutrackerParser
                             if (idx < 3) {
                                 Log.d(TAG, "✓ Result $idx: ${result.title} by ${result.author}")
                             }
-                        } else {
-                            Log.w(TAG, "✗ Row $idx parsed to null")
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "✗ Failed to parse row $idx", e)
@@ -253,19 +291,18 @@ class RutrackerParser
                 }
 
             if (topicId.isEmpty()) {
-                Log.w(TAG, "No topic ID found in row")
+                // Common for header rows or ads, detailed logging usually not needed unless debugging structure
                 return null
             }
 
             // Extract title - use updated selector
             val titleElement = row.selectFirst(TITLE_SELECTOR)
             if (titleElement == null) {
-                Log.w(TAG, "No title found for topic $topicId with selector: $TITLE_SELECTOR")
+                // Log.w(TAG, "No title found for topic $topicId")
                 return null
             }
             val title = titleElement.text()
             if (title.isEmpty()) {
-                Log.w(TAG, "Empty title for topic $topicId")
                 return null
             }
 
@@ -273,7 +310,6 @@ class RutrackerParser
             val authorElement = row.selectFirst(AUTHOR_SELECTOR)
             val author =
                 authorElement?.text()?.trim()?.ifEmpty { null } ?: run {
-                    Log.d(TAG, "Author not found for topic $topicId, using 'Unknown'")
                     "Unknown"
                 }
 
