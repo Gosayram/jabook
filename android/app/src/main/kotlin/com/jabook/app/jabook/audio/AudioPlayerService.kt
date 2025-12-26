@@ -173,8 +173,6 @@ class AudioPlayerService : MediaLibraryService() {
     // DurationManager handles caching and database retrieval
     internal val durationManager = DurationManager()
 
-
-
     /**
      * Callback for database duration retrieval
      */

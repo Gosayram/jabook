@@ -59,6 +59,8 @@ class TorrentDetailsViewModel
                     initialValue = null,
                 )
 
+        val isBuffering = streamingMonitor.isBuffering
+
         private val _navigationEvent = MutableSharedFlow<String>()
         val navigationEvent = _navigationEvent.asSharedFlow()
 
@@ -72,7 +74,7 @@ class TorrentDetailsViewModel
                 torrentManager.prioritizeFile(hash, file.index, 7)
 
                 // 2. Wait for buffer
-                // TODO: Emit buffering state to UI
+                // Monitor will update isBuffering state automatically
                 var attempts = 0
                 val maxAttempts = 60 // 30 seconds (500ms * 60)
 

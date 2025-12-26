@@ -21,6 +21,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,6 +38,9 @@ class TorrentStreamingMonitor
     constructor(
         private val torrentManager: TorrentManager,
     ) {
+        private val _isBuffering = kotlinx.coroutines.flow.MutableStateFlow(false)
+        val isBuffering = _isBuffering.asStateFlow()
+
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var monitoringJob: Job? = null
 
@@ -43,6 +48,10 @@ class TorrentStreamingMonitor
         private var currentFileIndex: Int = -1
 
         private var isPausedForBuffering = false
+            set(value) {
+                field = value
+                _isBuffering.value = value
+            }
 
         companion object {
             // Configuration

@@ -104,6 +104,25 @@ fun TorrentDetailsScreen(
                 CircularProgressIndicator()
             }
         } else {
+            val isBuffering by viewModel.isBuffering.collectAsState()
+
+            if (isBuffering) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { /* Disable dismiss */ },
+                    title = { Text("Buffering...") },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            CircularProgressIndicator()
+                            Text("Please wait while we buffer enough data for smooth playback.", modifier = Modifier.padding(top = 8.dp))
+                        }
+                    },
+                    confirmButton = {},
+                )
+            }
+
             LazyColumn(
                 modifier =
                     Modifier
