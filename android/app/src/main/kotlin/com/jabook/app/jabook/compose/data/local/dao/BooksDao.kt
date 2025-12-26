@@ -301,6 +301,24 @@ interface BooksDao {
      */
     @Query("SELECT * FROM books WHERE source_url = :sourceUrl LIMIT 1")
     suspend fun getBookBySourceUrl(sourceUrl: String): BookEntity?
+
+    /**
+     * Updates cover URL.
+     */
+    @Query("UPDATE books SET cover_url = :url WHERE id = :bookId")
+    suspend fun updateCoverUrl(
+        bookId: String,
+        url: String,
+    )
+
+    /**
+     * Updates cover local path.
+     */
+    @Query("UPDATE books SET cover_path = :path WHERE id = :bookId")
+    suspend fun updateCoverPath(
+        bookId: String,
+        path: String,
+    )
 }
 
 /**

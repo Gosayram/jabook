@@ -84,10 +84,11 @@ class TorrentManager
             magnetUri: String,
             savePath: String,
             selectedFileIndices: List<Int>? = null,
+            topicId: String? = null,
         ): Result<String> {
             ensureInitialized()
 
-            val result = sessionManager.addTorrent(magnetUri, savePath, selectedFileIndices)
+            val result = sessionManager.addTorrent(magnetUri, savePath, selectedFileIndices, topicId)
 
             if (result.isSuccess) {
                 // Start foreground service

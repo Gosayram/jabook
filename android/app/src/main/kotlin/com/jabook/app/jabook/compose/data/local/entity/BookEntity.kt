@@ -76,6 +76,8 @@ data class BookEntity(
     val isFavorite: Boolean = false,
     @ColumnInfo(name = "source_url")
     val sourceUrl: String? = null,
+    @ColumnInfo(name = "cover_path")
+    val coverPath: String? = null,
     // Per-book playback settings (null = use global default)
     @ColumnInfo(name = "rewind_duration")
     val rewindDuration: Int? = null,

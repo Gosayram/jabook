@@ -46,6 +46,11 @@ class TorrentDownloadRepository
             }
 
         /**
+         * Get all downloads (synchronous)
+         */
+        suspend fun getAll(): List<TorrentDownload> = dao.getAll().map { it.toDomain() }
+
+        /**
          * Get download by hash
          */
         suspend fun getByHash(hash: String): TorrentDownload? = dao.getByHash(hash)?.toDomain()

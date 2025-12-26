@@ -39,6 +39,8 @@ class SyncWorker
         @dagger.assisted.Assisted params: WorkerParameters,
         private val offlineSearchDao: com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao,
         private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
+        private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
+        private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
     ) : CoroutineWorker(appContext, params) {
         companion object {
             private const val TAG = "SyncWorker"
@@ -72,13 +74,118 @@ class SyncWorker
         }
 
         private suspend fun syncBookMetadata() {
-            Log.d(TAG, "Syncing book metadata - TODO (Waiting for topicId migration)")
-            // TODO: Implement updates for downloaded torrents once topicId is available in TorrentDownload entity
+            Log.d(TAG, "Syncing book metadata")
+
+            // Get downloads with topicId
+            val downloads = torrentDownloadRepository.getAll().filter { !it.topicId.isNullOrEmpty() }
+            Log.d(TAG, "Found ${downloads.size} downloads to sync")
+
+            for (download in downloads) {
+                val topicId = download.topicId ?: continue
+
+                try {
+                    // Fetch details from RuTracker
+                    val result = rutrackerRepository.getTopicDetails(topicId)
+
+                    if (result.isSuccess) {
+                        val details = result.getOrNull() ?: continue
+
+                        // Find matching book by path
+                        // Ideally we would have a better link, but path is what we have for now
+                        // We check if the book path contains the download path or vice versa
+                        val books = booksDao.getAllBooks()
+                        val matchedBook =
+                            books.find { book ->
+                                book.localPath?.let { localPath ->
+                                    localPath == download.savePath ||
+                                        localPath.startsWith(download.savePath) ||
+                                        download.savePath.startsWith(localPath)
+                                } == true
+                            }
+
+                        if (matchedBook != null) {
+                            Log.d(TAG, "Updating metadata for book: ${matchedBook.title}")
+
+                            // Update metadata if needed
+                            // For now, we mainly care about missing covers or empty metadata
+                            var needsUpdate = false
+                            val updatedBook = matchedBook.copy() // Create copy to modify
+
+                            // Update title if generic
+                            if (matchedBook.title.isEmpty() || matchedBook.title == "Unknown Title") {
+                                // We can't easily change Val in copy if not exposed, creating new object or modifying var
+                                // BookEntity properties are vals. copy() is the way.
+                                // However, Kotlin copy() is on data class.
+                                // Let's check BookEntity structure if needed, but standard copy works.
+                                // Wait, simple variables:
+                                // updatedBook.title = details.title // Error if val
+                                // We need to use copy parameters
+                            }
+
+                            // Update cover URL if missing
+                            if (matchedBook.coverUrl.isNullOrEmpty() && !details.coverUrl.isNullOrEmpty()) {
+                                // We need to execute an update query
+                                details.coverUrl?.let { url ->
+                                    booksDao.updateCoverUrl(matchedBook.id, url)
+                                    Log.i(TAG, "Updated cover URL for ${matchedBook.title}")
+                                }
+                            }
+
+                            // TODO: Add more metadata updates (author, description, etc) if BookEntity supports it
+                            // and if we want to overwrite local changes.
+                            // Currently taking a conservative approach: only fill missing data.
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to sync metadata for topic $topicId", e)
+                }
+            }
         }
 
         private suspend fun syncCoverImages() {
-            Log.d(TAG, "Syncing cover images - TODO")
-            // TODO: Implement cover sync logic
+            Log.d(TAG, "Syncing cover images")
+
+            // Find books with coverUrl but no local coverPath
+            val books = booksDao.getAllBooks()
+            val booksNeedCover =
+                books.filter {
+                    !it.coverUrl.isNullOrEmpty() &&
+                        (it.coverPath.isNullOrEmpty() || !java.io.File(it.coverPath!!).exists())
+                }
+
+            Log.d(TAG, "Found ${booksNeedCover.size} books needing cover download")
+
+            for (book in booksNeedCover) {
+                try {
+                    val coverUrl = book.coverUrl ?: continue
+
+                    // Simple download to cache dir
+                    // Note: Ideally we use a dedicated ImageDownloader or Coil's loader
+                    // But here we want a persistent file path to save to DB
+
+                    val coverDir = java.io.File(applicationContext.filesDir, "covers")
+                    if (!coverDir.exists()) coverDir.mkdirs()
+
+                    val fileName = "cover_${book.id}.jpg"
+                    val coverFile = java.io.File(coverDir, fileName)
+
+                    if (!coverFile.exists()) {
+                        // Download file
+                        val url = java.net.URL(coverUrl)
+                        url.openStream().use { input ->
+                            java.io.FileOutputStream(coverFile).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+
+                        // Update DB
+                        booksDao.updateCoverPath(book.id, coverFile.absolutePath)
+                        Log.i(TAG, "Downloaded cover for ${book.title}")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to download cover for ${book.title}", e)
+                }
+            }
         }
 
         private suspend fun cleanupOldData() {

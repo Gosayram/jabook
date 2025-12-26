@@ -50,6 +50,7 @@ class TorrentSessionManager
     ) {
         private var session: SessionManager? = null
         private val torrents = mutableMapOf<String, TorrentHandle>()
+        private val topicIds = mutableMapOf<String, String>()
 
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
         val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
@@ -125,6 +126,7 @@ class TorrentSessionManager
             magnetUri: String,
             savePath: String,
             selectedFileIndices: List<Int>? = null,
+            topicId: String? = null,
         ): Result<String> {
             val session =
                 this.session ?: return Result.failure(
@@ -140,6 +142,11 @@ class TorrentSessionManager
                 // Check if already added
                 if (torrents.containsKey(hash)) {
                     return Result.failure(IllegalStateException("Torrent already added"))
+                }
+
+                // Store topicId if provided
+                if (topicId != null) {
+                    topicIds[hash] = topicId
                 }
 
                 // Create save directory
@@ -169,6 +176,7 @@ class TorrentSessionManager
             deleteFiles: Boolean = false,
         ) {
             val handle = torrents.remove(hash) ?: return
+            topicIds.remove(hash)
 
             try {
                 session?.remove(handle)
@@ -358,6 +366,7 @@ class TorrentSessionManager
                 savePath = handle.savePath(),
                 files = if (torrentInfo != null) mapFiles(torrentInfo, handle) else emptyList(),
                 errorMessage = null, // TODO: Get error from status
+                topicId = topicIds[hash],
             )
         }
 

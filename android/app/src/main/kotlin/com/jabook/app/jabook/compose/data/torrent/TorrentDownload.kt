@@ -58,6 +58,8 @@ data class TorrentDownload(
     val completedFiles: Int = 0,
     /** Pause reason (if paused automatically) */
     var pauseReason: PauseReason? = null,
+    /** Topic ID from RuTracker (for sync) */
+    val topicId: String? = null,
 ) {
     /** Share ratio (uploaded/downloaded) */
     val ratio: Float

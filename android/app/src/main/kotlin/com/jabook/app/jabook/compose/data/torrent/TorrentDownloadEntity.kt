@@ -41,6 +41,7 @@ data class TorrentDownloadEntity(
     val addedTime: Long,
     val completedTime: Long,
     val pauseReason: PauseReason?,
+    val topicId: String? = null,
 ) {
     /**
      * Convert to domain model
@@ -60,6 +61,7 @@ data class TorrentDownloadEntity(
             addedTime = addedTime,
             completedTime = completedTime,
             pauseReason = pauseReason,
+            topicId = topicId,
         )
 
     companion object {
@@ -81,6 +83,7 @@ data class TorrentDownloadEntity(
                 addedTime = download.addedTime,
                 completedTime = download.completedTime,
                 pauseReason = download.pauseReason,
+                topicId = download.topicId,
             )
     }
 }
