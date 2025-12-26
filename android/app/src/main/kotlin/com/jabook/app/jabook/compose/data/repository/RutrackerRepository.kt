@@ -79,16 +79,33 @@ class RutrackerRepositoryImpl
                 val response = api.searchTopics(query)
 
                 if (response.isSuccessful) {
-                    val html = response.body()
-                    if (html != null) {
-                        val results = parser.parseSearchResults(html)
+                    // Get raw bytes to handle Windows-1251 encoding properly
+                    val rawBytes = response.body()?.toByteArray()
+                    if (rawBytes != null) {
+                        // Use encoding-aware parsing
+                        val contentType = response.headers()["Content-Type"]
+                        val parsingResult = parser.parseSearchResultsWithEncoding(rawBytes, contentType)
 
-                        // 2. Save to DB (Background)
-                        if (results.isNotEmpty()) {
-                            saveResultsToDb(query, results)
+                        return when (parsingResult) {
+                            is com.jabook.app.jabook.compose.data.remote.parser.ParsingResult.Success -> {
+                                // Save to DB (Background)
+                                if (parsingResult.data.isNotEmpty()) {
+                                    saveResultsToDb(query, parsingResult.data)
+                                }
+                                Result.Success(parsingResult.data)
+                            }
+                            is com.jabook.app.jabook.compose.data.remote.parser.ParsingResult.PartialSuccess -> {
+                                // Save to DB even with warnings
+                                if (parsingResult.data.isNotEmpty()) {
+                                    saveResultsToDb(query, parsingResult.data)
+                                }
+                                Result.Success(parsingResult.data)
+                            }
+                            is com.jabook.app.jabook.compose.data.remote.parser.ParsingResult.Failure -> {
+                                // Parsing failed, fallback to DB
+                                Result.Error(Exception(parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"))
+                            }
                         }
-
-                        return Result.Success(results)
                     }
                 }
             } catch (e: Exception) {
