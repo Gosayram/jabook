@@ -30,24 +30,19 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AudioFile
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,7 +57,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
-import com.jabook.app.jabook.compose.domain.model.AuthStatus
 
 /**
  * Topic Screen - displays detailed information about a RuTracker topic.
@@ -83,20 +77,8 @@ fun TopicScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
-    val downloadMessage by viewModel.downloadMessage.collectAsStateWithLifecycle()
-
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    // Show download message in Snackbar
-    LaunchedEffect(downloadMessage) {
-        downloadMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.clearDownloadMessage()
-        }
-    }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -113,13 +95,6 @@ fun TopicScreen(
                     }
                 },
             )
-        },
-        floatingActionButton = {
-            if (uiState is TopicUiState.Success && authStatus is AuthStatus.Authenticated) {
-                FloatingActionButton(onClick = viewModel::downloadTorrent) {
-                    Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.downloadButtonText))
-                }
-            }
         },
         modifier = modifier,
     ) { padding ->

@@ -21,9 +21,7 @@ import androidx.navigation.toRoute
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
-import com.jabook.app.jabook.compose.domain.model.DownloadState
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
-import com.jabook.app.jabook.compose.domain.usecase.download.StartDownloadUseCase
 import com.jabook.app.jabook.compose.navigation.TopicRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,7 +58,6 @@ class TopicViewModel
     constructor(
         private val rutrackerRepository: RutrackerRepository,
         private val authRepository: AuthRepository,
-        private val startDownloadUseCase: StartDownloadUseCase,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         private val topicId: String = savedStateHandle.toRoute<TopicRoute>().topicId
@@ -74,9 +71,6 @@ class TopicViewModel
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = AuthStatus.Unauthenticated,
             )
-
-        private val _downloadMessage = MutableStateFlow<String?>(null)
-        val downloadMessage: StateFlow<String?> = _downloadMessage.asStateFlow()
 
         init {
             loadTopicDetails()
@@ -103,45 +97,10 @@ class TopicViewModel
             }
         }
 
-        fun downloadTorrent() {
-            viewModelScope.launch {
-                val details = (_uiState.value as? TopicUiState.Success)?.details ?: return@launch
-
-                try {
-                    // Start download and collect state updates
-                    startDownloadUseCase(
-                        bookId = details.topicId,
-                        torrentUrl = details.torrentUrl,
-                    ).collect { state ->
-                        when (state) {
-                            is DownloadState.Idle -> {
-                                _downloadMessage.value = "Download queued"
-                            }
-                            is DownloadState.Downloading -> {
-                                val progress = (state.progress * 100).toInt()
-                                _downloadMessage.value = "Downloading: $progress% (${state.formattedSpeed})"
-                            }
-                            is DownloadState.Completed -> {
-                                _downloadMessage.value = "✅ Download completed!"
-                            }
-                            is DownloadState.Failed -> {
-                                _downloadMessage.value = "❌ Download failed: ${state.error}"
-                            }
-                            is DownloadState.Paused -> {
-                                val progress = (state.progress * 100).toInt()
-                                _downloadMessage.value = "Download paused at $progress%"
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    _downloadMessage.value = "Error starting download: ${e.message}"
-                }
-            }
-        }
-
-        fun clearDownloadMessage() {
-            _downloadMessage.value = null
-        }
+        /**
+         * Download functionality has been migrated to TorrentDownloadsScreen.
+         * Use the global Downloads screen or magnet links to manage downloads.
+         */
 
         fun retry() {
             loadTopicDetails()

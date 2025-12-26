@@ -16,8 +16,6 @@ package com.jabook.app.jabook.compose.di
 
 import com.jabook.app.jabook.compose.data.download.LibTorrentDownloader
 import com.jabook.app.jabook.compose.data.download.TorrentDownloader
-import com.jabook.app.jabook.compose.data.repository.DownloadRepository
-import com.jabook.app.jabook.compose.data.repository.WorkManagerDownloadRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -26,17 +24,13 @@ import javax.inject.Singleton
 
 /**
  * Hilt module for download-related dependencies.
+ *
+ * Legacy WorkManager-based download system has been removed.
+ * All downloads now use the torrent-based system (TorrentDownloadRepository).
  */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DownloadModule {
-    /**
-     * Bind DownloadRepository implementation.
-     */
-    @Binds
-    @Singleton
-    abstract fun bindDownloadRepository(impl: WorkManagerDownloadRepository): DownloadRepository
-
     /**
      * Bind TorrentDownloader implementation.
      *
