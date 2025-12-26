@@ -2510,4 +2510,6 @@
     <string name="loadingStats">Загрузка статистики...</string>
     <string name="noFoldersConfiguredPleaseAddInSettings">Папки не настроены. Добавьте папку в настройках</string>
     <string name="scanCompleteNoBooks">Сканирование завершено. Найдено 0 книг</string>
+    <string name="downloadsStorage">Хранилище загрузок</string>
+    <string name="storageUsedFormat">Занято %s</string>
 </resources>

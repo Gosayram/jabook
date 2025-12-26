@@ -2476,4 +2476,6 @@
     <string name="loadingStats">Loading statistics...</string>
     <string name="noFoldersConfiguredPleaseAddInSettings">No folders configured. Please add a folder in Settings</string>
     <string name="scanCompleteNoBooks">Scan complete. Found 0 books</string>
+    <string name="downloadsStorage">Downloads Storage</string>
+    <string name="storageUsedFormat">%s used</string>
 </resources>

@@ -414,8 +414,8 @@ fun SettingsScreen(
             }
 
             SettingsItem(
-                title = stringResource(R.string.storageUsage),
-                subtitle = formatBytes(torrentStorageSize),
+                title = stringResource(R.string.downloadsStorage),
+                subtitle = stringResource(R.string.storageUsedFormat, formatBytes(torrentStorageSize)),
             )
 
             var showDeleteAllDialog by remember { mutableStateOf(false) }
