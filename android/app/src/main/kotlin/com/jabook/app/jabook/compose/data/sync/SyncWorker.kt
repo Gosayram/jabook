@@ -131,9 +131,23 @@ class SyncWorker
                                 }
                             }
 
-                            // TODO: Add more metadata updates (author, description, etc) if BookEntity supports it
-                            // and if we want to overwrite local changes.
-                            // Currently taking a conservative approach: only fill missing data.
+                            // Update author if missing or generic
+                            if ((matchedBook.author.isEmpty() || matchedBook.author == "Unknown Author") &&
+                                !details.author.isNullOrEmpty()
+                            ) {
+                                details.author?.let { author ->
+                                    booksDao.updateAuthor(matchedBook.id, author)
+                                    Log.i(TAG, "Updated author for ${matchedBook.title}: $author")
+                                }
+                            }
+
+                            // Update description if missing
+                            if (matchedBook.description.isNullOrEmpty() && !details.description.isNullOrEmpty()) {
+                                details.description?.let { description ->
+                                    booksDao.updateDescription(matchedBook.id, description)
+                                    Log.i(TAG, "Updated description for ${matchedBook.title}")
+                                }
+                            }
                         }
                     }
                 } catch (e: Exception) {

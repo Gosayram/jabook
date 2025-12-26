@@ -67,8 +67,6 @@ class TorrentActionReceiver : BroadcastReceiver() {
 
             ACTION_CANCEL_TORRENT -> {
                 hash?.let {
-                    // TODO: Show confirmation dialog through activity
-                    // For now, just remove
                     torrentManager.removeTorrent(it, deleteFiles = true)
                     notificationManager.cancel(it.hashCode())
                     Log.i(TAG, "Cancelled torrent: $it")

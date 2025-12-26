@@ -123,6 +123,24 @@ interface BooksDao {
     )
 
     /**
+     * Updates the author of a book.
+     */
+    @Query("UPDATE books SET author = :author WHERE id = :bookId")
+    suspend fun updateAuthor(
+        bookId: String,
+        author: String,
+    )
+
+    /**
+     * Updates the description of a book.
+     */
+    @Query("UPDATE books SET description = :description WHERE id = :bookId")
+    suspend fun updateDescription(
+        bookId: String,
+        description: String,
+    )
+
+    /**
      * Insert or replace a book.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
