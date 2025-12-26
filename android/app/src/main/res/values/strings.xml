@@ -539,6 +539,13 @@
     <string name="navAuthText">Connect</string>
     <!-- Navigation text for search -->
     <string name="navSearchText">Search</string>
+    
+    <!-- Add Torrent Dialog -->
+    <string name="add_torrent_title">Add Torrent</string>
+    <string name="magnet_link_label">Magnet Link</string>
+    <string name="download_location_label">Download Location</string>
+    <string name="change_folder">Change Folder</string>
+    <string name="add_button">Add</string>
     <!-- Navigation text for settings -->
     <string name="navSettingsText">Settings</string>
     <!-- Navigation text for debug -->

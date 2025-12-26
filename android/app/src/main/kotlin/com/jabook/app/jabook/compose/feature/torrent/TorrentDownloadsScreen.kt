@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
@@ -75,6 +76,84 @@ fun TorrentDownloadsScreen(
     val showCompletedOnly by viewModel.showCompletedOnly.collectAsStateWithLifecycle()
 
     var downloadToDelete by remember { mutableStateOf<TorrentDownload?>(null) }
+
+    val pendingMagnetLink by viewModel.pendingMagnetLink.collectAsStateWithLifecycle()
+    val pendingDownloadPath by viewModel.pendingDownloadPath.collectAsStateWithLifecycle()
+
+    // Folder picker launcher for Add Dialog
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val folderLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .OpenDocumentTree(),
+        ) { uri ->
+            uri?.let {
+                val takeFlags =
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(it, takeFlags)
+                viewModel.updatePendingPathFromUri(it.toString())
+            }
+        }
+
+    // Add Torrent Dialog
+    if (pendingMagnetLink != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelAddTorrent() },
+            title = { Text(stringResource(R.string.add_torrent_title)) },
+            text = {
+                Column {
+                    Text(
+                        text = stringResource(R.string.magnet_link_label),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Text(
+                        text = pendingMagnetLink!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 3,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(bottom = 16.dp),
+                    )
+
+                    Text(
+                        text = stringResource(R.string.download_location_label),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+
+                    androidx.compose.material3.OutlinedTextField(
+                        value = pendingDownloadPath,
+                        onValueChange = {}, // Read-only
+                        readOnly = true,
+                        trailingIcon = {
+                            IconButton(onClick = { folderLauncher.launch(null) }) {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = stringResource(R.string.change_folder),
+                                )
+                            }
+                        },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.confirmAddTorrent() },
+                ) {
+                    Text(stringResource(R.string.add_button))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelAddTorrent() }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 
     if (downloadToDelete != null) {
         var deleteFiles by remember { mutableStateOf(true) }

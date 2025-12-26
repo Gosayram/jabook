@@ -72,17 +72,7 @@ class TorrentDownloadsViewModel
         private val networkMonitor: NetworkMonitor,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
-        init {
-            // Check for initial magnet link
-            try {
-                val route = savedStateHandle.toRoute<DownloadsRoute>()
-                route.magnetLink?.let { magnetLink ->
-                    addTorrent(magnetLink)
-                }
-            } catch (e: Exception) {
-                // Ignore if not navigated via route with args
-            }
-        }
+        // Init block moved below to use new prepareAddTorrent logic
 
         private val _snackbarEvent = Channel<String>()
         val snackbarEvent = _snackbarEvent.receiveAsFlow()
@@ -243,22 +233,65 @@ class TorrentDownloadsViewModel
         /**
          * Add torrent from magnet link
          */
-        fun addTorrent(magnetLink: String) {
+        // Pending torrent state for dialog
+        private val _pendingMagnetLink = MutableStateFlow<String?>(null)
+        val pendingMagnetLink: StateFlow<String?> = _pendingMagnetLink.asStateFlow()
+
+        private val _pendingDownloadPath = MutableStateFlow("")
+        val pendingDownloadPath: StateFlow<String> = _pendingDownloadPath.asStateFlow()
+
+        init {
+            // Check for initial magnet link
+            try {
+                val route = savedStateHandle.toRoute<DownloadsRoute>()
+                route.magnetLink?.let { magnetLink ->
+                    prepareAddTorrent(magnetLink)
+                }
+            } catch (e: Exception) {
+                // Ignore if not navigated via route with args
+            }
+        }
+
+        fun prepareAddTorrent(magnetLink: String) {
             viewModelScope.launch {
+                val prefs = settingsRepository.userPreferences.first()
+                val defaultPath =
+                    prefs.downloadPath.ifEmpty {
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
+                    }
+                _pendingDownloadPath.value = defaultPath
+                _pendingMagnetLink.value = magnetLink
+            }
+        }
+
+        fun updatePendingPath(path: String) {
+            _pendingDownloadPath.value = path
+        }
+
+        fun updatePendingPathFromUri(uriString: String) {
+            val path =
+                com.jabook.app.jabook.util.FileUtils
+                    .resolvePathFromUri(uriString)
+            _pendingDownloadPath.value = path
+        }
+
+        fun confirmAddTorrent() {
+            viewModelScope.launch {
+                val magnetLink = _pendingMagnetLink.value ?: return@launch
+                val path = _pendingDownloadPath.value
+
                 try {
                     checkNetworkAndWarn()
-
-                    val prefs = settingsRepository.userPreferences.first()
-                    val downloadPath =
-                        prefs.downloadPath.ifEmpty {
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
-                        }
-
-                    torrentManager.addTorrent(magnetLink, downloadPath)
+                    torrentManager.addTorrent(magnetLink, path)
+                    _pendingMagnetLink.value = null
                 } catch (e: Exception) {
-                    // Handle error
+                    _snackbarEvent.send("Failed to add torrent: ${e.message}")
                 }
             }
+        }
+
+        fun cancelAddTorrent() {
+            _pendingMagnetLink.value = null
         }
 
         private suspend fun checkNetworkAndWarn() {

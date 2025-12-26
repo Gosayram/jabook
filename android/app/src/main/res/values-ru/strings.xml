@@ -2464,6 +2464,13 @@
     <string name="downloading_count_speed">%1$d загружается • %2$s</string>
     <string name="downloads_paused_or_queued">%1$d загрузок активно</string>
 
+    <!-- Диалог добавления торрента -->
+    <string name="add_torrent_title">Добавить торрент</string>
+    <string name="magnet_link_label">Magnet-ссылка</string>
+    <string name="download_location_label">Место загрузки</string>
+    <string name="change_folder">Изменить папку</string>
+    <string name="add_button">Добавить</string>
+
     <!-- Статистика -->
     <string name="size_gb">%.1f ГБ</string>
     <string name="size_mb">%.1f МБ</string>
