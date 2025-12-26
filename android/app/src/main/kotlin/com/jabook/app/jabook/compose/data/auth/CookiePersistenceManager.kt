@@ -130,8 +130,8 @@ class CookiePersistenceManager
                     Log.w(TAG, "Failed to restore from database", e)
                 }
 
-                // Layer 2: Try SecureStorage
-                // TODO: Add if SecureStorage has getCookies method
+                // Layer 2: WebView CookieManager (skipped in favor of direct Database/CookieJar)
+                // SecureCredentialStorage is for username/password only, not cookies
 
                 // Layer 3: Fallback to CookieJar (runtime cache)
                 val httpUrl = url.toHttpUrl()

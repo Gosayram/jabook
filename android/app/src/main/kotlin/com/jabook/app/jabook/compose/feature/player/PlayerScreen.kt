@@ -128,6 +128,8 @@ fun PlayerScreen(
     // Navigator for SupportingPaneScaffold
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     // Request notification permission on Android 13+
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -138,8 +140,29 @@ fun PlayerScreen(
                         .RequestPermission(),
                 onResult = { isGranted ->
                     if (!isGranted) {
-                        // TODO: Show rationale or snackbar if needed
+                        // Show rationale explaining why notification permission is needed
                         android.util.Log.w("PlayerScreen", "Notification permission denied")
+                        scope.launch {
+                            val result =
+                                snackbarHostState.showSnackbar(
+                                    message = "Notifications help control playback from the notification bar",
+                                    actionLabel = "Settings",
+                                    duration = androidx.compose.material3.SnackbarDuration.Long,
+                                )
+
+                            // If user clicks "Settings", open app settings
+                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                try {
+                                    val intent =
+                                        android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                                        }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("PlayerScreen", "Failed to open settings", e)
+                                }
+                            }
+                        }
                     }
                 },
             )

@@ -130,12 +130,13 @@ fun JabookApp(
         isBetaFlavor = isBetaFlavor,
         useSystemFont = useSystemFont,
     ) {
-        // ✅ Mini-player state management using AudioPlayerController
-        // AudioPlayerController is a @Singleton that doesn't require navigation arguments
-        val audioPlayerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController = hiltViewModel()
-        val isPlaying by audioPlayerController.isPlaying.collectAsStateWithLifecycle()
-        val currentPosition by audioPlayerController.currentPosition.collectAsStateWithLifecycle()
-        val duration by audioPlayerController.duration.collectAsStateWithLifecycle()
+        // ✅ Mini-player state management using MiniPlayerViewModel
+        // MiniPlayerViewModel is a lightweight wrapper around AudioPlayerController
+        // Safe to instantiate at app root (no navigation dependencies)
+        val miniPlayerViewModel: com.jabook.app.jabook.compose.feature.miniplayer.MiniPlayerViewModel = hiltViewModel()
+        val isPlaying by miniPlayerViewModel.isPlaying.collectAsStateWithLifecycle()
+        val currentPosition by miniPlayerViewModel.currentPosition.collectAsStateWithLifecycle()
+        val duration by miniPlayerViewModel.duration.collectAsStateWithLifecycle()
 
         // 🎯 NavigationSuiteScaffold automatically adapts navigation to screen size
         // - Compact: Bottom navigation bar
