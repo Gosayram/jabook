@@ -45,6 +45,7 @@ class TorrentDetailsViewModel
         private val torrentManager: TorrentManager,
         private val booksRepository: BooksRepository,
         savedStateHandle: SavedStateHandle,
+        private val streamingMonitor: TorrentStreamingMonitor,
     ) : ViewModel() {
         private val route = savedStateHandle.toRoute<TorrentDetailsRoute>()
         val hash = route.hash
@@ -70,7 +71,25 @@ class TorrentDetailsViewModel
                 // Prioritize this file (7 = top priority)
                 torrentManager.prioritizeFile(hash, file.index, 7)
 
-                // 2. Prepare Book & Chapter
+                // 2. Wait for buffer
+                // TODO: Emit buffering state to UI
+                var attempts = 0
+                val maxAttempts = 60 // 30 seconds (500ms * 60)
+
+                while (!torrentManager.isFileReadyForStreaming(hash, file.index) && attempts < maxAttempts) {
+                    kotlinx.coroutines.delay(500)
+                    attempts++
+                }
+
+                if (attempts >= maxAttempts) {
+                    // Timeout - try anyway or show error
+                    // For now, proceed but it might fail
+                }
+
+                // 3. Start monitoring
+                streamingMonitor.startMonitoring(hash, file.index)
+
+                // 4. Prepare Book & Chapter
                 val bookId = "torrent_${hash}_${file.index}"
                 val absolutePath = File(currentDownload.savePath, file.path).absolutePath
                 val title = File(file.path).name
@@ -109,11 +128,32 @@ class TorrentDetailsViewModel
                         isDownloaded = true,
                     )
 
-                // 3. Save to repository (Using addBooks because it handles chapters)
+                // 5. Save to repository (Using addBooks because it handles chapters)
                 booksRepository.addBooks(listOf(book to listOf(chapter)))
 
-                // 4. Navigate
+                // 6. Navigate
                 _navigationEvent.emit(bookId)
             }
+        }
+
+        override fun onCleared() {
+            super.onCleared()
+            // Stop monitoring when ViewModel is cleared (screen closed)
+            // Note: If user navigates to PlayerScreen, this ViewModel might be kept alive if it's in backstack?
+            // "TorrentStrings" screen is "TorrentDetailsScreen".
+            // If we utilize Navigation, valid approach.
+            // But if user plays in background?
+            // The Monitoring should typically persist while playing.
+            // But if we scope it to ViewModel, it dies with the UI flow.
+            // Ideally Monitor should be started by Service or be global.
+            // Since we made it Singleton, we can leave it running?
+            // "stopMonitoring" call here might kill it prematurely if user goes to Player Screen.
+            // Let's NOT call stopMonitoring here if we want background playback monitoring.
+            // But we need to stop it EVENTUALLY.
+            // The monitor tracks "isPlaying". If player stops, it does nothing.
+            // But it keeps polling.
+            // Let's rely on explicit stop or when new stream starts.
+            // Or add a timeout in Monitor if not playing for X minutes.
+            // For now, removing onCleared stop to allow background playback monitoring.
         }
     }

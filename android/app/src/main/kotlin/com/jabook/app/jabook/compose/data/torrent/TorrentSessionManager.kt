@@ -373,7 +373,8 @@ class TorrentSessionManager
         ): List<TorrentFile> {
             val fileStorage = torrentInfo.files()
             val priorities = handle.filePriorities() // Returns Priority[]
-            val progress = handle.fileProgress(org.libtorrent4j.TorrentHandle.PIECE_GRANULARITY)
+            // Use empty flags to get progress in bytes, not pieces
+            val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
 
             return (0 until fileStorage.numFiles()).map { index ->
                 val priority =
@@ -396,6 +397,60 @@ class TorrentSessionManager
                     isSelected = priority != 0,
                 )
             }
+        }
+
+        /**
+         * Check if file is ready for streaming (first chunk downloaded)
+         * @param bufferSize bytes to check (default 10MB)
+         */
+        fun isFileReadyForStreaming(
+            hash: String,
+            fileIndex: Int,
+            bufferSize: Long = 10 * 1024 * 1024L, // 10MB
+        ): Boolean {
+            val handle = torrents[hash] ?: return false
+            val torrentInfo = handle.torrentFile() ?: return false
+            val fileStorage = torrentInfo.files() ?: return false
+
+            if (fileIndex < 0 || fileIndex >= fileStorage.numFiles()) return false
+
+            val fileSize = fileStorage.fileSize(fileIndex)
+            val checkSize = minOf(fileSize, bufferSize)
+
+            // If file is very small or fully downloaded, it's ready
+            val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
+            val downloadedBytes = if (fileIndex < progress.size) progress[fileIndex] else 0L
+
+            if (downloadedBytes >= fileSize) return true
+
+            // Check specific pieces
+            // We need to map file offset to pieces
+            val fileOffset = fileStorage.fileOffset(fileIndex)
+            val startPiece = torrentInfo.mapFile(fileIndex, 0, 0).piece()
+            // We only check the beginning of the file for "start" capability
+            val endOffsetInFile = minOf(fileSize, bufferSize)
+            val endPiece = torrentInfo.mapFile(fileIndex, endOffsetInFile, 0).piece()
+
+            // Check if all pieces in range are having pieces
+            for (piece in startPiece..endPiece) {
+                if (!handle.havePiece(piece)) {
+                    return false
+                }
+            }
+
+            return true
+        }
+
+        /**
+         * Get exact downloaded bytes for a file
+         */
+        fun getDownloadedBytes(
+            hash: String,
+            fileIndex: Int,
+        ): Long {
+            val handle = torrents[hash] ?: return 0L
+            val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
+            return if (fileIndex < progress.size) progress[fileIndex] else 0L
         }
 
         private fun calculateEta(status: TorrentStatus): Long {

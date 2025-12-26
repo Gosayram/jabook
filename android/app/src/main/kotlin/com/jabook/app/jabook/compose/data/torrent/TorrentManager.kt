@@ -174,6 +174,22 @@ class TorrentManager
         }
 
         /**
+         * Check if file is ready for streaming
+         */
+        fun isFileReadyForStreaming(
+            hash: String,
+            fileIndex: Int,
+        ): Boolean = sessionManager.isFileReadyForStreaming(hash, fileIndex)
+
+        /**
+         * Get downloaded bytes
+         */
+        fun getDownloadedBytes(
+            hash: String,
+            fileIndex: Int,
+        ): Long = sessionManager.getDownloadedBytes(hash, fileIndex)
+
+        /**
          * Delete all torrents
          */
         fun deleteAllTorrents(deleteFiles: Boolean) {
