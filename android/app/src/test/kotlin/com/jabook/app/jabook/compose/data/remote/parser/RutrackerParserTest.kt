@@ -16,15 +16,12 @@ package com.jabook.app.jabook.compose.data.remote.parser
 
 import com.jabook.app.jabook.compose.data.remote.encoding.DefensiveEncodingHandler
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 /**
  * Unit tests for RutrackerParser.
@@ -54,20 +51,22 @@ class RutrackerParserTest {
         mockMediaInfoParser = mock()
         fieldExtractor = DefensiveFieldExtractor()
         coverExtractor = CoverUrlExtractor()
-        
-        parser = RutrackerParser(
-            mockMediaInfoParser,
-            mockEncodingHandler,
-            fieldExtractor,
-            coverExtractor
-        )
+
+        parser =
+            RutrackerParser(
+                mockMediaInfoParser,
+                mockEncodingHandler,
+                fieldExtractor,
+                coverExtractor,
+            )
     }
 
     // ============ Search Result Parsing Tests ============
 
     @Test
     fun `parseSearchResults extracts basic topic information`() {
-        val html = """
+        val html =
+            """
             <html>
             <body>
                 <tr class="hl-tr" data-topic_id="6171728">
@@ -79,7 +78,7 @@ class RutrackerParserTest {
                 </tr>
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
 
         val results = parser.parseSearchResults(html)
 
@@ -94,7 +93,8 @@ class RutrackerParserTest {
 
     @Test
     fun `parseSearchResults handles multiple rows`() {
-        val html = """
+        val html =
+            """
             <html>
             <body>
                 <tr class="hl-tr" data-topic_id="1">
@@ -107,7 +107,7 @@ class RutrackerParserTest {
                 </tr>
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
 
         val results = parser.parseSearchResults(html)
 
@@ -118,9 +118,10 @@ class RutrackerParserTest {
 
     @Test
     fun `parseSearchResults returns empty list on invalid HTML`() {
-        val html = """
+        val html =
+            """
             <html><body><p>No search results</p></body></html>
-        """.trimIndent()
+            """.trimIndent()
 
         val results = parser.parseSearchResults(html)
 
@@ -129,7 +130,8 @@ class RutrackerParserTest {
 
     @Test
     fun `parseSearchResults handles missing author gracefully`() {
-        val html = """
+        val html =
+            """
             <html>
             <body>
                 <tr class="hl-tr" data-topic_id="100">
@@ -138,7 +140,7 @@ class RutrackerParserTest {
                 </tr>
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
 
         val results = parser.parseSearchResults(html)
 
@@ -150,11 +152,12 @@ class RutrackerParserTest {
 
     @Test
     fun `cleanTitle removes square brackets content`() {
-        val testCases = listOf(
-            "Book Title [1962, СССР]" to "Book Title",
-            "[Format] Title [Year]" to "Title",
-            "Title" to "Title"
-        )
+        val testCases =
+            listOf(
+                "Book Title [1962, СССР]" to "Book Title",
+                "[Format] Title [Year]" to "Title",
+                "Title" to "Title",
+            )
 
         // Use reflection to access private cleanTitle method
         val method = RutrackerParser::class.java.getDeclaredMethod("cleanTitle", String::class.java)
@@ -170,7 +173,8 @@ class RutrackerParserTest {
 
     @Test
     fun `parseTopicDetails extracts complete information`() {
-        val html = """
+        val html =
+            """
             <html>
             <head><title>Topic</title></head>
             <body>
@@ -184,7 +188,7 @@ class RutrackerParserTest {
                 </div>
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
 
         val details = parser.parseTopicDetails(html, "12345")
 
@@ -203,9 +207,10 @@ class RutrackerParserTest {
 
     @Test
     fun `parseTopicDetails returns null on invalid HTML`() {
-        val html = """
+        val html =
+            """
             <html><body><p>Invalid content</p></body></html>
-        """.trimIndent()
+            """.trimIndent()
 
         val details = parser.parseTopicDetails(html, "999")
 
@@ -214,14 +219,15 @@ class RutrackerParserTest {
 
     @Test
     fun `parseTopicDetails handles missing optional fields`() {
-        val html = """
+        val html =
+            """
             <html>
             <body>
                 <h1 class="maintitle"><a>Minimal Topic</a></h1>
                 <div class="post_body"></div>
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
 
         val details = parser.parseTopicDetails(html, "123")
 
@@ -238,13 +244,14 @@ class RutrackerParserTest {
 
     @Test
     fun `parseLoginResponse detects success`() {
-        val html = """
+        val html =
+            """
             <html>
             <body>
                 <a href="login.php?logout=1">Выход</a>
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
 
         val result = parser.parseLoginResponse(html)
 
@@ -253,13 +260,14 @@ class RutrackerParserTest {
 
     @Test
     fun `parseLoginResponse detects invalid credentials`() {
-        val html = """
+        val html =
+            """
             <html>
             <body>
                 <p>Неверный пароль</p>
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
 
         val result = parser.parseLoginResponse(html)
 
@@ -269,7 +277,8 @@ class RutrackerParserTest {
 
     @Test
     fun `parseLoginResponse detects captcha requirement`() {
-        val html = """
+        val html =
+            """
             <html>
             <body>
                 <p>Введите код с картинки</p>
@@ -277,7 +286,7 @@ class RutrackerParserTest {
                 <img src="//static.t-ru.org/captcha/test.jpg">
             </body>
             </html>
-        """.trimIndent()
+            """.trimIndent()
 
         val result = parser.parseLoginResponse(html)
 

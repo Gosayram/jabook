@@ -106,21 +106,45 @@ object NotificationIconProvider {
     fun getStopIcon(context: Context): Int = R.drawable.ic_close
 
     /**
-     * Applies theme-based tinting to notification icons if needed.
+     * Apply dynamic theming to notification icon based on Material You colors.
      *
-     * This method can be extended in the future to support dynamic theming
-     * based on Material You colors or app theme.
+     * On Android 12+ (API 31+), this extracts the primary color from the system theme
+     * and applies it to the notification icon to match the user's wallpaper-based theme.
      *
      * @param context Application context
      * @param icon Icon to tint
-     * @return Tinted icon (currently returns same icon, to be implemented)
+     * @return Tinted icon with Material You colors (Android 12+) or original icon (older versions)
      */
     fun applyTheming(
         context: Context,
         icon: Icon,
     ): Icon {
-        // TODO: Implement dynamic theming when Material You support is added
-        // For now, return icon as-is
+        // Material You (dynamic colors) is only available on Android 12+ (API 31+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            try {
+                // Extract primary color from Material You theme
+                val typedValue = android.util.TypedValue()
+                val theme = context.theme
+
+                // Get system accent color (Material You primary color)
+                val colorResolved =
+                    theme.resolveAttribute(
+                        android.R.attr.colorPrimary,
+                        typedValue,
+                        true,
+                    )
+
+                if (colorResolved && typedValue.data != 0) {
+                    // Create tinted icon with Material You color
+                    return icon.setTint(typedValue.data)
+                }
+            } catch (e: Exception) {
+                // Fallback to original icon if theming fails
+                android.util.Log.w("NotificationIconProvider", "Failed to apply Material You theming", e)
+            }
+        }
+
+        // Return original icon for Android <12 or if theming failed
         return icon
     }
 }

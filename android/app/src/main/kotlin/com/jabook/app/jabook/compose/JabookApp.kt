@@ -130,15 +130,12 @@ fun JabookApp(
         isBetaFlavor = isBetaFlavor,
         useSystemFont = useSystemFont,
     ) {
-        // TODO: Implement proper mini-player state management
-        // PlayerViewModel cannot be instantiated at app root level because it requires
-        // navigation arguments (PlayerRoute) from SavedStateHandle.
-        // Options:
-        // 1. Create MiniPlayerViewModel without navigation dependencies
-        // 2. Use AudioPlayerController + repository to get current book
-        // For now, mini-player is disabled to fix crash.
-        // val playerViewModel: PlayerViewModel = hiltViewModel()
-        // val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
+        // ✅ Mini-player state management using AudioPlayerController
+        // AudioPlayerController is a @Singleton that doesn't require navigation arguments
+        val audioPlayerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController = hiltViewModel()
+        val isPlaying by audioPlayerController.isPlaying.collectAsStateWithLifecycle()
+        val currentPosition by audioPlayerController.currentPosition.collectAsStateWithLifecycle()
+        val duration by audioPlayerController.duration.collectAsStateWithLifecycle()
 
         // 🎯 NavigationSuiteScaffold automatically adapts navigation to screen size
         // - Compact: Bottom navigation bar
