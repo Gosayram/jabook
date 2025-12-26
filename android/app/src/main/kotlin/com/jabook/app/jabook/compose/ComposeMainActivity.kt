@@ -116,10 +116,9 @@ class ComposeMainActivity : ComponentActivity() {
     private fun handleIntentExtras(intent: Intent?) {
         if (intent?.getBooleanExtra("navigate_to_player", false) == true) {
             Log.d(TAG, "Handling navigate_to_player extra")
-            // TODO: Navigate to player screen
-            // For now, we will just bring the activity to front (which happens automatically)
-            // But we should signal the JabookApp composable to switch to Player tab
-            // This requires exposing a state or event that JabookApp observes
+            // Navigation provided by JabookApp.LaunchedEffect(intent) which handles
+            // this specific extra and navigates to PlayerRoute.
+            // deepLinkIntent is already updated in onNewIntent/onCreate.
         }
     }
 
@@ -143,8 +142,19 @@ class ComposeMainActivity : ComponentActivity() {
         )
 
         Log.i(TAG, "Started torrent download: $magnetUrl")
-        // TODO: Show toast/snackbar confirming download started
-        // TODO: Optionally navigate to downloads screen
+
+        // Show feedback
+        android.widget.Toast
+            .makeText(
+                this,
+                "Download started",
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+
+        // Navigate to downloads screen by creating a deep link intent
+        // that JabookApp will handle
+        val downloadsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("jabook://downloads"))
+        deepLinkIntent = downloadsIntent
     }
 
     /**
@@ -163,26 +173,7 @@ class ComposeMainActivity : ComponentActivity() {
         val path = uri.path
         Log.d(TAG, "Handling jabook deep link - host: $host, path: $path")
 
-        // TODO: Implement navigation based on URI
-        // For now, just log the deep link
-        // In the future, this should use the navigation controller to navigate
-
-        // Example future implementation:
-        // when (host) {
-        //     "library" -> navController.navigate(LibraryRoute)
-        //     "settings" -> navController.navigate(SettingsRoute)
-        //     "player" -> {
-        //         val bookId = path?.removePrefix("/")
-        //         if (bookId != null) {
-        //             navController.navigate(PlayerRoute(bookId))
-        //         }
-        //     }
-        //     "webview" -> {
-        //         val url = uri.getQueryParameter("url")
-        //         if (url != null) {
-        //             navController.navigate(WebViewRoute(url))
-        //         }
-        //     }
-        // }
+        // Navigation is handled by JabookApp's NavHost which observes deepLinkIntent.
+        // This method serves as an interception point for logging or analytics.
     }
 }

@@ -20,6 +20,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.text.format.Formatter
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
@@ -219,7 +220,8 @@ class TorrentNotificationManager
         private fun createOpenDownloadsIntent(): PendingIntent {
             val intent =
                 Intent(context, ComposeMainActivity::class.java).apply {
-                    // TODO: Add navigation to downloads screen
+                    action = Intent.ACTION_VIEW
+                    data = Uri.parse("jabook://downloads")
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
 
