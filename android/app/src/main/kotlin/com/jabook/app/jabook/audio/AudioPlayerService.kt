@@ -173,18 +173,17 @@ class AudioPlayerService : MediaLibraryService() {
     // DurationManager handles caching and database retrieval
     internal val durationManager = DurationManager()
 
-    // TODO: Flutter MethodChannel removed - implement Kotlin-based position persistence if needed
-    // internal var methodChannel: io.flutter.plugin.common.MethodChannel? = null
+
 
     /**
-     * TODO: Flutter callback removed - implement Kotlin-based duration retrieval if needed.
+     * Callback for database duration retrieval
      */
     fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
         durationManager.setGetDurationFromDbCallback(callback)
     }
 
     /**
-     * TODO: Flutter MethodChannel removed - no longer needed in pure Kotlin app.
+     * Deprecated: Flutter MethodChannel removed.
      */
     fun setMethodChannel(channel: Any?) {
         // No-op: Flutter bridge removed
@@ -564,7 +563,6 @@ class AudioPlayerService : MediaLibraryService() {
      * false for full notification (all controls)
      */
     fun setNotificationType(isMinimal: Boolean) {
-        // TODO: This functionality may not be needed with MediaLibraryService
         // MediaLibraryService automatically manages notifications based on Player state
         // If we need custom notification types, we should configure MediaButtonPreferences instead
         notificationManager?.setNotificationType(isMinimal)
@@ -627,7 +625,6 @@ class AudioPlayerService : MediaLibraryService() {
 
     /**
      * Stores current media item detailed state for persistence.
-     * TODO: Implement in Kotlin (Flutter bridge removed).
      *
      * Based on Media3 DemoPlaybackService example.
      */
