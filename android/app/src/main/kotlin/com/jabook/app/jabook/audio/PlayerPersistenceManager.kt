@@ -17,6 +17,9 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import javax.inject.Inject
@@ -37,6 +40,17 @@ class PlayerPersistenceManager
             private const val KEY_RESUMPTION_TITLE = "playback_resumption_title"
             private const val KEY_RESUMPTION_ARTIST = "playback_resumption_artist"
             private const val KEY_RESUMPTION_GROUP_PATH = "playback_resumption_group_path"
+            private const val KEY_LAST_PLAYED_BOOK_ID = "last_played_book_id" // NEW for mini player
+        }
+
+        // NEW: StateFlow for last played book ID (for mini player)
+        private val _lastPlayedBookId = MutableStateFlow<String?>(null)
+        val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
+
+        init {
+            // Load last played book ID on init
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            _lastPlayedBookId.value = prefs.getString(KEY_LAST_PLAYED_BOOK_ID, null)
         }
 
         data class PersistedPlayerState(
@@ -211,6 +225,11 @@ class PlayerPersistenceManager
                     )
                 }
             savePlayerState(newState)
+
+            // NEW: Update last played book ID for mini player
+            _lastPlayedBookId.value = bookId
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putString(KEY_LAST_PLAYED_BOOK_ID, bookId).apply()
         }
 
         suspend fun markCompleted(bookId: String) {

@@ -15,9 +15,15 @@
 package com.jabook.app.jabook.compose.feature.miniplayer
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 /**
@@ -34,6 +40,8 @@ class MiniPlayerViewModel
     @Inject
     constructor(
         private val audioPlayerController: AudioPlayerController,
+        private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
+        private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
     ) : ViewModel() {
         /**
          * Current playback state (playing/paused).
@@ -54,6 +62,25 @@ class MiniPlayerViewModel
          * Current chapter/track index in playlist.
          */
         val currentChapterIndex: StateFlow<Int> = audioPlayerController.currentChapterIndex
+
+        /**
+         * Current book being played (from PlayerPersistenceManager + BooksRepository).
+         * This is the last played book from persistence.
+         */
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        val currentBook: StateFlow<Book?> =
+            playerPersistenceManager.lastPlayedBookId
+                .flatMapLatest { bookId ->
+                    if (bookId != null) {
+                        booksRepository.getBook(bookId)
+                    } else {
+                        flowOf(null)
+                    }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
+                )
 
         /**
          * Play current track.

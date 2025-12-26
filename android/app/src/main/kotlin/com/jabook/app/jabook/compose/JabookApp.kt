@@ -14,16 +14,21 @@
 
 package com.jabook.app.jabook.compose
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -130,24 +135,26 @@ fun JabookApp(
         isBetaFlavor = isBetaFlavor,
         useSystemFont = useSystemFont,
     ) {
-        // ✅ Mini-player state management using MiniPlayerViewModel
+        // Mini-player state management using MiniPlayerViewModel
         // MiniPlayerViewModel is a lightweight wrapper around AudioPlayerController
         // Safe to instantiate at app root (no navigation dependencies)
         val miniPlayerViewModel: com.jabook.app.jabook.compose.feature.miniplayer.MiniPlayerViewModel = hiltViewModel()
         val isPlaying by miniPlayerViewModel.isPlaying.collectAsStateWithLifecycle()
         val currentPosition by miniPlayerViewModel.currentPosition.collectAsStateWithLifecycle()
         val duration by miniPlayerViewModel.duration.collectAsStateWithLifecycle()
+        val currentBook by miniPlayerViewModel.currentBook.collectAsStateWithLifecycle()
+        val currentDestination = appState.currentDestination // Hoist to Composable scope
 
-        // 🎯 NavigationSuiteScaffold automatically adapts navigation to screen size
+        // NavigationSuiteScaffold automatically adapts navigation to screen size
         // - Compact: Bottom navigation bar
         // - Medium/Expanded: Navigation rail
         // - Large/Extra-large: Wide navigation rail or drawer
         NavigationSuiteScaffold(
-            navigationItems = {
+            navigationSuiteItems = {
                 appState.topLevelDestinations.forEach { destination ->
-                    val selected = appState.currentDestination.isTopLevelDestinationInHierarchy(destination)
+                    val selected = currentDestination.isTopLevelDestinationInHierarchy(destination)
 
-                    NavigationSuiteItem(
+                    item(
                         icon = {
                             Icon(
                                 imageVector =
@@ -167,25 +174,50 @@ fun JabookApp(
             },
             modifier = Modifier.fillMaxSize(),
         ) {
-            // Main content area
-            Box(modifier = Modifier.fillMaxSize()) {
-                @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
-                androidx.compose.animation.SharedTransitionLayout {
-                    JabookNavHost(
-                        appState = appState,
-                        modifier = Modifier.fillMaxSize(),
-                        sharedTransitionScope = this,
+            // Main content area with mini player
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Navigation content
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxSize(),
+                ) {
+                    @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+                    androidx.compose.animation.SharedTransitionLayout {
+                        JabookNavHost(
+                            appState = appState,
+                            modifier = Modifier.fillMaxSize(),
+                            sharedTransitionScope = this,
+                        )
+                    }
+
+                    // Snackbar host positioned above mini player
+                    androidx.compose.material3.SnackbarHost(
+                        hostState = appState.snackbarHostState,
+                        modifier =
+                            Modifier
+                                .align(androidx.compose.ui.Alignment.BottomCenter)
+                                .padding(bottom = if (currentBook != null) 72.dp else 16.dp),
                     )
                 }
 
-                // Snackbar host positioned above navigation
-                androidx.compose.material3.SnackbarHost(
-                    hostState = appState.snackbarHostState,
-                    modifier =
-                        Modifier
-                            .align(androidx.compose.ui.Alignment.BottomCenter)
-                            .padding(bottom = 16.dp),
-                )
+                // Mini player (shown when book is playing)
+                currentBook?.let { book ->
+                    com.jabook.app.jabook.compose.feature.player.MiniPlayer(
+                        coverUrl = book.coverUrl,
+                        title = book.title,
+                        author = book.author,
+                        isPlaying = isPlaying,
+                        progress = if (duration > 0) currentPosition.toFloat() / duration else 0f,
+                        onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
+                        onMiniPlayerClick = {
+                            // Navigate to player screen
+                            appState.navController.navigate(PlayerRoute(bookId = book.id))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
     }
