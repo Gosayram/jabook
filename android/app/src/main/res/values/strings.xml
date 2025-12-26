@@ -2478,4 +2478,8 @@
     <string name="scanCompleteNoBooks">Scan complete. Found 0 books</string>
     <string name="downloadsStorage">Downloads Storage</string>
     <string name="storageUsedFormat">%s used</string>
+    <!-- Placeholder description for login screen -->
+    <string name="login_description_placeholder">Sign in to access your library</string>
+    <!-- Separator text 'or' -->
+    <string name="or">Or</string>
 </resources>

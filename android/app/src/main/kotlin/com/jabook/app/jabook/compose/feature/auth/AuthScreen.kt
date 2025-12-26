@@ -14,6 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,10 +30,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -89,7 +96,9 @@ fun AuthScreen(
     var rememberMe by remember { mutableStateOf(true) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    // Output of autofill logic is handled by the TextField state
+    // Constants for padding
+    val spacerHeight = 16.dp
+    val sectionSpacing = 24.dp
 
     // Handle WebView Login Navigation
     LaunchedEffect(uiState.showWebViewLogin) {
@@ -103,7 +112,6 @@ fun AuthScreen(
         val observer =
             LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
-                    // If we were showing webview login (or generally just check), sync cookies
                     if (uiState.showWebViewLogin) {
                         viewModel.onWebViewLoginCompleted()
                     }
@@ -127,48 +135,60 @@ fun AuthScreen(
         }
     }
 
+    // Pre-fill if saved credentials exist
+    LaunchedEffect(uiState.savedCredentials) {
+        uiState.savedCredentials?.let {
+            username = it.username
+            password = it.password
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            // Optional: Add TopAppBar if needed
-        },
     ) { paddingValues ->
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp)
+                    .padding(24.dp)
                     .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            // Logo or Header
+            // Header Section
             Icon(
                 painter = painterResource(id = R.drawable.ic_launcher_foreground), // Placeholder
                 contentDescription = null,
-                modifier = Modifier.size(100.dp),
+                modifier = Modifier.size(120.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
 
             Text(
                 text = stringResource(R.string.rutrackerAuth),
                 style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(vertical = 16.dp),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
             )
 
-            // Pre-fill if saved credentials exist
-            LaunchedEffect(uiState.savedCredentials) {
-                uiState.savedCredentials?.let {
-                    username = it.username
-                    password = it.password
-                }
-            }
+            Text(
+                text = stringResource(R.string.login_description_placeholder), // Assuming this string or creating a placeholder
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 32.dp),
+            )
 
+            // Input Fields Section
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
                 label = { Text(stringResource(R.string.username)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.Person,
+                        contentDescription = null,
+                    )
+                },
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -181,23 +201,21 @@ fun AuthScreen(
                         keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Next,
                     ),
+                shape = MaterialTheme.shapes.medium,
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(spacerHeight))
 
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text(stringResource(R.string.password)) },
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .semantics {
-                            contentType = ContentType.Password
-                        },
-                singleLine = true,
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.Lock,
+                        contentDescription = null,
+                    )
+                },
                 trailingIcon = {
                     val image =
                         if (passwordVisible) {
@@ -211,15 +229,23 @@ fun AuthScreen(
                             imageVector = image,
                             contentDescription =
                                 if (passwordVisible) {
-                                    stringResource(
-                                        R.string.hidePassword,
-                                    )
+                                    stringResource(R.string.hidePassword)
                                 } else {
                                     stringResource(R.string.showPassword)
                                 },
                         )
                     }
                 },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentType = ContentType.Password
+                        },
+                singleLine = true,
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = MaterialTheme.shapes.medium,
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -232,29 +258,67 @@ fun AuthScreen(
                     checked = rememberMe,
                     onCheckedChange = { rememberMe = it },
                 )
-                Text(text = stringResource(R.string.rememberMe))
+                Text(
+                    text = stringResource(R.string.rememberMe),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(sectionSpacing))
 
-            if (uiState.isLoading) {
+            // Actions Section
+            AnimatedVisibility(
+                visible = uiState.isLoading,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
                 CircularProgressIndicator()
-            } else {
-                Button(
-                    onClick = { viewModel.login(username, password, rememberMe) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = username.isNotBlank() && password.isNotBlank(),
-                ) {
-                    Text(stringResource(R.string.login))
-                }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedButton(
-                    onClick = { viewModel.requestWebViewLogin() },
+            AnimatedVisibility(
+                visible = !uiState.isLoading,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(stringResource(R.string.loginViaWebView))
+                    Button(
+                        onClick = { viewModel.login(username, password, rememberMe) },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        enabled = username.isNotBlank() && password.isNotBlank(),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Login,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                        )
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.login))
+                    }
+
+                    Text(
+                        text = stringResource(R.string.or),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    OutlinedButton(
+                        onClick = { viewModel.requestWebViewLogin() },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                        )
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.loginViaWebView))
+                    }
                 }
             }
         }
@@ -286,7 +350,12 @@ fun CaptchaDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.captchaRequired)) },
+        title = {
+            Text(
+                text = stringResource(R.string.captchaRequired),
+                style = MaterialTheme.typography.titleLarge,
+            )
+        },
         text = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -298,14 +367,15 @@ fun CaptchaDialog(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(80.dp),
+                            .height(100.dp)
+                            .padding(bottom = 16.dp),
                 )
-                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = code,
                     onValueChange = { code = it },
                     label = { Text(stringResource(R.string.enterCode)) },
                     singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
