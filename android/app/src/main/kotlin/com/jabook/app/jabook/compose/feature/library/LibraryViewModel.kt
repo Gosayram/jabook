@@ -251,8 +251,12 @@ class LibraryViewModel
                 // Check if scan folders are configured
                 val scanFolders = scanPathDao.getAllPathsList()
                 if (scanFolders.isEmpty()) {
-                    // No folders configured - skip scan and show completion with 0 books
-                    _scanState.value = ScanState.Completed(0)
+                    // No folders configured - skip scan and show completion with flag
+                    _scanState.value =
+                        ScanState.Completed(
+                            booksFound = 0,
+                            noFoldersConfigured = true,
+                        )
                     return@launch
                 }
 
@@ -349,6 +353,7 @@ sealed interface ScanState {
 
     data class Completed(
         val booksFound: Int,
+        val noFoldersConfigured: Boolean = false,
     ) : ScanState
 
     data class Failed(

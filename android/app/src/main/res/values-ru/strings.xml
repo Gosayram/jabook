@@ -2508,4 +2508,6 @@
     <string name="totalResults">Всего результатов</string>
     <string name="estimatedSize">Примерный размер</string>
     <string name="loadingStats">Загрузка статистики...</string>
+    <string name="noFoldersConfiguredPleaseAddInSettings">Папки не настроены. Добавьте папку в настройках</string>
+    <string name="scanCompleteNoBooks">Сканирование завершено. Найдено 0 книг</string>
 </resources>

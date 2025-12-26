@@ -92,6 +92,8 @@ fun LibraryScreen(
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
     val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
     val scanFailedMessageTemplate = stringResource(R.string.scanFailedMessage)
+    val noFoldersConfiguredMessage = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings)
+    val scanCompleteNoBooksMessage = stringResource(R.string.scanCompleteNoBooks)
 
     // Permission launcher for scanning
     val permissionLauncher =
@@ -109,11 +111,23 @@ fun LibraryScreen(
             }
         }
 
-    // Observe scan state changes
+    // Observe scan state changes with enhanced feedback
     androidx.compose.runtime.LaunchedEffect(scanState) {
         when (val state = scanState) {
             is ScanState.Completed -> {
-                snackbarHostState.showSnackbar(foundBooksMessageTemplate.format(state.booksFound))
+                val message =
+                    when {
+                        state.booksFound == 0 && state.noFoldersConfigured -> {
+                            noFoldersConfiguredMessage
+                        }
+                        state.booksFound == 0 -> {
+                            scanCompleteNoBooksMessage
+                        }
+                        else -> {
+                            foundBooksMessageTemplate.format(state.booksFound)
+                        }
+                    }
+                snackbarHostState.showSnackbar(message)
             }
             is ScanState.Failed -> {
                 snackbarHostState.showSnackbar(scanFailedMessageTemplate.format(state.error))

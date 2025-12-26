@@ -2474,4 +2474,6 @@
     <string name="totalResults">Total results</string>
     <string name="estimatedSize">Estimated size</string>
     <string name="loadingStats">Loading statistics...</string>
+    <string name="noFoldersConfiguredPleaseAddInSettings">No folders configured. Please add a folder in Settings</string>
+    <string name="scanCompleteNoBooks">Scan complete. Found 0 books</string>
 </resources>
