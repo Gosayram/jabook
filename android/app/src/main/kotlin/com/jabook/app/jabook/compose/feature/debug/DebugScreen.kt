@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -184,27 +185,160 @@ private fun LogsTab(
 
 @Composable
 private fun MirrorsTab(viewModel: DebugViewModel) {
+    val authInfo by viewModel.authDebugInfo.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.testAllMirrors()
+    }
+
     Column(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
     ) {
-        Text(stringResource(R.string.mirrorsTestingComingSoon))
-        // TODO: Implement mirrors list and testing
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.mirrorsHealthTitle),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.padding(8.dp))
+
+                if (authInfo?.mirrorConnectivity?.isNotEmpty() == true) {
+                    authInfo?.mirrorConnectivity?.forEach { (mirror, isReachable) ->
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = if (isReachable) "✅" else "❌",
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(end = 12.dp),
+                            )
+                            Column {
+                                Text(
+                                    text = mirror,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = if (isReachable) stringResource(R.string.reachable) else stringResource(R.string.unreachable),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color =
+                                        if (isReachable) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.error
+                                        },
+                                )
+                            }
+                        }
+                        androidx.compose.material3.HorizontalDivider()
+                    }
+                } else {
+                    Text(stringResource(R.string.testingMirrors))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.padding(16.dp))
+
+        Button(
+            onClick = { viewModel.testAllMirrors() },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = null)
+            Spacer(modifier = Modifier.padding(4.dp))
+            Text(stringResource(R.string.startTest))
+        }
     }
 }
 
 @Composable
-private fun CacheTab() {
+private fun CacheTab(viewModel: DebugViewModel = hiltViewModel()) {
+    val cacheStats by viewModel.cacheStats.collectAsState()
+
+    // Load stats when tab opens
+    LaunchedEffect(Unit) {
+        viewModel.loadCacheStats()
+    }
+
     Column(
         modifier =
             Modifier
                 .fillMaxSize()
                 .padding(16.dp),
     ) {
-        Text(stringResource(R.string.cacheStatisticsComingSoon))
-        // TODO: Implement cache statistics
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.cacheStatisticsTitle),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.padding(8.dp))
+
+                if (cacheStats != null) {
+                    val stats = cacheStats!!
+                    DebugInfoRow(
+                        label = stringResource(R.string.entriesCount),
+                        value = "${stats.entriesCount}",
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.totalResults),
+                        value = "${stats.totalResults}",
+                    )
+                    DebugInfoRow(
+                        label = stringResource(R.string.estimatedSize),
+                        value =
+                            com.jabook.app.jabook.util.FileUtils
+                                .formatSize(stats.estimatedSize),
+                    )
+                } else {
+                    Text(stringResource(R.string.loadingStats))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.padding(16.dp))
+
+        Button(
+            onClick = { viewModel.clearCache() },
+            modifier = Modifier.fillMaxWidth(),
+            colors =
+                androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                ),
+        ) {
+            Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null)
+            Spacer(modifier = Modifier.padding(4.dp))
+            Text(stringResource(R.string.clearSearchCache))
+        }
+    }
+}
+
+@Composable
+private fun DebugInfoRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+        )
     }
 }
 

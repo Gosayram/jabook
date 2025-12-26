@@ -289,4 +289,16 @@ class RutrackerRepository
                     false
                 }
             }
+
+        /**
+         * Get search cache statistics.
+         */
+        fun getCacheStatistics(): RutrackerSearchCache.CacheStatistics = searchCache.getStatistics()
+
+        /**
+         * Clear search cache.
+         */
+        fun clearSearchCache() {
+            searchCache.clear()
+        }
     }

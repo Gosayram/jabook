@@ -2464,4 +2464,14 @@
     <!-- Button to confirm delete -->
     <string name="deleteButton">Delete</string>
     <string name="results_from_cache">Results from cache</string>
+    <!-- Debug Screen Strings -->
+    <string name="mirrorsHealthTitle">Mirror Health</string>
+    <string name="reachable">Reachable</string>
+    <string name="unreachable">Unreachable</string>
+    <string name="testingMirrors">Testing mirrors...</string>
+    <string name="startTest">Start Test</string>
+    <string name="entriesCount">Entries count</string>
+    <string name="totalResults">Total results</string>
+    <string name="estimatedSize">Estimated size</string>
+    <string name="loadingStats">Loading statistics...</string>
 </resources>

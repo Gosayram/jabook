@@ -36,6 +36,7 @@ class DebugViewModel
         private val debugLogService: DebugLogService,
         private val mirrorManager: MirrorManager,
         private val authService: com.jabook.app.jabook.compose.data.auth.RutrackerAuthService,
+        private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow<DebugUiState>(DebugUiState.Initial)
         val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
@@ -48,6 +49,7 @@ class DebugViewModel
 
         init {
             loadLogs()
+            loadCacheStats()
         }
 
         fun loadLogs() {
@@ -92,6 +94,7 @@ class DebugViewModel
         fun refreshDebugData() {
             loadLogs()
             refreshAuthDebugInfo()
+            loadCacheStats()
         }
 
         fun refreshAuthDebugInfo() {
@@ -131,6 +134,24 @@ class DebugViewModel
             val mirrors = mirrorManager.availableMirrors.value
             return mirrors.associateWith { mirror ->
                 mirrorManager.checkMirrorHealth(mirror)
+            }
+        }
+
+        private val _cacheStats = MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
+        val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
+            _cacheStats
+                .asStateFlow()
+
+        fun loadCacheStats() {
+            viewModelScope.launch {
+                _cacheStats.value = rutrackerRepository.getCacheStatistics()
+            }
+        }
+
+        fun clearCache() {
+            viewModelScope.launch {
+                rutrackerRepository.clearSearchCache()
+                loadCacheStats()
             }
         }
     }

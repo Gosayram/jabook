@@ -64,4 +64,17 @@ object FileUtils {
         }
         return uriString
     }
+
+    /**
+     * Formats size in bytes to human-readable string.
+     */
+    fun formatSize(bytes: Long): String {
+        if (bytes < 1024) return "$bytes B"
+        val kb = bytes / 1024.0
+        if (kb < 1024) return String.format("%.2f KB", kb)
+        val mb = kb / 1024.0
+        if (mb < 1024) return String.format("%.2f MB", mb)
+        val gb = mb / 1024.0
+        return String.format("%.2f GB", gb)
+    }
 }

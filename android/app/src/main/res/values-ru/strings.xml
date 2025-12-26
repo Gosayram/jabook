@@ -2498,4 +2498,14 @@
     <!-- Button to confirm delete -->
     <string name="deleteButton">Удалить</string>
     <string name="results_from_cache">Из кэша</string>
+    <!-- Строки экрана отладки -->
+    <string name="mirrorsHealthTitle">Здоровье зеркал</string>
+    <string name="reachable">Доступно</string>
+    <string name="unreachable">Недоступно</string>
+    <string name="testingMirrors">Проверка зеркал...</string>
+    <string name="startTest">Начать тест</string>
+    <string name="entriesCount">Количество записей</string>
+    <string name="totalResults">Всего результатов</string>
+    <string name="estimatedSize">Примерный размер</string>
+    <string name="loadingStats">Загрузка статистики...</string>
 </resources>
