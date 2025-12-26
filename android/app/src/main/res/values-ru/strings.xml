@@ -2075,7 +2075,7 @@
     <!-- Оформление (внешний вид приложения) -->
     <string name="appearance">Оформление</string>
     <!-- Автоматически воспроизводить следующую главу, когда текущая заканчивается -->
-    <string name="automaticallyPlayNextChapterWhenCurrentEnds">Автоматически воспроизводить следующую главу, когда текущая заканчивается</string>
+    <string name="automaticallyPlayNextChapterWhenCurrentEnds">Автовоспроизведение следующей главы</string>
     <!-- Автоматическое воспроизведение следующей главы -->
     <string name="autoplayNextChapter">Автоматическое воспроизведение следующей главы</string>
     <!-- Резервное копирование настроек и данных Jabook -->
@@ -2210,7 +2210,7 @@
     <!-- Только Wi-Fi -->
     <string name="wifiOnly">Только Wi-Fi</string>
     <!-- Автоматически переключаться на рабочем зеркале при ошибках -->
-    <string name="autoSwitchToWorkingMirrorOnError">Автоматически переключаться на рабочем зеркале при ошибках</string>
+    <string name="autoSwitchToWorkingMirrorOnError">Автопереключение зеркала при ошибке</string>
     <!-- Автоматически проигрывать эту главу при текущем завершении -->
     <string name="autoPlayNextChapter">Автоматически проигрывать эту главу при текущем завершении</string>
     <!-- Автопереключение -->

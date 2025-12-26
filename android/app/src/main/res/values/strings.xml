@@ -2083,7 +2083,7 @@
     <!-- Appearance -->
     <string name="appearance">Appearance</string>
     <!-- Automatically play next chapter when current ends -->
-    <string name="automaticallyPlayNextChapterWhenCurrentEnds">Automatically play next chapter when current ends</string>
+    <string name="automaticallyPlayNextChapterWhenCurrentEnds">Auto-play next chapter on completion</string>
     <!-- Auto-play next chapter -->
     <string name="autoplayNextChapter">Auto-play next chapter</string>
     <!-- Backup of Jabook settings and data -->
@@ -2215,7 +2215,7 @@
     <string name="webview">WebView</string>
     <!-- Wi-Fi Only -->
     <string name="wifiOnly">Wi-Fi Only</string>
-    <string name="autoSwitchToWorkingMirrorOnError">Auto-switch to working mirror on error</string>
+    <string name="autoSwitchToWorkingMirrorOnError">Auto-switch mirror on error</string>
     <string name="autoPlayNextChapter">Auto-play next chapter when current ends</string>
     <string name="autoSwitching">Auto-switching</string>
     <string name="autoPlayNextChapterTitle">Auto-play next chapter</string>
@@ -2255,15 +2255,15 @@
     <string name="systemThemeName">System</string>
     <string name="nextChapterTitle">Next chapter</string>
     <string name="timer">Timer</string>
-    <string name="timerActive">Таймер активен</string>
-    <string name="sleepTimerTitle">Таймер сна</string>
-    <string name="currentMirror">Текущее зеркало</string>
-    <string name="theme">Тема</string>
-    <string name="darkThemeName">Тёмная</string>
-    <string name="deleteAction">Удалить</string>
-    <string name="files">Файлы</string>
-    <string name="formatFormat">Формат: %s</string>
-    <string name="mirrorAlreadyAddedError">Это зеркало уже добавлено</string>
+    <string name="timerActive">Timer Active</string>
+    <string name="sleepTimerTitle">Sleep Timer</string>
+    <string name="currentMirror">Current Mirror</string>
+    <string name="theme">Theme</string>
+    <string name="darkThemeName">Dark</string>
+    <string name="deleteAction">Delete</string>
+    <string name="files">Files</string>
+    <string name="formatFormat">Format: %s</string>
+    <string name="mirrorAlreadyAddedError">This mirror is already added</string>
 
     <!-- Debug Section - RuTracker -->
     <string name="rutrackerTab">RuTracker</string>
