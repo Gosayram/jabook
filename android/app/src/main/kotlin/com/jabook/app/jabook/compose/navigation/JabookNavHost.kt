@@ -259,6 +259,22 @@ fun JabookNavHost(
             )
         }
 
+        // Migration screen - data migration from legacy app
+        composable<MigrationRoute>(
+            deepLinks =
+                listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "jabook://migration" },
+                ),
+        ) {
+            com.jabook.app.jabook.compose.feature.migration.MigrationScreen(
+                onMigrationComplete = {
+                    navController.navigate(LibraryRoute) {
+                        popUpTo(MigrationRoute) { inclusive = true }
+                    }
+                },
+            )
+        }
+
         // Downloads screen - shows active downloads
         composable<DownloadsRoute>(
             deepLinks =

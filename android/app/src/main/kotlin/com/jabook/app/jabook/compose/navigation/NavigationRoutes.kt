@@ -115,3 +115,9 @@ object RutrackerSearchRoute
 
 @Serializable
 object ScanSettingsRoute
+
+/**
+ * Migration screen route - shows data migration progress.
+ */
+@Serializable
+object MigrationRoute
