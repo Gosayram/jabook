@@ -35,24 +35,24 @@ interface RutrackerApi {
      *
      * @param query Search query
      * @param forumIds Optional comma-separated list of forum IDs to search in
-     * @return HTML response with search results
+     * @return HTML response with search results (raw bytes for encoding detection)
      */
     @GET("tracker.php")
     suspend fun searchTopics(
         @Query("nm") query: String,
         @Query("f") forumIds: String? = null,
-    ): Response<String>
+    ): Response<ResponseBody>
 
     /**
      * Get topic details page.
      *
      * @param topicId Topic ID
-     * @return HTML response with topic details
+     * @return HTML response with topic details (raw bytes for encoding detection)
      */
     @GET("viewtopic.php")
     suspend fun getTopicDetails(
         @Query("t") topicId: String,
-    ): Response<String>
+    ): Response<ResponseBody>
 
     /**
      * Download torrent file.

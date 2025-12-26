@@ -187,7 +187,7 @@ class RutrackerRepository
                 }
             }
 
-            val rawBytes = response.body()?.toByteArray() ?: ByteArray(0)
+            val rawBytes = response.body()?.bytes() ?: ByteArray(0)
             Log.w(TAG, "📦 Response Size: ${rawBytes.size} bytes")
 
             // HTML preview (first 300 chars)
@@ -253,7 +253,9 @@ class RutrackerRepository
                         )
                     }
 
-                    val html = response.body() ?: ""
+                    // Get raw bytes and decode as Windows-1251
+                    val rawBytes = response.body()?.bytes() ?: byteArrayOf()
+                    val html = String(rawBytes, charset("windows-1251"))
                     val details = parser.parseTopicDetails(html, topicId)
 
                     if (details != null) {

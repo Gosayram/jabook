@@ -80,7 +80,7 @@ class RutrackerRepositoryImpl
 
                 if (response.isSuccessful) {
                     // Get raw bytes to handle Windows-1251 encoding properly
-                    val rawBytes = response.body()?.toByteArray()
+                    val rawBytes = response.body()?.bytes()
                     if (rawBytes != null) {
                         // Use encoding-aware parsing
                         val contentType = response.headers()["Content-Type"]
@@ -146,7 +146,10 @@ class RutrackerRepositoryImpl
                     return Result.Error(Exception("HTTP ${response.code()}: ${response.message()}"))
                 }
 
-                val html = response.body() ?: return Result.Error(Exception("Empty response body"))
+                // Get raw bytes and decode as Windows-1251
+                val rawBytes = response.body()?.bytes() ?: return Result.Error(Exception("Empty response body"))
+                val html = String(rawBytes, charset("windows-1251"))
+
                 val details =
                     parser.parseTopicDetails(html, topicId)
                         ?: return Result.Error(Exception("Failed to parse topic details"))

@@ -375,9 +375,12 @@ class RutrackerAuthService
                     return false
                 }
 
-                // searchTopics returns Response<String>, not ResponseBody
+                // searchTopics now returns Response<ResponseBody>
+                val rawBytes = response.body()?.bytes()
                 val bodyString =
-                    response.body()?.lowercase() ?: run {
+                    if (rawBytes != null) {
+                        String(rawBytes, charset("windows-1251")).lowercase()
+                    } else {
                         Log.d(TAG, "[$operationId] Search check: empty body")
                         return false
                     }
