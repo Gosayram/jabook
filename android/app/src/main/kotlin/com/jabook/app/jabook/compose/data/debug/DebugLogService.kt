@@ -120,7 +120,6 @@ class DebugLogService
                     while (bufferedReader.readLine().also { line = it } != null) {
                         if (line?.contains("setRequestedFrameRate") == true) continue
                         logs.append(line).append("\n")
-
                     }
 
                     bufferedReader.close()
