@@ -187,8 +187,30 @@ class RutrackerRepository
                 }
             }
 
+            // CRITICAL: Check Content-Encoding to see if data was compressed
+            val contentEncoding = headers["Content-Encoding"]
+            Log.w(TAG, "🔍 Content-Encoding: $contentEncoding")
+            Log.w(TAG, "🔍 OkHttp should auto-decompress: ${contentEncoding != null}")
+
             val rawBytes = response.body()?.bytes() ?: ByteArray(0)
             Log.w(TAG, "📦 Response Size: ${rawBytes.size} bytes")
+
+            // Check if bytes look like compressed data (Brotli magic bytes)
+            if (rawBytes.isNotEmpty()) {
+                val firstBytes = rawBytes.take(4).toByteArray()
+                val hexPreview = firstBytes.joinToString(" ") { "%02x".format(it) }
+                Log.w(TAG, "🔍 First 4 bytes (hex): $hexPreview")
+
+                // Brotli magic bytes: 0x81, 0x1B (or similar)
+                // Gzip magic bytes: 0x1F, 0x8B
+                val looksLikeBrotli = rawBytes[0] == 0x81.toByte() && rawBytes[1] == 0x1B.toByte()
+                val looksLikeGzip = rawBytes[0] == 0x1F.toByte() && rawBytes[1] == 0x8B.toByte()
+                Log.w(TAG, "🔍 Looks like Brotli: $looksLikeBrotli, Gzip: $looksLikeGzip")
+
+                if (looksLikeBrotli || looksLikeGzip) {
+                    Log.e(TAG, "⚠️ WARNING: Data appears to be compressed but OkHttp didn't decompress it!")
+                }
+            }
 
             // HTML preview (first 300 chars)
             val htmlPreview =

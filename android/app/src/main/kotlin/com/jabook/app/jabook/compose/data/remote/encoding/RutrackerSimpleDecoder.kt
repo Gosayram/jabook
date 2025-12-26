@@ -63,24 +63,40 @@ class RutrackerSimpleDecoder
                 return ""
             }
 
+            Log.w(TAG, "=== DECODING START ===")
+            Log.w(TAG, "Bytes size: ${bytes.size}")
+            Log.w(TAG, "Content-Type: $contentType")
+
             // Extract charset from Content-Type header
             val detectedEncoding = extractCharsetFromContentType(contentType)
+            Log.w(TAG, "Detected encoding from header: $detectedEncoding")
 
-            return when {
-                detectedEncoding != null && isWindows1251(detectedEncoding) -> {
-                    Log.d(TAG, "Decoding with Windows-1251 (from header)")
-                    String(bytes, CP1251)
+            // Preview first 100 bytes as hex for debugging
+            val hexPreview = bytes.take(100).joinToString(" ") { "%02x".format(it) }
+            Log.w(TAG, "First 100 bytes (hex): $hexPreview")
+
+            val result =
+                when {
+                    detectedEncoding != null && isWindows1251(detectedEncoding) -> {
+                        Log.w(TAG, "Using Windows-1251 (from header)")
+                        String(bytes, CP1251)
+                    }
+                    detectedEncoding != null && isUtf8(detectedEncoding) -> {
+                        Log.w(TAG, "Using UTF-8 (from header)")
+                        String(bytes, UTF8)
+                    }
+                    else -> {
+                        // No encoding specified - use Windows-1251 (RuTracker default)
+                        Log.w(TAG, "Using Windows-1251 (default, no header)")
+                        String(bytes, CP1251)
+                    }
                 }
-                detectedEncoding != null && isUtf8(detectedEncoding) -> {
-                    Log.d(TAG, "Decoding with UTF-8 (from header)")
-                    String(bytes, UTF8)
-                }
-                else -> {
-                    // No encoding specified - use Windows-1251 (RuTracker default)
-                    Log.d(TAG, "Decoding with Windows-1251 (default, no header)")
-                    String(bytes, CP1251)
-                }
-            }
+
+            Log.w(TAG, "Decoded length: ${result.length}")
+            Log.w(TAG, "First 200 chars: ${result.take(200)}")
+            Log.w(TAG, "=== DECODING END ===")
+
+            return result
         }
 
         /**
