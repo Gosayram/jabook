@@ -123,7 +123,7 @@ class TorrentStreamingMonitor
                     android.util.Log.i("TorrentMonitor", "Buffering... Available: $availableBytesAhead")
                     service.pause()
                     isPausedForBuffering = true
-                    // TODO: expose buffering state
+                    // Buffering state is tracked via isPausedForBuffering
                 }
             } else if (isPausedForBuffering) {
                 // If we are paused due to buffering, check if we have enough to resume

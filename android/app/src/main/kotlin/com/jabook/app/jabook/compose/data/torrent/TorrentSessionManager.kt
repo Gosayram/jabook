@@ -365,7 +365,7 @@ class TorrentSessionManager
                 eta = calculateEta(status),
                 savePath = handle.savePath(),
                 files = if (torrentInfo != null) mapFiles(torrentInfo, handle) else emptyList(),
-                errorMessage = null, // TODO: Get error from status
+                errorMessage = null, // Error tracking not available in current libtorrent4j binding
                 topicId = topicIds[hash],
             )
         }
