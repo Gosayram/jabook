@@ -152,22 +152,22 @@ class RutrackerRepository
             forumIds: String?,
         ): Result<List<SearchResult>> {
             // === HTTP REQUEST LOGGING ===
-            Log.d(TAG, "🔍 === SEARCH REQUEST ===")
-            Log.d(TAG, "Query: '$query'")
+            Log.w(TAG, "🔍 === SEARCH REQUEST ===")
+            Log.w(TAG, "Query: '$query'")
             if (forumIds != null) {
-                Log.d(TAG, "Forum IDs: $forumIds")
+                Log.w(TAG, "Forum IDs: $forumIds")
             }
 
             val response = api.searchTopics(query, forumIds)
 
             // Log request details
             val requestUrl = response.raw().request.url
-            Log.d(TAG, "Request URL: $requestUrl")
+            Log.w(TAG, "Request URL: $requestUrl")
 
             // === HTTP RESPONSE LOGGING ===
-            Log.d(TAG, "📥 === SEARCH RESPONSE ===")
-            Log.d(TAG, "Status: ${response.code()} ${response.message()}")
-            Log.d(TAG, "Final URL: ${response.raw().request.url}") // Detect redirects
+            Log.w(TAG, "📥 === SEARCH RESPONSE ===")
+            Log.w(TAG, "Status: ${response.code()} ${response.message()}")
+            Log.w(TAG, "Final URL: ${response.raw().request.url}") // Detect redirects
 
             if (!response.isSuccessful) {
                 Log.e(TAG, "❌ Request failed: HTTP ${response.code()}: ${response.message()}")
@@ -176,25 +176,25 @@ class RutrackerRepository
 
             // Log important headers
             val headers = response.headers()
-            Log.d(TAG, "Headers:")
+            Log.w(TAG, "Headers:")
             listOf("content-type", "content-encoding", "content-length", "location", "set-cookie").forEach { name ->
                 headers[name]?.let { value ->
                     if (name == "set-cookie") {
-                        Log.d(TAG, "  $name: ${value.take(50)}...")
+                        Log.w(TAG, "  $name: ${value.take(50)}...")
                     } else {
-                        Log.d(TAG, "  $name: $value")
+                        Log.w(TAG, "  $name: $value")
                     }
                 }
             }
 
             val rawBytes = response.body()?.toByteArray() ?: ByteArray(0)
-            Log.d(TAG, "📦 Response Size: ${rawBytes.size} bytes")
+            Log.w(TAG, "📦 Response Size: ${rawBytes.size} bytes")
 
             // HTML preview (first 300 chars)
             val htmlPreview =
                 String(rawBytes.take(300).toByteArray(), Charsets.UTF_8)
                     .replace(Regex("\\s+"), " ")
-            Log.d(TAG, "📄 Response Start: $htmlPreview...")
+            Log.w(TAG, "📄 Response Start: $htmlPreview...")
 
             val contentType = response.headers()["Content-Type"]
             val parsingResult = parser.parseSearchResultsWithEncoding(rawBytes, contentType)

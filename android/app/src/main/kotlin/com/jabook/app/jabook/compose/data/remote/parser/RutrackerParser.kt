@@ -279,38 +279,38 @@ class RutrackerParser
 
                     // 2. Log HTML structure
                     val tables = document.select("table")
-                    Log.d(TAG, "📊 Found ${tables.size} table(s)")
+                    Log.w(TAG, "📊 Found ${tables.size} table(s)")
                     tables.take(5).forEachIndexed { i, table ->
-                        Log.d(TAG, "  Table $i: class='${table.className()}' id='${table.id()}'")
+                        Log.w(TAG, "  Table $i: class='${table.className()}' id='${table.id()}'")
                     }
 
                     val allRows = document.select("tr")
-                    Log.d(TAG, "📋 Total tr elements: ${allRows.size}")
+                    Log.w(TAG, "📋 Total tr elements: ${allRows.size}")
 
                     // Check each selector individually
                     ROW_SELECTORS.forEach { selector ->
                         val found = document.select(selector)
-                        Log.d(TAG, "  Selector '$selector': ${found.size} matches")
+                        Log.w(TAG, "  Selector '$selector': ${found.size} matches")
                         if (found.isNotEmpty()) {
                             found.take(3).forEachIndexed { i, el ->
                                 val hasTitle = el.select(TITLE_SELECTOR).isNotEmpty()
-                                Log.d(TAG, "    Element $i: hasTitle=$hasTitle, class='${el.className()}'")
+                                Log.w(TAG, "    Element $i: hasTitle=$hasTitle, class='${el.className()}'")
                             }
                         }
                     }
 
                     // 3. Page metadata
                     val pageTitle = document.select("title").text()
-                    Log.d(TAG, "📝 Page Title: $pageTitle")
+                    Log.w(TAG, "📝 Page Title: $pageTitle")
 
                     // 4. HTML preview
                     val htmlPreview = html.take(500).replace(Regex("\\s+"), " ")
-                    Log.d(TAG, "📄 HTML Preview: $htmlPreview...")
+                    Log.w(TAG, "📄 HTML Preview: $htmlPreview...")
 
                     // 5. Check for common page elements
                     val hasMainContent = document.select("#main_content, #page_content").isNotEmpty()
                     val hasForumTable = document.select(".forumline, .vf-table").isNotEmpty()
-                    Log.d(TAG, "🔍 Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable")
+                    Log.w(TAG, "🔍 Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable")
 
                     return emptyList()
                 }
