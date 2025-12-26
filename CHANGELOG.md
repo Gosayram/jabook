@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [FEATUREI - Implement torrent file selection and prioritization for downloads
+- Add "in library" status indicator to Rutracker search results
 - Add `@Keep` annotation to navigation route data classes
 - Add `AuthInterceptor` for automatic re-authentication, integrate it into `NetworkModule`, and remove `PlayerScreen`'s `TopAppBar`
 - Add `autoPlay` parameter to `loadAndPlayAudio` to control immediate playback after loading
@@ -26,25 +28,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add back navigation icon to the player screen with localized content description
 - Add book properties dialog, improve file system scanning with robust book identification and encoding detection, and refactor library display views
 - Add BookDetailPane composable to display detailed book information and integrate it into the library screen
+- Add buffering state management and display a buffering dialog for torrent streaming
 - Add chapter search functionality to the player, improve playback speed display formatting, and adjust player padding
 - Add chapter selection UI with chapter utilities and localization strings
 - Add check for configured scan paths before initiating library scan and localize scan messages
 - Add conditional bottom padding to the SnackbarHost
 - Add custom icons and localized strings for media session controls and notifications, and synchronize player settings
+- Add custom media control icons and update NotificationIconProvider to use them
 - Add customizable font selection to app settings, allowing users to choose between default and system fonts
 - Add debug screen for viewing and sharing logs and integrate it into navigation
 - Add defensive encoding handler and decoding result for robust remote data decoding
+- Add dependency injection to `CoverUrlExtractor` and `DefensiveFieldExtractor` and introduce `DataMigrationManager` tests
+- Add distinct messages for library scan completion when no books are found or no folders are configured
 - Add download history screen with search and sort functionality, and enable drag-and-drop reordering for the download queue
 - Add dynamic color support to `JabookTheme` for Android 12+ devices
 - Add fade-in and fade-out navigation transitions to PlayerScreen
 - Add favorites feature with new data model, DAO, repository, ViewModel, and database migration
 - Add Favorites screen with navigation and audiobook management capabilities
 - Add file utility for directory size and enhance torrent download deletion with a confirmation dialog and file removal option
+- Add functionality to delete all torrents and display their storage usage in settings
 - Add grouped and grid library view modes with user preference persistence
 - Add loading and error states to BookCard cover image
 - Add login concurrency protection and multi-tier authentication validation
 - Add Makefile targets for string migration and improve script to reuse existing strings and enhance translation robustness
+- Add migration screen navigation route and deep link
+- Add mini-player state management and Material You theming for notification icons, and clean up RutrackerParserTest
+- Add notification actions for individual torrents and global download controls
 - Add online audiobook search via Rutracker
+- Add option to display original chapter titles instead of normalized chapter names in player UI
 - Add per-book customizable rewind and fast-forward durations via a new player settings sheet
 - Add permission management and refactor Rutracker authentication to improve WebView cookie synchronization
 - Add player performance logger and integrate it into AudioPlayerService initialization
@@ -56,15 +67,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add RuTracker search screen with corresponding string resources
 - Add script to automate Kotlin Compose hardcoded string migration to resources
 - Add support for custom audiobook scan paths with dedicated settings UI and database persistence
+- Add support for external storage paths when resolving content URIs in FileUtils.getPathFromUri
 - Add support for initiating torrent downloads via magnet link passed to DownloadsRoute
 - Add swipe gestures and notification controls to mini player
 - Add torrent downloads screen, ViewModel, UI components, and associated string resources
 - Add torrent file selection dialog and update downloads screen navigation
+- Add torrent streaming monitoring with buffering and file readiness checks
 - Apply zero window insets to TopAppBar in multiple feature screens, refine search bar logic, and update debug/topic screen titles
 - Auto-initialize player with book data upon UI state success and update the library list view icon to be auto-mirrored
 - Chapter search to filter by title/number instead of auto-jumping to chapter numbers
+- Display active torrent downloads in the settings screen with status updates and navigation to the downloads route
+- Display snackbar with settings link on notification permission denial in PlayerScreen
+- Dynamically update MediaSession custom commands for rewind and forward durations
 - Enhance backup/restore to include books, favorites, search history, scan paths, and extended settings
 - Enhance chapter sorting logic with numerical and special chapter handling, and improve title extraction by falling back to filename
+- Enhance debug screen with mirror health testing and cache management functionality
 - Enhance Media3 integration with rich metadata, completion status, and improved Android Auto support
 - Enhance Rutracker authentication with detailed logging, robust error handling, and new debug info
 - Enhance settings screen with improved cache clearing messages, customizable slider value formatting, and direct links to GitHub resources
@@ -76,33 +93,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat: remove close button from BookPropertiesDialog
 - Format chapter titles using `ChapterUtils` to include index and localized prefix
 - Implement adaptive navigation using window size classes to display NavigationRail or BottomBar
+- Implement add torrent dialog with download path selection and URI path resolution
 - Implement app data backup and restore functionality for settings and book metadata
+- Implement book metadata and cover image synchronization using torrent topic ID
 - Implement cache management in settings, allowing users to view and clear app cache
 - Implement chapter search/jump in player, display library screen title, and remove redundant TopAppBar window insets
 - Implement cleanup for non-existent scan paths and deleted books from the database
 - Implement custom audio notification manager with media session integration and enable shared element transitions
 - Implement download filtering, priority management, and queue reordering with a new database table
 - Implement download history tracking and add new download speed and concurrency settings
+- Implement functionality to move torrent storage to a new path
 - Implement hybrid local book scanning with direct file system access for custom paths and introduce shared audio file info
 - Implement local audiobook scanning, sleep timer, and playback speed controls, and display download messages
 - Implement main navigation and integrate core screens
 - Implement Material 3 Adaptive UI for PlayerScreen and SearchScreen
 - Implement MediaInfo parsing and models, and display details on the topic screen
+- Implement migration of legacy Flutter player state from shared preferences to the database
 - Implement multi-stage cookie persistence using new DAO, entity, and manager, integrated into the authentication flow and database
 - Implement multi-strategy cover URL and topic field extractors for HTML parsing
 - Implement native streaming torrent downloads
 - Implement network monitoring to conditionally pause and resume torrent downloads based on network type and user preferences
+- Implement offline caching and fallback for Rutracker search results with network-first strategy
+- Implement offline search for Rutracker topics by caching results locally
 - Implement pull-to-refresh for library scanning, enhance library display with empty state, and add chapter reordering functionality
 - Implement real-time library scan progress with UI integration and metadata caching
 - Implement torrent details screen with file prioritization and per-file download progress
 - Implement torrent download management including service, notifications, and core logic
 - Implement torrent download persistence by adding a new database table and syncing manager state
+- Implement torrent network pause/resume notifications and actual topic cache clearing and size calculation
+- Implement updating book author and description during sync and remove TODOs
 - Implement user preference to toggle chapter title normalization in player and settings
 - Implement user-configurable download location and Wi-Fi only download settings, and add library scanning functionality
 - Improve authentication with strict validation and WebView cookie synchronization, and update Android runtime permission requests
+- Improve downloads storage display in settings with new dedicated strings
+- Include normalize chapter titles in backup/restore and fetch current mirror from MirrorManager
 - Initialize player only with non-empty chapters and eagerly start player state flow to avoid race conditions
 - Integrate Glide for optimized notification artwork loading, replacing DataSourceBitmapLoader
 - Integrate new interceptor to add browser-like headers, including Brotli, to network requests
+- Integrate torrent download repository to enable browsing and playing downloaded media items with enhanced metadata
 - Internationalize favorites screen dialog and menu texts by adding new string resources
 - Internationalize various UI and worker strings and refactor library scan worker for improved performance and batch processing
 - Introduce in-memory LRU cache for Rutracker search results, integrating it into the repository and cache management
@@ -117,12 +145,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrate media notifications from custom provider to `androidx.media3.ui.PlayerNotificationManager` for improved background service reliability
 - Migrate to Gradle 9 for comprehensive building experience
 - Mirror management with dynamic base URL, health checks, and persistent settings
+- Order books by favorite status before last played date
 - Persist book activity timestamps in player state and integrate into backup/restore functionality
 - Prevent audio playlist reloads and configure Media3 notification channels
 - Proactively start audio player service for warmup, enhance its startup logging and error handling, and increment the build version
+- Remove download feature and its related components
 - Replace hardcoded UI strings with string resources for localization across various screens and components
 - Reposition and restyle LibraryScreen snackbar to be adaptive and bottom-aligned, and update PlayerScreen coroutine launches to use CoroutineStart.UNDISPATCHED
 - Request Android 13+ notification permission, export audio service, and refine Media3 notification and media session integration
+- Trigger immediate one-time sync and enhance SyncWorker with Hilt DI, limited retries, and cache cleanup
 - Update FileProvider paths to include logs, downloads, and audiobooks, and align AndroidManifest authority and resource
 
 ### Changed
@@ -133,6 +164,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add comprehensive architecture documentation in Quarto format with 45+ Mermaid diagrams
 - Add deprecation suppression for hiltViewModel in feature screens
 - Add logic to request necessary permissions on app launch based on Android version
+- Add note about `RutrackerParserTest` requiring Android test framework and serving as documentation
 - Add RuTracker search screen and its navigation route
 - Add topic details screen with its viewmodel and navigation route
 - Added ignore packages for copyright validation
@@ -161,11 +193,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump patch version to 1.2.7+19
 - Bump patch version to 1.2.7+20
 - Bump patch version to 1.2.7+21
+- Bump patch version to 1.2.7+22
 - Bump pub build
 - Centralize date and time formatting with a new DateTimeFormatter utility and apply it to backup and settings
 - Centralize playback speed constants and update player and settings UI to utilize them
+- Clarify torrent error tracking limitations and buffering state comments
 - Clean up each cache before compilation testing
 - Clean up unused imports and apply minor formatting to settings and topic screens
+- Configure release build to use release signing instead of debug keys
 - Consolidate and simplify R8 rules for Kotlinx Serialization, Hilt, and other libraries
 - Delegate field and cover URL extraction to dedicated services using injected extractors
 - Disable PlayerNotificationManager in audio service
@@ -188,6 +223,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement custom rewind/forward media session commands, force Android compile SDK to 34, and update flutter_media_metadata to a path dependency
 - Implement environment-specific beta and production color themes, replacing the default Material 3 color schemes
 - Implement jumpToTrack functionality, increase playback position saving frequency, and add extensive logging for audio bridge events
+- Implement toast feedback for torrent downloads and deep link navigation to the downloads screen from both torrent start and notifications
 - Improve auto-increment experience
 - Improve changelog generation mechanism
 - Improve code formatting and organize imports
@@ -209,8 +245,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor audio player service architecture
 - Refine hardcoded string detection in `migrate_strings.py` to exclude non-UI files and technical strings
 - Remove devDebugKotlin compilation from Makefile's compile target
+- Remove direct torrent download UI and logic from topic feature, consolidating download management
 - Remove explicit navigation transitions for Player screen and add background color to PlayerScreen
 - Remove extraneous blank line in player route deep link configuration
+- Remove Flutter-related TODOs and update comments in `AudioPlayerService`
 - Remove format strings for numbers and dates from `strings.xml` and update migration script to identify them as technical
 - Remove Lyricist i18n dependencies
 - Remove redundant changelog generation confirmation message
@@ -242,9 +280,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Add empty MIGRATION_7_8 to resolve database migration issues
+- Add null safety for validation checks and display a placeholder for missing permissions in DebugScreen
 - Add ProGuard rules for Navigation Compose SavedStateHandle serialization and remove explicit kotlinx-serialization-json dependency
 - Copyright validation folders
 - Correct Media3 notification initialization and reduce default inactivity timeout
+- Corrected English string resources and updated Russian translations
 - Disable animation for fixing forward to library (back params) from player
 - Disable KTagLib on Android 16+ due to FDSAN incompatibility and simplify ParcelFileDescriptor handling in metadata parsing
 - Display book cover images in search results
@@ -282,6 +322,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip test files in the string migration script
 - Temporarily disable mini-player functionality and its PlayerViewModel instantiation, adding TODOs for future state management
 - Update beta APK installation to use arm64-v8a specific build
+- Update Rutracker CSS selectors and enhance search result parsing with improved logging and robustness
 - Use default view list icon instead of auto-mirrored in library screen
 
 ### Security
