@@ -74,16 +74,7 @@ class BackupService
                     Log.d(TAG, "Starting data export")
 
                     // 1. Collect data
-                    val backupData =
-                        BackupData(
-                            version = CURRENT_VERSION,
-                            timestamp = DateTimeFormatter.formatCurrentISO8601(),
-                            settings = collectSettings(),
-                            bookMetadata = collectBookMetadata(),
-                            favorites = collectFavorites(),
-                            searchHistory = collectSearchHistory(),
-                            scanPaths = collectScanPaths(),
-                        )
+                    val backupData = collectData()
 
                     // 2. Serialize to JSON
                     val jsonString = json.encodeToString(backupData)
@@ -130,11 +121,12 @@ class BackupService
                     val backupData = json.decodeFromString<BackupData>(jsonString)
                     Log.d(TAG, "Parsed backup version ${backupData.version}")
 
-                    // 3. Validate version
-                    if (!isCompatibleVersion(backupData.version)) {
+                    // 3. Validate schema version (support both 1.x and 2.x)
+                    val schemaVersion = backupData.schemaVersion ?: backupData.version // Fallback for v1.0.0
+                    if (!isCompatibleVersion(schemaVersion)) {
                         throw IllegalArgumentException(
-                            "Incompatible backup version: ${backupData.version}. " +
-                                "Expected version starting with '1.'",
+                            "Incompatible backup schema version: $schemaVersion. " +
+                                "Expected version 1.x or 2.x",
                         )
                     }
 
@@ -168,6 +160,106 @@ class BackupService
                     throw e
                 }
             }
+
+        /**
+         * Collects all backup data including app info and statistics.
+         */
+        private suspend fun collectData(): BackupData =
+            withContext(Dispatchers.IO) {
+                Log.d(TAG, "Collecting data for backup...")
+
+                val timestamp = DateTimeFormatter.formatCurrentISO8601()
+
+                // Collect all data
+                val appInfo = collectAppInfo()
+                val settings = collectSettings()
+                val books = collectBookMetadata()
+                val favorites = collectFavorites()
+                val searchHistory = collectSearchHistory()
+                val scanPaths = collectScanPaths()
+                val statistics = collectStatistics(books, favorites, searchHistory, scanPaths)
+
+                Log.d(
+                    TAG,
+                    "Collected: ${books.size} books, ${favorites.size} favorites, " +
+                        "${searchHistory.size} history items, ${scanPaths.size} scan paths",
+                )
+                Log.d(TAG, "App info: ${appInfo.versionName} (${appInfo.versionCode})")
+                Log.d(TAG, "Statistics: ${statistics.totalBooks} books, ${statistics.totalDuration}ms duration")
+
+                BackupData(
+                    version = appInfo.versionName, // App version
+                    schemaVersion = "2.0.0", // Backup format version
+                    timestamp = timestamp,
+                    appInfo = appInfo,
+                    statistics = statistics,
+                    settings = settings,
+                    bookMetadata = books,
+                    favorites = favorites,
+                    searchHistory = searchHistory,
+                    scanPaths = scanPaths,
+                )
+            }
+
+        /**
+         * Collects app version and device information.
+         */
+        private fun collectAppInfo(): AppInfo {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            val versionName = packageInfo.versionName ?: "unknown"
+            val versionCode =
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    packageInfo.longVersionCode.toInt()
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageInfo.versionCode
+                }
+
+            val flavor =
+                try {
+                    // Try to get flavor from BuildConfig (generated at compile time)
+                    Class
+                        .forName("com.jabook.app.jabook.BuildConfig")
+                        .getField("FLAVOR")
+                        .get(null) as? String ?: "unknown"
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not get BuildConfig.FLAVOR", e)
+                    "unknown"
+                }
+
+            return AppInfo(
+                versionName = versionName,
+                versionCode = versionCode,
+                flavor = flavor,
+                platform = "Android",
+                androidVersion = android.os.Build.VERSION.SDK_INT,
+                deviceModel = android.os.Build.MODEL,
+                deviceManufacturer = android.os.Build.MANUFACTURER,
+            )
+        }
+
+        /**
+         * Collects statistics about the backup.
+         */
+        private fun collectStatistics(
+            books: List<BookBackup>,
+            favorites: List<FavoriteBackup>,
+            searchHistory: List<SearchHistoryBackup>,
+            scanPaths: List<ScanPathBackup>,
+        ): BackupStatistics {
+            val downloadedBooks = books.count { it.downloadStatus == "DOWNLOADED" }
+            val totalDuration = books.sumOf { it.duration }
+
+            return BackupStatistics(
+                totalBooks = books.size,
+                downloadedBooks = downloadedBooks,
+                favoritesCount = favorites.size,
+                historyCount = searchHistory.size,
+                scanPathsCount = scanPaths.size,
+                totalDuration = totalDuration,
+                backupSizeBytes = 0, // Will be filled after serialization
+            )
+        }
 
         /**
          * Collects current app settings.
@@ -244,6 +336,11 @@ class BackupService
                     // Save activity timestamps
                     lastPlayedTimestamp = playerState?.lastPlayedTimestamp ?: 0L,
                     completedTimestamp = playerState?.completedTimestamp ?: 0L,
+                    // NEW Phase 9B: Torrent metadata (not yet in entity, null for now)
+                    torrentPath = null, // TODO: Add to BookEntity when torrent download is implemented
+                    sourceUrl = null,
+                    magnetUrl = null,
+                    topicId = null,
                 )
             }
         }
@@ -498,7 +595,7 @@ class BackupService
 
         /**
          * Checks if backup version is compatible.
-         * Currently accepts any 1.x.x version.
+         * Accepts v1.x.x (legacy) and v2.x.x (current) versions.
          */
-        private fun isCompatibleVersion(version: String): Boolean = version.startsWith("1.")
+        private fun isCompatibleVersion(version: String): Boolean = version.startsWith("1.") || version.startsWith("2.")
     }

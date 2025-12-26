@@ -22,8 +22,13 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class BackupData(
-    val version: String = "1.0.0",
+    val version: String, // App version (e.g. "1.0.0")
+    val schemaVersion: String = "2.0.0", // Backup format version
     val timestamp: String,
+    // NEW: App and device info
+    val appInfo: AppInfo? = null,
+    // NEW: Backup statistics
+    val statistics: BackupStatistics? = null,
     val settings: AppSettings,
     val bookMetadata: List<BookBackup> = emptyList(),
     val favorites: List<FavoriteBackup> = emptyList(),
@@ -83,6 +88,11 @@ data class BookBackup(
     // Activity timestamps for sorting by activity
     val lastPlayedTimestamp: Long = 0, // When last played
     val completedTimestamp: Long = 0, // When completed (if completed)
+    // NEW Phase 9B: Torrent metadata for re-download capability
+    val torrentPath: String? = null, // Path to .torrent file
+    val sourceUrl: String? = null, // RuTracker topic URL
+    val magnetUrl: String? = null, // Magnet link
+    val topicId: String? = null, // RuTracker topic ID
 )
 
 /**
@@ -136,3 +146,33 @@ data class ImportStats(
     override fun toString(): String =
         "Settings: ${if (settingsRestored) "✓" else "✗"}, Books: $booksRestored, Favorites: $favoritesRestored, History: $historyRestored"
 }
+
+/**
+ * App version and build information.
+ * Added in v2.0.0 for better backup tracking.
+ */
+@Serializable
+data class AppInfo(
+    val versionName: String, // e.g. "1.0.0"
+    val versionCode: Int, // Build number
+    val flavor: String = "prod", // prod, dev, beta
+    val platform: String = "Android",
+    val androidVersion: Int, // SDK version (e.g. 34)
+    val deviceModel: String? = null, // e.g. "Pixel 7"
+    val deviceManufacturer: String? = null, // e.g. "Google"
+)
+
+/**
+ * Backup statistics and metadata.
+ * Helps understand backup size and contents.
+ */
+@Serializable
+data class BackupStatistics(
+    val totalBooks: Int = 0,
+    val downloadedBooks: Int = 0,
+    val favoritesCount: Int = 0,
+    val historyCount: Int = 0,
+    val scanPathsCount: Int = 0,
+    val totalDuration: Long = 0, // Total duration of all books in ms
+    val backupSizeBytes: Long = 0, // Estimated backup size
+)
