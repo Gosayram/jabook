@@ -67,8 +67,7 @@ android {
     // R8 configuration for code optimization
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Sign with the release keys
             signingConfig = signingConfigs.getByName("release")
 
             // Enable code shrinking, obfuscation, and optimization for release builds
