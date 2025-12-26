@@ -397,9 +397,9 @@ private fun RutrackerTab(viewModel: DebugViewModel) {
                 )
                 Spacer(modifier = Modifier.padding(4.dp))
 
-                Text(stringResource(R.string.profilePageCheck, authInfo?.validationResults?.profilePageCheck.toIcon()))
-                Text(stringResource(R.string.searchPageCheck, authInfo?.validationResults?.searchPageCheck.toIcon()))
-                Text(stringResource(R.string.indexPageCheck, authInfo?.validationResults?.indexPageCheck.toIcon()))
+                Text(stringResource(R.string.profilePageCheck, (authInfo?.validationResults?.profilePageCheck ?: false).toIcon()))
+                Text(stringResource(R.string.searchPageCheck, (authInfo?.validationResults?.searchPageCheck ?: false).toIcon()))
+                Text(stringResource(R.string.indexPageCheck, (authInfo?.validationResults?.indexPageCheck ?: false).toIcon()))
             }
         }
 
@@ -421,7 +421,11 @@ private fun RutrackerTab(viewModel: DebugViewModel) {
                             modifier = Modifier.padding(vertical = 2.dp),
                         )
                     }
-                }
+                } ?: Text(
+                    text = "—",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
