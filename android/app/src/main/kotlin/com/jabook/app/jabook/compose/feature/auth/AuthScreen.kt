@@ -158,10 +158,10 @@ fun AuthScreen(
         ) {
             // Header Section
             Icon(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground), // Placeholder
+                painter = painterResource(id = R.mipmap.ic_launcher),
                 contentDescription = null,
                 modifier = Modifier.size(120.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = androidx.compose.ui.graphics.Color.Unspecified, // Use original colors
             )
 
             Text(

@@ -152,6 +152,15 @@ class RutrackerParser
                     val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
                     val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
 
+                    // Enhanced Debug Logging
+                    val title = document.title()
+                    val bodySnippet = document.body().text().take(500)
+                    Log.w(TAG, "NO ROWS FOUND. Details:")
+                    Log.w(TAG, "Title: '$title'")
+                    Log.w(TAG, "IsSearchPage: $isSearchPage, IsIndexPage: $isIndexPage")
+                    Log.w(TAG, "Body Text (first 500): $bodySnippet")
+                    Log.w(TAG, "HTML (first 2000): ${document.outerHtml().take(2000)}")
+
                     if (isSearchPage || isIndexPage) {
                         Log.i(TAG, "No rows found, but page looks like valid search/index page (empty results)")
                         return ParsingResult.Success(emptyList())
