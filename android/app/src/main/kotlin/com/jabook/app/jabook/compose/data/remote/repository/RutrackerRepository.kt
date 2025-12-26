@@ -116,6 +116,8 @@ class RutrackerRepository
             forumIds: String? = null,
         ): Flow<Result<List<SearchResult>>> =
             flow {
+                Log.d(TAG, "Starting search flow for: $query")
+
                 // 1. Emit DB Cache immediately (Optimistic UI)
                 // (Logic simplified to avoid duplication with below re-implementation attempt in original code)
 
@@ -141,6 +143,7 @@ class RutrackerRepository
                 val networkResult = fetchFromNetwork(query, forumIds)
                 emit(networkResult)
             }.catch { e ->
+                Log.e(TAG, "Search flow error", e)
                 emit(Result.failure(e))
             }
 

@@ -116,13 +116,16 @@ fun WebViewScreen(
                             }
                         }) {
                             Icon(
-                                imageVector =
-                                    if (canGoBack) {
-                                        Icons.AutoMirrored.Filled.ArrowBack
-                                    } else {
-                                        Icons.Filled.Close
-                                    },
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.back),
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.close),
                             )
                         }
                     },
@@ -222,12 +225,17 @@ fun WebViewScreen(
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
-                            // databaseEnabled is deprecated and usually defaults to true or is handled by domStorageEnabled in modern WebViews
+                            // databaseEnabled is deprecated
                             setSupportZoom(true)
                             builtInZoomControls = true
                             displayZoomControls = false
                             useWideViewPort = true
                             loadWithOverviewMode = true
+                            // User-Agent similar to Flutter implementation (clean Chrome to avoid WebView blocking)
+                            // "Mozilla/5.0 (Linux; Android {version}; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version} Mobile Safari/537.36"
+                            val androidVersion = android.os.Build.VERSION.RELEASE
+                            userAgentString =
+                                "Mozilla/5.0 (Linux; Android $androidVersion; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.106 Mobile Safari/537.36"
                         }
 
                         // Accept third-party cookies for better compatibility
@@ -236,7 +244,12 @@ fun WebViewScreen(
                             .setAcceptThirdPartyCookies(this, true)
 
                         // Load the URL
-                        loadUrl(url)
+                        if (url.isNotEmpty()) {
+                            loadUrl(url)
+                        } else {
+                            // Fallback
+                            loadUrl("https://rutracker.org/forum/login.php")
+                        }
 
                         webView = this
                     }
