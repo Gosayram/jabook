@@ -78,6 +78,7 @@ fun ChapterSelectorSheet(
     onChaptersReordered: (List<String>) -> Unit,
     onDismiss: () -> Unit,
     sheetState: SheetState,
+    normalizeEnabled: Boolean = true,
 ) {
     val listState = rememberLazyListState()
     var searchQuery by remember { mutableStateOf("") }
@@ -107,7 +108,7 @@ fun ChapterSelectorSheet(
                     chapters
                         .mapIndexed { index, chapter -> index to chapter }
                         .filter { (index, chapter) ->
-                            val chapterName = ChapterUtils.formatChapterName(chapter, index, chapterPrefix)
+                            val chapterName = ChapterUtils.formatChapterName(chapter, index, chapterPrefix, normalizeEnabled)
                             val chapterNumber = ChapterUtils.extractChapterNumber(chapter.title, index)
                             searchQuery.toIntOrNull()?.let { searchNum ->
                                 chapterNumber == searchNum
@@ -230,6 +231,7 @@ fun ChapterSelectorSheet(
                         // Don't highlight current in edit mode
                         isCurrent = !isEditing && originalIndex == currentChapterIndex,
                         isEditing = isEditing,
+                        normalizeEnabled = normalizeEnabled,
                         onClick = {
                             if (!isEditing) {
                                 onChapterSelected(originalIndex)
@@ -268,6 +270,7 @@ private fun ChapterSelectorItem(
     index: Int,
     isCurrent: Boolean,
     isEditing: Boolean = false,
+    normalizeEnabled: Boolean = true,
     onClick: () -> Unit,
     onMoveUp: () -> Unit = {},
     onMoveDown: () -> Unit = {},
@@ -290,7 +293,7 @@ private fun ChapterSelectorItem(
         // Chapter info
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = ChapterUtils.formatChapterName(chapter, index, stringResource(R.string.chapter_prefix)),
+                text = ChapterUtils.formatChapterName(chapter, index, stringResource(R.string.chapter_prefix), normalizeEnabled),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight =
                     if (isCurrent) {

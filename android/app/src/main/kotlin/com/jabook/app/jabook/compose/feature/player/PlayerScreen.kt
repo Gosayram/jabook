@@ -243,6 +243,7 @@ fun PlayerScreen(
                                     state = state,
                                     playbackSpeed = playbackSpeed,
                                     sleepTimerState = sleepTimerState,
+                                    normalizeEnabled = normalizeEnabled,
                                     onPlayPause = {
                                         if (state.isPlaying) viewModel.pause() else viewModel.play()
                                     },
@@ -312,6 +313,7 @@ private fun PlayerContent(
     state: PlayerUiState.Success,
     playbackSpeed: Float,
     sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
+    normalizeEnabled: Boolean,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -454,6 +456,7 @@ private fun PlayerContent(
                                 chapter,
                                 state.currentChapterIndex,
                                 stringResource(R.string.chapter_prefix),
+                                normalizeEnabled,
                             ),
                     )
                 }

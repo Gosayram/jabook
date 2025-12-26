@@ -53,18 +53,26 @@ object ChapterUtils {
 
     /**
      * Format chapter name for display.
-     * Uses localization to show "Глава N" or "Chapter N".
+     * Uses localization to show "Глава N" or "Chapter N" when normalization is enabled.
+     * Shows original filename when normalization is disabled.
      *
      * @param chapter The chapter object
      * @param index Chapter index (0-based)
-     * @param useRussian Whether to use Russian localization
-     * @return Formatted chapter name
+     * @param localizedPrefix Localized chapter prefix ("Chapter", "Глава")
+     * @param normalizeEnabled Whether to normalize chapter names (default: true)
+     * @return Formatted chapter name or original title
      */
     fun formatChapterName(
         chapter: Chapter,
         index: Int,
         localizedPrefix: String,
+        normalizeEnabled: Boolean = true,
     ): String {
+        // If normalization is disabled, return original filename
+        if (!normalizeEnabled) {
+            return chapter.title
+        }
+
         val number = extractChapterNumber(chapter.title, index)
 
         // Regex to match generic prefixes (Chapter, Track, etc) followed by a number
@@ -107,14 +115,17 @@ object ChapterUtils {
      *
      * @param chapter The chapter object
      * @param index Chapter index (0-based)
-     * @return Formatted "Chapter N • HH:MM:SS"
+     * @param localizedPrefix Localized chapter prefix
+     * @param normalizeEnabled Whether to normalize chapter names (default: true)
+     * @return Formatted "Chapter N • HH:MM:SS" or "Original Title • HH:MM:SS"
      */
     fun formatChapterWithDuration(
         chapter: Chapter,
         index: Int,
         localizedPrefix: String,
+        normalizeEnabled: Boolean = true,
     ): String {
-        val name = formatChapterName(chapter, index, localizedPrefix)
+        val name = formatChapterName(chapter, index, localizedPrefix, normalizeEnabled)
         val duration = formatDuration(chapter.duration.inWholeMilliseconds)
         return "$name • $duration"
     }

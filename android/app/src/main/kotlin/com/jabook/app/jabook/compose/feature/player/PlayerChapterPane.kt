@@ -171,15 +171,12 @@ fun PlayerChapterPane(
                                 true
                             } else {
                                 val titleToSearch =
-                                    if (normalizeEnabled) {
-                                        com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
-                                            chapter = chapter,
-                                            index = index,
-                                            localizedPrefix = chapterPrefix,
-                                        )
-                                    } else {
-                                        chapter.title
-                                    }
+                                    com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                                        chapter = chapter,
+                                        index = index,
+                                        localizedPrefix = chapterPrefix,
+                                        normalizeEnabled = normalizeEnabled,
+                                    )
 
                                 (index + 1).toString().contains(searchQuery) ||
                                     titleToSearch.contains(searchQuery, ignoreCase = true)
@@ -273,15 +270,12 @@ private fun ChapterListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text =
-                        if (normalizeEnabled) {
-                            com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
-                                chapter = chapter,
-                                index = index,
-                                localizedPrefix = stringResource(R.string.chapter_prefix),
-                            )
-                        } else {
-                            chapter.title // Original title
-                        },
+                        com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                            chapter = chapter,
+                            index = index,
+                            localizedPrefix = stringResource(R.string.chapter_prefix),
+                            normalizeEnabled = normalizeEnabled,
+                        ),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
