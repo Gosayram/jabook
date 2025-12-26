@@ -96,4 +96,22 @@ interface OfflineSearchDao {
      */
     @Query("DELETE FROM cached_topics WHERE timestamp < :threshold")
     suspend fun clearOldCache(threshold: Long)
+
+    /**
+     * Delete all cached topics.
+     */
+    @Query("DELETE FROM cached_topics")
+    suspend fun deleteAllTopics()
+
+    /**
+     * Delete all search query mappings.
+     */
+    @Query("DELETE FROM search_query_map")
+    suspend fun deleteAllMappings()
+
+    /**
+     * Get count of cached topics.
+     */
+    @Query("SELECT COUNT(*) FROM cached_topics")
+    suspend fun getTopicCount(): Int
 }

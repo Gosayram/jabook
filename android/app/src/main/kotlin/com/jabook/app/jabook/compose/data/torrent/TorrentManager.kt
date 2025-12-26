@@ -321,7 +321,13 @@ class TorrentManager
                         active.forEach { pauseTorrent(it) }
                         pausedByNetwork = true
 
-                        // TODO: Show notification about paused downloads
+                        // Show notification about paused downloads
+                        android.widget.Toast
+                            .makeText(
+                                context,
+                                "Downloads paused (WiFi required)",
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
                     }
                 }
             } else {
@@ -332,7 +338,13 @@ class TorrentManager
                     networkPausedTorrents.clear()
                     pausedByNetwork = false
 
-                    // TODO: Show notification about resumed downloads
+                    // Show notification about resumed downloads
+                    android.widget.Toast
+                        .makeText(
+                            context,
+                            "Downloads resumed",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
                 }
             }
         }

@@ -133,8 +133,9 @@ class CacheManager
         private suspend fun clearTopicCache(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
-                    // TODO: Clear topic cache from Room when entities ready
-                    Log.d(TAG, "Topic cache clearing placeholder")
+                    database.offlineSearchDao().deleteAllTopics()
+                    database.offlineSearchDao().deleteAllMappings()
+                    Log.d(TAG, "Topic cache cleared successfully")
                     true
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to clear topic cache", e)
@@ -187,8 +188,9 @@ class CacheManager
         private suspend fun getTopicCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    // TODO: Calculate topic cache size from Room
-                    0L
+                    val count = database.offlineSearchDao().getTopicCount()
+                    // Estimate ~1KB per topic entity including mappings
+                    count * 1024L
                 } catch (e: Exception) {
                     0L
                 }
