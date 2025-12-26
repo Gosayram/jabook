@@ -14,6 +14,9 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
+import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
+import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
@@ -68,21 +71,53 @@ class RutrackerRepositoryImpl
     constructor(
         private val api: RutrackerApi,
         private val parser: RutrackerParser,
+        private val offlineSearchDao: OfflineSearchDao,
     ) : RutrackerRepository {
         override suspend fun search(query: String): Result<List<SearchResult>> {
-            return try {
+            try {
+                // 1. Try Network
                 val response = api.searchTopics(query)
 
-                if (!response.isSuccessful) {
-                    return Result.Error(Exception("HTTP ${response.code()}: ${response.message()}"))
+                if (response.isSuccessful) {
+                    val html = response.body()
+                    if (html != null) {
+                        val results = parser.parseSearchResults(html)
+
+                        // 2. Save to DB (Background)
+                        if (results.isNotEmpty()) {
+                            saveResultsToDb(query, results)
+                        }
+
+                        return Result.Success(results)
+                    }
                 }
-
-                val html = response.body() ?: return Result.Error(Exception("Empty response body"))
-                val results = parser.parseSearchResults(html)
-
-                Result.Success(results)
             } catch (e: Exception) {
-                Result.Error(e)
+                // Log error
+                // Log.w("RutrackerRepo", "Network search failed: ${e.message}")
+            }
+
+            // 3. Fallback to DB
+            return try {
+                val cached = offlineSearchDao.getResultsForQuery(query)
+                if (cached.isNotEmpty()) {
+                    val results = cached.map { it.toSearchResult() }
+                    Result.Success(results)
+                } else {
+                    Result.Error(Exception("No cached results found and network failed"))
+                }
+            } catch (dbEx: Exception) {
+                Result.Error(dbEx)
+            }
+        }
+
+        private suspend fun saveResultsToDb(
+            query: String,
+            results: List<SearchResult>,
+        ) {
+            try {
+                offlineSearchDao.saveSearchResults(query, results.map { it.toCachedTopicEntity() })
+            } catch (e: Exception) {
+                // Log.e("RutrackerRepo", "Failed to save results", e)
             }
         }
 

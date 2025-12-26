@@ -21,7 +21,6 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
-import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface OfflineSearchDao {
@@ -83,7 +82,7 @@ interface OfflineSearchDao {
         ORDER BY S.rank ASC
     """,
     )
-    fun getResultsForQuery(query: String): Flow<List<CachedTopicEntity>>
+    suspend fun getResultsForQuery(query: String): List<CachedTopicEntity>
 
     /**
      * Get a single topic by ID.

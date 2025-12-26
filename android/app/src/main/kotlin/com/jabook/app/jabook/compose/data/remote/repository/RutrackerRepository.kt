@@ -31,7 +31,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -93,14 +92,8 @@ class RutrackerRepository
                     // 3. Fallback to Database (Offline Mode)
                     // Only for general search (no specific forum filter usually in DB mapping unless we handle it)
                     if (forumIds == null) {
-                        val dbResult =
-                            offlineSearchDao
-                                .getResultsForQuery(query)
-                                .map { list -> list.map { it.toSearchResult() } }
-
-                        // We need to collect the first emission from Flow
-                        var dbList: List<SearchResult> = emptyList()
-                        dbResult.collect { dbList = it } // This is blocking effectively for the first value
+                        val entities = offlineSearchDao.getResultsForQuery(query)
+                        val dbList = entities.map { it.toSearchResult() }
 
                         if (dbList.isNotEmpty()) {
                             Log.i(TAG, "Network failed, returned ${dbList.size} results from DB")
@@ -124,27 +117,7 @@ class RutrackerRepository
         ): Flow<Result<List<SearchResult>>> =
             flow {
                 // 1. Emit DB Cache immediately (Optimistic UI)
-                if (forumIds == null) {
-                    try {
-                        // We use a separate collection here to just get the current state without observing indefinitely?
-                        // No, we can emit the DB flow primarily if we want live updates,
-                        // but here the requirement is "Show Cache -> Fetch Network -> Show Network".
-
-                        // Actually, let's just fetch once from DB for the initial state
-                        // We cannot easily use the DAO Flow logic here alongside network unless we merge sources.
-                        // Simpler approach: Manual Check.
-
-                        // However, since DAO returns Flow, we can collect it.
-                        // But users want to see network results eventually.
-
-                        // Let's TRY to get data from DAO first (manually getting one shot would be better but we defined Flow)
-                        // We will start collecting inside the flow builder.
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error reading cache", e)
-                    }
-                }
-
-                // Re-implementing simplified logic:
+                // (Logic simplified to avoid duplication with below re-implementation attempt in original code)
 
                 // A. Check Memory Cache
                 val memCached = searchCache.get(query, forumIds)
@@ -153,19 +126,11 @@ class RutrackerRepository
                 } else {
                     // B. Emit DB Cache (if not in mem)
                     if (forumIds == null) {
-                        // We need a one-shot fetch for "Optimistic" part.
-                        // Since DAO returns Flow, we can take(1).
                         try {
-                            offlineSearchDao.getResultsForQuery(query).collect { entities ->
-                                if (entities.isNotEmpty()) {
-                                    emit(Result.success(entities.map { it.toSearchResult() }))
-                                }
-                                // Break after first emission to proceed to network?
-                                // Flow collection suspends... we need to be careful.
-                                throw BreakCollectionException()
+                            val entities = offlineSearchDao.getResultsForQuery(query)
+                            if (entities.isNotEmpty()) {
+                                emit(Result.success(entities.map { it.toSearchResult() }))
                             }
-                        } catch (e: BreakCollectionException) {
-                            // Continue
                         } catch (e: Exception) {
                             Log.w(TAG, "DB read failed", e)
                         }
@@ -178,8 +143,6 @@ class RutrackerRepository
             }.catch { e ->
                 emit(Result.failure(e))
             }
-
-        private class BreakCollectionException : Exception()
 
         private suspend fun fetchFromNetwork(
             query: String,
