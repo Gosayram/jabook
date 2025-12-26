@@ -36,6 +36,10 @@ import org.mockito.kotlin.whenever
  * - Topic details parsing
  * - Title cleaning logic
  * - Error handling and partial results
+ *
+ * NOTE: These tests require Robolectric or Android test framework
+ * to run successfully due to android.util.Log dependencies in RutrackerParser.
+ * For now, they serve as documentation of expected behavior.
  */
 class RutrackerParserTest {
     private lateinit var parser: RutrackerParser
