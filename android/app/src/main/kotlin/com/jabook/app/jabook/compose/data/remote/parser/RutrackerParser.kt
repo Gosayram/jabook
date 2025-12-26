@@ -41,19 +41,19 @@ class RutrackerParser
         companion object {
             private const val TAG = "RutrackerParser"
 
-            // CSS Selectors for search results - updated from test_results/jabook reference
+            // CSS Selectors for search results - UPDATED for 2025 based on actual HTML
             private const val ROW_SELECTOR = "tr.hl-tr, tr[data-topic_id]"
-            private const val TITLE_SELECTOR = "a.torTopic, a.torTopic.tt-text, a[href*=\"viewtopic.php?t=\"]"
-            private const val AUTHOR_SELECTOR = "a.pmed, .topicAuthor a, a[href*=\"profile.php\"]"
-            private const val SIZE_SELECTOR = "span.small, a.f-dl.dl-stub, td.small, .small"
+            private const val TITLE_SELECTOR = "a.torTopic, a.tt-text"
+            private const val AUTHOR_SELECTOR = "a.topicAuthor"
+            private const val SIZE_SELECTOR = "a.f-dl, a.dl-stub"
+            private const val SEEDERS_SELECTOR = "span.seedmed b, b.seedmed"
+            private const val LEECHERS_SELECTOR = "span.leechmed b, b.leechmed"
 
-            // Use comprehensive seeders classes from reference: seed and seedmed (both with and without b tag)
-            private const val SEEDERS_SELECTOR = "span.seed, span.seed b, span.seedmed, span.seedmed b, .seed, .seedmed"
-
-            // Use comprehensive leechers classes from reference: leech and leechmed (both with and without b tag)
-            private const val LEECHERS_SELECTOR = "span.leech, span.leech b, span.leechmed, span.leechmed b, .leech, .leechmed"
+            // Additional selectors
+            private const val TOPIC_ID_ATTR = "data-topic_id"
+            private const val MAGNET_LINK_SELECTOR = "a.magnet-link"
+            private const val DOWNLOADS_SELECTOR = "td.vf-col-replies b"
             private const val DOWNLOAD_HREF_SELECTOR = "a[href^=\"dl.php?t=\"]"
-            private const val MAGNET_LINK_SELECTOR = "a.magnet-link, a[href^=\"magnet:\"]"
 
             // CSS Selectors for topic details
             private const val POST_BODY_SELECTOR = ".post_body, .post-body"
@@ -177,59 +177,107 @@ class RutrackerParser
          * @return List of search results
          */
         fun parseSearchResults(html: String): List<SearchResult> {
+            Log.d(TAG, "=== PARSING SEARCH RESULTS ===")
+            Log.d(TAG, "HTML length: ${html.length}")
+
             try {
                 val document = Jsoup.parse(html)
-                val results = mutableListOf<SearchResult>()
+
+                // Log table structure for diagnostics
+                val tables = document.select("table")
+                Log.d(TAG, "Found ${tables.size} tables")
+
+                val targetTable = document.select("table.vf-table, table.forumline")
+                Log.d(TAG, "Target tables (vf-table/forumline): ${targetTable.size}")
 
                 val rows = document.select(ROW_SELECTOR)
-                Log.d(TAG, "Found ${rows.size} topic rows")
+                Log.d(TAG, "Rows selected by '$ROW_SELECTOR': ${rows.size}")
 
-                for (row in rows) {
+                if (rows.isEmpty()) {
+                    Log.w(TAG, "⚠️ NO ROWS FOUND! Running diagnostics...")
+
+                    // Diagnostic - find any tr
+                    val allRows = document.select("table tr")
+                    Log.d(TAG, "Total table rows in document: ${allRows.size}")
+
+                    // Log first 3 rows for analysis
+                    allRows.take(3).forEachIndexed { idx, row ->
+                        Log.d(TAG, "Sample row $idx classes: ${row.classNames()}")
+                        Log.d(TAG, "Sample row $idx attrs: ${row.attributes().asList().take(5)}")
+                    }
+
+                    return emptyList()
+                }
+
+                val results = mutableListOf<SearchResult>()
+
+                rows.forEachIndexed { idx, row ->
                     try {
                         val result = parseSearchResultRow(row)
                         if (result != null) {
                             results.add(result)
+                            // Log first 3 successful results
+                            if (idx < 3) {
+                                Log.d(TAG, "✓ Result $idx: ${result.title} by ${result.author}")
+                            }
+                        } else {
+                            Log.w(TAG, "✗ Row $idx parsed to null")
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to parse row", e)
+                        Log.w(TAG, "✗ Failed to parse row $idx", e)
                     }
                 }
 
+                Log.d(TAG, "✅ Successfully parsed ${results.size}/${rows.size} results")
                 return results
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse search results", e)
+                Log.e(TAG, "❌ Failed to parse search results", e)
                 return emptyList()
             }
         }
 
         private fun parseSearchResultRow(row: Element): SearchResult? {
-            // Extract topic ID
+            // Extract topic ID from data attribute (preferred) or from link href
             val topicId =
-                row.attr("data-topic_id").ifEmpty {
-                    row
-                        .select(TITLE_SELECTOR)
-                        .attr("href")
-                        .substringAfter("t=")
-                        .substringBefore("&")
-                        .ifEmpty { return null }
+                row.attr(TOPIC_ID_ATTR).ifEmpty {
+                    // Fallback: extract from row id attribute
+                    row.attr("id").removePrefix("tr-").ifEmpty {
+                        // Last resort: extract from title link href
+                        row
+                            .selectFirst(TITLE_SELECTOR)
+                            ?.attr("href")
+                            ?.substringAfter("t=")
+                            ?.substringBefore("&")
+                            ?: return null
+                    }
                 }
 
-            // Extract title
-            val titleElement = row.selectFirst(TITLE_SELECTOR) ?: return null
-            val title = titleElement.text().ifEmpty { return null }
+            if (topicId.isEmpty()) {
+                Log.w(TAG, "No topic ID found in row")
+                return null
+            }
 
-            // Extract author with multiple fallback selectors
-            val authorElement =
-                row.selectFirst(AUTHOR_SELECTOR)
-                    ?: row.selectFirst("a.topicAuthor")
-                    ?: row.selectFirst("td:nth-child(3) a")
+            // Extract title - use updated selector
+            val titleElement = row.selectFirst(TITLE_SELECTOR)
+            if (titleElement == null) {
+                Log.w(TAG, "No title found for topic $topicId with selector: $TITLE_SELECTOR")
+                return null
+            }
+            val title = titleElement.text()
+            if (title.isEmpty()) {
+                Log.w(TAG, "Empty title for topic $topicId")
+                return null
+            }
+
+            // Extract author - use new selector
+            val authorElement = row.selectFirst(AUTHOR_SELECTOR)
             val author =
                 authorElement?.text()?.trim()?.ifEmpty { null } ?: run {
-                    Log.w(TAG, "Author not found for topic $topicId, tried selectors: $AUTHOR_SELECTOR")
+                    Log.d(TAG, "Author not found for topic $topicId, using 'Unknown'")
                     "Unknown"
                 }
 
-            // Extract category (from parent table or data attribute)
+            // Extract category (from data attribute or default)
             val category = row.attr("data-forum_id").ifEmpty { "Audiobooks" }
 
             // Use DefensiveFieldExtractor for robust extraction
@@ -241,25 +289,18 @@ class RutrackerParser
             val magnetElement = row.selectFirst(MAGNET_LINK_SELECTOR)
             val magnetUrl = magnetElement?.attr("href")
 
-            // Extract torrent download URL
+            // Extract torrent download URL (using DOWNLOAD_HREF_SELECTOR)
             val torrentElement = row.selectFirst(DOWNLOAD_HREF_SELECTOR)
             val torrentUrl = torrentElement?.attr("href")?.let { BASE_URL + it } ?: ""
 
             // Extract cover URL with improved selectors
-            // Try multiple approaches to find cover images
             val coverUrl =
-                // First try: direct image in search result row
                 row.selectFirst("img[src]")?.attr("abs:src")
-                    // Second try: preview images
                     ?: row.selectFirst("img.postImg")?.attr("abs:src")
                     ?: row.selectFirst("img.preview")?.attr("abs:src")
-                    // Third try: thumbnail class
                     ?: row.selectFirst("img.thumbnail")?.attr("abs:src")
-                    // Fourth try: any image with specific patterns
                     ?: row.selectFirst("img[src*='static.t-ru.org']")?.attr("abs:src")
                     ?: row.selectFirst("img[src*='i.rutracker.cc']")?.attr("abs:src")
-
-            Log.d(TAG, "Parsed result: topicId=$topicId, title=$title, author=$author, size=$size, coverUrl=$coverUrl")
 
             // Clean the title to remove technical details
             val cleanedTitle = cleanTitle(title)
