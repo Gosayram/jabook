@@ -2143,6 +2143,8 @@
     <string name="lastCleanup">Последняя очистка</string>
     <!-- Заполнитель экрана лицензии -->
     <string name="licenseScreenPlaceholder">Заполнитель экрана лицензии</string>
+    <!-- Светлый -->
+    <string name="light">Светлый</string>
     <!-- Светлая тема -->
     <string name="lightTheme">Светлая тема</string>
     <!-- Ограничить скорость загрузки -->
