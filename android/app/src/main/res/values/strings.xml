@@ -36,7 +36,7 @@
     <!-- Russian language option -->
     <string name="russian">Russian</string>
     <!-- Use system language setting -->
-    <string name="systemDefault">System Default</string>
+    <string name="systemDefault">System (default)</string>
     <!-- Error message when search fails -->
     <string name="failedToSearch">Failed to search</string>
     <!-- Indicator that results are from cache -->
