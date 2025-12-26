@@ -90,6 +90,11 @@ class SyncManager
          */
         fun syncNow() {
             Log.d(TAG, "Triggering immediate sync")
-            // TODO: Implement one-time sync work
+            val syncRequest = androidx.work.OneTimeWorkRequestBuilder<SyncWorker>().build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "sync_work_immediate",
+                androidx.work.ExistingWorkPolicy.KEEP,
+                syncRequest,
+            )
         }
     }

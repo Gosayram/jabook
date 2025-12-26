@@ -31,48 +31,59 @@ import androidx.work.WorkerParameters
  * Note: This is a minimal implementation that will be enhanced
  * with proper dependency injection when kapt is replaced with KSP.
  */
-class SyncWorker(
-    appContext: Context,
-    params: WorkerParameters,
-) : CoroutineWorker(appContext, params) {
-    companion object {
-        private const val TAG = "SyncWorker"
-        const val WORK_NAME = "sync_work"
-    }
+@androidx.hilt.work.HiltWorker
+class SyncWorker
+    @dagger.assisted.AssistedInject
+    constructor(
+        @dagger.assisted.Assisted appContext: Context,
+        @dagger.assisted.Assisted params: WorkerParameters,
+        private val offlineSearchDao: com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao,
+        private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
+    ) : CoroutineWorker(appContext, params) {
+        companion object {
+            private const val TAG = "SyncWorker"
+            const val WORK_NAME = "sync_work"
+            private const val CACHE_TTL_DAYS = 7L
+        }
 
-    override suspend fun doWork(): Result {
-        Log.d(TAG, "Starting sync work")
+        override suspend fun doWork(): Result {
+            Log.d(TAG, "Starting sync work")
 
-        return try {
-            // Sync book metadata
-            syncBookMetadata()
+            return try {
+                // Sync book metadata
+                syncBookMetadata()
 
-            // Sync cover images
-            syncCoverImages()
+                // Sync cover images
+                syncCoverImages()
 
-            // Clean up old data
-            cleanupOldData()
+                // Clean up old data
+                cleanupOldData()
 
-            Log.d(TAG, "Sync completed successfully")
-            Result.success()
-        } catch (e: Exception) {
-            Log.e(TAG, "Sync failed", e)
-            Result.retry()
+                Log.d(TAG, "Sync completed successfully")
+                Result.success()
+            } catch (e: Exception) {
+                Log.e(TAG, "Sync failed", e)
+                if (runAttemptCount < 3) {
+                    Result.retry()
+                } else {
+                    Result.failure()
+                }
+            }
+        }
+
+        private suspend fun syncBookMetadata() {
+            Log.d(TAG, "Syncing book metadata - TODO (Waiting for topicId migration)")
+            // TODO: Implement updates for downloaded torrents once topicId is available in TorrentDownload entity
+        }
+
+        private suspend fun syncCoverImages() {
+            Log.d(TAG, "Syncing cover images - TODO")
+            // TODO: Implement cover sync logic
+        }
+
+        private suspend fun cleanupOldData() {
+            Log.d(TAG, "Cleaning up old search cache")
+            val threshold = System.currentTimeMillis() - (CACHE_TTL_DAYS * 24 * 60 * 60 * 1000) // 7 days ago
+            offlineSearchDao.clearOldCache(threshold)
         }
     }
-
-    private suspend fun syncBookMetadata() {
-        Log.d(TAG, "Syncing book metadata - TODO")
-        // TODO: Implement when RutrackerRepository is integrated
-    }
-
-    private suspend fun syncCoverImages() {
-        Log.d(TAG, "Syncing cover images - TODO")
-        // TODO: Implement cover sync logic
-    }
-
-    private suspend fun cleanupOldData() {
-        Log.d(TAG, "Cleaning up old data - TODO")
-        // TODO: Implement cleanup logic
-    }
-}
