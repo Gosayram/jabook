@@ -14,12 +14,16 @@
 
 package com.jabook.app.jabook.compose.feature.debug
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -48,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -150,35 +155,60 @@ private fun LogsTab(
     logs: String,
     uiState: DebugUiState,
 ) {
-    Column(
+    // Split logs into lines for LazyColumn
+    val logLines = remember(logs) { logs.lines() }
+
+    if (uiState is DebugUiState.Loading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(stringResource(R.string.loadingLogs))
+        }
+        return
+    }
+
+    if (uiState is DebugUiState.Error) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                "Error: ${(uiState as DebugUiState.Error).message}",
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        return
+    }
+
+    if (logs.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(stringResource(R.string.noLogsAvailable))
+        }
+        return
+    }
+
+    LazyColumn(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(bottom = 80.dp), // Add padding for FAB
     ) {
-        when (uiState) {
-            is DebugUiState.Loading -> {
-                Text(stringResource(R.string.loadingLogs))
-            }
-            is DebugUiState.Error -> {
-                Text(
-                    "Error: ${uiState.message}",
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            else -> {
-                if (logs.isEmpty()) {
-                    Text(stringResource(R.string.noLogsAvailable))
-                } else {
-                    Text(
-                        text = logs,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
-                    )
-                }
-            }
+        items(logLines) { line ->
+            Text(
+                text = line,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                lineHeight = 14.sp,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

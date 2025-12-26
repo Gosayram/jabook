@@ -64,7 +64,6 @@ class DebugLogService
                                 "-t",
                                 MAX_LOG_LINES.toString(), // last N lines
                                 TAG + ":V", // our app logs (verbose)
-                                "*:E", // all errors
                             ),
                         )
 
