@@ -216,6 +216,27 @@ class TorrentSessionManager
         }
 
         /**
+         * Move torrent storage to new path
+         */
+        fun moveTorrentStorage(
+            hash: String,
+            newPath: String,
+        ) {
+            val handle = torrents[hash] ?: return
+            val newDir = File(newPath)
+            if (!newDir.exists()) {
+                newDir.mkdirs()
+            }
+
+            try {
+                handle.moveStorage(newPath)
+                Log.i(TAG, "Moving storage for $hash to $newPath")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to move storage", e)
+            }
+        }
+
+        /**
          * Enable sequential download for streaming
          */
         fun setSequentialDownload(

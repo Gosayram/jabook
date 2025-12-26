@@ -144,6 +144,16 @@ class TorrentManager
         }
 
         /**
+         * Move torrent to new path
+         */
+        fun moveTorrent(
+            hash: String,
+            newPath: String,
+        ) {
+            sessionManager.moveTorrentStorage(hash, newPath)
+        }
+
+        /**
          * Resume all torrents
          */
         fun resumeAll() {
