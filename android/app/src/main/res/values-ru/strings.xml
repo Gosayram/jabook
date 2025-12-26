@@ -2459,6 +2459,10 @@
     <string name="stopped_state">Остановлен</string>
     <string name="seeding_paused_state">Раздача (На паузе)</string>
     <string name="in_library">В библиотеке</string>
+    <!-- Settings: Active Downloads -->
+    <string name="active_downloads">Активные загрузки</string>
+    <string name="downloading_count_speed">%1$d загружается • %2$s</string>
+    <string name="downloads_paused_or_queued">%1$d загрузок активно</string>
 
     <!-- Статистика -->
     <string name="size_gb">%.1f ГБ</string>

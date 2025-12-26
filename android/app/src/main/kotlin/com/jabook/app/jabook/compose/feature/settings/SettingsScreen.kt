@@ -93,6 +93,7 @@ fun SettingsScreen(
     onNavigateToAuth: () -> Unit,
     onNavigateToDebug: () -> Unit = {},
     onNavigateToScanSettings: () -> Unit = {},
+    onNavigateToDownloads: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -302,6 +303,40 @@ fun SettingsScreen(
             )
 
             HorizontalDivider()
+
+            // Active Downloads Card
+            val activeDownloads by viewModel.activeDownloads.collectAsStateWithLifecycle()
+
+            if (activeDownloads.isNotEmpty()) {
+                val totalSpeed = activeDownloads.sumOf { it.downloadSpeed }
+                val downloadCount =
+                    activeDownloads.count {
+                        it.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.DOWNLOADING
+                    }
+
+                SettingsItem(
+                    title = stringResource(R.string.active_downloads),
+                    subtitle =
+                        if (downloadCount > 0) {
+                            stringResource(R.string.downloading_count_speed, downloadCount, formatBytes(totalSpeed) + "/s")
+                        } else {
+                            stringResource(R.string.downloads_paused_or_queued, activeDownloads.size)
+                        },
+                    onClick = onNavigateToDownloads,
+                ) {
+                    androidx.compose.material3.LinearProgressIndicator(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                        // If we have active downloads, show indeterminate if speed > 0, else determinate
+                        // Since we don't have total progress easily aggregated, keep it indeterminate for now
+                        // or ideally calculate average progress
+                    )
+                }
+
+                HorizontalDivider()
+            }
 
             // Downloads Section
             SettingsSection(title = stringResource(R.string.downloads))

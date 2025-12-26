@@ -523,6 +523,10 @@
     <string name="unknownChapterText">Unknown chapter</string>
     <!-- Label for In Library indicator -->
     <string name="in_library">In Library</string>
+    <!-- Settings: Active Downloads -->
+    <string name="active_downloads">Active Downloads</string>
+    <string name="downloading_count_speed">%1$d downloading • %2$s</string>
+    <string name="downloads_paused_or_queued">%1$d downloads active</string>
     <!-- Label for magnet link -->
     <string name="magnetLinkLabelText">Magnet link</string>
     <!-- Message for magnet link copied -->

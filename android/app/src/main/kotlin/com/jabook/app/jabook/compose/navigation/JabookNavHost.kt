@@ -196,6 +196,9 @@ fun JabookNavHost(
                 onNavigateToScanSettings = {
                     navController.navigate(ScanSettingsRoute)
                 },
+                onNavigateToDownloads = {
+                    navController.navigate(DownloadsRoute())
+                },
             )
         }
 

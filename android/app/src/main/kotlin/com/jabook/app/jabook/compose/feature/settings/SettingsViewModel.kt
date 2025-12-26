@@ -34,7 +34,9 @@ import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
+import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -69,6 +72,27 @@ class SettingsViewModel
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val torrentManager: TorrentManager,
     ) : ViewModel() {
+        // Expose active downloads for the settings UI
+        val activeDownloads: StateFlow<List<TorrentDownload>> =
+            torrentManager.downloadsFlow
+                .map { downloadMap ->
+                    downloadMap.values
+                        .filter { download ->
+                            download.state in
+                                setOf(
+                                    TorrentState.DOWNLOADING,
+                                    TorrentState.SEEDING,
+                                    TorrentState.QUEUED,
+                                    TorrentState.CHECKING,
+                                    TorrentState.DOWNLOADING_METADATA,
+                                    TorrentState.PAUSED,
+                                )
+                        }.sortedByDescending { it.addedTime }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyList(),
+                )
         val scanProgress: StateFlow<ScanProgress> =
             booksRepository.getScanProgress().stateIn(
                 scope = viewModelScope,
