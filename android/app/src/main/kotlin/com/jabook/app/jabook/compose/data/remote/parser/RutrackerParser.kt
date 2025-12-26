@@ -255,6 +255,63 @@ class RutrackerParser
 
                 if (rows.isEmpty()) {
                     Log.w(TAG, "⚠️ NO ROWS FOUND with any selector! Running diagnostics...")
+
+                    // === DIAGNOSTIC LOGGING ===
+
+                    // 1. Detect page type
+                    val isLoginPage =
+                        document.select("form[action*='login.php']").isNotEmpty() ||
+                            document.select("input[name='login_username']").isNotEmpty() ||
+                            document.select("input[name='login']").isNotEmpty()
+                    val isCaptchaPage =
+                        document.select("img[alt*='captcha']").isNotEmpty() ||
+                            document.select("img[src*='captcha']").isNotEmpty() ||
+                            document.select("form[action*='captcha']").isNotEmpty()
+                    val isErrorPage =
+                        document
+                            .select(".message, .error, .warning")
+                            .text()
+                            .contains("ошибка", ignoreCase = true)
+
+                    if (isLoginPage) Log.w(TAG, "❌ LOGIN PAGE DETECTED!")
+                    if (isCaptchaPage) Log.w(TAG, "❌ CAPTCHA PAGE DETECTED!")
+                    if (isErrorPage) Log.w(TAG, "❌ ERROR PAGE DETECTED!")
+
+                    // 2. Log HTML structure
+                    val tables = document.select("table")
+                    Log.d(TAG, "📊 Found ${tables.size} table(s)")
+                    tables.take(5).forEachIndexed { i, table ->
+                        Log.d(TAG, "  Table $i: class='${table.className()}' id='${table.id()}'")
+                    }
+
+                    val allRows = document.select("tr")
+                    Log.d(TAG, "📋 Total tr elements: ${allRows.size}")
+
+                    // Check each selector individually
+                    ROW_SELECTORS.forEach { selector ->
+                        val found = document.select(selector)
+                        Log.d(TAG, "  Selector '$selector': ${found.size} matches")
+                        if (found.isNotEmpty()) {
+                            found.take(3).forEachIndexed { i, el ->
+                                val hasTitle = el.select(TITLE_SELECTOR).isNotEmpty()
+                                Log.d(TAG, "    Element $i: hasTitle=$hasTitle, class='${el.className()}'")
+                            }
+                        }
+                    }
+
+                    // 3. Page metadata
+                    val pageTitle = document.select("title").text()
+                    Log.d(TAG, "📝 Page Title: $pageTitle")
+
+                    // 4. HTML preview
+                    val htmlPreview = html.take(500).replace(Regex("\\s+"), " ")
+                    Log.d(TAG, "📄 HTML Preview: $htmlPreview...")
+
+                    // 5. Check for common page elements
+                    val hasMainContent = document.select("#main_content, #page_content").isNotEmpty()
+                    val hasForumTable = document.select(".forumline, .vf-table").isNotEmpty()
+                    Log.d(TAG, "🔍 Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable")
+
                     return emptyList()
                 }
 
