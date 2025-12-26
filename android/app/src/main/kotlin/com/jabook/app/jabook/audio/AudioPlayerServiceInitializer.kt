@@ -177,6 +177,7 @@ class AudioPlayerServiceInitializer(
                 AudioPlayerLibrarySessionCallback(
                     service,
                     service.playerPersistenceManager,
+                    service.torrentDownloadRepository,
                     { filePath -> service.getDurationForFile(filePath) },
                 )
 

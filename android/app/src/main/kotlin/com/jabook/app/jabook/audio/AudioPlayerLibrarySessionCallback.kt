@@ -31,17 +31,16 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.guava.future
 import java.io.File
 
 class AudioPlayerLibrarySessionCallback(
     private val service: AudioPlayerService,
     private val playerPersistenceManager: PlayerPersistenceManager,
+    private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
     private val getDurationForFile: (String) -> Long?,
 ) : MediaLibraryService.MediaLibrarySession.Callback {
-    // TODO: Implement library operations (onGetLibraryRoot, onGetItem, onGetChildren)
-    // For now, these are not needed as we're not using library browsing features
-
     val customCommands =
         listOf(
             androidx.media3.session.CommandButton
@@ -180,11 +179,13 @@ class AudioPlayerLibrarySessionCallback(
                                 .Builder()
                                 .setTitle(service.getString(com.jabook.app.jabook.R.string.media3_library_root_title))
                                 .setIsBrowsable(true)
+                                .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                                 .build(),
                         ).build()
                 return@future LibraryResult.ofItem(rootItem, null)
             }
 
+            // 1. Check Persisted State (Last Played) - Fast Path
             val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
             if (persistedState != null) {
                 if (mediaId == persistedState.groupPath) {
@@ -214,24 +215,63 @@ class AudioPlayerLibrarySessionCallback(
                             .build()
                     return@future LibraryResult.ofItem(bookItem, null)
                 }
-                if (persistedState.filePaths.contains(mediaId)) {
-                    // Return the file item
-                    val file = File(mediaId)
-                    val item =
+            }
+
+            // 2. Check Repository for Download (Album/Book)
+            val download = torrentDownloadRepository.getByHash(mediaId)
+            if (download != null) {
+                val metadataBuilder =
+                    MediaMetadata
+                        .Builder()
+                        .setTitle(download.name)
+                        .setIsBrowsable(true)
+                        .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
+
+                // Add extras if needed (download status etc.)
+                val extras =
+                    Bundle().apply {
+                        val isDownloaded =
+                            download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.COMPLETED ||
+                                download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.SEEDING
+                        MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
+                    }
+                metadataBuilder.setExtras(extras)
+
+                val item =
+                    LibraryResult.ofItem(
+                        MediaItem
+                            .Builder()
+                            .setMediaId(download.hash)
+                            .setMediaMetadata(metadataBuilder.build())
+                            .build(),
+                        null,
+                    )
+                return@future item
+            }
+
+            // 3. Check for File (Chapter/Track)
+            // This covers files in persisted state AND generic files from repository
+            val file = File(mediaId)
+            if (file.exists() && file.isFile) {
+                val chapterMetadata =
+                    MediaMetadata
+                        .Builder()
+                        .setTitle(file.nameWithoutExtension)
+                        .setIsBrowsable(false)
+                        .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                        .build()
+
+                val item =
+                    LibraryResult.ofItem(
                         MediaItem
                             .Builder()
                             .setMediaId(mediaId)
                             .setUri(android.net.Uri.fromFile(file))
-                            .setMediaMetadata(
-                                MediaMetadata
-                                    .Builder()
-                                    .setTitle(file.nameWithoutExtension)
-                                    .setIsBrowsable(false)
-                                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-                                    .build(),
-                            ).build()
-                    return@future LibraryResult.ofItem(item, null)
-                }
+                            .setMediaMetadata(chapterMetadata)
+                            .build(),
+                        null,
+                    )
+                return@future item
             }
 
             LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
@@ -249,72 +289,119 @@ class AudioPlayerLibrarySessionCallback(
             val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
             val items = mutableListOf<MediaItem>()
 
-            if (parentId == "root") {
-                // Return "Last Played" book
-                if (persistedState != null) {
-                    val bookTitle = persistedState.metadata?.get("title") ?: "Last Played"
-                    val metadataBuilder =
-                        MediaMetadata
-                            .Builder()
-                            .setTitle(bookTitle)
-                            .setIsBrowsable(true)
-                            .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
+            // 1. "Last Played" Item
+            if (parentId == "root" && persistedState != null) {
+                val bookTitle = persistedState.metadata?.get("title") ?: "Last Played"
+                val metadataBuilder =
+                    MediaMetadata
+                        .Builder()
+                        .setTitle(bookTitle)
+                        .setIsBrowsable(true)
+                        .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
 
-                    persistedState.metadata?.get("artist")?.let { metadataBuilder.setArtist(it) }
-                    persistedState.metadata?.get("coverPath")?.let { coverPath ->
-                        if (coverPath.isNotEmpty()) {
-                            val artworkFile = File(coverPath)
-                            if (artworkFile.exists()) {
-                                metadataBuilder.setArtworkUri(android.net.Uri.fromFile(artworkFile))
-                            }
+                persistedState.metadata?.get("artist")?.let { metadataBuilder.setArtist(it) }
+                persistedState.metadata?.get("coverPath")?.let { coverPath ->
+                    if (coverPath.isNotEmpty()) {
+                        val artworkFile = File(coverPath)
+                        if (artworkFile.exists()) {
+                            metadataBuilder.setArtworkUri(android.net.Uri.fromFile(artworkFile))
                         }
                     }
+                }
 
-                    // Create comprehensive metadata extras (completion, download status, grouping, etc.)
-                    val totalDuration = persistedState.filePaths.sumOf { getDurationForFile(it) ?: 0L }
-                    val metadataExtras =
-                        CompletionStatusHelper
-                            .createCompletionExtras(
-                                positionMs = persistedState.currentPosition,
-                                durationMs = totalDuration,
-                            ).apply {
-                                // Download status: check if files exist locally
-                                val isDownloaded = persistedState.filePaths.all { File(it).exists() }
+                // Create comprehensive metadata extras (completion, download status, grouping, etc.)
+                val totalDuration = persistedState.filePaths.sumOf { getDurationForFile(it) ?: 0L }
+                val metadataExtras =
+                    CompletionStatusHelper
+                        .createCompletionExtras(
+                            positionMs = persistedState.currentPosition,
+                            durationMs = totalDuration,
+                        ).apply {
+                            // Download status: check if files exist locally
+                            val isDownloaded = persistedState.filePaths.all { File(it).exists() }
+                            MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
+
+                            // Content grouping for series
+                            persistedState.metadata?.get("series")?.let { series ->
+                                MediaMetadataExtrasHelper.run { addContentGroup(series) }
+                            }
+
+                            // Explicit content flag
+                            val isExplicit = persistedState.metadata?.get("isExplicit")?.toBoolean() ?: false
+                            MediaMetadataExtrasHelper.run { addExplicitFlag(isExplicit) }
+
+                            // Grid view for books with cover art
+                            MediaMetadataExtrasHelper.run {
+                                addPlayableStyle(MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
+                            }
+                        }
+                metadataBuilder.setExtras(metadataExtras)
+
+                items.add(
+                    MediaItem
+                        .Builder()
+                        .setMediaId(persistedState.groupPath)
+                        .setMediaMetadata(metadataBuilder.build())
+                        .build(),
+                )
+            }
+
+            // 2. All Downloads from Repository
+            if (parentId == "root") {
+                try {
+                    val downloads = torrentDownloadRepository.getAllFlow().firstOrNull() ?: emptyList()
+
+                    for (download in downloads) {
+                        // Skip if it's the same as Last Played to avoid duplicates
+                        if (persistedState != null && download.hash == persistedState.groupPath) continue
+
+                        val metadataBuilder =
+                            MediaMetadata
+                                .Builder()
+                                .setTitle(download.name)
+                                .setIsBrowsable(true)
+                                .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
+
+                        // Set cover if available (assuming cover path might be in download path or handled elsewhere)
+                        // For now we don't have direct cover path in TorrentDownload model easily accessible without parsing
+                        // But if we did, we would set it here.
+
+                        val extras =
+                            Bundle().apply {
+                                // Download status
+                                val isDownloaded =
+                                    download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.COMPLETED ||
+                                        download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.SEEDING
                                 MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
 
-                                // Content grouping for series
-                                persistedState.metadata?.get("series")?.let { series ->
-                                    MediaMetadataExtrasHelper.run { addContentGroup(series) }
-                                }
-
-                                // Explicit content flag
-                                val isExplicit = persistedState.metadata?.get("isExplicit")?.toBoolean() ?: false
-                                MediaMetadataExtrasHelper.run { addExplicitFlag(isExplicit) }
-
-                                // Grid view for books with cover art
                                 MediaMetadataExtrasHelper.run {
                                     addPlayableStyle(MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
                                 }
                             }
-                    metadataBuilder.setExtras(metadataExtras)
+                        metadataBuilder.setExtras(extras)
 
-                    items.add(
-                        MediaItem
-                            .Builder()
-                            .setMediaId(persistedState.groupPath)
-                            .setMediaMetadata(metadataBuilder.build())
-                            .build(),
-                    )
+                        items.add(
+                            MediaItem
+                                .Builder()
+                                .setMediaId(download.hash)
+                                .setMediaMetadata(metadataBuilder.build())
+                                .build(),
+                        )
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("LibrarySession", "Failed to load downloads", e)
                 }
-            } else if (persistedState != null && parentId == persistedState.groupPath) {
-                // Return chapters
-                for (filePath in persistedState.filePaths) {
-                    val file = File(filePath)
-                    if (file.exists()) {
+            } else if (parentId != "root") {
+                // 3. Browse specific book (by Hash)
+                val download = torrentDownloadRepository.getByHash(parentId)
+                if (download != null) {
+                    val sortedFiles = download.files.sortedBy { it.path }
+                    for (file in sortedFiles) {
+                        val f = File(file.path)
                         val chapterMetadata =
                             MediaMetadata
                                 .Builder()
-                                .setTitle(file.nameWithoutExtension)
+                                .setTitle(f.name)
                                 .setIsBrowsable(false)
                                 .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                                 .build()
@@ -322,11 +409,34 @@ class AudioPlayerLibrarySessionCallback(
                         items.add(
                             MediaItem
                                 .Builder()
-                                .setMediaId(filePath)
-                                .setUri(android.net.Uri.fromFile(file))
+                                .setMediaId(file.path)
+                                .setUri(android.net.Uri.fromFile(f))
                                 .setMediaMetadata(chapterMetadata)
                                 .build(),
                         )
+                    }
+                } else if (persistedState != null && parentId == persistedState.groupPath) {
+                    // Fallback to persisted state
+                    for (filePath in persistedState.filePaths) {
+                        val file = File(filePath)
+                        if (file.exists()) {
+                            val chapterMetadata =
+                                MediaMetadata
+                                    .Builder()
+                                    .setTitle(file.nameWithoutExtension)
+                                    .setIsBrowsable(false)
+                                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                                    .build()
+
+                            items.add(
+                                MediaItem
+                                    .Builder()
+                                    .setMediaId(filePath)
+                                    .setUri(android.net.Uri.fromFile(file))
+                                    .setMediaMetadata(chapterMetadata)
+                                    .build(),
+                            )
+                        }
                     }
                 }
             }

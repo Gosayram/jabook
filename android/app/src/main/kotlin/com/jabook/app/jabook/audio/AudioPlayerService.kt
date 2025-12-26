@@ -61,6 +61,10 @@ class AudioPlayerService : MediaLibraryService() {
     @javax.inject.Named("okhttp")
     lateinit var mediaCache: okhttp3.Cache
 
+    // Repository for torrent downloads (library content)
+    @Inject
+    lateinit var torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+
     // Media3 cache for streaming (different from network cache)
     @Inject
     lateinit var media3Cache: androidx.media3.datasource.cache.Cache
