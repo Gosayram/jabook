@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import android.graphics.drawable.Icon
 import androidx.annotation.DrawableRes
+import com.jabook.app.jabook.R
 
 /**
  * Utility class for managing notification icons.
@@ -48,11 +49,7 @@ object NotificationIconProvider {
      * @return Resource ID for play icon
      */
     @DrawableRes
-    fun getPlayIcon(context: Context): Int {
-        // TODO: Replace with custom drawable when design is ready
-        // For now, use system icon
-        return android.R.drawable.ic_media_play
-    }
+    fun getPlayIcon(context: Context): Int = R.drawable.ic_play
 
     /**
      * Gets the appropriate pause icon based on app theme.
@@ -61,10 +58,7 @@ object NotificationIconProvider {
      * @return Resource ID for pause icon
      */
     @DrawableRes
-    fun getPauseIcon(context: Context): Int {
-        // TODO: Replace with custom drawable when design is ready
-        return android.R.drawable.ic_media_pause
-    }
+    fun getPauseIcon(context: Context): Int = R.drawable.ic_pause
 
     /**
      * Gets the appropriate next icon based on app theme.
@@ -73,10 +67,7 @@ object NotificationIconProvider {
      * @return Resource ID for next icon
      */
     @DrawableRes
-    fun getNextIcon(context: Context): Int {
-        // TODO: Replace with custom drawable when design is ready
-        return android.R.drawable.ic_media_next
-    }
+    fun getNextIcon(context: Context): Int = R.drawable.ic_skip_next
 
     /**
      * Gets the appropriate previous icon based on app theme.
@@ -85,10 +76,7 @@ object NotificationIconProvider {
      * @return Resource ID for previous icon
      */
     @DrawableRes
-    fun getPreviousIcon(context: Context): Int {
-        // TODO: Replace with custom drawable when design is ready
-        return android.R.drawable.ic_media_previous
-    }
+    fun getPreviousIcon(context: Context): Int = R.drawable.ic_skip_previous
 
     /**
      * Gets the appropriate rewind icon based on app theme.
@@ -97,10 +85,7 @@ object NotificationIconProvider {
      * @return Resource ID for rewind icon
      */
     @DrawableRes
-    fun getRewindIcon(context: Context): Int {
-        // TODO: Replace with custom drawable when design is ready
-        return android.R.drawable.ic_media_rew
-    }
+    fun getRewindIcon(context: Context): Int = R.drawable.ic_rewind
 
     /**
      * Gets the appropriate forward icon based on app theme.
@@ -109,10 +94,7 @@ object NotificationIconProvider {
      * @return Resource ID for forward icon
      */
     @DrawableRes
-    fun getForwardIcon(context: Context): Int {
-        // TODO: Replace with custom drawable when design is ready
-        return android.R.drawable.ic_media_ff
-    }
+    fun getForwardIcon(context: Context): Int = R.drawable.ic_forward
 
     /**
      * Gets the appropriate stop icon based on app theme.
@@ -121,10 +103,7 @@ object NotificationIconProvider {
      * @return Resource ID for stop icon
      */
     @DrawableRes
-    fun getStopIcon(context: Context): Int {
-        // TODO: Replace with custom drawable when design is ready
-        return android.R.drawable.ic_menu_close_clear_cancel
-    }
+    fun getStopIcon(context: Context): Int = R.drawable.ic_close
 
     /**
      * Applies theme-based tinting to notification icons if needed.
