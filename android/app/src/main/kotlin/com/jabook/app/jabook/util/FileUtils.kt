@@ -39,12 +39,23 @@ object FileUtils {
             val uri = android.net.Uri.parse(uriString)
             if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
                 val path = uri.path ?: return uriString
+                // Handle /tree/primary:Folder or /document/primary:File
+                // The path usually comes as /tree/volumeID:path or /document/volumeID:path
+
+                // We split by ':' to separate volumeID from relative path
                 val split = path.split(":")
+
                 if (split.size > 1) {
-                    val type = split[0]
-                    val relativePath = split[1]
-                    if (type.endsWith("primary")) {
+                    val volumeIdSection = split[0] // e.g. "/tree/primary" or "/tree/1234-5678"
+                    val relativePath = split[1] // e.g. "Downloads/MyFolder"
+
+                    val volumeId = volumeIdSection.substringAfterLast("/")
+
+                    if (volumeId.equals("primary", ignoreCase = true)) {
                         return "/storage/emulated/0/$relativePath"
+                    } else {
+                        // For SD cards, the path is typically /storage/VOLUME_ID/relativePath
+                        return "/storage/$volumeId/$relativePath"
                     }
                 }
             }
