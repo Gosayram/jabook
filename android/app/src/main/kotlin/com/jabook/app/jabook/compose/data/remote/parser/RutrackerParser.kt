@@ -34,7 +34,7 @@ class RutrackerParser
     @Inject
     constructor(
         private val mediaInfoParser: MediaInfoParser,
-        private val encodingHandler: com.jabook.app.jabook.compose.data.remote.encoding.DefensiveEncodingHandler,
+        private val decoder: com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder,
         private val fieldExtractor: DefensiveFieldExtractor,
         private val coverExtractor: CoverUrlExtractor,
     ) {
@@ -77,7 +77,7 @@ class RutrackerParser
         /**
          * Parse search results from raw bytes with encoding detection.
          *
-         * This method uses DefensiveEncodingHandler to properly decode
+         * This method uses RutrackerSimpleDecoder to properly decode
          * RuTracker's windows-1251 or mixed encoding content.
          *
          * @param bytes Raw response bytes
@@ -88,22 +88,11 @@ class RutrackerParser
             bytes: ByteArray,
             contentType: String? = null,
         ): ParsingResult<List<SearchResult>> {
-            // Decode with defensive handler
-            val decodingResult = encodingHandler.decode(bytes, contentType)
-
-            // Log encoding information
-            Log.d(
-                TAG,
-                "Decoded with ${decodingResult.encoding}, confidence=${decodingResult.confidence}, hasMojibake=${decodingResult.hasMojibake}",
-            )
-
-            // Warn if mojibake detected
-            if (decodingResult.hasMojibake) {
-                Log.w(TAG, "Mojibake detected in response, results may be corrupted")
-            }
+            // Decode with simple decoder (matching Flutter implementation)
+            val decodedHtml = decoder.decode(bytes, contentType)
 
             // Parse the decoded HTML
-            return parseSearchResultsDefensive(decodingResult.text)
+            return parseSearchResultsDefensive(decodedHtml)
         }
 
         /**

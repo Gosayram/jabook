@@ -72,7 +72,7 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
  * RuTracker search screen.
  *
  * Demonstrates integration of all RuTracker components:
- * - DefensiveEncodingHandler
+ * - RutrackerSimpleDecoder (simple encoding decoder matching Flutter)
  * - RutrackerParser with cascading selectors
  * - ParsingResult error handling
  * - MirrorManager, proper headers

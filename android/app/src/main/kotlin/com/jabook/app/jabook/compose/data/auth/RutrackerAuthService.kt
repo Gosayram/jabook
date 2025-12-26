@@ -36,7 +36,7 @@ class RutrackerAuthService
     constructor(
         private val api: RutrackerApi,
         private val parser: com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser,
-        private val encodingHandler: com.jabook.app.jabook.compose.data.remote.encoding.DefensiveEncodingHandler,
+        private val decoder: com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder,
     ) {
         companion object {
             private const val TAG = "RutrackerAuthService"
@@ -106,23 +106,16 @@ class RutrackerAuthService
                             "isRedirect=$isRedirect, responseSize=${rawBody.size} bytes (${requestDuration}ms)",
                     )
 
-                    // Step 4: Decode response body with defensive encoding handler
+                    // Step 4: Decode response body with simple decoder (matching Flutter implementation)
                     val decodeStart = System.currentTimeMillis()
                     val contentType = response.headers()["Content-Type"]
-                    val decodingResult = encodingHandler.decode(rawBody, contentType)
-                    val bodyString = decodingResult.text
+                    val bodyString = decoder.decode(rawBody, contentType)
                     val decodeDuration = System.currentTimeMillis() - decodeStart
 
                     Log.d(
                         TAG,
-                        "[$operationId] Response decoded with ${decodingResult.encoding}, " +
-                            "confidence=${decodingResult.confidence}, hasMojibake=${decodingResult.hasMojibake} (${decodeDuration}ms)",
+                        "[$operationId] Response decoded (${decodeDuration}ms)",
                     )
-
-                    // Warn if encoding issues detected
-                    if (decodingResult.hasMojibake) {
-                        Log.w(TAG, "[$operationId] ⚠️ Mojibake detected in response, may affect parsing")
-                    }
 
                     // Step 5: Check HTTP status
                     if (!response.isSuccessful && statusCode !in 300..399) {

@@ -64,7 +64,7 @@ class RutrackerRepository
         /**
          * Search for audiobooks on RuTracker.
          *
-         * Uses DefensiveEncodingHandler and cascading selectors for robust parsing.
+         * Uses RutrackerSimpleDecoder (matching Flutter implementation) and cascading selectors for robust parsing.
          *
          * @param query Search query
          * @param forumIds Optional forum IDs to search in (e.g., "2388,2389")
