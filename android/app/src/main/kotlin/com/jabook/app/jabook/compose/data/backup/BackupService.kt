@@ -51,6 +51,7 @@ class BackupService
         private val userPreferencesRepository: UserPreferencesRepository,
         private val protoSettingsRepository: ProtoSettingsRepository,
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
+        private val mirrorManager: com.jabook.app.jabook.compose.data.network.MirrorManager,
     ) {
         companion object {
             private const val TAG = "BackupService"
@@ -184,19 +185,20 @@ class BackupService
                     "https://rutracker.nl",
                 )
 
+            // FIX: Get ACTUAL current mirror from MirrorManager instead of guessing
+            val actualMirror = mirrorManager.currentMirror.value
+
             return AppSettings(
                 theme = userPrefs.theme.name,
                 autoPlayNext = userPrefs.autoPlayNext,
                 playbackSpeed = userPrefs.playbackSpeed,
                 font = userPrefs.font.name,
+                normalizeChapterTitles = userPrefs.normalizeChapterTitles,
                 wifiOnlyDownload = protoSettings.wifiOnlyDownload,
                 // Use default if empty
                 downloadPath = protoSettings.downloadPath.ifEmpty { defaultDownloadPath },
-                // Use first custom mirror or first default mirror if empty
-                currentMirror =
-                    protoSettings.selectedMirror.ifEmpty {
-                        protoSettings.customMirrorsList.firstOrNull() ?: defaultMirrors.first()
-                    },
+                // FIXED: Use actual mirror from MirrorManager
+                currentMirror = actualMirror.ifEmpty { defaultMirrors.first() },
                 autoSwitchMirror = protoSettings.autoSwitchMirror,
                 limitDownloadSpeed = protoSettings.limitDownloadSpeed,
                 maxDownloadSpeedKb = protoSettings.maxDownloadSpeedKb,
@@ -318,6 +320,9 @@ class BackupService
                 } catch (e: Exception) {
                     // Ignore invalid font enum, keep default
                 }
+
+                // Restore normalize chapter titles
+                userPreferencesRepository.setNormalizeChapterTitles(settings.normalizeChapterTitles)
 
                 // Restore ProtoSettings
                 protoSettingsRepository.updateWifiOnly(settings.wifiOnlyDownload)
