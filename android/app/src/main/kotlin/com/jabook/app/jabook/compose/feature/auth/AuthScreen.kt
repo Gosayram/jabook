@@ -160,7 +160,7 @@ fun AuthScreen(
             Icon(
                 painter = painterResource(id = R.drawable.rutracker_logo),
                 contentDescription = null,
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.size(120.dp),
                 tint = androidx.compose.ui.graphics.Color.Unspecified, // Use original colors
             )
 
