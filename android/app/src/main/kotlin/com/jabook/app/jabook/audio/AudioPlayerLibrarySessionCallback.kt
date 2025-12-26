@@ -117,8 +117,8 @@ class AudioPlayerLibrarySessionCallback(
     }
 
     companion object {
-        private const val CUSTOM_COMMAND_REWIND = "com.jabook.app.jabook.rewind"
-        private const val CUSTOM_COMMAND_FORWARD = "com.jabook.app.jabook.forward"
+        const val CUSTOM_COMMAND_REWIND = "com.jabook.app.jabook.rewind"
+        const val CUSTOM_COMMAND_FORWARD = "com.jabook.app.jabook.forward"
     }
 
     // Minimal implementation for library operations (required by MediaLibrarySession.Callback)

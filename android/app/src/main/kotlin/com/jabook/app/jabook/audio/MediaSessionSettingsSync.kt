@@ -70,8 +70,8 @@ class MediaSessionSettingsSync(
                     // Update service skip durations (existing method)
                     service.updateSkipDurations(rewindSeconds, forwardSeconds)
 
-                    // TODO: Update MediaSession custom commands when implemented
-                    // service.updateMediaSessionCommands(rewindSeconds, forwardSeconds)
+                    // Update MediaSession custom commands
+                    service.updateMediaSessionCommands(rewindSeconds, forwardSeconds)
                 }
         }
     }

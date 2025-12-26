@@ -807,6 +807,38 @@ class AudioPlayerService : MediaLibraryService() {
         )
     }
 
+    /**
+     * Updates MediaSession custom layout commands with new durations.
+     */
+    fun updateMediaSessionCommands(
+        rewindSeconds: Int,
+        forwardSeconds: Int,
+    ) {
+        val rewindCommandButton =
+            androidx.media3.session.CommandButton
+                .Builder(com.jabook.app.jabook.R.drawable.ic_rewind)
+                .setDisplayName("-$rewindSeconds")
+                .setSessionCommand(
+                    androidx.media3.session.SessionCommand(
+                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
+                        android.os.Bundle.EMPTY,
+                    ),
+                ).build()
+
+        val forwardCommandButton =
+            androidx.media3.session.CommandButton
+                .Builder(com.jabook.app.jabook.R.drawable.ic_forward)
+                .setDisplayName("+$forwardSeconds")
+                .setSessionCommand(
+                    androidx.media3.session.SessionCommand(
+                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
+                        android.os.Bundle.EMPTY,
+                    ),
+                ).build()
+
+        mediaSession?.setCustomLayout(listOf(rewindCommandButton, forwardCommandButton))
+    }
+
     fun getCurrentPosition(): Long = playerStateHelper?.getCurrentPosition() ?: 0L
 
     fun getDuration(): Long = playerStateHelper?.getDuration() ?: 0L
