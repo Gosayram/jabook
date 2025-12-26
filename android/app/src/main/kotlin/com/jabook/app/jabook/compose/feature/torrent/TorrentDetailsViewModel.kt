@@ -156,4 +156,21 @@ class TorrentDetailsViewModel
             // Or add a timeout in Monitor if not playing for X minutes.
             // For now, removing onCleared stop to allow background playback monitoring.
         }
+
+        fun updateFileSelection(selectedIndices: Set<Int>) {
+            val currentDownload = download.value ?: return
+            val files = currentDownload.files
+
+            // Map to priorities list matching file order
+            val priorities =
+                files.map { file ->
+                    if (selectedIndices.contains(file.index)) {
+                        4 // Default/Normal priority
+                    } else {
+                        0 // Do not download
+                    }
+                }
+
+            torrentManager.prioritizeFiles(hash, priorities)
+        }
     }

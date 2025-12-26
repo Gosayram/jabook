@@ -184,6 +184,16 @@ class TorrentManager
         }
 
         /**
+         * Prioritize multiple files
+         */
+        fun prioritizeFiles(
+            hash: String,
+            priorities: List<Int>,
+        ) {
+            sessionManager.setFilePriorities(hash, priorities)
+        }
+
+        /**
          * Check if file is ready for streaming
          */
         fun isFileReadyForStreaming(

@@ -388,6 +388,32 @@ class TorrentSessionManager
             }
         }
 
+        /**
+         * Set priorities for multiple files
+         */
+        fun setFilePriorities(
+            hash: String,
+            priorities: List<Int>,
+        ) {
+            val handle = torrents[hash] ?: return
+            val torrentInfo = handle.torrentFile() ?: return
+            val numFiles = torrentInfo.numFiles()
+
+            if (priorities.size != numFiles) {
+                Log.w(TAG, "Priority list size mismatch: ${priorities.size} != $numFiles")
+                return
+            }
+
+            try {
+                // Priority.fromSwig expects int
+                val priorityArray = priorities.map { org.libtorrent4j.Priority.fromSwig(it) }.toTypedArray()
+                handle.prioritizeFiles(priorityArray)
+                updateDownloads()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to set file priorities", e)
+            }
+        }
+
         private fun mapFiles(
             torrentInfo: TorrentInfo,
             handle: TorrentHandle,

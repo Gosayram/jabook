@@ -43,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -84,6 +85,20 @@ fun TorrentDetailsScreen(
         },
     ) { padding ->
         val state = download
+
+        var showFileSelection by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+        if (showFileSelection && state != null) {
+            FileSelectionDialog(
+                files = state.files,
+                onConfirm = { selectedIndices ->
+                    viewModel.updateFileSelection(selectedIndices)
+                    showFileSelection = false
+                },
+                onDismiss = { showFileSelection = false },
+            )
+        }
+
         if (state == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -113,11 +128,20 @@ fun TorrentDetailsScreen(
                 }
 
                 item {
-                    Text(
-                        "Files",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Files",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(vertical = 8.dp),
+                        )
+                        androidx.compose.material3.TextButton(onClick = { showFileSelection = true }) {
+                            Text("Manage Files")
+                        }
+                    }
                 }
 
                 items(state.files) { file ->
