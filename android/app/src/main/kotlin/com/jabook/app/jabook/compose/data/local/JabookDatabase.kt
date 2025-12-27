@@ -69,7 +69,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         SearchQueryEntity::class,
     ],
     version = 13,
-    exportSchema = false,
+    exportSchema = true, // Enable schema export for migration validation and debugging
 )
 abstract class JabookDatabase : RoomDatabase() {
     abstract fun booksDao(): BooksDao

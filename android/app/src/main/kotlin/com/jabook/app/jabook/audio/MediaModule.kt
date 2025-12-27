@@ -27,6 +27,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.RenderersFactory
+import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.utils.PerformanceClass
 import com.jabook.app.jabook.utils.PerformanceUtils
@@ -300,13 +301,65 @@ object AudioDataModule {
     @Singleton
     fun provideAudioDatabase(
         @ApplicationContext context: Context,
-    ): com.jabook.app.jabook.audio.data.local.database.AudioDatabase =
-        androidx.room.Room
-            .databaseBuilder(
-                context,
-                com.jabook.app.jabook.audio.data.local.database.AudioDatabase::class.java,
-                "audio_database",
-            ).build()
+    ): com.jabook.app.jabook.audio.data.local.database.AudioDatabase {
+        val builder =
+            androidx.room.Room
+                .databaseBuilder(
+                    context,
+                    com.jabook.app.jabook.audio.data.local.database.AudioDatabase::class.java,
+                    "audio_database",
+                )
+                // Use coroutine context for queries (better integration with coroutines)
+                .setQueryCoroutineContext(kotlinx.coroutines.Dispatchers.IO)
+                // PreparedStatementCache is enabled by default (size 25) for better query performance
+                // JournalMode.AUTOMATIC is the default - Room chooses WAL on modern devices
+                .setJournalMode(RoomDatabase.JournalMode.AUTOMATIC)
+
+        // Add callback for database lifecycle events
+        builder.addCallback(
+            object : RoomDatabase.Callback() {
+                override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    super.onCreate(db)
+                    android.util.Log.i("Room", "AudioDatabase created")
+                    // Enable foreign key constraints for referential integrity
+                    db.execSQL("PRAGMA foreign_keys = ON")
+                }
+
+                override fun onOpen(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    super.onOpen(db)
+                    // Enable foreign key constraints on each database open
+                    db.execSQL("PRAGMA foreign_keys = ON")
+                    // Optimize for better query performance
+                    db.execSQL("PRAGMA optimize")
+                }
+            },
+        )
+
+        // Add query callback for logging in debug builds only
+        try {
+            val isDebug =
+                Class
+                    .forName("com.jabook.app.jabook.BuildConfig")
+                    .getField("DEBUG")
+                    .get(null) as? Boolean ?: false
+            if (isDebug) {
+                builder.setQueryCallback(
+                    kotlinx.coroutines.Dispatchers.Unconfined,
+                    RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
+                        android.util.Log.d(
+                            "Room",
+                            "AudioDB Query: $sqlQuery | Args: ${bindArgs.joinToString(", ")}",
+                        )
+                    },
+                )
+            }
+        } catch (e: Exception) {
+            // BuildConfig not available, skip query callback
+            android.util.Log.d("Room", "BuildConfig not available, skipping query callback", e)
+        }
+
+        return builder.build()
+    }
 
     @Provides
     @Singleton

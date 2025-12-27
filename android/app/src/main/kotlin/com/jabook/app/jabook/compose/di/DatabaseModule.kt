@@ -15,7 +15,9 @@
 package com.jabook.app.jabook.compose.di
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
+import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
@@ -30,6 +32,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton
 
 @Module
@@ -260,24 +263,88 @@ object DatabaseModule {
     @Singleton
     fun provideJabookDatabase(
         @ApplicationContext context: Context,
-    ): JabookDatabase =
-        Room
-            .databaseBuilder(
-                context,
-                JabookDatabase::class.java,
-                "jabook-database",
-            ).addMigrations(
-                MIGRATION_1_2,
-                MIGRATION_2_3,
-                MIGRATION_4_5,
-                MIGRATION_5_6,
-                MIGRATION_6_7,
-                MIGRATION_7_8,
-                MIGRATION_8_9,
-                MIGRATION_9_10,
-                MIGRATION_10_11,
-                MIGRATION_11_12,
-            ).build()
+    ): JabookDatabase {
+        val builder =
+            Room
+                .databaseBuilder(
+                    context,
+                    JabookDatabase::class.java,
+                    "jabook-database",
+                ).addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9,
+                    MIGRATION_9_10,
+                    MIGRATION_10_11,
+                    MIGRATION_11_12,
+                )
+                // Use coroutine context for queries (better integration with coroutines)
+                // This replaces the need for setQueryExecutor and provides better performance
+                .setQueryCoroutineContext(Dispatchers.IO)
+                // PreparedStatementCache is enabled by default (size 25) for better query performance
+                // This caches prepared SQL statements to avoid recompilation overhead
+                // JournalMode.AUTOMATIC is the default - Room chooses WAL on modern devices, TRUNCATE on low-RAM
+                // WAL provides better concurrency, TRUNCATE is more memory-efficient
+                .setJournalMode(RoomDatabase.JournalMode.AUTOMATIC)
+        // In-memory invalidation tracking is enabled by default (better performance)
+        // Can be disabled with setInMemoryTrackingMode(false) if memory is a concern
+        // requireMigration is true by default - ensures migrations are always provided for safety
+
+        // Add callback for database lifecycle events (onCreate, onOpen, onDestructiveMigration)
+        builder.addCallback(
+            object : RoomDatabase.Callback() {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    super.onCreate(db)
+                    Log.i("Room", "JabookDatabase created")
+                    // Enable foreign key constraints for referential integrity
+                    db.execSQL("PRAGMA foreign_keys = ON")
+                }
+
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    super.onOpen(db)
+                    // Enable foreign key constraints on each database open
+                    db.execSQL("PRAGMA foreign_keys = ON")
+                    // Optimize for better query performance
+                    db.execSQL("PRAGMA optimize")
+                }
+
+                override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
+                    super.onDestructiveMigration(db)
+                    Log.w("Room", "JabookDatabase: Destructive migration occurred - data was lost")
+                }
+            },
+        )
+
+        // Add query callback for logging in debug builds only
+        // Query callbacks have a small performance cost, so only enable in debug
+        try {
+            val isDebug =
+                Class
+                    .forName("com.jabook.app.jabook.BuildConfig")
+                    .getField("DEBUG")
+                    .get(null) as? Boolean ?: false
+            if (isDebug) {
+                builder.setQueryCallback(
+                    Dispatchers.Unconfined,
+                    RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
+                        Log.d(
+                            "Room",
+                            "Query: $sqlQuery | Args: ${bindArgs.joinToString(", ")}",
+                        )
+                    },
+                )
+            }
+        } catch (e: Exception) {
+            // BuildConfig not available, skip query callback
+            Log.d("Room", "BuildConfig not available, skipping query callback", e)
+        }
+
+        return builder.build()
+    }
 
     @Provides
     fun provideOfflineSearchDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao =
