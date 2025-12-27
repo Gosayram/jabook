@@ -217,14 +217,39 @@ class BackupService
 
             val flavor =
                 try {
-                    // Try to get flavor from BuildConfig (generated at compile time)
-                    Class
-                        .forName("com.jabook.app.jabook.BuildConfig")
-                        .getField("FLAVOR")
-                        .get(null) as? String ?: "unknown"
+                    // Try to get flavor from BuildConfig.APPLICATION_ID
+                    // Each flavor has a different applicationId suffix:
+                    // - dev: .dev
+                    // - stage: .stage
+                    // - beta: .beta
+                    // - prod: no suffix
+                    val buildConfigClass = Class.forName("com.jabook.app.jabook.BuildConfig")
+                    val applicationId = buildConfigClass.getField("APPLICATION_ID").get(null) as? String
+
+                    when {
+                        applicationId?.endsWith(".dev") == true -> "dev"
+                        applicationId?.endsWith(".stage") == true -> "stage"
+                        applicationId?.endsWith(".beta") == true -> "beta"
+                        applicationId == "com.jabook.app.jabook" -> "prod"
+                        else -> {
+                            // Fallback: try to get from versionName suffix
+                            when {
+                                versionName.endsWith("-dev") -> "dev"
+                                versionName.endsWith("-stage") -> "stage"
+                                versionName.endsWith("-beta") -> "beta"
+                                else -> "prod" // Default to prod if no suffix
+                            }
+                        }
+                    }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Could not get BuildConfig.FLAVOR", e)
-                    "unknown"
+                    Log.w(TAG, "Could not get BuildConfig.APPLICATION_ID, using versionName fallback", e)
+                    // Fallback: determine from versionName suffix
+                    when {
+                        versionName.endsWith("-dev") -> "dev"
+                        versionName.endsWith("-stage") -> "stage"
+                        versionName.endsWith("-beta") -> "beta"
+                        else -> "prod" // Default to prod if no suffix
+                    }
                 }
 
             return AppInfo(
