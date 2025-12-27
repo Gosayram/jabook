@@ -84,6 +84,24 @@ data class TopicDetails(
     val mediaInfo: MediaInfo? = null,
     /** Related audiobooks from same series */
     val relatedBooks: List<RelatedBook>,
+    /** Series/cycle name */
+    val series: String? = null,
+    /** Comments from topic */
+    val comments: List<Comment> = emptyList(),
+)
+
+/**
+ * Comment from topic page.
+ */
+data class Comment(
+    /** Comment ID */
+    val id: String,
+    /** Author username */
+    val author: String,
+    /** Comment date/time */
+    val date: String,
+    /** Comment text */
+    val text: String,
 )
 
 /**

@@ -14,12 +14,14 @@
 
 package com.jabook.app.jabook.compose.feature.topic
 
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,11 +65,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.asImage
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 
@@ -171,51 +180,129 @@ private fun TopicDetailsContent(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // Title
-        item {
-            Text(
-                text = details.title,
-                style = MaterialTheme.typography.headlineMedium,
-            )
-        }
-
-        // Author/Performer
-        if (!details.author.isNullOrBlank()) {
+        // Cover image (if available)
+        details.coverUrl?.let { coverUrl ->
             item {
-                Text(
-                    text = "Автор: ${details.author}",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                val context = LocalContext.current
+                val imageRequest =
+                    coil3.request.ImageRequest
+                        .Builder(context)
+                        .data(coverUrl)
+                        .crossfade(true)
+                        .placeholder(
+                            ColorDrawable(
+                                MaterialTheme.colorScheme.surfaceVariant.toArgb(),
+                            ).asImage(),
+                        ).error(
+                            ColorDrawable(
+                                MaterialTheme.colorScheme.error.toArgb(),
+                            ).asImage(),
+                        ).fallback(
+                            ColorDrawable(
+                                MaterialTheme.colorScheme.surfaceVariant.toArgb(),
+                            ).asImage(),
+                        ).build()
+
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    coil3.compose.AsyncImage(
+                        model = imageRequest,
+                        contentDescription = details.title,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(0.6f)
+                                .aspectRatio(0.7f),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    )
+                }
             }
         }
 
-        if (!details.performer.isNullOrBlank()) {
-            item {
-                Text(
-                    text = "Читает: ${details.performer}",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
-        }
-
-        // Seeders/Leechers + Size
+        // Compact info row: Author, Performer, Duration, Size
         item {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SeedersLeechersChip(
-                    seeders = details.seeders,
-                    leechers = details.leechers,
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Author, Performer, and Series in compact layout
+                if (!details.author.isNullOrBlank() || !details.performer.isNullOrBlank() || !details.series.isNullOrBlank()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Author and Performer in one row
+                        if (!details.author.isNullOrBlank() || !details.performer.isNullOrBlank()) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                details.author?.let { author ->
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.authorLabel),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Text(
+                                            text = author,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
+                                }
+                                details.performer?.let { performer ->
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.performerLabel),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Text(
+                                            text = performer,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        // Series/Cycle
+                        details.series?.let { series ->
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.seriesLabel),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = series,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                        }
+                    }
+                }
 
-                Text(
-                    text = details.size,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                // Seeders/Leechers + Size + Duration in one row
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SeedersLeechersChip(
+                        seeders = details.seeders,
+                        leechers = details.leechers,
+                    )
+
+                    Text(
+                        text = details.size,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    details.duration?.let { duration ->
+                        Text(
+                            text = duration,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
 
@@ -314,29 +401,24 @@ private fun TopicDetailsContent(
             }
         }
 
-        // Duration, Bitrate, Codec
-        if (!details.duration.isNullOrBlank() ||
-            !details.bitrate.isNullOrBlank() ||
-            !details.audioCodec.isNullOrBlank()
-        ) {
+        // Bitrate and Codec (Duration already shown in compact row)
+        if (!details.bitrate.isNullOrBlank() || !details.audioCodec.isNullOrBlank()) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    details.duration?.let { duration ->
-                        Text(
-                            text = stringResource(R.string.durationFormat, duration),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
                     details.bitrate?.let { bitrate ->
                         Text(
                             text = stringResource(R.string.bitrateFormat, bitrate),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     details.audioCodec?.let { codec ->
                         Text(
                             text = stringResource(R.string.formatFormat, codec),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -431,7 +513,7 @@ private fun SeedersLeechersChip(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         AssistChip(
             onClick = {},
-            label = { Text(stringResource(R.string.seeders)) },
+            label = { Text("$seeders") },
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowUpward,
@@ -443,7 +525,7 @@ private fun SeedersLeechersChip(
 
         AssistChip(
             onClick = {},
-            label = { Text(stringResource(R.string.leechers)) },
+            label = { Text("$leechers") },
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowDownward,
@@ -464,15 +546,32 @@ private fun ExpandableDescription(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val maxPreviewLength = 200
+    val maxPreviewLength = 150
+    val shouldShowExpand = description.length > maxPreviewLength
 
     Column(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.description),
-            style = MaterialTheme.typography.titleMedium,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.description),
+                style = MaterialTheme.typography.titleSmall,
+            )
 
-        Spacer(Modifier.height(8.dp))
+            if (shouldShowExpand) {
+                TextButton(
+                    onClick = { expanded = !expanded },
+                    modifier = Modifier.padding(0.dp),
+                ) {
+                    Text(
+                        if (expanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
+        }
 
         Text(
             text =
@@ -485,19 +584,14 @@ private fun ExpandableDescription(
                     description
                         .take(maxPreviewLength)
                         .replace(Regex("\\s+"), " ")
-                        .trim()
+                        .trim() + if (shouldShowExpand) "..." else ""
                 },
             style = MaterialTheme.typography.bodyMedium,
             maxLines = if (expanded) Int.MAX_VALUE else 3,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-
-        if (description.length > maxPreviewLength) {
-            TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) stringResource(R.string.collapse) else stringResource(R.string.expand))
-            }
-        }
     }
 }
 
@@ -520,6 +614,84 @@ private fun FileListItem(
         },
         modifier = modifier,
     )
+}
+
+/**
+ * Expandable comments section.
+ */
+@Composable
+private fun ExpandableComments(
+    comments: List<com.jabook.app.jabook.compose.data.remote.model.Comment>,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.commentsLabel, comments.size),
+                style = MaterialTheme.typography.titleSmall,
+            )
+
+            TextButton(
+                onClick = { expanded = !expanded },
+                modifier = Modifier.padding(0.dp),
+            ) {
+                Text(
+                    if (expanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
+
+        if (expanded) {
+            Spacer(Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                comments.forEach { comment ->
+                    CommentItem(comment = comment)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Single comment item.
+ */
+@Composable
+private fun CommentItem(
+    comment: com.jabook.app.jabook.compose.data.remote.model.Comment,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = comment.author,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = comment.date,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = comment.text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 /**

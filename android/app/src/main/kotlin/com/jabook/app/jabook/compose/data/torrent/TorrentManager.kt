@@ -71,9 +71,15 @@ class TorrentManager
 
                 // Start observing network constraints
                 observeNetworkConstraints()
+            } catch (e: NoSuchMethodError) {
+                Log.e(TAG, "libtorrent4j version mismatch - native library incompatible", e)
+                // Don't throw - allow app to continue without torrent functionality
+                // User will see error when trying to download
+                isInitialized = false
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize", e)
-                throw e
+                // Don't throw - allow app to continue
+                isInitialized = false
             }
         }
 

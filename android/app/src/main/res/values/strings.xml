@@ -47,6 +47,9 @@
     <string name="enterSearchTerm">Enter a search term to begin</string>
     <!-- Label for author field -->
     <string name="authorLabel">Author: </string>
+    <string name="performerLabel">Performer: </string>
+    <string name="seriesLabel">Series: </string>
+    <string name="commentsLabel">Comments (%d)</string>
     <!-- Label for size field -->
     <string name="sizeLabel">Size: </string>
     <!-- Label for seeders count -->

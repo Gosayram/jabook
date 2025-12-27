@@ -459,6 +459,10 @@ class RutrackerParser
                 val downloadElement = document.selectFirst(DOWNLOAD_HREF_SELECTOR)
                 val torrentUrl = downloadElement?.absUrl("href") ?: ""
 
+                // Extract seeders and leechers from document (not just post body)
+                val seeders = extractSeeders(document)
+                val leechers = extractLeechers(document)
+
                 // Extract metadata from post body
                 val metadata = extractMetadata(postBody)
 
@@ -469,6 +473,12 @@ class RutrackerParser
                 val descriptionText = postBody?.text() ?: ""
                 val parsedMediaInfo = mediaInfoParser.parse(descriptionText)
 
+                // Extract series/cycle
+                val series = extractSeries(postBody)
+
+                // Extract comments (skip first post_body which is the main post)
+                val comments = extractComments(document, topicId)
+
                 return TopicDetails(
                     topicId = topicId,
                     title = cleanedTitle,
@@ -476,8 +486,8 @@ class RutrackerParser
                     performer = metadata["performer"],
                     category = "Audiobooks",
                     size = size,
-                    seeders = metadata["seeders"]?.toIntOrNull() ?: 0,
-                    leechers = metadata["leechers"]?.toIntOrNull() ?: 0,
+                    seeders = seeders,
+                    leechers = leechers,
                     magnetUrl = magnetUrl,
                     torrentUrl = torrentUrl,
                     coverUrl = postBody?.let { coverExtractor.extract(it) },
@@ -489,11 +499,87 @@ class RutrackerParser
                     description = descriptionText,
                     mediaInfo = parsedMediaInfo,
                     relatedBooks = extractRelatedBooks(postBody),
+                    series = series,
+                    comments = comments,
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to parse topic details", e)
                 return null
             }
+        }
+
+        /**
+         * Extract seeders count from document.
+         * Looks for: <span class="seed">Сиды:&nbsp; <b>71</b></span>
+         */
+        private fun extractSeeders(document: org.jsoup.nodes.Document): Int {
+            // Try multiple selectors
+            val selectors =
+                listOf(
+                    "span.seed b",
+                    "span.seedmed b",
+                    "b.seedmed",
+                    ".seed b",
+                    "span.seed",
+                )
+
+            for (selector in selectors) {
+                val element = document.selectFirst(selector)
+                val text = element?.text()?.trim() ?: ""
+                val number = text.toIntOrNull()
+                if (number != null && number >= 0) {
+                    return number
+                }
+            }
+
+            // Fallback: try to extract from text
+            val seedText = document.select("span.seed, .seed").text()
+            val regex = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
+            regex
+                .find(seedText)
+                ?.groupValues
+                ?.get(1)
+                ?.toIntOrNull()
+                ?.let { return it }
+
+            return 0
+        }
+
+        /**
+         * Extract leechers count from document.
+         * Looks for: <span class="leech">Личи:&nbsp; <b>2</b></span>
+         */
+        private fun extractLeechers(document: org.jsoup.nodes.Document): Int {
+            // Try multiple selectors
+            val selectors =
+                listOf(
+                    "span.leech b",
+                    "span.leechmed b",
+                    "b.leechmed",
+                    ".leech b",
+                    "span.leech",
+                )
+
+            for (selector in selectors) {
+                val element = document.selectFirst(selector)
+                val text = element?.text()?.trim() ?: ""
+                val number = text.toIntOrNull()
+                if (number != null && number >= 0) {
+                    return number
+                }
+            }
+
+            // Fallback: try to extract from text
+            val leechText = document.select("span.leech, .leech").text()
+            val regex = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
+            regex
+                .find(leechText)
+                ?.groupValues
+                ?.get(1)
+                ?.toIntOrNull()
+                ?.let { return it }
+
+            return 0
         }
 
         private fun extractMetadata(postBody: Element?): Map<String, String> {
@@ -570,6 +656,152 @@ class RutrackerParser
                 .split(",", ";")
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
+        }
+
+        /**
+         * Extract series/cycle name from post body.
+         * Looks for: <span class="post-b">Цикл/серия</span>: Будни
+         */
+        private fun extractSeries(postBody: Element?): String? {
+            if (postBody == null) return null
+
+            val text = postBody.text()
+            // Try multiple patterns
+            val patterns =
+                listOf(
+                    "Цикл/серия[:\\s]+(.+?)(?=\\n|Номер|Жанр|$)".toRegex(RegexOption.IGNORE_CASE),
+                    "Цикл[:\\s]+[\"']?(.+?)[\"']?(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
+                    "Серия[:\\s]+(.+?)(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
+                )
+
+            for (pattern in patterns) {
+                pattern
+                    .find(text)
+                    ?.groupValues
+                    ?.get(1)
+                    ?.trim()
+                    ?.let { return it }
+            }
+
+            // Try HTML structure
+            postBody.select("span.post-b").forEach { span ->
+                val label = span.text().trim()
+                if (label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true)) {
+                    val nextText = span.nextSibling()?.toString() ?: ""
+                    val match = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)
+                    match
+                        ?.groupValues
+                        ?.get(1)
+                        ?.trim()
+                        ?.let { return it }
+                }
+            }
+
+            return null
+        }
+
+        /**
+         * Extract comments from topic page.
+         * Skips the first post_body (main post) and extracts all other comments.
+         * Structure: <tbody id="post_XXXXX"> contains <div class="post_body" id="p-XXXXX">
+         */
+        private fun extractComments(
+            document: org.jsoup.nodes.Document,
+            topicId: String,
+        ): List<com.jabook.app.jabook.compose.data.remote.model.Comment> {
+            val comments = mutableListOf<com.jabook.app.jabook.compose.data.remote.model.Comment>()
+
+            try {
+                // Find all tbody elements with post IDs (comments are in tbody with id="post_XXXXX")
+                val postRows = document.select("tbody[id^='post_']")
+                if (postRows.isEmpty()) {
+                    // Fallback: try finding post_body elements directly
+                    val postBodies = document.select(".post_body")
+                    if (postBodies.size <= 1) return emptyList()
+
+                    // Skip first post (index 0) and process comments
+                    for (i in 1 until postBodies.size) {
+                        val postBody = postBodies[i]
+                        val postId = postBody.attr("id")?.removePrefix("p-") ?: continue
+
+                        // Find parent row to get author and date
+                        val parentRow = postBody.parents().firstOrNull { it.tagName() == "tbody" }
+                        if (parentRow == null) continue
+
+                        // Extract author - try multiple selectors
+                        val authorElement =
+                            parentRow.selectFirst("p.nick a")
+                                ?: parentRow.selectFirst(".nick a")
+                                ?: parentRow.selectFirst("a[onclick*='bbcode.onclickPoster']")
+                        val author = authorElement?.text()?.trim() ?: "Unknown"
+
+                        // Extract date - try multiple selectors
+                        val dateElement =
+                            parentRow.selectFirst("a.p-link.small")
+                                ?: parentRow.selectFirst(".post-time a")
+                                ?: parentRow.selectFirst(".p-link")
+                        val date = dateElement?.text()?.trim() ?: ""
+
+                        // Extract comment text (clean HTML tags)
+                        val text = postBody.text().trim()
+
+                        if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
+                            comments.add(
+                                com.jabook.app.jabook.compose.data.remote.model.Comment(
+                                    id = postId,
+                                    author = author,
+                                    date = date,
+                                    text = text,
+                                ),
+                            )
+                        }
+                    }
+                    return comments.take(50) // Limit to 50 comments
+                }
+
+                // Skip first post (main post) and process comments
+                for (i in 1 until postRows.size) {
+                    val postRow = postRows[i]
+                    val postIdAttr = postRow.attr("id")
+                    val postId = postIdAttr.removePrefix("post_")
+
+                    // Extract post body
+                    val postBody = postRow.selectFirst(".post_body")
+                    if (postBody == null) continue
+
+                    // Extract author - try multiple selectors
+                    val authorElement =
+                        postRow.selectFirst("p.nick a")
+                            ?: postRow.selectFirst(".nick a")
+                            ?: postRow.selectFirst("a[onclick*='bbcode.onclickPoster']")
+                    val author = authorElement?.text()?.trim() ?: "Unknown"
+
+                    // Extract date - try multiple selectors
+                    val dateElement =
+                        postRow.selectFirst("a.p-link.small")
+                            ?: postRow.selectFirst(".post-time a")
+                            ?: postRow.selectFirst(".p-link")
+                    val date = dateElement?.text()?.trim() ?: ""
+
+                    // Extract comment text (clean HTML tags)
+                    val text = postBody.text().trim()
+
+                    if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
+                        comments.add(
+                            com.jabook.app.jabook.compose.data.remote.model.Comment(
+                                id = postId,
+                                author = author,
+                                date = date,
+                                text = text,
+                            ),
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to extract comments", e)
+            }
+
+            return comments.take(50) // Limit to 50 comments for performance
         }
 
         private fun extractRelatedBooks(postBody: Element?): List<RelatedBook> {

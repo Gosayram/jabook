@@ -47,6 +47,9 @@
     <string name="enterSearchTerm">Введите поисковый запрос чтобы начать</string>
     <!-- Метка для поля автора -->
     <string name="authorLabel">Автор: </string>
+    <string name="performerLabel">Исполнитель: </string>
+    <string name="seriesLabel">Цикл/серия: </string>
+    <string name="commentsLabel">Комментарии (%d)</string>
     <!-- Метка для поля размера -->
     <string name="sizeLabel">Размер: </string>
     <!-- Метка для количества сидеров -->

@@ -113,9 +113,16 @@ class TorrentSessionManager
                     }
 
                 Log.i(TAG, "Torrent session initialized successfully")
+            } catch (e: NoSuchMethodError) {
+                Log.e(TAG, "libtorrent4j version mismatch - native library incompatible", e)
+                // Don't throw - allow app to continue without torrent functionality
+                // User will see error when trying to download
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "Failed to load libtorrent4j native library", e)
+                // Don't throw - allow app to continue
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize torrent session", e)
-                throw e
+                // Don't throw - allow app to continue
             }
         }
 
@@ -129,8 +136,16 @@ class TorrentSessionManager
             topicId: String? = null,
         ): Result<String> {
             val session =
-                this.session ?: return Result.failure(
-                    IllegalStateException("Session not initialized"),
+                this.session ?: run {
+                    // Try to initialize if not already done
+                    try {
+                        initSession()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to initialize session for addTorrent", e)
+                    }
+                    return@run this.session
+                } ?: return Result.failure(
+                    IllegalStateException("Session not initialized - libtorrent4j may not be available"),
                 )
 
             return try {
