@@ -14,12 +14,14 @@
 
 package com.jabook.app.jabook.compose.feature.topic
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.navigation.TopicRoute
@@ -58,6 +60,7 @@ class TopicViewModel
     constructor(
         private val rutrackerRepository: RutrackerRepository,
         private val authRepository: AuthRepository,
+        private val torrentManager: TorrentManager,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         private val topicId: String = savedStateHandle.toRoute<TopicRoute>().topicId
@@ -98,9 +101,42 @@ class TopicViewModel
         }
 
         /**
-         * Download functionality has been migrated to TorrentDownloadsScreen.
-         * Use the global Downloads screen or magnet links to manage downloads.
+         * Download torrent using magnet link or torrent URL.
          */
+        fun downloadTorrent(
+            magnetUrl: String?,
+            torrentUrl: String?,
+        ) {
+            viewModelScope.launch {
+                try {
+                    val downloadUrl = magnetUrl ?: torrentUrl
+                    if (downloadUrl.isNullOrBlank()) {
+                        Log.e("TopicViewModel", "No download URL available")
+                        return@launch
+                    }
+
+                    // Get default download path
+                    val savePath = "${android.os.Environment.getExternalStoragePublicDirectory(
+                        android.os.Environment.DIRECTORY_DOWNLOADS,
+                    )}/JabookAudio"
+
+                    val result =
+                        torrentManager.addTorrent(
+                            magnetUri = downloadUrl,
+                            savePath = savePath,
+                            topicId = topicId,
+                        )
+
+                    if (result.isSuccess) {
+                        Log.i("TopicViewModel", "Torrent download started: ${result.getOrNull()}")
+                    } else {
+                        Log.e("TopicViewModel", "Failed to start torrent download: ${result.exceptionOrNull()}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("TopicViewModel", "Error starting torrent download", e)
+                }
+            }
+        }
 
         fun retry() {
             loadTopicDetails()

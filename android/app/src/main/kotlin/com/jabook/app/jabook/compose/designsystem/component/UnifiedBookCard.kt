@@ -241,26 +241,28 @@ private fun GridBookCard(
                 }
             }
 
-            // Title and author with adaptive text sizes
+            // Title and author with adaptive text sizes and improved spacing
             Column(
                 modifier = Modifier.padding(AdaptiveUtils.getCardPadding(windowSizeClass)),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = book.title,
                     style =
                         AdaptiveUtils.getAdaptiveTextStyle(
-                            MaterialTheme.typography.bodyMedium,
+                            MaterialTheme.typography.titleSmall,
                             windowSizeClass,
                         ),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
+                    lineHeight = MaterialTheme.typography.titleSmall.lineHeight,
                 )
                 if (book.author.isNotBlank()) {
                     Text(
                         text = book.author,
                         style =
                             AdaptiveUtils.getAdaptiveTextStyle(
-                                MaterialTheme.typography.bodySmall,
+                                MaterialTheme.typography.bodyMedium,
                                 windowSizeClass,
                             ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -373,21 +375,22 @@ private fun ListBookCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Title, author and progress
+            // Title, author and progress with improved spacing
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = book.title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = if (displayMode == BookDisplayMode.LIST_COMPACT) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
+                    lineHeight = MaterialTheme.typography.titleMedium.lineHeight,
                 )
                 if (book.author.isNotBlank()) {
                     Text(
                         text = book.author,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -30,10 +32,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -75,6 +79,9 @@ fun TopicScreen(
     modifier: Modifier = Modifier,
     viewModel: TopicViewModel = hiltViewModel(),
 ) {
+    val onDownloadClick: (String?, String?) -> Unit = { magnetUrl, torrentUrl ->
+        viewModel.downloadTorrent(magnetUrl, torrentUrl)
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
 
@@ -111,6 +118,7 @@ fun TopicScreen(
             is TopicUiState.Success -> {
                 TopicDetailsContent(
                     details = state.details,
+                    onDownloadClick = onDownloadClick,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -135,6 +143,7 @@ fun TopicScreen(
 @Composable
 private fun TopicDetailsContent(
     details: TopicDetails,
+    onDownloadClick: (String?, String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -185,6 +194,30 @@ private fun TopicDetailsContent(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        // Download button
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (details.magnetUrl != null || details.torrentUrl.isNotBlank()) {
+                    FilledTonalButton(
+                        onClick = {
+                            onDownloadClick(details.magnetUrl, details.torrentUrl)
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.downloadLabel))
+                    }
+                }
             }
         }
 
@@ -351,13 +384,20 @@ private fun ExpandableDescription(
         Text(
             text =
                 if (expanded) {
+                    // Normalize whitespace - replace multiple spaces/newlines with single space
                     description
+                        .replace(Regex("\\s+"), " ")
+                        .trim()
                 } else {
-                    description.take(maxPreviewLength)
+                    description
+                        .take(maxPreviewLength)
+                        .replace(Regex("\\s+"), " ")
+                        .trim()
                 },
             style = MaterialTheme.typography.bodyMedium,
             maxLines = if (expanded) Int.MAX_VALUE else 3,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
         )
 
         if (description.length > maxPreviewLength) {

@@ -124,7 +124,17 @@ object CoverUtils {
         }
 
         // Priority 3: coverUrl for online books
-        return book.coverUrl
+        // Ensure coverUrl is not blank and is a valid URL
+        val coverUrl = book.coverUrl
+        if (!coverUrl.isNullOrBlank()) {
+            // Validate URL format
+            if (coverUrl.startsWith("http://") || coverUrl.startsWith("https://") || coverUrl.startsWith("//")) {
+                return coverUrl
+            }
+        }
+
+        // No cover available
+        return null
     }
 
     /**
