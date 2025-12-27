@@ -110,8 +110,8 @@ object NetworkModule {
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
-            .addInterceptor(rutrackerHeadersInterceptor) // Add browser-like headers (includes Brotli)
-            .addNetworkInterceptor(BrotliInterceptor) // Automatic Brotli decompression (must be NetworkInterceptor!)
+            .addInterceptor(BrotliInterceptor) // Automatic Brotli decompression (MUST be first to add Accept-Encoding!)
+            .addInterceptor(rutrackerHeadersInterceptor) // Add browser-like headers (NO Accept-Encoding - BrotliInterceptor handles it)
             .addInterceptor(authInterceptor) // Auto re-authentication
             .addInterceptor(dynamicBaseUrlInterceptor) // Dynamic base URL for mirrors
             .addInterceptor(loggingInterceptor) // Logging last for complete request/response

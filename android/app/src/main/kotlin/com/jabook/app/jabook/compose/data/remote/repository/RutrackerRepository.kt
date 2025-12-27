@@ -151,6 +151,7 @@ class RutrackerRepository
             query: String,
             forumIds: String?,
         ): Result<List<SearchResult>> {
+            Log.w(TAG, "🔍 fetchFromNetwork called: query=$query, forumIds=$forumIds")
             // === HTTP REQUEST LOGGING ===
             Log.w(TAG, "🔍 === SEARCH REQUEST ===")
             Log.w(TAG, "Query: '$query'")
