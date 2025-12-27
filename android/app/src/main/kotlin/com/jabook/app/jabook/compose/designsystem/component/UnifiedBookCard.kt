@@ -43,7 +43,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -113,6 +112,7 @@ fun UnifiedBookCard(
 /**
  * Grid variant of book card (vertical layout).
  */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun GridBookCard(
     book: Book,
@@ -123,8 +123,13 @@ private fun GridBookCard(
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
 ) {
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
-    val windowSizeClass = calculateWindowSizeClass(LocalConfiguration.current)
+    val context = LocalContext.current
+    val windowSizeClass =
+        calculateWindowSizeClass(
+            context as? android.app.Activity
+                ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+                ?: throw IllegalStateException("Cannot get Activity from context"),
+        )
     val isFavorite = actionsProvider.isFavorite(book.id)
 
     Card(
@@ -271,6 +276,7 @@ private fun GridBookCard(
 /**
  * List variant of book card (horizontal layout).
  */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun ListBookCard(
     book: Book,
@@ -282,8 +288,13 @@ private fun ListBookCard(
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
 ) {
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
-    val windowSizeClass = calculateWindowSizeClass(LocalConfiguration.current)
+    val context = LocalContext.current
+    val windowSizeClass =
+        calculateWindowSizeClass(
+            context as? android.app.Activity
+                ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+                ?: throw IllegalStateException("Cannot get Activity from context"),
+        )
     val isFavorite = actionsProvider.isFavorite(book.id)
     // Use adaptive cover size based on WindowSizeClass
     val coverSize =

@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,7 +83,14 @@ fun BookDetailPane(
     onToggleFavorite: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val windowSizeClass = calculateWindowSizeClass(LocalConfiguration.current)
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+    val context = LocalContext.current
+    val windowSizeClass =
+        calculateWindowSizeClass(
+            context as? android.app.Activity
+                ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+                ?: throw IllegalStateException("Cannot get Activity from context"),
+        )
     val maxContentWidth = AdaptiveUtils.getMaxContentWidth(windowSizeClass)
     Scaffold(
         topBar = {

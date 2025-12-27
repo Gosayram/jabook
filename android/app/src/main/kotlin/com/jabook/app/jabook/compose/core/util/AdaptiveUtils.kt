@@ -245,10 +245,17 @@ object AdaptiveUtils {
         windowSizeClass: WindowSizeClass,
     ): TextStyle {
         val scaleFactor = getTextScaleFactor(windowSizeClass)
-        return baseStyle.copy(
-            fontSize = baseStyle.fontSize * scaleFactor,
-            lineHeight = baseStyle.lineHeight?.times(scaleFactor),
-        )
+        val scaledLineHeight = baseStyle.lineHeight?.let { it * scaleFactor }
+        return baseStyle
+            .copy(
+                fontSize = baseStyle.fontSize * scaleFactor,
+            ).let { style ->
+                if (scaledLineHeight != null) {
+                    style.copy(lineHeight = scaledLineHeight)
+                } else {
+                    style
+                }
+            }
     }
 
     /**

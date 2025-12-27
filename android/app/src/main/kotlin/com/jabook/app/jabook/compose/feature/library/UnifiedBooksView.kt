@@ -26,7 +26,7 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -48,6 +48,7 @@ import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
  * @param windowSizeClass Window size class for adaptive layout (optional, uses LocalConfiguration if not provided)
  * @param modifier Modifier for the container
  */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun UnifiedBooksView(
     books: List<Book>,
@@ -59,11 +60,15 @@ fun UnifiedBooksView(
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
-    // Get WindowSizeClass from parameter or calculate from LocalConfiguration
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+    // Get WindowSizeClass from parameter or calculate from LocalContext
+    val context = LocalContext.current
     val effectiveWindowSizeClass =
         windowSizeClass
-            ?: calculateWindowSizeClass(LocalConfiguration.current)
+            ?: calculateWindowSizeClass(
+                context as? android.app.Activity
+                    ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+                    ?: throw IllegalStateException("Cannot get Activity from context"),
+            )
 
     when {
         displayMode.isGrid() ->
