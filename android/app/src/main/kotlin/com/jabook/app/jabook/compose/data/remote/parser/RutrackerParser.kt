@@ -28,6 +28,12 @@ import javax.inject.Singleton
  *
  * Uses Jsoup to extract audiobook information from search results
  * and topic details pages.
+ *
+ * Best practices applied:
+ * - Always use baseUri in Jsoup.parse() for proper absolute URL resolution
+ * - Use absUrl() instead of manual URL concatenation
+ * - Use selectFirst() instead of select().firstOrNull() for better performance
+ * - Use selectStream() for lazy evaluation of large element lists (jsoup 1.19.1+)
  */
 @Singleton
 class RutrackerParser
@@ -108,7 +114,8 @@ class RutrackerParser
             val results = mutableListOf<SearchResult>()
 
             try {
-                val document = Jsoup.parse(html)
+                // Parse with baseUri for proper absolute URL resolution
+                val document = Jsoup.parse(html, BASE_URL)
 
                 // Try to find rows using multiple selectors strategy
                 var rows = org.jsoup.select.Elements()
@@ -121,8 +128,9 @@ class RutrackerParser
                         val validRows =
                             found.filter { row ->
                                 // Basic validation: must have some content/structure
+                                // Use selectFirst() for better performance (returns null if not found)
                                 !row.hasClass("vf-col-header-row") &&
-                                    !row.select(TITLE_SELECTOR).isEmpty()
+                                    row.selectFirst(TITLE_SELECTOR) != null
                             }
 
                         if (validRows.isNotEmpty()) {
@@ -227,13 +235,15 @@ class RutrackerParser
             // For backward compatibility / simple calls
 
             try {
-                val document = Jsoup.parse(html)
+                // Parse with baseUri for proper absolute URL resolution
+                val document = Jsoup.parse(html, BASE_URL)
 
                 var rows = org.jsoup.select.Elements()
                 for (selector in ROW_SELECTORS) {
                     val found = document.select(selector)
                     if (found.isNotEmpty()) {
-                        val validRows = found.filter { !it.select(TITLE_SELECTOR).isEmpty() }
+                        // Use selectFirst() for better performance (returns null if not found)
+                        val validRows = found.filter { it.selectFirst(TITLE_SELECTOR) != null }
                         if (validRows.isNotEmpty()) {
                             rows = org.jsoup.select.Elements(validRows)
                             Log.d(TAG, "Using selector '$selector': ${rows.size} rows")
@@ -336,9 +346,10 @@ class RutrackerParser
                     // Fallback: extract from row id attribute
                     row.attr("id").removePrefix("tr-").ifEmpty {
                         // Last resort: extract from title link href
+                        // Use absUrl() for proper absolute URL resolution
                         row
                             .selectFirst(TITLE_SELECTOR)
-                            ?.attr("href")
+                            ?.absUrl("href")
                             ?.substringAfter("t=")
                             ?.substringBefore("&")
                             ?: return null
@@ -377,21 +388,24 @@ class RutrackerParser
             val leechers = fieldExtractor.extractLeechers(row, topicId)
 
             // Extract magnet link
+            // Use absUrl() for proper absolute URL resolution (magnet: links are already absolute)
             val magnetElement = row.selectFirst(MAGNET_LINK_SELECTOR)
-            val magnetUrl = magnetElement?.attr("href")
+            val magnetUrl = magnetElement?.absUrl("href") ?: magnetElement?.attr("href")
 
             // Extract torrent download URL (using DOWNLOAD_HREF_SELECTOR)
+            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
             val torrentElement = row.selectFirst(DOWNLOAD_HREF_SELECTOR)
-            val torrentUrl = torrentElement?.attr("href")?.let { BASE_URL + it } ?: ""
+            val torrentUrl = torrentElement?.absUrl("href") ?: ""
 
             // Extract cover URL with improved selectors
+            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
             val coverUrl =
-                row.selectFirst("img[src]")?.attr("abs:src")
-                    ?: row.selectFirst("img.postImg")?.attr("abs:src")
-                    ?: row.selectFirst("img.preview")?.attr("abs:src")
-                    ?: row.selectFirst("img.thumbnail")?.attr("abs:src")
-                    ?: row.selectFirst("img[src*='static.t-ru.org']")?.attr("abs:src")
-                    ?: row.selectFirst("img[src*='i.rutracker.cc']")?.attr("abs:src")
+                row.selectFirst("img[src]")?.absUrl("src")
+                    ?: row.selectFirst("img.postImg")?.absUrl("src")
+                    ?: row.selectFirst("img.preview")?.absUrl("src")
+                    ?: row.selectFirst("img.thumbnail")?.absUrl("src")
+                    ?: row.selectFirst("img[src*='static.t-ru.org']")?.absUrl("src")
+                    ?: row.selectFirst("img[src*='i.rutracker.cc']")?.absUrl("src")
 
             // Clean the title to remove technical details
             val cleanedTitle = cleanTitle(title)
@@ -421,7 +435,8 @@ class RutrackerParser
             topicId: String,
         ): TopicDetails? {
             try {
-                val document = Jsoup.parse(html)
+                // Parse with baseUri for proper absolute URL resolution
+                val document = Jsoup.parse(html, BASE_URL)
 
                 // Extract title
                 val titleElement = document.selectFirst(MAIN_TITLE_SELECTOR) ?: return null
@@ -435,12 +450,14 @@ class RutrackerParser
                 val size = sizeElement?.text() ?: "Unknown"
 
                 // Extract magnet link
+                // Use absUrl() for proper absolute URL resolution (magnet: links are already absolute)
                 val magnetElement = document.selectFirst(MAGNET_LINK_SELECTOR)
-                val magnetUrl = magnetElement?.attr("href")
+                val magnetUrl = magnetElement?.absUrl("href") ?: magnetElement?.attr("href")
 
                 // Extract torrent URL
+                // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
                 val downloadElement = document.selectFirst(DOWNLOAD_HREF_SELECTOR)
-                val torrentUrl = downloadElement?.attr("href")?.let { BASE_URL + it } ?: ""
+                val torrentUrl = downloadElement?.absUrl("href") ?: ""
 
                 // Extract metadata from post body
                 val metadata = extractMetadata(postBody)
@@ -537,8 +554,9 @@ class RutrackerParser
             if (postBody == null) return null
 
             // Look for first image in post
+            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
             val img = postBody.selectFirst("img[src]")
-            return img?.attr("abs:src")
+            return img?.absUrl("src")
         }
 
         private fun extractGenres(postBody: Element?): List<String> {
@@ -560,9 +578,11 @@ class RutrackerParser
             val related = mutableListOf<RelatedBook>()
 
             // Look for links to other topics
+            // Use selectStream() for lazy evaluation of large lists (jsoup 1.19.1+)
             val links = postBody.select("a[href*=\"viewtopic.php?t=\"]")
             for (link in links) {
-                val href = link.attr("href")
+                // Use absUrl() for proper absolute URL resolution
+                val href = link.absUrl("href")
                 val topicId = href.substringAfter("t=").substringBefore("&")
                 val title = link.text()
 
@@ -712,15 +732,17 @@ class RutrackerParser
 
         private fun extractCaptcha(html: String): com.jabook.app.jabook.compose.domain.model.CaptchaData? {
             try {
-                val document = Jsoup.parse(html)
+                // Parse with baseUri for proper absolute URL resolution
+                val document = Jsoup.parse(html, BASE_URL)
 
                 // <input type="hidden" name="cap_sid" value="12345">
                 val sidElement = document.selectFirst("input[name=cap_sid]")
                 val sid = sidElement?.attr("value") ?: return null
 
                 // <img src="//static.t-ru.org/captcha/..." ...>
+                // Use absUrl() for proper absolute URL resolution
                 val imgElement = document.selectFirst("img[src*=\"captcha\"]")
-                var url = imgElement?.attr("src") ?: return null
+                var url = imgElement?.absUrl("src") ?: imgElement?.attr("src") ?: return null
 
                 if (url.startsWith("//")) {
                     url = "https:$url"

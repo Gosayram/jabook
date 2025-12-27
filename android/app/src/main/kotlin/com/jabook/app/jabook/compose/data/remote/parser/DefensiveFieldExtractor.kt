@@ -283,6 +283,8 @@ class DefensiveFieldExtractor
             }
 
             // Strategy 3: First non-empty link in row
+            // Use selectStream() for lazy evaluation (jsoup 1.19.1+)
+            // or select().firstOrNull() - both are fine, but selectStream() is more efficient for large lists
             val anyLink = row.select("a").firstOrNull { it.text().isNotBlank() }
             if (anyLink != null) {
                 val title = anyLink.text()

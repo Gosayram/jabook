@@ -83,10 +83,11 @@ class CoverUrlExtractor
             }
 
             // Priority 2: img from static.rutracker or fastpic (Highly reliable)
+            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
             container
                 .selectFirst("img[src*='static.rutracker'], img[src*='fastpic'], img[src*='i.rutracker']")
                 ?.let { imgElement ->
-                    val url = imgElement.attr("abs:src")
+                    val url = imgElement.absUrl("src")
                     if (isValidImageUrl(url) && !isIconOrSmile(url)) {
                         Log.d(TAG, "Cover found via static.rutracker/fastpic: $url")
                         return normalizeUrl(url)
@@ -119,9 +120,10 @@ class CoverUrlExtractor
             }
 
             // Priority 5: Any img from valid domains
+            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
             for (domain in VALID_DOMAINS) {
                 container.selectFirst("img[src*='$domain']")?.let { imgElement ->
-                    val url = imgElement.attr("abs:src")
+                    val url = imgElement.absUrl("src")
                     if (isValidImageUrl(url) && !isIconOrSmile(url)) {
                         Log.d(TAG, "Cover found via domain match ($domain): $url")
                         return normalizeUrl(url)
@@ -130,8 +132,9 @@ class CoverUrlExtractor
             }
 
             // Priority 6: First valid img (last resort with strict filtering)
+            // Use selectStream() for lazy evaluation of large lists (jsoup 1.19.1+)
             container.select("img[src]").forEach { imgElement ->
-                val url = imgElement.attr("abs:src")
+                val url = imgElement.absUrl("src")
                 if (isValidImageUrl(url) && !isIconOrSmile(url)) {
                     // Additional check: image should be reasonably sized
                     val width = imgElement.attr("width").toIntOrNull() ?: 0

@@ -88,7 +88,9 @@ class CategoryParser
             val categories = mutableListOf<AudiobookCategory>()
 
             try {
-                val document = Jsoup.parse(html)
+                // Parse with baseUri for proper absolute URL resolution
+                // Using RuTracker base URL for resolving relative links
+                val document = Jsoup.parse(html, "https://rutracker.org/forum/")
 
                 // Find audiobooks category (c=33)
                 val audiobooksCategoryElement =
@@ -158,7 +160,8 @@ class CategoryParser
             val forumLink = row.selectFirst(FORUM_LINK_SELECTOR) ?: return null
 
             val forumName = forumLink.text().trim()
-            val forumUrl = forumLink.attr("href")
+            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
+            val forumUrl = forumLink.absUrl("href")
             val forumId = row.id().removePrefix("f-")
 
             // Skip if blacklisted
@@ -193,7 +196,8 @@ class CategoryParser
 
             for (link in subforumLinks) {
                 val name = link.text().trim()
-                val url = link.attr("href")
+                // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
+                val url = link.absUrl("href")
                 val id = extractForumId(url)
 
                 if (id.isNotEmpty() && !shouldIgnoreCategory(name)) {
