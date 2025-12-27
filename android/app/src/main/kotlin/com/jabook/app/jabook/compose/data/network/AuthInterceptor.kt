@@ -59,27 +59,38 @@ class AuthInterceptor
                 response.close() // Close original response
 
                 // Try to re-authenticate with stored credentials
-                runBlocking {
-                    try {
-                        val credentials = authRepository.get().getStoredCredentials()
-                        if (credentials != null) {
-                            Log.i(TAG, "Attempting automatic re-authentication...")
+                // Note: runBlocking is used here because interceptors are synchronous
+                // This should be fast as it only reads from local storage
+                val retryResponse: Response? =
+                    runBlocking {
+                        try {
+                            val credentials = authRepository.get().getStoredCredentials()
+                            if (credentials != null) {
+                                Log.i(TAG, "Attempting automatic re-authentication...")
 
-                            val loginResult = authRepository.get().login(credentials)
-                            if (loginResult.isSuccess) {
-                                Log.i(TAG, "Automatic re-authentication successful")
+                                val loginResult = authRepository.get().login(credentials)
+                                if (loginResult.isSuccess) {
+                                    Log.i(TAG, "Automatic re-authentication successful")
 
-                                // Retry original request with new session
-                                return@runBlocking chain.proceed(request.newBuilder().build())
+                                    // Retry original request with new session
+                                    chain.proceed(request.newBuilder().build())
+                                } else {
+                                    Log.e(TAG, "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}")
+                                    null
+                                }
                             } else {
-                                Log.e(TAG, "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}")
+                                Log.w(TAG, "No stored credentials available for re-authentication")
+                                null
                             }
-                        } else {
-                            Log.w(TAG, "No stored credentials available for re-authentication")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error during automatic re-authentication", e)
+                            null
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error during automatic re-authentication", e)
                     }
+
+                // If re-authentication succeeded, return the retry response
+                if (retryResponse != null) {
+                    return retryResponse
                 }
 
                 // If re-authentication failed, return the error response

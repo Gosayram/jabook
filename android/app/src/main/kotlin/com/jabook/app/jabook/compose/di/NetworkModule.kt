@@ -57,12 +57,16 @@ object NetworkModule {
 
     /**
      * Provide logging interceptor.
+     *
+     * Note: Level.BODY logs request/response bodies which may contain sensitive data.
+     * For production, consider using Level.BASIC or Level.HEADERS instead.
+     * Level.BODY is useful for debugging network issues.
      */
     @Provides
     @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = HttpLoggingInterceptor.Level.BODY // Use BASIC or HEADERS for production
         }
 
     /**
@@ -110,14 +114,26 @@ object NetworkModule {
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
+            // Interceptor order matters! They are called in order:
+            // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)
+            // 2. RutrackerHeadersInterceptor - Adds User-Agent, Accept, Accept-Language (NO Accept-Encoding!)
+            // 3. AuthInterceptor - Handles session expiry and re-authentication
+            // 4. DynamicBaseUrlInterceptor - Switches between RuTracker mirrors
+            // 5. LoggingInterceptor - Last to log final request/response
             .addInterceptor(BrotliInterceptor) // Automatic Brotli decompression (MUST be first to add Accept-Encoding!)
             .addInterceptor(rutrackerHeadersInterceptor) // Add browser-like headers (NO Accept-Encoding - BrotliInterceptor handles it)
             .addInterceptor(authInterceptor) // Auto re-authentication
             .addInterceptor(dynamicBaseUrlInterceptor) // Dynamic base URL for mirrors
             .addInterceptor(loggingInterceptor) // Logging last for complete request/response
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            // Timeouts
+            .callTimeout(60, TimeUnit.SECONDS) // Total time for entire call (including retries/redirects)
+            .connectTimeout(30, TimeUnit.SECONDS) // Time to establish connection
+            .readTimeout(30, TimeUnit.SECONDS) // Time to read response
+            .writeTimeout(30, TimeUnit.SECONDS) // Time to write request
+            // OkHttp defaults (explicit for clarity):
+            // - retryOnConnectionFailure = true (retry on connection failures)
+            // - followRedirects = true (follow HTTP redirects)
+            // - followSslRedirects = true (follow redirects between HTTP/HTTPS)
             .build()
 
     /**
