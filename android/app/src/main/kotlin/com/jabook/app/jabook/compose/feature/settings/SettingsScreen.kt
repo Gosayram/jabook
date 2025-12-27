@@ -36,6 +36,10 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenu
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -1096,56 +1100,57 @@ private fun ThemeOption(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FontSelector(
     selectedFont: com.jabook.app.jabook.compose.data.model.AppFont,
     onFontSelected: (com.jabook.app.jabook.compose.data.model.AppFont) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
-        Spacer(modifier = Modifier.height(8.dp))
+    var expanded by remember { mutableStateOf(false) }
+    val fonts = com.jabook.app.jabook.compose.data.model.AppFont.entries
 
-        // Show all available fonts
-        com.jabook.app.jabook.compose.data.model.AppFont.entries.forEach { font ->
-            FontOption(
-                font = font,
-                label = font.displayName,
-                selected = selectedFont == font,
-                onSelected = { onFontSelected(font) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun FontOption(
-    font: com.jabook.app.jabook.compose.data.model.AppFont,
-    label: String,
-    selected: Boolean,
-    onSelected: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .selectable(
-                    selected = selected,
-                    onClick = onSelected,
-                    role = Role.RadioButton,
-                ).padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier,
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = null, // Handled by parent Row
+        OutlinedTextField(
+            value = selectedFont.displayName,
+            onValueChange = {}, // Read-only
+            readOnly = true,
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
         )
 
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(start = 8.dp),
-        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            fonts.forEach { font ->
+                DropdownMenuItem(
+                    text = { Text(font.displayName) },
+                    onClick = {
+                        onFontSelected(font)
+                        expanded = false
+                    },
+                    leadingIcon = if (selectedFont == font) {
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
     }
 }
 
