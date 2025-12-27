@@ -134,13 +134,20 @@ class TorrentSessionManager
                 )
 
             return try {
+                // Validate magnet URI format
+                if (!magnetUri.startsWith("magnet:", ignoreCase = true)) {
+                    Log.e(TAG, "Invalid magnet URI format: $magnetUri")
+                    return Result.failure(IllegalArgumentException("Invalid magnet URI format. Must start with 'magnet:'"))
+                }
+
                 // Parse magnet URI to get info hash
                 val hash =
                     parseMagnetHash(magnetUri)
-                        ?: return Result.failure(IllegalArgumentException("Invalid magnet URI"))
+                        ?: return Result.failure(IllegalArgumentException("Invalid magnet URI: cannot parse info hash"))
 
                 // Check if already added
                 if (torrents.containsKey(hash)) {
+                    Log.w(TAG, "Torrent already added: $hash")
                     return Result.failure(IllegalStateException("Torrent already added"))
                 }
 
@@ -152,7 +159,17 @@ class TorrentSessionManager
                 // Create save directory
                 val saveDir = File(savePath)
                 if (!saveDir.exists()) {
-                    saveDir.mkdirs()
+                    val created = saveDir.mkdirs()
+                    if (!created && !saveDir.exists()) {
+                        Log.e(TAG, "Failed to create save directory: $savePath")
+                        return Result.failure(IllegalStateException("Failed to create save directory: $savePath"))
+                    }
+                }
+
+                // Verify directory is writable
+                if (!saveDir.canWrite()) {
+                    Log.e(TAG, "Save directory is not writable: $savePath")
+                    return Result.failure(IllegalStateException("Save directory is not writable: $savePath"))
                 }
 
                 // Add torrent - download(String magnetUri, File saveDir, torrent_flags_t flags)
@@ -162,8 +179,14 @@ class TorrentSessionManager
 
                 Log.i(TAG, "Added torrent: $hash to $savePath")
                 Result.success(hash)
+            } catch (e: IllegalStateException) {
+                Log.e(TAG, "Illegal state while adding torrent", e)
+                Result.failure(e)
+            } catch (e: IllegalArgumentException) {
+                Log.e(TAG, "Invalid argument while adding torrent", e)
+                Result.failure(e)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to add torrent", e)
+                Log.e(TAG, "Unexpected error while adding torrent", e)
                 Result.failure(e)
             }
         }
@@ -520,14 +543,40 @@ class TorrentSessionManager
             }
         }
 
-        private fun parseMagnetHash(magnetUri: String): String? {
-            val regex = "urn:btih:([a-fA-F0-9]{40})".toRegex()
-            return regex
-                .find(magnetUri)
-                ?.groupValues
-                ?.get(1)
-                ?.lowercase()
-        }
+        private fun parseMagnetHash(magnetUri: String): String? =
+            try {
+                // Try to parse as magnet URI
+                if (magnetUri.startsWith("magnet:", ignoreCase = true)) {
+                    // Support both 40-char hex and 32-char base32 hashes
+                    val hexRegex = "urn:btih:([a-fA-F0-9]{40})".toRegex()
+                    val base32Regex = "urn:btih:([a-zA-Z2-7]{32})".toRegex()
+
+                    hexRegex
+                        .find(magnetUri)
+                        ?.groupValues
+                        ?.get(1)
+                        ?.lowercase()
+                        ?: base32Regex
+                            .find(magnetUri)
+                            ?.groupValues
+                            ?.get(1)
+                            ?.uppercase()
+                } else if (magnetUri.length == 40 && magnetUri.matches(Regex("[a-fA-F0-9]{40}"))) {
+                    // Already a hex hash
+                    magnetUri.lowercase()
+                } else {
+                    // Try to extract from any URI format
+                    val anyHashRegex = "(?:urn:btih:|btih:)?([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})".toRegex(RegexOption.IGNORE_CASE)
+                    anyHashRegex
+                        .find(magnetUri)
+                        ?.groupValues
+                        ?.get(1)
+                        ?.lowercase()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse magnet hash from: $magnetUri", e)
+                null
+            }
 
         companion object {
             private const val TAG = "TorrentSessionManager"

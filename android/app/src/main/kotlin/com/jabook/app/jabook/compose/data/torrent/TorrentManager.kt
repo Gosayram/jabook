@@ -247,7 +247,16 @@ class TorrentManager
                     Intent(context, TorrentDownloadService::class.java).apply {
                         action = TorrentDownloadService.ACTION_START
                     }
-                context.startForegroundService(intent)
+                // Use ContextCompat for better compatibility
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    androidx.core.content.ContextCompat
+                        .startForegroundService(context, intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: IllegalStateException) {
+                // Service might already be running or context is invalid
+                Log.w(TAG, "Cannot start foreground service (may already be running): ${e.message}")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start download service", e)
             }

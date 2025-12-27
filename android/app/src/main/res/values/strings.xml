@@ -1513,6 +1513,10 @@
     <string name="invalidInfoHashLength">Invalid info hash length</string>
     <!-- Error message when download fails to start with error details -->
     <string name="failedToStartDownloadWithError">Failed to start download: %1$s</string>
+    <!-- Error message when download URL format is invalid -->
+    <string name="invalidDownloadUrl">Invalid download URL format</string>
+    <!-- Error message when downloads directory is not available -->
+    <string name="downloadsDirectoryNotAvailable">Downloads directory is not available</string>
     <!-- Error message when torrent download is not found -->
     <string name="downloadNotFoundTorrent">Download not found</string>
     <!-- Error message when download pause fails -->

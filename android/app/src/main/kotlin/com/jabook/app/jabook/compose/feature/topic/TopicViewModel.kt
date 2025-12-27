@@ -125,16 +125,43 @@ class TopicViewModel
         ) {
             viewModelScope.launch {
                 try {
+                    // Prefer magnet URL over torrent URL
                     val downloadUrl = magnetUrl ?: torrentUrl
                     if (downloadUrl.isNullOrBlank()) {
                         Log.e("TopicViewModel", "No download URL available")
+                        _message.value = context.getString(R.string.failedToStartDownload)
+                        return@launch
+                    }
+
+                    // Validate URL format
+                    if (!downloadUrl.startsWith("magnet:", ignoreCase = true) &&
+                        !downloadUrl.startsWith("http://", ignoreCase = true) &&
+                        !downloadUrl.startsWith("https://", ignoreCase = true)
+                    ) {
+                        Log.e("TopicViewModel", "Invalid download URL format: $downloadUrl")
+                        _message.value = context.getString(R.string.invalidDownloadUrl)
                         return@launch
                     }
 
                     // Get default download path
-                    val savePath = "${android.os.Environment.getExternalStoragePublicDirectory(
-                        android.os.Environment.DIRECTORY_DOWNLOADS,
-                    )}/JabookAudio"
+                    val downloadsDir =
+                        android.os.Environment.getExternalStoragePublicDirectory(
+                            android.os.Environment.DIRECTORY_DOWNLOADS,
+                        )
+                    if (downloadsDir == null || !downloadsDir.exists()) {
+                        Log.e("TopicViewModel", "Downloads directory not available")
+                        _message.value = context.getString(R.string.downloadsDirectoryNotAvailable)
+                        return@launch
+                    }
+
+                    val savePath = "${downloadsDir.absolutePath}/JabookAudio"
+
+                    // Ensure TorrentManager is initialized
+                    try {
+                        torrentManager.initialize()
+                    } catch (e: Exception) {
+                        Log.w("TopicViewModel", "TorrentManager already initialized or error: ${e.message}")
+                    }
 
                     val result =
                         torrentManager.addTorrent(
@@ -144,15 +171,22 @@ class TopicViewModel
                         )
 
                     if (result.isSuccess) {
-                        Log.i("TopicViewModel", "Torrent download started: ${result.getOrNull()}")
+                        val hash = result.getOrNull()
+                        Log.i("TopicViewModel", "Torrent download started: $hash")
                         _message.value = context.getString(R.string.downloadStarted)
                     } else {
-                        val error = result.exceptionOrNull()?.message ?: context.getString(R.string.unknownError)
-                        Log.e("TopicViewModel", "Failed to start torrent download: $error")
+                        val exception = result.exceptionOrNull()
+                        val error = exception?.message ?: context.getString(R.string.unknownError)
+                        Log.e("TopicViewModel", "Failed to start torrent download: $error", exception)
                         _message.value = context.getString(R.string.failedToStartDownloadWithError, error)
                     }
+                } catch (e: IllegalStateException) {
+                    Log.e("TopicViewModel", "Illegal state during torrent download", e)
+                    _message.value = context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
                 } catch (e: Exception) {
-                    Log.e("TopicViewModel", "Error starting torrent download", e)
+                    Log.e("TopicViewModel", "Unexpected error starting torrent download", e)
+                    _message.value =
+                        context.getString(R.string.failedToStartDownloadWithError, e.message ?: context.getString(R.string.unknownError))
                 }
             }
         }
