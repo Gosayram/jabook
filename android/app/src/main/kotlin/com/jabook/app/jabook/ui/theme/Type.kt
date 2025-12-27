@@ -16,9 +16,12 @@ package com.jabook.app.jabook.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.jabook.app.jabook.R
 
 /**
  * Create Material 3 Typography with the specified font family.
@@ -154,5 +157,17 @@ fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
             ),
     )
 
-// Default typography using app's default font family
-val Typography = createTypography()
+/**
+ * Custom font family using Inter fonts from res/font/.
+ * This is the default app font family.
+ */
+val InterFontFamily =
+    FontFamily(
+        Font(R.font.inter_regular, FontWeight.Normal, FontStyle.Normal),
+        Font(R.font.inter_medium, FontWeight.Medium, FontStyle.Normal),
+        Font(R.font.inter_semibold, FontWeight.SemiBold, FontStyle.Normal),
+        Font(R.font.inter_bold, FontWeight.Bold, FontStyle.Normal),
+    )
+
+// Default typography using app's custom Inter font family
+val Typography = createTypography(InterFontFamily)

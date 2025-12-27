@@ -144,9 +144,11 @@ fun JabookTheme(
     val typography =
         if (useSystemFont) {
             // Use system default fonts (respects device font settings)
-            createTypography(androidx.compose.ui.text.font.FontFamily.Default)
+            // FontFamily.SansSerif uses the system's default sans-serif font
+            // which respects user's device font settings
+            createTypography(androidx.compose.ui.text.font.FontFamily.SansSerif)
         } else {
-            // Use app's custom fonts
+            // Use app's custom Inter fonts
             Typography
         }
 
