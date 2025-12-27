@@ -699,6 +699,10 @@
     <string name="copyMagnetLink">Скопировать Magnet-ссылку</string>
     <!-- Пункт меню для скачивания торрента -->
     <string name="downloadTorrentMenu">Скачать торрент</string>
+    <!-- Скачать раздачу (контент) -->
+    <string name="downloadTorrentRelease">Скачать раздачу</string>
+    <!-- Скачать файл торрента (.torrent) -->
+    <string name="downloadTorrentFile">Скачать файл торрента</string>
     <!-- Подзаголовок для скачивания торрента -->
     <string name="openTorrentInExternalApp">Открыть файл торрента во внешнем приложении</string>
     <!-- Сообщение об ошибке открытия торрента -->
@@ -913,6 +917,12 @@
     <string name="noChaptersFound">Главы в торренте не найдены</string>
     <!-- Сообщение об ошибке при начале загрузки -->
     <string name="failedToStartDownload">Не удалось начать загрузку</string>
+    <!-- Файл торрента сохранен в папку Загрузки -->
+    <string name="torrentFileSaved">Файл торрента сохранен в папку Загрузки</string>
+    <!-- Не удалось скачать файл торрента -->
+    <string name="failedToDownloadTorrentFile">Не удалось скачать файл торрента</string>
+    <!-- Не удалось скачать файл торрента с кодом ошибки -->
+    <string name="failedToDownloadTorrentFileWithCode">Не удалось скачать файл торрента: %1$d</string>
     <!-- Сообщение когда нет активных загрузок -->
     <string name="noActiveDownloads">Нет активных загрузок</string>
     <!-- Текст перед временем истечения кэша -->
@@ -1545,7 +1555,7 @@
     <!-- Сообщение об ошибке, когда info hash имеет неверную длину -->
     <string name="invalidInfoHashLength">Неверная длина info hash</string>
     <!-- Сообщение об ошибке при неудачном начале загрузки с деталями ошибки -->
-    <string name="failedToStartDownloadWithError">Не удалось начать загрузку: {error}</string>
+    <string name="failedToStartDownloadWithError">Не удалось начать загрузку: %1$s</string>
     <!-- Сообщение об ошибке, когда загрузка не найдена -->
     <string name="downloadNotFoundTorrent">Загрузка не найдена</string>
     <!-- Сообщение об ошибке при неудачной приостановке загрузки -->

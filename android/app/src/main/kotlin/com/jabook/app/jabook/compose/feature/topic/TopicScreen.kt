@@ -32,10 +32,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -43,10 +48,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,11 +88,18 @@ fun TopicScreen(
     modifier: Modifier = Modifier,
     viewModel: TopicViewModel = hiltViewModel(),
 ) {
-    val onDownloadClick: (String?, String?) -> Unit = { magnetUrl, torrentUrl ->
-        viewModel.downloadTorrent(magnetUrl, torrentUrl)
-    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show messages
+    LaunchedEffect(message) {
+        message?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -104,6 +120,11 @@ fun TopicScreen(
             )
         },
         modifier = modifier,
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { snackbarData ->
+                Snackbar(snackbarData = snackbarData)
+            }
+        },
     ) { padding ->
         when (val state = uiState) {
             is TopicUiState.Loading -> {
@@ -118,7 +139,7 @@ fun TopicScreen(
             is TopicUiState.Success -> {
                 TopicDetailsContent(
                     details = state.details,
-                    onDownloadClick = onDownloadClick,
+                    viewModel = viewModel,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -143,9 +164,10 @@ fun TopicScreen(
 @Composable
 private fun TopicDetailsContent(
     details: TopicDetails,
-    onDownloadClick: (String?, String?) -> Unit,
+    viewModel: TopicViewModel,
     modifier: Modifier = Modifier,
 ) {
+    var showDownloadMenu by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -197,18 +219,13 @@ private fun TopicDetailsContent(
             }
         }
 
-        // Download button
+        // Download button with menu
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (details.magnetUrl != null || details.torrentUrl.isNotBlank()) {
+            if (details.magnetUrl != null || details.torrentUrl.isNotBlank()) {
+                Box {
                     FilledTonalButton(
-                        onClick = {
-                            onDownloadClick(details.magnetUrl, details.torrentUrl)
-                        },
-                        modifier = Modifier.weight(1f),
+                        onClick = { showDownloadMenu = true },
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Download,
@@ -216,6 +233,82 @@ private fun TopicDetailsContent(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.downloadLabel))
+                    }
+
+                    DropdownMenu(
+                        expanded = showDownloadMenu,
+                        onDismissRequest = { showDownloadMenu = false },
+                    ) {
+                        // 1. Download torrent release (content) - highest priority
+                        if (details.magnetUrl != null || details.torrentUrl.isNotBlank()) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.downloadTorrentRelease)) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Download,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.downloadTorrentRelease(
+                                        details.magnetUrl,
+                                        details.torrentUrl,
+                                    )
+                                    showDownloadMenu = false
+                                },
+                            )
+                        }
+
+                        // 2. Download via magnet link (if available)
+                        if (details.magnetUrl != null) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.downloadViaMagnet)) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Link,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.downloadViaMagnet(details.magnetUrl)
+                                    showDownloadMenu = false
+                                },
+                            )
+                        }
+
+                        // 3. Download torrent file (.torrent)
+                        if (details.torrentUrl.isNotBlank()) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.downloadTorrentFile)) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.FileDownload,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.downloadTorrentFile()
+                                    showDownloadMenu = false
+                                },
+                            )
+                        }
+
+                        // 4. Copy magnet link to clipboard
+                        if (details.magnetUrl != null) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.copyMagnetLink)) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.ContentCopy,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.copyMagnetLink(details.magnetUrl)
+                                    showDownloadMenu = false
+                                },
+                            )
+                        }
                     }
                 }
             }

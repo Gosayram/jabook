@@ -14,11 +14,16 @@
 
 package com.jabook.app.jabook.compose.feature.topic
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
@@ -26,12 +31,18 @@ import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.navigation.TopicRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.ResponseBody
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 /**
@@ -61,12 +72,17 @@ class TopicViewModel
         private val rutrackerRepository: RutrackerRepository,
         private val authRepository: AuthRepository,
         private val torrentManager: TorrentManager,
+        private val rutrackerApi: RutrackerApi,
+        @param:ApplicationContext private val context: Context,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         private val topicId: String = savedStateHandle.toRoute<TopicRoute>().topicId
 
         private val _uiState = MutableStateFlow<TopicUiState>(TopicUiState.Loading)
         val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
+
+        private val _message = MutableStateFlow<String?>(null)
+        val message: StateFlow<String?> = _message.asStateFlow()
 
         val authStatus: StateFlow<AuthStatus> =
             authRepository.authStatus.stateIn(
@@ -91,7 +107,7 @@ class TopicViewModel
                             TopicUiState.Success(result.data)
                         }
                         is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
-                            TopicUiState.Error(result.message ?: "Unknown error")
+                            TopicUiState.Error(result.message ?: context.getString(R.string.unknownError))
                         }
                         is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
                             TopicUiState.Loading
@@ -101,9 +117,9 @@ class TopicViewModel
         }
 
         /**
-         * Download torrent using magnet link or torrent URL.
+         * Download torrent release (content) using magnet link or torrent URL.
          */
-        fun downloadTorrent(
+        fun downloadTorrentRelease(
             magnetUrl: String?,
             torrentUrl: String?,
         ) {
@@ -129,13 +145,85 @@ class TopicViewModel
 
                     if (result.isSuccess) {
                         Log.i("TopicViewModel", "Torrent download started: ${result.getOrNull()}")
+                        _message.value = context.getString(R.string.downloadStarted)
                     } else {
-                        Log.e("TopicViewModel", "Failed to start torrent download: ${result.exceptionOrNull()}")
+                        val error = result.exceptionOrNull()?.message ?: context.getString(R.string.unknownError)
+                        Log.e("TopicViewModel", "Failed to start torrent download: $error")
+                        _message.value = context.getString(R.string.failedToStartDownloadWithError, error)
                     }
                 } catch (e: Exception) {
                     Log.e("TopicViewModel", "Error starting torrent download", e)
                 }
             }
+        }
+
+        /**
+         * Download torrent file (.torrent) to device storage.
+         */
+        fun downloadTorrentFile() {
+            viewModelScope.launch {
+                try {
+                    val response = rutrackerApi.downloadTorrent(topicId)
+                    if (response.isSuccessful) {
+                        val body: ResponseBody? = response.body()
+                        if (body != null) {
+                            withContext(Dispatchers.IO) {
+                                // Save to Downloads directory
+                                val downloadsDir =
+                                    android.os.Environment.getExternalStoragePublicDirectory(
+                                        android.os.Environment.DIRECTORY_DOWNLOADS,
+                                    )
+                                val torrentFile = File(downloadsDir, "$topicId.torrent")
+
+                                body.byteStream().use { input ->
+                                    FileOutputStream(torrentFile).use { output ->
+                                        input.copyTo(output)
+                                    }
+                                }
+
+                                Log.i("TopicViewModel", "Torrent file saved: ${torrentFile.absolutePath}")
+                                _message.value = context.getString(R.string.torrentFileSaved)
+                            }
+                        } else {
+                            Log.e("TopicViewModel", "Response body is null")
+                            _message.value = context.getString(R.string.failedToDownloadTorrentFile)
+                        }
+                    } else {
+                        Log.e("TopicViewModel", "Failed to download torrent file: ${response.code()}")
+                        _message.value = context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code())
+                    }
+                } catch (e: Exception) {
+                    Log.e("TopicViewModel", "Error downloading torrent file", e)
+                }
+            }
+        }
+
+        /**
+         * Copy magnet link to clipboard.
+         */
+        fun copyMagnetLink(magnetUrl: String?) {
+            if (magnetUrl.isNullOrBlank()) {
+                Log.e("TopicViewModel", "No magnet URL available")
+                return
+            }
+
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText(context.getString(R.string.magnetLinkLabel), magnetUrl)
+            clipboard.setPrimaryClip(clip)
+            Log.i("TopicViewModel", "Magnet link copied to clipboard")
+            _message.value = context.getString(R.string.magnetLinkCopiedMessage)
+        }
+
+        /**
+         * Download via magnet link (if available).
+         */
+        fun downloadViaMagnet(magnetUrl: String?) {
+            if (magnetUrl.isNullOrBlank()) {
+                Log.e("TopicViewModel", "No magnet URL available")
+                return
+            }
+
+            downloadTorrentRelease(magnetUrl, null)
         }
 
         fun retry() {

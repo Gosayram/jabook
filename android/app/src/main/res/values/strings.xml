@@ -710,6 +710,10 @@
     <string name="copyMagnetLink">Copy Magnet Link</string>
     <!-- Menu item to download torrent -->
     <string name="downloadTorrentMenu">Download Torrent</string>
+    <!-- Download torrent release (content) -->
+    <string name="downloadTorrentRelease">Download Release</string>
+    <!-- Download torrent file (.torrent) -->
+    <string name="downloadTorrentFile">Download Torrent File</string>
     <!-- Subtitle for torrent download -->
     <string name="openTorrentInExternalApp">Open torrent file in external app</string>
     <!-- Error message for failed torrent opening -->
@@ -924,6 +928,12 @@
     <string name="noChaptersFound">No chapters found in torrent</string>
     <!-- Error message for failed download start -->
     <string name="failedToStartDownload">Failed to start download</string>
+    <!-- Torrent file saved to Downloads -->
+    <string name="torrentFileSaved">Torrent file saved to Downloads</string>
+    <!-- Failed to download torrent file -->
+    <string name="failedToDownloadTorrentFile">Failed to download torrent file</string>
+    <!-- Failed to download torrent file with error code -->
+    <string name="failedToDownloadTorrentFileWithCode">Failed to download torrent file: %1$d</string>
     <!-- Message when there are no active downloads -->
     <string name="noActiveDownloads">No active downloads</string>
     <!-- Text before cache expiration time -->
@@ -1502,7 +1512,7 @@
     <!-- Error message when info hash has invalid length -->
     <string name="invalidInfoHashLength">Invalid info hash length</string>
     <!-- Error message when download fails to start with error details -->
-    <string name="failedToStartDownloadWithError">Failed to start download: {error}</string>
+    <string name="failedToStartDownloadWithError">Failed to start download: %1$s</string>
     <!-- Error message when torrent download is not found -->
     <string name="downloadNotFoundTorrent">Download not found</string>
     <!-- Error message when download pause fails -->
