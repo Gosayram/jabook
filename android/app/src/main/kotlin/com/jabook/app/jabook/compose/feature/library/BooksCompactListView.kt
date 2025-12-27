@@ -116,8 +116,18 @@ private fun CompactBookCard(
         ) {
             // Compact cover image (48dp square)
             val context = LocalContext.current
+            val imageRequest =
+                CoverUtils.createCoverImageRequest(
+                    book = book,
+                    context = context,
+                    placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                    errorColor = MaterialTheme.colorScheme.error,
+                    fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    cornerRadius = 4f, // Smaller radius for compact view
+                ).build()
+
             AsyncImage(
-                model = CoverUtils.getCoverModel(book, context),
+                model = imageRequest,
                 contentDescription = book.title,
                 modifier = Modifier.size(48.dp),
                 contentScale = ContentScale.Crop,

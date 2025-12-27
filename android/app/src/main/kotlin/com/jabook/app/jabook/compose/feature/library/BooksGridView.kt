@@ -137,8 +137,18 @@ private fun BookGridItem(
             // Cover image with favorite button overlay
             Box {
                 val context = LocalContext.current
+                val imageRequest =
+                    CoverUtils.createCoverImageRequest(
+                        book = book,
+                        context = context,
+                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorColor = MaterialTheme.colorScheme.error,
+                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        cornerRadius = 8f, // 8dp rounded corners
+                    ).build()
+
                 AsyncImage(
-                    model = CoverUtils.getCoverModel(book, context),
+                    model = imageRequest,
                     contentDescription = book.title,
                     modifier =
                         Modifier

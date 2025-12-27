@@ -14,6 +14,15 @@
 
 package com.jabook.app.jabook.compose.core.util
 
+import android.content.Context
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.unit.dp
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.transform.CircleCropTransformation
+import coil3.transform.RoundedCornersTransformation
+import coil3.transform.Transformation
 import com.jabook.app.jabook.compose.domain.model.Book
 import java.io.File
 
@@ -111,5 +120,53 @@ object CoverUtils {
 
         // Priority 3: coverUrl for online books
         return book.coverUrl
+    }
+
+    /**
+     * Creates an ImageRequest for a book cover with placeholder, error, fallback, and optional transformations.
+     *
+     * @param book The book to get cover for
+     * @param context Android context
+     * @param placeholderColor Color for placeholder (default: surfaceVariant)
+     * @param errorColor Color for error state (default: error)
+     * @param fallbackColor Color for fallback when no image available (default: surfaceVariant)
+     * @param cornerRadius Radius for rounded corners in dp (0 = no rounding, null = use default 8.dp)
+     * @param circleCrop Whether to apply circle crop transformation (overrides cornerRadius)
+     * @return ImageRequest.Builder ready to build
+     */
+    fun createCoverImageRequest(
+        book: Book,
+        context: Context,
+        placeholderColor: Color = Color(0xFFE0E0E0), // Light gray
+        errorColor: Color = Color(0xFFB00020), // Material error color
+        fallbackColor: Color = Color(0xFFE0E0E0), // Light gray
+        cornerRadius: Float? = 8f, // 8dp default
+        circleCrop: Boolean = false,
+    ): ImageRequest.Builder {
+        val data = getCoverModel(book, context)
+        val transformations = mutableListOf<Transformation>()
+
+        // Add transformations
+        when {
+            circleCrop -> transformations.add(CircleCropTransformation())
+            cornerRadius != null && cornerRadius > 0 -> {
+                // Convert dp to pixels using device density
+                val density = context.resources.displayMetrics.density
+                val radiusPx = cornerRadius * density
+                transformations.add(RoundedCornersTransformation(radiusPx))
+            }
+        }
+
+        return ImageRequest.Builder(context)
+            .data(data)
+            .crossfade(true)
+            .placeholder(ColorPainter(placeholderColor))
+            .error(ColorPainter(errorColor))
+            .fallback(ColorPainter(fallbackColor))
+            .apply {
+                if (transformations.isNotEmpty()) {
+                    transformations(transformations)
+                }
+            }
     }
 }
