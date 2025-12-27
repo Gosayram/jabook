@@ -259,10 +259,11 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-scalars:$retrofitVersion")
 
     // libtorrent4j for torrent downloads
-    implementation("org.libtorrent4j:libtorrent4j:2.1.0-38")
-    implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-38")
-    implementation("org.libtorrent4j:libtorrent4j-android-arm:2.1.0-38")
-    implementation("org.libtorrent4j:libtorrent4j-android-x86:2.1.0-38")
+    val libtorrent4jVersion = "2.1.0-38"
+    implementation("org.libtorrent4j:libtorrent4j:$libtorrent4jVersion")
+    implementation("org.libtorrent4j:libtorrent4j-android-arm64:$libtorrent4jVersion")
+    implementation("org.libtorrent4j:libtorrent4j-android-arm:$libtorrent4jVersion")
+    implementation("org.libtorrent4j:libtorrent4j-android-x86:$libtorrent4jVersion")
 
     // Jetpack Compose - Modern UI toolkit
     implementation(platform("androidx.compose:compose-bom:2025.12.00"))
@@ -295,7 +296,10 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.12.1")
 
     // Coil3 for async image loading in Compose
-    implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+    val coilVersion = "3.3.0"
+    implementation("io.coil-kt.coil3:coil-compose:$coilVersion")
+    // Coil3 network support with OkHttp (uses existing OkHttpClient)
+    implementation("io.coil-kt.coil3:coil-network-okhttp:$coilVersion")
 
     // Glide for optimized artwork loading in notifications
     // Used specifically for Media3 BitmapLoader and notification cover art

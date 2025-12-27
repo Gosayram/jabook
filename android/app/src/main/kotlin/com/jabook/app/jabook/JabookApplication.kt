@@ -15,9 +15,20 @@
 package com.jabook.app.jabook
 
 import android.app.Application
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.crossfade
 import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
+import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 /**
@@ -26,6 +37,16 @@ import javax.inject.Inject
  * This class initializes Dagger Hilt for dependency injection
  * and creates notification channels.
  */
+/**
+ * EntryPoint to access OkHttpClient from Hilt in Application.onCreate().
+ * This is needed because Hilt injection is not available in Application.onCreate().
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface OkHttpClientEntryPoint {
+    fun okHttpClient(): OkHttpClient
+}
+
 @HiltAndroidApp
 class JabookApplication :
     Application(),
@@ -62,6 +83,45 @@ class JabookApplication :
             android.util.Log.i("JabookApplication", "AudioPlayerService warmup initiated")
         } catch (e: Exception) {
             android.util.Log.e("JabookApplication", "Failed to start AudioPlayerService warmup", e)
+        }
+
+        // Configure Coil ImageLoader with OkHttpClient from Hilt
+        // Use setSafe to ensure it won't overwrite an existing ImageLoader
+        // Note: setSafe uses lazy initialization, so Hilt will be ready when ImageLoader is first used
+        SingletonImageLoader.setSafe { context ->
+            // Get OkHttpClient from Hilt using EntryPoint (lazy - Hilt will be ready when first used)
+            val okHttpClient =
+                EntryPointAccessors.fromApplication(
+                    context,
+                    OkHttpClientEntryPoint::class.java,
+                ).okHttpClient()
+
+            ImageLoader.Builder(context)
+                .components {
+                    // Use the same OkHttpClient that's used for API calls
+                    // This ensures images benefit from cookie persistence, auth, Brotli, etc.
+                    add(
+                        OkHttpNetworkFetcherFactory(
+                            callFactory = { okHttpClient },
+                        ),
+                    )
+                }
+                .memoryCache {
+                    MemoryCache.Builder()
+                        // Set the max size to 25% of the app's available memory
+                        .maxSizePercent(context, percent = 0.25)
+                        .build()
+                }
+                .diskCache {
+                    DiskCache.Builder()
+                        .directory(context.cacheDir.resolve("image_cache"))
+                        // Set the max size to 2% of available disk space
+                        .maxSizePercent(context, percent = 0.02)
+                        .build()
+                }
+                // Show a short crossfade when loading images asynchronously
+                .crossfade(true)
+                .build()
         }
 
         android.util.Log.d("JabookApplication", "Application created with Hilt support")
