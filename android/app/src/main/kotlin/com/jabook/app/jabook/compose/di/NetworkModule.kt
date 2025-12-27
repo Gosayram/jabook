@@ -111,7 +111,7 @@ object NetworkModule {
             .Builder()
             .cookieJar(cookieJar)
             .addInterceptor(rutrackerHeadersInterceptor) // Add browser-like headers (includes Brotli)
-            .addInterceptor(BrotliInterceptor) // Automatic Brotli decompression
+            .addNetworkInterceptor(BrotliInterceptor) // Automatic Brotli decompression (must be NetworkInterceptor!)
             .addInterceptor(authInterceptor) // Auto re-authentication
             .addInterceptor(dynamicBaseUrlInterceptor) // Dynamic base URL for mirrors
             .addInterceptor(loggingInterceptor) // Logging last for complete request/response
