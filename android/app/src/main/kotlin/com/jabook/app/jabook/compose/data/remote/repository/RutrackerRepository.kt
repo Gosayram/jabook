@@ -188,14 +188,20 @@ class RutrackerRepository
             }
 
             // CRITICAL: Check Content-Encoding to see if data was compressed
+            // Note: BrotliInterceptor removes "Content-Encoding: br" header after decompression,
+            // so if we see it here, BrotliInterceptor didn't process it (shouldn't happen)
             val contentEncoding = headers["Content-Encoding"]
             Log.w(TAG, "🔍 Content-Encoding: $contentEncoding")
-            Log.w(TAG, "🔍 OkHttp should auto-decompress: ${contentEncoding != null}")
+            if (contentEncoding != null && contentEncoding.contains("br", ignoreCase = true)) {
+                Log.w(TAG, "⚠️ WARNING: Content-Encoding still contains 'br' - BrotliInterceptor may not have processed it!")
+            }
 
             // CRITICAL: ResponseBody can only be read once!
             // Store bytes immediately and reuse
+            // Note: OkHttp BrotliInterceptor automatically decompresses Brotli responses
+            // After decompression, we get raw bytes that need to be decoded with Windows-1251
             val rawBytes = response.body()?.bytes() ?: ByteArray(0)
-            Log.w(TAG, "📦 Response Size: ${rawBytes.size} bytes")
+            Log.w(TAG, "📦 Response Size: ${rawBytes.size} bytes (should be decompressed if was Brotli)")
 
             // Check if bytes look like compressed data (Brotli magic bytes)
             if (rawBytes.isNotEmpty()) {
@@ -212,11 +218,17 @@ class RutrackerRepository
                 if (looksLikeBrotli || looksLikeGzip) {
                     Log.e(TAG, "⚠️ WARNING: Data appears to be compressed but OkHttp didn't decompress it!")
                 }
-                
+
                 // Check if bytes look like HTML (should start with < or whitespace before <)
-                val startsWithHtml = rawBytes.take(100).any { it == '<'.code.toByte() || it == 0x20.toByte() || it == 0x09.toByte() || it == 0x0A.toByte() }
+                val startsWithHtml =
+                    rawBytes.take(100).any {
+                        it == '<'.code.toByte() ||
+                            it == 0x20.toByte() ||
+                            it == 0x09.toByte() ||
+                            it == 0x0A.toByte()
+                    }
                 Log.w(TAG, "🔍 Looks like HTML (contains '<' or whitespace): $startsWithHtml")
-                
+
                 // Try to see if it's valid Windows-1251 (Cyrillic range)
                 val sample = rawBytes.take(1000)
                 val hasCyrillicBytes = sample.any { it.toInt() and 0xFF in 0xC0..0xFF } // Windows-1251 Cyrillic range
@@ -224,22 +236,30 @@ class RutrackerRepository
             }
 
             // HTML preview (first 300 chars) - try both UTF-8 and Windows-1251
-            val htmlPreviewUtf8 = try {
-                String(rawBytes.take(300).toByteArray(), Charsets.UTF_8)
-                    .replace(Regex("\\s+"), " ")
-            } catch (e: Exception) {
-                "ERROR: ${e.message}"
-            }
-            val htmlPreviewCp1251 = try {
-                String(rawBytes.take(300).toByteArray(), java.nio.charset.Charset.forName("windows-1251"))
-                    .replace(Regex("\\s+"), " ")
-            } catch (e: Exception) {
-                "ERROR: ${e.message}"
-            }
+            val htmlPreviewUtf8 =
+                try {
+                    String(rawBytes.take(300).toByteArray(), Charsets.UTF_8)
+                        .replace(Regex("\\s+"), " ")
+                } catch (e: Exception) {
+                    "ERROR: ${e.message}"
+                }
+            val htmlPreviewCp1251 =
+                try {
+                    String(
+                        rawBytes.take(300).toByteArray(),
+                        java.nio.charset.Charset
+                            .forName("windows-1251"),
+                    ).replace(Regex("\\s+"), " ")
+                } catch (e: Exception) {
+                    "ERROR: ${e.message}"
+                }
             Log.w(TAG, "📄 Response Start (UTF-8): $htmlPreviewUtf8...")
             Log.w(TAG, "📄 Response Start (CP1251): $htmlPreviewCp1251...")
 
+            // Get Content-Type for encoding detection
+            // Note: After BrotliInterceptor decompression, bytes are ready for charset decoding
             val contentType = response.headers()["Content-Type"]
+            // Parse with encoding detection (RutrackerSimpleDecoder will decode bytes with Windows-1251)
             val parsingResult = parser.parseSearchResultsWithEncoding(rawBytes, contentType)
 
             return when (parsingResult) {
@@ -296,7 +316,7 @@ class RutrackerRepository
                         )
                     }
 
-                    // Get raw bytes and decode as Windows-1251
+                    // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
                     val rawBytes = response.body()?.bytes() ?: byteArrayOf()
                     val html = String(rawBytes, charset("windows-1251"))
                     val details = parser.parseTopicDetails(html, topicId)
@@ -333,6 +353,7 @@ class RutrackerRepository
                         )
                     }
 
+                    // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
                     val rawBytes = response.body()?.bytes() ?: ByteArray(0)
                     // Decode HTML (CategoryParser expects decoded string)
                     val html = String(rawBytes, Charsets.UTF_8)

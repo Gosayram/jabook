@@ -249,6 +249,9 @@ dependencies {
     // OkHttp logging interceptor for debugging
     implementation("com.squareup.okhttp3:logging-interceptor:5.3.2")
 
+    // OkHttp Brotli support (official extension)
+    implementation("com.squareup.okhttp3:okhttp-brotli:5.3.2")
+
     // Jsoup for HTML parsing (Rutracker scraping)
     implementation("org.jsoup:jsoup:1.21.2")
 

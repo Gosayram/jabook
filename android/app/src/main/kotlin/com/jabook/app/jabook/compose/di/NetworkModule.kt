@@ -27,6 +27,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.brotli.BrotliInterceptor
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -110,6 +111,7 @@ object NetworkModule {
             .Builder()
             .cookieJar(cookieJar)
             .addInterceptor(rutrackerHeadersInterceptor) // Add browser-like headers (includes Brotli)
+            .addInterceptor(BrotliInterceptor) // Automatic Brotli decompression
             .addInterceptor(authInterceptor) // Auto re-authentication
             .addInterceptor(dynamicBaseUrlInterceptor) // Dynamic base URL for mirrors
             .addInterceptor(loggingInterceptor) // Logging last for complete request/response
