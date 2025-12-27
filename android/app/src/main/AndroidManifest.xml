@@ -14,7 +14,7 @@
     <!-- Works on Android 6.0+ (API 23+) as runtime permission -->
     <!-- Keep without maxSdkVersion for SD card compatibility on all Android versions -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    
+
     <!-- WRITE_EXTERNAL_STORAGE: Required for writing files to internal storage and SD card -->
     <!-- Works on Android 6.0+ (API 23+) as runtime permission -->
     <!-- Keep without maxSdkVersion for SD card write access on all Android versions -->
@@ -51,7 +51,7 @@
     <!-- Power and audio service permissions -->
     <!-- WAKE_LOCK: Prevents device from sleeping during audio playback (API 21+) -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    
+
     <!-- FOREGROUND_SERVICE: Required for foreground services (Android 9+, API 28+) -->
     <!-- Note: On Android 9+ (API 28+), foreground services require this permission -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -97,13 +97,13 @@
         android:manageSpaceActivity=".DataManagementActivity"
         tools:targetApi="34"
         tools:ignore="NamespaceTypo,MissingClass">
-        
+
         <!-- Android Auto support - enables audiobook playback in cars -->
         <!-- Users can browse library, control playback with steering wheel, use voice commands -->
         <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/auto_app_desc" />
-        
+
 
         <!-- requestLegacyExternalStorage removed: not supported on Android 11+ (API 30+) -->
         <!-- App uses app-specific directory which doesn't require this attribute -->
@@ -264,6 +264,8 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- preloaded_fonts removed: Not needed for Compose with Google Fonts -->
+        <!-- Google Fonts are loaded dynamically via FontUtils, no preloading required -->
     </application>
 
     <!-- Queries required for url_launcher, PROCESS_TEXT, and SAF usage -->

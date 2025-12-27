@@ -120,12 +120,11 @@ fun JabookApp(
             }
         }
 
-    val useSystemFont =
+    val selectedFont =
         when (uiState) {
-            is MainActivityUiState.Loading -> false
+            is MainActivityUiState.Loading -> com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT
             is MainActivityUiState.Success -> {
-                (uiState as MainActivityUiState.Success).userData.font ==
-                    com.jabook.app.jabook.compose.data.model.AppFont.SYSTEM
+                (uiState as MainActivityUiState.Success).userData.font
             }
         }
 
@@ -133,7 +132,7 @@ fun JabookApp(
     JabookTheme(
         darkTheme = darkTheme,
         isBetaFlavor = isBetaFlavor,
-        useSystemFont = useSystemFont,
+        selectedFont = selectedFont,
     ) {
         // Mini-player state management using MiniPlayerViewModel
         // MiniPlayerViewModel is a lightweight wrapper around AudioPlayerController

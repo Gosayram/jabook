@@ -1105,19 +1105,15 @@ private fun FontSelector(
     Column(modifier = modifier) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        FontOption(
-            font = com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
-            label = stringResource(R.string.defaultFont),
-            selected = selectedFont == com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
-            onSelected = { onFontSelected(com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT) },
-        )
-
-        FontOption(
-            font = com.jabook.app.jabook.compose.data.model.AppFont.SYSTEM,
-            label = stringResource(R.string.systemFont),
-            selected = selectedFont == com.jabook.app.jabook.compose.data.model.AppFont.SYSTEM,
-            onSelected = { onFontSelected(com.jabook.app.jabook.compose.data.model.AppFont.SYSTEM) },
-        )
+        // Show all available fonts
+        com.jabook.app.jabook.compose.data.model.AppFont.entries.forEach { font ->
+            FontOption(
+                font = font,
+                label = font.displayName,
+                selected = selectedFont == font,
+                onSelected = { onFontSelected(font) },
+            )
+        }
     }
 }
 

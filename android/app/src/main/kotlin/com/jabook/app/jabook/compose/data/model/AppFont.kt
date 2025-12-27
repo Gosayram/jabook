@@ -17,18 +17,65 @@ package com.jabook.app.jabook.compose.data.model
 /**
  * Font preference for the app.
  *
- * DEFAULT: Use custom fonts from assets/fonts
- * SYSTEM: Use system fonts from device settings
+ * Supports both bundled fonts and downloadable Google Fonts.
  */
-enum class AppFont {
+enum class AppFont(
+    val displayName: String,
+    val googleFontName: String? = null,
+) {
     /**
-     * Use default app fonts from assets/fonts directory.
+     * Use default app fonts from res/font/ directory (Inter).
      */
-    DEFAULT,
+    DEFAULT("Inter", null),
 
     /**
      * Use system fonts as configured in device settings.
      * This respects user's device-wide font preferences.
      */
-    SYSTEM,
+    SYSTEM("System", null),
+
+    /**
+     * Roboto - Google Fonts (Material Design default).
+     */
+    ROBOTO("Roboto", "Roboto"),
+
+    /**
+     * Open Sans - Google Fonts (clean and readable).
+     */
+    OPEN_SANS("Open Sans", "Open Sans"),
+
+    /**
+     * Lato - Google Fonts (modern and friendly).
+     */
+    LATO("Lato", "Lato"),
+
+    /**
+     * Montserrat - Google Fonts (geometric and elegant).
+     */
+    MONTSERRAT("Montserrat", "Montserrat"),
+
+    /**
+     * Source Sans Pro - Google Fonts (professional and clear).
+     */
+    SOURCE_SANS_PRO("Source Sans Pro", "Source Sans Pro"),
+
+    /**
+     * Raleway - Google Fonts (elegant and stylish).
+     */
+    RALEWAY("Raleway", "Raleway"),
+
+    /**
+     * Poppins - Google Fonts (geometric and friendly).
+     */
+    POPPINS("Poppins", "Poppins"),
+
+    /**
+     * Nunito - Google Fonts (rounded and friendly).
+     */
+    NUNITO("Nunito", "Nunito"),
+
+    /**
+     * Playfair Display - Google Fonts (elegant serif for headings).
+     */
+    PLAYFAIR_DISPLAY("Playfair Display", "Playfair Display"),
 }
