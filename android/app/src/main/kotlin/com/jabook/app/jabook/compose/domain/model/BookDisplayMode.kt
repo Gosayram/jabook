@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.domain.model
 
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 
 /**
  * Display modes for books in the library.
@@ -67,11 +69,31 @@ enum class BookDisplayMode {
      *
      * @param isTablet True if device is a tablet (width >= 600dp)
      * @return GridCells configuration or null for list modes
+     * @deprecated Use getGridCells(windowSizeClass) instead for better adaptive behavior
      */
+    @Deprecated(
+        message = "Use getGridCells(windowSizeClass) instead",
+        replaceWith = ReplaceWith("getGridCells(WindowSizeClass)"),
+    )
     fun getGridCells(isTablet: Boolean): GridCells? =
         when (this) {
             GRID_COMPACT -> GridCells.Fixed(if (isTablet) 6 else 3)
             GRID_COMFORTABLE -> GridCells.Fixed(if (isTablet) 4 else 2)
+            LIST_COMPACT, LIST_DEFAULT -> null // Not applicable for lists
+        }
+
+    /**
+     * Returns GridCells configuration for this mode based on WindowSizeClass.
+     *
+     * Uses Material 3 adaptive guidelines for better responsiveness.
+     *
+     * @param windowSizeClass Window size class for adaptive layout
+     * @return GridCells configuration or null for list modes
+     */
+    fun getGridCells(windowSizeClass: WindowSizeClass): GridCells? =
+        when (this) {
+            GRID_COMPACT -> GridCells.Fixed(AdaptiveUtils.getCompactGridColumns(windowSizeClass))
+            GRID_COMFORTABLE -> GridCells.Fixed(AdaptiveUtils.getComfortableGridColumns(windowSizeClass))
             LIST_COMPACT, LIST_DEFAULT -> null // Not applicable for lists
         }
 

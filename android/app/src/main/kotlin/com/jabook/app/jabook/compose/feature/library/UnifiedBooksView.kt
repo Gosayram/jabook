@@ -21,10 +21,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
@@ -37,9 +40,12 @@ import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
  * (LazyVerticalGrid or LazyColumn) based on the display mode and delegates
  * individual book rendering to UnifiedBookCard.
  *
+ * Uses WindowSizeClass for adaptive layouts following Material 3 guidelines.
+ *
  * @param books List of books to display
  * @param displayMode Current display mode (Grid or List variant)
  * @param actionsProvider Provider for all book actions
+ * @param windowSizeClass Window size class for adaptive layout (optional, uses LocalConfiguration if not provided)
  * @param modifier Modifier for the container
  */
 @Composable
@@ -48,16 +54,24 @@ fun UnifiedBooksView(
     displayMode: BookDisplayMode,
     actionsProvider: BookActionsProvider,
     modifier: Modifier = Modifier,
+    windowSizeClass: WindowSizeClass? = null,
     isSelectionMode: Boolean = false,
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
+    // Get WindowSizeClass from parameter or calculate from LocalConfiguration
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+    val effectiveWindowSizeClass =
+        windowSizeClass
+            ?: calculateWindowSizeClass(LocalConfiguration.current)
+
     when {
         displayMode.isGrid() ->
             BooksGridLayout(
                 books = books,
                 displayMode = displayMode,
                 actionsProvider = actionsProvider,
+                windowSizeClass = effectiveWindowSizeClass,
                 isSelectionMode = isSelectionMode,
                 selectedIds = selectedIds,
                 onToggleSelection = onToggleSelection,
@@ -68,6 +82,7 @@ fun UnifiedBooksView(
                 books = books,
                 displayMode = displayMode,
                 actionsProvider = actionsProvider,
+                windowSizeClass = effectiveWindowSizeClass,
                 isSelectionMode = isSelectionMode,
                 selectedIds = selectedIds,
                 onToggleSelection = onToggleSelection,
@@ -77,26 +92,28 @@ fun UnifiedBooksView(
 }
 
 /**
- * Grid layout for books.
+ * Grid layout for books with adaptive columns and spacing.
  */
 @Composable
 private fun BooksGridLayout(
     books: List<Book>,
     displayMode: BookDisplayMode,
     actionsProvider: BookActionsProvider,
+    windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier,
     isSelectionMode: Boolean = false,
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
-    val isTablet = isTabletDevice()
-    val gridCells = displayMode.getGridCells(isTablet) ?: return
+    val gridCells = displayMode.getGridCells(windowSizeClass) ?: return
+    val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
+    val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
 
     LazyVerticalGrid(
         columns = gridCells,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(itemSpacing),
+        verticalArrangement = Arrangement.spacedBy(itemSpacing),
+        contentPadding = PaddingValues(contentPadding),
         modifier = modifier.fillMaxSize(),
     ) {
         items(books, key = { it.id }) { book ->
@@ -113,22 +130,26 @@ private fun BooksGridLayout(
 }
 
 /**
- * List layout for books.
+ * List layout for books with adaptive padding and spacing.
  */
 @Composable
 private fun BooksListLayout(
     books: List<Book>,
     displayMode: BookDisplayMode,
     actionsProvider: BookActionsProvider,
+    windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier,
     isSelectionMode: Boolean = false,
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
+    val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
+    val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
+        verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
     ) {
         items(books, key = { it.id }) { book ->
             UnifiedBookCard(
@@ -143,13 +164,4 @@ private fun BooksListLayout(
     }
 }
 
-/**
- * Helper to detect tablet devices.
- * Considers devices with width >= 600dp as tablets.
- */
-@Composable
-private fun isTabletDevice(): Boolean {
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    return screenWidthDp >= 600
-}
+// Removed isTabletDevice() - now using WindowSizeClass for better adaptive behavior

@@ -37,10 +37,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
@@ -119,6 +123,8 @@ private fun GridBookCard(
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
 ) {
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+    val windowSizeClass = calculateWindowSizeClass(LocalConfiguration.current)
     val isFavorite = actionsProvider.isFavorite(book.id)
 
     Card(
@@ -169,7 +175,7 @@ private fun GridBookCard(
                     contentScale = ContentScale.Crop,
                 )
 
-                // Favorite button in top-right corner
+                // Favorite button in top-right corner with adaptive icon size
                 if (actionsProvider.showFavoriteButton) {
                     IconButton(
                         onClick = { actionsProvider.onToggleFavorite(book.id, !isFavorite) },
@@ -194,6 +200,7 @@ private fun GridBookCard(
                                 } else {
                                     MaterialTheme.colorScheme.onSurface
                                 },
+                            modifier = Modifier.size(AdaptiveUtils.getIconSize(windowSizeClass)),
                         )
                     }
                 }
@@ -229,20 +236,28 @@ private fun GridBookCard(
                 }
             }
 
-            // Title and author
+            // Title and author with adaptive text sizes
             Column(
-                modifier = Modifier.padding(8.dp),
+                modifier = Modifier.padding(AdaptiveUtils.getCardPadding(windowSizeClass)),
             ) {
                 Text(
                     text = book.title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style =
+                        AdaptiveUtils.getAdaptiveTextStyle(
+                            MaterialTheme.typography.bodyMedium,
+                            windowSizeClass,
+                        ),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (book.author.isNotBlank()) {
                     Text(
                         text = book.author,
-                        style = MaterialTheme.typography.bodySmall,
+                        style =
+                            AdaptiveUtils.getAdaptiveTextStyle(
+                                MaterialTheme.typography.bodySmall,
+                                windowSizeClass,
+                            ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -267,8 +282,16 @@ private fun ListBookCard(
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
 ) {
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+    val windowSizeClass = calculateWindowSizeClass(LocalConfiguration.current)
     val isFavorite = actionsProvider.isFavorite(book.id)
-    val coverSize = displayMode.getListCoverSize() ?: 48 // Default to 48dp
+    // Use adaptive cover size based on WindowSizeClass
+    val coverSize =
+        when (displayMode) {
+            BookDisplayMode.LIST_COMPACT -> AdaptiveUtils.getCompactListCoverSize(windowSizeClass)
+            BookDisplayMode.LIST_DEFAULT -> AdaptiveUtils.getListCoverSize(windowSizeClass)
+            else -> displayMode.getListCoverSize()?.dp ?: 48.dp
+        }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -309,7 +332,7 @@ private fun ListBookCard(
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = book.title,
-                    modifier = Modifier.size(coverSize.dp),
+                    modifier = Modifier.size(coverSize),
                     contentScale = ContentScale.Crop,
                 )
 
