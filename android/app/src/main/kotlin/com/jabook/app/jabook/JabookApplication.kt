@@ -23,12 +23,13 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
+import okio.Path.Companion.toPath
 import javax.inject.Inject
 
 /**
@@ -37,6 +38,7 @@ import javax.inject.Inject
  * This class initializes Dagger Hilt for dependency injection
  * and creates notification channels.
  */
+
 /**
  * EntryPoint to access OkHttpClient from Hilt in Application.onCreate().
  * This is needed because Hilt injection is not available in Application.onCreate().
@@ -91,12 +93,14 @@ class JabookApplication :
         SingletonImageLoader.setSafe { context ->
             // Get OkHttpClient from Hilt using EntryPoint (lazy - Hilt will be ready when first used)
             val okHttpClient =
-                EntryPointAccessors.fromApplication(
-                    context,
-                    OkHttpClientEntryPoint::class.java,
-                ).okHttpClient()
+                EntryPointAccessors
+                    .fromApplication(
+                        context,
+                        OkHttpClientEntryPoint::class.java,
+                    ).okHttpClient()
 
-            ImageLoader.Builder(context)
+            ImageLoader
+                .Builder(context)
                 .components {
                     // Use the same OkHttpClient that's used for API calls
                     // This ensures images benefit from cookie persistence, auth, Brotli, etc.
@@ -105,18 +109,20 @@ class JabookApplication :
                             callFactory = { okHttpClient },
                         ),
                     )
-                }
-                .memoryCache {
-                    MemoryCache.Builder()
+                }.memoryCache {
+                    MemoryCache
+                        .Builder()
                         // Set the max size to 25% of the app's available memory
                         .maxSizePercent(context, percent = 0.25)
                         .build()
-                }
-                .diskCache {
-                    DiskCache.Builder()
-                        .directory(context.cacheDir.resolve("image_cache"))
+                }.diskCache {
+                    val cacheDir = context.cacheDir.resolve("image_cache")
+                    cacheDir.mkdirs() // Ensure directory exists
+                    DiskCache
+                        .Builder()
+                        .directory(cacheDir.absolutePath.toPath())
                         // Set the max size to 2% of available disk space
-                        .maxSizePercent(context, percent = 0.02)
+                        .maxSizePercent(0.02)
                         .build()
                 }
                 // Show a short crossfade when loading images asynchronously

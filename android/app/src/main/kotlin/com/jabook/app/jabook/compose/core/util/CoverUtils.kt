@@ -15,11 +15,16 @@
 package com.jabook.app.jabook.compose.core.util
 
 import android.content.Context
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.ColorPainter
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.toArgb
+import coil3.asImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import coil3.request.error
+import coil3.request.fallback
+import coil3.request.placeholder
+import coil3.request.transformations
 import coil3.transform.CircleCropTransformation
 import coil3.transform.RoundedCornersTransformation
 import coil3.transform.Transformation
@@ -157,16 +162,19 @@ object CoverUtils {
             }
         }
 
-        return ImageRequest.Builder(context)
-            .data(data)
-            .crossfade(true)
-            .placeholder(ColorPainter(placeholderColor))
-            .error(ColorPainter(errorColor))
-            .fallback(ColorPainter(fallbackColor))
-            .apply {
-                if (transformations.isNotEmpty()) {
-                    transformations(transformations)
-                }
-            }
+        val builder =
+            ImageRequest
+                .Builder(context)
+                .data(data)
+                .crossfade(true)
+                .placeholder(ColorDrawable(placeholderColor.toArgb()).asImage())
+                .error(ColorDrawable(errorColor.toArgb()).asImage())
+                .fallback(ColorDrawable(fallbackColor.toArgb()).asImage())
+
+        if (transformations.isNotEmpty()) {
+            builder.transformations(transformations)
+        }
+
+        return builder
     }
 }

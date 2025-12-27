@@ -138,14 +138,15 @@ private fun BookGridItem(
             Box {
                 val context = LocalContext.current
                 val imageRequest =
-                    CoverUtils.createCoverImageRequest(
-                        book = book,
-                        context = context,
-                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                        errorColor = MaterialTheme.colorScheme.error,
-                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        cornerRadius = 8f, // 8dp rounded corners
-                    ).build()
+                    CoverUtils
+                        .createCoverImageRequest(
+                            book = book,
+                            context = context,
+                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                            errorColor = MaterialTheme.colorScheme.error,
+                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            cornerRadius = 8f, // 8dp rounded corners
+                        ).build()
 
                 AsyncImage(
                     model = imageRequest,

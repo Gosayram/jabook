@@ -352,14 +352,15 @@ private fun PlayerContent(
 
             val context = LocalContext.current
             val imageRequest =
-                CoverUtils.createCoverImageRequest(
-                    book = state.book,
-                    context = context,
-                    placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                    errorColor = MaterialTheme.colorScheme.error,
-                    fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    cornerRadius = 16f, // 16dp rounded corners for player
-                ).build()
+                CoverUtils
+                    .createCoverImageRequest(
+                        book = state.book,
+                        context = context,
+                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorColor = MaterialTheme.colorScheme.error,
+                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        cornerRadius = 16f, // 16dp rounded corners for player
+                    ).build()
 
             AsyncImage(
                 model = imageRequest,

@@ -123,14 +123,15 @@ fun BookDetailPane(
                 item {
                     val context = LocalContext.current
                     val imageRequest =
-                        CoverUtils.createCoverImageRequest(
-                            book = book,
-                            context = context,
-                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                            errorColor = MaterialTheme.colorScheme.error,
-                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            cornerRadius = 16f, // 16dp rounded corners for detail view
-                        ).build()
+                        CoverUtils
+                            .createCoverImageRequest(
+                                book = book,
+                                context = context,
+                                placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                                errorColor = MaterialTheme.colorScheme.error,
+                                fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                cornerRadius = 16f, // 16dp rounded corners for detail view
+                            ).build()
 
                     AsyncImage(
                         model = imageRequest,

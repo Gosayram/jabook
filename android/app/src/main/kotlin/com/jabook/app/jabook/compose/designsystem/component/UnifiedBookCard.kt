@@ -47,7 +47,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -148,14 +147,15 @@ private fun GridBookCard(
 
                 val context = LocalContext.current
                 val imageRequest =
-                    CoverUtils.createCoverImageRequest(
-                        book = book,
-                        context = context,
-                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                        errorColor = MaterialTheme.colorScheme.error,
-                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        cornerRadius = 8f, // 8dp rounded corners
-                    ).build()
+                    CoverUtils
+                        .createCoverImageRequest(
+                            book = book,
+                            context = context,
+                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                            errorColor = MaterialTheme.colorScheme.error,
+                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            cornerRadius = 8f, // 8dp rounded corners
+                        ).build()
 
                 AsyncImage(
                     model = imageRequest,
@@ -296,14 +296,15 @@ private fun ListBookCard(
             Box {
                 val context = LocalContext.current
                 val imageRequest =
-                    CoverUtils.createCoverImageRequest(
-                        book = book,
-                        context = context,
-                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                        errorColor = MaterialTheme.colorScheme.error,
-                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        cornerRadius = 8f, // 8dp rounded corners
-                    ).build()
+                    CoverUtils
+                        .createCoverImageRequest(
+                            book = book,
+                            context = context,
+                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                            errorColor = MaterialTheme.colorScheme.error,
+                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            cornerRadius = 8f, // 8dp rounded corners
+                        ).build()
 
                 AsyncImage(
                     model = imageRequest,
