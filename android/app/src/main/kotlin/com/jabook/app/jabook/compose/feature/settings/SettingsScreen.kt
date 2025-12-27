@@ -36,11 +36,11 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenu
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -1122,12 +1122,13 @@ private fun FontSelector(
             trailingIcon = {
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
             },
-            modifier = Modifier
-                .menuAnchor()
-                .fillMaxWidth(),
+            modifier =
+                Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
         )
 
-        ExposedDropdownMenu(
+        DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
@@ -1138,16 +1139,17 @@ private fun FontSelector(
                         onFontSelected(font)
                         expanded = false
                     },
-                    leadingIcon = if (selectedFont == font) {
-                        {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                            )
-                        }
-                    } else {
-                        null
-                    },
+                    leadingIcon =
+                        if (selectedFont == font) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                )
+                            }
+                        } else {
+                            null
+                        },
                 )
             }
         }

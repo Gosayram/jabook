@@ -44,6 +44,8 @@ data class BackupData(
 data class AppSettings(
     // User Preferences
     val theme: String,
+    val sortOrder: String = "BY_ACTIVITY",
+    val viewMode: String = "LIST_COMPACT",
     val autoPlayNext: Boolean,
     val playbackSpeed: Float,
     val font: String = "DEFAULT",

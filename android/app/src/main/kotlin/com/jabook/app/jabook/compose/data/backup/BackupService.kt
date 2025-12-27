@@ -282,6 +282,8 @@ class BackupService
 
             return AppSettings(
                 theme = userPrefs.theme.name,
+                sortOrder = userPrefs.sortOrder.name,
+                viewMode = userPrefs.viewMode.name,
                 autoPlayNext = userPrefs.autoPlayNext,
                 playbackSpeed = userPrefs.playbackSpeed,
                 font = userPrefs.font.name,
@@ -405,6 +407,27 @@ class BackupService
                 } catch (e: Exception) {
                     // Ignore invalid theme enum
                 }
+
+                // Restore sort order
+                try {
+                    val sortOrder =
+                        com.jabook.app.jabook.compose.data.model.BookSortOrder
+                            .valueOf(settings.sortOrder)
+                    userPreferencesRepository.setSortOrder(sortOrder)
+                } catch (e: Exception) {
+                    // Ignore invalid sort order enum, keep default
+                }
+
+                // Restore view mode
+                try {
+                    val viewMode =
+                        com.jabook.app.jabook.compose.data.model.LibraryViewMode
+                            .valueOf(settings.viewMode)
+                    userPreferencesRepository.setViewMode(viewMode)
+                } catch (e: Exception) {
+                    // Ignore invalid view mode enum, keep default
+                }
+
                 userPreferencesRepository.setAutoPlayNext(settings.autoPlayNext)
                 userPreferencesRepository.setPlaybackSpeed(settings.playbackSpeed)
 
