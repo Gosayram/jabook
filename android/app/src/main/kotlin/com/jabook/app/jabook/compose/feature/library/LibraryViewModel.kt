@@ -22,9 +22,11 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
+import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.toFavoriteEntity
 import com.jabook.app.jabook.compose.domain.usecase.library.DeleteBookUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.GetFavoriteBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.GetInProgressBooksUseCase
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -66,6 +69,7 @@ class LibraryViewModel
         private val getInProgressBooksUseCase: GetInProgressBooksUseCase,
         private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
         private val deleteBookUseCase: DeleteBookUseCase,
+        private val favoritesRepository: FavoritesRepository,
         private val workManager: WorkManager,
         private val userPreferencesRepository: UserPreferencesRepository,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
@@ -195,13 +199,29 @@ class LibraryViewModel
 
         /**
          * Toggle favorite status of a book.
+         * Synchronizes with FavoriteEntity for unified favorites system.
          */
         fun toggleFavorite(
             bookId: String,
             isFavorite: Boolean,
         ) {
             viewModelScope.launch {
+                // Update local book favorite status
                 toggleFavoriteUseCase(bookId, isFavorite)
+
+                // Synchronize with FavoriteEntity
+                if (isFavorite) {
+                    // Get book data to create FavoriteEntity
+                    val books = getLibraryUseCase(BookSortOrder.BY_ACTIVITY).first()
+                    val book = books.find { it.id == bookId }
+                    if (book != null) {
+                        val favoriteEntity = book.toFavoriteEntity()
+                        favoritesRepository.addToFavorites(favoriteEntity)
+                    }
+                } else {
+                    // Remove from FavoriteEntity
+                    favoritesRepository.removeFromFavorites(bookId)
+                }
             }
         }
 

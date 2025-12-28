@@ -19,6 +19,9 @@ import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
+import com.jabook.app.jabook.compose.domain.model.toFavoriteEntity
+import com.jabook.app.jabook.compose.domain.usecase.library.GetFavoriteBooksUseCase
+import com.jabook.app.jabook.compose.domain.usecase.library.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,6 +42,8 @@ class FavoritesViewModel
     @Inject
     constructor(
         private val favoritesRepository: FavoritesRepository,
+        private val getFavoriteBooksUseCase: GetFavoriteBooksUseCase,
+        private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
@@ -50,13 +55,23 @@ class FavoritesViewModel
 
         /**
          * All favorites with search and sort applied.
+         * Combines online favorites (FavoriteEntity) and local library favorites (Book with isFavorite=true).
          */
         val favorites: StateFlow<List<FavoriteEntity>> =
             combine(
                 favoritesRepository.allFavorites,
+                getFavoriteBooksUseCase(),
                 _searchQuery,
                 _sortOrder,
-            ) { allFavorites, query, order ->
+            ) { onlineFavorites, localFavoriteBooks, query, order ->
+                // Convert local favorite books to FavoriteEntity
+                val localFavorites = localFavoriteBooks.map { it.toFavoriteEntity() }
+
+                // Combine online and local favorites, avoiding duplicates (prefer online if exists)
+                val favoriteIds = onlineFavorites.map { it.topicId }.toSet()
+                val uniqueLocalFavorites = localFavorites.filter { it.topicId !in favoriteIds }
+                val allFavorites = onlineFavorites + uniqueLocalFavorites
+
                 // Apply search filter
                 val filtered =
                     if (query.isBlank()) {
@@ -86,15 +101,21 @@ class FavoritesViewModel
 
         /**
          * Set of favorite topic IDs for quick membership checks.
+         * Combines online favorites and local library favorites.
          */
         val favoriteIds: StateFlow<Set<String>> =
-            favoritesRepository.favoriteIds
-                .map { it.toSet() }
-                .stateIn(
-                    scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5000),
-                    initialValue = emptySet(),
-                )
+            combine(
+                favoritesRepository.favoriteIds,
+                getFavoriteBooksUseCase(),
+            ) { onlineIds, localBooks ->
+                val onlineSet = onlineIds.toSet()
+                val localSet = localBooks.map { it.id }.toSet()
+                onlineSet + localSet
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptySet(),
+            )
 
         private val _isLoading = MutableStateFlow(false)
         val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -126,12 +147,17 @@ class FavoritesViewModel
 
         /**
          * Remove an audiobook from favorites.
+         * Synchronizes with local library (removes isFavorite flag).
          */
         fun removeFromFavorites(topicId: String) {
             viewModelScope.launch {
+                // Remove from FavoriteEntity
                 favoritesRepository
                     .removeFromFavorites(topicId)
                     .onFailure { _errorMessage.value = it.message }
+
+                // Also remove from local library if it exists there
+                toggleFavoriteUseCase(topicId, false)
             }
         }
 
