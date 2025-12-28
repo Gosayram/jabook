@@ -984,8 +984,17 @@ class AudioPlayerService : MediaLibraryService() {
                             notificationId: Int,
                             dismissedByUser: Boolean,
                         ) {
-                            stopForeground(STOP_FOREGROUND_REMOVE)
-                            stopSelf()
+                            // Only stop service if user explicitly dismissed the notification
+                            // System cancellation (e.g., app killed) should not stop service
+                            if (dismissedByUser) {
+                                android.util.Log.d("AudioPlayerService", "Notification dismissed by user, stopping service")
+                                stopForeground(STOP_FOREGROUND_REMOVE)
+                                stopSelf()
+                            } else {
+                                // System cancelled notification (e.g., app killed) - try to restore
+                                android.util.Log.d("AudioPlayerService", "Notification cancelled by system, attempting to restore")
+                                // Don't stop service - it will be restored when player state changes
+                            }
                         }
 
                         override fun onNotificationPosted(
