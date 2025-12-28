@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import coil3.asImage
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.request.error
 import coil3.request.fallback
@@ -149,6 +150,7 @@ object CoverUtils {
      * @param fallbackColor Color for fallback when no image available (default: surfaceVariant)
      * @param cornerRadius Radius for rounded corners in dp (0 = no rounding, null = use default 8.dp)
      * @param circleCrop Whether to apply circle crop transformation (overrides cornerRadius)
+     * @param allowHardware Whether to allow hardware bitmaps for better performance (default: true)
      * @return ImageRequest.Builder ready to build
      */
     fun createCoverImageRequest(
@@ -159,6 +161,7 @@ object CoverUtils {
         fallbackColor: Color = Color(0xFFE0E0E0), // Light gray
         cornerRadius: Float? = 8f, // 8dp default
         circleCrop: Boolean = false,
+        allowHardware: Boolean = true,
     ): ImageRequest.Builder {
         val data = getCoverModel(book, context)
         val transformations = mutableListOf<Transformation>()
@@ -179,9 +182,13 @@ object CoverUtils {
                 .Builder(context)
                 .data(data)
                 .crossfade(true)
+                .allowHardware(allowHardware)
                 .placeholder(ColorDrawable(placeholderColor.toArgb()).asImage())
                 .error(ColorDrawable(errorColor.toArgb()).asImage())
                 .fallback(ColorDrawable(fallbackColor.toArgb()).asImage())
+
+        // Note: size parameter is kept for API compatibility but not used in Coil3
+        // Coil3 automatically optimizes image sizes based on display requirements
 
         if (transformations.isNotEmpty()) {
             builder.transformations(transformations)

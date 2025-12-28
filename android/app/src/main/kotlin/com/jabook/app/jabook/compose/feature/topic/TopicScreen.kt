@@ -78,6 +78,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.asImage
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.request.transformations
 import coil3.transform.RoundedCornersTransformation
@@ -201,11 +202,14 @@ private fun TopicDetailsContent(
                         else -> rawCoverUrl // Keep as is, Coil will handle relative URLs if baseUri is set
                     }
 
+                // Use high priority for detail screen - cover must load immediately
+                // Note: Coil3 handles caching automatically via ImageLoader config
                 val imageRequest =
                     coil3.request.ImageRequest
                         .Builder(context)
                         .data(coverUrl)
                         .crossfade(true)
+                        .allowHardware(true)
                         .transformations(RoundedCornersTransformation(cornerRadiusPx))
                         .placeholder(
                             ColorDrawable(

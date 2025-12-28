@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.cache
 
 import android.content.Context
 import android.util.Log
+import coil3.SingletonImageLoader
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +61,7 @@ class CacheManager
                     val topicCacheSize = getTopicCacheSize()
                     val tempDownloadsSize = getTempDownloadsSize()
                     val logFilesSize = getLogFilesSize()
+                    val imageCacheSize = getImageCacheSize()
 
                     CacheStatistics(
                         totalSize = getTotalCacheSize(),
@@ -67,6 +69,7 @@ class CacheManager
                         topicCacheSize = topicCacheSize,
                         tempDownloadsSize = tempDownloadsSize,
                         logFilesSize = logFilesSize,
+                        imageCacheSize = imageCacheSize,
                         lastCleanup = getLastCleanupTimestamp(),
                     )
                 } catch (e: Exception) {
@@ -77,6 +80,7 @@ class CacheManager
                         topicCacheSize = 0L,
                         tempDownloadsSize = 0L,
                         logFilesSize = 0L,
+                        imageCacheSize = 0L,
                         lastCleanup = 0L,
                     )
                 }
@@ -90,7 +94,16 @@ class CacheManager
                 try {
                     Log.d(TAG, "Clearing all cache")
 
-                    // Clear cache directories
+                    // Clear Coil memory cache first (before deleting directories)
+                    try {
+                        val imageLoader = SingletonImageLoader.get(context)
+                        imageLoader.memoryCache?.clear()
+                        Log.d(TAG, "Coil memory cache cleared")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to clear Coil memory cache", e)
+                    }
+
+                    // Clear cache directories (includes Coil disk cache in image_cache/)
                     context.cacheDir.deleteRecursively()
                     context.externalCacheDir?.deleteRecursively()
 
@@ -223,6 +236,21 @@ class CacheManager
                 }
             }
 
+        private suspend fun getImageCacheSize(): Long =
+            withContext(Dispatchers.IO) {
+                try {
+                    val imageCacheDir = File(context.cacheDir, "image_cache")
+                    if (imageCacheDir.exists()) {
+                        imageCacheDir.walkFileTree().sumOf { it.length() }
+                    } else {
+                        0L
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to get image cache size", e)
+                    0L
+                }
+            }
+
         private fun getLastCleanupTimestamp(): Long {
             val prefs = context.getSharedPreferences("cache_prefs", Context.MODE_PRIVATE)
             return prefs.getLong("last_cleanup", 0L)
@@ -247,6 +275,7 @@ data class CacheStatistics(
     val topicCacheSize: Long,
     val tempDownloadsSize: Long,
     val logFilesSize: Long,
+    val imageCacheSize: Long,
     val lastCleanup: Long,
 )
 
