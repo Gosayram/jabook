@@ -124,6 +124,9 @@ fun JabookNavHost(
                 onNavigateToDownloads = {
                     navController.navigate(DownloadsRoute())
                 },
+                onNavigateToFavorites = {
+                    navController.navigate(FavoritesRoute)
+                },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
             )

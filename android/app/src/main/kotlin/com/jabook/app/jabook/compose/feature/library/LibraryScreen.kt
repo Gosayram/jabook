@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.GridView
@@ -78,6 +79,7 @@ fun LibraryScreen(
     onBookClick: (String) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToDownloads: () -> Unit,
+    onNavigateToFavorites: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
@@ -164,7 +166,7 @@ fun LibraryScreen(
                     Scaffold(
                         topBar = {
                             TopAppBar(
-                                title = { Text(stringResource(R.string.library)) },
+                                title = { },
                                 actions = {
                                     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
@@ -180,6 +182,13 @@ fun LibraryScreen(
                                         onModeChanged = viewModel::onViewModeChanged,
                                     )
 
+                                    // Favorites button
+                                    IconButton(onClick = onNavigateToFavorites) {
+                                        Icon(
+                                            imageVector = Icons.Default.Favorite,
+                                            contentDescription = stringResource(R.string.favoritesTooltip),
+                                        )
+                                    }
                                     // Search button
                                     IconButton(onClick = onNavigateToSearch) {
                                         Icon(

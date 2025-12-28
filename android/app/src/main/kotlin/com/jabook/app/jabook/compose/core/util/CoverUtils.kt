@@ -127,9 +127,11 @@ object CoverUtils {
         // Ensure coverUrl is not blank and is a valid URL
         val coverUrl = book.coverUrl
         if (!coverUrl.isNullOrBlank()) {
-            // Validate URL format
-            if (coverUrl.startsWith("http://") || coverUrl.startsWith("https://") || coverUrl.startsWith("//")) {
-                return coverUrl
+            // Normalize URL format - handle protocol-relative URLs (//example.com)
+            return when {
+                coverUrl.startsWith("http://") || coverUrl.startsWith("https://") -> coverUrl
+                coverUrl.startsWith("//") -> "https:$coverUrl"
+                else -> null
             }
         }
 

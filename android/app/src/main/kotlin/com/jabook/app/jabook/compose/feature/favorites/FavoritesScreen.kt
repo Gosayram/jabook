@@ -21,11 +21,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -39,6 +43,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +53,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -68,11 +75,14 @@ fun FavoritesScreen(
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
     var isSelectionMode by remember { mutableStateOf(false) }
     val selectedIds = remember { mutableSetOf<String>() }
     var showClearAllDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -88,13 +98,40 @@ fun FavoritesScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        if (isSelectionMode) {
-                            "${selectedIds.size} selected"
-                        } else {
-                            stringResource(R.string.favoritesTooltip)
-                        },
-                    )
+                    if (isSelectionMode) {
+                        Text("${selectedIds.size} selected")
+                    } else {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = viewModel::onSearchQueryChanged,
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
+                            singleLine = true,
+                            colors =
+                                TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                ),
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                )
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotBlank()) {
+                                    IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = stringResource(R.string.clearSearch),
+                                        )
+                                    }
+                                }
+                            },
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(
@@ -129,6 +166,56 @@ fun FavoritesScreen(
                                 }
                             }
                         } else {
+                            // Sort menu
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = stringResource(R.string.sort_by),
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false },
+                            ) {
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.entries.forEach { order ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text =
+                                                    when (order) {
+                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
+                                                            stringResource(R.string.sort_by_activity)
+                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
+                                                            stringResource(R.string.sort_title_asc)
+                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
+                                                            stringResource(R.string.sort_title_desc)
+                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
+                                                            stringResource(R.string.sort_author_asc)
+                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
+                                                            stringResource(R.string.sort_author_desc)
+                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
+                                                            stringResource(R.string.sort_recently_added)
+                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
+                                                            stringResource(R.string.sort_oldest_first)
+                                                    },
+                                            )
+                                        },
+                                        onClick = {
+                                            viewModel.onSortOrderChanged(order)
+                                            showSortMenu = false
+                                        },
+                                        leadingIcon = {
+                                            if (order == sortOrder) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                )
+                                            }
+                                        },
+                                    )
+                                }
+                            }
+
                             // Normal mode: show menu
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(Icons.Default.MoreVert, stringResource(R.string.more))

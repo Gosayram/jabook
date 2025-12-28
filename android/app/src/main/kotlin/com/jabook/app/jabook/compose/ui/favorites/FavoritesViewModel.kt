@@ -17,12 +17,14 @@ package com.jabook.app.jabook.compose.ui.favorites
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
+import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -38,16 +40,49 @@ class FavoritesViewModel
     constructor(
         private val favoritesRepository: FavoritesRepository,
     ) : ViewModel() {
+        // Search query state
+        private val _searchQuery = MutableStateFlow("")
+        val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+        // Sort order state
+        private val _sortOrder = MutableStateFlow(BookSortOrder.RECENTLY_ADDED)
+        val sortOrder: StateFlow<BookSortOrder> = _sortOrder.asStateFlow()
+
         /**
-         * All favorites sorted by date added (newest first).
+         * All favorites with search and sort applied.
          */
         val favorites: StateFlow<List<FavoriteEntity>> =
-            favoritesRepository.allFavorites
-                .stateIn(
-                    scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5000),
-                    initialValue = emptyList(),
-                )
+            combine(
+                favoritesRepository.allFavorites,
+                _searchQuery,
+                _sortOrder,
+            ) { allFavorites, query, order ->
+                // Apply search filter
+                val filtered =
+                    if (query.isBlank()) {
+                        allFavorites
+                    } else {
+                        allFavorites.filter { favorite ->
+                            favorite.title.contains(query, ignoreCase = true) ||
+                                favorite.author.contains(query, ignoreCase = true)
+                        }
+                    }
+
+                // Apply sort
+                when (order) {
+                    BookSortOrder.TITLE_ASC -> filtered.sortedBy { it.title }
+                    BookSortOrder.TITLE_DESC -> filtered.sortedByDescending { it.title }
+                    BookSortOrder.AUTHOR_ASC -> filtered.sortedBy { it.author }
+                    BookSortOrder.AUTHOR_DESC -> filtered.sortedByDescending { it.author }
+                    BookSortOrder.RECENTLY_ADDED -> filtered.sortedByDescending { it.addedDate }
+                    BookSortOrder.OLDEST_FIRST -> filtered.sortedBy { it.addedDate }
+                    BookSortOrder.BY_ACTIVITY -> filtered.sortedByDescending { it.addedDate } // Use addedDate as activity proxy
+                }
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList(),
+            )
 
         /**
          * Set of favorite topic IDs for quick membership checks.
@@ -127,5 +162,19 @@ class FavoritesViewModel
          */
         fun clearErrorMessage() {
             _errorMessage.value = null
+        }
+
+        /**
+         * Update search query.
+         */
+        fun onSearchQueryChanged(query: String) {
+            _searchQuery.value = query
+        }
+
+        /**
+         * Update sort order.
+         */
+        fun onSortOrderChanged(order: BookSortOrder) {
+            _sortOrder.value = order
         }
     }
