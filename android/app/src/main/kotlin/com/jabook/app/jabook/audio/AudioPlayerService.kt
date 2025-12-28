@@ -1092,21 +1092,16 @@ class AudioPlayerService : MediaLibraryService() {
                                             val actionIconResId =
                                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                                     try {
-                                                        val icon = action.icon
-                                                        if (icon != null) {
-                                                            // Use IconCompat to extract resource ID
-                                                            val iconCompat =
-                                                                androidx.core.graphics.drawable.IconCompat
-                                                                    .createFromIcon(
-                                                                        icon as android.graphics.drawable.Icon,
-                                                                    )
-                                                            if (iconCompat.type ==
-                                                                androidx.core.graphics.drawable.IconCompat.TYPE_RESOURCE
-                                                            ) {
-                                                                iconCompat.resId
-                                                            } else {
-                                                                android.R.drawable.ic_media_play
-                                                            }
+                                                        // Use getIcon() instead of deprecated icon field
+                                                        val icon = action.getIcon()
+                                                        // Use IconCompat to extract resource ID
+                                                        val iconCompat =
+                                                            androidx.core.graphics.drawable.IconCompat
+                                                                .createFromIcon(icon)
+                                                        if (iconCompat.type ==
+                                                            androidx.core.graphics.drawable.IconCompat.TYPE_RESOURCE
+                                                        ) {
+                                                            iconCompat.resId
                                                         } else {
                                                             android.R.drawable.ic_media_play
                                                         }
@@ -1128,12 +1123,22 @@ class AudioPlayerService : MediaLibraryService() {
 
                                         // Copy MediaStyle if present
                                         // Use string keys directly as constants may not be available
-                                        val extras = NotificationCompat.getExtras(notification)
+                                        val extras = notification.extras
                                         if (extras != null) {
                                             val mediaSessionKey = "android.mediaSession"
                                             val compactActionsKey = "android.media.compactActions"
                                             if (extras.containsKey(mediaSessionKey)) {
-                                                val mediaSessionToken = extras.getParcelable<android.os.Parcelable>(mediaSessionKey)
+                                                // Use getParcelable with type parameter for API 33+
+                                                val mediaSessionToken =
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                                        extras.getParcelable(
+                                                            mediaSessionKey,
+                                                            android.os.Parcelable::class.java,
+                                                        )
+                                                    } else {
+                                                        @Suppress("DEPRECATION")
+                                                        extras.getParcelable<android.os.Parcelable>(mediaSessionKey)
+                                                    }
                                                 val compactActions = extras.getIntArray(compactActionsKey) ?: intArrayOf()
                                                 setStyle(
                                                     MediaNotificationCompat

@@ -116,6 +116,9 @@ interface BooksDao {
 
     /**
      * Updates the favorite status of a book.
+     *
+     * NOTE: Room Flow will automatically emit new values when this UPDATE completes.
+     * The Flow returned by getAllBooksFlow() will be invalidated and re-emit.
      */
     @Query("UPDATE books SET is_favorite = :isFavorite WHERE id = :bookId")
     suspend fun updateFavoriteStatus(

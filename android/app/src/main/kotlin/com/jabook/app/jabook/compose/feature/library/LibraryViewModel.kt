@@ -206,17 +206,30 @@ class LibraryViewModel
             isFavorite: Boolean,
         ) {
             viewModelScope.launch {
-                // Update local book favorite status
+                // CRITICAL: Get book data BEFORE updating, as we need current book info
+                // Use current sort order to get book from the same Flow that UI uses
+                val currentBooks = getLibraryUseCase(_sortOrder.value).first()
+                val book = currentBooks.find { it.id == bookId }
+
+                // Update local book favorite status in database
+                // This will trigger Flow update automatically
                 toggleFavoriteUseCase(bookId, isFavorite)
 
-                // Synchronize with FavoriteEntity
+                // Synchronize with FavoriteEntity for unified favorites system
                 if (isFavorite) {
-                    // Get book data to create FavoriteEntity
-                    val books = getLibraryUseCase(BookSortOrder.BY_ACTIVITY).first()
-                    val book = books.find { it.id == bookId }
+                    // Add to FavoriteEntity if book exists
                     if (book != null) {
                         val favoriteEntity = book.toFavoriteEntity()
                         favoritesRepository.addToFavorites(favoriteEntity)
+                    } else {
+                        // If book not found in current list, try to get it from database directly
+                        // This can happen if book is filtered out by search
+                        val allBooks = getLibraryUseCase(BookSortOrder.BY_ACTIVITY).first()
+                        val foundBook = allBooks.find { it.id == bookId }
+                        if (foundBook != null) {
+                            val favoriteEntity = foundBook.toFavoriteEntity()
+                            favoritesRepository.addToFavorites(favoriteEntity)
+                        }
                     }
                 } else {
                     // Remove from FavoriteEntity

@@ -40,7 +40,16 @@ class ToggleFavoriteUseCase
             isFavorite: Boolean,
         ): Result<Unit> =
             try {
-                booksDao.updateFavoriteStatus(bookId, isFavorite)
+                // Get book entity first to update it properly
+                val bookEntity = booksDao.getBookById(bookId)
+                if (bookEntity != null) {
+                    // Update using @Update to ensure Room Flow detects changes
+                    val updatedEntity = bookEntity.copy(isFavorite = isFavorite)
+                    booksDao.updateBook(updatedEntity)
+                } else {
+                    // Fallback to @Query UPDATE if book not found
+                    booksDao.updateFavoriteStatus(bookId, isFavorite)
+                }
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Error(e)
