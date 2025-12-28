@@ -14,10 +14,16 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,14 +37,22 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import kotlin.math.roundToInt
 
 /**
  * Mini player component displayed above bottom navigation.
@@ -53,6 +67,7 @@ import com.jabook.app.jabook.R
  * @param progress Playback progress (0.0 to 1.0)
  * @param onPlayPauseClick Callback for play/pause button
  * @param onMiniPlayerClick Callback when mini player card is clicked
+ * @param onDismiss Callback when mini player is dismissed via swipe
  * @param modifier Modifier
  */
 @Composable
@@ -64,11 +79,57 @@ fun MiniPlayer(
     progress: Float,
     onPlayPauseClick: () -> Unit,
     onMiniPlayerClick: () -> Unit,
+    onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val density = LocalDensity.current
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    val animatedOffsetX by animateFloatAsState(
+        targetValue = offsetX,
+        animationSpec = tween(durationMillis = 300),
+        label = "miniPlayerOffset",
+    )
+
+    // Threshold for dismissing (40% of screen width)
+    val dismissThreshold = with(density) { 200.dp.toPx() }
+
+    val interactionSource = remember { MutableInteractionSource() }
+
     Card(
-        onClick = onMiniPlayerClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = {
+                        // Only handle click if not dragging
+                        if (kotlin.math.abs(offsetX) < 10f) {
+                            onMiniPlayerClick()
+                        }
+                    },
+                ).pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            // If dragged beyond threshold, dismiss
+                            if (kotlin.math.abs(offsetX) > dismissThreshold) {
+                                onDismiss()
+                            } else {
+                                // Otherwise, snap back
+                                offsetX = 0f
+                            }
+                        },
+                        onDragCancel = {
+                            // Snap back on cancel
+                            offsetX = 0f
+                        },
+                    ) { change, dragAmount ->
+                        change.consume()
+                        // Accumulate drag amount
+                        offsetX = (offsetX + dragAmount).coerceIn(-dismissThreshold * 1.5f, dismissThreshold * 1.5f)
+                    }
+                },
     ) {
         Column {
             Row(

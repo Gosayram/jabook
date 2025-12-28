@@ -27,7 +27,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -147,6 +151,14 @@ fun JabookApp(
         // Check if we're on the player screen - hide mini player in that case
         val isOnPlayerScreen = currentDestination?.route?.contains("player", ignoreCase = true) == true
 
+        // State for mini player visibility (can be hidden by swipe)
+        var isMiniPlayerVisible by remember { mutableStateOf(true) }
+
+        // Reset visibility when book changes
+        LaunchedEffect(currentBook?.id) {
+            isMiniPlayerVisible = true
+        }
+
         // NavigationSuiteScaffold automatically adapts navigation to screen size
         // - Compact: Bottom navigation bar
         // - Medium/Expanded: Navigation rail
@@ -204,8 +216,8 @@ fun JabookApp(
                     )
                 }
 
-                // Mini player (shown when book is playing, but hidden on player screen)
-                if (!isOnPlayerScreen) {
+                // Mini player (shown when book is playing, but hidden on player screen or when swiped away)
+                if (!isOnPlayerScreen && isMiniPlayerVisible) {
                     currentBook?.let { book ->
                         com.jabook.app.jabook.compose.feature.player.MiniPlayer(
                             coverUrl = book.coverUrl,
@@ -218,6 +230,7 @@ fun JabookApp(
                                 // Navigate to player screen
                                 appState.navController.navigate(PlayerRoute(bookId = book.id))
                             },
+                            onDismiss = { isMiniPlayerVisible = false },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
