@@ -371,11 +371,17 @@ object AudioDataModule {
 }
 
 /**
- * Hilt module for providing audio data repositories.
+ * Hilt module for providing audio data repositories and DAOs.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object AudioRepositoryModule {
+    @Provides
+    @Singleton
+    fun providePlaybackPositionDao(
+        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
+    ): com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao = database.playbackPositionDao()
+
     @Provides
     @Singleton
     fun provideSavedPlayerStateRepository(
