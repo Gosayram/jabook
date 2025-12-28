@@ -116,7 +116,10 @@ fun FileSelectionDialog(
                 Spacer(Modifier.height(8.dp))
 
                 LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
-                    items(rootNodes) { node ->
+                    items(
+                        items = rootNodes,
+                        key = { node -> node.path },
+                    ) { node ->
                         FileNodeItem(
                             node = node,
                             depth = 0,

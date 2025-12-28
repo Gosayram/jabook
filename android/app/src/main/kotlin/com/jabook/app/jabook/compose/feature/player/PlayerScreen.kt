@@ -118,9 +118,13 @@ fun PlayerScreen(
 
     // Auto-initialize player when book data is ready
     // Only initialize once when we have Success state with actual chapters
-    androidx.compose.runtime.LaunchedEffect(uiState) {
-        val state = uiState
-        if (state is PlayerUiState.Success && state.chapters.isNotEmpty()) {
+    // Use specific keys to avoid unnecessary recomposition
+    val shouldInitializePlayer =
+        remember(uiState) {
+            uiState is PlayerUiState.Success && (uiState as? PlayerUiState.Success)?.chapters?.isNotEmpty() == true
+        }
+    androidx.compose.runtime.LaunchedEffect(shouldInitializePlayer) {
+        if (shouldInitializePlayer) {
             viewModel.initializePlayer()
         }
     }

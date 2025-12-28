@@ -163,7 +163,10 @@ fun TorrentDetailsScreen(
                     }
                 }
 
-                items(state.files) { file ->
+                items(
+                    items = state.files,
+                    key = { file -> file.index },
+                ) { file ->
                     FileItem(
                         file = file,
                         onPlay = { viewModel.playFile(file) },

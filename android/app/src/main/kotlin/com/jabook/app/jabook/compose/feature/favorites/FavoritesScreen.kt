@@ -361,26 +361,29 @@ private fun FavoritesList(
     modifier: Modifier = Modifier,
 ) {
     // Convert FavoriteEntities to Books for unified display
+    // Use remember to avoid recomputing on every recomposition
     val booksFromFavorites =
-        favorites.map { favorite ->
-            com.jabook.app.jabook.compose.domain.model.Book(
-                id = favorite.topicId,
-                title = favorite.title,
-                author = favorite.author,
-                coverUrl = favorite.coverUrl?.takeIf { it.isNotEmpty() },
-                description = null,
-                totalDuration = kotlin.time.Duration.ZERO,
-                currentPosition = kotlin.time.Duration.ZERO,
-                progress = 0f,
-                currentChapterIndex = 0,
-                downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
-                downloadProgress = 0f,
-                localPath = null,
-                addedDate = System.currentTimeMillis(),
-                lastPlayedDate = null,
-                isFavorite = favoriteIds.contains(favorite.topicId),
-                sourceUrl = favorite.magnetUrl.takeIf { it.isNotEmpty() },
-            )
+        remember(favorites, favoriteIds) {
+            favorites.map { favorite ->
+                com.jabook.app.jabook.compose.domain.model.Book(
+                    id = favorite.topicId,
+                    title = favorite.title,
+                    author = favorite.author,
+                    coverUrl = favorite.coverUrl?.takeIf { it.isNotEmpty() },
+                    description = null,
+                    totalDuration = kotlin.time.Duration.ZERO,
+                    currentPosition = kotlin.time.Duration.ZERO,
+                    progress = 0f,
+                    currentChapterIndex = 0,
+                    downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
+                    downloadProgress = 0f,
+                    localPath = null,
+                    addedDate = System.currentTimeMillis(),
+                    lastPlayedDate = null,
+                    isFavorite = favoriteIds.contains(favorite.topicId),
+                    sourceUrl = favorite.magnetUrl.takeIf { it.isNotEmpty() },
+                )
+            }
         }
 
     com.jabook.app.jabook.compose.feature.library.UnifiedBooksView(

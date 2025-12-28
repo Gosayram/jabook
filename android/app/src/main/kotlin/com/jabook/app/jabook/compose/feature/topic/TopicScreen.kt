@@ -457,7 +457,10 @@ private fun TopicDetailsContent(
                         modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
-                items(mediaInfo.video) { video ->
+                items(
+                    items = mediaInfo.video,
+                    key = { video -> "${video.codec}_${video.resolution}_${video.bitrate}" },
+                ) { video ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors =
@@ -501,7 +504,10 @@ private fun TopicDetailsContent(
                         modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
-                items(mediaInfo.audio) { audio ->
+                items(
+                    items = mediaInfo.audio,
+                    key = { audio -> "${audio.codec}_${audio.bitrate}_${audio.channels}_${audio.language}" },
+                ) { audio ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors =
@@ -554,7 +560,10 @@ private fun TopicDetailsContent(
             }
 
             // File List (using genres as placeholder - should be actual file list)
-            items(details.genres) { file ->
+            items(
+                items = details.genres,
+                key = { genre -> genre },
+            ) { file ->
                 FileListItem(file = file)
             }
         }
