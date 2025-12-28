@@ -476,9 +476,11 @@ class RutrackerParser
                 // Clean the title
                 val cleanedTitle = cleanTitle(title)
 
-                // Extract and parse MediaInfo if present in description
-                val descriptionText = postBody?.text() ?: ""
-                val parsedMediaInfo = mediaInfoParser.parse(descriptionText)
+                // Extract description - clean text without metadata fields
+                // Remove common metadata patterns to avoid duplication
+                val rawDescriptionText = postBody?.text() ?: ""
+                val descriptionText = cleanDescription(rawDescriptionText, metadata)
+                val parsedMediaInfo = mediaInfoParser.parse(rawDescriptionText)
 
                 // Extract series/cycle
                 val series = extractSeries(postBody)
@@ -708,6 +710,55 @@ class RutrackerParser
         }
 
         /**
+         * Clean description text by removing metadata fields that are already extracted separately.
+         * This prevents duplication of information like author, performer, year, etc.
+         */
+        private fun cleanDescription(
+            rawText: String,
+            metadata: Map<String, String>,
+        ): String {
+            var cleaned = rawText
+
+            // Remove common metadata patterns
+            val patternsToRemove =
+                listOf(
+                    "Год выпуска[:\\s]+\\d{4}",
+                    "Автор[:\\s]+.+?(?=\\n|Исполнитель|Год|Жанр|$)",
+                    "Исполнитель[:\\s]+.+?(?=\\n|Год|Жанр|$)",
+                    "Жанр[:\\s]+.+?(?=\\n|$)",
+                    "Издательство[:\\s]+.+?(?=\\n|$)",
+                    "Битрейт[:\\s]+.+?(?=\\n|$)",
+                    "Время звучания[:\\s]+.+?(?=\\n|$)",
+                    "Тип аудиокниги[:\\s]+.+?(?=\\n|$)",
+                    "Аудио кодек[:\\s]+.+?(?=\\n|$)",
+                    "Формат[:\\s]+.+?(?=\\n|$)",
+                    "Частота оцифровки[:\\s]+.+?(?=\\n|$)",
+                    "Общая продолжительность[:\\s]+.+?(?=\\n|$)",
+                )
+
+            for (pattern in patternsToRemove) {
+                cleaned = cleaned.replace(Regex(pattern, RegexOption.IGNORE_CASE), "")
+            }
+
+            // Remove metadata values if they appear in text
+            metadata.values.forEach { value ->
+                if (value.isNotBlank() && value.length > 3) {
+                    // Remove exact matches and variations
+                    cleaned = cleaned.replace(value, "", ignoreCase = true)
+                }
+            }
+
+            // Clean up multiple whitespace and newlines
+            cleaned =
+                cleaned
+                    .replace(Regex("\\s+"), " ")
+                    .replace(Regex("\\n\\s*\\n"), "\n")
+                    .trim()
+
+            return cleaned
+        }
+
+        /**
          * Extract comments from topic page.
          * Skips the first post_body (main post) and extracts all other comments.
          * Structure: <tbody id="post_XXXXX"> contains <div class="post_body" id="p-XXXXX">
@@ -763,7 +814,12 @@ class RutrackerParser
                             )
                         }
                     }
-                    return comments.take(50) // Limit to 50 comments
+                    // Return last 50 comments (most recent)
+                    return if (comments.size > 50) {
+                        comments.takeLast(50)
+                    } else {
+                        comments
+                    }
                 }
 
                 // Skip first post (main post) and process comments
@@ -808,7 +864,13 @@ class RutrackerParser
                 Log.e(TAG, "Failed to extract comments", e)
             }
 
-            return comments.take(50) // Limit to 50 comments for performance
+            // Return last 50 comments (most recent) - comments are in chronological order
+            // so last ones are the freshest
+            return if (comments.size > 50) {
+                comments.takeLast(50)
+            } else {
+                comments
+            }
         }
 
         private fun extractRelatedBooks(postBody: Element?): List<RelatedBook> {

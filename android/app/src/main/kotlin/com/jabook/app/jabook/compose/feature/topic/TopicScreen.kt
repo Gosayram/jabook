@@ -187,11 +187,20 @@ private fun TopicDetailsContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Cover image (if available)
-        details.coverUrl?.let { coverUrl ->
+        details.coverUrl?.let { rawCoverUrl ->
             item {
                 val context = LocalContext.current
                 val density = context.resources.displayMetrics.density
                 val cornerRadiusPx = 16f * density // 16dp rounded corners for topic detail view
+
+                // Normalize URL - handle protocol-relative URLs and ensure absolute URL
+                val coverUrl =
+                    when {
+                        rawCoverUrl.startsWith("http://") || rawCoverUrl.startsWith("https://") -> rawCoverUrl
+                        rawCoverUrl.startsWith("//") -> "https:$rawCoverUrl"
+                        else -> rawCoverUrl // Keep as is, Coil will handle relative URLs if baseUri is set
+                    }
+
                 val imageRequest =
                     coil3.request.ImageRequest
                         .Builder(context)
@@ -549,24 +558,7 @@ private fun TopicDetailsContent(
             }
         }
 
-        // File List Header
-        if (details.genres.isNotEmpty()) {
-            item {
-                Text(
-                    text = stringResource(R.string.files),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(vertical = 8.dp),
-                )
-            }
-
-            // File List (using genres as placeholder - should be actual file list)
-            items(
-                items = details.genres,
-                key = { genre -> genre },
-            ) { file ->
-                FileListItem(file = file)
-            }
-        }
+        // Genres section removed - not needed as files list
     }
 }
 
