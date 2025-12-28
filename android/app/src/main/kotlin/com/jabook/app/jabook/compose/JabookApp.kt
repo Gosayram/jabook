@@ -144,6 +144,9 @@ fun JabookApp(
         val currentBook by miniPlayerViewModel.currentBook.collectAsStateWithLifecycle()
         val currentDestination = appState.currentDestination // Hoist to Composable scope
 
+        // Check if we're on the player screen - hide mini player in that case
+        val isOnPlayerScreen = currentDestination?.route?.contains("player", ignoreCase = true) == true
+
         // NavigationSuiteScaffold automatically adapts navigation to screen size
         // - Compact: Bottom navigation bar
         // - Medium/Expanded: Navigation rail
@@ -197,25 +200,27 @@ fun JabookApp(
                         modifier =
                             Modifier
                                 .align(androidx.compose.ui.Alignment.BottomCenter)
-                                .padding(bottom = if (currentBook != null) 72.dp else 16.dp),
+                                .padding(bottom = if (currentBook != null && !isOnPlayerScreen) 72.dp else 16.dp),
                     )
                 }
 
-                // Mini player (shown when book is playing)
-                currentBook?.let { book ->
-                    com.jabook.app.jabook.compose.feature.player.MiniPlayer(
-                        coverUrl = book.coverUrl,
-                        title = book.title,
-                        author = book.author,
-                        isPlaying = isPlaying,
-                        progress = if (duration > 0) currentPosition.toFloat() / duration else 0f,
-                        onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
-                        onMiniPlayerClick = {
-                            // Navigate to player screen
-                            appState.navController.navigate(PlayerRoute(bookId = book.id))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                // Mini player (shown when book is playing, but hidden on player screen)
+                if (!isOnPlayerScreen) {
+                    currentBook?.let { book ->
+                        com.jabook.app.jabook.compose.feature.player.MiniPlayer(
+                            coverUrl = book.coverUrl,
+                            title = book.title,
+                            author = book.author,
+                            isPlaying = isPlaying,
+                            progress = if (duration > 0) currentPosition.toFloat() / duration else 0f,
+                            onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
+                            onMiniPlayerClick = {
+                                // Navigate to player screen
+                                appState.navController.navigate(PlayerRoute(bookId = book.id))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }

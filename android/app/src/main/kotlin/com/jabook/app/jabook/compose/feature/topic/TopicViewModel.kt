@@ -154,7 +154,43 @@ class TopicViewModel
                         return@launch
                     }
 
-                    val savePath = "${downloadsDir.absolutePath}/JabookAudio"
+                    // Create base directory for JabookAudio if it doesn't exist
+                    val baseDir = File(downloadsDir, "JabookAudio")
+                    if (!baseDir.exists()) {
+                        val created = baseDir.mkdirs()
+                        if (!created && !baseDir.exists()) {
+                            Log.e("TopicViewModel", "Failed to create base directory: ${baseDir.absolutePath}")
+                            _message.value = context.getString(R.string.failedToStartDownload)
+                            return@launch
+                        }
+                    }
+
+                    // Get book title from current state to create folder name
+                    val bookTitle =
+                        when (val state = _uiState.value) {
+                            is TopicUiState.Success -> {
+                                // Sanitize title for folder name (remove invalid characters)
+                                state.details.title
+                                    .replace(Regex("[<>:\"/\\|?*]"), "_")
+                                    .replace(Regex("\\s+"), "_")
+                                    .take(100) // Limit length
+                            }
+                            else -> topicId // Fallback to topicId if title not available
+                        }
+
+                    // Create folder for this specific book: JabookAudio/{topicId}_{sanitizedTitle}
+                    val bookFolder = File(baseDir, "${topicId}_$bookTitle")
+                    if (!bookFolder.exists()) {
+                        val created = bookFolder.mkdirs()
+                        if (!created && !bookFolder.exists()) {
+                            Log.e("TopicViewModel", "Failed to create book directory: ${bookFolder.absolutePath}")
+                            _message.value = context.getString(R.string.failedToStartDownload)
+                            return@launch
+                        }
+                    }
+
+                    val savePath = bookFolder.absolutePath
+                    Log.d("TopicViewModel", "Saving torrent to: $savePath")
 
                     // Ensure TorrentManager is initialized
                     try {

@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -179,8 +181,8 @@ private fun TopicDetailsContent(
     var showDownloadMenu by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Cover image (if available)
         details.coverUrl?.let { coverUrl ->
@@ -224,10 +226,10 @@ private fun TopicDetailsContent(
 
         // Compact info row: Author, Performer, Duration, Size
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Author, Performer, and Series in compact layout
                 if (!details.author.isNullOrBlank() || !details.performer.isNullOrBlank() || !details.series.isNullOrBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         // Author and Performer in one row
                         if (!details.author.isNullOrBlank() || !details.performer.isNullOrBlank()) {
                             Row(
@@ -241,6 +243,7 @@ private fun TopicDetailsContent(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
+                                        Spacer(Modifier.height(4.dp))
                                         Text(
                                             text = author,
                                             style = MaterialTheme.typography.bodyMedium,
@@ -254,6 +257,7 @@ private fun TopicDetailsContent(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
+                                        Spacer(Modifier.height(4.dp))
                                         Text(
                                             text = performer,
                                             style = MaterialTheme.typography.bodyMedium,
@@ -270,6 +274,7 @@ private fun TopicDetailsContent(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                Spacer(Modifier.height(4.dp))
                                 Text(
                                     text = series,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -281,7 +286,7 @@ private fun TopicDetailsContent(
 
                 // Seeders/Leechers + Size + Duration in one row
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     SeedersLeechersChip(
@@ -406,6 +411,7 @@ private fun TopicDetailsContent(
             item {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(vertical = 4.dp),
                 ) {
                     details.bitrate?.let { bitrate ->
                         Text(
@@ -425,10 +431,13 @@ private fun TopicDetailsContent(
             }
         }
 
-        // Description (collapsible)
-        if (!details.description.isNullOrBlank()) {
+        // Description and Comments section (side by side on larger screens)
+        if (!details.description.isNullOrBlank() || details.comments.isNotEmpty()) {
             item {
-                ExpandableDescription(description = details.description)
+                DescriptionAndCommentsSection(
+                    description = details.description,
+                    comments = details.comments,
+                )
             }
         }
 
@@ -440,18 +449,40 @@ private fun TopicDetailsContent(
                     Text(
                         text = stringResource(R.string.videoLabel),
                         style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
                 items(mediaInfo.video) { video ->
-                    Column(Modifier.padding(vertical = 4.dp)) {
-                        video.codec?.let { Text(stringResource(R.string.codecLabel, it), style = MaterialTheme.typography.bodyMedium) }
-                        video.resolution?.let {
-                            Text(
-                                stringResource(R.string.resolutionLabel, it),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            video.codec?.let {
+                                Text(
+                                    stringResource(R.string.codecLabel, it),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            video.resolution?.let {
+                                Text(
+                                    stringResource(R.string.resolutionLabel, it),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            video.bitrate?.let {
+                                Text(
+                                    stringResource(R.string.bitrateLabel, it),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
                         }
-                        video.bitrate?.let { Text(stringResource(R.string.bitrateLabel, it), style = MaterialTheme.typography.bodyMedium) }
                     }
                 }
             }
@@ -462,23 +493,45 @@ private fun TopicDetailsContent(
                     Text(
                         text = stringResource(R.string.audioLabel),
                         style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
                 items(mediaInfo.audio) { audio ->
-                    Column(Modifier.padding(vertical = 4.dp)) {
-                        audio.codec?.let { Text(stringResource(R.string.codecLabel, it), style = MaterialTheme.typography.bodyMedium) }
-                        audio.bitrate?.let { Text(stringResource(R.string.bitrateLabel, it), style = MaterialTheme.typography.bodyMedium) }
-                        audio.channels?.let {
-                            Text(
-                                stringResource(R.string.channelsLabel, it),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                        audio.language?.let {
-                            Text(
-                                stringResource(R.string.languageLabel, it),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            audio.codec?.let {
+                                Text(
+                                    stringResource(R.string.codecLabel, it),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            audio.bitrate?.let {
+                                Text(
+                                    stringResource(R.string.bitrateLabel, it),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            audio.channels?.let {
+                                Text(
+                                    stringResource(R.string.channelsLabel, it),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            audio.language?.let {
+                                Text(
+                                    stringResource(R.string.languageLabel, it),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
                         }
                     }
                 }
@@ -491,6 +544,7 @@ private fun TopicDetailsContent(
                 Text(
                     text = stringResource(R.string.files),
                     style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 8.dp),
                 )
             }
 
@@ -534,6 +588,57 @@ private fun SeedersLeechersChip(
                 )
             },
         )
+    }
+}
+
+/**
+ * Description and Comments section with adaptive layout.
+ * Shows side by side on larger screens, stacked on smaller screens.
+ */
+@Composable
+private fun DescriptionAndCommentsSection(
+    description: String?,
+    comments: List<com.jabook.app.jabook.compose.data.remote.model.Comment>,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val isLargeScreen = context.resources.configuration.screenWidthDp >= 600
+
+    if (isLargeScreen && !description.isNullOrBlank() && comments.isNotEmpty()) {
+        // Two column layout for larger screens
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // Description column
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                if (!description.isNullOrBlank()) {
+                    ExpandableDescription(description = description)
+                }
+            }
+
+            // Comments column
+            Column(
+                modifier = Modifier.weight(1f),
+            ) {
+                ExpandableComments(comments = comments)
+            }
+        }
+    } else {
+        // Single column layout for smaller screens or when only one section exists
+        Column(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (!description.isNullOrBlank()) {
+                ExpandableDescription(description = description)
+            }
+            if (comments.isNotEmpty()) {
+                ExpandableComments(comments = comments)
+            }
+        }
     }
 }
 
@@ -667,30 +772,38 @@ private fun CommentItem(
     comment: com.jabook.app.jabook.compose.data.remote.model.Comment,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = comment.author,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = comment.date,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
-                text = comment.author,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = comment.date,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = comment.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
-        Text(
-            text = comment.text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
