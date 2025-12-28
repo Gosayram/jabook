@@ -25,8 +25,10 @@ import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCas
 import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -73,6 +75,13 @@ class PlayerViewModel
         // Saved position from database (restored on init)
         private var savedPosition: Long = 0L
         private var savedChapterIndex: Int = 0
+
+        // Chapter repeat mode state
+        private val _chapterRepeatMode = MutableStateFlow(ChapterRepeatMode.OFF)
+        val chapterRepeatMode: StateFlow<ChapterRepeatMode> = _chapterRepeatMode.asStateFlow()
+
+        // Track if we've already repeated once (for ONCE mode)
+        private var hasRepeatedOnce = false
 
         init {
             // CRITICAL: Restore saved position from database on init
@@ -249,6 +258,8 @@ class PlayerViewModel
 
         fun skipToChapter(chapterIndex: Int) {
             playerController.skipToChapter(chapterIndex)
+            // Reset repeat flag when manually changing chapters
+            onChapterChanged()
         }
 
         fun seekForward() {
@@ -318,6 +329,11 @@ class PlayerViewModel
                         "Initializing player: chapter=$initialChapterIndex, position=${initialPosition}ms",
                     )
 
+                    // Set callback for chapter end handling (repeat logic)
+                    playerController.setOnChapterEndedCallback {
+                        onChapterEnded()
+                    }
+
                     playerController.loadBook(
                         filePaths = filePaths,
                         initialChapterIndex = initialChapterIndex,
@@ -342,7 +358,70 @@ class PlayerViewModel
                 booksRepository.updateChapterOrder(bookId, newOrderedIds)
             }
         }
+
+        /**
+         * Toggle chapter repeat mode: OFF -> ONCE -> INFINITE -> OFF
+         */
+        fun toggleChapterRepeat() {
+            _chapterRepeatMode.value =
+                when (_chapterRepeatMode.value) {
+                    ChapterRepeatMode.OFF -> ChapterRepeatMode.ONCE
+                    ChapterRepeatMode.ONCE -> ChapterRepeatMode.INFINITE
+                    ChapterRepeatMode.INFINITE -> ChapterRepeatMode.OFF
+                }
+            // Reset repeat flag when changing mode
+            hasRepeatedOnce = false
+        }
+
+        /**
+         * Handle chapter end - check if we need to repeat.
+         * Called by AudioPlayerController when chapter ends.
+         *
+         * @return true if chapter should be repeated, false to continue to next
+         */
+        fun onChapterEnded(): Boolean =
+            when (_chapterRepeatMode.value) {
+                ChapterRepeatMode.OFF -> {
+                    // No repeat, continue to next chapter
+                    false
+                }
+                ChapterRepeatMode.ONCE -> {
+                    // Repeat once if not already repeated
+                    if (!hasRepeatedOnce) {
+                        hasRepeatedOnce = true
+                        true // Need to repeat
+                    } else {
+                        // Already repeated once, continue to next
+                        hasRepeatedOnce = false
+                        false
+                    }
+                }
+                ChapterRepeatMode.INFINITE -> {
+                    // Always repeat
+                    true
+                }
+            }
+
+        /**
+         * Reset repeat flag when chapter changes manually.
+         */
+        fun onChapterChanged() {
+            hasRepeatedOnce = false
+        }
     }
+
+/**
+ * Chapter repeat mode for player.
+ *
+ * - OFF: No repeat, play next chapter when current ends
+ * - ONCE: Repeat current chapter once, then play next
+ * - INFINITE: Repeat current chapter infinitely
+ */
+enum class ChapterRepeatMode {
+    OFF,
+    ONCE,
+    INFINITE,
+}
 
 /**
  * UI state for the Player screen.

@@ -35,11 +35,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
@@ -239,11 +243,13 @@ fun PlayerScreen(
                             }
 
                             is PlayerUiState.Success -> {
+                                val chapterRepeatMode by viewModel.chapterRepeatMode.collectAsStateWithLifecycle()
                                 PlayerContent(
                                     state = state,
                                     playbackSpeed = playbackSpeed,
                                     sleepTimerState = sleepTimerState,
                                     normalizeEnabled = normalizeEnabled,
+                                    chapterRepeatMode = chapterRepeatMode,
                                     onPlayPause = {
                                         if (state.isPlaying) viewModel.pause() else viewModel.play()
                                     },
@@ -265,6 +271,7 @@ fun PlayerScreen(
                                     },
                                     onSpeedClick = { showSpeedSheet = true },
                                     onSleepTimerClick = { showSleepTimerSheet = true },
+                                    onChapterRepeatClick = viewModel::toggleChapterRepeat,
                                     sharedTransitionScope = sharedTransitionScope,
                                     animatedVisibilityScope = animatedVisibilityScope,
                                 )
@@ -314,6 +321,7 @@ private fun PlayerContent(
     playbackSpeed: Float,
     sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
     normalizeEnabled: Boolean,
+    chapterRepeatMode: ChapterRepeatMode,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -324,6 +332,7 @@ private fun PlayerContent(
     onChapterClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
+    onChapterRepeatClick: () -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
@@ -559,7 +568,7 @@ private fun PlayerContent(
             }
         }
 
-        // Control Buttons Row (Speed & Sleep Timer)
+        // Control Buttons Row (Speed, Repeat & Sleep Timer)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -595,6 +604,57 @@ private fun PlayerContent(
                                         formatter.format(playbackSpeed)
                                     }
                                 "${formattedSpeed}x"
+                            },
+                    )
+                }
+
+                // Chapter Repeat Button
+                FilledTonalButton(
+                    onClick = onChapterRepeatClick,
+                    modifier = Modifier.weight(1f),
+                    colors =
+                        ButtonDefaults.filledTonalButtonColors(
+                            containerColor =
+                                when (chapterRepeatMode) {
+                                    ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
+                                    ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
+                                    ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
+                                },
+                        ),
+                ) {
+                    Icon(
+                        imageVector =
+                            when (chapterRepeatMode) {
+                                ChapterRepeatMode.OFF -> Icons.Outlined.Repeat
+                                ChapterRepeatMode.ONCE -> Icons.Filled.RepeatOne
+                                ChapterRepeatMode.INFINITE -> Icons.Filled.Repeat
+                            },
+                        contentDescription =
+                            when (chapterRepeatMode) {
+                                ChapterRepeatMode.OFF -> stringResource(R.string.noRepeat)
+                                ChapterRepeatMode.ONCE -> stringResource(R.string.repeatTrack)
+                                ChapterRepeatMode.INFINITE -> stringResource(R.string.repeatPlaylist)
+                            },
+                        modifier = Modifier.padding(end = 8.dp),
+                        tint =
+                            when (chapterRepeatMode) {
+                                ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.onSurfaceVariant
+                                ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.onPrimaryContainer
+                                ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.onPrimaryContainer
+                            },
+                    )
+                    Text(
+                        text =
+                            when (chapterRepeatMode) {
+                                ChapterRepeatMode.OFF -> stringResource(R.string.noRepeat)
+                                ChapterRepeatMode.ONCE -> "1"
+                                ChapterRepeatMode.INFINITE -> stringResource(R.string.repeatInfinite)
+                            },
+                        color =
+                            when (chapterRepeatMode) {
+                                ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.onSurfaceVariant
+                                ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.onPrimaryContainer
+                                ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.onPrimaryContainer
                             },
                     )
                 }

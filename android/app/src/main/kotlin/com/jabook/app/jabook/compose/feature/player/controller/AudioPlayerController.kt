@@ -63,6 +63,17 @@ class AudioPlayerController
         private val _currentChapterIndex = MutableStateFlow(0)
         val currentChapterIndex: StateFlow<Int> = _currentChapterIndex.asStateFlow()
 
+        // Callback for chapter end handling (e.g., repeat logic)
+        private var onChapterEndedCallback: (() -> Boolean)? = null
+
+        /**
+         * Set callback to handle chapter end events.
+         * Callback should return true if chapter should be repeated, false to continue to next.
+         */
+        fun setOnChapterEndedCallback(callback: (() -> Boolean)?) {
+            onChapterEndedCallback = callback
+        }
+
         private val playerListener =
             object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -79,6 +90,20 @@ class AudioPlayerController
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
                         // Initial position update
                         _currentPosition.value = exoPlayer.currentPosition
+
+                        // Handle chapter end for repeat logic
+                        if (playbackState == Player.STATE_ENDED) {
+                            val shouldRepeat = onChapterEndedCallback?.invoke() ?: false
+                            if (shouldRepeat) {
+                                // Repeat current chapter by seeking to start
+                                val currentIndex = exoPlayer.currentMediaItemIndex
+                                exoPlayer.seekTo(currentIndex, 0)
+                                // Resume playback if it was playing
+                                if (exoPlayer.playWhenReady) {
+                                    exoPlayer.play()
+                                }
+                            }
+                        }
                     }
                 }
 

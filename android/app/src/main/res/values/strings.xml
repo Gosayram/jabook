@@ -1888,6 +1888,8 @@
     <string name="repeatTrack">Repeat track</string>
     <!-- Repeat entire playlist mode -->
     <string name="repeatPlaylist">Repeat playlist</string>
+    <!-- Infinite repeat symbol -->
+    <string name="repeatInfinite">∞</string>
     <!-- Sleep timer label -->
     <string name="timerLabel">Timer</string>
     <!-- Playback speed label -->
