@@ -79,6 +79,8 @@ import coil3.asImage
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import coil3.request.transformations
+import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 
@@ -188,11 +190,14 @@ private fun TopicDetailsContent(
         details.coverUrl?.let { coverUrl ->
             item {
                 val context = LocalContext.current
+                val density = context.resources.displayMetrics.density
+                val cornerRadiusPx = 16f * density // 16dp rounded corners for topic detail view
                 val imageRequest =
                     coil3.request.ImageRequest
                         .Builder(context)
                         .data(coverUrl)
                         .crossfade(true)
+                        .transformations(RoundedCornersTransformation(cornerRadiusPx))
                         .placeholder(
                             ColorDrawable(
                                 MaterialTheme.colorScheme.surfaceVariant.toArgb(),

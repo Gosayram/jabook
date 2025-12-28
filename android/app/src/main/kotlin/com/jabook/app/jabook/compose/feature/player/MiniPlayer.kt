@@ -45,12 +45,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.transformations
+import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
 import kotlin.math.roundToInt
 
@@ -132,6 +136,19 @@ fun MiniPlayer(
                 },
     ) {
         Column {
+            // Cover image with rounded corners
+            val context = LocalContext.current
+            val density = context.resources.displayMetrics.density
+            val cornerRadiusPx = 8f * density // 8dp rounded corners for mini player
+            val imageRequest =
+                remember(coverUrl) {
+                    ImageRequest
+                        .Builder(context)
+                        .data(coverUrl)
+                        .transformations(RoundedCornersTransformation(cornerRadiusPx))
+                        .build()
+                }
+
             Row(
                 modifier =
                     Modifier
@@ -139,9 +156,8 @@ fun MiniPlayer(
                         .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Cover image (40dp square)
                 AsyncImage(
-                    model = coverUrl,
+                    model = imageRequest,
                     contentDescription = title,
                     modifier = Modifier.size(40.dp),
                     contentScale = ContentScale.Crop,
