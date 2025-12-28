@@ -21,26 +21,17 @@ import javax.inject.Inject
 /**
  * Smart cover URL extractor with priority-based fallback strategies.
  *
- * Implements 6-level extraction strategy to handle various
+ * Implements 5-level extraction strategy to handle various
  * cover image formats on RuTracker pages.
+ *
+ * No domain validation - accepts any image with valid extension
+ * (.jpg, .jpeg, .png, .webp, .gif) and HTTP(S) scheme.
  */
 class CoverUrlExtractor
     @Inject
     constructor() {
         companion object {
             private const val TAG = "CoverUrlExtractor"
-
-            // Valid image domains (allowlist)
-            private val VALID_DOMAINS =
-                listOf(
-                    "fastpic",
-                    "rutracker",
-                    "i.rutracker",
-                    "static.t-ru.org",
-                    "imgur",
-                    "imageban",
-                    "radikal",
-                )
 
             // Icon/smiley blacklist patterns
             private val ICON_PATTERNS =
@@ -59,26 +50,37 @@ class CoverUrlExtractor
         }
 
         /**
-         * Extract cover URL with 6 priority-based strategies.
+         * Extract cover URL with 5 priority-based strategies.
          *
          * Priority order:
          * 1. var.postImg with title (most reliable)
          * 2. img from static.rutracker or fastpic
          * 3. img with data-src (lazy loading)
          * 4. img with srcset
-         * 5. Any img from valid domains
-         * 6. First img (last resort, with filtering)
+         * 5. First valid img (last resort, with filtering)
+         *
+         * No domain validation - accepts any image with valid extension (.jpg, .jpeg, .png, .webp, .gif)
+         * and HTTP(S) scheme.
          *
          * @param container Element to search within (e.g., post body)
          * @return Cover URL or null if not found
          */
         fun extract(container: Element): String? {
             // Priority 1: var.postImg with title attribute (Gold standard)
-            container.selectFirst("var.postImg[title], var.postImgAligned[title]")?.let { varElement ->
-                val url = varElement.attr("title")
-                if (isValidImageUrl(url)) {
+            // Try multiple selectors to catch all variations
+            val varElement =
+                container.selectFirst("var.postImg[title]")
+                    ?: container.selectFirst("var.postImgAligned[title]")
+                    ?: container.selectFirst("var[class*='postImg'][title]")
+                    ?: container.selectFirst("var[class*='postImgAligned'][title]")
+
+            varElement?.let { element ->
+                val url = element.attr("title")
+                if (url.isNotBlank() && isValidImageUrl(url)) {
                     Log.d(TAG, "Cover found via var.postImg: $url")
                     return normalizeUrl(url)
+                } else {
+                    Log.d(TAG, "Cover URL from var.postImg is invalid or blank: '$url'")
                 }
             }
 
@@ -119,19 +121,7 @@ class CoverUrlExtractor
                 }
             }
 
-            // Priority 5: Any img from valid domains
-            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-            for (domain in VALID_DOMAINS) {
-                container.selectFirst("img[src*='$domain']")?.let { imgElement ->
-                    val url = imgElement.absUrl("src")
-                    if (isValidImageUrl(url) && !isIconOrSmile(url)) {
-                        Log.d(TAG, "Cover found via domain match ($domain): $url")
-                        return normalizeUrl(url)
-                    }
-                }
-            }
-
-            // Priority 6: First valid img (last resort with strict filtering)
+            // Priority 5: First valid img (last resort with strict filtering)
             // Use selectStream() for lazy evaluation of large lists (jsoup 1.19.1+)
             container.select("img[src]").forEach { imgElement ->
                 val url = imgElement.absUrl("src")
@@ -157,23 +147,25 @@ class CoverUrlExtractor
          * Validate if URL is a valid image URL.
          *
          * Checks for:
-         * - Valid image extension
-         * - Valid domain or HTTP(S) scheme
+         * - Valid image extension (.jpg, .jpeg, .png, .webp, .gif)
+         * - HTTP(S) scheme or protocol-relative URL
+         *
+         * No domain validation - accepts images from any domain with valid extension.
          */
         private fun isValidImageUrl(url: String): Boolean {
             if (url.isBlank()) return false
 
-            // Check for valid extensions
+            // Check for valid image extensions
             val validExtensions = listOf(".jpg", ".jpeg", ".png", ".webp", ".gif")
             val hasValidExt = validExtensions.any { ext -> url.lowercase().contains(ext) }
 
             if (!hasValidExt) return false
 
-            // Check for valid domain or HTTP scheme
-            val hasValidDomain = VALID_DOMAINS.any { domain -> url.contains(domain, ignoreCase = true) }
-            val hasHttpScheme = url.startsWith("http://") || url.startsWith("https://") || url.startsWith("//")
+            // Accept any URL with HTTP(S) scheme or protocol-relative URL
+            val hasHttpScheme = url.startsWith("http://") || url.startsWith("https://")
+            val isProtocolRelative = url.startsWith("//")
 
-            return hasValidDomain || hasHttpScheme
+            return hasHttpScheme || isProtocolRelative
         }
 
         /**

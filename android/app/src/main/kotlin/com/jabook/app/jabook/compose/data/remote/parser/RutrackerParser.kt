@@ -399,13 +399,20 @@ class RutrackerParser
 
             // Extract cover URL with improved selectors
             // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-            val coverUrl =
-                row.selectFirst("img[src]")?.absUrl("src")
+            // Also try var.postImg[title] for search results that might have it
+            val rawCoverUrl =
+                row.selectFirst("var.postImg[title]")?.attr("title")
+                    ?: row.selectFirst("var.postImgAligned[title]")?.attr("title")
+                    ?: row.selectFirst("var[class*='postImg'][title]")?.attr("title")
+                    ?: row.selectFirst("img[src]")?.absUrl("src")
                     ?: row.selectFirst("img.postImg")?.absUrl("src")
                     ?: row.selectFirst("img.preview")?.absUrl("src")
                     ?: row.selectFirst("img.thumbnail")?.absUrl("src")
                     ?: row.selectFirst("img[src*='static.t-ru.org']")?.absUrl("src")
                     ?: row.selectFirst("img[src*='i.rutracker.cc']")?.absUrl("src")
+
+            // Normalize URL using CoverUrlExtractor
+            val coverUrl = rawCoverUrl?.let { coverExtractor.normalizeUrl(it) }
 
             // Clean the title to remove technical details
             val cleanedTitle = cleanTitle(title)
