@@ -19,6 +19,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.annotation.OptIn
+import androidx.core.app.NotificationCompat
 import androidx.core.app.TaskStackBuilder
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -37,6 +38,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import okhttp3.Cache
 import javax.inject.Inject
+import androidx.media.app.NotificationCompat as MediaNotificationCompat
 
 /**
  * Native audio player service using Media3 ExoPlayer.
@@ -984,17 +986,20 @@ class AudioPlayerService : MediaLibraryService() {
                             notificationId: Int,
                             dismissedByUser: Boolean,
                         ) {
-                            // Only stop service if user explicitly dismissed the notification
-                            // System cancellation (e.g., app killed) should not stop service
-                            if (dismissedByUser) {
-                                android.util.Log.d("AudioPlayerService", "Notification dismissed by user, stopping service")
-                                stopForeground(STOP_FOREGROUND_REMOVE)
-                                stopSelf()
-                            } else {
-                                // System cancelled notification (e.g., app killed) - try to restore
-                                android.util.Log.d("AudioPlayerService", "Notification cancelled by system, attempting to restore")
-                                // Don't stop service - it will be restored when player state changes
-                            }
+                            // USER REQUEST: Prevent notification dismissal by swipe
+                            // Always restore notification, never stop service when dismissed
+                            // This ensures player continues working even if user accidentally swipes notification
+                            android.util.Log.d(
+                                "AudioPlayerService",
+                                "Notification cancelled (dismissedByUser=$dismissedByUser), restoring notification",
+                            )
+
+                            // Restore notification immediately by invalidating PlayerNotificationManager
+                            // This will trigger onNotificationPosted again
+                            playerNotificationManager?.invalidate()
+
+                            // Don't stop service - keep it running
+                            // User can only stop playback through app UI or notification controls
                         }
 
                         override fun onNotificationPosted(
@@ -1006,8 +1011,150 @@ class AudioPlayerService : MediaLibraryService() {
                             // This keeps notification visible like quality music apps (Spotify, YouTube Music)
                             // Previously: stopForeground(DETACH) when ongoing==false (paused) → notification disappeared
                             // Now: Always startForeground → notification persists
-                            android.util.Log.d("AudioPlayerService", "onNotificationPosted: ongoing=$ongoing, staying in foreground")
-                            startForeground(notificationId, notification)
+                            android.util.Log.d(
+                                "AudioPlayerService",
+                                "onNotificationPosted: ongoing=$ongoing, staying in foreground",
+                            )
+
+                            // USER REQUEST: Make notification non-dismissible by swipe
+                            // Create new notification with ongoing flag using NotificationCompat
+                            // Copy properties from original notification
+                            val nonDismissibleNotification =
+                                NotificationCompat
+                                    .Builder(this@AudioPlayerService, NotificationHelper.CHANNEL_ID)
+                                    .apply {
+                                        // Copy essential properties from original notification
+                                        val title = NotificationCompat.getContentTitle(notification)
+                                        val text = NotificationCompat.getContentText(notification)
+                                        if (title != null) setContentTitle(title)
+                                        if (text != null) setContentText(text)
+
+                                        // Get small icon from original notification
+                                        // notification.smallIcon is Icon, need to extract resource ID
+                                        val smallIconResId =
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                                try {
+                                                    val icon = notification.getSmallIcon()
+                                                    if (icon != null) {
+                                                        val iconType = icon.type
+                                                        if (iconType == android.graphics.drawable.Icon.TYPE_RESOURCE) {
+                                                            // Use reflection or IconCompat to get resource ID
+                                                            // For API 23+, we can use IconCompat
+                                                            androidx.core.graphics.drawable.IconCompat
+                                                                .createFromIcon(icon)
+                                                                .resId
+                                                        } else {
+                                                            com.jabook.app.jabook.R.drawable.ic_notification_logo
+                                                        }
+                                                    } else {
+                                                        com.jabook.app.jabook.R.drawable.ic_notification_logo
+                                                    }
+                                                } catch (e: Exception) {
+                                                    com.jabook.app.jabook.R.drawable.ic_notification_logo
+                                                }
+                                            } else {
+                                                com.jabook.app.jabook.R.drawable.ic_notification_logo
+                                            }
+                                        setSmallIcon(smallIconResId)
+
+                                        // Get large icon from original notification
+                                        val largeIcon = notification.getLargeIcon()
+                                        if (largeIcon != null) {
+                                            try {
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                                    if (largeIcon.type == android.graphics.drawable.Icon.TYPE_BITMAP) {
+                                                        val bitmap =
+                                                            largeIcon.loadDrawable(this@AudioPlayerService)?.let { drawable ->
+                                                                if (drawable is android.graphics.drawable.BitmapDrawable) {
+                                                                    drawable.bitmap
+                                                                } else {
+                                                                    null
+                                                                }
+                                                            }
+                                                        if (bitmap != null) {
+                                                            setLargeIcon(bitmap)
+                                                        }
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                android.util.Log.w("AudioPlayerService", "Failed to get large icon", e)
+                                            }
+                                        }
+
+                                        setContentIntent(notification.contentIntent)
+                                        setDeleteIntent(null) // Remove delete intent to prevent swipe dismissal
+
+                                        // Copy actions (Play/Pause, Next, Previous)
+                                        // Convert android.app.Notification.Action to NotificationCompat.Action
+                                        notification.actions?.forEach { action ->
+                                            // Try to extract resource ID from action icon
+                                            // If extraction fails, use fallback icon
+                                            val actionIconResId =
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                                    try {
+                                                        val icon = action.icon
+                                                        if (icon != null) {
+                                                            // Use IconCompat to extract resource ID
+                                                            val iconCompat =
+                                                                androidx.core.graphics.drawable.IconCompat
+                                                                    .createFromIcon(
+                                                                        icon as android.graphics.drawable.Icon,
+                                                                    )
+                                                            if (iconCompat.type ==
+                                                                androidx.core.graphics.drawable.IconCompat.TYPE_RESOURCE
+                                                            ) {
+                                                                iconCompat.resId
+                                                            } else {
+                                                                android.R.drawable.ic_media_play
+                                                            }
+                                                        } else {
+                                                            android.R.drawable.ic_media_play
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        android.R.drawable.ic_media_play
+                                                    }
+                                                } else {
+                                                    android.R.drawable.ic_media_play
+                                                }
+                                            // Create NotificationCompat.Action with resource ID
+                                            addAction(
+                                                NotificationCompat.Action(
+                                                    actionIconResId,
+                                                    action.title,
+                                                    action.actionIntent,
+                                                ),
+                                            )
+                                        }
+
+                                        // Copy MediaStyle if present
+                                        // Use string keys directly as constants may not be available
+                                        val extras = NotificationCompat.getExtras(notification)
+                                        if (extras != null) {
+                                            val mediaSessionKey = "android.mediaSession"
+                                            val compactActionsKey = "android.media.compactActions"
+                                            if (extras.containsKey(mediaSessionKey)) {
+                                                val mediaSessionToken = extras.getParcelable<android.os.Parcelable>(mediaSessionKey)
+                                                val compactActions = extras.getIntArray(compactActionsKey) ?: intArrayOf()
+                                                setStyle(
+                                                    MediaNotificationCompat
+                                                        .MediaStyle()
+                                                        .setShowActionsInCompactView(*compactActions)
+                                                        .setMediaSession(
+                                                            mediaSessionToken as? android.support.v4.media.session.MediaSessionCompat.Token,
+                                                        ),
+                                                )
+                                            }
+                                        }
+
+                                        // CRITICAL: Set ongoing flag to prevent swipe dismissal
+                                        setOngoing(true)
+                                        setAutoCancel(false)
+                                        priority = NotificationCompat.PRIORITY_LOW
+                                        setShowWhen(false)
+                                        setOnlyAlertOnce(true)
+                                    }.build()
+
+                            startForeground(notificationId, nonDismissibleNotification)
                         }
                     },
                 ).setSmallIconResourceId(com.jabook.app.jabook.R.drawable.ic_notification_logo)

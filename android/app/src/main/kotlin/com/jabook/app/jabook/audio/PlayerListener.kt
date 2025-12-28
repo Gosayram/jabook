@@ -304,13 +304,13 @@ internal class PlayerListener(
                 "EVENT_IS_PLAYING_CHANGED: isPlaying=$isPlaying, playWhenReady=${player.playWhenReady}, playbackState=$stateName, mediaItemCount=${player.mediaItemCount}",
             )
 
-            // Save position when playback stops (if not by user request)
-            // This handles cases where playback stops due to system events
+            // CRITICAL: Save position when playback stops for any reason
+            // This ensures position is saved in all scenarios (pause, system events, etc.)
             if (!isPlaying && !player.playWhenReady && playbackState == Player.STATE_READY) {
                 // Playback stopped but player is still ready (not ended)
-                // This might be due to system events, save position
-                android.util.Log.d("AudioPlayerService", "Playback stopped (not by user), saving position")
-                // playbackPositionSaver?.savePosition("playback_stopped")
+                // Save position to ensure it's preserved
+                android.util.Log.d("AudioPlayerService", "Playback stopped, saving position")
+                saveCurrentPosition()
             }
 
             // Save position when playback starts (critical event)
@@ -528,16 +528,28 @@ internal class PlayerListener(
             "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reasonText",
         )
 
-        // Save position when playback stops due to audio focus loss or becoming noisy
+        // CRITICAL: Save position when playback stops for ANY reason
+        // This ensures position is saved in all scenarios:
+        // - User pauses and closes app
+        // - Device battery dies
+        // - Phone call interrupts playback
+        // - Other system events
         if (!playWhenReady) {
+            android.util.Log.d("AudioPlayerService", "Playback paused (reason=$reasonText), saving position")
+            saveCurrentPosition()
+
             when (reason) {
                 Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> {
-                    android.util.Log.i("AudioPlayerService", "Audio focus lost, saving position")
-                    // playbackPositionSaver?.savePosition("audio_focus_lost")
+                    android.util.Log.i("AudioPlayerService", "Audio focus lost, position saved")
                 }
                 Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> {
-                    android.util.Log.i("AudioPlayerService", "Audio becoming noisy, saving position")
-                    // playbackPositionSaver?.savePosition("audio_becoming_noisy")
+                    android.util.Log.i("AudioPlayerService", "Audio becoming noisy (e.g., headphones unplugged), position saved")
+                }
+                Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> {
+                    android.util.Log.d("AudioPlayerService", "User paused playback, position saved")
+                }
+                else -> {
+                    android.util.Log.d("AudioPlayerService", "Playback paused for reason: $reasonText, position saved")
                 }
             }
         }

@@ -52,6 +52,19 @@ internal class ServiceLifecycleManager(
     fun onDestroy() {
         android.util.Log.d("AudioPlayerService", "onDestroy called")
 
+        // CRITICAL: Save position before destroying service
+        // This ensures position is saved when:
+        // - User closes app
+        // - Device shuts down
+        // - System kills service
+        // - Any other scenario where service is destroyed
+        try {
+            android.util.Log.d("AudioPlayerService", "Saving position before service destruction")
+            service.saveCurrentPosition()
+        } catch (e: Exception) {
+            android.util.Log.w("AudioPlayerService", "Failed to save position in onDestroy", e)
+        }
+
         // Stop sleep timer check
         service.sleepTimerManager?.stopSleepTimerCheck()
 

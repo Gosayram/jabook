@@ -18,6 +18,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCase
@@ -27,6 +28,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -59,6 +61,7 @@ class PlayerViewModel
         private val sleepTimerRepository: com.jabook.app.jabook.compose.data.repository.SleepTimerRepository,
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
+        private val playbackPositionRepository: PlaybackPositionRepository,
     ) : ViewModel() {
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
@@ -66,6 +69,44 @@ class PlayerViewModel
 
         // Track if book has been loaded into player
         private var isBookLoaded = false
+
+        // Saved position from database (restored on init)
+        private var savedPosition: Long = 0L
+        private var savedChapterIndex: Int = 0
+
+        init {
+            // CRITICAL: Restore saved position from database on init
+            // This ensures position is restored in all scenarios:
+            // - User paused and closed app
+            // - Device battery died
+            // - Phone call interrupted playback
+            // - Other system events
+            viewModelScope.launch {
+                try {
+                    val positionResult = playbackPositionRepository.getPosition(bookId).first()
+                    when (positionResult) {
+                        is com.jabook.app.jabook.audio.core.result.Result.Success -> {
+                            positionResult.data?.let { entity ->
+                                savedPosition = entity.position
+                                savedChapterIndex = entity.trackIndex
+                                android.util.Log.d(
+                                    "PlayerViewModel",
+                                    "Restored position from database: chapter=$savedChapterIndex, position=${savedPosition}ms",
+                                )
+                            }
+                        }
+                        is com.jabook.app.jabook.audio.core.result.Result.Error -> {
+                            android.util.Log.w("PlayerViewModel", "Failed to restore position: ${positionResult.exception.message}")
+                        }
+                        else -> {
+                            // Loading state, will be updated when ready
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("PlayerViewModel", "Error restoring position from database", e)
+                }
+            }
+        }
 
         /**
          * Combined UI state from book data, playback state, and settings.
@@ -84,8 +125,8 @@ class PlayerViewModel
                 @Suppress("UNCHECKED_CAST")
                 val chapters = args[1] as List<Chapter>
                 val playing = args[2] as Boolean
-                val position = args[3] as Long
-                val chapterIndex = args[4] as Int
+                val controllerPosition = args[3] as Long
+                val controllerChapterIndex = args[4] as Int
                 val preferences = args[5] as com.jabook.app.jabook.compose.data.preferences.UserPreferences
 
                 if (book == null) {
@@ -99,6 +140,18 @@ class PlayerViewModel
                     val forwardInterval =
                         book.forwardDuration
                             ?: if (preferences.forwardDurationSeconds > 0) preferences.forwardDurationSeconds.toInt() else 30
+
+                    // Use saved position from database if player hasn't loaded yet
+                    // This ensures position is restored even if player hasn't started
+                    val position = if (controllerPosition > 0 || isBookLoaded) controllerPosition else savedPosition
+                    val chapterIndex =
+                        if (controllerChapterIndex > 0 ||
+                            isBookLoaded
+                        ) {
+                            controllerChapterIndex
+                        } else {
+                            savedChapterIndex.coerceIn(0, chapters.size - 1)
+                        }
 
                     PlayerUiState.Success(
                         book = book,
@@ -248,17 +301,27 @@ class PlayerViewModel
         }
 
         /**
-         * Initialize player with book data if needed
+         * Initialize player with book data if needed.
+         * Restores saved position from database if available.
          */
         fun initializePlayer() {
             val state = uiState.value
             if (state is PlayerUiState.Success && !isBookLoaded) {
                 val filePaths = state.chapters.mapNotNull { it.fileUrl }
                 if (filePaths.isNotEmpty()) {
+                    // Use saved position from database if available, otherwise use current position
+                    val initialChapterIndex = if (savedChapterIndex > 0) savedChapterIndex else state.currentChapterIndex
+                    val initialPosition = if (savedPosition > 0) savedPosition else state.currentPosition
+
+                    android.util.Log.d(
+                        "PlayerViewModel",
+                        "Initializing player: chapter=$initialChapterIndex, position=${initialPosition}ms",
+                    )
+
                     playerController.loadBook(
                         filePaths = filePaths,
-                        initialChapterIndex = state.currentChapterIndex,
-                        initialPosition = state.currentPosition,
+                        initialChapterIndex = initialChapterIndex,
+                        initialPosition = initialPosition,
                         autoPlay = false, // Don't auto-play on init
                         metadata =
                             mapOf(
