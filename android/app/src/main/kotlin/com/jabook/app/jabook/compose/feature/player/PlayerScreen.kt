@@ -414,7 +414,10 @@ private fun PlayerContent(
     // Increased cover size: 88% for compact, 92% for larger screens
     val coverWidth = if (isCompact) 0.88f else 0.92f
     val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
-    val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
+    // Use tighter spacing for player on compact screens to reduce empty space
+    val itemSpacing = if (isCompact) 8.dp else AdaptiveUtils.getItemSpacing(windowSizeClass)
+    // Smaller spacing for compact screens between specific elements
+    val smallItemSpacing = if (isCompact) 4.dp else 8.dp
 
     // Get author from audio metadata if available
     var authorFromMetadata by remember { mutableStateOf<String?>(null) }
@@ -448,8 +451,8 @@ private fun PlayerContent(
                 .PaddingValues(
                     start = contentPadding,
                     end = contentPadding,
-                    top = if (isCompact) 4.dp else 8.dp,
-                    bottom = if (isCompact) 96.dp else 112.dp,
+                    top = if (isCompact) 0.dp else 8.dp,
+                    bottom = if (isCompact) 80.dp else 112.dp,
                 ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(itemSpacing),
@@ -459,10 +462,13 @@ private fun PlayerContent(
             item {
                 Text(
                     text = displayAuthor,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = smallItemSpacing),
                 )
             }
         }
@@ -510,11 +516,14 @@ private fun PlayerContent(
         item {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isCompact) 8.dp else 0.dp),
             ) {
                 Text(
                     text = state.book.title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -525,7 +534,10 @@ private fun PlayerContent(
         // Progress section
         item {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isCompact) 4.dp else 0.dp),
             ) {
                 // Progress bar
                 val progress =
@@ -558,13 +570,13 @@ private fun PlayerContent(
                 ) {
                     Text(
                         text = formatDuration(state.currentPosition),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
                     Text(
                         text = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -578,13 +590,17 @@ private fun PlayerContent(
                     onClick = onChapterClick,
                     modifier =
                         Modifier
-                            .fillMaxWidth(0.95f)
-                            .wrapContentWidth(Alignment.CenterHorizontally),
+                            .fillMaxWidth(if (isCompact) 0.98f else 0.95f)
+                            .wrapContentWidth(Alignment.CenterHorizontally)
+                            .height(if (isCompact) 40.dp else 48.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.SkipNext,
                         contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp),
+                        modifier =
+                            Modifier
+                                .size(if (isCompact) 18.dp else 20.dp)
+                                .padding(end = if (isCompact) 6.dp else 8.dp),
                     )
                     Text(
                         text =
@@ -596,6 +612,16 @@ private fun PlayerContent(
                             ),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
+                        fontSize =
+                            if (isCompact) {
+                                androidx.compose.ui.unit.TextUnit(
+                                    13f,
+                                    androidx.compose.ui.unit.TextUnitType.Sp,
+                                )
+                            } else {
+                                androidx.compose.ui.unit
+                                    .TextUnit(14f, androidx.compose.ui.unit.TextUnitType.Sp)
+                            },
                     )
                 }
             }
@@ -604,7 +630,10 @@ private fun PlayerContent(
         // Playback controls
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = if (isCompact) smallItemSpacing else 0.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -689,7 +718,10 @@ private fun PlayerContent(
         // Control Buttons Row (Speed, Repeat & Sleep Timer)
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isCompact) 4.dp else 0.dp),
                 horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
             ) {
                 // Playback Speed Button
