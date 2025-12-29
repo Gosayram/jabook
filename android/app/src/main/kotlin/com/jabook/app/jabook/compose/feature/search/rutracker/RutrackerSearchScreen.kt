@@ -109,7 +109,8 @@ fun RutrackerSearchScreen(
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: null
-    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
     val contentPadding =
         if (windowSizeClass != null) {
             AdaptiveUtils.getContentPadding(windowSizeClass)
@@ -427,6 +428,7 @@ fun RutrackerSearchScreen(
             onApply = { newFilters ->
                 viewModel.updateFilters(newFilters)
             },
+            itemSpacing = itemSpacing,
         )
     }
 }
@@ -440,6 +442,7 @@ private fun FilterBottomSheet(
     filters: RutrackerSearchFilters,
     onDismiss: () -> Unit,
     onApply: (RutrackerSearchFilters) -> Unit,
+    itemSpacing: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {
     var tempMinSeeders by remember { mutableIntStateOf(filters.minSeeders ?: 0) }
@@ -535,7 +538,6 @@ private fun FilterBottomSheet(
     }
 }
 
-@Composable
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun SearchResultCard(
@@ -549,7 +551,8 @@ private fun SearchResultCard(
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: null
-    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     Card(

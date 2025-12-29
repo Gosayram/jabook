@@ -114,7 +114,8 @@ fun SettingsScreen(
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: null
-    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
     val contentPadding =
         if (windowSizeClass != null) {
             AdaptiveUtils.getContentPadding(windowSizeClass)
@@ -153,7 +154,7 @@ fun SettingsScreen(
         ) {
             // Authentication Section
             val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
-            SettingsSection(title = stringResource(R.string.account))
+            SettingsSection(title = stringResource(R.string.account), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             when (val status = authStatus) {
                 is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> {
@@ -230,6 +231,9 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.autoSwitchToWorkingMirrorOnError),
                 checked = protoSettings.autoSwitchMirror,
                 onCheckedChange = viewModel::updateAutoSwitch,
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
             )
 
             SettingsItem(
@@ -268,6 +272,8 @@ fun SettingsScreen(
                                 ).show()
                         }
                     },
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
                 )
             }
 
@@ -401,6 +407,9 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
                 checked = userPrefs?.normalizeChapterTitles ?: false,
                 onCheckedChange = { viewModel.updateNormalizeChapterTitles(it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
             )
 
             HorizontalDivider()
@@ -475,6 +484,9 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.downloadOnlyViaWifi),
                 checked = protoSettings.wifiOnlyDownload,
                 onCheckedChange = viewModel::updateWifiOnly,
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
             )
 
             // Bandwidth Limiting
@@ -483,6 +495,9 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.setMaximumDownloadSpeed),
                 checked = protoSettings.limitDownloadSpeed,
                 onCheckedChange = viewModel::updateLimitDownloadSpeed,
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
             )
 
             if (protoSettings.limitDownloadSpeed) {
@@ -493,6 +508,9 @@ fun SettingsScreen(
                     valueRange = 100f..10000f,
                     steps = 98,
                     valueFormatter = { "${it.toInt()} KB/s" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
                 )
             }
 
@@ -504,6 +522,9 @@ fun SettingsScreen(
                 valueRange = 1f..5f,
                 steps = 3,
                 valueFormatter = { "${it.toInt()}" },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
             )
 
             Spacer(modifier = Modifier.height(itemSpacing))
@@ -805,6 +826,9 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.automaticallyPlayNextChapterWhenCurrentEnds),
                 checked = userPreferences?.autoPlayNext ?: true,
                 onCheckedChange = viewModel::updateAutoPlayNext,
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
             )
 
             // Playback Speed
@@ -815,6 +839,9 @@ fun SettingsScreen(
                 valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
                 steps = PlaybackSpeedConstants.SLIDER_STEPS,
                 valueFormatter = { PlaybackSpeedConstants.formatSpeed(it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
             )
 
             // Seek Intervals
@@ -825,6 +852,9 @@ fun SettingsScreen(
                 valueRange = 5f..60f,
                 steps = 10,
                 valueFormatter = { "${it.toInt()}s" },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
             )
 
             SettingsSliderItem(
@@ -834,6 +864,9 @@ fun SettingsScreen(
                 valueRange = 5f..120f,
                 steps = 22,
                 valueFormatter = { "${it.toInt()}s" },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
             )
 
             // Reset Global Book Settings
@@ -956,6 +989,8 @@ fun SettingsScreen(
 @Composable
 private fun SettingsSection(
     title: String,
+    contentPadding: androidx.compose.ui.unit.Dp,
+    itemSpacing: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {
     Text(
@@ -1014,6 +1049,9 @@ private fun SettingsSwitchItem(
     subtitle: String? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    contentPadding: androidx.compose.ui.unit.Dp,
+    itemSpacing: androidx.compose.ui.unit.Dp,
+    smallSpacing: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -1024,7 +1062,7 @@ private fun SettingsSwitchItem(
                     value = checked,
                     onValueChange = onCheckedChange,
                     role = Role.Switch,
-                ).padding(horizontal = 16.dp, vertical = 12.dp),
+                ).padding(horizontal = contentPadding, vertical = itemSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -1059,6 +1097,9 @@ private fun SettingsSliderItem(
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     steps: Int = 0,
     valueFormatter: (Float) -> String = { it.toString() },
+    contentPadding: androidx.compose.ui.unit.Dp,
+    itemSpacing: androidx.compose.ui.unit.Dp,
+    smallSpacing: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {
     var currentValue by remember(sliderValue) { mutableStateOf(sliderValue) }
@@ -1377,6 +1418,8 @@ private fun AddMirrorDialog(
     onValueChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    itemSpacing: androidx.compose.ui.unit.Dp,
+    smallSpacing: androidx.compose.ui.unit.Dp,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,

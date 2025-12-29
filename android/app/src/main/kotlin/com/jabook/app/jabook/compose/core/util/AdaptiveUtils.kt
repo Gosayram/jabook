@@ -14,12 +14,17 @@
 
 package com.jabook.app.jabook.compose.core.util
 
+import android.content.Context
+import android.content.res.Configuration
+import android.util.DisplayMetrics
 import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Utility object for adaptive UI values based on WindowSizeClass.
@@ -28,6 +33,99 @@ import androidx.compose.ui.unit.dp
  * following Material Design 3 guidelines.
  */
 object AdaptiveUtils {
+    /**
+     * Threshold for smallest screen width in dp to distinguish phones from tablets.
+     * Devices with smallestScreenWidthDp >= 600dp are typically tablets.
+     */
+    private const val TABLET_SMALLEST_WIDTH_DP = 600
+
+    /**
+     * Maximum aspect ratio for phones in portrait mode.
+     * Modern phones typically have aspect ratios around 2:1 or less.
+     * Devices with very tall aspect ratios (> 2.5:1) are likely phones, not tablets.
+     */
+    private const val MAX_PHONE_ASPECT_RATIO = 2.5f
+
+    /**
+     * Minimum density for high-DPI phones that might be misclassified.
+     * Very high density (>= 420dpi) combined with narrow width suggests a phone.
+     */
+    private const val HIGH_DENSITY_THRESHOLD = 420f
+
+    /**
+     * Checks if the device should be forced to Compact size class based on
+     * physical screen characteristics rather than just WindowSizeClass calculation.
+     *
+     * This method detects phones that have high-resolution displays which
+     * WindowSizeClass incorrectly classifies as tablets (Medium/Expanded).
+     *
+     * Detection logic:
+     * 1. If smallestScreenWidthDp < 600dp, it's definitely a phone
+     * 2. If smallestScreenWidthDp >= 600dp but has very tall aspect ratio (> 2.5:1),
+     *    it's likely a phone (modern phones are tall and narrow)
+     * 3. If smallestScreenWidthDp >= 600dp but has very high density (>= 420dpi)
+     *    and narrow width, it's likely a phone
+     *
+     * @param context Android context to get screen configuration
+     * @return true if device should be treated as Compact (phone)
+     */
+    fun shouldForceCompact(context: Context): Boolean {
+        val configuration = context.resources.configuration
+        val displayMetrics = context.resources.displayMetrics
+
+        // Get smallest screen width in dp (always in portrait orientation)
+        val smallestScreenWidthDp = configuration.smallestScreenWidthDp
+
+        // If smallestScreenWidthDp < 600dp, it's definitely a phone
+        if (smallestScreenWidthDp < TABLET_SMALLEST_WIDTH_DP) {
+            return true
+        }
+
+        // For devices with smallestScreenWidthDp >= 600dp, check additional characteristics
+        val screenWidthDp = configuration.screenWidthDp
+        val screenHeightDp = configuration.screenHeightDp
+
+        // Calculate aspect ratio (always use portrait dimensions)
+        val widthDp = min(screenWidthDp, screenHeightDp)
+        val heightDp = max(screenWidthDp, screenHeightDp)
+        val aspectRatio = heightDp.toFloat() / widthDp.toFloat()
+
+        // Get density
+        val density = displayMetrics.densityDpi / 160f // Convert to density scale
+
+        // Check if it's a tall, narrow phone with high density
+        // Modern phones have tall aspect ratios (often > 2:1) and high density
+        val isTallNarrowPhone = aspectRatio > MAX_PHONE_ASPECT_RATIO
+        val isHighDensityPhone = density >= HIGH_DENSITY_THRESHOLD && widthDp < 450
+
+        // If device has very tall aspect ratio or high density with narrow width,
+        // it's likely a phone, not a tablet
+        return isTallNarrowPhone || isHighDensityPhone
+    }
+
+    /**
+     * Gets effective window size class, applying device-specific overrides.
+     *
+     * @param windowSizeClass Original WindowSizeClass from calculateWindowSizeClass
+     * @param context Android context for device detection
+     * @return WindowSizeClass with device-specific overrides applied
+     */
+    fun getEffectiveWindowSizeClass(
+        windowSizeClass: WindowSizeClass?,
+        context: Context,
+    ): WindowSizeClass? {
+        if (windowSizeClass == null) return null
+        if (shouldForceCompact(context) && windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact) {
+            // Force to Compact by creating a new WindowSizeClass with Compact width
+            // Use a size that will result in Compact classification
+            return WindowSizeClass.calculateFromSize(
+                androidx.compose.ui.unit
+                    .IntSize(360, 800), // Force compact size
+            )
+        }
+        return windowSizeClass
+    }
+
     /**
      * Returns adaptive padding based on window width.
      *

@@ -80,7 +80,8 @@ fun DownloadHistoryScreen(
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: null
-    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
     val contentPadding =
         if (windowSizeClass != null) {
             AdaptiveUtils.getContentPadding(windowSizeClass)
@@ -251,7 +252,7 @@ fun DownloadHistoryScreen(
                     verticalArrangement = Arrangement.spacedBy(itemSpacing),
                 ) {
                     items(history, key = { it.id }) { entry ->
-                        HistoryCard(entry = entry)
+                        HistoryCard(entry = entry, contentPadding = contentPadding)
                     }
                 }
             }
@@ -286,6 +287,7 @@ private fun EmptyHistoryState(modifier: Modifier = Modifier) {
 @Composable
 private fun HistoryCard(
     entry: DownloadHistoryEntity,
+    contentPadding: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {
     Card(

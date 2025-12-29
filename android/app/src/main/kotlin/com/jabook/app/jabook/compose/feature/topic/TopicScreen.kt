@@ -223,7 +223,8 @@ private fun TopicDetailsContent(
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: null
-    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
     val isMediumOrExpanded = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
@@ -687,12 +688,14 @@ private fun DescriptionAndCommentsSection(
     comments: List<com.jabook.app.jabook.compose.data.remote.model.Comment>,
     modifier: Modifier = Modifier,
 ) {
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     val context = LocalContext.current
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: null
-    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
     val isMediumOrExpanded = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
     val itemSpacing =
@@ -765,11 +768,12 @@ private fun ExpandableDescription(
             ?: null
 
     // Get window size class for adaptive sizing
-    val windowSizeClass =
+    val rawWindowSizeClass =
         activity?.let {
             androidx.compose.material3.windowsizeclass
                 .calculateWindowSizeClass(it)
         }
+    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
     val isCompact = windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
 
     // Adaptive preview length based on screen size
