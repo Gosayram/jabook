@@ -141,14 +141,14 @@ class RutrackerRepository
             forumIds: String? = null,
         ): Flow<Result<List<SearchResult>>> =
             flow {
-                Log.d(TAG, "Starting search flow for: $query")
+                Log.i(TAG, "🔍 Search started: query='$query', forumIds=$forumIds")
 
                 // 1. ALWAYS try indexed search first (mandatory for audiobooks)
                 if (forumIds == null || forumIds == RutrackerApi.AUDIOBOOKS_FORUM_IDS) {
                     try {
                         val indexedResults = searchIndexedTopics(query, limit = 100)
                         if (indexedResults.isNotEmpty()) {
-                            Log.d(TAG, "Found ${indexedResults.size} results from index")
+                            Log.i(TAG, "✅ Found ${indexedResults.size} results from index (query: '$query')")
                             emit(Result.success(indexedResults))
 
                             // If we have good results from index, we're done
@@ -156,9 +156,9 @@ class RutrackerRepository
                             if (indexedResults.size >= 5) {
                                 return@flow
                             }
-                            Log.d(TAG, "Index has only ${indexedResults.size} results, fetching from network for more")
+                            Log.i(TAG, "⚠️ Index has only ${indexedResults.size} results, fetching from network for more")
                         } else {
-                            Log.d(TAG, "No results in index, fetching from network")
+                            Log.i(TAG, "⚠️ No results in index, fetching from network")
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Indexed search failed, falling back to network", e)
@@ -178,7 +178,7 @@ class RutrackerRepository
                         val entities = offlineSearchDao.getResultsForQuery(query)
                         if (entities.isNotEmpty()) {
                             val dbResults = entities.map { it.toSearchResult() }
-                            Log.d(TAG, "Found ${dbResults.size} results from DB cache")
+                            Log.i(TAG, "💾 Found ${dbResults.size} results from DB cache")
                             emit(Result.success(dbResults))
                             return@flow
                         }

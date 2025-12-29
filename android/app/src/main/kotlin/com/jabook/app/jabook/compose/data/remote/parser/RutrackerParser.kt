@@ -241,12 +241,22 @@ class RutrackerParser
             // Convert ResponseBody to ByteArray for encoding-aware parsing
             val rawBytes = body.bytes()
             val contentType = body.contentType()?.toString()
+            Log.d(TAG, "Parsing forum $forumId page: ${rawBytes.size} bytes, content-type: $contentType")
             val result = parseSearchResultsWithEncoding(rawBytes, contentType)
             return when (result) {
-                is ParsingResult.Success -> result.data
-                is ParsingResult.PartialSuccess -> result.data
+                is ParsingResult.Success -> {
+                    Log.d(TAG, "Forum $forumId: successfully parsed ${result.data.size} topics")
+                    result.data
+                }
+                is ParsingResult.PartialSuccess -> {
+                    Log.w(TAG, "Forum $forumId: partial parse - ${result.data.size} topics, ${result.errors.size} errors")
+                    result.data
+                }
                 is ParsingResult.Failure -> {
-                    Log.w(TAG, "Failed to parse forum $forumId page")
+                    Log.e(TAG, "Forum $forumId: parsing failed - ${result.errors.size} errors")
+                    result.errors.forEach { error ->
+                        Log.e(TAG, "  - ${error.field}: ${error.reason}")
+                    }
                     emptyList()
                 }
             }

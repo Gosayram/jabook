@@ -259,11 +259,12 @@ class ForumIndexer
             val coversToPreload = mutableListOf<String>()
             val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
 
+            Log.d(TAG, "Starting indexing forum $forumId (version $indexVersion)")
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {
                     val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
                     if (!response.isSuccessful) {
-                        Log.w(TAG, "Failed to fetch forum $forumId page $page: ${response.code()}")
+                        Log.w(TAG, "Failed to fetch forum $forumId page $page: HTTP ${response.code()}")
                         break
                     }
 
@@ -271,8 +272,10 @@ class ForumIndexer
                     val topics = parser.parseForumPage(body, forumId)
 
                     if (topics.isEmpty()) {
+                        Log.d(TAG, "Forum $forumId page $page: no topics found, ending")
                         hasMorePages = false
                     } else {
+                        Log.d(TAG, "Forum $forumId page $page: parsed ${topics.size} topics (total: $totalTopics)")
                         // Add to buffer with current index version
                         val newEntities = topics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
@@ -313,8 +316,10 @@ class ForumIndexer
             // Flush remaining entities
             if (entitiesBuffer.isNotEmpty()) {
                 offlineSearchDao.upsertTopics(entitiesBuffer)
+                Log.d(TAG, "Forum $forumId: flushed ${entitiesBuffer.size} remaining topics to DB")
             }
 
+            Log.i(TAG, "Forum $forumId indexing completed: $totalTopics topics, ${coversToPreload.size} covers to preload")
             return Pair(totalTopics, coversToPreload)
         }
 

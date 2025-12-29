@@ -45,6 +45,56 @@ class DebugLogService
             private const val TAG = "DebugLogService"
             private const val LOG_FILE_PREFIX = "jabook_logs"
             private const val MAX_LOG_LINES = 5000
+
+            // App-specific log tags to include
+            private val APP_LOG_TAGS =
+                listOf(
+                    "Jabook",
+                    "jabook",
+                    "ForumIndexer",
+                    "RutrackerRepository",
+                    "RutrackerParser",
+                    "RutrackerApi",
+                    "RutrackerSimpleDecoder",
+                    "AuthInterceptor",
+                    "DynamicBaseUrlInterceptor",
+                    "MirrorManager",
+                    "TorrentSessionManager",
+                    "IndexingViewModel",
+                    "TopicViewModel",
+                    "RutrackerSearchViewModel",
+                    "DebugViewModel",
+                    "JABOOK_SERVICE",
+                    "AudioPlayerService",
+                )
+
+            // System log patterns to exclude (Android framework noise)
+            private val SYSTEM_LOG_PATTERNS =
+                listOf(
+                    "VRI[", // ViewRootImpl
+                    "InsetsController",
+                    "BLASTBufferQueue",
+                    "ImeTracker",
+                    "ViewPostIme",
+                    "InputTransport",
+                    "InputMethodManager",
+                    "WindowOnBackDispatcher",
+                    "GSC", // Samsung system logs
+                    "HWUI", // Hardware UI
+                    "chromium", // WebView
+                    "cr_", // Chromium
+                    "CameraManager", // Camera system
+                    "nativeloader",
+                    "GraphicsEnvironment",
+                    "XGL", // Graphics
+                    "DesktopModeFlags",
+                    "DecorView",
+                    "ViewRootImpl",
+                    "AssistStructure",
+                    "WindowExtensionsImpl",
+                    "IDS_TAG",
+                    "ConnectivityManager",
+                )
         }
 
         /**
@@ -54,18 +104,27 @@ class DebugLogService
         suspend fun collectLogs(): String =
             withContext(Dispatchers.IO) {
                 try {
-                    val process =
-                        Runtime.getRuntime().exec(
-                            arrayOf(
-                                "logcat",
-                                "-d", // dump and exit
-                                "-v",
-                                "time", // timestamp format
-                                "-t",
-                                MAX_LOG_LINES.toString(), // last N lines
-                                TAG + ":V", // our app logs (verbose)
-                            ),
+                    // Build logcat command with app-specific tags
+                    val logcatArgs =
+                        mutableListOf(
+                            "logcat",
+                            "-d", // dump and exit
+                            "-v",
+                            "time", // timestamp format
+                            "-t",
+                            MAX_LOG_LINES.toString(), // last N lines
                         )
+
+                    // Add filters for each app tag (format: TagName:*)
+                    APP_LOG_TAGS.forEach { tag ->
+                        logcatArgs.add("$tag:*")
+                    }
+
+                    // Also include AndroidRuntime errors and FATAL exceptions
+                    logcatArgs.add("AndroidRuntime:E")
+                    logcatArgs.add("*:F") // Fatal errors from any source
+
+                    val process = Runtime.getRuntime().exec(logcatArgs.toTypedArray())
 
                     val bufferedReader = BufferedReader(InputStreamReader(process.inputStream))
                     val logs = StringBuilder()
@@ -115,12 +174,44 @@ class DebugLogService
                     logs.append("⚠️  Note: Dates below use system format MM-DD HH:mm:ss\n")
                     logs.append("    (MM-DD = Month-Day, not Day-Month)\n\n")
 
-                    // Collect logs
+                    // Collect and filter logs
                     var line: String?
+                    var totalLines = 0
+                    var filteredLines = 0
+
                     while (bufferedReader.readLine().also { line = it } != null) {
-                        if (line?.contains("setRequestedFrameRate") == true) continue
+                        totalLines++
+                        if (line == null) continue
+
+                        // Skip empty lines
+                        if (line!!.trim().isEmpty()) continue
+
+                        // Skip system noise patterns
+                        val shouldSkip =
+                            SYSTEM_LOG_PATTERNS.any { pattern ->
+                                line!!.contains(pattern, ignoreCase = true)
+                            }
+
+                        if (shouldSkip) {
+                            filteredLines++
+                            continue
+                        }
+
+                        // Skip frame rate logs
+                        if (line!!.contains("setRequestedFrameRate")) continue
+
+                        // Include the line
                         logs.append(line).append("\n")
                     }
+
+                    // Add summary
+                    logs.append("\n")
+                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                    logs.append("📊 LOG SUMMARY\n")
+                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                    logs.append("Total lines processed: $totalLines\n")
+                    logs.append("System logs filtered: $filteredLines\n")
+                    logs.append("App logs included: ${totalLines - filteredLines}\n")
 
                     bufferedReader.close()
                     process.waitFor()
