@@ -255,45 +255,117 @@ class RutrackerParser
          * @param forumId Forum ID for context
          * @return List of search results (topics from forum)
          */
+
+        /**
+         * Parse forum page and return topics along with pagination info.
+         */
+        data class ForumPageResult(
+            val topics: List<SearchResult>,
+            val hasMorePages: Boolean,
+        )
+
         fun parseForumPage(
             body: okhttp3.ResponseBody,
             forumId: String,
         ): List<SearchResult> {
+            val result = parseForumPageWithPagination(body, forumId)
+            return result.topics
+        }
+
+        /**
+         * Parse forum page with pagination detection.
+         * Checks for "След." (Next) link or pagination info to determine if more pages exist.
+         */
+        fun parseForumPageWithPagination(
+            body: okhttp3.ResponseBody,
+            forumId: String,
+        ): ForumPageResult {
             // Convert ResponseBody to ByteArray for encoding-aware parsing
             val rawBytes = body.bytes()
             val contentType = body.contentType()?.toString()
             Log.d(TAG, "Parsing forum $forumId page: ${rawBytes.size} bytes, content-type: $contentType")
             val result = parseSearchResultsWithEncoding(rawBytes, contentType)
-            return when (result) {
-                is ParsingResult.Success -> {
-                    Log.d(TAG, "Forum $forumId: successfully parsed ${result.data.size} topics")
-                    result.data
-                }
-                is ParsingResult.PartialSuccess -> {
-                    Log.w(TAG, "Forum $forumId: partial parse - ${result.data.size} topics, ${result.errors.size} errors")
-                    result.data
-                }
-                is ParsingResult.Failure -> {
-                    Log.e(TAG, "❌ Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)")
-                    result.errors.take(10).forEach { error ->
-                        // Limit to first 10 errors to avoid log spam
-                        Log.e(
-                            TAG,
-                            "  - ${error.field}: ${error.reason}${if (error.htmlSnippet != null) {
-                                " [HTML: ${error.htmlSnippet.take(
-                                    100,
-                                )}...]"
-                            } else {
-                                ""
-                            }}",
-                        )
+
+            val topics =
+                when (result) {
+                    is ParsingResult.Success -> {
+                        Log.d(TAG, "Forum $forumId: successfully parsed ${result.data.size} topics")
+                        result.data
                     }
-                    if (result.errors.size > 10) {
-                        Log.e(TAG, "  ... and ${result.errors.size - 10} more errors")
+                    is ParsingResult.PartialSuccess -> {
+                        Log.w(TAG, "Forum $forumId: partial parse - ${result.data.size} topics, ${result.errors.size} errors")
+                        result.data
                     }
-                    emptyList()
+                    is ParsingResult.Failure -> {
+                        Log.e(TAG, "❌ Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)")
+                        result.errors.take(10).forEach { error ->
+                            // Limit to first 10 errors to avoid log spam
+                            Log.e(
+                                TAG,
+                                "  - ${error.field}: ${error.reason}${if (error.htmlSnippet != null) {
+                                    " [HTML: ${error.htmlSnippet.take(
+                                        100,
+                                    )}...]"
+                                } else {
+                                    ""
+                                }}",
+                            )
+                        }
+                        if (result.errors.size > 10) {
+                            Log.e(TAG, "  ... and ${result.errors.size - 10} more errors")
+                        }
+                        emptyList()
+                    }
                 }
-            }
+
+            // Check pagination to determine if there are more pages
+            // Use the same decoder as for parsing topics to ensure correct encoding (Windows-1251)
+            val hasMorePages =
+                try {
+                    // Decode HTML with proper encoding (same as parseSearchResultsWithEncoding)
+                    val decodedHtml = decoder.decode(rawBytes, contentType)
+                    val document = org.jsoup.Jsoup.parse(decodedHtml, getBaseUrl())
+
+                    // Method 1: Check for "След." (Next) link with class "pg"
+                    val nextLink =
+                        document.select("a.pg").firstOrNull { link ->
+                            val text = link.text().trim()
+                            text.contains("След", ignoreCase = true) || text.contains("Next", ignoreCase = true)
+                        }
+
+                    if (nextLink != null) {
+                        Log.d(TAG, "Forum $forumId: found 'След.' link, has more pages")
+                        true
+                    } else {
+                        // Method 2: Check pagination text "Страница X из Y"
+                        val paginationText = document.select("#pagination, .nav").text()
+                        val pageMatch = Regex("Страница\\s+\\d+\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE).find(paginationText)
+                        if (pageMatch != null) {
+                            val currentPage =
+                                Regex("Страница\\s+(\\d+)", RegexOption.IGNORE_CASE)
+                                    .find(paginationText)
+                                    ?.groupValues
+                                    ?.get(1)
+                                    ?.toIntOrNull()
+                                    ?: 1
+                            val totalPages = pageMatch.groupValues[1].toIntOrNull() ?: 1
+                            val hasMore = currentPage < totalPages
+                            Log.d(TAG, "Forum $forumId: pagination shows page $currentPage of $totalPages, hasMore=$hasMore")
+                            hasMore
+                        } else {
+                            // Method 3: If we got topics and count matches TOPICS_PER_PAGE, likely more pages
+                            val likelyHasMore = topics.size >= 50 // TOPICS_PER_PAGE
+                            Log.d(TAG, "Forum $forumId: no pagination found, assuming hasMore=$likelyHasMore (topics: ${topics.size})")
+                            likelyHasMore
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to check pagination for forum $forumId", e)
+                    // Fallback: if we got topics and count matches TOPICS_PER_PAGE, likely more pages
+                    topics.size >= 50
+                }
+
+            return ForumPageResult(topics = topics, hasMorePages = hasMorePages)
         }
 
         /**
@@ -1113,14 +1185,13 @@ class RutrackerParser
                             )
                         }
                     }
-                    // Return last 50 comments (most recent) and reverse to show newest first
-                    val result =
-                        if (comments.size > 50) {
-                            comments.takeLast(50)
-                        } else {
-                            comments
-                        }
-                    return result.reversed() // Newest comments first
+                    // Return last 50 comments (most recent)
+                    // Comments are in chronological order (oldest first), UI will reverse to show newest first
+                    return if (comments.size > 50) {
+                        comments.takeLast(50)
+                    } else {
+                        comments
+                    }
                 }
 
                 // Skip first post (main post) and process comments
@@ -1230,15 +1301,13 @@ class RutrackerParser
                 Log.e(TAG, "Failed to extract comments", e)
             }
 
-            // Return last 50 comments (most recent) and reverse to show newest first
-            // Comments are parsed in chronological order (oldest first), so we reverse to show newest first
-            val result =
-                if (comments.size > 50) {
-                    comments.takeLast(50)
-                } else {
-                    comments
-                }
-            return result.reversed() // Newest comments first
+            // Return last 50 comments (most recent)
+            // Comments are in chronological order (oldest first), UI will reverse to show newest first
+            return if (comments.size > 50) {
+                comments.takeLast(50)
+            } else {
+                comments
+            }
         }
 
         private fun extractRelatedBooks(postBody: Element?): List<RelatedBook> {

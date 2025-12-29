@@ -154,17 +154,21 @@ class ForumIndexer
                                                 currentIndexVersion,
                                             ) { page, topicsInForum ->
                                                 forumTopicsCount = topicsInForum
-                                                // Update progress with thread-safe counter
-                                                val currentTotal = topicsIndexedAtomic.get()
-                                                onProgress?.invoke(
-                                                    IndexingProgress.InProgress(
-                                                        currentForum = forumId,
-                                                        currentForumIndex = forumIndex,
-                                                        totalForums = forumIdList.size,
-                                                        currentPage = page,
-                                                        topicsIndexed = currentTotal,
-                                                    ),
-                                                )
+                                                // Update progress less frequently to reduce jitter
+                                                // Only update every 2 pages or on first/last page
+                                                if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
+                                                    // Update progress with thread-safe counter
+                                                    val currentTotal = topicsIndexedAtomic.get()
+                                                    onProgress?.invoke(
+                                                        IndexingProgress.InProgress(
+                                                            currentForum = forumId,
+                                                            currentForumIndex = forumIndex,
+                                                            totalForums = forumIdList.size,
+                                                            currentPage = page,
+                                                            topicsIndexed = currentTotal,
+                                                        ),
+                                                    )
+                                                }
                                             }
                                         // Update atomic counter after forum completion
                                         topicsIndexedAtomic.addAndGet(indexed)
@@ -182,11 +186,24 @@ class ForumIndexer
                                 }
                             }.awaitAll()
 
-                    // Aggregate results
+                    // Aggregate results and update progress after batch completion
                     batchResults.forEach { (indexed, covers) ->
                         totalIndexed += indexed
                         coversToPreload.addAll(covers)
                     }
+
+                    // Update progress after batch completion with accurate count
+                    val currentTotal = topicsIndexedAtomic.get()
+                    val nextBatchStartIndex = ((batchIndex + 1) * MAX_CONCURRENT_FORUMS).coerceAtMost(forumIdList.size)
+                    onProgress?.invoke(
+                        IndexingProgress.InProgress(
+                            currentForum = batch.lastOrNull() ?: "",
+                            currentForumIndex = nextBatchStartIndex,
+                            totalForums = forumIdList.size,
+                            currentPage = 0, // Reset page for next batch
+                            topicsIndexed = currentTotal,
+                        ),
+                    )
                 }
 
                 // Preload covers in background (non-blocking)
@@ -299,8 +316,13 @@ class ForumIndexer
                     val body = response.body() ?: break
                     val bodySize = body.contentLength()
                     val parseStartTime = System.currentTimeMillis()
-                    val topics = parser.parseForumPage(body, forumId)
+                    // Use parseForumPageWithPagination to get pagination info
+                    val pageResult = parser.parseForumPageWithPagination(body, forumId)
+                    val topics = pageResult.topics
                     val parseTime = System.currentTimeMillis() - parseStartTime
+
+                    // Update hasMorePages based on actual pagination detection
+                    hasMorePages = pageResult.hasMorePages
 
                     if (topics.isEmpty()) {
                         Log.d(TAG, "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)")
@@ -340,6 +362,7 @@ class ForumIndexer
                             entitiesBuffer.clear()
                         }
 
+                        // Update progress callback (will throttle updates internally)
                         onProgress?.invoke(page, totalTopics)
 
                         // Rate limiting
@@ -402,7 +425,12 @@ class ForumIndexer
                     }
 
                     val body = response.body() ?: break
-                    val topics = parser.parseForumPage(body, forumId)
+                    // Use parseForumPageWithPagination to get pagination info
+                    val pageResult = parser.parseForumPageWithPagination(body, forumId)
+                    val topics = pageResult.topics
+
+                    // Update hasMorePages based on actual pagination detection
+                    hasMorePages = pageResult.hasMorePages
 
                     if (topics.isEmpty()) {
                         hasMorePages = false

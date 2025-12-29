@@ -811,7 +811,8 @@ private fun ExpandableComments(
         if (expanded) {
             Spacer(Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Show comments from newest to oldest (reverse order)
+                // Show comments from newest to oldest (fresh comments first)
+                // Parser returns comments in chronological order (oldest first), so we reverse
                 comments.reversed().forEach { comment ->
                     CommentItem(comment = comment)
                 }

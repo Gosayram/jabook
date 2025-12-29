@@ -44,21 +44,26 @@ sealed class IndexingProgress {
         /**
          * Overall progress percentage (0.0 to 1.0).
          *
-         * Improved calculation: uses forum index and page progress more accurately.
-         * Assumes average of 20 pages per forum for better progress estimation.
+         * Improved calculation: uses forum index and topics indexed for more accurate progress.
+         * Progress is based on completed forums + current forum progress.
          */
         val progress: Float
             get() =
                 if (totalForums == 0) {
                     0f
                 } else {
-                    // Base progress from completed forums
-                    val forumProgress = currentForumIndex.toFloat() / totalForums.toFloat()
-                    // Add progress from current forum (assume average 20 pages per forum)
-                    val averagePagesPerForum = 20f
-                    val currentForumProgress = (currentPage.toFloat() / averagePagesPerForum).coerceIn(0f, 1f)
-                    val pageProgress = currentForumProgress / totalForums.toFloat()
-                    (forumProgress + pageProgress).coerceIn(0f, 1f)
+                    // Base progress from completed forums (forums before current)
+                    val completedForums = currentForumIndex.toFloat()
+                    val forumProgress = completedForums / totalForums.toFloat()
+
+                    // Progress from current forum: estimate based on page number
+                    // Use a conservative estimate: assume forums have varying page counts
+                    // Current page gives us a rough estimate (normalized to max 50 pages per forum)
+                    val maxPagesPerForum = 50f
+                    val currentForumPageProgress = (currentPage.toFloat() / maxPagesPerForum).coerceIn(0f, 1f)
+                    val currentForumContribution = currentForumPageProgress / totalForums.toFloat()
+
+                    (forumProgress + currentForumContribution).coerceIn(0f, 1f)
                 }
     }
 

@@ -20,6 +20,7 @@ import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,7 @@ class IndexingViewModel
     @Inject
     constructor(
         private val forumIndexer: ForumIndexer,
+        private val authRepository: AuthRepository,
     ) : ViewModel() {
         companion object {
             private const val TAG = "IndexingViewModel"
@@ -48,6 +50,7 @@ class IndexingViewModel
 
         /**
          * Start full indexing of all audiobook forums.
+         * Checks authentication before starting - RuTracker requires login for forum access.
          */
         fun startIndexing() {
             if (_isIndexing.value) {
@@ -56,6 +59,18 @@ class IndexingViewModel
             }
 
             viewModelScope.launch {
+                // Check if user is authenticated before starting indexing
+                // RuTracker requires authentication to access forum pages
+                val isAuthenticated = authRepository.isLoggedIn()
+                if (!isAuthenticated) {
+                    Log.w(TAG, "Cannot start indexing: user is not authenticated")
+                    _indexingProgress.value =
+                        IndexingProgress.Error(
+                            message = "Требуется авторизация для индексации форумов",
+                        )
+                    return@launch
+                }
+
                 _isIndexing.value = true
                 _indexingProgress.value = IndexingProgress.Idle
 
