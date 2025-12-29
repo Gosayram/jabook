@@ -697,6 +697,8 @@ class AudioPlayerService : MediaLibraryService() {
 
     fun getRepeatMode(): Int = playbackController?.getRepeatMode() ?: Player.REPEAT_MODE_OFF
 
+    fun getPlaybackSpeed(): Float = playbackController?.getSpeed() ?: 1.0f
+
     fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) =
         playbackController?.setShuffleModeEnabled(shuffleModeEnabled) ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")

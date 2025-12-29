@@ -16,12 +16,15 @@
   -->
 
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="250dp"
-    android:minHeight="72dp"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:maxWidth="400dp"
+    android:maxHeight="400dp"
     android:updatePeriodMillis="60000"
     android:previewImage="@drawable/ic_launcher_foreground"
-    android:initialLayout="@layout/widget_player"
+    android:initialLayout="@layout/widget_player_minimal"
     android:description="@string/widget_description"
     android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen" />
-
+    android:widgetCategory="home_screen"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2" />

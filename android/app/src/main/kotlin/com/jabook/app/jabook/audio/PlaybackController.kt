@@ -190,6 +190,11 @@ internal class PlaybackController(
     }
 
     /**
+     * Gets current playback speed.
+     */
+    fun getSpeed(): Float = getActivePlayer().playbackParameters.speed
+
+    /**
      * Sets repeat mode.
      *
      * @param repeatMode Repeat mode:

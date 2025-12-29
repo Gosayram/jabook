@@ -130,6 +130,23 @@ internal class ServiceIntentHandler(
                         .requestUpdate(service)
                     true
                 }
+                "com.jabook.app.jabook.WIDGET_REPEAT" -> {
+                    android.util.Log.d("AudioPlayerService", "Widget repeat action")
+                    val player = service.getActivePlayer()
+                    val currentRepeatMode = player.repeatMode
+                    val newRepeatMode =
+                        when (currentRepeatMode) {
+                            androidx.media3.common.Player.REPEAT_MODE_OFF -> androidx.media3.common.Player.REPEAT_MODE_ALL
+                            androidx.media3.common.Player.REPEAT_MODE_ALL -> androidx.media3.common.Player.REPEAT_MODE_ONE
+                            androidx.media3.common.Player.REPEAT_MODE_ONE -> androidx.media3.common.Player.REPEAT_MODE_OFF
+                            else -> androidx.media3.common.Player.REPEAT_MODE_OFF
+                        }
+                    service.setRepeatMode(newRepeatMode)
+                    // Update widget after state change
+                    com.jabook.app.jabook.widget.PlayerWidgetProvider
+                        .requestUpdate(service)
+                    true
+                }
                 else -> false
             }
 
