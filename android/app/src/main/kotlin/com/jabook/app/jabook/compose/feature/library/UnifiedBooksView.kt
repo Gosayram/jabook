@@ -20,7 +20,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -28,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.rememberCoverPreloader
+import com.jabook.app.jabook.compose.core.util.rememberCoverPreloaderForGrid
 import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
@@ -113,8 +117,21 @@ private fun BooksGridLayout(
     val gridCells = displayMode.getGridCells(windowSizeClass) ?: return
     val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
+    val context = LocalContext.current
+
+    // Create grid state for preloading
+    val gridState = rememberLazyGridState()
+
+    // Preload covers for visible and upcoming books
+    rememberCoverPreloaderForGrid(
+        books = books,
+        gridState = gridState,
+        context = context,
+        preloadAhead = 10, // Preload 10 items ahead for grid (more items visible)
+    )
 
     LazyVerticalGrid(
+        state = gridState,
         columns = gridCells,
         horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         verticalArrangement = Arrangement.spacedBy(itemSpacing),
@@ -150,8 +167,21 @@ private fun BooksListLayout(
 ) {
     val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
+    val context = LocalContext.current
+
+    // Create list state for preloading
+    val listState = rememberLazyListState()
+
+    // Preload covers for visible and upcoming books
+    rememberCoverPreloader(
+        books = books,
+        listState = listState,
+        context = context,
+        preloadAhead = 5, // Preload 5 items ahead for list
+    )
 
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
         verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
