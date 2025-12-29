@@ -2333,6 +2333,9 @@
     <!-- Notification strings -->
     <string name="notification_title">JaBook Audio</string>
     <string name="notification_channel_name">JaBook Audio Playback</string>
+    <!-- Widget strings -->
+    <string name="no_book_playing">No book playing</string>
+    <string name="widget_description">Quick access to audio player controls</string>
     <string name="notification_channel_description">Audio playback controls</string>
     
     <!-- Media3 Default Channel Overrides -->

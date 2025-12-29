@@ -100,6 +100,36 @@ internal class ServiceIntentHandler(
                     }
                     true
                 }
+                // Widget actions
+                "com.jabook.app.jabook.WIDGET_PLAY_PAUSE" -> {
+                    android.util.Log.d("AudioPlayerService", "Widget play/pause action")
+                    val player = service.getActivePlayer()
+                    if (player.isPlaying) {
+                        service.pause()
+                    } else {
+                        service.play()
+                    }
+                    // Update widget after state change
+                    com.jabook.app.jabook.widget.PlayerWidgetProvider
+                        .requestUpdate(service)
+                    true
+                }
+                "com.jabook.app.jabook.WIDGET_NEXT" -> {
+                    android.util.Log.d("AudioPlayerService", "Widget next action")
+                    service.next()
+                    // Update widget after state change
+                    com.jabook.app.jabook.widget.PlayerWidgetProvider
+                        .requestUpdate(service)
+                    true
+                }
+                "com.jabook.app.jabook.WIDGET_PREVIOUS" -> {
+                    android.util.Log.d("AudioPlayerService", "Widget previous action")
+                    service.previous()
+                    // Update widget after state change
+                    com.jabook.app.jabook.widget.PlayerWidgetProvider
+                        .requestUpdate(service)
+                    true
+                }
                 else -> false
             }
 

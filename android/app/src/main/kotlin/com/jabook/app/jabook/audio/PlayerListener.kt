@@ -132,6 +132,10 @@ internal class PlayerListener(
             // MediaSession automatically updates from ExoPlayer state
             getNotificationManager()?.updateNotification()
 
+            // Update widget when playback state changes
+            com.jabook.app.jabook.widget.PlayerWidgetProvider
+                .requestUpdate(context)
+
             // Reset retry count on successful playback
             if (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING) {
                 retryCount = 0
@@ -309,6 +313,10 @@ internal class PlayerListener(
                 "EVENT_IS_PLAYING_CHANGED: isPlaying=$isPlaying, playWhenReady=${player.playWhenReady}, playbackState=$stateName, mediaItemCount=${player.mediaItemCount}",
             )
 
+            // Update widget when playing state changes
+            com.jabook.app.jabook.widget.PlayerWidgetProvider
+                .requestUpdate(context)
+
             // CRITICAL: Save position when playback stops for any reason
             // This ensures position is saved in all scenarios (pause, system events, etc.)
             if (!isPlaying && !player.playWhenReady && playbackState == Player.STATE_READY) {
@@ -443,6 +451,10 @@ internal class PlayerListener(
             // Track changed - update notification to show new track's embedded artwork
             // MediaSession automatically updates from ExoPlayer
             getNotificationManager()?.updateNotification()
+
+            // Update widget when track changes
+            com.jabook.app.jabook.widget.PlayerWidgetProvider
+                .requestUpdate(context)
 
             // Log track transition for debugging (inspired by lissen-android logging)
             // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount

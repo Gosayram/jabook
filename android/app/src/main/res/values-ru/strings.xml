@@ -2357,6 +2357,9 @@
     <!-- Строки уведомлений -->
     <string name="notification_title">JaBook Аудио</string>
     <string name="notification_channel_name">Воспроизведение JaBook</string>
+    <!-- Widget strings -->
+    <string name="no_book_playing">Нет воспроизведения</string>
+    <string name="widget_description">Быстрый доступ к управлению аудиоплеером</string>
     <string name="notification_channel_description">Управление воспроизведением аудио</string>
     
     <!-- Переопределение канала Media3 по умолчанию -->

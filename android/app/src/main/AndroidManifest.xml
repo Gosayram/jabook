@@ -239,6 +239,21 @@
             </intent-filter>
         </receiver>
 
+        <!-- Player widget provider -->
+        <receiver
+            android:name=".widget.PlayerWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.jabook.app.jabook.UPDATE_WIDGET" />
+                <action android:name="com.jabook.app.jabook.PLAYBACK_STATE_CHANGED" />
+                <action android:name="com.jabook.app.jabook.MEDIA_ITEM_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/player_widget_info" />
+        </receiver>
+
         <!-- Disable default WorkManager initialization -->
         <!-- App uses on-demand initialization via Configuration.Provider -->
         <provider
