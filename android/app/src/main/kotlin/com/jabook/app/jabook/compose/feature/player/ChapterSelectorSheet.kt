@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -46,10 +47,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -58,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.ChapterUtils
 import com.jabook.app.jabook.compose.domain.model.Chapter
+import kotlinx.coroutines.launch
 
 /**
  * Bottom sheet for selecting a chapter.
@@ -83,6 +90,9 @@ fun ChapterSelectorSheet(
     val listState = rememberLazyListState()
     var searchQuery by remember { mutableStateOf("") }
     var isEditing by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val scope = rememberCoroutineScope()
 
     // Local list for reordering
     var editedChapters by remember { mutableStateOf(chapters) }
@@ -133,96 +143,119 @@ fun ChapterSelectorSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .fillMaxHeight(),
         ) {
-            // Header with Edit button
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            // Fixed header and search section (not scrollable)
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.chaptersLabelText),
-                    style = MaterialTheme.typography.titleLarge,
-                )
+                // Header with Edit button
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.chaptersLabelText),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
 
-                // Edit / Done / Cancel buttons
-                Row {
-                    if (isEditing) {
-                        // Cancel
-                        androidx.compose.material3.TextButton(
-                            onClick = { isEditing = false },
-                        ) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                        // Done (Save)
-                        androidx.compose.material3.TextButton(
-                            onClick = {
-                                onChaptersReordered(editedChapters.map { it.id })
-                                isEditing = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.doneButtonText))
-                        }
-                    } else {
-                        androidx.compose.material3.TextButton(
-                            onClick = {
-                                editedChapters = chapters
-                                isEditing = true
-                                searchQuery = "" // Clear search when editing
-                            },
-                        ) {
-                            Text(stringResource(R.string.edit))
+                    // Edit / Done / Cancel buttons
+                    Row {
+                        if (isEditing) {
+                            // Cancel
+                            androidx.compose.material3.TextButton(
+                                onClick = { isEditing = false },
+                            ) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                            // Done (Save)
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    onChaptersReordered(editedChapters.map { it.id })
+                                    isEditing = false
+                                },
+                            ) {
+                                Text(stringResource(R.string.doneButtonText))
+                            }
+                        } else {
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    editedChapters = chapters
+                                    isEditing = true
+                                    searchQuery = "" // Clear search when editing
+                                    keyboardController?.hide() // Hide keyboard when entering edit mode
+                                },
+                            ) {
+                                Text(stringResource(R.string.edit))
+                            }
                         }
                     }
                 }
+
+                if (!isEditing) {
+                    Text(
+                        text = stringResource(R.string.selectChapterNote),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Search field (fixed, not in scrollable area)
+                    // Keyboard will open automatically when user clicks on the field
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { newValue -> searchQuery = newValue },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    // Hide keyboard when focus is lost
+                                    if (!focusState.isFocused) {
+                                        keyboardController?.hide()
+                                    }
+                                },
+                        placeholder = { Text(stringResource(R.string.searchChapterPlaceholder)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = null,
+                            )
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors =
+                            TextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.reorderChaptersInstruction),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                HorizontalDivider()
             }
 
-            if (!isEditing) {
-                Text(
-                    text = stringResource(R.string.selectChapterNote),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Search field
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text(stringResource(R.string.searchChapterPlaceholder)) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = null,
-                        )
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors =
-                        TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        ),
-                )
-            } else {
-                Text(
-                    text = stringResource(R.string.reorderChaptersInstruction),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            HorizontalDivider()
-
-            // Chapter list
+            // Chapter list (scrollable, independent from search)
             LazyColumn(
                 state = listState,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
             ) {
                 itemsIndexed(displayChapters) { listIndex, (originalIndex, chapter) ->
                     ChapterSelectorItem(
@@ -234,8 +267,22 @@ fun ChapterSelectorSheet(
                         normalizeEnabled = normalizeEnabled,
                         onClick = {
                             if (!isEditing) {
+                                // Start playback immediately (this will trigger play() automatically)
                                 onChapterSelected(originalIndex)
-                                onDismiss()
+                                keyboardController?.hide() // Hide keyboard when selecting chapter
+
+                                // Smoothly close the sheet with animation
+                                scope.launch {
+                                    try {
+                                        sheetState.hide()
+                                        // Wait for animation to complete
+                                        kotlinx.coroutines.delay(300) // Typical sheet animation duration
+                                    } catch (e: Exception) {
+                                        // Sheet might already be hidden, ignore
+                                    }
+                                    // Call onDismiss after animation completes
+                                    onDismiss()
+                                }
                             }
                         },
                         onMoveUp = {

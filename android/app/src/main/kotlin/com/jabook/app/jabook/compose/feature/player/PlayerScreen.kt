@@ -341,9 +341,12 @@ fun PlayerScreen(
                         currentChapterIndex = state.currentChapterIndex,
                         normalizeEnabled = normalizeEnabled,
                         onChapterClick = { chapterIndex ->
+                            // Start playback immediately (skipToChapter now includes play())
                             viewModel.skipToChapter(chapterIndex)
-                            // On compact screens, navigate back after selection
-                            scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                            // On compact screens, smoothly close the pane after selection
+                            scope.launch {
+                                // Small delay to ensure playback starts before closing
+                                kotlinx.coroutines.delay(50)
                                 if (scaffoldNavigator.canNavigateBack()) {
                                     scaffoldNavigator.navigateBack()
                                 }

@@ -260,6 +260,12 @@ class PlayerViewModel
             playerController.skipToChapter(chapterIndex)
             // Reset repeat flag when manually changing chapters
             onChapterChanged()
+            // Always start playback when user selects a chapter from the chapter selector
+            // Use coroutine to ensure chapter switch completes before starting playback
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(100) // Small delay to ensure chapter switch completes
+                playerController.play()
+            }
         }
 
         fun seekForward() {
