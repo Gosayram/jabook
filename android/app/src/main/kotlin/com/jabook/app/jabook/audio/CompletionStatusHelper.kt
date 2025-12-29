@@ -44,6 +44,50 @@ object CompletionStatusHelper {
     }
 
     /**
+     * Calculate completion percentage considering all tracks in playlist (inspired by Easybook).
+     *
+     * This provides a more accurate progress calculation by accounting for:
+     * - Completed tracks (fully played)
+     * - Current track position
+     * - Remaining tracks
+     *
+     * @param currentTrackIndex Index of currently playing track (0-based)
+     * @param currentPositionMs Position within current track in milliseconds
+     * @param trackDurations List of track durations in milliseconds (must match playlist order)
+     * @return Completion percentage from 0.0 (not started) to 1.0 (fully played)
+     */
+    fun calculateCompletionPercentageWithTracks(
+        currentTrackIndex: Int,
+        currentPositionMs: Long,
+        trackDurations: List<Long>,
+    ): Double {
+        if (trackDurations.isEmpty()) return 0.0
+
+        // Validate current track index
+        val safeTrackIndex = currentTrackIndex.coerceIn(0, trackDurations.size - 1)
+
+        // Calculate total duration of all tracks
+        val totalDuration = trackDurations.sum()
+
+        if (totalDuration <= 0) return 0.0
+
+        // Calculate completed duration:
+        // 1. Sum of all completed tracks (tracks before current)
+        val completedTracksDuration =
+            trackDurations.take(safeTrackIndex).sum()
+
+        // 2. Add current track position
+        val currentTrackDuration = trackDurations[safeTrackIndex]
+        val currentTrackProgress = currentPositionMs.coerceIn(0, currentTrackDuration)
+
+        // Total completed duration
+        val totalCompletedDuration = completedTracksDuration + currentTrackProgress
+
+        // Calculate percentage
+        return (totalCompletedDuration.toDouble() / totalDuration).coerceIn(0.0, 1.0)
+    }
+
+    /**
      * Get Media3 completion status code based on percentage.
      *
      * Thresholds:

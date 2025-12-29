@@ -132,6 +132,14 @@ internal class PlayerConfigurator(
                             }
                         }
                     },
+                    preloadNextTrack = { nextIndex ->
+                        // Preload next track for smooth transition (inspired by Easybook)
+                        service.playlistManager?.preloadNextTrack(nextIndex)
+                    },
+                    optimizeMemoryUsage = { currentIndex ->
+                        // Optimize memory usage for large playlists (inspired by Easybook)
+                        service.playlistManager?.optimizeMemoryUsage(currentIndex)
+                    },
                 )
 
             activePlayer.addListener(playerListener!!)

@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.audio.CompletionStatusHelper
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -203,10 +204,23 @@ class OfflineFirstBooksRepository
             position: Long,
             chapterIndex: Int,
         ) {
-            // Calculate progress based on total duration
+            // Improved progress calculation considering all tracks (inspired by Easybook)
             val book = booksDao.getBookById(bookId)
+            val chapters = chaptersDao.getChaptersByBookId(bookId)
+
             val progress =
-                if (book != null && book.totalDuration > 0) {
+                if (book != null && chapters.isNotEmpty()) {
+                    // Use improved calculation with all track durations
+                    val trackDurations = chapters.sortedBy { it.chapterIndex }.map { it.duration }
+                    val progressPercentage =
+                        CompletionStatusHelper.calculateCompletionPercentageWithTracks(
+                            currentTrackIndex = chapterIndex,
+                            currentPositionMs = position,
+                            trackDurations = trackDurations,
+                        )
+                    progressPercentage.toFloat()
+                } else if (book != null && book.totalDuration > 0) {
+                    // Fallback to simple calculation if chapters are not available
                     (position.toFloat() / book.totalDuration.toFloat()).coerceIn(0f, 1f)
                 } else {
                     0f

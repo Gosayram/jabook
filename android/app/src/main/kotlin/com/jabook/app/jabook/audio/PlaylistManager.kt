@@ -949,4 +949,159 @@ internal class PlaylistManager(
             }
         }
     }
+
+    /**
+     * Preloads next track for smooth transition (inspired by Easybook).
+     *
+     * This method ensures the next track is loaded and ready before it's needed,
+     * preventing delays during track transitions.
+     *
+     * @param nextTrackIndex Index of the track to preload
+     */
+    fun preloadNextTrack(nextTrackIndex: Int) {
+        val filePaths =
+            currentFilePaths ?: run {
+                android.util.Log.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: no file paths available")
+                return
+            }
+
+        if (nextTrackIndex < 0 || nextTrackIndex >= filePaths.size) {
+            android.util.Log.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: index out of bounds (size=${filePaths.size})")
+            return
+        }
+
+        val player = getActivePlayer()
+
+        // Check if track is already loaded
+        // getMediaItemAt throws IndexOutOfBoundsException if index is invalid, not null
+        val alreadyLoaded =
+            try {
+                player.getMediaItemAt(nextTrackIndex)
+                true // Track exists if no exception thrown
+            } catch (e: IndexOutOfBoundsException) {
+                false // Track doesn't exist
+            } catch (e: Exception) {
+                false // Other error, assume not loaded
+            }
+
+        if (alreadyLoaded) {
+            android.util.Log.v("AudioPlayerService", "Track $nextTrackIndex already loaded, skipping preload")
+            return
+        }
+
+        // Preload in background to avoid blocking
+        playerServiceScope.launch(mediaItemDispatcher) {
+            try {
+                android.util.Log.d("AudioPlayerService", "🔄 Preloading next track: $nextTrackIndex")
+                val dataSourceFactory = SimpleMediaDataSourceFactory()
+                val currentMetadata = currentMetadata
+
+                val mediaSource =
+                    createMediaSourceForIndex(
+                        filePaths = filePaths,
+                        index = nextTrackIndex,
+                        metadata = currentMetadata,
+                        dataSourceFactory = dataSourceFactory,
+                    )
+
+                withContext(Dispatchers.Main) {
+                    // Check again if track was loaded while we were creating MediaSource
+                    // getMediaItemAt throws IndexOutOfBoundsException if index is invalid, not null
+                    val stillNeeded =
+                        try {
+                            player.getMediaItemAt(nextTrackIndex)
+                            false // Track exists, no need to add
+                        } catch (e: IndexOutOfBoundsException) {
+                            true // Track doesn't exist, need to add
+                        } catch (e: Exception) {
+                            true // Other error, assume need to add
+                        }
+
+                    if (stillNeeded) {
+                        player.addMediaSource(nextTrackIndex, mediaSource)
+                        android.util.Log.i("AudioPlayerService", "✅ Preloaded track $nextTrackIndex for smooth transition")
+                    } else {
+                        android.util.Log.v("AudioPlayerService", "Track $nextTrackIndex was loaded by another process, skipping")
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("AudioPlayerService", "Failed to preload track $nextTrackIndex", e)
+            }
+        }
+    }
+
+    /**
+     * Optimizes memory usage for large playlists by unloading distant tracks (inspired by Easybook).
+     *
+     * This method removes tracks that are far from the current playback position,
+     * keeping only a window of tracks around the current position in memory.
+     *
+     * @param currentTrackIndex Current playing track index
+     * @param keepWindow Number of tracks to keep before and after current track (default: 5)
+     */
+    fun optimizeMemoryUsage(
+        currentTrackIndex: Int,
+        keepWindow: Int = 5,
+    ) {
+        val player = getActivePlayer()
+        val totalTracks = player.mediaItemCount
+
+        if (totalTracks <= keepWindow * 2 + 1) {
+            // Playlist is small, no need to optimize
+            return
+        }
+
+        val filePaths = currentFilePaths ?: return
+
+        // Calculate range of tracks to keep
+        val keepStart = (currentTrackIndex - keepWindow).coerceAtLeast(0)
+        val keepEnd = (currentTrackIndex + keepWindow).coerceAtMost(totalTracks - 1)
+
+        // Find tracks to remove (outside the keep window)
+        val tracksToRemove = mutableListOf<Int>()
+        for (i in 0 until totalTracks) {
+            if (i < keepStart || i > keepEnd) {
+                // Check if track exists before trying to remove
+                // getMediaItemAt throws IndexOutOfBoundsException if index is invalid, not null
+                try {
+                    player.getMediaItemAt(i)
+                    tracksToRemove.add(i) // Track exists, can be removed
+                } catch (e: IndexOutOfBoundsException) {
+                    // Track doesn't exist, skip
+                } catch (e: Exception) {
+                    // Other error, skip
+                }
+            }
+        }
+
+        if (tracksToRemove.isEmpty()) {
+            return
+        }
+
+        // Remove tracks in reverse order to maintain indices
+        tracksToRemove.sortDescending()
+
+        android.util.Log.d(
+            "AudioPlayerService",
+            "🧹 Memory optimization: removing ${tracksToRemove.size} distant tracks " +
+                "(keeping window: $keepStart-$keepEnd around track $currentTrackIndex)",
+        )
+
+        // Remove tracks from player (ExoPlayer will handle memory cleanup)
+        // Note: We remove from highest index to lowest to maintain correct indices
+        for (index in tracksToRemove) {
+            try {
+                player.removeMediaItem(index)
+                android.util.Log.v("AudioPlayerService", "Removed track $index from memory")
+            } catch (e: Exception) {
+                android.util.Log.w("AudioPlayerService", "Failed to remove track $index", e)
+            }
+        }
+
+        android.util.Log.i(
+            "AudioPlayerService",
+            "✅ Memory optimized: removed ${tracksToRemove.size} tracks, " +
+                "keeping ${keepEnd - keepStart + 1} tracks around current position",
+        )
+    }
 }

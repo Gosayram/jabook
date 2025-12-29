@@ -57,6 +57,8 @@ internal class PlayerListener(
     private val getCurrentBookId: (() -> String?)? = null, // Get current book ID
     private val getAutoRewindOnPause: (() -> Boolean)? = null, // Get auto rewind on pause setting
     private val getAutoRewindSeconds: (() -> Int)? = null, // Get auto rewind seconds setting
+    private val preloadNextTrack: ((Int) -> Unit)? = null, // Callback to preload next track (inspired by Easybook)
+    private val optimizeMemoryUsage: ((Int) -> Unit)? = null, // Callback to optimize memory usage (inspired by Easybook)
 ) : Player.Listener {
     private var retryCount = 0
     private val maxRetries = 3
@@ -445,6 +447,41 @@ internal class PlayerListener(
             // Log track transition for debugging (inspired by lissen-android logging)
             // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
             val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
+
+            // Preload next track for smooth transition (inspired by Easybook)
+            if (currentIndex >= 0 && currentIndex < totalTracks - 1) {
+                val nextIndex = currentIndex + 1
+                // Check if next track is already loaded
+                // getMediaItemAt throws IndexOutOfBoundsException if index is invalid, not null
+                val nextTrackLoaded =
+                    try {
+                        player.getMediaItemAt(nextIndex)
+                        true // Track exists if no exception thrown
+                    } catch (e: IndexOutOfBoundsException) {
+                        false // Track doesn't exist
+                    } catch (e: Exception) {
+                        false // Other error, assume not loaded
+                    }
+
+                if (!nextTrackLoaded) {
+                    android.util.Log.d(
+                        "AudioPlayerService",
+                        "Next track $nextIndex not loaded yet, preloading for smooth transition",
+                    )
+                    preloadNextTrack?.invoke(nextIndex)
+                } else {
+                    android.util.Log.v(
+                        "AudioPlayerService",
+                        "Next track $nextIndex already loaded, no preload needed",
+                    )
+                }
+            }
+
+            // Optimize memory usage for large playlists (inspired by Easybook)
+            // Only optimize if playlist is large (> 50 tracks) to avoid unnecessary operations
+            if (totalTracks > 50) {
+                optimizeMemoryUsage?.invoke(currentIndex)
+            }
 
             // Restart position check if we're playing and on the last track
             if (player.isPlaying &&
