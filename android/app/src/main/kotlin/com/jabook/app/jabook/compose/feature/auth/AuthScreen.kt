@@ -103,7 +103,7 @@ fun AuthScreen(
     // Handle WebView Login Navigation
     LaunchedEffect(uiState.showWebViewLogin) {
         if (uiState.showWebViewLogin) {
-            onNavigateToWebView("https://rutracker.org/forum/login.php")
+            onNavigateToWebView(viewModel.getLoginUrl())
         }
     }
 

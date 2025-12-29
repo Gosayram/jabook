@@ -138,6 +138,10 @@ object NetworkModule {
 
     /**
      * Provide Retrofit instance.
+     *
+     * Note: The baseUrl here is just a placeholder. The actual base URL is dynamically
+     * determined by DynamicBaseUrlInterceptor which replaces the host with the current
+     * mirror from MirrorManager. This baseUrl is only used for relative path resolution.
      */
     @Provides
     @Singleton
@@ -149,6 +153,7 @@ object NetworkModule {
 
         return Retrofit
             .Builder()
+            // Base URL is a placeholder - DynamicBaseUrlInterceptor replaces host with current mirror
             .baseUrl("https://rutracker.org/forum/")
             .client(okHttpClient)
             // Scalar converter first for HTML responses

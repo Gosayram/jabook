@@ -247,8 +247,8 @@ fun WebViewScreen(
                         if (url.isNotEmpty()) {
                             loadUrl(url)
                         } else {
-                            // Fallback
-                            loadUrl("https://rutracker.org/forum/login.php")
+                            // Fallback to login page using current mirror
+                            loadUrl(viewModel.getLoginUrl())
                         }
 
                         webView = this

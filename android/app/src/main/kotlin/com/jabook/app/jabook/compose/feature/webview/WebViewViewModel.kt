@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.webview
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -26,6 +27,7 @@ class WebViewViewModel
     @Inject
     constructor(
         private val authRepository: AuthRepository,
+        private val mirrorManager: MirrorManager,
     ) : ViewModel() {
         /**
          * Called when a page finishes loading in WebView.
@@ -40,5 +42,13 @@ class WebViewViewModel
             viewModelScope.launch {
                 authRepository.syncCookiesFromWebView()
             }
+        }
+
+        /**
+         * Get login URL using current mirror (for fallback).
+         */
+        fun getLoginUrl(): String {
+            val baseUrl = mirrorManager.getBaseUrl()
+            return "$baseUrl/forum/login.php"
         }
     }

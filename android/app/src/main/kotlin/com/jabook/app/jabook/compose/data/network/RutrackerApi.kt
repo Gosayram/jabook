@@ -21,7 +21,8 @@ import retrofit2.http.Query
 /**
  * Rutracker API interface for search and content access.
  *
- * Base URL: https://rutracker.org
+ * Base URL is dynamically set via MirrorManager and DynamicBaseUrlInterceptor.
+ * The baseUrl in Retrofit is just a placeholder - actual requests use current mirror.
  */
 interface RutrackerApi {
     /**
@@ -49,6 +50,9 @@ interface RutrackerApi {
     ): String // Returns HTML, will need parsing
 
     companion object {
+        // Note: BASE_URL is not used - MirrorManager and DynamicBaseUrlInterceptor handle base URL dynamically
+        // This constant is kept for reference only
+        @Deprecated("Use MirrorManager.getBaseUrl() instead", ReplaceWith("mirrorManager.getBaseUrl()"))
         const val BASE_URL = "https://rutracker.org/"
 
         // Common category filters

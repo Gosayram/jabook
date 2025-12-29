@@ -23,6 +23,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
@@ -73,6 +74,7 @@ class TopicViewModel
         private val authRepository: AuthRepository,
         private val torrentManager: TorrentManager,
         private val rutrackerApi: RutrackerApi,
+        private val mirrorManager: MirrorManager,
         @param:ApplicationContext private val context: Context,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
@@ -310,5 +312,13 @@ class TopicViewModel
 
         fun retry() {
             loadTopicDetails()
+        }
+
+        /**
+         * Get URL for opening topic in browser using current mirror.
+         */
+        fun getTopicUrl(): String {
+            val baseUrl = mirrorManager.getBaseUrl()
+            return "$baseUrl/forum/viewtopic.php?t=$topicId"
         }
     }

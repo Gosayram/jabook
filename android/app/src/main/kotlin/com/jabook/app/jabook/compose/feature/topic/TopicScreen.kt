@@ -14,7 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.topic
 
+import android.content.Intent
 import android.graphics.drawable.ColorDrawable
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +42,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -136,6 +139,26 @@ fun TopicScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+                actions = {
+                    when (uiState) {
+                        is TopicUiState.Success -> {
+                            val context = LocalContext.current
+                            IconButton(
+                                onClick = {
+                                    val url = viewModel.getTopicUrl()
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    context.startActivity(intent)
+                                },
+                            ) {
+                                Icon(
+                                    Icons.Default.OpenInBrowser,
+                                    contentDescription = stringResource(R.string.openInBrowserButton),
+                                )
+                            }
+                        }
+                        else -> {}
                     }
                 },
             )

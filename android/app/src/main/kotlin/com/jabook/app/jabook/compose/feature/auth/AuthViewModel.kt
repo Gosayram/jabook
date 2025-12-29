@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
@@ -47,6 +48,7 @@ class AuthViewModel
     @Inject
     constructor(
         private val authRepository: AuthRepository,
+        private val mirrorManager: MirrorManager,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(AuthUiState())
         val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -125,5 +127,13 @@ class AuthViewModel
                 authRepository.syncCookiesFromWebView()
                 authRepository.isLoggedIn()
             }
+        }
+
+        /**
+         * Get login URL using current mirror.
+         */
+        fun getLoginUrl(): String {
+            val baseUrl = mirrorManager.getBaseUrl()
+            return "$baseUrl/forum/login.php"
         }
     }

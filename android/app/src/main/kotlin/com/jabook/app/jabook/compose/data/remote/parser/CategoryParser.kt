@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.remote.parser
 
 import android.util.Log
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.model.AudiobookCategory
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
@@ -32,7 +33,9 @@ import javax.inject.Singleton
 @Singleton
 class CategoryParser
     @Inject
-    constructor() {
+    constructor(
+        private val mirrorManager: MirrorManager,
+    ) {
         companion object {
             private const val TAG = "CategoryParser"
 
@@ -89,8 +92,9 @@ class CategoryParser
 
             try {
                 // Parse with baseUri for proper absolute URL resolution
-                // Using RuTracker base URL for resolving relative links
-                val document = Jsoup.parse(html, "https://rutracker.org/forum/")
+                // Using current mirror base URL for resolving relative links
+                val baseUrl = "${mirrorManager.getBaseUrl()}/forum/"
+                val document = Jsoup.parse(html, baseUrl)
 
                 // Find audiobooks category (c=33)
                 val audiobooksCategoryElement =
