@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ParsingResult` for graceful error handling and integrate defensive encoding for robust parsing
 - Add audiobook category data model and HTML parser for RuTracker
 - Add back navigation icon to the player screen with localized content description
+- Add backup schema v2.0.0 including app info, statistics, and torrent metadata, and update version compatibility
 - Add book properties dialog, improve file system scanning with robust book identification and encoding detection, and refactor library display views
 - Add BookDetailPane composable to display detailed book information and integrate it into the library screen
 - Add buffering state management and display a buffering dialog for torrent streaming
@@ -42,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add distinct messages for library scan completion when no books are found or no folders are configured
 - Add download history screen with search and sort functionality, and enable drag-and-drop reordering for the download queue
 - Add dynamic color support to `JabookTheme` for Android 12+ devices
+- Add extensive diagnostic logging for Rutracker search parsing and network requests
 - Add fade-in and fade-out navigation transitions to PlayerScreen
 - Add favorites feature with new data model, DAO, repository, ViewModel, and database migration
 - Add Favorites screen with navigation and audiobook management capabilities
@@ -50,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add grouped and grid library view modes with user preference persistence
 - Add loading and error states to BookCard cover image
 - Add login concurrency protection and multi-tier authentication validation
+- Add login description and 'or' strings, and enhance AuthScreen UI with icons, improved spacing, and animated loading state
 - Add Makefile targets for string migration and improve script to reuse existing strings and enhance translation robustness
 - Add migration screen navigation route and deep link
 - Add mini-player state management and Material You theming for notification icons, and clean up RutrackerParserTest
@@ -81,29 +84,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dynamically update MediaSession custom commands for rewind and forward durations
 - Enhance backup/restore to include books, favorites, search history, scan paths, and extended settings
 - Enhance chapter sorting logic with numerical and special chapter handling, and improve title extraction by falling back to filename
+- Enhance cover art detection logic, defer cover art extraction during file system scanning, and optimize book and chapter insertion with batching and upsert
 - Enhance debug screen with mirror health testing and cache management functionality
 - Enhance Media3 integration with rich metadata, completion status, and improved Android Auto support
 - Enhance Rutracker authentication with detailed logging, robust error handling, and new debug info
+- Enhance Rutracker HTML parsing by adding fallback CSS selectors and a robust row validation strategy
+- Enhance Rutracker search with logging, refactor WebView navigation icons, add custom user agent, and implement URL fallback
 - Enhance settings screen with improved cache clearing messages, customizable slider value formatting, and direct links to GitHub resources
 - Enhance string migration script with improved filtering, statistics, and add string resource for unknown cache size
+- Enhance TopicDetails and Comment models to include HTML descriptions for better formatting; update RutrackerParser to extract and clean HTML content, preserving links; modify TopicScreen to display
+  HTML content in comments and descriptions, improving user experience with clickable links
 - Externalize UI strings to resources for internationalization in player, settings, and library features
 - Extract audiobook covers during library scan and skip scan if no scan paths are configured
 - Extract embedded book covers during library scan and unify cover image loading across UI components
 - Feat: Implement seek forward/backward controls in the player and refactor playback speed persistence to user preferences
 - Feat: remove close button from BookPropertiesDialog
 - Format chapter titles using `ChapterUtils` to include index and localized prefix
+- Implement a persistent mini-player by tracking the last played book and displaying it in the main app UI
 - Implement adaptive navigation using window size classes to display NavigationRail or BottomBar
 - Implement add torrent dialog with download path selection and URI path resolution
 - Implement app data backup and restore functionality for settings and book metadata
+- Implement automatic audio output switching between speaker and earpiece based on proximity sensor
 - Implement book metadata and cover image synchronization using torrent topic ID
 - Implement cache management in settings, allowing users to view and clear app cache
+- Implement chapter repeat functionality in audio player; update PlayerViewModel to manage chapter repeat modes (OFF, ONCE, INFINITE) and integrate repeat logic in AudioPlayerController, enhancing
+  user experience during playback; add UI elements in PlayerScreen for chapter repeat controls and update string resources for repeat modes
 - Implement chapter search/jump in player, display library screen title, and remove redundant TopAppBar window insets
 - Implement cleanup for non-existent scan paths and deleted books from the database
 - Implement custom audio notification manager with media session integration and enable shared element transitions
 - Implement download filtering, priority management, and queue reordering with a new database table
 - Implement download history tracking and add new download speed and concurrency settings
+- Implement ForumIndexer service for indexing audiobook forums on RuTracker; includes full and incremental indexing, cover preloading, and version tracking; enhance database schema with last_updated
+  and index_version fields for cached topics; add search capabilities in OfflineSearchDao for indexed topics, improving offline search performance
 - Implement functionality to move torrent storage to a new path
 - Implement hybrid local book scanning with direct file system access for custom paths and introduce shared audio file info
+- Implement indexing functionality in SettingsScreen; add indexing progress tracking, user feedback for indexing status, and a dialog for indexing operations; enhance user experience with dynamic
+  updates on index size and indexing status
 - Implement local audiobook scanning, sleep timer, and playback speed controls, and display download messages
 - Implement main navigation and integrate core screens
 - Implement Material 3 Adaptive UI for PlayerScreen and SearchScreen
@@ -117,6 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement offline search for Rutracker topics by caching results locally
 - Implement pull-to-refresh for library scanning, enhance library display with empty state, and add chapter reordering functionality
 - Implement real-time library scan progress with UI integration and metadata caching
+- Implement synchronization of local library favorites with FavoriteEntity; add extension function to convert Book to FavoriteEntity; update LibraryViewModel and FavoritesViewModel to manage favorite
+  status and combine online and local favorites, improving user experience in managing favorite books
 - Implement torrent details screen with file prioritization and per-file download progress
 - Implement torrent download management including service, notifications, and core logic
 - Implement torrent download persistence by adding a new database table and syncing manager state
@@ -133,6 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integrate torrent download repository to enable browsing and playing downloaded media items with enhanced metadata
 - Internationalize favorites screen dialog and menu texts by adding new string resources
 - Internationalize various UI and worker strings and refactor library scan worker for improved performance and batch processing
+- Introduce AUDIOBOOKS_FORUM_IDS constant in RutrackerApi for audiobooks forum filtering; update RutrackerSearchViewModel to default forumIds parameter to AUDIOBOOKS_FORUM_IDS, enhancing search
+  functionality for audiobooks
 - Introduce in-memory LRU cache for Rutracker search results, integrating it into the repository and cache management
 - Introduce Jetpack Compose UI with new data layer for books and refactor audio player components: phase 1 and 2
 - Introduce library sorting by activity, title, author, and date added, and track book completion and last played times
@@ -145,6 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrate media notifications from custom provider to `androidx.media3.ui.PlayerNotificationManager` for improved background service reliability
 - Migrate to Gradle 9 for comprehensive building experience
 - Mirror management with dynamic base URL, health checks, and persistent settings
+- Optional avatar URL to Comment model; update RutrackerParser to extract avatar images; modify TopicScreen to display avatars alongside comments, improving visual context and user experience
 - Order books by favorite status before last played date
 - Persist book activity timestamps in player state and integrate into backup/restore functionality
 - Prevent audio playlist reloads and configure Media3 notification channels
@@ -153,19 +174,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace hardcoded UI strings with string resources for localization across various screens and components
 - Reposition and restyle LibraryScreen snackbar to be adaptive and bottom-aligned, and update PlayerScreen coroutine launches to use CoroutineStart.UNDISPATCHED
 - Request Android 13+ notification permission, export audio service, and refine Media3 notification and media session integration
+- Rounded corners to cover images in MiniPlayer and TopicScreen; update image loading logic to utilize transformations for improved UI aesthetics, enhancing visual appeal in both components
+- Support for comments and series information in TopicDetails; update RutrackerParser to extract seeders, leechers, comments, and series from topic pages; enhance TopicScreen UI to display comments
+  and series details, improving user engagement and information accessibility
 - Trigger immediate one-time sync and enhance SyncWorker with Hilt DI, limited retries, and cache cleanup
 - Update FileProvider paths to include logs, downloads, and audiobooks, and align AndroidManifest authority and resource
+- Use mipmap icon and remove tint on AuthScreen, filter `setRequestedFrameRate` from debug logs, and add detailed logging for Rutracker parsing failures
 
 ### Changed
 
+- "System Default" string to "System (default)" for clarity
 - Add `report` target to analyze startup logs and generate a debug report
 - Add `run-beta` and `run-beta-debug` Makefile targets and update `install-beta` to use `adb`
 - Add Apache 2.0 license header to all files
 - Add comprehensive architecture documentation in Quarto format with 45+ Mermaid diagrams
 - Add deprecation suppression for hiltViewModel in feature screens
+- Add Google Fonts support in build.gradle.kts; refactor font handling in AppFont to include multiple Google Fonts options; update JabookTheme and SettingsScreen to utilize selected font preference
+  dynamically; enhance font selection UI for better user experience
 - Add logic to request necessary permissions on app launch based on Android version
 - Add note about `RutrackerParserTest` requiring Android test framework and serving as documentation
+- Add OkHttp Brotli support and enhance RutrackerRepository logging for Brotli decompression checks
 - Add RuTracker search screen and its navigation route
+- Add sortOrder and viewMode properties to AppSettings; update BackupService to handle restoration of these settings; enhance user preferences management for improved app customization
 - Add topic details screen with its viewmodel and navigation route
 - Added ignore packages for copyright validation
 - Added ktlint-strace for make hook
@@ -177,6 +207,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Audio player notification and session initialization to use `DefaultMediaNotificationProvider` with a small icon and set custom commands
 - Auto markdown formatter
 - Autoincrement for beta-releases as a patch
+- BackupService to determine app flavor from BuildConfig.APPLICATION_ID; implement fallback mechanism using versionName suffix for improved flavor detection; enhance error handling for BuildConfig
+  retrieval
 - Broaden string migration's file and technical string exclusion rules and streamline string replacement
 - Bump Android SDK versions, enable ABI splits with universal APK generation, remove desugaring, and adapt Makefile for new APK output structure
 - Bump Makefile
@@ -194,9 +226,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump patch version to 1.2.7+20
 - Bump patch version to 1.2.7+21
 - Bump patch version to 1.2.7+22
+- Bump patch version to 1.2.7+23
+- Bump patch version to 1.2.7+24
+- Bump patch version to 1.2.7+25
+- Bump patch version to 1.2.7+26
+- Bump patch version to 1.2.7+27
+- Bump patch version to 1.2.7+28
+- Bump patch version to 1.2.7+29
+- Bump patch version to 1.2.7+30
+- Bump patch version to 1.2.7+31
+- Bump patch version to 1.2.7+32
+- Bump patch version to 1.2.7+33
+- Bump patch version to 1.2.7+34
+- Bump patch version to 1.2.7+35
+- Bump patch version to 1.2.7+36
+- Bump patch version to 1.2.7+37
+- Bump patch version to 1.2.7+38
+- Bump patch version to 1.2.7+39
+- Bump patch version to 1.2.7+40
+- Bump patch version to 1.2.7+41
+- Bump patch version to 1.2.7+42
+- Bump patch version to 1.2.7+43
+- Bump patch version to 1.2.7+44
+- Bump patch version to 1.2.7+45
+- Bump patch version to 1.2.7+46
+- Bump patch version to 1.2.7+47
+- Bump patch version to 1.2.7+48
+- Bump patch version to 1.2.7+49
+- Bump patch version to 1.2.7+50
+- Bump patch version to 1.2.7+51
+- Bump patch version to 1.2.7+52
+- Bump patch version to 1.2.7+53
+- Bump patch version to 1.2.7+54
+- Bump patch version to 1.2.7+55
+- Bump patch version to 1.2.7+56
+- Bump patch version to 1.2.7+57
+- Bump patch version to 1.2.7+58
+- Bump patch version to 1.2.7+59
+- Bump patch version to 1.2.7+60
+- Bump patch version to 1.2.7+61
 - Bump pub build
+- Bump theme localization
 - Centralize date and time formatting with a new DateTimeFormatter utility and apply it to backup and settings
 - Centralize playback speed constants and update player and settings UI to utilize them
+- Change BrotliInterceptor to a network interceptor for automatic Brotli decompression
+- Change logging level from debug to warning in Rutracker parser and repository
 - Clarify torrent error tracking limitations and buffering state comments
 - Clean up each cache before compilation testing
 - Clean up unused imports and apply minor formatting to settings and topic screens
@@ -204,45 +278,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consolidate and simplify R8 rules for Kotlinx Serialization, Hilt, and other libraries
 - Delegate field and cover URL extraction to dedicated services using injected extractors
 - Disable PlayerNotificationManager in audio service
+- Display debug logs using LazyColumn and remove fetching of all error logs
+- Enhance alert handling in TorrentSessionManager by adding comprehensive logging for various alert types; improve error handling and debugging capabilities; include additional alert types for better
+  monitoring of torrent states and events
+- Enhance alert handling in TorrentSessionManager by specifying alert types explicitly to improve efficiency and avoid potential issues; update session initialization to prevent automatic alert
+  listener, aligning with libretorrent practices for better stability and debugging
+- Enhance audio playback error logging in PlayerListener; improve playlist loading logs in PlaylistManager with detailed track information; implement structured logging for database migrations in
+  DatabaseModule; add navigation logging in JabookAppState and JabookNavHost for better traceability of user actions
+- Enhance AuthInterceptor for improved automatic re-authentication handling and update NetworkModule with logging interceptor notes and timeout adjustments
 - Enhance back gesture handling to always intercept and provide screen exit fallback
+- Enhance cover URL validation in CoverUtils; improve cover image handling by ensuring URLs are not blank and follow valid formats; update UnifiedBookCard and TopicScreen for better text styling and
+  spacing; add download functionality in TopicViewModel for torrent management
+- Enhance database configuration in MediaModule and DatabaseModule; implement coroutine context for queries, enable foreign key constraints, and add lifecycle callbacks for better performance and
+  debugging; update JabookDatabase to export schema for migration validation
+- Enhance DebugLogService with app-specific log tags and system log patterns; improve log collection by filtering out system noise and summarizing log statistics; update ForumIndexer and
+  RutrackerParser with additional logging for better debugging and tracking of operations
 - Enhance foreground service initialization for Android 14+ and standardize notification ID
+- Enhance ForumIndexer to reduce progress update frequency for smoother indexing experience; improve pagination detection in RutrackerParser for accurate topic retrieval; update IndexingProgress
+  calculation for better accuracy; ensure user authentication check in IndexingViewModel before starting indexing process
+- Enhance logging in RutrackerSimpleDecoder and RutrackerRepository to include detailed decoding process and content encoding checks
+- Enhance logging throughout ForumIndexer, DynamicBaseUrlInterceptor, MirrorManager, RutrackerParser, and RutrackerRepository; add detailed timing and memory usage metrics for indexing and network
+  requests; improve error handling and reporting for better debugging and performance tracking
 - Enhance ProGuard rules for Kotlinx Serialization, Hilt, Room, and Retrofit, and remove `@SerialName` annotations from navigation routes
+- Enhance RutrackerParser to improve metadata cleaning by removing cycle/series links, book lists, and advertising text; update TopicScreen layout for better readability by separating
+  seeders/leechers and size/duration into distinct rows
+- Enhance RutrackerRepository logging to include checks for HTML structure and potential Cyrillic content, and improve HTML preview handling for both UTF-8 and Windows-1251 encodings
+- Enhance RutrackerSimpleDecoder with improved validation for decoding results, including checks for HTML structure and valid Cyrillic content
 - Enhance screen reader experience by adding semantic descriptions and roles to various UI components
 - Enhance string migration script safety and remove problematic string resources
+- Enhance URL normalization in CoverUtils and RutrackerParser to utilize MirrorManager for consistent base URL handling; refactor cover URL extraction logic across multiple components to improve
+  reliability and maintainability
+- Enhance URL resolution in parsers by implementing baseUri in Jsoup.parse() for absolute URL handling; replace manual URL concatenation with absUrl() for improved reliability; optimize element
+  selection with selectFirst() and selectStream() for better performance and efficiency in CategoryParser, CoverUrlExtractor, DefensiveFieldExtractor, and RutrackerParser
 - Exclude test_results folder for copyright heads
+- Extend AudioRepositoryModule to provide PlaybackPositionDao for managing playback position data; enhance audio data handling capabilities within the Hilt module
 - Externalize favorite button content descriptions using string resources
 - Externalize hardcoded strings in various Compose screens and add new string resources
 - Externalize library folder management and other UI strings for localization in settings screens
 - Extract MainActivity logic to handlers and fix missing methods
 - Fmt
+- Format kt
+- ForumIndexer for improved readability and maintainability; streamline cover URL extraction logic; enhance OfflineSearchDao with unused column optimization; update RutrackerParser to support
+  encoding-aware parsing of response bodies; modify database schema to include additional metadata fields for indexed topics
 - Gitignore
 - Guaranteed forward to library window from anything via navigation panel button
 - Ignore backup file
 - Ignore xml backup
+- Implement adaptive layout features across book components using WindowSizeClass; enhance UnifiedBookCard, BookDetailPane, and UnifiedBooksView for improved responsiveness and visual consistency;
+  refactor BookDisplayMode to support adaptive grid configurations; update theme with custom shapes for a modern look
+- Implement adaptive padding using Material3 WindowSizeClass and add status bar padding to PlayerChapterPane
 - Implement batch processing for library scanning with incremental progress updates and improved error handling
+- Implement createCoverImageRequest function in CoverUtils for enhanced book cover image loading; update various components to utilize the new function for improved image handling and customization
+  options
 - Implement custom rewind/forward media session commands, force Android compile SDK to 34, and update flutter_media_metadata to a path dependency
 - Implement environment-specific beta and production color themes, replacing the default Material 3 color schemes
 - Implement jumpToTrack functionality, increase playback position saving frequency, and add extensive logging for audio bridge events
+- Implement search and sort functionality in FavoritesScreen; add search query and sort order states in FavoritesViewModel; update UI to include search input and sort options, improving user
+  experience in managing favorite books
 - Implement toast feedback for torrent downloads and deep link navigation to the downloads screen from both torrent start and notifications
+- Improve audio playback reliability by ensuring non-dismissible notifications and saving playback position in various scenarios; update PlayerViewModel to restore saved position from database on
+  initialization, enhancing user experience during playback interruptions
+- Improve authentication logging by adding User-Agent details in RutrackerAuthService; update RutrackerHeadersInterceptor to use device-specific User-Agent for requests, ensuring better compatibility
+  and bot detection avoidance
 - Improve auto-increment experience
 - Improve changelog generation mechanism
 - Improve code formatting and organize imports
 - Improve encoding detection and mojibake fixing by removing verbose logs, adding control character penalties, and adjusting confidence thresholds to prevent false positives
+- Improve error handling in TorrentManager and TorrentSessionManager; add checks for initialization success and handle native exceptions during torrent operations; ensure only magnet URIs are
+  accepted for downloads in TopicViewModel
 - Improve playback speed display formatting, refactor bottom navigation bar to use app state, and adjust UI paddings
 - Improve string resource handling by consolidating access, fixing formatting, and removing obsolete keys
+- Improve torrent management by adding validation for magnet URI format, enhancing error handling during torrent addition, and ensuring proper directory creation and write permissions; update
+  TopicViewModel to prefer magnet URLs and validate download URL formats, along with improved logging for error scenarios
 - Improve translate quality and checking dry-run mechanism
+- Improve UI responsiveness in TopicScreen by implementing adaptive layout for description and comments; update JabookApp to conditionally display mini player based on navigation state, enhancing
+  user experience during playback
+- Improve URL normalization in CoverUtils to handle relative URLs; update TorrentSessionManager to resume torrents after adding; refine description formatting in TopicScreen to preserve line breaks
+  while normalizing whitespace
+- Increase disk cache size for cover images to 5% for improved UX; add support for hardware bitmaps in image requests for better performance; implement image cache size tracking and clearing in
+  CacheManager; update TopicScreen to prioritize cover image loading
+- Increase Rutracker logo size on AuthScreen
 - Localize default string resources to English and update `TestComposeScreen` usage
 - Make Text() string extraction regex more flexible to include additional arguments
 - Migrate player to new bridge API with Kotlin state persistence
 - Migrate string management from custom `Strings.kt` to standard `R.string` resources
 - Migrate to DataStore + Tink encryption for credentials
 - Migrate to Java 21 and replace kapt with KSP for Room
+- Modify AudioPlayerService to stop only when notification is dismissed by the user, enhancing service management; update InactivityTimer to extend default inactivity timeout from 40 to 60 minutes,
+  improving user experience during prolonged playback
+- Optimize ForumIndexer by removing delay between requests for faster indexing; update RutrackerParser to clean up metadata and reverse comment order for better user experience; adjust TopicScreen
+  for improved readability on small screens by reducing preview length and max lines in collapsed state
+- Optimize ForumIndexer for faster indexing by reducing request delay and increasing concurrent processing; enhance IndexingProgress calculation for improved accuracy; update RutrackerParser to clean
+  metadata from HTML and reverse comment order for better user experience; adapt cover image sizes in RutrackerSearchScreen and TopicScreen based on device orientation for improved layout
+  responsiveness
+- Optimize ForumIndexer for improved performance and indexing accuracy; implement parallel processing for forum indexing, enhance progress reporting with IndexingProgress updates, and introduce
+  batching for database writes; update RutrackerParser regex for better description extraction; refine search strategy in RutrackerRepository to prioritize indexed results; enhance
+  RutrackerSearchScreen with indexing state management and user feedback for indexing status
 - Optimize library scan performance and cleanup obsolete TODOs
+- Optimize list rendering in various screens by implementing key-based item tracking in LazyColumn; improve performance and reduce unnecessary recompositions in DebugScreen, FavoritesScreen,
+  TopicScreen, FileSelectionDialog, and TorrentDetailsScreen
 - Optimize ProGuard rules for Kotlinx Serialization, Hilt, Room, and DataStore Proto, remove Gson, and use `@SerialName` in navigation routes
 - Polish navigation UI and resolve deprecations
 - Preserve XML comments and formatting when adding new strings to `strings.xml`
 - Re-change clean params for linting
+- Refactor adaptive layout handling in book components; replace LocalConfiguration with LocalContext for WindowSizeClass calculations in UnifiedBookCard, BookDetailPane, and UnifiedBooksView; improve
+  line height scaling in AdaptiveUtils for better text rendering
 - Refactor audio player service architecture
+- Refactor dependencies in build.gradle.kts to use version variables for libtorrent4j and Coil; enhance JabookApplication to configure Coil ImageLoader with OkHttpClient from Hilt for improved image
+  loading performance and caching
+- Refactor FontSelector in SettingsScreen to use ExposedDropdownMenu for improved font selection UI; streamline font option display and enhance user interaction with dropdown functionality
+- Refactor image request creation in CoverUtils for better readability; update various components to utilize the streamlined method for cover image requests, enhancing code consistency and
+  maintainability
+- Refine CoverUrlExtractor to implement a 5-level extraction strategy for cover images; remove domain validation for image URLs, allowing any valid extension with HTTP(S) scheme; improve selector
+  logic for better URL extraction in RutrackerParser, enhancing overall image handling capabilities
 - Refine hardcoded string detection in `migrate_strings.py` to exclude non-UI files and technical strings
 - Remove devDebugKotlin compilation from Makefile's compile target
 - Remove direct torrent download UI and logic from topic feature, consolidating download management
@@ -259,22 +407,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rename string resource keys to English for improved clarity and maintainability
 - Reorganize makefile automation and fix hack scripts
 - Replace byte-count based Cyrillic encoding detection with confidence-based string decoding
+- Replace DefensiveEncodingHandler with RutrackerSimpleDecoder for consistent response decoding across components
 - Replace hardcoded "Logged in as" string with a string resource
 - Return  media player service initializer
 - Script for Android startup log analysis and enhance Kotlin serialization ProGuard rules for R8 Full Mode
+- Search result parsing to handle various encodings and parsing outcomes
 - Service warmup and using
 - Simplify BookCard image loading state handling and improve accessibility
 - Simplify ProGuard rules by removing redundant library-specific configurations and refining Kotlinx Serialization rules for `@SerialName`
+- Simplify RutrackerSimpleDecoder by removing redundant validation logic and clarifying decoding strategy comments
 - Streamline audio player service initialization and notification provider setup, and remove reflection fallback for media style token
+- Streamline cover URL extraction in RutrackerParser by utilizing CoverUrlExtractor for consistency; enhance metadata cleaning by expanding patterns to remove technical details and improve
+  description extraction logic; refine author extraction with fallback mechanisms for better accuracy
 - Streamline Gradle configuration, enable build caching, remove integration test plugin workaround, disable default WorkManager initialization, and generalize DataMigrationManager's DataStore usage
+- Swipe-to-dismiss functionality for mini player in JabookApp; update MiniPlayer component to handle drag gestures and dismiss on threshold, improving user interaction and experience during playback
+- TopicScreen and TopicViewModel with new download options for torrents; implement snackbar notifications for download status; add functionality to copy magnet links and download torrent files;
+  update UI to include a dropdown menu for download actions
 - Unification into one abstraction for easily linting
+- Update AUDIOBOOKS_FORUM_IDS in RutrackerApi to include additional forum and subforum IDs for enhanced audiobook search capabilities; modify error message handling in TopicScreen to display a
+  default error message when no specific message is provided, improving user feedback during errors
+- Update AudioPlayerService to prioritize MediaLibrarySession for notifications, ensuring system media player integration; modify PlayerScreen to remove redundant repeat mode display; clean up
+  strings.xml and localized resources by removing infinite repeat symbol
 - Update chapter name formatting to accept a localized prefix and introduce new string resources for UI elements
 - Update CI workflows to improve Gradle wrapper generation and permissions; added checks for existing files and enhanced error handling
 - Update copyright script to target Kotlin files instead of Dart and remove Flutter-specific exclusions
 - Update Hilt `@ApplicationContext` parameter annotation syntax and add `viewModel` import
 - Update Hilt ViewModel imports and add trailing comma to enum definition + enhance downloads mechanism
+- Update import statements in TorrentSessionManager to include AlertType for improved clarity and consistency in alert handling; streamline alert management practices in line with recent refactoring
+  efforts
 - Update Kotlinx Serialization ProGuard rules for enhanced R8 compatibility, adding specific keeps for core classes, `@SerialName` fields, and navigation routes
 - Update ProGuard rules by removing Flutter configurations and adding rules for Compose, Hilt, Room, DataStore, Media3, and WorkManager
+- Update Rutracker API integration to use dynamic base URL from MirrorManager; refactor authentication and topic handling to utilize current mirror for URL generation; enhance WebView and TopicScreen
+  with improved navigation and fallback mechanisms for login; streamline CategoryParser to resolve links using dynamic base URL
+- Update RutrackerHeadersInterceptor to clarify Accept-Encoding handling, enhance logging in RutrackerRepository, and adjust interceptor order in NetworkModule for Brotli support
+- Update typography in theme files to use custom Inter fonts; modify JabookTheme to utilize system's default sans-serif font for better user experience; enhance Type.kt with InterFontFamily
+  definition for consistent app styling
 - Use Provider for AuthRepository injection in AuthInterceptor and condense its KDoc
 
 ### Fixed
@@ -282,6 +449,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add empty MIGRATION_7_8 to resolve database migration issues
 - Add null safety for validation checks and display a placeholder for missing permissions in DebugScreen
 - Add ProGuard rules for Navigation Compose SavedStateHandle serialization and remove explicit kotlinx-serialization-json dependency
+- Add Rutracker logo and update authentication screen to display it with a smaller size
+- Add try-catch blocks to DebugViewModel operations for improved error handling
 - Copyright validation folders
 - Correct Media3 notification initialization and reduce default inactivity timeout
 - Corrected English string resources and updated Russian translations
@@ -322,6 +491,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip test files in the string migration script
 - Temporarily disable mini-player functionality and its PlayerViewModel instantiation, adding TODOs for future state management
 - Update beta APK installation to use arm64-v8a specific build
+- Update Rutracker API to return ResponseBody and explicitly decode with windows-1251 charset for responses
 - Update Rutracker CSS selectors and enhance search result parsing with improved logging and robustness
 - Use default view list icon instead of auto-mirrored in library screen
 
@@ -330,6 +500,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add debug tools section and navigation to settings
 - Enhance debug log header with detailed device, display, memory, and CPU info, and add a system log section
 - FileProvider for secure file sharing, new permissions, and manifest compatibility adjustments
+- Improve description cleaning in RutrackerParser to remove metadata fields and prevent duplication; normalize cover image URLs in TopicScreen for better handling of various URL formats; remove
+  unnecessary genres section from TopicScreen
+- Improve favorite book management by ensuring current book data is retrieved before updates; update ToggleFavoriteUseCase to handle book updates more reliably and synchronize with FavoriteEntity,
+  enhancing user experience in managing favorites
 
 ## [1.2.6] - 2025-12-06
 
