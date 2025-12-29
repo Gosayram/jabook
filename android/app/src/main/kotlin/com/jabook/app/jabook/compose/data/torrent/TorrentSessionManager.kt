@@ -28,6 +28,7 @@ import org.libtorrent4j.SettingsPack
 import org.libtorrent4j.TorrentHandle
 import org.libtorrent4j.TorrentInfo
 import org.libtorrent4j.TorrentStatus
+import org.libtorrent4j.AlertType
 import org.libtorrent4j.alerts.AddTorrentAlert
 import org.libtorrent4j.alerts.Alert
 import org.libtorrent4j.alerts.BlockFinishedAlert
@@ -53,6 +54,7 @@ class TorrentSessionManager
     constructor(
         @param:ApplicationContext private val context: Context,
     ) {
+        // Use SessionManager(false) like libretorrent to avoid automatic alert listener issues
         private var session: SessionManager? = null
         private val torrents = mutableMapOf<String, TorrentHandle>()
         private val topicIds = mutableMapOf<String, String>()
@@ -63,9 +65,21 @@ class TorrentSessionManager
         private val alertListener =
             object : AlertListener {
                 override fun types(): IntArray? {
-                    // Return null to receive all alert types for comprehensive debugging
-                    // This allows us to log all alerts for better debugging
-                    return null
+                    // Specify alert types explicitly like libretorrent does
+                    // This is more efficient and avoids potential issues with null
+                    return intArrayOf(
+                        AlertType.ADD_TORRENT.swig(),
+                        AlertType.METADATA_RECEIVED.swig(),
+                        AlertType.STATE_CHANGED.swig(),
+                        AlertType.TORRENT_FINISHED.swig(),
+                        AlertType.TORRENT_ERROR.swig(),
+                        AlertType.BLOCK_FINISHED.swig(),
+                        AlertType.PIECE_FINISHED.swig(),
+                        AlertType.DHT_ERROR.swig(),
+                        AlertType.STATE_UPDATE.swig(),
+                        AlertType.PEER_LOG.swig(),
+                        AlertType.TORRENT_LOG.swig(),
+                    )
                 }
 
                 override fun alert(alert: Alert<*>) {
@@ -138,10 +152,13 @@ class TorrentSessionManager
                     }
 
                 val params = SessionParams(settings)
+                // Use SessionManager(false) like libretorrent - this prevents automatic alert listener
+                // which can cause NoSuchMethodError with some libtorrent4j versions
                 session =
-                    SessionManager().apply {
-                        addListener(alertListener)
+                    SessionManager(false).apply {
                         start(params)
+                        // Add listener AFTER start() like libretorrent does
+                        addListener(alertListener)
                     }
 
                 Log.i(TAG, "Torrent session initialized successfully")
