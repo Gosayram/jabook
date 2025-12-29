@@ -691,14 +691,16 @@ private fun ExpandableDescription(
         Text(
             text =
                 if (expanded) {
-                    // Normalize whitespace - replace multiple spaces/newlines with single space
+                    // Format description: preserve line breaks but normalize multiple spaces
+                    // Replace multiple spaces with single space, but keep single newlines
                     description
-                        .replace(Regex("\\s+"), " ")
+                        .replace(Regex("[ \t]+"), " ") // Multiple spaces/tabs -> single space
+                        .replace(Regex("\n{3,}"), "\n\n") // Multiple newlines -> double newline
                         .trim()
                 } else {
                     description
                         .take(maxPreviewLength)
-                        .replace(Regex("\\s+"), " ")
+                        .replace(Regex("[ \t]+"), " ") // Multiple spaces/tabs -> single space
                         .trim() + if (shouldShowExpand) "..." else ""
                 },
             style = MaterialTheme.typography.bodyMedium,

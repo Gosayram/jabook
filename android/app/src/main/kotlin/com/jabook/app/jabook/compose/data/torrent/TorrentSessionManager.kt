@@ -343,6 +343,16 @@ class TorrentSessionManager
             val handle = alert.handle()
             val hash = handle.infoHash().toHex()
             torrents[hash] = handle
+
+            // Resume torrent to start downloading (required by libtorrent4j)
+            // According to libtorrent4j examples, handle.resume() must be called after adding
+            try {
+                handle.resume()
+                Log.d(TAG, "Torrent resumed after add: $hash")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resume torrent after add: $hash", e)
+            }
+
             updateDownloads()
         }
 

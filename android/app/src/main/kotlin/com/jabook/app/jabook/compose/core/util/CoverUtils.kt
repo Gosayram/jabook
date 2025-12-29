@@ -128,11 +128,13 @@ object CoverUtils {
         // Ensure coverUrl is not blank and is a valid URL
         val coverUrl = book.coverUrl
         if (!coverUrl.isNullOrBlank()) {
-            // Normalize URL format - handle protocol-relative URLs (//example.com)
+            // Normalize URL format - handle protocol-relative URLs (//example.com) and relative URLs
+            // Use same normalization logic as CoverUrlExtractor for consistency
             return when {
                 coverUrl.startsWith("http://") || coverUrl.startsWith("https://") -> coverUrl
                 coverUrl.startsWith("//") -> "https:$coverUrl"
-                else -> null
+                coverUrl.startsWith("/") -> "https://rutracker.org$coverUrl"
+                else -> "https://rutracker.org/$coverUrl"
             }
         }
 
