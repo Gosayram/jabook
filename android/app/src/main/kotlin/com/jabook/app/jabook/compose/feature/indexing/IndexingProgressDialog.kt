@@ -34,11 +34,17 @@ import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 
 /**
  * Dialog showing indexing progress.
+ *
+ * @param progress Current indexing progress
+ * @param onDismiss Callback when dialog is dismissed
+ * @param indexSize Current index size from database (used for accurate count display)
+ * @param modifier Modifier for the dialog
  */
 @Composable
 fun IndexingProgressDialog(
     progress: IndexingProgress,
     onDismiss: () -> Unit,
+    indexSize: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     AlertDialog(
@@ -100,10 +106,12 @@ fun IndexingProgressDialog(
                     }
 
                     is IndexingProgress.Completed -> {
+                        // Use indexSize from database as single source of truth
+                        val displayCount = if (indexSize > 0) indexSize else progress.totalTopics
                         Text(
                             text =
                                 "Индексация завершена!\n" +
-                                    "Проиндексировано: ${progress.totalTopics} тем\n" +
+                                    "Проиндексировано: $displayCount тем\n" +
                                     "Время: ${progress.durationMs / 1000} сек",
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodyMedium,

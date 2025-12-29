@@ -117,12 +117,26 @@ class ForumIndexer
                 var totalIndexed = 0
                 val coversToPreload = mutableListOf<String>()
 
+                // Validate that only audiobook forums are being indexed
+                val allowedForums =
+                    RutrackerApi.AUDIOBOOKS_FORUM_IDS
+                        .split(",")
+                        .map { it.trim() }
+                        .toSet()
+                val invalidForums = forumIdList.filter { it !in allowedForums }
+                if (invalidForums.isNotEmpty()) {
+                    Log.w(TAG, "WARNING: Attempting to index non-audiobook forums: $invalidForums")
+                    Log.w(TAG, "Only audiobook forums will be indexed. Allowed forums: ${allowedForums.size}")
+                }
+
                 Log.i(TAG, "Starting full forum indexing for ${forumIdList.size} forums (version $currentIndexVersion)")
+                Log.i(TAG, "Forums to index: ${forumIdList.joinToString(", ")}")
 
                 // Clear old indexed data before starting new index to ensure only audiobook forums are indexed
                 Log.i(TAG, "Clearing old indexed data before new index...")
+                val oldCount = getIndexSize()
                 clearIndex()
-                Log.i(TAG, "Old indexed data cleared")
+                Log.i(TAG, "Old indexed data cleared (was $oldCount topics)")
 
                 onProgress?.invoke(
                     IndexingProgress.InProgress(
@@ -219,21 +233,33 @@ class ForumIndexer
                 val memoryUsed = finalMemory / (1024 * 1024) // MB
                 val topicsPerSecond = if (duration > 0) (totalIndexed * 1000) / duration else 0
 
+                // Verify actual count in database matches indexed count (single source of truth)
+                val actualCountInDb = getIndexSize()
+                if (actualCountInDb != totalIndexed) {
+                    Log.w(
+                        TAG,
+                        "Count mismatch: indexed $totalIndexed topics, but database has $actualCountInDb topics. " +
+                            "Using database count as single source of truth.",
+                    )
+                }
+
                 Log.i(
                     TAG,
-                    "Forum indexing completed. Total topics: $totalIndexed, covers: ${coversToPreload.size}, " +
-                        "duration: ${duration}ms (${duration / 1000}s), " +
+                    "Forum indexing completed. Indexed: $totalIndexed topics, database: $actualCountInDb topics, " +
+                        "covers: ${coversToPreload.size}, duration: ${duration}ms (${duration / 1000}s), " +
                         "speed: $topicsPerSecond topics/s, memory: +${memoryUsed}MB",
                 )
 
+                // Use database count as single source of truth for completion
+                val finalCount = actualCountInDb
                 onProgress?.invoke(
                     IndexingProgress.Completed(
-                        totalTopics = totalIndexed,
+                        totalTopics = finalCount, // Use database count, not indexed count
                         durationMs = duration,
                     ),
                 )
 
-                totalIndexed
+                finalCount // Return database count as single source of truth
             }
 
         /**

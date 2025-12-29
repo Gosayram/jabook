@@ -289,9 +289,10 @@ fun SettingsScreen(
                 indexSize = indexingViewModel.getIndexSize()
             }
 
-            // Update index size when indexing completes
+            // Update index size when indexing completes - use database as single source of truth
             LaunchedEffect(indexingProgress) {
                 if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed) {
+                    // Immediately refresh index size from database after completion
                     indexSize = indexingViewModel.getIndexSize()
                 }
             }
@@ -314,8 +315,11 @@ fun SettingsScreen(
                         when (val progress = indexingProgress) {
                             is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress ->
                                 "Индексируем: ${progress.currentForum} (${progress.currentForumIndex + 1}/${progress.totalForums})"
-                            is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ->
-                                "Завершено: ${progress.totalTopics} тем за ${progress.durationMs / 1000} сек"
+                            is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed -> {
+                                // Use indexSize from database as single source of truth
+                                val displayCount = if (indexSize > 0) indexSize else progress.totalTopics
+                                "Завершено: $displayCount тем за ${progress.durationMs / 1000} сек"
+                            }
                             is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error ->
                                 "Ошибка: ${progress.message}"
                             else -> "Готово к индексации"
@@ -327,12 +331,13 @@ fun SettingsScreen(
             if (showIndexingDialog && indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle) {
                 com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
                     progress = indexingProgress,
+                    indexSize = indexSize, // Pass current index size from database as single source of truth
                     onDismiss = {
                         if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
                             indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
                         ) {
                             showIndexingDialog = false
-                            // Refresh index size
+                            // Refresh index size from database after indexing completes
                             coroutineScope.launch {
                                 indexSize = indexingViewModel.getIndexSize()
                             }
