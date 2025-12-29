@@ -20,11 +20,9 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
-import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
-import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -32,8 +30,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import retrofit2.Response
-import okhttp3.ResponseBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -70,19 +66,19 @@ class ForumIndexer
         private val parser: RutrackerParser,
         private val offlineSearchDao: OfflineSearchDao,
         private val mirrorManager: MirrorManager,
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
     ) {
         companion object {
             private const val TAG = "ForumIndexer"
             private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
             private const val DELAY_BETWEEN_REQUESTS_MS = 500L // Rate limiting
             private const val MAX_PAGES_PER_FORUM = 100 // Safety limit
-            
+
             // Update strategy constants
             private const val FULL_UPDATE_INTERVAL_DAYS = 7L // Full re-index every 7 days
             private const val INCREMENTAL_UPDATE_INTERVAL_HOURS = 24L // Incremental update daily
             private const val MAX_AGE_FOR_UPDATE_MS = INCREMENTAL_UPDATE_INTERVAL_HOURS * 60 * 60 * 1000
-            
+
             // Cover preloading
             private const val PRELOAD_COVERS_BATCH_SIZE = 10 // Preload covers in batches
             private const val PRELOAD_COVERS_DELAY_MS = 100L // Delay between cover preloads
@@ -211,16 +207,17 @@ class ForumIndexer
 
                         // Collect cover URLs for preloading (normalize URLs using current mirror)
                         val baseUrl = mirrorManager.getBaseUrl()
-                        topics.mapNotNull { topic ->
-                            topic.coverUrl?.let { url ->
-                                when {
-                                    url.startsWith("http://") || url.startsWith("https://") -> url
-                                    url.startsWith("//") -> "https:$url"
-                                    url.startsWith("/") -> "$baseUrl$url"
-                                    else -> "$baseUrl/$url"
+                        topics
+                            .mapNotNull { topic ->
+                                topic.coverUrl?.let { url ->
+                                    when {
+                                        url.startsWith("http://") || url.startsWith("https://") -> url
+                                        url.startsWith("//") -> "https:$url"
+                                        url.startsWith("/") -> "$baseUrl$url"
+                                        else -> "$baseUrl/$url"
+                                    }
                                 }
-                            }
-                        }.forEach { coversToPreload.add(it) }
+                            }.forEach { coversToPreload.add(it) }
 
                         onProgress?.invoke(forumId, page, totalTopics)
 
@@ -271,12 +268,15 @@ class ForumIndexer
                         hasMorePages = false
                     } else {
                         // Filter: only update new topics or topics that need updating
-                        val topicsToUpdate = topics.filter { topic ->
-                            val existing = offlineSearchDao.getTopicById(topic.topicId)
-                            existing == null || // New topic
-                                existing.lastUpdated < (System.currentTimeMillis() - maxAgeMs) || // Old topic
-                                existing.indexVersion != currentIndexVersion // Different version
-                        }
+                        val topicsToUpdate =
+                            topics.filter { topic ->
+                                val existing = offlineSearchDao.getTopicById(topic.topicId)
+                                existing == null ||
+                                    // New topic
+                                    existing.lastUpdated < (System.currentTimeMillis() - maxAgeMs) ||
+                                    // Old topic
+                                    existing.indexVersion != currentIndexVersion // Different version
+                            }
 
                         if (topicsToUpdate.isNotEmpty()) {
                             val entities = topicsToUpdate.map { it.toCachedTopicEntity(currentIndexVersion) }
@@ -285,16 +285,17 @@ class ForumIndexer
 
                             // Collect cover URLs (normalize URLs using current mirror)
                             val baseUrl = mirrorManager.getBaseUrl()
-                            topicsToUpdate.mapNotNull { topic ->
-                                topic.coverUrl?.let { url ->
-                                    when {
-                                        url.startsWith("http://") || url.startsWith("https://") -> url
-                                        url.startsWith("//") -> "https:$url"
-                                        url.startsWith("/") -> "$baseUrl$url"
-                                        else -> "$baseUrl/$url"
+                            topicsToUpdate
+                                .mapNotNull { topic ->
+                                    topic.coverUrl?.let { url ->
+                                        when {
+                                            url.startsWith("http://") || url.startsWith("https://") -> url
+                                            url.startsWith("//") -> "https:$url"
+                                            url.startsWith("/") -> "$baseUrl$url"
+                                            else -> "$baseUrl/$url"
+                                        }
                                     }
-                                }
-                            }.forEach { coversToPreload.add(it) }
+                                }.forEach { coversToPreload.add(it) }
                         }
 
                         onProgress?.invoke(forumId, totalUpdated, topics.size)
@@ -326,20 +327,21 @@ class ForumIndexer
 
                 // Preload in batches to avoid overwhelming the system
                 uniqueUrls.chunked(PRELOAD_COVERS_BATCH_SIZE).forEach { batch ->
-                    batch.map { url ->
-                        async(Dispatchers.IO) {
-                            try {
-                                val request =
-                                    ImageRequest
-                                        .Builder(context)
-                                        .data(url)
-                                        .build()
-                                imageLoader.enqueue(request)
-                            } catch (e: Exception) {
-                                // Silently fail - covers will load on demand
+                    batch
+                        .map { url ->
+                            async(Dispatchers.IO) {
+                                try {
+                                    val request =
+                                        ImageRequest
+                                            .Builder(context)
+                                            .data(url)
+                                            .build()
+                                    imageLoader.enqueue(request)
+                                } catch (e: Exception) {
+                                    // Silently fail - covers will load on demand
+                                }
                             }
-                        }
-                    }.awaitAll()
+                        }.awaitAll()
 
                     delay(PRELOAD_COVERS_DELAY_MS)
                 }
@@ -407,4 +409,3 @@ class ForumIndexer
                 Log.i(TAG, "Index cleared")
             }
     }
-

@@ -238,7 +238,10 @@ class RutrackerParser
             body: okhttp3.ResponseBody,
             forumId: String,
         ): List<SearchResult> {
-            val result = parseSearchResultsWithEncoding(body)
+            // Convert ResponseBody to ByteArray for encoding-aware parsing
+            val rawBytes = body.bytes()
+            val contentType = body.contentType()?.toString()
+            val result = parseSearchResultsWithEncoding(rawBytes, contentType)
             return when (result) {
                 is ParsingResult.Success -> result.data
                 is ParsingResult.PartialSuccess -> result.data

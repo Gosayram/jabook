@@ -14,10 +14,12 @@
 
 package com.jabook.app.jabook.compose.data.local.dao
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RewriteQueriesToDropUnusedColumns
 import androidx.room.Transaction
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
@@ -195,6 +197,7 @@ interface OfflineSearchDao {
     /**
      * Get index metadata (oldest and newest timestamps, total count).
      */
+    @RewriteQueriesToDropUnusedColumns
     @Query(
         """
         SELECT 
@@ -213,9 +216,14 @@ interface OfflineSearchDao {
  * Index metadata for monitoring.
  */
 data class IndexMetadata(
+    @ColumnInfo(name = "count")
     val count: Int,
+    @ColumnInfo(name = "oldest")
     val oldest: Long?,
+    @ColumnInfo(name = "newest")
     val newest: Long?,
+    @ColumnInfo(name = "oldest_updated")
     val oldestUpdated: Long?,
+    @ColumnInfo(name = "newest_updated")
     val newestUpdated: Long?,
 )

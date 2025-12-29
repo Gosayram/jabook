@@ -270,7 +270,7 @@ object DatabaseModule {
                 // Add new columns with default values
                 db.execSQL("ALTER TABLE `cached_topics` ADD COLUMN `last_updated` INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `cached_topics` ADD COLUMN `index_version` INTEGER NOT NULL DEFAULT 1")
-                
+
                 // Update existing records to set last_updated = timestamp
                 db.execSQL("UPDATE `cached_topics` SET `last_updated` = `timestamp` WHERE `last_updated` = 0")
             }
