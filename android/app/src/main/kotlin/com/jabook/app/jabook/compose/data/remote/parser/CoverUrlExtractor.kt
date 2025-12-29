@@ -177,20 +177,41 @@ class CoverUrlExtractor
         private fun isIconOrSmile(url: String): Boolean = ICON_PATTERNS.any { pattern -> url.contains(pattern, ignoreCase = true) }
 
         /**
-         * Normalize URL to absolute form using current mirror.
+         * Normalize URL to absolute form using CDN when possible.
          *
          * Handles:
          * - Protocol-relative URLs (//static.rutracker.org/...)
          * - Relative URLs (/forum/...)
          * - Already absolute URLs
+         * - CDN normalization: replaces static.rutracker.* with static.rutracker.cc (always available)
          */
         fun normalizeUrl(url: String): String {
             val baseUrl = mirrorManager.getBaseUrl()
-            return when {
-                url.startsWith("http://") || url.startsWith("https://") -> url
-                url.startsWith("//") -> "https:$url"
-                url.startsWith("/") -> "$baseUrl$url"
-                else -> "$baseUrl/$url"
-            }
+            val normalized =
+                when {
+                    url.startsWith("http://") || url.startsWith("https://") -> url
+                    url.startsWith("//") -> {
+                        // Protocol-relative URL - check if it's static.rutracker CDN
+                        if (url.contains("static.rutracker.", ignoreCase = true)) {
+                            // Replace domain with static.rutracker.cc
+                            "https:" +
+                                url.replace(
+                                    Regex("//static\\.rutracker\\.(org|net|me|nl)"),
+                                    "//static.rutracker.cc",
+                                )
+                        } else {
+                            "https:$url"
+                        }
+                    }
+                    url.startsWith("/") -> "$baseUrl$url"
+                    else -> "$baseUrl/$url"
+                }
+
+            // Replace static.rutracker.* domains with static.rutracker.cc (CDN is always available)
+            // This ensures images load even if main mirror is blocked
+            return normalized.replace(
+                Regex("https?://static\\.rutracker\\.(org|net|me|nl)"),
+                "https://static.rutracker.cc",
+            )
         }
     }

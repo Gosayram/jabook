@@ -544,7 +544,67 @@ class RutrackerParser
 
             // Extract cover URL using CoverUrlExtractor for consistent extraction
             // This uses the same logic as topic details page
-            val coverUrl = coverExtractor.extract(row)
+            // Note: selectFirst() already searches recursively, but we add explicit search
+            // in all cells to ensure we find var.postImg even if it's deeply nested
+            val coverUrl =
+                run {
+                    // First try: extract from entire row (selectFirst searches recursively)
+                    val fromRow = coverExtractor.extract(row)
+                    if (fromRow != null) {
+                        Log.d(TAG, "Cover found in row for topic $topicId: $fromRow")
+                        fromRow
+                    } else {
+                        // Second try: explicitly search in all table cells
+                        // Sometimes var.postImg is in a specific cell
+                        val fromCells =
+                            row.select("td").firstNotNullOfOrNull { cell ->
+                                coverExtractor.extract(cell)
+                            }
+                        if (fromCells != null) {
+                            Log.d(TAG, "Cover found in table cell for topic $topicId: $fromCells")
+                            fromCells
+                        } else {
+                            // Third try: search in all nested elements (div, span, etc.)
+                            // var.postImg might be in a nested container
+                            val fromNested =
+                                row.select("div, span, p").firstNotNullOfOrNull { element ->
+                                    coverExtractor.extract(element)
+                                }
+                            if (fromNested != null) {
+                                Log.d(TAG, "Cover found in nested element for topic $topicId: $fromNested")
+                                fromNested
+                            } else {
+                                // Debug: check if var.postImg exists at all in the row
+                                val hasPostImg = row.select("var.postImg, var.postImgAligned, var[class*='postImg']").isNotEmpty()
+                                if (hasPostImg) {
+                                    Log.w(
+                                        TAG,
+                                        "var.postImg found in row for topic $topicId but extract() returned null - checking attributes...",
+                                    )
+                                    // Try to extract directly from var.postImg if it exists
+                                    row
+                                        .select(
+                                            "var.postImg[title], var.postImgAligned[title], var[class*='postImg'][title]",
+                                        ).firstOrNull()
+                                        ?.let { varElement ->
+                                            val url = varElement.attr("title")
+                                            if (url.isNotBlank()) {
+                                                val normalized = coverExtractor.normalizeUrl(url)
+                                                Log.d(TAG, "Cover extracted directly from var.postImg for topic $topicId: $normalized")
+                                                normalized
+                                            } else {
+                                                Log.w(TAG, "var.postImg found but title attribute is blank for topic $topicId")
+                                                null
+                                            }
+                                        }
+                                } else {
+                                    Log.d(TAG, "No var.postImg found in row for topic $topicId")
+                                    null
+                                }
+                            }
+                        }
+                    }
+                }
 
             // Clean the title to remove technical details
             val cleanedTitle = cleanTitle(title)
@@ -1180,9 +1240,13 @@ class RutrackerParser
                                 ?: parentRow.selectFirst(".p-link")
                         val date = dateElement?.text()?.trim() ?: ""
 
-                        // Extract avatar URL
+                        // Extract avatar URL and normalize CDN domain
                         val avatarElement = parentRow.selectFirst("p.avatar img")
-                        val avatarUrl = avatarElement?.absUrl("src")?.takeIf { it.isNotEmpty() }
+                        val avatarUrl =
+                            avatarElement
+                                ?.absUrl("src")
+                                ?.takeIf { it.isNotEmpty() }
+                                ?.let { coverExtractor.normalizeUrl(it) }
 
                         // Extract comment text and HTML (preserve links)
                         val html = postBody.html()?.takeIf { it.isNotEmpty() }
@@ -1292,9 +1356,13 @@ class RutrackerParser
                             ?: postRow.selectFirst(".p-link")
                     val date = dateElement?.text()?.trim() ?: ""
 
-                    // Extract avatar URL
+                    // Extract avatar URL and normalize CDN domain
                     val avatarElement = postRow.selectFirst("p.avatar img")
-                    val avatarUrl = avatarElement?.absUrl("src")?.takeIf { it.isNotEmpty() }
+                    val avatarUrl =
+                        avatarElement
+                            ?.absUrl("src")
+                            ?.takeIf { it.isNotEmpty() }
+                            ?.let { coverExtractor.normalizeUrl(it) }
 
                     // Extract comment text and HTML (preserve links)
                     val html = postBody.html()?.takeIf { it.isNotEmpty() }
