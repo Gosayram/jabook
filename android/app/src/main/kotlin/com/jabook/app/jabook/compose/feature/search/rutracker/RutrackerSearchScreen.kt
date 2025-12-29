@@ -52,6 +52,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -78,6 +81,7 @@ import coil3.request.crossfade
 import coil3.request.transformations
 import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 
 /**
@@ -89,7 +93,7 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
  * - ParsingResult error handling
  * - MirrorManager, proper headers
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Suppress("DEPRECATION") // hiltViewModel is from correct package
 @Composable
 fun RutrackerSearchScreen(
@@ -99,6 +103,26 @@ fun RutrackerSearchScreen(
     viewModel: RutrackerSearchViewModel = hiltViewModel(),
     indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel(),
 ) {
+    // Get window size class for adaptive sizing
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: null
+    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val contentPadding =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getContentPadding(windowSizeClass)
+        } else {
+            16.dp
+        }
+    val itemSpacing =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getItemSpacing(windowSizeClass)
+        } else {
+            12.dp
+        }
+
     var searchQuery by remember { mutableStateOf("") }
     val searchState by viewModel.searchState.collectAsState()
     val filters by viewModel.filters.collectAsState()
@@ -230,7 +254,7 @@ fun RutrackerSearchScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp),
+                    .padding(contentPadding),
         ) {
             // Search field
             OutlinedTextField(
@@ -246,7 +270,7 @@ fun RutrackerSearchScreen(
                 singleLine = true,
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(itemSpacing))
 
             // Index status card
             val indexSize = remember { mutableStateOf(0) }
@@ -288,7 +312,7 @@ fun RutrackerSearchScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(itemSpacing))
             } else {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -323,7 +347,7 @@ fun RutrackerSearchScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(itemSpacing))
             }
 
             // Results
@@ -353,8 +377,8 @@ fun RutrackerSearchScreen(
                 is SearchState.Success -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(itemSpacing),
+                        contentPadding = PaddingValues(vertical = itemSpacing),
                     ) {
                         if (state.isCached) {
                             item {
@@ -437,7 +461,7 @@ private fun FilterBottomSheet(
                 style = MaterialTheme.typography.titleLarge,
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(itemSpacing))
 
             // Min Seeders
             OutlinedTextField(
@@ -467,7 +491,7 @@ private fun FilterBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(itemSpacing))
 
             // Buttons row
             Row(
@@ -506,11 +530,13 @@ private fun FilterBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(itemSpacing))
         }
     }
 }
 
+@Composable
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun SearchResultCard(
     result: SearchResult,
@@ -519,8 +545,12 @@ private fun SearchResultCard(
     modifier: Modifier = Modifier,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val configuration = context.resources.configuration
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: null
+    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     Card(
         modifier =
@@ -529,18 +559,31 @@ private fun SearchResultCard(
                 .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
+        // Use adaptive padding and spacing
+        val cardPadding =
+            if (windowSizeClass != null) {
+                AdaptiveUtils.getCardPadding(windowSizeClass)
+            } else {
+                12.dp // Default compact padding
+            }
+        val itemSpacing =
+            if (windowSizeClass != null) {
+                AdaptiveUtils.getItemSpacing(windowSizeClass)
+            } else {
+                12.dp // Default compact spacing
+            }
         Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(cardPadding),
+            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
-            // Cover image - adaptive size based on orientation
+            // Cover image - adaptive size based on screen size
             result.coverUrl?.let { coverUrl ->
                 val density = context.resources.displayMetrics.density
                 val cornerRadiusPx = 8f * density
 
-                // Smaller cover in landscape to save space
-                val coverWidth = if (isLandscape) 60.dp else 80.dp
-                val coverHeight = if (isLandscape) 90.dp else 120.dp
+                // Adaptive cover size: smaller on compact screens
+                val coverWidth = if (isCompact) 60.dp else 80.dp
+                val coverHeight = if (isCompact) 90.dp else 120.dp
 
                 val imageRequest =
                     ImageRequest

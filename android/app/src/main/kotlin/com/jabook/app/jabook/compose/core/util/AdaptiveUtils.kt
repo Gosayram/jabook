@@ -89,6 +89,21 @@ object AdaptiveUtils {
         }
 
     /**
+     * Returns adaptive small spacing (for tight layouts).
+     *
+     * - Compact: 4dp
+     * - Medium: 6dp
+     * - Expanded: 8dp
+     */
+    fun getSmallSpacing(windowSizeClass: WindowSizeClass): Dp =
+        when (windowSizeClass.widthSizeClass) {
+            WindowWidthSizeClass.Compact -> 4.dp
+            WindowWidthSizeClass.Medium -> 6.dp
+            WindowWidthSizeClass.Expanded -> 8.dp
+            else -> 4.dp
+        }
+
+    /**
      * Returns adaptive card padding.
      *
      * - Compact: 12dp

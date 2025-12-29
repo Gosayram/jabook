@@ -38,6 +38,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -46,19 +48,41 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.torrent.TorrentFile
 import java.io.File
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun TorrentDetailsScreen(
     onNavigateBack: () -> Unit,
     onPlayBook: (String) -> Unit,
     viewModel: TorrentDetailsViewModel = hiltViewModel(),
 ) {
+    // Get window size class for adaptive sizing
+    val context = LocalContext.current
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: null
+    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val contentPadding =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getContentPadding(windowSizeClass)
+        } else {
+            16.dp
+        }
+    val itemSpacing =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getItemSpacing(windowSizeClass)
+        } else {
+            12.dp
+        }
+
     val download by viewModel.download.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -128,13 +152,13 @@ fun TorrentDetailsScreen(
                     Modifier
                         .fillMaxSize()
                         .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(contentPadding),
+                verticalArrangement = Arrangement.spacedBy(itemSpacing),
             ) {
                 item {
                     // Header Info
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
+                        Column(Modifier.padding(contentPadding)) {
                             Text("State: ${state.state}", style = MaterialTheme.typography.bodyMedium)
                             Text("Progress: ${(state.progress * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
                             Text("Size: ${formatSize(state.totalSize)}", style = MaterialTheme.typography.bodyMedium)

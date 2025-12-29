@@ -53,6 +53,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +72,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import kotlinx.coroutines.launch
@@ -94,7 +97,7 @@ private object GitHubUrls {
  * - Playback (auto-play, speed)
  * - About (version, license)
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun SettingsScreen(
     onNavigateToAuth: () -> Unit,
@@ -105,8 +108,33 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel(),
 ) {
-    val userPreferences by viewModel.userPreferences.collectAsStateWithLifecycle()
+    // Get window size class for adaptive sizing
     val context = LocalContext.current
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: null
+    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val contentPadding =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getContentPadding(windowSizeClass)
+        } else {
+            16.dp
+        }
+    val itemSpacing =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getItemSpacing(windowSizeClass)
+        } else {
+            12.dp
+        }
+    val smallSpacing =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getSmallSpacing(windowSizeClass)
+        } else {
+            4.dp
+        }
+
+    val userPreferences by viewModel.userPreferences.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
     Scaffold(
         topBar = {
@@ -169,7 +197,7 @@ fun SettingsScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp),
+                        .padding(start = contentPadding),
             ) {
                 availableMirrors.forEach { mirror ->
                     MirrorOption(
@@ -195,7 +223,7 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(itemSpacing))
 
             SettingsSwitchItem(
                 title = stringResource(R.string.autoSwitching),
@@ -478,7 +506,7 @@ fun SettingsScreen(
                 valueFormatter = { "${it.toInt()}" },
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(itemSpacing))
 
             // Storage Usage
             val torrentStorageSize by viewModel.torrentStorageSize.collectAsStateWithLifecycle()
@@ -920,7 +948,7 @@ fun SettingsScreen(
                 onClick = onNavigateToDebug,
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(itemSpacing))
         }
     }
 }
@@ -937,7 +965,7 @@ private fun SettingsSection(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = contentPadding, vertical = itemSpacing),
     )
 }
 
@@ -1006,7 +1034,7 @@ private fun SettingsSwitchItem(
             )
 
             if (subtitle != null) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(smallSpacing))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
@@ -1039,7 +1067,7 @@ private fun SettingsSliderItem(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = contentPadding, vertical = itemSpacing),
     ) {
         // Title and subtitle
         Row(
@@ -1054,7 +1082,7 @@ private fun SettingsSliderItem(
                 )
 
                 if (subtitle != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(smallSpacing))
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,
@@ -1359,7 +1387,7 @@ private fun AddMirrorDialog(
                     stringResource(R.string.enterRutrackerMirrorDomain),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(itemSpacing))
                 OutlinedTextField(
                     value = currentValue,
                     onValueChange = onValueChange,
@@ -1368,7 +1396,7 @@ private fun AddMirrorDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(smallSpacing))
                 Text(
                     "Примеры: rutracker.nl, rutracker.ru, rutracker.net.ru",
                     style = MaterialTheme.typography.bodySmall,

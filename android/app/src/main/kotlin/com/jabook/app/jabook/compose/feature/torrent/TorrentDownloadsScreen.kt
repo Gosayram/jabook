@@ -44,6 +44,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,11 +53,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
@@ -64,7 +68,7 @@ import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 /**
  * Screen for managing torrent downloads
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun TorrentDownloadsScreen(
     onNavigateBack: () -> Unit,
@@ -72,6 +76,26 @@ fun TorrentDownloadsScreen(
     modifier: Modifier = Modifier,
     viewModel: TorrentDownloadsViewModel = hiltViewModel(),
 ) {
+    // Get window size class for adaptive sizing
+    val context = LocalContext.current
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: null
+    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val contentPadding =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getContentPadding(windowSizeClass)
+        } else {
+            16.dp
+        }
+    val itemSpacing =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getItemSpacing(windowSizeClass)
+        } else {
+            12.dp
+        }
+
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val showCompletedOnly by viewModel.showCompletedOnly.collectAsStateWithLifecycle()
 
@@ -299,6 +323,8 @@ fun TorrentDownloadsScreen(
                         onDeleteClick = { download -> downloadToDelete = download },
                         onItemClick = { download -> onNavigateToDetails(download.hash) },
                         showCompletedOnly = showCompletedOnly,
+                        contentPadding = contentPadding,
+                        itemSpacing = itemSpacing,
                     )
                 }
             }
@@ -318,12 +344,14 @@ private fun TorrentDownloadsList(
     onDeleteClick: (TorrentDownload) -> Unit,
     onItemClick: (TorrentDownload) -> Unit,
     showCompletedOnly: Boolean,
+    contentPadding: androidx.compose.ui.unit.Dp,
+    itemSpacing: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(contentPadding),
+        verticalArrangement = Arrangement.spacedBy(itemSpacing),
     ) {
         if (!showCompletedOnly) {
             // Active downloads

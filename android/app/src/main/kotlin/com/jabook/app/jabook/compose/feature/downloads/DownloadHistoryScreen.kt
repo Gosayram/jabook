@@ -42,6 +42,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,10 +52,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
 import com.jabook.app.jabook.compose.domain.model.HistorySortOrder
 import java.text.SimpleDateFormat
@@ -63,13 +67,33 @@ import java.util.Locale
 /**
  * Download History Screen.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun DownloadHistoryScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DownloadHistoryViewModel = hiltViewModel(),
 ) {
+    // Get window size class for adaptive sizing
+    val context = LocalContext.current
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: null
+    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val contentPadding =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getContentPadding(windowSizeClass)
+        } else {
+            16.dp
+        }
+    val itemSpacing =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getItemSpacing(windowSizeClass)
+        } else {
+            12.dp
+        }
+
     val searchQuery by viewModel.searchQuery.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
     val history by viewModel.history.collectAsState()
@@ -192,7 +216,7 @@ fun DownloadHistoryScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = contentPadding, vertical = itemSpacing),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     androidx.compose.material3.TextField(
@@ -221,7 +245,10 @@ fun DownloadHistoryScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding =
+                        androidx.compose.foundation.layout
+                            .PaddingValues(contentPadding),
+                    verticalArrangement = Arrangement.spacedBy(itemSpacing),
                 ) {
                     items(history, key = { it.id }) { entry ->
                         HistoryCard(entry = entry)
@@ -262,10 +289,10 @@ private fun HistoryCard(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = contentPadding),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // Title

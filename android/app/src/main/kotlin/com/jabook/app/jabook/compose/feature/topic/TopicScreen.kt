@@ -63,6 +63,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -78,6 +81,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -92,6 +97,7 @@ import coil3.request.transformations
 import coil3.transform.CircleCropTransformation
 import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 
@@ -205,6 +211,7 @@ fun TopicScreen(
 /**
  * Content displaying topic details.
  */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun TopicDetailsContent(
     details: TopicDetails,
@@ -212,14 +219,32 @@ private fun TopicDetailsContent(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val configuration = context.resources.configuration
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: null
+    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
+    val isMediumOrExpanded = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
+
+    val contentPadding =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getContentPadding(windowSizeClass)
+        } else {
+            16.dp
+        }
+    val itemSpacing =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getItemSpacing(windowSizeClass)
+        } else {
+            16.dp
+        }
 
     var showDownloadMenu by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(horizontal = contentPadding, vertical = itemSpacing),
+        verticalArrangement = Arrangement.spacedBy(itemSpacing),
     ) {
         // Cover image (if available) - adaptive size
         details.coverUrl?.let { rawCoverUrl ->
@@ -263,8 +288,8 @@ private fun TopicDetailsContent(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    // Adaptive cover size: smaller in landscape, larger in portrait
-                    val coverWidthFraction = if (isLandscape) 0.4f else 0.6f
+                    // Adaptive cover size: smaller on larger screens, larger on compact
+                    val coverWidthFraction = if (isCompact) 0.6f else 0.5f
                     coil3.compose.AsyncImage(
                         model = imageRequest,
                         contentDescription = details.title,
@@ -280,14 +305,20 @@ private fun TopicDetailsContent(
 
         // Compact info row: Author, Performer, Duration, Size
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val smallSpacing =
+                if (windowSizeClass != null) {
+                    AdaptiveUtils.getSmallSpacing(windowSizeClass)
+                } else {
+                    4.dp
+                }
+            Column(verticalArrangement = Arrangement.spacedBy(itemSpacing)) {
                 // Author, Performer, and Series in compact layout
                 if (!details.author.isNullOrBlank() || !details.performer.isNullOrBlank() || !details.series.isNullOrBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(itemSpacing)) {
                         // Author and Performer in one row
                         if (!details.author.isNullOrBlank() || !details.performer.isNullOrBlank()) {
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(itemSpacing),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 details.author?.let { author ->
@@ -297,7 +328,7 @@ private fun TopicDetailsContent(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-                                        Spacer(Modifier.height(4.dp))
+                                        Spacer(Modifier.height(smallSpacing))
                                         Text(
                                             text = author,
                                             style = MaterialTheme.typography.bodyMedium,
@@ -311,7 +342,7 @@ private fun TopicDetailsContent(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-                                        Spacer(Modifier.height(4.dp))
+                                        Spacer(Modifier.height(smallSpacing))
                                         Text(
                                             text = performer,
                                             style = MaterialTheme.typography.bodyMedium,
@@ -657,16 +688,26 @@ private fun DescriptionAndCommentsSection(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val configuration = context.resources.configuration
-    val isLargeScreen = configuration.screenWidthDp >= 600
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: null
+    val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val isMediumOrExpanded = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
-    // Use two-column layout for large screens or landscape orientation
-    if ((isLargeScreen || isLandscape) && !description.isNullOrBlank() && comments.isNotEmpty()) {
+    val itemSpacing =
+        if (windowSizeClass != null) {
+            AdaptiveUtils.getItemSpacing(windowSizeClass)
+        } else {
+            16.dp
+        }
+
+    // Use two-column layout for medium/expanded screens
+    if (isMediumOrExpanded && !description.isNullOrBlank() && comments.isNotEmpty()) {
         // Two column layout for larger screens or landscape
         Row(
             modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
             // Description column
             Column(
@@ -691,7 +732,7 @@ private fun DescriptionAndCommentsSection(
         // Single column layout for smaller screens or when only one section exists
         Column(
             modifier = modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
             if (!description.isNullOrBlank()) {
                 ExpandableDescription(
@@ -709,6 +750,7 @@ private fun DescriptionAndCommentsSection(
 /**
  * Expandable description with collapse/expand functionality.
  */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun ExpandableDescription(
     description: String,
@@ -716,10 +758,23 @@ private fun ExpandableDescription(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    // Reduced preview length for better readability on small screens
-    val maxPreviewLength = 100
-    val shouldShowExpand = description.length > maxPreviewLength
     val context = LocalContext.current
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: null
+
+    // Get window size class for adaptive sizing
+    val windowSizeClass =
+        activity?.let {
+            androidx.compose.material3.windowsizeclass
+                .calculateWindowSizeClass(it)
+        }
+    val isCompact = windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+
+    // Adaptive preview length based on screen size
+    val maxPreviewLength = if (isCompact) 80 else 100
+    val shouldShowExpand = description.length > maxPreviewLength
 
     Column(modifier = modifier) {
         Row(
@@ -750,8 +805,14 @@ private fun ExpandableDescription(
         val annotatedText =
             remember(descriptionHtml, description, expanded, linkColor) {
                 if (descriptionHtml != null && expanded) {
+                    // Clean HTML description before converting
+                    val cleanedHtml =
+                        descriptionHtml
+                            .replace(Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL), "<br>")
+                            .replace(Regex("<br\\s*/?>\\s*<br\\s*/?>+"), "<br><br>") // Normalize multiple <br> tags
+                            .trim()
                     HtmlToAnnotatedString.convert(
-                        descriptionHtml,
+                        cleanedHtml,
                         linkColor = linkColor,
                     )
                 } else {
@@ -776,9 +837,17 @@ private fun ExpandableDescription(
             style =
                 MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = if (isCompact) TextUnit(16f, TextUnitType.Sp) else MaterialTheme.typography.bodyMedium.lineHeight,
                 ),
-            // Reduced maxLines for collapsed state to improve readability on small screens
-            maxLines = if (expanded) Int.MAX_VALUE else 2,
+            // Adaptive maxLines for collapsed state
+            maxLines =
+                if (expanded) {
+                    Int.MAX_VALUE
+                } else if (isCompact) {
+                    2
+                } else {
+                    3
+                },
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
         )

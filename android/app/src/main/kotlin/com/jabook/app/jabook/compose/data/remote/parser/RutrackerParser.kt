@@ -1076,9 +1076,44 @@ class RutrackerParser
                     "",
                 )
 
-            // Remove technical metadata patterns (similar to cleanDescription)
-            val patternsToRemove =
+            // Remove book title if it appears at the beginning (duplicate of main title)
+            // Pattern: <span style="font-size: 24px...">Title</span> or similar
+            cleaned =
+                cleaned.replace(
+                    Regex(
+                        "(?i)<span[^>]*style=\"[^\"]*font-size:\\s*24px[^\"]*\"[^>]*>.*?</span>",
+                        RegexOption.DOT_MATCHES_ALL,
+                    ),
+                    "",
+                )
+
+            // Remove var.postImg elements (cover images) - they're handled separately
+            cleaned =
+                cleaned.replace(
+                    Regex("<var[^>]*class=\"[^\"]*postImg[^\"]*\"[^>]*>.*?</var>", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+
+            // Remove all metadata fields with HTML tags (more aggressive)
+            val metadataPatterns =
                 listOf(
+                    // HTML patterns for metadata fields
+                    "<span[^>]*class=\"post-b\"[^>]*>Год выпуска</span>[:\\s]*\\d{4}",
+                    "<span[^>]*class=\"post-b\"[^>]*>Фамилия автора</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Имя автора</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Автор</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Исполнитель</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Жанр</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Издательство</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Аудиокодек</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Битрейт</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Вид битрейта</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Частота дискретизации</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Количество каналов</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Время звучания</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Цикл/серия</span>[:\\s]*.+?(?=<br|</)",
+                    "<span[^>]*class=\"post-b\"[^>]*>Номер книги</span>[:\\s]*.+?(?=<br|</)",
+                    // Plain text patterns (fallback)
                     "Год выпуска[:\\s]+\\d{4}",
                     "Автор[:\\s]+.+?(?=<br|</|$)",
                     "Исполнитель[:\\s]+.+?(?=<br|</|$)",
@@ -1090,7 +1125,7 @@ class RutrackerParser
                     "Аудио кодек[:\\s]+.+?(?=<br|</|$)",
                 )
 
-            for (pattern in patternsToRemove) {
+            for (pattern in metadataPatterns) {
                 cleaned = cleaned.replace(Regex(pattern, RegexOption.IGNORE_CASE), "")
             }
 
@@ -1102,12 +1137,37 @@ class RutrackerParser
                 }
             }
 
-            // Remove "Описание:" or "Description:" prefix if present
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:Описание|Description)[:\\s]+", RegexOption.IGNORE_CASE),
-                    "",
-                )
+            // Extract only description section (after "Описание:" or "Description:")
+            // This ensures we only get the actual description text, not metadata
+            val descriptionMatch =
+                Regex(
+                    "(?i)(?:<span[^>]*class=\"post-b\"[^>]*>)?(?:Описание|Description)(?:</span>)?[:\\s]+(.+?)(?=<hr|<span[^>]*class=\"post-b\"|Цикл|Cycle|Серия|Series|$)",
+                    RegexOption.DOT_MATCHES_ALL,
+                ).find(cleaned)
+            if (descriptionMatch != null) {
+                cleaned = descriptionMatch.groupValues[1].trim()
+            } else {
+                // Fallback: remove "Описание:" prefix if present
+                cleaned =
+                    cleaned.replace(
+                        Regex("(?i)(?:Описание|Description)[:\\s]+", RegexOption.IGNORE_CASE),
+                        "",
+                    )
+            }
+
+            // Remove duplicate text blocks (same text appearing multiple times)
+            // Split by common separators and remove duplicates
+            val lines = cleaned.split(Regex("<br\\s*/?>|<hr[^>]*>|\\n"))
+            val uniqueLines = mutableListOf<String>()
+            val seenLines = mutableSetOf<String>()
+            for (line in lines) {
+                val trimmed = line.trim().replace(Regex("<[^>]+>"), "") // Remove HTML tags for comparison
+                if (trimmed.isNotBlank() && trimmed.length > 10 && !seenLines.contains(trimmed.lowercase())) {
+                    seenLines.add(trimmed.lowercase())
+                    uniqueLines.add(line)
+                }
+            }
+            cleaned = uniqueLines.joinToString("<br>")
 
             // Remove file lists and chapter lists (common patterns like "Книга 11. Глава 19 05:38:23.475")
             // This removes long lists of chapters/files that clutter the description
