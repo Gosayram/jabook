@@ -134,7 +134,13 @@ class RutrackerRepository
          *
          * Priority:
          * 1. Indexed topics (fast, offline) - MANDATORY for audiobooks
-         * 2. Network search (only if index doesn't have enough results or query is new)
+         * 2. Network search (only if index doesn't exist or is empty)
+         *
+         * For audiobooks, if index exists and has any results, we use ONLY index (no network).
+         * This ensures:
+         * - Fast, offline search
+         * - Only audiobook topics (from indexed forums)
+         * - No unwanted topics from other forums
          */
         fun searchAudiobooksFlow(
             query: String,
@@ -146,24 +152,35 @@ class RutrackerRepository
                 // 1. ALWAYS try indexed search first (mandatory for audiobooks)
                 if (forumIds == null || forumIds == RutrackerApi.AUDIOBOOKS_FORUM_IDS) {
                     try {
-                        val indexSearchStartTime = System.currentTimeMillis()
-                        val indexedResults = searchIndexedTopics(query, limit = 100)
-                        val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
-                        if (indexedResults.isNotEmpty()) {
-                            Log.i(TAG, "✅ Found ${indexedResults.size} results from index (query: '$query', ${indexSearchDuration}ms)")
-                            emit(Result.success(indexedResults))
+                        // Check if index exists and has data
+                        val indexSize = offlineSearchDao.getTopicCount()
+                        if (indexSize > 0) {
+                            val indexSearchStartTime = System.currentTimeMillis()
+                            val indexedResults = searchIndexedTopics(query, limit = 200) // Increased limit for better coverage
+                            val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
 
-                            // If we have good results from index, we're done
-                            // Only fetch from network if index has very few results (< 5)
-                            if (indexedResults.size >= 5) {
+                            if (indexedResults.isNotEmpty()) {
+                                Log.i(
+                                    TAG,
+                                    "✅ Found ${indexedResults.size} results from index (query: '$query', ${indexSearchDuration}ms, index size: $indexSize)",
+                                )
+                                emit(Result.success(indexedResults))
+                                // For audiobooks with existing index, ALWAYS use index results only
+                                // This ensures we only get audiobook topics, no unwanted results
+                                return@flow
+                            } else {
+                                Log.i(TAG, "⚠️ Index exists ($indexSize topics) but no results for query '$query', returning empty")
+                                // Index exists but no matches - return empty (don't search network)
+                                emit(Result.success(emptyList()))
                                 return@flow
                             }
-                            Log.i(TAG, "⚠️ Index has only ${indexedResults.size} results, fetching from network for more")
                         } else {
-                            Log.i(TAG, "⚠️ No results in index, fetching from network")
+                            Log.i(TAG, "⚠️ Index is empty ($indexSize topics), fetching from network")
+                            // Index is empty - proceed to network search
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Indexed search failed, falling back to network", e)
+                        // On error, proceed to network search
                     }
                 }
 

@@ -128,6 +128,11 @@ class IndexingViewModel
         suspend fun needsUpdate(): Boolean = forumIndexer.needsUpdate()
 
         /**
+         * Get index metadata (statistics).
+         */
+        suspend fun getIndexMetadata() = forumIndexer.getIndexMetadata()
+
+        /**
          * Start indexing in foreground service (for background operation).
          * This allows indexing to continue even when dialog is closed.
          * Stops current indexing in ViewModel (if running) and transfers control to service.

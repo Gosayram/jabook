@@ -284,9 +284,11 @@ fun SettingsScreen(
             val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
             var showIndexingDialog by remember { mutableStateOf(false) }
             var indexSize by remember { mutableStateOf(0) }
+            var indexMetadata by remember { mutableStateOf<com.jabook.app.jabook.compose.data.local.dao.IndexMetadata?>(null) }
 
             LaunchedEffect(Unit) {
                 indexSize = indexingViewModel.getIndexSize()
+                indexMetadata = indexingViewModel.getIndexMetadata()
             }
 
             // Update index size when indexing completes - use database as single source of truth
@@ -294,6 +296,7 @@ fun SettingsScreen(
                 if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed) {
                     // Immediately refresh index size from database after completion
                     indexSize = indexingViewModel.getIndexSize()
+                    indexMetadata = indexingViewModel.getIndexMetadata()
                 }
             }
 
@@ -325,6 +328,29 @@ fun SettingsScreen(
                             else -> "Готово к индексации"
                         },
                 )
+
+                // Show index metadata if available
+                indexMetadata?.let { metadata ->
+                    if (indexSize > 0) {
+                        val oldestDate =
+                            metadata.oldest?.let { timestamp ->
+                                java.text
+                                    .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
+                                    .format(java.util.Date(timestamp))
+                            } ?: "неизвестно"
+                        val newestDate =
+                            metadata.newest?.let { timestamp ->
+                                java.text
+                                    .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
+                                    .format(java.util.Date(timestamp))
+                            } ?: "неизвестно"
+
+                        SettingsItem(
+                            title = "Проверка индекса",
+                            subtitle = "Тем: $indexSize | Старые: $oldestDate | Новые: $newestDate",
+                        )
+                    }
+                }
             }
 
             // Indexing progress dialog
