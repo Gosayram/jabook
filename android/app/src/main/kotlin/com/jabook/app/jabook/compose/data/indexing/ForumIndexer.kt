@@ -22,6 +22,7 @@ import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
@@ -68,6 +69,7 @@ class ForumIndexer
         private val api: RutrackerApi,
         private val parser: RutrackerParser,
         private val offlineSearchDao: OfflineSearchDao,
+        private val mirrorManager: MirrorManager,
         @ApplicationContext private val context: Context,
     ) {
         companion object {
@@ -207,14 +209,15 @@ class ForumIndexer
                         offlineSearchDao.upsertTopics(entities)
                         totalTopics += topics.size
 
-                        // Collect cover URLs for preloading (normalize URLs)
+                        // Collect cover URLs for preloading (normalize URLs using current mirror)
+                        val baseUrl = mirrorManager.getBaseUrl()
                         topics.mapNotNull { topic ->
                             topic.coverUrl?.let { url ->
                                 when {
                                     url.startsWith("http://") || url.startsWith("https://") -> url
                                     url.startsWith("//") -> "https:$url"
-                                    url.startsWith("/") -> "https://rutracker.org$url"
-                                    else -> "https://rutracker.org/$url"
+                                    url.startsWith("/") -> "$baseUrl$url"
+                                    else -> "$baseUrl/$url"
                                 }
                             }
                         }.forEach { coversToPreload.add(it) }
@@ -280,14 +283,15 @@ class ForumIndexer
                             offlineSearchDao.upsertTopics(entities)
                             totalUpdated += topicsToUpdate.size
 
-                            // Collect cover URLs (normalize URLs)
+                            // Collect cover URLs (normalize URLs using current mirror)
+                            val baseUrl = mirrorManager.getBaseUrl()
                             topicsToUpdate.mapNotNull { topic ->
                                 topic.coverUrl?.let { url ->
                                     when {
                                         url.startsWith("http://") || url.startsWith("https://") -> url
                                         url.startsWith("//") -> "https:$url"
-                                        url.startsWith("/") -> "https://rutracker.org$url"
-                                        else -> "https://rutracker.org/$url"
+                                        url.startsWith("/") -> "$baseUrl$url"
+                                        else -> "$baseUrl/$url"
                                     }
                                 }
                             }.forEach { coversToPreload.add(it) }

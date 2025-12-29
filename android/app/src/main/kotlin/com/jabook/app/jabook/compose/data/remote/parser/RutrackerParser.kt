@@ -43,6 +43,7 @@ class RutrackerParser
         private val decoder: com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder,
         private val fieldExtractor: DefensiveFieldExtractor,
         private val coverExtractor: CoverUrlExtractor,
+        private val mirrorManager: com.jabook.app.jabook.compose.data.network.MirrorManager,
     ) {
         companion object {
             private const val TAG = "RutrackerParser"
@@ -76,9 +77,12 @@ class RutrackerParser
             private const val POST_BODY_SELECTOR = ".post_body, .post-body"
             private const val MAIN_TITLE_SELECTOR = "h1.maintitle a, h1.maintitle"
             private const val TOR_SIZE_SELECTOR = "#tor-size-humn"
-
-            private const val BASE_URL = "https://rutracker.org/forum/"
         }
+
+        /**
+         * Get base URL for current mirror (for Jsoup parsing).
+         */
+        private fun getBaseUrl(): String = "${mirrorManager.getBaseUrl()}/forum/"
 
         /**
          * Parse search results from raw bytes with encoding detection.
@@ -114,8 +118,8 @@ class RutrackerParser
             val results = mutableListOf<SearchResult>()
 
             try {
-                // Parse with baseUri for proper absolute URL resolution
-                val document = Jsoup.parse(html, BASE_URL)
+                // Parse with baseUri for proper absolute URL resolution (using current mirror)
+                val document = Jsoup.parse(html, getBaseUrl())
 
                 // Try to find rows using multiple selectors strategy
                 var rows = org.jsoup.select.Elements()
@@ -257,8 +261,8 @@ class RutrackerParser
             // For backward compatibility / simple calls
 
             try {
-                // Parse with baseUri for proper absolute URL resolution
-                val document = Jsoup.parse(html, BASE_URL)
+                // Parse with baseUri for proper absolute URL resolution (using current mirror)
+                val document = Jsoup.parse(html, getBaseUrl())
 
                 var rows = org.jsoup.select.Elements()
                 for (selector in ROW_SELECTORS) {
@@ -451,8 +455,8 @@ class RutrackerParser
             topicId: String,
         ): TopicDetails? {
             try {
-                // Parse with baseUri for proper absolute URL resolution
-                val document = Jsoup.parse(html, BASE_URL)
+                // Parse with baseUri for proper absolute URL resolution (using current mirror)
+                val document = Jsoup.parse(html, getBaseUrl())
 
                 // Extract title
                 val titleElement = document.selectFirst(MAIN_TITLE_SELECTOR) ?: return null
@@ -497,7 +501,7 @@ class RutrackerParser
                         // Clean HTML: remove MediaInfo sections and technical metadata
                         val cleanedHtml = cleanDescriptionHtml(html, metadata)
                         // Ensure all links have absolute URLs
-                        val doc = org.jsoup.Jsoup.parse(cleanedHtml, BASE_URL)
+                        val doc = org.jsoup.Jsoup.parse(cleanedHtml, getBaseUrl())
                         doc.select("a[href]").forEach { link ->
                             val href = link.attr("href")
                             if (href.isNotEmpty() &&
@@ -991,7 +995,7 @@ class RutrackerParser
                                     .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
                                     // Ensure all links have absolute URLs
                                     .let { content ->
-                                        val doc = org.jsoup.Jsoup.parse(content, BASE_URL)
+                                        val doc = org.jsoup.Jsoup.parse(content, getBaseUrl())
                                         // Convert relative links to absolute
                                         doc.select("a[href]").forEach { link ->
                                             val href = link.attr("href")
@@ -1102,7 +1106,7 @@ class RutrackerParser
                                 .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
                                 // Ensure all links have absolute URLs
                                 .let { content ->
-                                    val doc = org.jsoup.Jsoup.parse(content, BASE_URL)
+                                    val doc = org.jsoup.Jsoup.parse(content, getBaseUrl())
                                     // Convert relative links to absolute
                                     doc.select("a[href]").forEach { link ->
                                         val href = link.attr("href")
@@ -1304,8 +1308,8 @@ class RutrackerParser
 
         private fun extractCaptcha(html: String): com.jabook.app.jabook.compose.domain.model.CaptchaData? {
             try {
-                // Parse with baseUri for proper absolute URL resolution
-                val document = Jsoup.parse(html, BASE_URL)
+                // Parse with baseUri for proper absolute URL resolution (using current mirror)
+                val document = Jsoup.parse(html, getBaseUrl())
 
                 // <input type="hidden" name="cap_sid" value="12345">
                 val sidElement = document.selectFirst("input[name=cap_sid]")

@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.remote.parser
 
 import android.util.Log
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import org.jsoup.nodes.Element
 import javax.inject.Inject
 
@@ -29,7 +30,9 @@ import javax.inject.Inject
  */
 class CoverUrlExtractor
     @Inject
-    constructor() {
+    constructor(
+        private val mirrorManager: MirrorManager,
+    ) {
         companion object {
             private const val TAG = "CoverUrlExtractor"
 
@@ -174,18 +177,20 @@ class CoverUrlExtractor
         private fun isIconOrSmile(url: String): Boolean = ICON_PATTERNS.any { pattern -> url.contains(pattern, ignoreCase = true) }
 
         /**
-         * Normalize URL to absolute form with HTTPS.
+         * Normalize URL to absolute form using current mirror.
          *
          * Handles:
          * - Protocol-relative URLs (//static.rutracker.org/...)
          * - Relative URLs (/forum/...)
          * - Already absolute URLs
          */
-        fun normalizeUrl(url: String): String =
-            when {
+        fun normalizeUrl(url: String): String {
+            val baseUrl = mirrorManager.getBaseUrl()
+            return when {
                 url.startsWith("http://") || url.startsWith("https://") -> url
                 url.startsWith("//") -> "https:$url"
-                url.startsWith("/") -> "https://rutracker.org$url"
-                else -> "https://rutracker.org/$url"
+                url.startsWith("/") -> "$baseUrl$url"
+                else -> "$baseUrl/$url"
             }
+        }
     }

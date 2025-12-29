@@ -209,6 +209,20 @@ class MirrorManager
         }
 
         /**
+         * Get current mirror base URL (https://domain).
+         *
+         * @return Base URL with current mirror domain
+         */
+        fun getBaseUrl(): String = "https://${_currentMirror.value}"
+
+        /**
+         * Get current mirror domain synchronously.
+         *
+         * @return Current mirror domain (e.g., "rutracker.org")
+         */
+        fun getCurrentMirrorDomain(): String = _currentMirror.value
+
+        /**
          * Remove a custom mirror domain.
          *
          * @param domain Mirror domain to remove

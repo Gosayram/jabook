@@ -126,16 +126,23 @@ object CoverUtils {
 
         // Priority 3: coverUrl for online books
         // Ensure coverUrl is not blank and is a valid URL
+        // Note: For absolute URLs, use as-is. For relative URLs, they should already be normalized
+        // by CoverUrlExtractor during parsing. If not, we'll use a fallback.
         val coverUrl = book.coverUrl
         if (!coverUrl.isNullOrBlank()) {
-            // Normalize URL format - handle protocol-relative URLs (//example.com) and relative URLs
-            // Use same normalization logic as CoverUrlExtractor for consistency
-            return when {
-                coverUrl.startsWith("http://") || coverUrl.startsWith("https://") -> coverUrl
-                coverUrl.startsWith("//") -> "https:$coverUrl"
-                coverUrl.startsWith("/") -> "https://rutracker.org$coverUrl"
-                else -> "https://rutracker.org/$coverUrl"
+            // If already absolute, use as-is
+            if (coverUrl.startsWith("http://") || coverUrl.startsWith("https://")) {
+                return coverUrl
             }
+            // For protocol-relative URLs
+            if (coverUrl.startsWith("//")) {
+                return "https:$coverUrl"
+            }
+            // For relative URLs, assume they were normalized during parsing
+            // If not normalized, this is a fallback (shouldn't happen in normal flow)
+            // We can't use MirrorManager here as this is an object, not a class with DI
+            // The URL should already be normalized by CoverUrlExtractor during parsing
+            return coverUrl
         }
 
         // No cover available
