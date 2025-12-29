@@ -247,10 +247,21 @@ class DebugLogService
             }
 
         /**
-         * Shares logs via Android Share API.
-         * Opens share sheet for user to choose how to send logs.
+         * Exports logs to a file and returns the file URI.
+         * This method can be called from any thread.
          */
-        suspend fun shareLogs() =
+        suspend fun getLogsUri(): Uri =
+            withContext(Dispatchers.IO) {
+                exportLogsToFile()
+            }
+
+        /**
+         * Shares logs via Android Share API.
+         * Requires Activity context to start the share intent.
+         *
+         * @param activity Activity context for starting the share intent
+         */
+        suspend fun shareLogs(activity: android.app.Activity) =
             withContext(Dispatchers.Main) {
                 try {
                     val uri = exportLogsToFile()
@@ -265,17 +276,24 @@ class DebugLogService
                                 "Please find attached debug logs from Jabook app.",
                             )
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
 
                     val chooser = Intent.createChooser(intent, "Share logs via")
                     chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(chooser)
+
+                    // Use Activity context to start the intent
+                    activity.startActivity(chooser)
 
                     Log.i(TAG, "Share dialog opened for logs")
+                } catch (e: android.content.ActivityNotFoundException) {
+                    Log.e(TAG, "No app available to share logs", e)
+                    throw Exception("No app available to share logs. Please install a file sharing app.")
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Security exception when sharing logs", e)
+                    throw Exception("Permission denied. Please check app permissions.")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to share logs", e)
-                    throw e
+                    throw Exception("Failed to share logs: ${e.message}")
                 }
             }
 

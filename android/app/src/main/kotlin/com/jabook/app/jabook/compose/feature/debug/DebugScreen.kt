@@ -52,6 +52,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.debug.toIcon
+import kotlinx.coroutines.launch
 
 /**
  * Debug screen with tabs for Logs, Mirrors, Cache, and RuTracker Diagnostics.
@@ -113,7 +115,30 @@ fun DebugScreen(
         floatingActionButton = {
             if (selectedTab == 0) {
                 // Show Share FAB only on Logs tab
-                FloatingActionButton(onClick = { viewModel.shareLogs() }) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val activity =
+                    context as? android.app.Activity
+                        ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+                val scope = rememberCoroutineScope()
+
+                FloatingActionButton(
+                    onClick = {
+                        if (activity != null) {
+                            viewModel.shareLogs(activity)
+                        } else {
+                            // Fallback: try to get activity from context
+                            val appContext = context.applicationContext
+                            if (appContext is android.app.Activity) {
+                                viewModel.shareLogs(appContext)
+                            } else {
+                                // Show error if no activity available
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Cannot share logs: Activity context required")
+                                }
+                            }
+                        }
+                    },
+                ) {
                     Icon(Icons.Default.Share, contentDescription = stringResource(R.string.shareLogs))
                 }
             }

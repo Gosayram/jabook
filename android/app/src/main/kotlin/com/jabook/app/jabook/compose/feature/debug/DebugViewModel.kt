@@ -65,11 +65,17 @@ class DebugViewModel
             }
         }
 
-        fun shareLogs() {
+        /**
+         * Shares logs via Android Share API.
+         * Requires Activity context to start the share intent.
+         *
+         * @param activity Activity context for starting the share intent
+         */
+        fun shareLogs(activity: android.app.Activity) {
             viewModelScope.launch {
                 try {
                     _uiState.value = DebugUiState.Loading
-                    debugLogService.shareLogs()
+                    debugLogService.shareLogs(activity)
                     _uiState.value = DebugUiState.Success
                 } catch (e: Exception) {
                     _uiState.value = DebugUiState.Error(e.message ?: "Failed to share logs")
