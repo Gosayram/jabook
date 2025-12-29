@@ -961,12 +961,31 @@ class RutrackerParser
             // Fixed regex: escape $ and fix nested parentheses
             val descriptionMatch =
                 Regex(
-                    "(?i)(?:Описание|Description)[:\\s]+(.+?)(?=\\n\\s*(?:Страна|Год|Жанр|Режиссер|Тип|Контейнер|Видео|Аудио|MediaInfo|Общее|\\$))",
+                    "(?i)(?:Описание|Description)[:\\s]+(.+?)(?=\\n\\s*(?:Страна|Год|Жанр|Режиссер|Тип|Контейнер|Видео|Аудио|MediaInfo|Общее|Цикл|Cycle|Серия|Series|\\$))",
                     RegexOption.DOT_MATCHES_ALL,
                 ).find(cleaned)
             if (descriptionMatch != null) {
                 cleaned = descriptionMatch.groupValues[1].trim()
             }
+
+            // Remove cycle/series links and lists from text description
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:Цикл|Cycle|Серия|Series)[\\s«»\"'].*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+            // Remove book lists like "Забаненный. Книга 1\nЗабаненный. Книга 2"
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:[А-Яа-яA-Za-z0-9\\s.]+\\s+Книга\\s+\\d+\\s*\\n?)+", RegexOption.MULTILINE),
+                    "",
+                )
+            // Remove advertising text (VPN ads, etc.)
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:Скидка|Discount|VPN|ВПН).*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
 
             return cleaned
         }
@@ -1054,6 +1073,38 @@ class RutrackerParser
                     ),
                     "",
                 )
+
+            // Remove cycle/series links and lists (e.g., "Цикл «Забаненный»" and book lists)
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:Цикл|Cycle|Серия|Series)[\\s«»\"'].*?(?=<br>|</a>|$)", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+            // Remove book lists like "Забаненный. Книга 1<br />Забаненный. Книга 2"
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:[А-Яа-яA-Za-z0-9\\s.]+\\s+Книга\\s+\\d+<br\\s*/?>)+", RegexOption.MULTILINE),
+                    "",
+                )
+
+            // Remove advertising blocks (VPN ads, etc.) - usually in centered spans with links
+            cleaned =
+                cleaned.replace(
+                    Regex(
+                        "<span[^>]*class=\"post-align\"[^>]*style=\"[^\"]*text-align:\\s*center[^\"]*\"[^>]*>.*?</span>",
+                        RegexOption.DOT_MATCHES_ALL,
+                    ),
+                    "",
+                )
+            // Remove links with /go/ (advertising links)
+            cleaned =
+                cleaned.replace(
+                    Regex("<a[^>]*href=\"[^\"]*/go/\\d+[^\"]*\"[^>]*>.*?</a>", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+
+            // Remove <div class="clear"> elements (layout clearing divs)
+            cleaned = cleaned.replace(Regex("<div[^>]*class=\"clear\"[^>]*>.*?</div>", RegexOption.DOT_MATCHES_ALL), "")
 
             // Clean up multiple whitespace and normalize <br> tags
             cleaned =

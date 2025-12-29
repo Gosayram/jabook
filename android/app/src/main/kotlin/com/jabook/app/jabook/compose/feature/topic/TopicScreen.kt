@@ -315,7 +315,7 @@ private fun TopicDetailsContent(
                     }
                 }
 
-                // Seeders/Leechers + Size + Duration in one row
+                // Seeders/Leechers on first row
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -324,7 +324,14 @@ private fun TopicDetailsContent(
                         seeders = details.seeders,
                         leechers = details.leechers,
                     )
+                }
 
+                // Size + Duration on second row (new line)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
                     Text(
                         text = details.size,
                         style = MaterialTheme.typography.bodyMedium,
