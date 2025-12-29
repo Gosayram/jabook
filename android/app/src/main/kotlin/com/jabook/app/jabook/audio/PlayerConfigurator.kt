@@ -20,7 +20,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * Manages player configuration, including:
@@ -108,17 +110,26 @@ internal class PlayerConfigurator(
                     getCurrentBookId = { service.currentGroupPath },
                     getAutoRewindOnPause = {
                         // Get auto rewind setting from preferences
-                        kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .firstOrNull()
-                                ?.autoRewindOnPause ?: false
+                        runBlocking {
+                            try {
+                                service.settingsRepository.userPreferences
+                                    .first()
+                                    .autoRewindOnPause
+                            } catch (e: Exception) {
+                                false // Default: disabled
+                            }
                         }
                     },
                     getAutoRewindSeconds = {
                         // Get auto rewind seconds from preferences (default: 2)
-                        kotlinx.coroutines.runBlocking {
-                            val prefs = service.settingsRepository.userPreferences.firstOrNull()
-                            (prefs?.autoRewindSeconds?.takeIf { it > 0 } ?: 2).coerceIn(0, 10)
+                        runBlocking {
+                            try {
+                                val prefs = service.settingsRepository.userPreferences.first()
+                                val seconds = prefs.autoRewindSeconds.takeIf { it > 0 } ?: 2
+                                seconds.coerceIn(0, 10)
+                            } catch (e: Exception) {
+                                2 // Default: 2 seconds
+                            }
                         }
                     },
                 )

@@ -317,7 +317,9 @@ internal class PlayerListener(
 
                 // Auto rewind on pause (inspired by Easybook)
                 // This helps users not lose context when resuming playback
-                handleAutoRewindOnPause(player)
+                if (player is ExoPlayer) {
+                    handleAutoRewindOnPause(player)
+                }
             }
 
             // Save position when playback starts (critical event)
