@@ -800,8 +800,23 @@ class RutrackerParser
                                 ?: parentRow.selectFirst(".p-link")
                         val date = dateElement?.text()?.trim() ?: ""
 
-                        // Extract comment text (clean HTML tags)
-                        val text = postBody.text().trim()
+                        // Extract avatar URL
+                        val avatarElement = parentRow.selectFirst("p.avatar img")
+                        val avatarUrl = avatarElement?.absUrl("src")?.takeIf { it.isNotEmpty() }
+
+                        // Extract comment text (preserve line breaks)
+                        val text =
+                            postBody.html()?.let { html ->
+                                // Convert <br> tags to newlines, then clean HTML
+                                html
+                                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+                                    .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "\n")
+                                    .let {
+                                        org.jsoup.Jsoup
+                                            .parse(it)
+                                            .text()
+                                    }.trim()
+                            } ?: postBody.text().trim()
 
                         if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                             comments.add(
@@ -810,6 +825,7 @@ class RutrackerParser
                                     author = author,
                                     date = date,
                                     text = text,
+                                    avatarUrl = avatarUrl,
                                 ),
                             )
                         }
@@ -846,8 +862,23 @@ class RutrackerParser
                             ?: postRow.selectFirst(".p-link")
                     val date = dateElement?.text()?.trim() ?: ""
 
-                    // Extract comment text (clean HTML tags)
-                    val text = postBody.text().trim()
+                    // Extract avatar URL
+                    val avatarElement = postRow.selectFirst("p.avatar img")
+                    val avatarUrl = avatarElement?.absUrl("src")?.takeIf { it.isNotEmpty() }
+
+                    // Extract comment text (preserve line breaks)
+                    val text =
+                        postBody.html()?.let { html ->
+                            // Convert <br> tags to newlines, then clean HTML
+                            html
+                                .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+                                .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "\n")
+                                .let {
+                                    org.jsoup.Jsoup
+                                        .parse(it)
+                                        .text()
+                                }.trim()
+                        } ?: postBody.text().trim()
 
                     if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                         comments.add(
@@ -856,6 +887,7 @@ class RutrackerParser
                                 author = author,
                                 date = date,
                                 text = text,
+                                avatarUrl = avatarUrl,
                             ),
                         )
                     }

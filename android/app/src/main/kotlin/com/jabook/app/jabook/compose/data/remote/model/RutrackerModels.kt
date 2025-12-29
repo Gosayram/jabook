@@ -102,6 +102,8 @@ data class Comment(
     val date: String,
     /** Comment text */
     val text: String,
+    /** Avatar image URL (optional) */
+    val avatarUrl: String? = null,
 )
 
 /**

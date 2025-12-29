@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.topic
 
 import android.graphics.drawable.ColorDrawable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -80,7 +82,10 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
+import coil3.request.error
+import coil3.request.placeholder
 import coil3.request.transformations
+import coil3.transform.CircleCropTransformation
 import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
@@ -791,30 +796,87 @@ private fun CommentItem(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
             ),
     ) {
-        Column(
+        Row(
             modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            // Avatar
+            Box(
+                modifier =
+                    Modifier
+                        .width(40.dp)
+                        .height(40.dp)
+                        .aspectRatio(1f),
             ) {
+                comment.avatarUrl?.let { url ->
+                    AsyncImage(
+                        model =
+                            ImageRequest
+                                .Builder(LocalContext.current)
+                                .data(url)
+                                .crossfade(true)
+                                .transformations(CircleCropTransformation())
+                                .placeholder(ColorDrawable(MaterialTheme.colorScheme.surfaceContainerHighest.toArgb()))
+                                .error(ColorDrawable(MaterialTheme.colorScheme.surfaceContainerHighest.toArgb()))
+                                .build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } ?: run {
+                    // Placeholder when no avatar - show first letter of username
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    CircleShape,
+                                ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = comment.author.take(1).uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            // Comment content
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                // Author and date
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = comment.author,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = comment.date,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                // Comment text with preserved line breaks
                 Text(
-                    text = comment.author,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = comment.date,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text =
+                        comment.text
+                            .replace(Regex("[ \t]+"), " ") // Replace multiple spaces/tabs with single space
+                            .replace(Regex("\n{3,}"), "\n\n") // Replace 3+ newlines with double newline
+                            .trim(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.2,
                 )
             }
-            Text(
-                text = comment.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
         }
     }
 }
