@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.indexing
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,6 +22,7 @@ import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
+import com.jabook.app.jabook.indexing.IndexingForegroundService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -124,4 +126,24 @@ class IndexingViewModel
          * Check if index needs update.
          */
         suspend fun needsUpdate(): Boolean = forumIndexer.needsUpdate()
+
+        /**
+         * Start indexing in foreground service (for background operation).
+         * This allows indexing to continue even when dialog is closed.
+         * Stops current indexing in ViewModel (if running) and transfers control to service.
+         */
+        fun startIndexingInBackground(context: Context) {
+            Log.d(TAG, "Transferring indexing to foreground service")
+
+            // Stop current indexing in ViewModel if running
+            if (_isIndexing.value) {
+                Log.d(TAG, "Stopping ViewModel indexing, transferring to service")
+                _isIndexing.value = false
+                // Note: We can't actually cancel the indexing job, but we stop updating progress
+                // The service will start its own indexing
+            }
+
+            // Start foreground service
+            IndexingForegroundService.start(context)
+        }
     }

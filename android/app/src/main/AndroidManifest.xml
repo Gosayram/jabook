@@ -213,6 +213,13 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Indexing foreground service -->
+        <service
+            android:name=".indexing.IndexingForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Torrent notification action receiver -->
         <receiver
             android:name=".compose.receiver.TorrentActionReceiver"

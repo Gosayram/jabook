@@ -329,6 +329,7 @@ fun SettingsScreen(
 
             // Indexing progress dialog
             if (showIndexingDialog && indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle) {
+                val context = androidx.compose.ui.platform.LocalContext.current
                 com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
                     progress = indexingProgress,
                     indexSize = indexSize, // Pass current index size from database as single source of truth
@@ -342,6 +343,11 @@ fun SettingsScreen(
                                 indexSize = indexingViewModel.getIndexSize()
                             }
                         }
+                    },
+                    onHide = {
+                        // Hide dialog and start foreground service to continue indexing in background
+                        showIndexingDialog = false
+                        indexingViewModel.startIndexingInBackground(context)
                     },
                 )
             }

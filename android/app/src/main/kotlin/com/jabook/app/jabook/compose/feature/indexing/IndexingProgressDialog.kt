@@ -37,6 +37,7 @@ import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
  *
  * @param progress Current indexing progress
  * @param onDismiss Callback when dialog is dismissed
+ * @param onHide Callback when user wants to hide dialog and continue in background
  * @param indexSize Current index size from database (used for accurate count display)
  * @param modifier Modifier for the dialog
  */
@@ -44,6 +45,7 @@ import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 fun IndexingProgressDialog(
     progress: IndexingProgress,
     onDismiss: () -> Unit,
+    onHide: (() -> Unit)? = null,
     indexSize: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -140,6 +142,16 @@ fun IndexingProgressDialog(
             if (progress is IndexingProgress.Completed || progress is IndexingProgress.Error) {
                 TextButton(onClick = onDismiss) {
                     Text("Закрыть")
+                }
+            }
+        },
+        dismissButton = {
+            // Show "Скрыть" button during indexing to continue in background
+            if (progress is IndexingProgress.InProgress || progress is IndexingProgress.Idle) {
+                onHide?.let { hide ->
+                    TextButton(onClick = hide) {
+                        Text("Скрыть")
+                    }
                 }
             }
         },
