@@ -147,6 +147,41 @@ internal class ServiceIntentHandler(
                         .requestUpdate(service)
                     true
                 }
+                "com.jabook.app.jabook.WIDGET_SPEED" -> {
+                    android.util.Log.d("AudioPlayerService", "Widget speed action")
+                    // Cycle through speeds: 0.5x -> 0.75x -> 1.0x -> 1.25x -> 1.5x -> 2.0x -> 0.5x
+                    val player = service.getActivePlayer()
+                    val currentSpeed = player.playbackParameters.speed
+                    val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+                    val currentIndex = speeds.indexOfFirst { kotlin.math.abs(it - currentSpeed) < 0.01f }
+                    val nextIndex = if (currentIndex >= 0 && currentIndex < speeds.size - 1) currentIndex + 1 else 0
+                    val newSpeed = speeds[nextIndex]
+                    service.setSpeed(newSpeed)
+                    // Update widget after state change
+                    com.jabook.app.jabook.widget.PlayerWidgetProvider
+                        .requestUpdate(service)
+                    true
+                }
+                "com.jabook.app.jabook.WIDGET_TIMER" -> {
+                    android.util.Log.d("AudioPlayerService", "Widget timer action")
+                    // Cycle through timer options: off -> 15min -> 30min -> 45min -> 60min -> off
+                    val remainingSeconds = service.getSleepTimerRemainingSeconds()
+                    val currentTimerMinutes = if (remainingSeconds != null) remainingSeconds / 60 else 0
+                    val timerOptions = listOf(0, 15, 30, 45, 60)
+                    val currentIndex = timerOptions.indexOf(currentTimerMinutes)
+                    val nextIndex = if (currentIndex >= 0 && currentIndex < timerOptions.size - 1) currentIndex + 1 else 0
+                    val newTimerMinutes = timerOptions[nextIndex]
+
+                    if (newTimerMinutes > 0) {
+                        service.setSleepTimerMinutes(newTimerMinutes)
+                    } else {
+                        service.cancelSleepTimer()
+                    }
+                    // Update widget after state change
+                    com.jabook.app.jabook.widget.PlayerWidgetProvider
+                        .requestUpdate(service)
+                    true
+                }
                 else -> false
             }
 

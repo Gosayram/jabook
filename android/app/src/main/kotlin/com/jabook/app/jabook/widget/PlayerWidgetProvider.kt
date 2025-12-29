@@ -26,6 +26,8 @@ import android.widget.RemoteViews
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.AppWidgetTarget
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
@@ -119,15 +121,15 @@ class PlayerWidgetProvider : AppWidgetProvider() {
                     controller = controllerFuture?.get(1, TimeUnit.SECONDS)
 
                     if (controller != null) {
-                        updateWidgetFromController(context, views, controller, widgetSize)
+                        updateWidgetFromController(context, views, controller, widgetSize, appWidgetManager, appWidgetId)
                     } else {
                         // Fallback to service instance if MediaController is not available
-                        updateWidgetFromService(context, views, widgetSize)
+                        updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
                     }
                 } catch (e: Exception) {
                     android.util.Log.w("PlayerWidget", "Failed to get MediaController, falling back to service", e)
                     // Fallback to service instance
-                    updateWidgetFromService(context, views, widgetSize)
+                    updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
                 } finally {
                     // Release MediaController
                     controllerFuture?.let {
@@ -135,8 +137,14 @@ class PlayerWidgetProvider : AppWidgetProvider() {
                     }
                 }
 
-                // Update widget
+                // Update widget immediately (Glide will update cover asynchronously)
                 appWidgetManager.updateAppWidget(appWidgetId, views)
+
+                // Request another update after a short delay to ensure Glide-loaded cover is displayed
+                scope.launch(Dispatchers.IO) {
+                    kotlinx.coroutines.delay(500) // Wait for Glide to load
+                    updateAppWidget(context, appWidgetManager, appWidgetId)
+                }
             } catch (e: Exception) {
                 android.util.Log.e("PlayerWidget", "Failed to update widget", e)
                 // Show default state on error
@@ -197,6 +205,8 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         views: RemoteViews,
         controller: MediaController,
         widgetSize: WidgetSize,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
     ) {
         val isPlaying = controller.isPlaying
         val currentMediaItem = controller.currentMediaItem
@@ -220,15 +230,30 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        // Update cover image (if present in layout)
+        // Update cover image (if present in layout) - load with Glide for better compatibility
         val artworkUri = mediaMetadata?.artworkUri
         safeUpdateView(views, R.id.widget_cover) {
             if (artworkUri != null) {
                 try {
-                    views.setImageViewUri(R.id.widget_cover, artworkUri)
+                    // Use Glide to load bitmap for widget (more reliable than setImageViewUri)
+                    val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
+
+                    Glide
+                        .with(context.applicationContext)
+                        .asBitmap()
+                        .load(artworkUri)
+                        .override(512, 512) // Widget-friendly size
+                        .centerCrop()
+                        .into(widgetTarget)
                 } catch (e: Exception) {
-                    android.util.Log.w("PlayerWidget", "Failed to set cover image", e)
-                    views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
+                    android.util.Log.w("PlayerWidget", "Failed to load cover image with Glide", e)
+                    // Fallback to URI method
+                    try {
+                        views.setImageViewUri(R.id.widget_cover, artworkUri)
+                    } catch (e2: Exception) {
+                        android.util.Log.w("PlayerWidget", "Failed to set cover image URI", e2)
+                        views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
+                    }
                 }
             } else {
                 views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
@@ -279,6 +304,8 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         context: Context,
         views: RemoteViews,
         widgetSize: WidgetSize,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
     ) {
         val service = AudioPlayerService.getInstance()
         if (service != null) {
@@ -325,14 +352,29 @@ class PlayerWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            // Update cover image (if present in layout)
+            // Update cover image (if present in layout) - load with Glide
             safeUpdateView(views, R.id.widget_cover) {
                 if (coverUri != null) {
                     try {
-                        views.setImageViewUri(R.id.widget_cover, coverUri)
+                        // Use Glide to load bitmap for widget
+                        val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
+
+                        Glide
+                            .with(context.applicationContext)
+                            .asBitmap()
+                            .load(coverUri)
+                            .override(512, 512)
+                            .centerCrop()
+                            .into(widgetTarget)
                     } catch (e: Exception) {
-                        android.util.Log.w("PlayerWidget", "Failed to set cover image from service", e)
-                        views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
+                        android.util.Log.w("PlayerWidget", "Failed to load cover image with Glide from service", e)
+                        // Fallback to URI method
+                        try {
+                            views.setImageViewUri(R.id.widget_cover, coverUri)
+                        } catch (e2: Exception) {
+                            android.util.Log.w("PlayerWidget", "Failed to set cover image URI from service", e2)
+                            views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
+                        }
                     }
                 } else {
                     views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
@@ -366,10 +408,20 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             // Set up click intents
             setupClickIntents(context, views, currentBookId, playbackSpeed, repeatMode, widgetSize)
 
+            // Update widget immediately (Glide will update cover asynchronously)
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+
+            // Request another update after a short delay to ensure Glide-loaded cover is displayed
+            scope.launch(Dispatchers.IO) {
+                kotlinx.coroutines.delay(500) // Wait for Glide to load
+                updateAppWidget(context, appWidgetManager, appWidgetId)
+            }
+
             android.util.Log.d("PlayerWidget", "Widget updated via service: book=$bookTitle, playing=$isPlaying")
         } else {
             // Service not available - show default state
             setDefaultWidgetState(context, views, widgetSize)
+            appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }
 
@@ -522,16 +574,15 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             PendingIntent.getService(context, 0, playPauseIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
         )
 
-        // Speed button - open player screen (speed control is in player UI) - if present
+        // Speed button - cycle through speeds - if present
         safeUpdateView(views, R.id.widget_speed) {
             val speedIntent =
-                Intent(context, ComposeMainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    data = android.net.Uri.parse("jabook://player${if (currentBookId != null) "?bookId=$currentBookId" else ""}")
+                Intent(context, AudioPlayerService::class.java).apply {
+                    action = ACTION_SPEED
                 }
             views.setOnClickPendingIntent(
                 R.id.widget_speed,
-                PendingIntent.getActivity(context, 4, speedIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+                PendingIntent.getService(context, 4, speedIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
             )
         }
 
@@ -547,16 +598,30 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             )
         }
 
-        // Timer button - open player screen (timer control is in player UI) - if present
+        // Timer button - cycle through timer options - if present
         safeUpdateView(views, R.id.widget_timer) {
             val timerIntent =
+                Intent(context, AudioPlayerService::class.java).apply {
+                    action = ACTION_TIMER
+                }
+            views.setOnClickPendingIntent(
+                R.id.widget_timer,
+                PendingIntent.getService(context, 6, timerIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+            )
+        }
+
+        // Progress bar - seek to position on click - if present
+        safeUpdateView(views, R.id.widget_progress) {
+            // Note: ProgressBar clicks are handled via setOnClickPendingIntent on the progress bar itself
+            // We'll use a custom action that opens player for now, as seeking requires position calculation
+            val seekIntent =
                 Intent(context, ComposeMainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     data = android.net.Uri.parse("jabook://player${if (currentBookId != null) "?bookId=$currentBookId" else ""}")
                 }
             views.setOnClickPendingIntent(
-                R.id.widget_timer,
-                PendingIntent.getActivity(context, 6, timerIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+                R.id.widget_progress,
+                PendingIntent.getActivity(context, 7, seekIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
             )
         }
 
@@ -601,6 +666,8 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         const val ACTION_NEXT = "com.jabook.app.jabook.WIDGET_NEXT"
         const val ACTION_PREVIOUS = "com.jabook.app.jabook.WIDGET_PREVIOUS"
         const val ACTION_REPEAT = "com.jabook.app.jabook.WIDGET_REPEAT"
+        const val ACTION_SPEED = "com.jabook.app.jabook.WIDGET_SPEED"
+        const val ACTION_TIMER = "com.jabook.app.jabook.WIDGET_TIMER"
 
         /**
          * Requests widget update from anywhere in the app.

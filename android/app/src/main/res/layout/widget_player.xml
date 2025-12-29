@@ -15,30 +15,35 @@
   ~ limitations under the License.
   -->
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_content"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?android:attr/selectableItemBackground"
-    android:orientation="vertical"
-    android:padding="12dp">
+    android:background="?android:attr/selectableItemBackground">
 
-    <!-- Main content row: Cover + Info + Controls -->
+    <!-- Cover image as background with transparency -->
+    <ImageView
+        android:id="@+id/widget_cover"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:alpha="0.3"
+        android:contentDescription="@string/no_book_playing" />
+
+    <!-- Content overlay -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="#80000000">
 
-        <!-- Cover image -->
-        <ImageView
-            android:id="@+id/widget_cover"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:scaleType="centerCrop"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/no_book_playing"
-            android:layout_marginEnd="12dp" />
+        <!-- Main content row: Info + Controls -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
         <!-- Book info and progress -->
         <LinearLayout
@@ -181,5 +186,6 @@
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:padding="8dp"
             android:layout_marginStart="4dp" />
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</FrameLayout>
