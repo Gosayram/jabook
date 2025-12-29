@@ -76,7 +76,7 @@ fun TorrentDownloadItem(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = download.name,
+                        text = download.name.ifBlank { download.hash.take(16) },
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -128,7 +128,7 @@ fun TorrentDownloadItem(
 
             // Progress bar
             LinearProgressIndicator(
-                progress = { download.progress },
+                progress = { download.progress.coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -141,7 +141,7 @@ fun TorrentDownloadItem(
             ) {
                 // Progress percentage
                 Text(
-                    text = "${(download.progress * 100).toInt()}%",
+                    text = "${(download.progress.coerceIn(0f, 1f) * 100).toInt()}%",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -239,7 +239,8 @@ private fun StateBadge(
  */
 @Composable
 private fun formatSpeed(bytesPerSecond: Long): String {
-    val kb = bytesPerSecond / 1024.0
+    val safeBytes = bytesPerSecond.coerceAtLeast(0L)
+    val kb = safeBytes / 1024.0
     val mb = kb / 1024.0
     val gb = mb / 1024.0
 
@@ -247,7 +248,7 @@ private fun formatSpeed(bytesPerSecond: Long): String {
         gb >= 1.0 -> stringResource(R.string.size_gb, gb)
         mb >= 1.0 -> stringResource(R.string.size_mb, mb)
         kb >= 1.0 -> stringResource(R.string.size_kb, kb)
-        else -> stringResource(R.string.size_bytes, bytesPerSecond)
+        else -> stringResource(R.string.size_bytes, safeBytes)
     }
 }
 
@@ -256,8 +257,14 @@ private fun formatSpeed(bytesPerSecond: Long): String {
  */
 @Composable
 private fun formatEta(seconds: Long): String {
-    val hours = seconds / 3600
-    val minutes = (seconds % 3600) / 60
+    // Handle invalid ETA values
+    if (seconds < 0) {
+        return "--" // Unknown ETA
+    }
+
+    val safeSeconds = seconds.coerceAtLeast(0L)
+    val hours = safeSeconds / 3600
+    val minutes = (safeSeconds % 3600) / 60
 
     return when {
         hours > 0 -> stringResource(R.string.duration_hm, hours, minutes)

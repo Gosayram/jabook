@@ -637,38 +637,185 @@ class TorrentSessionManager
         // Helper methods
 
         private fun updateDownloads() {
-            val downloads =
-                torrents.mapValues { (hash, handle) ->
-                    createTorrentDownload(hash, handle)
-                }
-            _downloadsFlow.value = downloads
+            try {
+                val downloads =
+                    torrents
+                        .mapNotNull { (hash, handle) ->
+                            try {
+                                // Verify handle is still valid before creating download info
+                                if (!handle.isValid) {
+                                    Log.w(TAG, "Handle invalid for torrent $hash, skipping update")
+                                    null
+                                } else {
+                                    hash to createTorrentDownload(hash, handle)
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to create download info for torrent $hash", e)
+                                null
+                            }
+                        }.toMap()
+                _downloadsFlow.value = downloads
+            } catch (e: Exception) {
+                Log.e(TAG, "Critical error updating downloads", e)
+                // Don't clear downloads on error, keep last known state
+            }
         }
 
         private fun createTorrentDownload(
             hash: String,
             handle: TorrentHandle,
         ): TorrentDownload {
-            val status = handle.status()
-            val torrentInfo = handle.torrentFile()
+            try {
+                val status = handle.status()
+                val torrentInfo = handle.torrentFile()
 
-            return TorrentDownload(
-                hash = hash,
-                name = status.name(),
-                state = mapState(status.state()),
-                progress = status.progress(),
-                downloadSpeed = status.downloadRate().toLong(),
-                uploadSpeed = status.uploadRate().toLong(),
-                totalSize = status.totalWanted(),
-                downloadedSize = status.totalWantedDone(),
-                uploadedSize = status.allTimeUpload(),
-                numPeers = status.numPeers(),
-                numSeeds = status.numSeeds(),
-                eta = calculateEta(status),
-                savePath = handle.savePath(),
-                files = if (torrentInfo != null) mapFiles(torrentInfo, handle) else emptyList(),
-                errorMessage = null, // Error tracking not available in current libtorrent4j binding
-                topicId = topicIds[hash],
-            )
+                // Get name with fallback: try status.name(), then torrentInfo.name(), then hash
+                val name =
+                    try {
+                        val statusName = status.name()
+                        if (statusName.isNotBlank()) {
+                            statusName
+                        } else {
+                            torrentInfo?.name()?.takeIf { it.isNotBlank() } ?: hash
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get name for torrent $hash, using hash as fallback", e)
+                        hash
+                    }
+
+                // Get save path with error handling
+                val savePath =
+                    try {
+                        handle.savePath()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get save path for torrent $hash", e)
+                        ""
+                    }
+
+                // Get progress with bounds checking
+                val progress = status.progress().coerceIn(0f, 1f)
+
+                // Get speeds with error handling
+                val downloadSpeed =
+                    try {
+                        status.downloadRate().toLong().coerceAtLeast(0L)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get download speed for torrent $hash", e)
+                        0L
+                    }
+
+                val uploadSpeed =
+                    try {
+                        status.uploadRate().toLong().coerceAtLeast(0L)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get upload speed for torrent $hash", e)
+                        0L
+                    }
+
+                // Get sizes with error handling
+                val totalSize =
+                    try {
+                        status.totalWanted().coerceAtLeast(0L)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get total size for torrent $hash", e)
+                        0L
+                    }
+
+                val downloadedSize =
+                    try {
+                        status.totalWantedDone().coerceAtLeast(0L)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get downloaded size for torrent $hash", e)
+                        0L
+                    }
+
+                val uploadedSize =
+                    try {
+                        status.allTimeUpload().coerceAtLeast(0L)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get uploaded size for torrent $hash", e)
+                        0L
+                    }
+
+                // Get peer counts with error handling
+                val numPeers =
+                    try {
+                        status.numPeers().coerceAtLeast(0)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get num peers for torrent $hash", e)
+                        0
+                    }
+
+                val numSeeds =
+                    try {
+                        status.numSeeds().coerceAtLeast(0)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get num seeds for torrent $hash", e)
+                        0
+                    }
+
+                // Calculate ETA with error handling
+                val eta =
+                    try {
+                        calculateEta(status)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to calculate ETA for torrent $hash", e)
+                        -1L
+                    }
+
+                // Get files with error handling
+                val files =
+                    try {
+                        if (torrentInfo != null) {
+                            mapFiles(torrentInfo, handle)
+                        } else {
+                            emptyList()
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to map files for torrent $hash", e)
+                        emptyList()
+                    }
+
+                return TorrentDownload(
+                    hash = hash,
+                    name = name,
+                    state = mapState(status.state()),
+                    progress = progress,
+                    downloadSpeed = downloadSpeed,
+                    uploadSpeed = uploadSpeed,
+                    totalSize = totalSize,
+                    downloadedSize = downloadedSize,
+                    uploadedSize = uploadedSize,
+                    numPeers = numPeers,
+                    numSeeds = numSeeds,
+                    eta = eta,
+                    savePath = savePath,
+                    files = files,
+                    errorMessage = null, // Error tracking not available in current libtorrent4j binding
+                    topicId = topicIds[hash],
+                )
+            } catch (e: Exception) {
+                // If anything goes wrong, return a minimal valid TorrentDownload
+                Log.e(TAG, "Critical error creating TorrentDownload for $hash", e)
+                return TorrentDownload(
+                    hash = hash,
+                    name = hash, // Fallback to hash
+                    state = TorrentState.ERROR,
+                    progress = 0f,
+                    downloadSpeed = 0L,
+                    uploadSpeed = 0L,
+                    totalSize = 0L,
+                    downloadedSize = 0L,
+                    uploadedSize = 0L,
+                    numPeers = 0,
+                    numSeeds = 0,
+                    eta = -1L,
+                    savePath = "",
+                    files = emptyList(),
+                    errorMessage = "Error creating download info: ${e.message}",
+                    topicId = topicIds[hash],
+                )
+            }
         }
 
         private fun mapState(state: TorrentStatus.State): TorrentState =
@@ -728,31 +875,94 @@ class TorrentSessionManager
             torrentInfo: TorrentInfo,
             handle: TorrentHandle,
         ): List<TorrentFile> {
-            val fileStorage = torrentInfo.files()
-            val priorities = handle.filePriorities() // Returns Priority[]
-            // Use empty flags to get progress in bytes, not pieces
-            val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
+            return try {
+                val fileStorage = torrentInfo.files() ?: return emptyList()
+                val numFiles = fileStorage.numFiles()
 
-            return (0 until fileStorage.numFiles()).map { index ->
-                val priority =
-                    if (index < priorities.size) {
-                        priorities[index].swig().toInt()
-                    } else {
-                        4 // Default priority
+                if (numFiles <= 0) {
+                    Log.w(TAG, "Torrent has no files")
+                    return emptyList()
+                }
+
+                // Get priorities with error handling
+                val priorities =
+                    try {
+                        handle.filePriorities() // Returns Priority[]
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get file priorities", e)
+                        emptyArray()
                     }
 
-                val size = fileStorage.fileSize(index)
-                val downloaded = if (index < progress.size) progress[index] else 0L
-                val fileProgress = if (size > 0) downloaded.toFloat() / size else 0f
+                // Get progress with error handling
+                val progress =
+                    try {
+                        // Use empty flags to get progress in bytes, not pieces
+                        handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get file progress", e)
+                        longArrayOf()
+                    }
 
-                TorrentFile(
-                    index = index,
-                    path = fileStorage.filePath(index),
-                    size = size,
-                    priority = priority,
-                    progress = fileProgress,
-                    isSelected = priority != 0,
-                )
+                (0 until numFiles).mapNotNull { index ->
+                    try {
+                        val priority =
+                            if (index < priorities.size) {
+                                try {
+                                    priorities[index].swig().toInt().coerceIn(0, 7)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to get priority for file $index", e)
+                                    4 // Default priority
+                                }
+                            } else {
+                                4 // Default priority
+                            }
+
+                        val size =
+                            try {
+                                fileStorage.fileSize(index).coerceAtLeast(0L)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to get size for file $index", e)
+                                0L
+                            }
+
+                        val downloaded =
+                            if (index < progress.size) {
+                                try {
+                                    progress[index].coerceAtLeast(0L)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to get downloaded bytes for file $index", e)
+                                    0L
+                                }
+                            } else {
+                                0L
+                            }
+
+                        val fileProgress = if (size > 0) (downloaded.toFloat() / size).coerceIn(0f, 1f) else 0f
+
+                        val path =
+                            try {
+                                fileStorage.filePath(index) ?: "file_$index"
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to get path for file $index", e)
+                                "file_$index"
+                            }
+
+                        TorrentFile(
+                            index = index,
+                            path = path,
+                            size = size,
+                            priority = priority,
+                            progress = fileProgress,
+                            isSelected = priority != 0,
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to map file $index", e)
+                        null // Skip this file
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Critical error mapping files", e)
+                emptyList()
             }
         }
 

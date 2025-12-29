@@ -94,10 +94,18 @@ class TorrentDownloadsViewModel
             ) { activeDownloads, persistedDownloads, showCompletedOnly ->
                 try {
                     // Merge active downloads with persisted ones
+                    // Active downloads take precedence (they have real-time data)
+                    val activeMap = activeDownloads.values.associateBy { it.hash }
+                    val persistedMap = persistedDownloads.associateBy { it.hash }
+
+                    // Combine: active downloads override persisted ones with same hash
                     val allDownloads =
-                        (activeDownloads.values + persistedDownloads)
-                            .distinctBy { it.hash }
-                            .sortedByDescending { it.addedTime }
+                        (persistedMap + activeMap)
+                            .values
+                            .filter { download ->
+                                // Validate download data
+                                download.hash.isNotBlank() && download.name.isNotBlank()
+                            }.sortedByDescending { it.addedTime }
 
                     if (allDownloads.isEmpty()) {
                         TorrentDownloadsUiState.Empty
@@ -127,6 +135,7 @@ class TorrentDownloadsViewModel
                         )
                     }
                 } catch (e: Exception) {
+                    android.util.Log.e("TorrentDownloadsViewModel", "Error processing downloads", e)
                     TorrentDownloadsUiState.Error(e.message ?: "Unknown error")
                 }
             }.stateIn(
