@@ -397,22 +397,9 @@ class RutrackerParser
             val torrentElement = row.selectFirst(DOWNLOAD_HREF_SELECTOR)
             val torrentUrl = torrentElement?.absUrl("href") ?: ""
 
-            // Extract cover URL with improved selectors
-            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-            // Also try var.postImg[title] for search results that might have it
-            val rawCoverUrl =
-                row.selectFirst("var.postImg[title]")?.attr("title")
-                    ?: row.selectFirst("var.postImgAligned[title]")?.attr("title")
-                    ?: row.selectFirst("var[class*='postImg'][title]")?.attr("title")
-                    ?: row.selectFirst("img[src]")?.absUrl("src")
-                    ?: row.selectFirst("img.postImg")?.absUrl("src")
-                    ?: row.selectFirst("img.preview")?.absUrl("src")
-                    ?: row.selectFirst("img.thumbnail")?.absUrl("src")
-                    ?: row.selectFirst("img[src*='static.t-ru.org']")?.absUrl("src")
-                    ?: row.selectFirst("img[src*='i.rutracker.cc']")?.absUrl("src")
-
-            // Normalize URL using CoverUrlExtractor
-            val coverUrl = rawCoverUrl?.let { coverExtractor.normalizeUrl(it) }
+            // Extract cover URL using CoverUrlExtractor for consistent extraction
+            // This uses the same logic as topic details page
+            val coverUrl = coverExtractor.extract(row)
 
             // Clean the title to remove technical details
             val cleanedTitle = cleanTitle(title)
@@ -719,9 +706,17 @@ class RutrackerParser
         ): String {
             var cleaned = rawText
 
-            // Remove common metadata patterns
+            // Remove MediaInfo section (everything from "Общее" or "MediaInfo" to end or next section)
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(Общее|MediaInfo|Видео|Аудио|General|Video|Audio).*", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+
+            // Remove common metadata patterns (extended list)
             val patternsToRemove =
                 listOf(
+                    // Basic metadata
                     "Год выпуска[:\\s]+\\d{4}",
                     "Автор[:\\s]+.+?(?=\\n|Исполнитель|Год|Жанр|$)",
                     "Исполнитель[:\\s]+.+?(?=\\n|Год|Жанр|$)",
@@ -734,6 +729,37 @@ class RutrackerParser
                     "Формат[:\\s]+.+?(?=\\n|$)",
                     "Частота оцифровки[:\\s]+.+?(?=\\n|$)",
                     "Общая продолжительность[:\\s]+.+?(?=\\n|$)",
+                    // Video/Technical metadata
+                    "Тип релиза[:\\s]+.+?(?=\\n|$)",
+                    "Контейнер[:\\s]+.+?(?=\\n|$)",
+                    "Видео кодек[:\\s]+.+?(?=\\n|$)",
+                    "Видео[:\\s]+.+?(?=\\n|$)",
+                    "Аудио[:\\s]+.+?(?=\\n|$)",
+                    "Ширина[:\\s]+.+?(?=\\n|$)",
+                    "Высота[:\\s]+.+?(?=\\n|$)",
+                    "Соотношение сторон[:\\s]+.+?(?=\\n|$)",
+                    "Частота кадров[:\\s]+.+?(?=\\n|$)",
+                    "Битрейт[:\\s]+.+?(?=\\n|$)",
+                    "Бит/(Пиксели\\*Кадры)[:\\s]+.+?(?=\\n|$)",
+                    "Размер потока[:\\s]+.+?(?=\\n|$)",
+                    "Библиотека кодирования[:\\s]+.+?(?=\\n|$)",
+                    "Параметры библиотеки кодирования[:\\s]+.+?(?=\\n|$)",
+                    "Цветовое пространство[:\\s]+.+?(?=\\n|$)",
+                    "Цветовая субдискретизация[:\\s]+.+?(?=\\n|$)",
+                    "Битовая глубина[:\\s]+.+?(?=\\n|$)",
+                    "Тип развёртки[:\\s]+.+?(?=\\n|$)",
+                    "Режим частоты кадров[:\\s]+.+?(?=\\n|$)",
+                    "Каналы[:\\s]+.+?(?=\\n|$)",
+                    "Расположение каналов[:\\s]+.+?(?=\\n|$)",
+                    "Частота дискретизации[:\\s]+.+?(?=\\n|$)",
+                    "Метод сжатия[:\\s]+.+?(?=\\n|$)",
+                    "Язык[:\\s]+.+?(?=\\n|$)",
+                    "По умолчанию[:\\s]+.+?(?=\\n|$)",
+                    "Принудительно[:\\s]+.+?(?=\\n|$)",
+                    "Цветовой диапазон[:\\s]+.+?(?=\\n|$)",
+                    "Основные цвета[:\\s]+.+?(?=\\n|$)",
+                    "Характеристики трансфера[:\\s]+.+?(?=\\n|$)",
+                    "Коэффициенты матрицы[:\\s]+.+?(?=\\n|$)",
                 )
 
             for (pattern in patternsToRemove) {
@@ -748,12 +774,32 @@ class RutrackerParser
                 }
             }
 
+            // Remove technical encoding parameters (x264, etc.)
+            cleaned =
+                cleaned.replace(
+                    Regex(
+                        "(?i)(cabac|ref|deblock|analyse|me|subme|psy|mixed_ref|me_range|chroma_me|trellis|8x8dct|cqm|deadzone|fast_pskip|chroma_qp_offset|threads|lookahead_threads|sliced_threads|nr|decimate|interlaced|bluray_compat|stitchable|constrained_intra|bframes|b_pyramid|b_adapt|b_bias|direct|weightb|open_gop|weightp|keyint|keyint_min|scenecut|intra_refresh|rc_lookahead|rc|mbtree|bitrate|ratetol|qcomp|qpmin|qpmax|qpstep|cplxblur|qblur|vbv_maxrate|vbv_bufsize|nal_hrd|filler|ip_ratio|aq)[=:].+?(?=\\n|/|$)",
+                        RegexOption.IGNORE_CASE,
+                    ),
+                    "",
+                )
+
             // Clean up multiple whitespace and newlines
             cleaned =
                 cleaned
                     .replace(Regex("\\s+"), " ")
-                    .replace(Regex("\\n\\s*\\n"), "\n")
+                    .replace(Regex("\\n\\s*\\n+"), "\n")
                     .trim()
+
+            // Extract only the actual description text (after "Описание:" or "Description:")
+            val descriptionMatch =
+                Regex(
+                    "(?i)(?:Описание|Description)[:\\s]+(.+?)(?=\\n\\s*(?:Страна|Год|Жанр|Режиссер|Тип|Контейнер|Видео|Аудио|MediaInfo|Общее|$)",
+                    RegexOption.DOT_MATCHES_ALL,
+                ).find(cleaned)
+            if (descriptionMatch != null) {
+                cleaned = descriptionMatch.groupValues[1].trim()
+            }
 
             return cleaned
         }
@@ -786,12 +832,33 @@ class RutrackerParser
                         val parentRow = postBody.parents().firstOrNull { it.tagName() == "tbody" }
                         if (parentRow == null) continue
 
-                        // Extract author - try multiple selectors
+                        // Extract author - try multiple selectors (same logic as main path)
                         val authorElement =
                             parentRow.selectFirst("p.nick a")
                                 ?: parentRow.selectFirst(".nick a")
                                 ?: parentRow.selectFirst("a[onclick*='bbcode.onclickPoster']")
-                        val author = authorElement?.text()?.trim() ?: "Unknown"
+
+                        val author =
+                            authorElement?.text()?.trim()?.takeIf { it.isNotEmpty() }
+                                ?: run {
+                                    // Fallback 1: Try show-for-print span (for bots and special cases)
+                                    parentRow.selectFirst("span.show-for-print.bold")?.let { span ->
+                                        val text = span.text()
+                                        // Extract name before &middot; or ·
+                                        text
+                                            .split("·", "&middot;", "&nbsp;")
+                                            .firstOrNull()
+                                            ?.trim()
+                                            ?.takeIf { it.isNotEmpty() && it.length > 1 }
+                                    }
+                                } ?: run {
+                                // Fallback 2: Try profile link text
+                                parentRow
+                                    .selectFirst("a[href*='profile.php?mode=viewprofile']")
+                                    ?.text()
+                                    ?.trim()
+                                    ?.takeIf { it.isNotEmpty() }
+                            } ?: "Unknown"
 
                         // Extract date - try multiple selectors
                         val dateElement =
@@ -849,11 +916,34 @@ class RutrackerParser
                     if (postBody == null) continue
 
                     // Extract author - try multiple selectors
+                    // For bots and special cases, also check show-for-print span
                     val authorElement =
                         postRow.selectFirst("p.nick a")
                             ?: postRow.selectFirst(".nick a")
                             ?: postRow.selectFirst("a[onclick*='bbcode.onclickPoster']")
-                    val author = authorElement?.text()?.trim() ?: "Unknown"
+
+                    val author =
+                        authorElement?.text()?.trim()?.takeIf { it.isNotEmpty() }
+                            ?: run {
+                                // Fallback 1: Try show-for-print span (for bots and special cases)
+                                // Format: "Author &middot;" or "Author ·"
+                                postRow.selectFirst("span.show-for-print.bold")?.let { span ->
+                                    val text = span.text()
+                                    // Extract name before &middot; or ·
+                                    text
+                                        .split("·", "&middot;", "&nbsp;")
+                                        .firstOrNull()
+                                        ?.trim()
+                                        ?.takeIf { it.isNotEmpty() && it.length > 1 }
+                                }
+                            } ?: run {
+                            // Fallback 2: Try profile link text
+                            postRow
+                                .selectFirst("a[href*='profile.php?mode=viewprofile']")
+                                ?.text()
+                                ?.trim()
+                                ?.takeIf { it.isNotEmpty() }
+                        } ?: "Unknown"
 
                     // Extract date - try multiple selectors
                     val dateElement =
