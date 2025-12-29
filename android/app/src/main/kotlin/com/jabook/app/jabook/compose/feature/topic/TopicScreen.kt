@@ -686,7 +686,8 @@ private fun ExpandableDescription(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val maxPreviewLength = 150
+    // Reduced preview length for better readability on small screens
+    val maxPreviewLength = 100
     val shouldShowExpand = description.length > maxPreviewLength
     val context = LocalContext.current
 
@@ -746,7 +747,8 @@ private fun ExpandableDescription(
                 MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
-            maxLines = if (expanded) Int.MAX_VALUE else 3,
+            // Reduced maxLines for collapsed state to improve readability on small screens
+            maxLines = if (expanded) Int.MAX_VALUE else 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -809,7 +811,8 @@ private fun ExpandableComments(
         if (expanded) {
             Spacer(Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                comments.forEach { comment ->
+                // Show comments from newest to oldest (reverse order)
+                comments.reversed().forEach { comment ->
                     CommentItem(comment = comment)
                 }
             }

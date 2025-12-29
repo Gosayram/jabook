@@ -95,7 +95,6 @@ class ForumIndexer
             private const val MAX_CONCURRENT_FORUMS = 3 // Increased from 2 to 3 for better performance
             private const val BATCH_SIZE_FOR_DB = 100 // Increased from 50 to 100 for faster DB writes
             private const val MAX_MEMORY_TOPICS = 200 // Max topics to keep in memory before DB flush
-            private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Reduced from 500ms to 300ms for faster indexing
         }
 
         /**

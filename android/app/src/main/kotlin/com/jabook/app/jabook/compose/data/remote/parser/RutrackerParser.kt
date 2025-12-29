@@ -958,11 +958,37 @@ class RutrackerParser
                     "",
                 )
 
+            // Remove file lists and chapter lists (common patterns like "Книга 11. Глава 19 05:38:23.475")
+            // This removes long lists of chapters/files that clutter the description
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:Книга|Book|Глава|Chapter|Файл|File)\\s+\\d+[.\\s]+.*?\\d{2}:\\d{2}:\\d{2}[.\\d]*", RegexOption.MULTILINE),
+                    "",
+                )
+
+            // Remove "Содержание" (Contents) sections with file lists
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:Содержание|Contents)[:\\s]*<br>.*?(?=<br><br>|$)", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+
+            // Remove "Вшитая обложка" and "Разбитие на главы" metadata
+            cleaned =
+                cleaned.replace(
+                    Regex(
+                        "(?i)(?:Вшитая обложка|Embedded cover|Разбитие на главы|Chapter breakdown)[:\\s]+(?:есть|yes|нет|no).*?(?=<br>|$)",
+                        RegexOption.MULTILINE,
+                    ),
+                    "",
+                )
+
             // Clean up multiple whitespace and normalize <br> tags
             cleaned =
                 cleaned
                     .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
                     .replace(Regex("\\s+"), " ")
+                    .replace(Regex("<br>\\s*<br>\\s*<br>+"), "<br><br>") // Max 2 consecutive <br>
                     .trim()
 
             return cleaned
@@ -1087,12 +1113,14 @@ class RutrackerParser
                             )
                         }
                     }
-                    // Return last 50 comments (most recent)
-                    return if (comments.size > 50) {
-                        comments.takeLast(50)
-                    } else {
-                        comments
-                    }
+                    // Return last 50 comments (most recent) and reverse to show newest first
+                    val result =
+                        if (comments.size > 50) {
+                            comments.takeLast(50)
+                        } else {
+                            comments
+                        }
+                    return result.reversed() // Newest comments first
                 }
 
                 // Skip first post (main post) and process comments
@@ -1202,13 +1230,15 @@ class RutrackerParser
                 Log.e(TAG, "Failed to extract comments", e)
             }
 
-            // Return last 50 comments (most recent) - comments are in chronological order
-            // so last ones are the freshest
-            return if (comments.size > 50) {
-                comments.takeLast(50)
-            } else {
-                comments
-            }
+            // Return last 50 comments (most recent) and reverse to show newest first
+            // Comments are parsed in chronological order (oldest first), so we reverse to show newest first
+            val result =
+                if (comments.size > 50) {
+                    comments.takeLast(50)
+                } else {
+                    comments
+                }
+            return result.reversed() // Newest comments first
         }
 
         private fun extractRelatedBooks(postBody: Element?): List<RelatedBook> {
