@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.search.rutracker
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
@@ -77,11 +78,11 @@ class RutrackerSearchViewModel
          * Search for audiobooks.
          *
          * @param query Search query
-         * @param forumIds Optional forum IDs filter
+         * @param forumIds Optional forum IDs filter (defaults to audiobooks forums only)
          */
         fun search(
             query: String,
-            forumIds: String? = null,
+            forumIds: String? = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
         ) {
             if (query.isBlank()) {
                 _searchState.value = SearchState.Empty

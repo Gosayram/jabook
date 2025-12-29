@@ -94,4 +94,11 @@ interface RutrackerApi {
 
     @GET("index.php")
     suspend fun getIndex(): Response<ResponseBody>
+
+    companion object {
+        // Main audiobook forum IDs (category 33 - Аудиокниги)
+        // These are the main forums for audiobooks on RuTracker
+        // Format: comma-separated list for search query parameter
+        const val AUDIOBOOKS_FORUM_IDS = "2387,2388,2389,2390,2391,2392,2393,2394,2395,2396,2397,2398,2399"
+    }
 }
