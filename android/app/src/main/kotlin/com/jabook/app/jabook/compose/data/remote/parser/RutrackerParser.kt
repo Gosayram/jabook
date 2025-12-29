@@ -224,6 +224,28 @@ class RutrackerParser
         }
 
         /**
+         * Parse forum page with topics.
+         *
+         * @param body ResponseBody from forum page
+         * @param forumId Forum ID for context
+         * @return List of search results (topics from forum)
+         */
+        fun parseForumPage(
+            body: okhttp3.ResponseBody,
+            forumId: String,
+        ): List<SearchResult> {
+            val result = parseSearchResultsWithEncoding(body)
+            return when (result) {
+                is ParsingResult.Success -> result.data
+                is ParsingResult.PartialSuccess -> result.data
+                is ParsingResult.Failure -> {
+                    Log.w(TAG, "Failed to parse forum $forumId page")
+                    emptyList()
+                }
+            }
+        }
+
+        /**
          * Parse search results from HTML.
          *
          * @param html HTML content from search results page

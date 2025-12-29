@@ -114,4 +114,108 @@ interface OfflineSearchDao {
      */
     @Query("SELECT COUNT(*) FROM cached_topics")
     suspend fun getTopicCount(): Int
+
+    /**
+     * Fast search in indexed topics by title and author.
+     * Uses LIKE for pattern matching (case-insensitive on most SQLite versions).
+     *
+     * @param query Search query (will search in title and author)
+     * @param limit Maximum number of results
+     * @return List of matching topics
+     */
+    @Query(
+        """
+        SELECT * FROM cached_topics
+        WHERE title LIKE '%' || :query || '%' 
+           OR author LIKE '%' || :query || '%'
+        ORDER BY seeders DESC, timestamp DESC
+        LIMIT :limit
+    """,
+    )
+    suspend fun searchIndexedTopics(
+        query: String,
+        limit: Int = 100,
+    ): List<CachedTopicEntity>
+
+    /**
+     * Get all indexed topics (for browsing).
+     *
+     * @param limit Maximum number of results
+     * @param offset Pagination offset
+     * @return List of topics ordered by seeders and timestamp
+     */
+    @Query(
+        """
+        SELECT * FROM cached_topics
+        ORDER BY seeders DESC, timestamp DESC
+        LIMIT :limit OFFSET :offset
+    """,
+    )
+    suspend fun getAllIndexedTopics(
+        limit: Int = 100,
+        offset: Int = 0,
+    ): List<CachedTopicEntity>
+
+    /**
+     * Get topics that need updating (older than threshold or different index version).
+     *
+     * @param maxAgeMs Maximum age in milliseconds (topics older than this need update)
+     * @param currentIndexVersion Current index version (topics with different version need update)
+     * @param limit Maximum number of topics to return
+     * @return List of topics that need updating
+     */
+    @Query(
+        """
+        SELECT * FROM cached_topics
+        WHERE last_updated < :maxAgeMs OR index_version != :currentIndexVersion
+        ORDER BY last_updated ASC
+        LIMIT :limit
+    """,
+    )
+    suspend fun getTopicsNeedingUpdate(
+        maxAgeMs: Long,
+        currentIndexVersion: Int,
+        limit: Int = 1000,
+    ): List<CachedTopicEntity>
+
+    /**
+     * Get topic IDs that exist in database (for incremental update check).
+     *
+     * @param topicIds List of topic IDs to check
+     * @return Set of topic IDs that exist in database
+     */
+    @Query(
+        """
+        SELECT topic_id FROM cached_topics
+        WHERE topic_id IN (:topicIds)
+    """,
+    )
+    suspend fun getExistingTopicIds(topicIds: List<String>): List<String>
+
+    /**
+     * Get index metadata (oldest and newest timestamps, total count).
+     */
+    @Query(
+        """
+        SELECT 
+            COUNT(*) as count,
+            MIN(timestamp) as oldest,
+            MAX(timestamp) as newest,
+            MIN(last_updated) as oldest_updated,
+            MAX(last_updated) as newest_updated
+        FROM cached_topics
+    """,
+    )
+    suspend fun getIndexMetadata(): IndexMetadata?
 }
+
+/**
+ * Index metadata for monitoring.
+ */
+data class IndexMetadata(
+    val count: Int,
+    val oldest: Long?,
+    val newest: Long?,
+    val oldestUpdated: Long?,
+    val newestUpdated: Long?,
+)

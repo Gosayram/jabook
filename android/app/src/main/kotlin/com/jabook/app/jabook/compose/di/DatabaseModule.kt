@@ -259,6 +259,39 @@ object DatabaseModule {
             }
         }
 
+    /**
+     * Database migration from version 12 to version 13.
+     *
+     * Adds last_updated and index_version fields to cached_topics for incremental updates.
+     */
+    private val MIGRATION_12_13 =
+        object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add new columns with default values
+                db.execSQL("ALTER TABLE `cached_topics` ADD COLUMN `last_updated` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `cached_topics` ADD COLUMN `index_version` INTEGER NOT NULL DEFAULT 1")
+                
+                // Update existing records to set last_updated = timestamp
+                db.execSQL("UPDATE `cached_topics` SET `last_updated` = `timestamp` WHERE `last_updated` = 0")
+            }
+        }
+
+    /**
+     * Database migration from version 13 to version 14.
+     *
+     * Adds search indices for faster queries on title, author, timestamp, and seeders.
+     */
+    private val MIGRATION_13_14 =
+        object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add indices for faster search and sorting
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_title` ON `cached_topics` (`title`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_author` ON `cached_topics` (`author`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_timestamp` ON `cached_topics` (`timestamp`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_seeders` ON `cached_topics` (`seeders`)")
+            }
+        }
+
     @Provides
     @Singleton
     fun provideJabookDatabase(
@@ -281,6 +314,8 @@ object DatabaseModule {
                     MIGRATION_9_10,
                     MIGRATION_10_11,
                     MIGRATION_11_12,
+                    MIGRATION_12_13,
+                    MIGRATION_13_14,
                 )
                 // Use coroutine context for queries (better integration with coroutines)
                 // This replaces the need for setQueryExecutor and provides better performance

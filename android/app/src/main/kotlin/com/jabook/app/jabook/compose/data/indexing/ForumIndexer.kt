@@ -1,0 +1,406 @@
+// Copyright 2025 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose.data.indexing
+
+import android.content.Context
+import android.util.Log
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
+import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
+import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
+import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
+import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.remote.model.SearchResult
+import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import retrofit2.Response
+import okhttp3.ResponseBody
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Service for indexing all audiobook forums on RuTracker.
+ *
+ * This service pre-indexes all topics from audiobook forums to enable
+ * fast offline search without network requests.
+ *
+ * Features:
+ * - Full indexing: Indexes all topics from all audiobook forums
+ * - Incremental updates: Only updates topics that are old or missing (daily by default)
+ * - Cover preloading: Preloads cover images to Coil cache for instant display
+ * - Version tracking: Tracks index version for incremental updates
+ * - Smart caching: Uses database indices for fast search queries
+ *
+ * Update Strategy:
+ * - Full index: Recommended once per week (or on first install)
+ * - Incremental update: Daily (updates topics older than 24 hours)
+ * - Automatic: Check needsUpdate() to determine if update is needed
+ *
+ * What's stored in index:
+ * - Topic metadata: title, author, category, size, seeders, leechers
+ * - Download links: magnet URL, torrent URL
+ * - Cover URL: For preloading and display
+ * - Timestamps: For tracking freshness and incremental updates
+ * - Index version: For tracking which version of index created the entry
+ */
+@Singleton
+class ForumIndexer
+    @Inject
+    constructor(
+        private val api: RutrackerApi,
+        private val parser: RutrackerParser,
+        private val offlineSearchDao: OfflineSearchDao,
+        @ApplicationContext private val context: Context,
+    ) {
+        companion object {
+            private const val TAG = "ForumIndexer"
+            private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
+            private const val DELAY_BETWEEN_REQUESTS_MS = 500L // Rate limiting
+            private const val MAX_PAGES_PER_FORUM = 100 // Safety limit
+            
+            // Update strategy constants
+            private const val FULL_UPDATE_INTERVAL_DAYS = 7L // Full re-index every 7 days
+            private const val INCREMENTAL_UPDATE_INTERVAL_HOURS = 24L // Incremental update daily
+            private const val MAX_AGE_FOR_UPDATE_MS = INCREMENTAL_UPDATE_INTERVAL_HOURS * 60 * 60 * 1000
+            
+            // Cover preloading
+            private const val PRELOAD_COVERS_BATCH_SIZE = 10 // Preload covers in batches
+            private const val PRELOAD_COVERS_DELAY_MS = 100L // Delay between cover preloads
+        }
+
+        /**
+         * Index all audiobook forums (full index).
+         *
+         * @param forumIds Comma-separated list of forum IDs to index
+         * @param preloadCovers Whether to preload cover images to Coil cache (default: true)
+         * @param onProgress Callback with (forumId, page, totalTopics) progress
+         * @return Total number of topics indexed
+         */
+        suspend fun indexForums(
+            forumIds: String,
+            preloadCovers: Boolean = true,
+            onProgress: ((forumId: String, page: Int, totalTopics: Int) -> Unit)? = null,
+        ): Int =
+            withContext(Dispatchers.IO) {
+                val currentIndexVersion = getCurrentIndexVersion() + 1
+                val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                var totalIndexed = 0
+                val coversToPreload = mutableListOf<String>()
+
+                Log.i(TAG, "Starting full forum indexing for ${forumIdList.size} forums (version $currentIndexVersion)")
+
+                for (forumId in forumIdList) {
+                    try {
+                        val (indexed, covers) = indexForum(forumId, currentIndexVersion, onProgress)
+                        totalIndexed += indexed
+                        coversToPreload.addAll(covers)
+                        Log.i(TAG, "Indexed forum $forumId: $indexed topics, ${covers.size} covers")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to index forum $forumId", e)
+                    }
+                }
+
+                // Preload covers in background
+                if (preloadCovers && coversToPreload.isNotEmpty()) {
+                    preloadCovers(coversToPreload)
+                }
+
+                Log.i(TAG, "Forum indexing completed. Total topics: $totalIndexed, covers: ${coversToPreload.size}")
+                totalIndexed
+            }
+
+        /**
+         * Incremental update: only update topics that are old or missing.
+         *
+         * @param forumIds Comma-separated list of forum IDs to check
+         * @param maxAgeMs Maximum age in milliseconds (topics older than this will be updated)
+         * @param preloadCovers Whether to preload cover images (default: true)
+         * @param onProgress Progress callback
+         * @return Number of topics updated
+         */
+        suspend fun incrementalUpdate(
+            forumIds: String,
+            maxAgeMs: Long = MAX_AGE_FOR_UPDATE_MS,
+            preloadCovers: Boolean = true,
+            onProgress: ((forumId: String, updated: Int, total: Int) -> Unit)? = null,
+        ): Int =
+            withContext(Dispatchers.IO) {
+                val currentIndexVersion = getCurrentIndexVersion()
+                val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                var totalUpdated = 0
+                val coversToPreload = mutableListOf<String>()
+
+                Log.i(TAG, "Starting incremental update (max age: ${maxAgeMs / (1000 * 60 * 60)} hours)")
+
+                for (forumId in forumIdList) {
+                    try {
+                        val (updated, covers) = updateForumIncremental(forumId, maxAgeMs, currentIndexVersion, onProgress)
+                        totalUpdated += updated
+                        coversToPreload.addAll(covers)
+                        Log.i(TAG, "Updated forum $forumId: $updated topics")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to update forum $forumId", e)
+                    }
+                }
+
+                // Preload new covers
+                if (preloadCovers && coversToPreload.isNotEmpty()) {
+                    preloadCovers(coversToPreload)
+                }
+
+                Log.i(TAG, "Incremental update completed. Updated: $totalUpdated topics, covers: ${coversToPreload.size}")
+                totalUpdated
+            }
+
+        /**
+         * Index a single forum by fetching all pages.
+         *
+         * @param forumId Forum ID to index
+         * @param indexVersion Current index version
+         * @param onProgress Progress callback
+         * @return Pair of (number of topics indexed, list of cover URLs to preload)
+         */
+        private suspend fun indexForum(
+            forumId: String,
+            indexVersion: Int,
+            onProgress: ((forumId: String, page: Int, totalTopics: Int) -> Unit)?,
+        ): Pair<Int, List<String>> {
+            var totalTopics = 0
+            var page = 0
+            var hasMorePages = true
+            val coversToPreload = mutableListOf<String>()
+
+            while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
+                try {
+                    val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                    if (!response.isSuccessful) {
+                        Log.w(TAG, "Failed to fetch forum $forumId page $page: ${response.code()}")
+                        break
+                    }
+
+                    val body = response.body() ?: break
+                    val topics = parser.parseForumPage(body, forumId)
+
+                    if (topics.isEmpty()) {
+                        hasMorePages = false
+                    } else {
+                        // Save to database with current index version
+                        val entities = topics.map { it.toCachedTopicEntity(indexVersion) }
+                        offlineSearchDao.upsertTopics(entities)
+                        totalTopics += topics.size
+
+                        // Collect cover URLs for preloading (normalize URLs)
+                        topics.mapNotNull { topic ->
+                            topic.coverUrl?.let { url ->
+                                when {
+                                    url.startsWith("http://") || url.startsWith("https://") -> url
+                                    url.startsWith("//") -> "https:$url"
+                                    url.startsWith("/") -> "https://rutracker.org$url"
+                                    else -> "https://rutracker.org/$url"
+                                }
+                            }
+                        }.forEach { coversToPreload.add(it) }
+
+                        onProgress?.invoke(forumId, page, totalTopics)
+
+                        // Rate limiting
+                        delay(DELAY_BETWEEN_REQUESTS_MS)
+                        page++
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error indexing forum $forumId page $page", e)
+                    hasMorePages = false
+                }
+            }
+
+            return Pair(totalTopics, coversToPreload)
+        }
+
+        /**
+         * Incrementally update a single forum (only fetch new/updated topics).
+         *
+         * @param forumId Forum ID to update
+         * @param maxAgeMs Maximum age for topics to update
+         * @param currentIndexVersion Current index version
+         * @param onProgress Progress callback
+         * @return Pair of (number of topics updated, list of cover URLs to preload)
+         */
+        private suspend fun updateForumIncremental(
+            forumId: String,
+            maxAgeMs: Long,
+            currentIndexVersion: Int,
+            onProgress: ((forumId: String, updated: Int, total: Int) -> Unit)?,
+        ): Pair<Int, List<String>> {
+            var totalUpdated = 0
+            var page = 0
+            var hasMorePages = true
+            val coversToPreload = mutableListOf<String>()
+
+            while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
+                try {
+                    val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                    if (!response.isSuccessful) {
+                        break
+                    }
+
+                    val body = response.body() ?: break
+                    val topics = parser.parseForumPage(body, forumId)
+
+                    if (topics.isEmpty()) {
+                        hasMorePages = false
+                    } else {
+                        // Filter: only update new topics or topics that need updating
+                        val topicsToUpdate = topics.filter { topic ->
+                            val existing = offlineSearchDao.getTopicById(topic.topicId)
+                            existing == null || // New topic
+                                existing.lastUpdated < (System.currentTimeMillis() - maxAgeMs) || // Old topic
+                                existing.indexVersion != currentIndexVersion // Different version
+                        }
+
+                        if (topicsToUpdate.isNotEmpty()) {
+                            val entities = topicsToUpdate.map { it.toCachedTopicEntity(currentIndexVersion) }
+                            offlineSearchDao.upsertTopics(entities)
+                            totalUpdated += topicsToUpdate.size
+
+                            // Collect cover URLs (normalize URLs)
+                            topicsToUpdate.mapNotNull { topic ->
+                                topic.coverUrl?.let { url ->
+                                    when {
+                                        url.startsWith("http://") || url.startsWith("https://") -> url
+                                        url.startsWith("//") -> "https:$url"
+                                        url.startsWith("/") -> "https://rutracker.org$url"
+                                        else -> "https://rutracker.org/$url"
+                                    }
+                                }
+                            }.forEach { coversToPreload.add(it) }
+                        }
+
+                        onProgress?.invoke(forumId, totalUpdated, topics.size)
+
+                        // Rate limiting
+                        delay(DELAY_BETWEEN_REQUESTS_MS)
+                        page++
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error updating forum $forumId page $page", e)
+                    hasMorePages = false
+                }
+            }
+
+            return Pair(totalUpdated, coversToPreload)
+        }
+
+        /**
+         * Preload cover images to Coil cache for faster display.
+         *
+         * @param coverUrls List of cover URLs to preload
+         */
+        private suspend fun preloadCovers(coverUrls: List<String>) =
+            withContext(Dispatchers.IO) {
+                val imageLoader = SingletonImageLoader.get(context)
+                val uniqueUrls = coverUrls.distinct().take(500) // Limit to 500 covers per batch
+
+                Log.d(TAG, "Preloading ${uniqueUrls.size} cover images...")
+
+                // Preload in batches to avoid overwhelming the system
+                uniqueUrls.chunked(PRELOAD_COVERS_BATCH_SIZE).forEach { batch ->
+                    batch.map { url ->
+                        async(Dispatchers.IO) {
+                            try {
+                                val request =
+                                    ImageRequest
+                                        .Builder(context)
+                                        .data(url)
+                                        .build()
+                                imageLoader.enqueue(request)
+                            } catch (e: Exception) {
+                                // Silently fail - covers will load on demand
+                            }
+                        }
+                    }.awaitAll()
+
+                    delay(PRELOAD_COVERS_DELAY_MS)
+                }
+
+                Log.d(TAG, "Cover preloading completed")
+            }
+
+        /**
+         * Get index statistics.
+         *
+         * @return Total number of indexed topics
+         */
+        suspend fun getIndexSize(): Int =
+            withContext(Dispatchers.IO) {
+                offlineSearchDao.getTopicCount()
+            }
+
+        /**
+         * Get detailed index metadata.
+         *
+         * @return IndexMetadata with statistics
+         */
+        suspend fun getIndexMetadata(): IndexMetadata? =
+            withContext(Dispatchers.IO) {
+                offlineSearchDao.getIndexMetadata()
+            }
+
+        /**
+         * Get current index version (highest version in database).
+         *
+         * @return Current index version
+         */
+        private suspend fun getCurrentIndexVersion(): Int =
+            withContext(Dispatchers.IO) {
+                val metadata = offlineSearchDao.getIndexMetadata()
+                // For now, return 1. In future, can track version separately
+                1
+            }
+
+        /**
+         * Check if index needs update based on age.
+         *
+         * @param maxAgeMs Maximum age in milliseconds
+         * @return True if index needs update
+         */
+        suspend fun needsUpdate(maxAgeMs: Long = MAX_AGE_FOR_UPDATE_MS): Boolean =
+            withContext(Dispatchers.IO) {
+                val metadata = offlineSearchDao.getIndexMetadata()
+                if (metadata == null || metadata.count == 0) {
+                    return@withContext true // No index, needs full index
+                }
+
+                val oldestUpdated = metadata.oldestUpdated ?: return@withContext true
+                val age = System.currentTimeMillis() - oldestUpdated
+                age > maxAgeMs
+            }
+
+        /**
+         * Clear the entire index.
+         */
+        suspend fun clearIndex() =
+            withContext(Dispatchers.IO) {
+                offlineSearchDao.deleteAllTopics()
+                offlineSearchDao.deleteAllMappings()
+                Log.i(TAG, "Index cleared")
+            }
+    }
+

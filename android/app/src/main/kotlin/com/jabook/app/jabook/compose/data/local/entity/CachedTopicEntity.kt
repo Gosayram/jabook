@@ -23,7 +23,15 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
  * Normalized entity for storing topic (audiobook) information.
  * Acts as the single source of truth for topic details.
  */
-@Entity(tableName = "cached_topics")
+@Entity(
+    tableName = "cached_topics",
+    indices = [
+        androidx.room.Index(value = ["title"]), // For fast title search
+        androidx.room.Index(value = ["author"]), // For fast author search
+        androidx.room.Index(value = ["timestamp"]), // For sorting by date
+        androidx.room.Index(value = ["seeders"]), // For sorting by popularity
+    ],
+)
 data class CachedTopicEntity(
     @PrimaryKey
     @ColumnInfo(name = "topic_id")
@@ -48,13 +56,20 @@ data class CachedTopicEntity(
     val coverUrl: String?,
     @ColumnInfo(name = "timestamp")
     val timestamp: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(), // When this record was last updated
+    @ColumnInfo(name = "index_version")
+    val indexVersion: Int = 1, // Version of index when this was indexed
 )
 
 /**
  * Maps domain SearchResult to CachedTopicEntity.
+ *
+ * @param indexVersion Version of index when this was indexed (default: 1)
  */
-fun SearchResult.toCachedTopicEntity(): CachedTopicEntity =
-    CachedTopicEntity(
+fun SearchResult.toCachedTopicEntity(indexVersion: Int = 1): CachedTopicEntity {
+    val now = System.currentTimeMillis()
+    return CachedTopicEntity(
         topicId = topicId,
         title = title,
         author = author,
@@ -65,8 +80,11 @@ fun SearchResult.toCachedTopicEntity(): CachedTopicEntity =
         magnetUrl = magnetUrl,
         torrentUrl = torrentUrl,
         coverUrl = coverUrl,
-        timestamp = System.currentTimeMillis(),
+        timestamp = now,
+        lastUpdated = now,
+        indexVersion = indexVersion,
     )
+}
 
 /**
  * Maps CachedTopicEntity back to domain SearchResult.

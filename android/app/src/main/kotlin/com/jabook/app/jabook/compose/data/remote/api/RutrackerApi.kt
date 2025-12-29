@@ -95,6 +95,19 @@ interface RutrackerApi {
     @GET("index.php")
     suspend fun getIndex(): Response<ResponseBody>
 
+    /**
+     * Get forum page with topics.
+     *
+     * @param forumId Forum ID
+     * @param start Starting index (for pagination, typically 0, 50, 100, etc.)
+     * @return HTML response with forum topics (raw bytes for encoding detection)
+     */
+    @GET("viewforum.php")
+    suspend fun getForumPage(
+        @Query("f") forumId: String,
+        @Query("start") start: Int = 0,
+    ): Response<ResponseBody>
+
     companion object {
         // Audiobook categories forum IDs
         // Format: comma-separated list for search query parameter

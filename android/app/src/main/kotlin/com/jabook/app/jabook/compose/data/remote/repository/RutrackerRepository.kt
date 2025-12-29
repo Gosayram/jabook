@@ -109,6 +109,27 @@ class RutrackerRepository
             }
 
         /**
+         * Fast search in indexed topics (offline, no network required).
+         *
+         * @param query Search query
+         * @param limit Maximum number of results
+         * @return List of search results from index
+         */
+        suspend fun searchIndexedTopics(
+            query: String,
+            limit: Int = 100,
+        ): List<SearchResult> =
+            withContext(Dispatchers.IO) {
+                try {
+                    val entities = offlineSearchDao.searchIndexedTopics(query, limit)
+                    entities.map { it.toSearchResult() }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to search indexed topics", e)
+                    emptyList()
+                }
+            }
+
+        /**
          * Search with Optimistic UI: Emits Cached results immediately, then Network results.
          */
         fun searchAudiobooksFlow(
@@ -118,9 +139,20 @@ class RutrackerRepository
             flow {
                 Log.d(TAG, "Starting search flow for: $query")
 
-                // 1. Emit DB Cache immediately (Optimistic UI)
-                // (Logic simplified to avoid duplication with below re-implementation attempt in original code)
+                // 1. Try indexed search first (fast, offline)
+                if (forumIds == null || forumIds == RutrackerApi.AUDIOBOOKS_FORUM_IDS) {
+                    try {
+                        val indexedResults = searchIndexedTopics(query, limit = 50)
+                        if (indexedResults.isNotEmpty()) {
+                            Log.d(TAG, "Found ${indexedResults.size} results from index")
+                            emit(Result.success(indexedResults))
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Indexed search failed, falling back to network", e)
+                    }
+                }
 
+                // 2. Emit DB Cache (if not in mem)
                 // A. Check Memory Cache
                 val memCached = searchCache.get(query, forumIds)
                 if (memCached != null) {

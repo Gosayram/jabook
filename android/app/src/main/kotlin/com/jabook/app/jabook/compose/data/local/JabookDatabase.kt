@@ -53,6 +53,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 10: Added index on chapter_index for faster chapter sorting.
  * Database version 11: Added torrent_downloads table for torrent download persistence.
  * Database version 12: Added cached_topics and search_query_map tables for offline search.
+ * Database version 13: Added last_updated and index_version fields to cached_topics, plus search indices.
  */
 @Database(
     entities = [
@@ -68,7 +69,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 abstract class JabookDatabase : RoomDatabase() {
