@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 private object LegacyPhoneStateListener {
     fun create(onStateChanged: (Int, String?) -> Unit): android.telephony.PhoneStateListener =
         object : android.telephony.PhoneStateListener() {
+            @Suppress("OVERRIDE_DEPRECATION") // onCallStateChanged is deprecated
             override fun onCallStateChanged(
                 state: Int,
                 phoneNumber: String?,
