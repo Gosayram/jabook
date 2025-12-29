@@ -163,7 +163,7 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         views: RemoteViews,
         currentBookId: String?,
     ) {
-        val flags =
+        val pendingIntentFlags =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 PendingIntent.FLAG_IMMUTABLE
             } else {
@@ -177,7 +177,7 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             }
         views.setOnClickPendingIntent(
             R.id.widget_play_pause,
-            PendingIntent.getService(context, 0, playPauseIntent, flags or PendingIntent.FLAG_UPDATE_CURRENT),
+            PendingIntent.getService(context, 0, playPauseIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
         )
 
         // Next button
@@ -187,7 +187,7 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             }
         views.setOnClickPendingIntent(
             R.id.widget_next,
-            PendingIntent.getService(context, 1, nextIntent, flags or PendingIntent.FLAG_UPDATE_CURRENT),
+            PendingIntent.getService(context, 1, nextIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
         )
 
         // Previous button
@@ -197,7 +197,7 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             }
         views.setOnClickPendingIntent(
             R.id.widget_previous,
-            PendingIntent.getService(context, 2, previousIntent, flags or PendingIntent.FLAG_UPDATE_CURRENT),
+            PendingIntent.getService(context, 2, previousIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
         )
 
         // Widget click - open player screen
@@ -208,7 +208,7 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             }
         views.setOnClickPendingIntent(
             R.id.widget_content,
-            PendingIntent.getActivity(context, 3, openPlayerIntent, flags or PendingIntent.FLAG_UPDATE_CURRENT),
+            PendingIntent.getActivity(context, 3, openPlayerIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
         )
     }
 
