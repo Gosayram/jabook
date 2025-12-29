@@ -156,10 +156,24 @@ class TorrentSessionManager
                 // which can cause NoSuchMethodError with some libtorrent4j versions
                 session =
                     SessionManager(false).apply {
-                        start(params)
-                        // Add listener AFTER start() like libretorrent does
+                        // Add listener BEFORE start() to ensure all alerts are captured
+                        // This matches the pattern from libtorrent4j examples
                         addListener(alertListener)
+                        start(params)
                     }
+
+                // Verify session is running before proceeding
+                // Note: isRunning() may not be available in all libtorrent4j versions
+                try {
+                    val isRunning = session?.isRunning() ?: false
+                    if (!isRunning) {
+                        Log.e(TAG, "Session failed to start - isRunning() returned false")
+                        throw IllegalStateException("Session failed to start")
+                    }
+                } catch (e: NoSuchMethodError) {
+                    // isRunning() not available in this version, assume session started if no exception
+                    Log.d(TAG, "isRunning() not available, assuming session started successfully")
+                }
 
                 Log.i(TAG, "Torrent session initialized successfully")
             } catch (e: NoSuchMethodError) {
@@ -240,11 +254,26 @@ class TorrentSessionManager
                     return Result.failure(IllegalStateException("Save directory is not writable: $savePath"))
                 }
 
+                // Verify session is running before adding torrent
+                // Note: isRunning() may not be available in all libtorrent4j versions
+                try {
+                    val isRunning = session.isRunning()
+                    if (!isRunning) {
+                        Log.e(TAG, "Cannot add torrent: session is not running")
+                        return Result.failure(IllegalStateException("Session is not running"))
+                    }
+                    Log.d(TAG, "Session is running: $isRunning")
+                } catch (e: NoSuchMethodError) {
+                    // isRunning() not available, assume session is running if no exception
+                    Log.d(TAG, "isRunning() not available, assuming session is running")
+                }
+
                 // Add torrent - download(String magnetUri, File saveDir, torrent_flags_t flags)
-                // Using empty flags (defaults)
+                // Using empty flags (defaults) - SessionManager will handle magnet URI parsing
                 // Wrap in try-catch to handle any native exceptions
                 try {
                     Log.d(TAG, "Calling session.download() for hash=$hash, savePath=$savePath")
+
                     val flags = org.libtorrent4j.swig.torrent_flags_t()
                     session.download(magnetUri, saveDir, flags)
                     Log.i(TAG, "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert...")
@@ -432,22 +461,40 @@ class TorrentSessionManager
 
                 // Resume torrent to start downloading (required by libtorrent4j)
                 // According to libtorrent4j examples, handle.resume() must be called after adding
+                // But we need to be careful - if handle is invalid or session is not running, this will crash
                 try {
-                    handle.resume()
-                    Log.d(TAG, "Torrent resumed after add: $hash")
+                    // Double-check handle is still valid before resuming
+                    if (handle.isValid) {
+                        // Check if session is running (if method available)
+                        val sessionRunning =
+                            try {
+                                session?.isRunning() ?: true
+                            } catch (e: NoSuchMethodError) {
+                                true // Assume running if method not available
+                            }
+
+                        if (sessionRunning) {
+                            handle.resume()
+                            Log.d(TAG, "Torrent resumed after add: $hash")
+                        } else {
+                            Log.w(TAG, "Cannot resume torrent: session is not running")
+                        }
+                    } else {
+                        Log.w(TAG, "Cannot resume torrent: handle is invalid")
+                    }
                 } catch (e: UnsatisfiedLinkError) {
                     Log.e(TAG, "Native library error resuming torrent: $hash", e)
                 } catch (e: NoSuchMethodError) {
                     Log.e(TAG, "Method not found error resuming torrent: $hash", e)
                 } catch (e: RuntimeException) {
-                    Log.e(TAG, "Runtime error resuming torrent: $hash", e)
+                    Log.e(TAG, "Runtime error resuming torrent: $hash, error=${e.message}", e)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to resume torrent after add: $hash", e)
+                    Log.e(TAG, "Failed to resume torrent after add: $hash, error=${e.message}", e)
                 }
 
                 updateDownloads()
             } catch (e: Exception) {
-                Log.e(TAG, "Error in handleAddTorrent", e)
+                Log.e(TAG, "Error in handleAddTorrent: ${e.message}", e)
             }
         }
 
