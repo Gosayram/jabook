@@ -114,7 +114,10 @@ class RutrackerParser
          * @param rawBytes Raw bytes for error reporting
          * @return ParsingResult with results, warnings, or errors
          */
-        private fun parseSearchResultsDefensive(html: String, rawBytes: ByteArray): ParsingResult<List<SearchResult>> {
+        private fun parseSearchResultsDefensive(
+            html: String,
+            rawBytes: ByteArray,
+        ): ParsingResult<List<SearchResult>> {
             val errors = mutableListOf<ParsingError>()
             val results = mutableListOf<SearchResult>()
 
