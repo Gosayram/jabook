@@ -122,9 +122,10 @@ class PlaybackEnhancerService
             // Read current value synchronously (for initial setup)
             // This is a fallback - the Flow will handle updates
             return try {
-                val preferences = kotlinx.coroutines.runBlocking {
-                    settingsRepository.userPreferences.firstOrNull()
-                }
+                val preferences =
+                    kotlinx.coroutines.runBlocking {
+                        settingsRepository.userPreferences.firstOrNull()
+                    }
                 preferences?.let { mapVolumeBoostLevel(it.volumeBoostLevel) }
                     ?: PlaybackVolumeBoost.DISABLED
             } catch (e: Exception) {

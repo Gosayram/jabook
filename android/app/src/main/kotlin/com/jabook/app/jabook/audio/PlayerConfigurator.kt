@@ -109,7 +109,9 @@ internal class PlayerConfigurator(
                     getAutoRewindOnPause = {
                         // Get auto rewind setting from preferences
                         kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences.firstOrNull()?.autoRewindOnPause ?: false
+                            service.settingsRepository.userPreferences
+                                .firstOrNull()
+                                ?.autoRewindOnPause ?: false
                         }
                     },
                     getAutoRewindSeconds = {

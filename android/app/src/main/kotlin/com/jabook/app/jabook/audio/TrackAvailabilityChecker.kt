@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.audio
 
-import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import java.io.File
 
@@ -107,4 +106,3 @@ object TrackAvailabilityChecker {
         BACKWARD,
     }
 }
-
