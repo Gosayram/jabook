@@ -86,6 +86,7 @@ import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import com.jabook.app.jabook.compose.util.rememberClickDebouncer
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -248,6 +249,9 @@ fun PlayerScreen(
 
                             is PlayerUiState.Success -> {
                                 val chapterRepeatMode by viewModel.chapterRepeatMode.collectAsStateWithLifecycle()
+                                // Click debouncer for preventing double clicks (inspired by Easybook)
+                                val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300L)
+
                                 PlayerContent(
                                     state = state,
                                     playbackSpeed = playbackSpeed,
@@ -255,27 +259,41 @@ fun PlayerScreen(
                                     normalizeEnabled = normalizeEnabled,
                                     chapterRepeatMode = chapterRepeatMode,
                                     onPlayPause = {
-                                        if (state.isPlaying) viewModel.pause() else viewModel.play()
+                                        clickDebouncer.debounce {
+                                            if (state.isPlaying) viewModel.pause() else viewModel.play()
+                                        }
                                     },
-                                    onSkipNext = viewModel::skipToNext,
-                                    onSkipPrevious = viewModel::skipToPrevious,
+                                    onSkipNext = {
+                                        clickDebouncer.debounce { viewModel.skipToNext() }
+                                    },
+                                    onSkipPrevious = {
+                                        clickDebouncer.debounce { viewModel.skipToPrevious() }
+                                    },
                                     onSeek = viewModel::seekTo,
-                                    onSeekForward = viewModel::seekForward,
-                                    onSeekBackward = viewModel::seekBackward,
+                                    onSeekForward = {
+                                        clickDebouncer.debounce { viewModel.seekForward() }
+                                    },
+                                    onSeekBackward = {
+                                        clickDebouncer.debounce { viewModel.seekBackward() }
+                                    },
                                     onSelectChapter = viewModel::skipToChapter,
                                     onChapterClick = {
                                         // Toggle chapters pane on medium/expanded screens
-                                        scope.launch {
-                                            if (scaffoldNavigator.canNavigateBack()) {
-                                                scaffoldNavigator.navigateBack()
-                                            } else {
-                                                scaffoldNavigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
+                                        clickDebouncer.debounce {
+                                            scope.launch {
+                                                if (scaffoldNavigator.canNavigateBack()) {
+                                                    scaffoldNavigator.navigateBack()
+                                                } else {
+                                                    scaffoldNavigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
+                                                }
                                             }
                                         }
                                     },
                                     onSpeedClick = { showSpeedSheet = true },
                                     onSleepTimerClick = { showSleepTimerSheet = true },
-                                    onChapterRepeatClick = viewModel::toggleChapterRepeat,
+                                    onChapterRepeatClick = {
+                                        clickDebouncer.debounce { viewModel.toggleChapterRepeat() }
+                                    },
                                     sharedTransitionScope = sharedTransitionScope,
                                     animatedVisibilityScope = animatedVisibilityScope,
                                 )

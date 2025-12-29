@@ -1208,8 +1208,23 @@ internal class PlayerListener(
                                 return
                             }
 
-                            // Check 2: Position is very close to duration (within threshold)
+                            // Check 2: Smart completion detection (inspired by Easybook)
+                            // Mark as completed when within 3 minutes of the end (180000ms)
+                            // This helps users know they're near completion and prevents issues with credits/silence
                             val remaining = duration - currentPosition
+                            val smartCompletionThresholdMs = 180000L // 3 minutes
+
+                            if (remaining <= smartCompletionThresholdMs && remaining > endOfFileThresholdMs) {
+                                android.util.Log.i(
+                                    "AudioPlayerService",
+                                    "Smart completion: within 3 minutes of end (remaining=${remaining}ms, ${remaining / 1000}s)",
+                                )
+                                handleBookCompletion(player, currentIndex)
+                                stopPositionCheck()
+                                return
+                            }
+
+                            // Check 3: Position is very close to duration (within threshold)
                             if (remaining <= endOfFileThresholdMs) {
                                 android.util.Log.i(
                                     "AudioPlayerService",
