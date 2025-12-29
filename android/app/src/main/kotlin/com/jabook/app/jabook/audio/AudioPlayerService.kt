@@ -124,6 +124,12 @@ class AudioPlayerService : MediaLibraryService() {
     // Sleep timer manager
     internal var sleepTimerManager: SleepTimerManager? = null
 
+    // Phone call listener for automatic resume after calls
+    internal var phoneCallListener: PhoneCallListener? = null
+
+    // Track if playback was active before phone call (for auto-resume)
+    internal var wasPlayingBeforeCall = false
+
     // Book completion flag
     internal var isBookCompleted: Boolean
         get() = playlistManager?.isBookCompleted ?: false
@@ -611,6 +617,9 @@ class AudioPlayerService : MediaLibraryService() {
             return
         }
 
+        // Start listening for phone calls when playback starts
+        phoneCallListener?.startListening()
+
         // playbackPositionSaver?.startPeriodicPositionSaving()
     }
 
@@ -630,6 +639,9 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
+
+        // Stop listening for phone calls when playback stops
+        phoneCallListener?.stopListening()
 
         // playbackPositionSaver?.savePosition("stop")
         // storeCurrentMediaItem()
@@ -1297,6 +1309,10 @@ class AudioPlayerService : MediaLibraryService() {
 
         // Release PlaybackEnhancerService resources
         playbackEnhancerService.release()
+
+        // Stop listening for phone calls
+        phoneCallListener?.stopListening()
+        phoneCallListener = null
 
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()

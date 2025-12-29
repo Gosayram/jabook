@@ -147,6 +147,15 @@ class AudioPlayerServiceInitializer(
         // Initialize Player Configurator - takes only service
         service.playerConfigurator = PlayerConfigurator(service)
 
+        // Initialize Phone Call Listener for automatic resume after calls
+        service.phoneCallListener =
+            PhoneCallListener(
+                context = service,
+                getActivePlayer = { service.getActivePlayer() },
+                wasPlayingBeforeCall = { service.wasPlayingBeforeCall },
+                setWasPlayingBeforeCall = { value -> service.wasPlayingBeforeCall = value },
+            )
+
         // Ensure ExoPlayer is initialized
         // Note: Hilt initialization check removed to avoid backing field access error
         // We assume Hilt has initialized exoPlayer before onCreate calls initialize()

@@ -178,6 +178,7 @@ class LibraryScanWorker
                                         val coverFile = File(coversDir, "$bookId.jpg")
 
                                         // Only extract if cover doesn't exist
+                                        // Priority: Embedded covers from ID3 tags are most reliable
                                         if (!coverFile.exists() && book.chapters.isNotEmpty()) {
                                             val firstChapter = book.chapters.first()
                                             val audioFile = File(firstChapter.filePath)
@@ -187,11 +188,29 @@ class LibraryScanWorker
                                                 try {
                                                     retriever.setDataSource(audioFile.absolutePath)
                                                     val coverData = retriever.embeddedPicture
-                                                    if (coverData != null) {
-                                                        coverFile.writeBytes(coverData)
+
+                                                    // Validate cover data before saving
+                                                    if (coverData != null && coverData.isNotEmpty()) {
+                                                        // Minimum size check (at least 1KB to avoid corrupted/invalid images)
+                                                        if (coverData.size >= 1024) {
+                                                            coverFile.writeBytes(coverData)
+                                                            android.util.Log.d(
+                                                                "LibraryScanWorker",
+                                                                "Extracted embedded cover from ID3 tags: ${book.title} (${coverData.size} bytes)",
+                                                            )
+                                                        } else {
+                                                            android.util.Log.d(
+                                                                "LibraryScanWorker",
+                                                                "Skipped small/invalid cover data for ${book.title} (${coverData.size} bytes)",
+                                                            )
+                                                        }
                                                     }
                                                 } catch (e: Exception) {
-                                                    android.util.Log.w("LibraryScanWorker", "Failed to extract cover for ${book.title}", e)
+                                                    android.util.Log.w(
+                                                        "LibraryScanWorker",
+                                                        "Failed to extract embedded cover for ${book.title}",
+                                                        e,
+                                                    )
                                                 } finally {
                                                     retriever.release()
                                                 }

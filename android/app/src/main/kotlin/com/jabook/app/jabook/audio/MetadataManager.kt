@@ -99,20 +99,29 @@ internal class MetadataManager(
                     try {
                         retriever.setDataSource(filePath)
 
-                        // Try to get embedded picture (album art)
+                        // Try to get embedded picture (album art) from ID3 tags
+                        // Embedded covers from MP3 files are most reliable source
                         val picture = retriever.embeddedPicture
                         if (picture != null && picture.isNotEmpty()) {
-                            // Save artwork to cache
-                            val cacheDir = context.cacheDir
-                            val artworkFile = File(cacheDir, "embedded_artwork_${filePath.hashCode()}.jpg")
-                            artworkFile.outputStream().use { it.write(picture) }
-                            android.util.Log.i(
-                                "AudioPlayerService",
-                                "Extracted and saved artwork from $filePath to ${artworkFile.absolutePath}",
-                            )
-                            val artworkPath = artworkFile.absolutePath
-                            setEmbeddedArtworkPath(artworkPath)
-                            return@withContext artworkPath
+                            // Validate cover data before saving (minimum 1KB to avoid corrupted images)
+                            if (picture.size >= 1024) {
+                                // Save artwork to cache
+                                val cacheDir = context.cacheDir
+                                val artworkFile = File(cacheDir, "embedded_artwork_${filePath.hashCode()}.jpg")
+                                artworkFile.outputStream().use { it.write(picture) }
+                                android.util.Log.i(
+                                    "AudioPlayerService",
+                                    "Extracted and saved embedded artwork from ID3 tags: $filePath (${picture.size} bytes) -> ${artworkFile.absolutePath}",
+                                )
+                                val artworkPath = artworkFile.absolutePath
+                                setEmbeddedArtworkPath(artworkPath)
+                                return@withContext artworkPath
+                            } else {
+                                android.util.Log.d(
+                                    "AudioPlayerService",
+                                    "Skipped small/invalid embedded artwork from $filePath (${picture.size} bytes)",
+                                )
+                            }
                         }
 
                         android.util.Log.d("AudioPlayerService", "No embedded artwork found in $filePath")

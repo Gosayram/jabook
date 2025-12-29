@@ -48,6 +48,10 @@
     <!-- VIBRATE: Allows notifications to vibrate -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- READ_PHONE_STATE: Required for automatic resume after phone calls -->
+    <!-- Allows PhoneStateListener to detect when calls end and resume playback -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
     <!-- Power and audio service permissions -->
     <!-- WAKE_LOCK: Prevents device from sleeping during audio playback (API 21+) -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />

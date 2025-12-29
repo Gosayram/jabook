@@ -52,9 +52,12 @@ object CoverUtils {
      * Gets the cover image model for use with Coil AsyncImage.
      *
      * Priority (most reliable first):
-     * 1. cover.jpg in book folder (from torrent/user)
-     * 2. {bookId}.jpg in app storage (extracted from metadata)
+     * 1. {bookId}.jpg in app storage (extracted from ID3 tags - embedded covers from MP3 files)
+     * 2. cover.jpg in book folder (from torrent/user - external files)
      * 3. coverUrl from DB (for online books)
+     *
+     * Embedded covers from ID3 tags have highest priority as they are part of the audio file
+     * and are most reliable source of cover art.
      *
      * @param book The book to get cover for
      * @param context Android context (needed to access app storage)
@@ -64,8 +67,16 @@ object CoverUtils {
         book: Book,
         context: android.content.Context,
     ): Any? {
-        // Priority 1: cover.jpg in book folder (torrent/user provided)
-        // Priority 1: Check for common cover files in the book folder
+        // Priority 1: App storage (extracted from ID3 tags during scan)
+        // Embedded covers from MP3 files are most reliable as they're part of the audio file
+        val coversDir = File(context.filesDir, "covers")
+        val appCover = File(coversDir, "${book.id}.jpg")
+        if (appCover.exists() && appCover.length() > 0) {
+            return appCover
+        }
+
+        // Priority 2: cover.jpg in book folder (torrent/user provided - external files)
+        // Check for common cover files in the book folder
         book.localPath?.let { path ->
             val folder = File(path)
             if (folder.exists() && folder.isDirectory) {
@@ -115,13 +126,6 @@ object CoverUtils {
                     return imageFiles.maxByOrNull { it.length() }
                 }
             }
-        }
-
-        // Priority 2: App storage (extracted from metadata during scan)
-        val coversDir = File(context.filesDir, "covers")
-        val appCover = File(coversDir, "${book.id}.jpg")
-        if (appCover.exists()) {
-            return appCover
         }
 
         // Priority 3: coverUrl for online books
