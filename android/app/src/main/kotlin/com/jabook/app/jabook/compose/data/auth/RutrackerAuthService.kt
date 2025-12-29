@@ -100,6 +100,10 @@ class RutrackerAuthService
                     val isRedirect = statusCode in 300..399
                     val rawBody = response.body()?.bytes() ?: ByteArray(0)
 
+                    // Log User-Agent used in the request for debugging auth issues
+                    val userAgent = response.raw().request.header("User-Agent")
+                    Log.d(TAG, "[$operationId] Login request User-Agent: $userAgent")
+
                     Log.i(
                         TAG,
                         "[$operationId] Login request completed: HTTP $statusCode, " +

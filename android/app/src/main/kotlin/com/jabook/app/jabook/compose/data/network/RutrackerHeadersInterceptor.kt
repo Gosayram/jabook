@@ -14,6 +14,10 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import android.content.Context
+import android.util.Log
+import android.webkit.WebSettings
+import dagger.hilt.android.qualifiers.ApplicationContext
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
@@ -23,7 +27,7 @@ import javax.inject.Singleton
  * Interceptor to add proper RuTracker headers to all requests.
  *
  * Adds:
- * - User-Agent: Browser-like to avoid bot detection
+ * - User-Agent: Device's default User-Agent (unique per device, well-supported by services)
  * - Accept: Standard browser accept header
  * - Accept-Language: Russian + English
  *
@@ -33,16 +37,19 @@ import javax.inject.Singleton
  *
  * These headers make requests look like a real browser to avoid
  * CloudFlare and other anti-bot protections.
+ *
+ * CRITICAL: User-Agent is ALWAYS set (even if already present) to ensure
+ * we never use OkHttp's default User-Agent which may trigger bot detection.
+ * Uses device's default User-Agent which is unique and well-supported by services.
  */
 @Singleton
 class RutrackerHeadersInterceptor
     @Inject
-    constructor() : Interceptor {
+    constructor(
+        @param:ApplicationContext private val context: Context,
+    ) : Interceptor {
         companion object {
-            // Modern browser User-Agent to avoid bot detection
-            private const val USER_AGENT =
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            private const val TAG = "RutrackerHeaders"
 
             private const val ACCEPT =
                 "text/html,application/xhtml+xml,application/xml;q=0.9," +
@@ -55,20 +62,48 @@ class RutrackerHeadersInterceptor
             // If we set it here, BrotliInterceptor won't work (it only works if Accept-Encoding is null).
         }
 
+        // Lazy initialization of device User-Agent
+        // Gets device-specific User-Agent using WebSettings.getDefaultUserAgent() (most efficient method)
+        // Returns User-Agent like:
+        // "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+        // Note: On Android 10+ (User-Agent Reduction), some device details may be replaced with generic values
+        private val deviceUserAgent: String by lazy {
+            try {
+                // Use static method WebSettings.getDefaultUserAgent() - most efficient way
+                // This doesn't require creating a WebView instance
+                val ua = WebSettings.getDefaultUserAgent(context)
+                Log.d(TAG, "Device User-Agent: $ua")
+                ua
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get device User-Agent, using fallback", e)
+                // Fallback to a generic Android User-Agent if WebView is not available
+                val androidVersion = android.os.Build.VERSION.RELEASE
+                val model = android.os.Build.MODEL
+                "Mozilla/5.0 (Linux; Android $androidVersion; $model) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+            }
+        }
+
         override fun intercept(chain: Interceptor.Chain): Response {
             val originalRequest = chain.request()
-
-            // Add headers if not already present
             val requestBuilder = originalRequest.newBuilder()
 
-            if (originalRequest.header("User-Agent") == null) {
-                requestBuilder.header("User-Agent", USER_AGENT)
+            // CRITICAL: Always set User-Agent, even if already present.
+            // This ensures we never use OkHttp's default User-Agent (e.g., "okhttp/4.x.x")
+            // which may trigger bot detection on RuTracker.
+            // Uses device's default User-Agent which is unique per device and well-supported.
+            val existingUserAgent = originalRequest.header("User-Agent")
+            if (existingUserAgent != null && existingUserAgent != deviceUserAgent) {
+                Log.d(TAG, "Replacing User-Agent: '$existingUserAgent' -> '$deviceUserAgent'")
             }
+            requestBuilder.removeHeader("User-Agent") // Remove any existing User-Agent
+            requestBuilder.header("User-Agent", deviceUserAgent) // Set device's User-Agent
 
+            // Set Accept header if not already present
             if (originalRequest.header("Accept") == null) {
                 requestBuilder.header("Accept", ACCEPT)
             }
 
+            // Set Accept-Language header if not already present
             if (originalRequest.header("Accept-Language") == null) {
                 requestBuilder.header("Accept-Language", ACCEPT_LANGUAGE)
             }
@@ -77,6 +112,15 @@ class RutrackerHeadersInterceptor
             // BrotliInterceptor will add it automatically (br, gzip).
             // If Accept-Encoding is already set, BrotliInterceptor won't decompress responses!
 
-            return chain.proceed(requestBuilder.build())
+            val modifiedRequest = requestBuilder.build()
+
+            // Log User-Agent for auth requests to help debug authentication issues
+            if (modifiedRequest.url.encodedPath.contains("login.php") ||
+                modifiedRequest.url.encodedPath.contains("profile.php")
+            ) {
+                Log.d(TAG, "Auth request User-Agent: ${modifiedRequest.header("User-Agent")}")
+            }
+
+            return chain.proceed(modifiedRequest)
         }
     }
