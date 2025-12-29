@@ -248,6 +248,12 @@ object MediaModule {
         return player
     }
 
+    /**
+     * Creates optimized LoadControl for audiobooks.
+     *
+     * Inspired by Easybook implementation with optimized buffer settings for audiobooks.
+     * Settings are tuned for speech content (lower bitrate, predictable playback).
+     */
     private fun createOptimizedLoadControl(context: Context): androidx.media3.exoplayer.LoadControl {
         val performanceClass = PerformanceUtils.getPerformanceClass(context)
         val loadControlBuilder = DefaultLoadControl.Builder()
@@ -256,11 +262,21 @@ object MediaModule {
             // For low-end devices, reduce buffer sizes to save memory
             loadControlBuilder
                 .setBufferDurationsMs(
-                    15000,
-                    30000,
-                    1500,
-                    3000,
+                    15000, // minBufferMs: 15 seconds
+                    30000, // maxBufferMs: 30 seconds
+                    1500, // bufferForPlaybackMs: 1.5 seconds
+                    3000, // bufferForPlaybackAfterRebufferMs: 3 seconds
                 ).setTargetBufferBytes(32 * 1024 * 1024)
+        } else {
+            // For normal/high-end devices, use Easybook-optimized settings
+            // These settings are optimized for audiobooks (speech content)
+            loadControlBuilder
+                .setBufferDurationsMs(
+                    60000, // minBufferMs: 1 minute (Easybook: 60_000)
+                    300000, // maxBufferMs: 5 minutes (Easybook: 300_000)
+                    5000, // bufferForPlaybackMs: 5 seconds (Easybook: 5_000)
+                    10000, // bufferForPlaybackAfterRebufferMs: 10 seconds (Easybook: 10_000)
+                ).setBackBuffer(10000, true) // Easybook: backBuffer = 10000, retainBackBufferFromKeyframe = true
         }
         return loadControlBuilder.build()
     }

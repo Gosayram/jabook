@@ -14,12 +14,17 @@
 
 package com.jabook.app.jabook.audio
 
+import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.KeyEvent.KEYCODE_MEDIA_NEXT
+import android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.CommandButton
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
@@ -78,21 +83,86 @@ class AudioPlayerLibrarySessionCallback(
             session.isAutomotiveController(controller) ||
             session.isAutoCompanionController(controller)
         ) {
+            val rewindCommand = androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY)
+            val forwardCommand = androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY)
+
             val availableCommands =
                 MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
                     .buildUpon()
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY))
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY))
+                    .add(rewindCommand)
+                    .add(forwardCommand)
+                    .build()
+
+            // Create CommandButtons for custom layout (inspired by lissen-android)
+            val rewindButton =
+                CommandButton
+                    .Builder(com.jabook.app.jabook.R.drawable.ic_rewind)
+                    .setSessionCommand(rewindCommand)
+                    .setDisplayName(service.getString(com.jabook.app.jabook.R.string.rewind))
+                    .setEnabled(true)
+                    .build()
+
+            val forwardButton =
+                CommandButton
+                    .Builder(com.jabook.app.jabook.R.drawable.ic_forward)
+                    .setSessionCommand(forwardCommand)
+                    .setDisplayName(service.getString(com.jabook.app.jabook.R.string.forward))
+                    .setEnabled(true)
                     .build()
 
             return MediaSession.ConnectionResult
                 .AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(availableCommands)
+                .setCustomLayout(listOf(rewindButton, forwardButton))
                 .build()
         }
 
         // Default commands for regular app controllers (without custom buttons)
         return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
+    }
+
+    /**
+     * Handles media button events from physical buttons (e.g., headphones, Bluetooth devices).
+     *
+     * Inspired by lissen-android implementation for better hardware button support.
+     */
+    override fun onMediaButtonEvent(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        intent: Intent,
+    ): Boolean {
+        android.util.Log.d("AudioPlayerService", "Media button event from: $controller")
+
+        val keyEvent =
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+            } ?: return super.onMediaButtonEvent(session, controller, intent)
+
+        android.util.Log.d("AudioPlayerService", "Got media key event: $keyEvent")
+
+        // Only handle ACTION_DOWN events to avoid duplicate handling
+        if (keyEvent.action != KeyEvent.ACTION_DOWN) {
+            return super.onMediaButtonEvent(session, controller, intent)
+        }
+
+        when (keyEvent.keyCode) {
+            KEYCODE_MEDIA_NEXT -> {
+                val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
+                service.forward(forwardSeconds)
+                android.util.Log.d("AudioPlayerService", "Media button: forward ${forwardSeconds}s")
+                return true
+            }
+            KEYCODE_MEDIA_PREVIOUS -> {
+                val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 15
+                service.rewind(rewindSeconds)
+                android.util.Log.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
+                return true
+            }
+            else -> return super.onMediaButtonEvent(session, controller, intent)
+        }
     }
 
     override fun onCustomCommand(
