@@ -469,6 +469,26 @@ class RutrackerParser
                 val descriptionText = cleanDescription(rawDescriptionText, metadata)
                 val parsedMediaInfo = mediaInfoParser.parse(rawDescriptionText)
 
+                // Extract description HTML (preserve links)
+                val descriptionHtml =
+                    postBody?.html()?.let { html ->
+                        // Clean HTML: remove MediaInfo sections and technical metadata
+                        val cleanedHtml = cleanDescriptionHtml(html, metadata)
+                        // Ensure all links have absolute URLs
+                        val doc = org.jsoup.Jsoup.parse(cleanedHtml, BASE_URL)
+                        doc.select("a[href]").forEach { link ->
+                            val href = link.attr("href")
+                            if (href.isNotEmpty() &&
+                                !href.startsWith("http://") &&
+                                !href.startsWith("https://") &&
+                                !href.startsWith("magnet:")
+                            ) {
+                                link.attr("href", doc.baseUri() + href.removePrefix("/"))
+                            }
+                        }
+                        doc.body().html()
+                    }
+
                 // Extract series/cycle
                 val series = extractSeries(postBody)
 
@@ -493,6 +513,7 @@ class RutrackerParser
                     bitrate = metadata["bitrate"],
                     audioCodec = metadata["codec"],
                     description = descriptionText,
+                    descriptionHtml = descriptionHtml,
                     mediaInfo = parsedMediaInfo,
                     relatedBooks = extractRelatedBooks(postBody),
                     series = series,
@@ -805,6 +826,60 @@ class RutrackerParser
         }
 
         /**
+         * Clean description HTML by removing MediaInfo sections and technical metadata.
+         * Similar to cleanDescription but preserves HTML structure and links.
+         */
+        private fun cleanDescriptionHtml(
+            rawHtml: String,
+            metadata: Map<String, String>,
+        ): String {
+            var cleaned = rawHtml
+
+            // Remove MediaInfo section (everything from "Общее" or "MediaInfo" to end or next section)
+            // Use regex to find and remove MediaInfo divs
+            cleaned =
+                cleaned.replace(
+                    Regex(
+                        "(?i)(<div[^>]*class=\"sp-wrap\"[^>]*>.*?<div[^>]*class=\"sp-head\"[^>]*>.*?MediaInfo.*?</div>.*?<div[^>]*class=\"sp-body\"[^>]*>.*?</div>.*?</div>)",
+                        RegexOption.DOT_MATCHES_ALL,
+                    ),
+                    "",
+                )
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(Общее|MediaInfo|Видео|Аудио|General|Video|Audio).*", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+
+            // Remove technical metadata patterns (similar to cleanDescription)
+            val patternsToRemove =
+                listOf(
+                    "Год выпуска[:\\s]+\\d{4}",
+                    "Автор[:\\s]+.+?(?=<br|</|$)",
+                    "Исполнитель[:\\s]+.+?(?=<br|</|$)",
+                    "Жанр[:\\s]+.+?(?=<br|</|$)",
+                    "Битрейт[:\\s]+.+?(?=<br|</|$)",
+                    "Тип релиза[:\\s]+.+?(?=<br|</|$)",
+                    "Контейнер[:\\s]+.+?(?=<br|</|$)",
+                    "Видео кодек[:\\s]+.+?(?=<br|</|$)",
+                    "Аудио кодек[:\\s]+.+?(?=<br|</|$)",
+                )
+
+            for (pattern in patternsToRemove) {
+                cleaned = cleaned.replace(Regex(pattern, RegexOption.IGNORE_CASE), "")
+            }
+
+            // Clean up multiple whitespace and normalize <br> tags
+            cleaned =
+                cleaned
+                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+
+            return cleaned
+        }
+
+        /**
          * Extract comments from topic page.
          * Skips the first post_body (main post) and extracts all other comments.
          * Structure: <tbody id="post_XXXXX"> contains <div class="post_body" id="p-XXXXX">
@@ -871,11 +946,12 @@ class RutrackerParser
                         val avatarElement = parentRow.selectFirst("p.avatar img")
                         val avatarUrl = avatarElement?.absUrl("src")?.takeIf { it.isNotEmpty() }
 
-                        // Extract comment text (preserve line breaks)
+                        // Extract comment text and HTML (preserve links)
+                        val html = postBody.html()?.takeIf { it.isNotEmpty() }
                         val text =
-                            postBody.html()?.let { html ->
-                                // Convert <br> tags to newlines, then clean HTML
-                                html
+                            html?.let { htmlContent ->
+                                // Convert <br> tags to newlines, then extract text
+                                htmlContent
                                     .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
                                     .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "\n")
                                     .let {
@@ -885,6 +961,30 @@ class RutrackerParser
                                     }.trim()
                             } ?: postBody.text().trim()
 
+                        // Clean HTML: normalize <br> tags and preserve links
+                        val cleanedHtml =
+                            html?.let { htmlContent ->
+                                htmlContent
+                                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
+                                    .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
+                                    // Ensure all links have absolute URLs
+                                    .let { content ->
+                                        val doc = org.jsoup.Jsoup.parse(content, BASE_URL)
+                                        // Convert relative links to absolute
+                                        doc.select("a[href]").forEach { link ->
+                                            val href = link.attr("href")
+                                            if (href.isNotEmpty() &&
+                                                !href.startsWith("http://") &&
+                                                !href.startsWith("https://") &&
+                                                !href.startsWith("magnet:")
+                                            ) {
+                                                link.attr("href", doc.baseUri() + href.removePrefix("/"))
+                                            }
+                                        }
+                                        doc.body().html()
+                                    }
+                            }
+
                         if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                             comments.add(
                                 com.jabook.app.jabook.compose.data.remote.model.Comment(
@@ -892,6 +992,7 @@ class RutrackerParser
                                     author = author,
                                     date = date,
                                     text = text,
+                                    html = cleanedHtml,
                                     avatarUrl = avatarUrl,
                                 ),
                             )
@@ -956,11 +1057,12 @@ class RutrackerParser
                     val avatarElement = postRow.selectFirst("p.avatar img")
                     val avatarUrl = avatarElement?.absUrl("src")?.takeIf { it.isNotEmpty() }
 
-                    // Extract comment text (preserve line breaks)
+                    // Extract comment text and HTML (preserve links)
+                    val html = postBody.html()?.takeIf { it.isNotEmpty() }
                     val text =
-                        postBody.html()?.let { html ->
-                            // Convert <br> tags to newlines, then clean HTML
-                            html
+                        html?.let { htmlContent ->
+                            // Convert <br> tags to newlines, then extract text
+                            htmlContent
                                 .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
                                 .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "\n")
                                 .let {
@@ -970,6 +1072,30 @@ class RutrackerParser
                                 }.trim()
                         } ?: postBody.text().trim()
 
+                    // Clean HTML: normalize <br> tags and preserve links
+                    val cleanedHtml =
+                        html?.let { htmlContent ->
+                            htmlContent
+                                .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
+                                .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
+                                // Ensure all links have absolute URLs
+                                .let { content ->
+                                    val doc = org.jsoup.Jsoup.parse(content, BASE_URL)
+                                    // Convert relative links to absolute
+                                    doc.select("a[href]").forEach { link ->
+                                        val href = link.attr("href")
+                                        if (href.isNotEmpty() &&
+                                            !href.startsWith("http://") &&
+                                            !href.startsWith("https://") &&
+                                            !href.startsWith("magnet:")
+                                        ) {
+                                            link.attr("href", doc.baseUri() + href.removePrefix("/"))
+                                        }
+                                    }
+                                    doc.body().html()
+                                }
+                        }
+
                     if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                         comments.add(
                             com.jabook.app.jabook.compose.data.remote.model.Comment(
@@ -977,6 +1103,7 @@ class RutrackerParser
                                 author = author,
                                 date = date,
                                 text = text,
+                                html = cleanedHtml,
                                 avatarUrl = avatarUrl,
                             ),
                         )

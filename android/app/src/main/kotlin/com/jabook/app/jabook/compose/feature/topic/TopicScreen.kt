@@ -73,6 +73,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -88,6 +89,7 @@ import coil3.request.transformations
 import coil3.transform.CircleCropTransformation
 import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 
 /**
@@ -459,6 +461,7 @@ private fun TopicDetailsContent(
             item {
                 DescriptionAndCommentsSection(
                     description = details.description,
+                    descriptionHtml = details.descriptionHtml,
                     comments = details.comments,
                 )
             }
@@ -613,6 +616,7 @@ private fun SeedersLeechersChip(
 @Composable
 private fun DescriptionAndCommentsSection(
     description: String?,
+    descriptionHtml: String? = null,
     comments: List<com.jabook.app.jabook.compose.data.remote.model.Comment>,
     modifier: Modifier = Modifier,
 ) {
@@ -630,7 +634,10 @@ private fun DescriptionAndCommentsSection(
                 modifier = Modifier.weight(1f),
             ) {
                 if (!description.isNullOrBlank()) {
-                    ExpandableDescription(description = description)
+                    ExpandableDescription(
+                        description = description,
+                        descriptionHtml = descriptionHtml,
+                    )
                 }
             }
 
@@ -648,7 +655,10 @@ private fun DescriptionAndCommentsSection(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (!description.isNullOrBlank()) {
-                ExpandableDescription(description = description)
+                ExpandableDescription(
+                    description = description,
+                    descriptionHtml = descriptionHtml,
+                )
             }
             if (comments.isNotEmpty()) {
                 ExpandableComments(comments = comments)
@@ -663,11 +673,13 @@ private fun DescriptionAndCommentsSection(
 @Composable
 private fun ExpandableDescription(
     description: String,
+    descriptionHtml: String? = null,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val maxPreviewLength = 150
     val shouldShowExpand = description.length > maxPreviewLength
+    val context = LocalContext.current
 
     Column(modifier = modifier) {
         Row(
@@ -693,26 +705,41 @@ private fun ExpandableDescription(
             }
         }
 
-        Text(
-            text =
-                if (expanded) {
-                    // Format description: preserve line breaks but normalize multiple spaces
-                    // Replace multiple spaces with single space, but keep single newlines
-                    description
-                        .replace(Regex("[ \t]+"), " ") // Multiple spaces/tabs -> single space
-                        .replace(Regex("\n{3,}"), "\n\n") // Multiple newlines -> double newline
-                        .trim()
+        // Use HTML if available, otherwise use plain text
+        val linkColor = MaterialTheme.colorScheme.primary
+        val annotatedText =
+            remember(descriptionHtml, description, expanded, linkColor) {
+                if (descriptionHtml != null && expanded) {
+                    HtmlToAnnotatedString.convert(
+                        descriptionHtml,
+                        linkColor = linkColor,
+                    )
                 } else {
-                    description
-                        .take(maxPreviewLength)
-                        .replace(Regex("[ \t]+"), " ") // Multiple spaces/tabs -> single space
-                        .trim() + if (shouldShowExpand) "..." else ""
-                },
-            style = MaterialTheme.typography.bodyMedium,
+                    val text =
+                        if (expanded) {
+                            description
+                                .replace(Regex("[ \t]+"), " ")
+                                .replace(Regex("\n{3,}"), "\n\n")
+                                .trim()
+                        } else {
+                            description
+                                .take(maxPreviewLength)
+                                .replace(Regex("[ \t]+"), " ")
+                                .trim() + if (shouldShowExpand) "..." else ""
+                        }
+                    AnnotatedString(text)
+                }
+            }
+
+        Text(
+            text = annotatedText,
+            style =
+                MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
             maxLines = if (expanded) Int.MAX_VALUE else 3,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -865,16 +892,33 @@ private fun CommentItem(
                     )
                 }
 
-                // Comment text with preserved line breaks
+                // Comment text with clickable links
+                val linkColor = MaterialTheme.colorScheme.primary
+                val annotatedText =
+                    remember(comment.html, comment.text, linkColor) {
+                        if (comment.html != null) {
+                            HtmlToAnnotatedString.convert(
+                                comment.html,
+                                linkColor = linkColor,
+                            )
+                        } else {
+                            val text =
+                                comment.text
+                                    .replace(Regex("[ \t]+"), " ")
+                                    .replace(Regex("\n{3,}"), "\n\n")
+                                    .trim()
+                            AnnotatedString(text)
+                        }
+                    }
+
                 Text(
-                    text =
-                        comment.text
-                            .replace(Regex("[ \t]+"), " ") // Replace multiple spaces/tabs with single space
-                            .replace(Regex("\n{3,}"), "\n\n") // Replace 3+ newlines with double newline
-                            .trim(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.2,
+                    text = annotatedText,
+                    style =
+                        MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.2,
+                        ),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }

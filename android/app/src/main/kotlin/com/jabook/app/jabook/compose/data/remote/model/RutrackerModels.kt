@@ -78,8 +78,10 @@ data class TopicDetails(
     val bitrate: String?,
     /** Audio codec (e.g., "MP3") */
     val audioCodec: String?,
-    /** Description/content */
+    /** Description/content (plain text) */
     val description: String?,
+    /** Description HTML (preserves links and formatting) */
+    val descriptionHtml: String? = null,
     /** Structured MediaInfo data */
     val mediaInfo: MediaInfo? = null,
     /** Related audiobooks from same series */
@@ -100,8 +102,10 @@ data class Comment(
     val author: String,
     /** Comment date/time */
     val date: String,
-    /** Comment text */
+    /** Comment text (plain text, links removed) */
     val text: String,
+    /** Comment HTML (preserves links and formatting) */
+    val html: String? = null,
     /** Avatar image URL (optional) */
     val avatarUrl: String? = null,
 )
