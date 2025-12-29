@@ -15,13 +15,13 @@
 package com.jabook.app.jabook.compose.core.util
 
 import android.content.Context
-import android.content.res.Configuration
-import android.util.DisplayMetrics
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.max
 import kotlin.math.min
@@ -110,6 +110,7 @@ object AdaptiveUtils {
      * @param context Android context for device detection
      * @return WindowSizeClass with device-specific overrides applied
      */
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     fun getEffectiveWindowSizeClass(
         windowSizeClass: WindowSizeClass?,
         context: Context,
@@ -117,10 +118,9 @@ object AdaptiveUtils {
         if (windowSizeClass == null) return null
         if (shouldForceCompact(context) && windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact) {
             // Force to Compact by creating a new WindowSizeClass with Compact width
-            // Use a size that will result in Compact classification
+            // Use a size that will result in Compact classification (360dp x 800dp)
             return WindowSizeClass.calculateFromSize(
-                androidx.compose.ui.unit
-                    .IntSize(360, 800), // Force compact size
+                DpSize(360.dp, 800.dp), // Force compact size
             )
         }
         return windowSizeClass

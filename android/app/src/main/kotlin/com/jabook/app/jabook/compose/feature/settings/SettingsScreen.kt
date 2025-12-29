@@ -186,7 +186,7 @@ fun SettingsScreen(
             var healthCheckInProgress by remember { mutableStateOf<String?>(null) }
             val healthStatus = remember { mutableStateOf<Map<String, Boolean?>>(emptyMap()) }
 
-            SettingsSection(title = stringResource(R.string.networkAndMirrors))
+            SettingsSection(title = stringResource(R.string.networkAndMirrors), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             SettingsItem(
                 title = stringResource(R.string.currentMirror),
@@ -296,7 +296,7 @@ fun SettingsScreen(
                 }
             }
 
-            SettingsSection(title = "Индексация форумов")
+            SettingsSection(title = "Индексация форумов", contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             SettingsItem(
                 title = if (indexSize == 0) "Индекс не создан" else "Индекс: $indexSize тем",
@@ -344,7 +344,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Library Section
-            SettingsSection(title = stringResource(R.string.library))
+            SettingsSection(title = stringResource(R.string.library), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             // Scan Progress
             val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
@@ -449,7 +449,7 @@ fun SettingsScreen(
             }
 
             // Downloads Section
-            SettingsSection(title = stringResource(R.string.downloads))
+            SettingsSection(title = stringResource(R.string.downloads), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             val folderLauncher =
                 androidx.activity.compose.rememberLauncherForActivityResult(
@@ -574,7 +574,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Backup & Restore Section
-            SettingsSection(title = stringResource(R.string.backupRestoreTitle))
+            SettingsSection(title = stringResource(R.string.backupRestoreTitle), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             val backupState by viewModel.backupState.collectAsStateWithLifecycle()
 
@@ -689,7 +689,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Cache Management Section
-            SettingsSection(title = stringResource(R.string.cacheManagement))
+            SettingsSection(title = stringResource(R.string.cacheManagement), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
             val cacheOperation by viewModel.cacheOperation.collectAsStateWithLifecycle()
@@ -794,7 +794,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Appearance Section
-            SettingsSection(title = stringResource(R.string.appearance))
+            SettingsSection(title = stringResource(R.string.appearance), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             SettingsItem(
                 title = stringResource(R.string.themeTitle),
@@ -819,7 +819,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // Playback Section
-            SettingsSection(title = stringResource(R.string.playback))
+            SettingsSection(title = stringResource(R.string.playback), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             SettingsSwitchItem(
                 title = stringResource(R.string.autoplayNextChapter),
@@ -906,7 +906,7 @@ fun SettingsScreen(
             HorizontalDivider()
 
             // About Section
-            SettingsSection(title = stringResource(R.string.aboutTitle))
+            SettingsSection(title = stringResource(R.string.aboutTitle), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             SettingsItem(
                 title = stringResource(R.string.version),
@@ -973,7 +973,7 @@ fun SettingsScreen(
             )
 
             // Developer Tools Section
-            SettingsSection(title = stringResource(R.string.developer))
+            SettingsSection(title = stringResource(R.string.developer), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             SettingsItem(
                 title = stringResource(R.string.debugToolsTitle),

@@ -682,13 +682,13 @@ private fun SeedersLeechersChip(
  * Shows side by side on larger screens, stacked on smaller screens.
  */
 @Composable
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 private fun DescriptionAndCommentsSection(
     description: String?,
     descriptionHtml: String? = null,
     comments: List<com.jabook.app.jabook.compose.data.remote.model.Comment>,
     modifier: Modifier = Modifier,
 ) {
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     val context = LocalContext.current
     val activity =
         context as? android.app.Activity
