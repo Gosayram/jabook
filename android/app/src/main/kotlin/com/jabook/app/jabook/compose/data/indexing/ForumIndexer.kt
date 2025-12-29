@@ -182,9 +182,16 @@ class ForumIndexer
                 }
 
                 val duration = System.currentTimeMillis() - startTime
+                val runtime = Runtime.getRuntime()
+                val finalMemory = runtime.totalMemory() - runtime.freeMemory()
+                val memoryUsed = finalMemory / (1024 * 1024) // MB
+                val topicsPerSecond = if (duration > 0) (totalIndexed * 1000) / duration else 0
+
                 Log.i(
                     TAG,
-                    "Forum indexing completed. Total topics: $totalIndexed, covers: ${coversToPreload.size}, duration: ${duration}ms",
+                    "Forum indexing completed. Total topics: $totalIndexed, covers: ${coversToPreload.size}, " +
+                        "duration: ${duration}ms (${duration / 1000}s), " +
+                        "speed: $topicsPerSecond topics/s, memory: +${memoryUsed}MB",
                 )
 
                 onProgress?.invoke(
@@ -259,23 +266,37 @@ class ForumIndexer
             val coversToPreload = mutableListOf<String>()
             val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
 
-            Log.d(TAG, "Starting indexing forum $forumId (version $indexVersion)")
+            val forumStartTime = System.currentTimeMillis()
+            val initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
+            Log.i(TAG, "Starting indexing forum $forumId (version $indexVersion)")
+
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {
+                    val pageStartTime = System.currentTimeMillis()
                     val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                    val fetchTime = System.currentTimeMillis() - pageStartTime
+
                     if (!response.isSuccessful) {
-                        Log.w(TAG, "Failed to fetch forum $forumId page $page: HTTP ${response.code()}")
+                        Log.w(TAG, "Failed to fetch forum $forumId page $page: HTTP ${response.code()} (took ${fetchTime}ms)")
                         break
                     }
 
                     val body = response.body() ?: break
+                    val bodySize = body.contentLength()
+                    val parseStartTime = System.currentTimeMillis()
                     val topics = parser.parseForumPage(body, forumId)
+                    val parseTime = System.currentTimeMillis() - parseStartTime
 
                     if (topics.isEmpty()) {
-                        Log.d(TAG, "Forum $forumId page $page: no topics found, ending")
+                        Log.d(TAG, "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)")
                         hasMorePages = false
                     } else {
-                        Log.d(TAG, "Forum $forumId page $page: parsed ${topics.size} topics (total: $totalTopics)")
+                        val dbStartTime = System.currentTimeMillis()
+                        Log.d(
+                            TAG,
+                            "Forum $forumId page $page: parsed ${topics.size} topics (total: $totalTopics, " +
+                                "body: ${bodySize / 1024}KB, fetch: ${fetchTime}ms, parse: ${parseTime}ms)",
+                        )
                         // Add to buffer with current index version
                         val newEntities = topics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
@@ -297,7 +318,10 @@ class ForumIndexer
 
                         // Flush to DB when buffer reaches batch size or at end
                         if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
+                            val dbWriteStartTime = System.currentTimeMillis()
                             offlineSearchDao.upsertTopics(entitiesBuffer)
+                            val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                            Log.d(TAG, "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms")
                             entitiesBuffer.clear()
                         }
 
@@ -315,11 +339,23 @@ class ForumIndexer
 
             // Flush remaining entities
             if (entitiesBuffer.isNotEmpty()) {
+                val dbWriteStartTime = System.currentTimeMillis()
                 offlineSearchDao.upsertTopics(entitiesBuffer)
-                Log.d(TAG, "Forum $forumId: flushed ${entitiesBuffer.size} remaining topics to DB")
+                val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                Log.d(TAG, "Forum $forumId: flushed ${entitiesBuffer.size} remaining topics to DB in ${dbWriteTime}ms")
             }
 
-            Log.i(TAG, "Forum $forumId indexing completed: $totalTopics topics, ${coversToPreload.size} covers to preload")
+            val forumDuration = System.currentTimeMillis() - forumStartTime
+            val finalMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
+            val memoryUsed = (finalMemory - initialMemory) / (1024 * 1024) // MB
+            val avgTimePerTopic = if (totalTopics > 0) forumDuration / totalTopics else 0
+
+            Log.i(
+                TAG,
+                "Forum $forumId indexing completed: $totalTopics topics, ${coversToPreload.size} covers, " +
+                    "duration: ${forumDuration}ms (${forumDuration / 1000}s), " +
+                    "avg: ${avgTimePerTopic}ms/topic, memory: +${memoryUsed}MB",
+            )
             return Pair(totalTopics, coversToPreload)
         }
 
@@ -369,7 +405,10 @@ class ForumIndexer
 
                         if (topicsToUpdate.isNotEmpty()) {
                             val entities = topicsToUpdate.map { it.toCachedTopicEntity(currentIndexVersion) }
+                            val dbWriteStartTime = System.currentTimeMillis()
                             offlineSearchDao.upsertTopics(entities)
+                            val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                            Log.d(TAG, "Forum $forumId incremental: updated ${entities.size} topics in DB (${dbWriteTime}ms)")
                             totalUpdated += topicsToUpdate.size
 
                             // Collect cover URLs (normalize URLs using current mirror)

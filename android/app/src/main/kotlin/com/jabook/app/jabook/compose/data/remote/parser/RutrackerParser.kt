@@ -102,7 +102,7 @@ class RutrackerParser
             val decodedHtml = decoder.decode(bytes, contentType)
 
             // Parse the decoded HTML
-            return parseSearchResultsDefensive(decodedHtml)
+            return parseSearchResultsDefensive(decodedHtml, bytes)
         }
 
         /**
@@ -111,9 +111,10 @@ class RutrackerParser
          * Returns ParsingResult instead of crashing on errors.
          *
          * @param html Decoded HTML content
+         * @param rawBytes Raw bytes for error reporting
          * @return ParsingResult with results, warnings, or errors
          */
-        private fun parseSearchResultsDefensive(html: String): ParsingResult<List<SearchResult>> {
+        private fun parseSearchResultsDefensive(html: String, rawBytes: ByteArray): ParsingResult<List<SearchResult>> {
             val errors = mutableListOf<ParsingError>()
             val results = mutableListOf<SearchResult>()
 
@@ -198,13 +199,20 @@ class RutrackerParser
                             }
                         }
                     } catch (e: Exception) {
+                        val errorDetails =
+                            when {
+                                e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
+                                else -> e.javaClass.simpleName
+                            }
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
-                                reason = "Exception: ${e.message}",
+                                reason = errorDetails,
                                 severity = ErrorSeverity.ERROR,
+                                htmlSnippet = row.html().take(300),
                             ),
                         )
+                        Log.w(TAG, "Error parsing row $index: $errorDetails")
                     }
                 }
 
@@ -215,12 +223,22 @@ class RutrackerParser
                     else -> ParsingResult.Failure(errors, emptyList())
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse search results", e)
+                val errorDetails =
+                    when {
+                        e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
+                        else -> e.javaClass.simpleName
+                    }
+                Log.e(
+                    TAG,
+                    "❌ Failed to parse search results: $errorDetails (HTML size: ${rawBytes.size} bytes)",
+                    e,
+                )
                 errors.add(
                     ParsingError(
                         field = "document",
-                        reason = "Failed to parse HTML: ${e.message}",
+                        reason = "Failed to parse HTML: $errorDetails",
                         severity = ErrorSeverity.CRITICAL,
+                        htmlSnippet = String(rawBytes, Charsets.UTF_8).take(500),
                     ),
                 )
                 return ParsingResult.Failure(errors, emptyList())
@@ -253,9 +271,22 @@ class RutrackerParser
                     result.data
                 }
                 is ParsingResult.Failure -> {
-                    Log.e(TAG, "Forum $forumId: parsing failed - ${result.errors.size} errors")
-                    result.errors.forEach { error ->
-                        Log.e(TAG, "  - ${error.field}: ${error.reason}")
+                    Log.e(TAG, "❌ Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)")
+                    result.errors.take(10).forEach { error ->
+                        // Limit to first 10 errors to avoid log spam
+                        Log.e(
+                            TAG,
+                            "  - ${error.field}: ${error.reason}${if (error.htmlSnippet != null) {
+                                " [HTML: ${error.htmlSnippet.take(
+                                    100,
+                                )}...]"
+                            } else {
+                                ""
+                            }}",
+                        )
+                    }
+                    if (result.errors.size > 10) {
+                        Log.e(TAG, "  ... and ${result.errors.size - 10} more errors")
                     }
                     emptyList()
                 }

@@ -63,14 +63,24 @@ class DynamicBaseUrlInterceptor
                     .url(newUrl)
                     .build()
 
-            Log.d(TAG, "Redirecting ${originalUrl.host} → $currentMirror")
+            val requestStartTime = System.currentTimeMillis()
+            Log.d(TAG, "🔄 Redirecting ${originalUrl.host} → $currentMirror (${originalUrl.encodedPath})")
 
             return try {
                 val response = chain.proceed(newRequest)
+                val requestDuration = System.currentTimeMillis() - requestStartTime
+
+                // Log successful requests (only for important endpoints)
+                if (response.isSuccessful && originalUrl.encodedPath.contains("search.php")) {
+                    Log.d(TAG, "✅ Request succeeded: ${response.code} (${requestDuration}ms) - ${originalUrl.encodedPath}")
+                }
 
                 // If auto-switch is enabled and request failed, try switching mirror
                 if (!response.isSuccessful && shouldTriggerAutoSwitch(response.code)) {
-                    Log.w(TAG, "Request failed with code ${response.code}, checking auto-switch")
+                    Log.w(
+                        TAG,
+                        "❌ Request failed: HTTP ${response.code} ${response.message} (${requestDuration}ms) - ${originalUrl.encodedPath}, checking auto-switch",
+                    )
 
                     // Check if auto-switch is enabled (blocking call, should be fast from cache)
                     val autoSwitchEnabled =
@@ -79,20 +89,23 @@ class DynamicBaseUrlInterceptor
                         }
 
                     if (autoSwitchEnabled) {
-                        Log.i(TAG, "Auto-switch enabled, attempting to find working mirror")
+                        Log.i(TAG, "🔄 Auto-switch enabled, attempting to find working mirror")
                         response.close() // Close failed response
 
+                        val switchStartTime = System.currentTimeMillis()
                         val switched =
                             runBlocking {
                                 mirrorManager.switchToNextMirror()
                             }
+                        val switchDuration = System.currentTimeMillis() - switchStartTime
 
                         if (switched) {
+                            val newMirror = mirrorManager.currentMirror.value
                             // Retry with new mirror
                             val retryUrl =
                                 newUrl
                                     .newBuilder()
-                                    .host(mirrorManager.currentMirror.value)
+                                    .host(newMirror)
                                     .build()
 
                             val retryRequest =
@@ -101,15 +114,31 @@ class DynamicBaseUrlInterceptor
                                     .url(retryUrl)
                                     .build()
 
-                            Log.i(TAG, "Retrying request with new mirror: ${mirrorManager.currentMirror.value}")
-                            return chain.proceed(retryRequest)
+                            Log.i(
+                                TAG,
+                                "✅ Switched to mirror: $newMirror (took ${switchDuration}ms), retrying request: ${originalUrl.encodedPath}",
+                            )
+                            val retryStartTime = System.currentTimeMillis()
+                            val retryResponse = chain.proceed(retryRequest)
+                            val retryDuration = System.currentTimeMillis() - retryStartTime
+                            if (retryResponse.isSuccessful) {
+                                Log.i(TAG, "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror")
+                            }
+                            return retryResponse
+                        } else {
+                            Log.w(TAG, "⚠️ Failed to switch to working mirror (took ${switchDuration}ms)")
                         }
                     }
                 }
 
                 response
             } catch (e: Exception) {
-                Log.e(TAG, "Request failed with exception: ${e.message}")
+                val requestDuration = System.currentTimeMillis() - requestStartTime
+                Log.e(
+                    TAG,
+                    "❌ Request failed with exception: ${e.javaClass.simpleName} - ${e.message} (${requestDuration}ms) - ${originalUrl.encodedPath}",
+                    e,
+                )
 
                 // On network error, try auto-switch if enabled
                 val autoSwitchEnabled =
@@ -118,16 +147,20 @@ class DynamicBaseUrlInterceptor
                     }
 
                 if (autoSwitchEnabled) {
+                    Log.i(TAG, "🔄 Network error detected, attempting mirror switch")
+                    val switchStartTime = System.currentTimeMillis()
                     val switched =
                         runBlocking {
                             mirrorManager.switchToNextMirror()
                         }
+                    val switchDuration = System.currentTimeMillis() - switchStartTime
 
                     if (switched) {
+                        val newMirror = mirrorManager.currentMirror.value
                         val retryUrl =
                             newUrl
                                 .newBuilder()
-                                .host(mirrorManager.currentMirror.value)
+                                .host(newMirror)
                                 .build()
 
                         val retryRequest =
@@ -136,8 +169,19 @@ class DynamicBaseUrlInterceptor
                                 .url(retryUrl)
                                 .build()
 
-                        Log.i(TAG, "Retrying after network error with new mirror: ${mirrorManager.currentMirror.value}")
-                        return chain.proceed(retryRequest)
+                        Log.i(
+                            TAG,
+                            "✅ Switched to mirror: $newMirror (took ${switchDuration}ms), retrying after network error: ${originalUrl.encodedPath}",
+                        )
+                        val retryStartTime = System.currentTimeMillis()
+                        val retryResponse = chain.proceed(retryRequest)
+                        val retryDuration = System.currentTimeMillis() - retryStartTime
+                        if (retryResponse.isSuccessful) {
+                            Log.i(TAG, "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror")
+                        }
+                        return retryResponse
+                    } else {
+                        Log.w(TAG, "⚠️ Failed to switch to working mirror after network error (took ${switchDuration}ms)")
                     }
                 }
 

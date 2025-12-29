@@ -167,7 +167,7 @@ class MirrorManager
             val mirrors = _availableMirrors.value
             val currentIndex = mirrors.indexOf(currentDomain)
 
-            Log.d(TAG, "Attempting to switch from $currentDomain to next mirror")
+            Log.i(TAG, "🔄 Attempting to switch from $currentDomain to next mirror")
 
             // Try all mirrors starting from next one
             val mirrorsToTry =
@@ -181,15 +181,18 @@ class MirrorManager
             for (mirror in mirrorsToTry) {
                 if (mirror == currentDomain) continue // Skip current
 
-                Log.d(TAG, "Trying mirror: $mirror")
+                val healthCheckStart = System.currentTimeMillis()
+                Log.d(TAG, "🔍 Trying mirror: $mirror")
+
                 if (checkMirrorHealth(mirror)) {
+                    val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
                     setMirror(mirror)
-                    Log.i(TAG, "Successfully switched to mirror: $mirror")
+                    Log.i(TAG, "✅ Successfully switched to mirror: $mirror (health check: ${healthCheckDuration}ms)")
                     return true
                 }
             }
 
-            Log.w(TAG, "Failed to find any working mirror")
+            Log.e(TAG, "❌ Failed to find any working mirror after trying ${availableMirrors.value.size} mirrors")
             return false
         }
 

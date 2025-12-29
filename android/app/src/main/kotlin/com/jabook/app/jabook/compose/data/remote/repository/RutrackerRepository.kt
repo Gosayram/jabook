@@ -146,9 +146,11 @@ class RutrackerRepository
                 // 1. ALWAYS try indexed search first (mandatory for audiobooks)
                 if (forumIds == null || forumIds == RutrackerApi.AUDIOBOOKS_FORUM_IDS) {
                     try {
+                        val indexSearchStartTime = System.currentTimeMillis()
                         val indexedResults = searchIndexedTopics(query, limit = 100)
+                        val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
                         if (indexedResults.isNotEmpty()) {
-                            Log.i(TAG, "✅ Found ${indexedResults.size} results from index (query: '$query')")
+                            Log.i(TAG, "✅ Found ${indexedResults.size} results from index (query: '$query', ${indexSearchDuration}ms)")
                             emit(Result.success(indexedResults))
 
                             // If we have good results from index, we're done
@@ -175,15 +177,19 @@ class RutrackerRepository
                 // 3. Check DB Cache (previous searches)
                 if (forumIds == null) {
                     try {
+                        val dbReadStartTime = System.currentTimeMillis()
                         val entities = offlineSearchDao.getResultsForQuery(query)
+                        val dbReadDuration = System.currentTimeMillis() - dbReadStartTime
                         if (entities.isNotEmpty()) {
                             val dbResults = entities.map { it.toSearchResult() }
-                            Log.i(TAG, "💾 Found ${dbResults.size} results from DB cache")
+                            Log.i(TAG, "💾 Found ${dbResults.size} results from DB cache (query: '$query', ${dbReadDuration}ms)")
                             emit(Result.success(dbResults))
                             return@flow
+                        } else {
+                            Log.d(TAG, "💾 No results in DB cache for query: '$query' (${dbReadDuration}ms)")
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "DB read failed", e)
+                        Log.w(TAG, "❌ DB read failed for query: '$query'", e)
                     }
                 }
 
@@ -199,7 +205,8 @@ class RutrackerRepository
             query: String,
             forumIds: String?,
         ): Result<List<SearchResult>> {
-            Log.w(TAG, "🔍 fetchFromNetwork called: query=$query, forumIds=$forumIds")
+            val networkStartTime = System.currentTimeMillis()
+            Log.i(TAG, "🌐 fetchFromNetwork called: query='$query', forumIds=$forumIds")
             // === HTTP REQUEST LOGGING ===
             Log.w(TAG, "🔍 === SEARCH REQUEST ===")
             Log.w(TAG, "Query: '$query'")
@@ -214,12 +221,16 @@ class RutrackerRepository
             Log.w(TAG, "Request URL: $requestUrl")
 
             // === HTTP RESPONSE LOGGING ===
-            Log.w(TAG, "📥 === SEARCH RESPONSE ===")
-            Log.w(TAG, "Status: ${response.code()} ${response.message()}")
-            Log.w(TAG, "Final URL: ${response.raw().request.url}") // Detect redirects
+            val networkDuration = System.currentTimeMillis() - networkStartTime
+            Log.i(TAG, "📥 === SEARCH RESPONSE ===")
+            Log.i(TAG, "Status: ${response.code()} ${response.message()} (${networkDuration}ms)")
+            Log.d(TAG, "Final URL: ${response.raw().request.url}") // Detect redirects
 
             if (!response.isSuccessful) {
-                Log.e(TAG, "❌ Request failed: HTTP ${response.code()}: ${response.message()}")
+                Log.e(
+                    TAG,
+                    "❌ Request failed: HTTP ${response.code()}: ${response.message()} (${networkDuration}ms) - URL: ${response.raw().request.url}",
+                )
                 return Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
             }
 
@@ -338,7 +349,10 @@ class RutrackerRepository
             if (forumIds == null) {
                 try {
                     val entities = results.map { it.toCachedTopicEntity() }
+                    val dbSaveStartTime = System.currentTimeMillis()
                     offlineSearchDao.saveSearchResults(query, entities)
+                    val dbSaveDuration = System.currentTimeMillis() - dbSaveStartTime
+                    Log.d(TAG, "💾 Saved ${entities.size} results to DB cache (query: '$query', ${dbSaveDuration}ms)")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to save to DB", e)
                 }
