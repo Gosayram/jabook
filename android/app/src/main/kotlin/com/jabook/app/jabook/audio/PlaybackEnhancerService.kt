@@ -23,8 +23,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,6 +46,22 @@ enum class PlaybackVolumeBoost {
 }
 
 /**
+ * Maps volume boost level string from Proto to PlaybackVolumeBoost enum.
+ *
+ * Proto values: "Off", "Boost50", "Boost100", "Boost200", "Auto"
+ * Enum values: DISABLED, LOW (3dB), MEDIUM (6dB), HIGH (12dB), MAX (20dB)
+ */
+fun mapVolumeBoostLevel(level: String): PlaybackVolumeBoost =
+    when (level) {
+        "Off" -> PlaybackVolumeBoost.DISABLED
+        "Boost50" -> PlaybackVolumeBoost.LOW // ~3dB (50% boost)
+        "Boost100" -> PlaybackVolumeBoost.MEDIUM // ~6dB (100% boost)
+        "Boost200" -> PlaybackVolumeBoost.HIGH // ~12dB (200% boost)
+        "Auto" -> PlaybackVolumeBoost.MAX // ~20dB (auto/max boost)
+        else -> PlaybackVolumeBoost.DISABLED // Default to disabled for unknown values
+    }
+
+/**
  * Service for enhancing audio playback with volume boost using LoudnessEnhancer.
  *
  * Inspired by lissen-android PlaybackEnhancerService implementation.
@@ -54,11 +74,19 @@ class PlaybackEnhancerService
     @Inject
     constructor(
         private val player: ExoPlayer,
-        private val volumeBoostFlow: kotlinx.coroutines.flow.Flow<PlaybackVolumeBoost>,
+        private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository,
     ) {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
         private var enhancer: LoudnessEnhancer? = null
+
+        /**
+         * Flow of volume boost levels from user preferences.
+         */
+        private val volumeBoostFlow: Flow<PlaybackVolumeBoost> =
+            settingsRepository.userPreferences.map { preferences ->
+                mapVolumeBoostLevel(preferences.volumeBoostLevel)
+            }
 
         /**
          * Initializes the enhancer service.
@@ -68,27 +96,41 @@ class PlaybackEnhancerService
             player.addListener(
                 object : Player.Listener {
                     override fun onAudioSessionIdChanged(audioSessionId: Int) {
-                        attachEnhancer(audioSessionId, getCurrentVolumeBoost())
+                        // Get current value from flow (synchronous read)
+                        val currentBoost = getCurrentVolumeBoost()
+                        attachEnhancer(audioSessionId, currentBoost)
                     }
                 },
             )
-            attachEnhancer(player.audioSessionId, getCurrentVolumeBoost())
 
+            // Attach to current audio session
+            val currentBoost = getCurrentVolumeBoost()
+            attachEnhancer(player.audioSessionId, currentBoost)
+
+            // Observe changes in volume boost settings
             scope.launch {
-                volumeBoostFlow.collectLatest { updateGain(it) }
+                volumeBoostFlow.collectLatest { boost ->
+                    updateGain(boost)
+                }
             }
-
-            updateGain(getCurrentVolumeBoost())
         }
 
         /**
-         * Gets current volume boost level.
-         * This should be provided by a settings repository or preferences.
+         * Gets current volume boost level from settings.
          */
         private fun getCurrentVolumeBoost(): PlaybackVolumeBoost {
-            // TODO: Get from settings repository
-            // For now, return DISABLED as default
-            return PlaybackVolumeBoost.DISABLED
+            // Read current value synchronously (for initial setup)
+            // This is a fallback - the Flow will handle updates
+            return try {
+                val preferences = kotlinx.coroutines.runBlocking {
+                    settingsRepository.userPreferences.firstOrNull()
+                }
+                preferences?.let { mapVolumeBoostLevel(it.volumeBoostLevel) }
+                    ?: PlaybackVolumeBoost.DISABLED
+            } catch (e: Exception) {
+                android.util.Log.w("PlaybackEnhancerService", "Failed to get volume boost: ${e.message}", e)
+                PlaybackVolumeBoost.DISABLED
+            }
         }
 
         @OptIn(UnstableApi::class)

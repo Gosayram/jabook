@@ -81,6 +81,9 @@ class AudioPlayerService : MediaLibraryService() {
     @Inject
     lateinit var audioOutputManager: AudioOutputManager
 
+    @Inject
+    lateinit var playbackEnhancerService: PlaybackEnhancerService
+
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
     // Keep mediaSession for backward compatibility during migration
@@ -409,6 +412,11 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("JABOOK_SERVICE", "Setting up AudioOutputManager...")
             setupAudioOutputManager()
             android.util.Log.e("JABOOK_SERVICE", "[OK] AudioOutputManager setup completed")
+
+            // Initialize PlaybackEnhancerService for volume boost (LoudnessEnhancer)
+            android.util.Log.e("JABOOK_SERVICE", "Initializing PlaybackEnhancerService...")
+            playbackEnhancerService.initialize()
+            android.util.Log.e("JABOOK_SERVICE", "[OK] PlaybackEnhancerService initialized")
 
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
@@ -1286,6 +1294,9 @@ class AudioPlayerService : MediaLibraryService() {
 
         // Stop proximity monitoring
         audioOutputManager.stopMonitoring()
+
+        // Release PlaybackEnhancerService resources
+        playbackEnhancerService.release()
 
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()
