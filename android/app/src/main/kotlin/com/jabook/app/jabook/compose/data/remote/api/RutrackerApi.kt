@@ -96,9 +96,11 @@ interface RutrackerApi {
     suspend fun getIndex(): Response<ResponseBody>
 
     companion object {
-        // Main audiobook forum IDs (category 33 - Аудиокниги)
-        // These are the main forums for audiobooks on RuTracker
+        // Audiobook categories forum IDs
         // Format: comma-separated list for search query parameter
-        const val AUDIOBOOKS_FORUM_IDS = "2387,2388,2389,2390,2391,2392,2393,2394,2395,2396,2397,2398,2399"
+        // Main forums: 2326,2389,2327,2324,2328
+        // Subforums: 574,1036,400,2388,2387,661,2348,695,399,402,467,490,499,2137,2127,2325,2342,530,2152,1350,403,1279,716,2165,401
+        const val AUDIOBOOKS_FORUM_IDS =
+            "2326,2389,2327,2324,2328,574,1036,400,2388,2387,661,2348,695,399,402,467,490,499,2137,2127,2325,2342,530,2152,1350,403,1279,716,2165,401"
     }
 }

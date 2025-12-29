@@ -940,7 +940,7 @@ private fun ErrorContent(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = stringResource(R.string.errorMessageFormat),
+            text = message.ifEmpty { stringResource(R.string.anErrorOccurred) },
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.error,
         )
