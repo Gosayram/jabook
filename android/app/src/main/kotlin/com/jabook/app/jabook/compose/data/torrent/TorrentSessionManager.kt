@@ -189,11 +189,23 @@ class TorrentSessionManager
 
                 // Add torrent - download(String magnetUri, File saveDir, torrent_flags_t flags)
                 // Using empty flags (defaults)
-                val flags = org.libtorrent4j.swig.torrent_flags_t()
-                session.download(magnetUri, saveDir, flags)
-
-                Log.i(TAG, "Added torrent: $hash to $savePath")
-                Result.success(hash)
+                // Wrap in try-catch to handle any native exceptions
+                try {
+                    val flags = org.libtorrent4j.swig.torrent_flags_t()
+                    session.download(magnetUri, saveDir, flags)
+                    Log.i(TAG, "Added torrent: $hash to $savePath")
+                    Result.success(hash)
+                } catch (e: UnsatisfiedLinkError) {
+                    Log.e(TAG, "Native library error while adding torrent", e)
+                    Result.failure(IllegalStateException("Native library error: ${e.message}", e))
+                } catch (e: NoSuchMethodError) {
+                    Log.e(TAG, "Method not found error while adding torrent", e)
+                    Result.failure(IllegalStateException("Library version mismatch: ${e.message}", e))
+                } catch (e: RuntimeException) {
+                    // libtorrent4j may throw RuntimeException for various errors
+                    Log.e(TAG, "Runtime error while adding torrent", e)
+                    Result.failure(IllegalStateException("Failed to add torrent: ${e.message}", e))
+                }
             } catch (e: IllegalStateException) {
                 Log.e(TAG, "Illegal state while adding torrent", e)
                 Result.failure(e)
@@ -340,20 +352,35 @@ class TorrentSessionManager
         // Alert handlers
 
         private fun handleAddTorrent(alert: AddTorrentAlert) {
-            val handle = alert.handle()
-            val hash = handle.infoHash().toHex()
-            torrents[hash] = handle
-
-            // Resume torrent to start downloading (required by libtorrent4j)
-            // According to libtorrent4j examples, handle.resume() must be called after adding
             try {
-                handle.resume()
-                Log.d(TAG, "Torrent resumed after add: $hash")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to resume torrent after add: $hash", e)
-            }
+                val handle = alert.handle()
+                if (!handle.isValid) {
+                    Log.e(TAG, "Invalid torrent handle in ADD_TORRENT alert")
+                    return
+                }
 
-            updateDownloads()
+                val hash = handle.infoHash().toHex()
+                torrents[hash] = handle
+
+                // Resume torrent to start downloading (required by libtorrent4j)
+                // According to libtorrent4j examples, handle.resume() must be called after adding
+                try {
+                    handle.resume()
+                    Log.d(TAG, "Torrent resumed after add: $hash")
+                } catch (e: UnsatisfiedLinkError) {
+                    Log.e(TAG, "Native library error resuming torrent: $hash", e)
+                } catch (e: NoSuchMethodError) {
+                    Log.e(TAG, "Method not found error resuming torrent: $hash", e)
+                } catch (e: RuntimeException) {
+                    Log.e(TAG, "Runtime error resuming torrent: $hash", e)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to resume torrent after add: $hash", e)
+                }
+
+                updateDownloads()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in handleAddTorrent", e)
+            }
         }
 
         private fun handleStateChanged(alert: StateChangedAlert) {

@@ -243,7 +243,16 @@ class TorrentManager
 
         private fun ensureInitialized() {
             if (!isInitialized) {
-                initialize()
+                try {
+                    initialize()
+                    // Check if initialization actually succeeded
+                    if (!isInitialized) {
+                        throw IllegalStateException("TorrentManager initialization failed - libtorrent4j may not be available")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to ensure initialization", e)
+                    throw IllegalStateException("TorrentManager not initialized: ${e.message}", e)
+                }
             }
         }
 

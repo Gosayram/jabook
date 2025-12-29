@@ -199,6 +199,18 @@ class TopicViewModel
                         Log.w("TopicViewModel", "TorrentManager already initialized or error: ${e.message}")
                     }
 
+                    // Check if downloadUrl is a magnet URI or HTTP/HTTPS URL
+                    // TorrentManager.addTorrent only accepts magnet URIs
+                    if (!downloadUrl.startsWith("magnet:", ignoreCase = true)) {
+                        Log.e("TopicViewModel", "downloadTorrentRelease only supports magnet URIs, got: $downloadUrl")
+                        _message.value =
+                            context.getString(
+                                R.string.failedToStartDownloadWithError,
+                                "Only magnet links are supported for torrent downloads",
+                            )
+                        return@launch
+                    }
+
                     val result =
                         torrentManager.addTorrent(
                             magnetUri = downloadUrl,
