@@ -58,6 +58,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +72,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import kotlinx.coroutines.launch
 
 private object GitHubUrls {
     const val REPOSITORY = "https://github.com/Gosayram/jabook"
@@ -101,9 +103,11 @@ fun SettingsScreen(
     onNavigateToDownloads: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
+    indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel(),
 ) {
     val userPreferences by viewModel.userPreferences.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -234,6 +238,70 @@ fun SettingsScreen(
                                     context.getString(R.string.invalidUrlFormatError),
                                     android.widget.Toast.LENGTH_SHORT,
                                 ).show()
+                        }
+                    },
+                )
+            }
+
+            HorizontalDivider()
+
+            // Indexing Section
+            val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
+            val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
+            var showIndexingDialog by remember { mutableStateOf(false) }
+            var indexSize by remember { mutableStateOf(0) }
+
+            LaunchedEffect(Unit) {
+                indexSize = indexingViewModel.getIndexSize()
+            }
+
+            // Update index size when indexing completes
+            LaunchedEffect(indexingProgress) {
+                if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed) {
+                    indexSize = indexingViewModel.getIndexSize()
+                }
+            }
+
+            SettingsSection(title = "Индексация форумов")
+
+            SettingsItem(
+                title = if (indexSize == 0) "Индекс не создан" else "Индекс: $indexSize тем",
+                subtitle = if (indexSize == 0) "Нажмите для создания индекса" else "Нажмите для обновления индекса",
+                onClick = {
+                    showIndexingDialog = true
+                    indexingViewModel.startIndexing()
+                },
+            )
+
+            if (isIndexing || indexSize > 0) {
+                SettingsItem(
+                    title = "Статус индексации",
+                    subtitle =
+                        when (val progress = indexingProgress) {
+                            is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress ->
+                                "Индексируем: ${progress.currentForum} (${progress.currentForumIndex + 1}/${progress.totalForums})"
+                            is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ->
+                                "Завершено: ${progress.totalTopics} тем за ${progress.durationMs / 1000} сек"
+                            is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error ->
+                                "Ошибка: ${progress.message}"
+                            else -> "Готово к индексации"
+                        },
+                )
+            }
+
+            // Indexing progress dialog
+            if (showIndexingDialog && indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle) {
+                com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
+                    progress = indexingProgress,
+                    onDismiss = {
+                        if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
+                        ) {
+                            showIndexingDialog = false
+                            // Refresh index size
+                            coroutineScope.launch {
+                                indexSize = indexingViewModel.getIndexSize()
+                            }
                         }
                     },
                 )
