@@ -14,8 +14,11 @@
 
 package com.jabook.app.jabook.compose.data.local.migration
 
+import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+
+private const val TAG = "Room"
 
 /**
  * Migration from database version 6 to 7.
@@ -24,34 +27,43 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 val MIGRATION_6_7 =
     object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Create favorites table
-            db.execSQL(
-                """
-                CREATE TABLE IF NOT EXISTS favorites (
-                    topic_id TEXT PRIMARY KEY NOT NULL,
-                    title TEXT NOT NULL,
-                    author TEXT NOT NULL,
-                    category TEXT NOT NULL,
-                    size TEXT NOT NULL,
-                    seeders INTEGER NOT NULL DEFAULT 0,
-                    leechers INTEGER NOT NULL DEFAULT 0,
-                    magnet_url TEXT NOT NULL,
-                    cover_url TEXT,
-                    performer TEXT,
-                    genres TEXT,
-                    added_date TEXT NOT NULL,
-                    added_to_favorites TEXT NOT NULL,
-                    duration TEXT,
-                    bitrate TEXT,
-                    audio_codec TEXT
+            try {
+                Log.i(TAG, "🔄 Starting migration 6→7")
+                val startTime = System.currentTimeMillis()
+                // Create favorites table
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS favorites (
+                        topic_id TEXT PRIMARY KEY NOT NULL,
+                        title TEXT NOT NULL,
+                        author TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        size TEXT NOT NULL,
+                        seeders INTEGER NOT NULL DEFAULT 0,
+                        leechers INTEGER NOT NULL DEFAULT 0,
+                        magnet_url TEXT NOT NULL,
+                        cover_url TEXT,
+                        performer TEXT,
+                        genres TEXT,
+                        added_date TEXT NOT NULL,
+                        added_to_favorites TEXT NOT NULL,
+                        duration TEXT,
+                        bitrate TEXT,
+                        audio_codec TEXT
+                    )
+                    """.trimIndent(),
                 )
-                """.trimIndent(),
-            )
 
-            // Create index on added_to_favorites for efficient sorting
-            db.execSQL(
-                "CREATE INDEX IF NOT EXISTS index_favorites_added_to_favorites " +
-                    "ON favorites (added_to_favorites)",
-            )
+                // Create index on added_to_favorites for efficient sorting
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_favorites_added_to_favorites " +
+                        "ON favorites (added_to_favorites)",
+                )
+                val duration = System.currentTimeMillis() - startTime
+                Log.i(TAG, "✅ Migration 6→7 completed successfully (${duration}ms)")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Migration 6→7 failed: ${e.message}", e)
+                throw e
+            }
         }
     }

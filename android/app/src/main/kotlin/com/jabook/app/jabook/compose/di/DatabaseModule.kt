@@ -38,36 +38,59 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+    private const val TAG = "Room"
+
+    /**
+     * Helper function to wrap migration with logging.
+     */
+    private fun createLoggedMigration(
+        startVersion: Int,
+        endVersion: Int,
+        migrationBlock: (SupportSQLiteDatabase) -> Unit,
+    ): Migration =
+        object : Migration(startVersion, endVersion) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    Log.i(TAG, "🔄 Starting migration $startVersion→$endVersion")
+                    val startTime = System.currentTimeMillis()
+                    migrationBlock(db)
+                    val duration = System.currentTimeMillis() - startTime
+                    Log.i(TAG, "✅ Migration $startVersion→$endVersion completed successfully (${duration}ms)")
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Migration $startVersion→$endVersion failed: ${e.message}", e)
+                    throw e
+                }
+            }
+        }
+
     /**
      * Database migration from version 1 to version 2.
      *
      * Adds new columns to books and chapters tables for enhanced functionality.
      */
     private val MIGRATION_1_2 =
-        object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // Add new columns to books table
-                db.execSQL("ALTER TABLE books ADD COLUMN total_progress REAL NOT NULL DEFAULT 0.0")
-                db.execSQL("ALTER TABLE books ADD COLUMN download_status TEXT NOT NULL DEFAULT 'NOT_DOWNLOADED'")
-                db.execSQL("ALTER TABLE books ADD COLUMN local_path TEXT")
-                db.execSQL("ALTER TABLE books ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE books ADD COLUMN source_url TEXT")
+        createLoggedMigration(1, 2) { db ->
+            // Add new columns to books table
+            db.execSQL("ALTER TABLE books ADD COLUMN total_progress REAL NOT NULL DEFAULT 0.0")
+            db.execSQL("ALTER TABLE books ADD COLUMN download_status TEXT NOT NULL DEFAULT 'NOT_DOWNLOADED'")
+            db.execSQL("ALTER TABLE books ADD COLUMN local_path TEXT")
+            db.execSQL("ALTER TABLE books ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE books ADD COLUMN source_url TEXT")
 
-                // Add new columns to chapters table
-                db.execSQL("ALTER TABLE chapters ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE chapters ADD COLUMN is_completed INTEGER NOT NULL DEFAULT 0")
+            // Add new columns to chapters table
+            db.execSQL("ALTER TABLE chapters ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE chapters ADD COLUMN is_completed INTEGER NOT NULL DEFAULT 0")
 
-                // Update download_status based on is_downloaded for backwards compatibility
-                db.execSQL(
-                    """
-                    UPDATE books 
-                    SET download_status = CASE 
-                        WHEN is_downloaded = 1 THEN 'DOWNLOADED' 
-                        ELSE 'NOT_DOWNLOADED' 
-                    END
-                    """.trimIndent(),
-                )
-            }
+            // Update download_status based on is_downloaded for backwards compatibility
+            db.execSQL(
+                """
+                UPDATE books 
+                SET download_status = CASE 
+                    WHEN is_downloaded = 1 THEN 'DOWNLOADED' 
+                    ELSE 'NOT_DOWNLOADED' 
+                END
+                """.trimIndent(),
+            )
         }
 
     /**
@@ -76,19 +99,17 @@ object DatabaseModule {
      * Adds search_history table.
      */
     private val MIGRATION_2_3 =
-        object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `search_history` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
-                        `query` TEXT NOT NULL, 
-                        `timestamp` INTEGER NOT NULL, 
-                        `result_count` INTEGER NOT NULL
-                    )
-                    """.trimIndent(),
+        createLoggedMigration(2, 3) { db ->
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `search_history` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                    `query` TEXT NOT NULL, 
+                    `timestamp` INTEGER NOT NULL, 
+                    `result_count` INTEGER NOT NULL
                 )
-            }
+                """.trimIndent(),
+            )
         }
 
     /**
@@ -97,21 +118,19 @@ object DatabaseModule {
      * Adds download_queue table for persistent download queue management.
      */
     private val MIGRATION_4_5 =
-        object : Migration(4, 5) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `download_queue` (
-                        `bookId` TEXT PRIMARY KEY NOT NULL,
-                        `priority` INTEGER NOT NULL,
-                        `queuePosition` INTEGER NOT NULL,
-                        `status` TEXT NOT NULL,
-                        `createdAt` INTEGER NOT NULL,
-                        `updatedAt` INTEGER NOT NULL
-                    )
-                    """.trimIndent(),
+        createLoggedMigration(4, 5) { db ->
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `download_queue` (
+                    `bookId` TEXT PRIMARY KEY NOT NULL,
+                    `priority` INTEGER NOT NULL,
+                    `queuePosition` INTEGER NOT NULL,
+                    `status` TEXT NOT NULL,
+                    `createdAt` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL
                 )
-            }
+                """.trimIndent(),
+            )
         }
 
     /**
@@ -120,23 +139,21 @@ object DatabaseModule {
      * Adds download_history table for tracking completed/failed downloads.
      */
     private val MIGRATION_5_6 =
-        object : Migration(5, 6) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `download_history` (
-                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        `bookId` TEXT NOT NULL,
-                        `bookTitle` TEXT NOT NULL,
-                        `status` TEXT NOT NULL,
-                        `startedAt` INTEGER NOT NULL,
-                        `completedAt` INTEGER NOT NULL,
-                        `totalBytes` INTEGER,
-                        `errorMessage` TEXT
-                    )
-                    """.trimIndent(),
+        createLoggedMigration(5, 6) { db ->
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `download_history` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `bookId` TEXT NOT NULL,
+                    `bookTitle` TEXT NOT NULL,
+                    `status` TEXT NOT NULL,
+                    `startedAt` INTEGER NOT NULL,
+                    `completedAt` INTEGER NOT NULL,
+                    `totalBytes` INTEGER,
+                    `errorMessage` TEXT
                 )
-            }
+                """.trimIndent(),
+            )
         }
 
     /**
@@ -145,10 +162,8 @@ object DatabaseModule {
      * Fixes issues with database migration (no schema changes).
      */
     private val MIGRATION_7_8 =
-        object : Migration(7, 8) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // No schema changes
-            }
+        createLoggedMigration(7, 8) { db ->
+            // No schema changes
         }
 
     /**
@@ -157,18 +172,16 @@ object DatabaseModule {
      * Adds scan_paths table for custom scan directory configuration.
      */
     private val MIGRATION_8_9 =
-        object : Migration(8, 9) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `scan_paths` (
-                        `path` TEXT NOT NULL, 
-                        `added_date` INTEGER NOT NULL, 
-                        PRIMARY KEY(`path`)
-                    )
-                    """.trimIndent(),
+        createLoggedMigration(8, 9) { db ->
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `scan_paths` (
+                    `path` TEXT NOT NULL, 
+                    `added_date` INTEGER NOT NULL, 
+                    PRIMARY KEY(`path`)
                 )
-            }
+                """.trimIndent(),
+            )
         }
 
     /**
@@ -177,10 +190,8 @@ object DatabaseModule {
      * Adds index on chapter_index for faster chapter sorting.
      */
     private val MIGRATION_9_10 =
-        object : Migration(9, 10) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_chapters_chapter_index ON chapters(chapter_index)")
-            }
+        createLoggedMigration(9, 10) { db ->
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_chapters_chapter_index ON chapters(chapter_index)")
         }
 
     /**
@@ -189,28 +200,26 @@ object DatabaseModule {
      * Adds torrent_downloads table for torrent download persistence.
      */
     private val MIGRATION_10_11 =
-        object : Migration(10, 11) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `torrent_downloads` (
-                        `hash` TEXT PRIMARY KEY NOT NULL,
-                        `name` TEXT NOT NULL,
-                        `state` TEXT NOT NULL,
-                        `progress` REAL NOT NULL,
-                        `totalSize` INTEGER NOT NULL,
-                        `downloadedSize` INTEGER NOT NULL,
-                        `uploadedSize` INTEGER NOT NULL,
-                        `savePath` TEXT NOT NULL,
-                        `files` TEXT NOT NULL,
-                        `errorMessage` TEXT,
-                        `addedTime` INTEGER NOT NULL,
-                        `completedTime` INTEGER NOT NULL,
-                        `pauseReason` TEXT
-                    )
-                    """.trimIndent(),
+        createLoggedMigration(10, 11) { db ->
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `torrent_downloads` (
+                    `hash` TEXT PRIMARY KEY NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `state` TEXT NOT NULL,
+                    `progress` REAL NOT NULL,
+                    `totalSize` INTEGER NOT NULL,
+                    `downloadedSize` INTEGER NOT NULL,
+                    `uploadedSize` INTEGER NOT NULL,
+                    `savePath` TEXT NOT NULL,
+                    `files` TEXT NOT NULL,
+                    `errorMessage` TEXT,
+                    `addedTime` INTEGER NOT NULL,
+                    `completedTime` INTEGER NOT NULL,
+                    `pauseReason` TEXT
                 )
-            }
+                """.trimIndent(),
+            )
         }
 
     /**
@@ -219,44 +228,42 @@ object DatabaseModule {
      * Adds cached_topics and search_query_map tables for offline search persistence.
      */
     private val MIGRATION_11_12 =
-        object : Migration(11, 12) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // Create cached_topics table
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `cached_topics` (
-                        `topic_id` TEXT PRIMARY KEY NOT NULL,
-                        `title` TEXT NOT NULL,
-                        `author` TEXT NOT NULL,
-                        `category` TEXT NOT NULL,
-                        `size` TEXT NOT NULL,
-                        `seeders` INTEGER NOT NULL,
-                        `leechers` INTEGER NOT NULL,
-                        `magnet_url` TEXT,
-                        `torrent_url` TEXT NOT NULL,
-                        `cover_url` TEXT,
-                        `timestamp` INTEGER NOT NULL
-                    )
-                    """.trimIndent(),
+        createLoggedMigration(11, 12) { db ->
+            // Create cached_topics table
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `cached_topics` (
+                    `topic_id` TEXT PRIMARY KEY NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `author` TEXT NOT NULL,
+                    `category` TEXT NOT NULL,
+                    `size` TEXT NOT NULL,
+                    `seeders` INTEGER NOT NULL,
+                    `leechers` INTEGER NOT NULL,
+                    `magnet_url` TEXT,
+                    `torrent_url` TEXT NOT NULL,
+                    `cover_url` TEXT,
+                    `timestamp` INTEGER NOT NULL
                 )
+                """.trimIndent(),
+            )
 
-                // Create search_query_map table
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `search_query_map` (
-                        `query` TEXT NOT NULL,
-                        `topic_id` TEXT NOT NULL,
-                        `rank` INTEGER NOT NULL,
-                        PRIMARY KEY(`query`, `topic_id`),
-                        FOREIGN KEY(`topic_id`) REFERENCES `cached_topics`(`topic_id`) ON UPDATE NO ACTION ON DELETE CASCADE
-                    )
-                    """.trimIndent(),
+            // Create search_query_map table
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `search_query_map` (
+                    `query` TEXT NOT NULL,
+                    `topic_id` TEXT NOT NULL,
+                    `rank` INTEGER NOT NULL,
+                    PRIMARY KEY(`query`, `topic_id`),
+                    FOREIGN KEY(`topic_id`) REFERENCES `cached_topics`(`topic_id`) ON UPDATE NO ACTION ON DELETE CASCADE
                 )
+                """.trimIndent(),
+            )
 
-                // Create indices for search_query_map
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_query_map_topic_id` ON `search_query_map` (`topic_id`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_query_map_query` ON `search_query_map` (`query`)")
-            }
+            // Create indices for search_query_map
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_query_map_topic_id` ON `search_query_map` (`topic_id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_query_map_query` ON `search_query_map` (`query`)")
         }
 
     /**
@@ -265,15 +272,13 @@ object DatabaseModule {
      * Adds last_updated and index_version fields to cached_topics for incremental updates.
      */
     private val MIGRATION_12_13 =
-        object : Migration(12, 13) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // Add new columns with default values
-                db.execSQL("ALTER TABLE `cached_topics` ADD COLUMN `last_updated` INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE `cached_topics` ADD COLUMN `index_version` INTEGER NOT NULL DEFAULT 1")
+        createLoggedMigration(12, 13) { db ->
+            // Add new columns with default values
+            db.execSQL("ALTER TABLE `cached_topics` ADD COLUMN `last_updated` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `cached_topics` ADD COLUMN `index_version` INTEGER NOT NULL DEFAULT 1")
 
-                // Update existing records to set last_updated = timestamp
-                db.execSQL("UPDATE `cached_topics` SET `last_updated` = `timestamp` WHERE `last_updated` = 0")
-            }
+            // Update existing records to set last_updated = timestamp
+            db.execSQL("UPDATE `cached_topics` SET `last_updated` = `timestamp` WHERE `last_updated` = 0")
         }
 
     /**
@@ -282,14 +287,12 @@ object DatabaseModule {
      * Adds search indices for faster queries on title, author, timestamp, and seeders.
      */
     private val MIGRATION_13_14 =
-        object : Migration(13, 14) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // Add indices for faster search and sorting
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_title` ON `cached_topics` (`title`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_author` ON `cached_topics` (`author`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_timestamp` ON `cached_topics` (`timestamp`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_seeders` ON `cached_topics` (`seeders`)")
-            }
+        createLoggedMigration(13, 14) { db ->
+            // Add indices for faster search and sorting
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_title` ON `cached_topics` (`title`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_author` ON `cached_topics` (`author`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_timestamp` ON `cached_topics` (`timestamp`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_seeders` ON `cached_topics` (`seeders`)")
         }
 
     @Provides
@@ -349,7 +352,10 @@ object DatabaseModule {
 
                 override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
                     super.onDestructiveMigration(db)
-                    Log.w("Room", "JabookDatabase: Destructive migration occurred - data was lost")
+                    Log.e(
+                        TAG,
+                        "❌ CRITICAL: Destructive migration occurred - all data was lost! This should never happen in production.",
+                    )
                 }
             },
         )

@@ -239,7 +239,12 @@ internal class PlaylistManager(
         initialTrackIndex: Int? = null,
         initialPosition: Long? = null,
     ) = withContext(Dispatchers.IO) {
+        val playlistLoadStartTime = System.currentTimeMillis()
         try {
+            android.util.Log.i(
+                "AudioPlayerService",
+                "📥 Starting playlist load: totalTracks=${filePaths.size}, targetTrack=$initialTrackIndex, targetPosition=${initialPosition}ms",
+            )
             val dataSourceFactory = SimpleMediaDataSourceFactory()
 
             // Determine which track to load first
@@ -366,7 +371,14 @@ internal class PlaylistManager(
                             index: Int,
                             priority: String,
                         ) {
+                            val loadStartTime = System.currentTimeMillis()
+                            val filePath = filePaths[index]
+                            val fileName = filePath.substringAfterLast('/')
                             try {
+                                android.util.Log.d(
+                                    "AudioPlayerService",
+                                    "📥 Loading track $index: $fileName (priority: $priority)",
+                                )
                                 val mediaSource =
                                     createMediaSourceForIndex(
                                         filePaths,
@@ -427,20 +439,21 @@ internal class PlaylistManager(
                                         }
 
                                         // All checks passed, add the MediaItem
-                                        val filePath = filePaths[index]
-                                        val fileName = filePath.substringAfterLast('/')
                                         activePlayer.addMediaSource(index, mediaSource)
                                         addedIndices.add(index)
-                                        android.util.Log.d(
+                                        val loadDuration = System.currentTimeMillis() - loadStartTime
+                                        android.util.Log.i(
                                             "AudioPlayerService",
-                                            "Added $priority MediaItem at index $index: $fileName (playlist size: ${activePlayer.mediaItemCount})",
+                                            "✅ Loaded track $index: $fileName (${loadDuration}ms, priority: $priority, playlist size: ${activePlayer.mediaItemCount})",
                                         )
                                     }
                                 }
                             } catch (e: Exception) {
-                                android.util.Log.w(
+                                val loadDuration = System.currentTimeMillis() - loadStartTime
+                                android.util.Log.e(
                                     "AudioPlayerService",
-                                    "Failed to create $priority MediaItem $index, skipping: ${e.message}",
+                                    "❌ Failed to load track $index: $fileName (${loadDuration}ms, priority: $priority): ${e.message}",
+                                    e,
                                 )
                                 // Continue with other items - one failure shouldn't stop the rest
                             }
@@ -509,9 +522,10 @@ internal class PlaylistManager(
                                             stableCount++
                                             if (stableCount >= 5) {
                                                 // Count has been stable for 5 checks (500ms), all tracks loaded
-                                                android.util.Log.d(
+                                                val playlistLoadDuration = System.currentTimeMillis() - playlistLoadStartTime
+                                                android.util.Log.i(
                                                     "AudioPlayerService",
-                                                    "All tracks loaded and stable: mediaItemCount=$currentCount (expected ${filePaths.size})",
+                                                    "✅ Playlist loaded: $currentCount tracks (expected ${filePaths.size}, ${playlistLoadDuration}ms)",
                                                 )
                                                 break
                                             }
@@ -539,9 +553,10 @@ internal class PlaylistManager(
                                     return@withContext // Exit early, don't apply position
                                 }
 
-                                android.util.Log.d(
+                                val playlistLoadDuration = System.currentTimeMillis() - playlistLoadStartTime
+                                android.util.Log.i(
                                     "AudioPlayerService",
-                                    "All tracks confirmed loaded: mediaItemCount=$finalCount (expected ${filePaths.size}), proceeding with position application",
+                                    "✅ Playlist confirmed loaded: $finalCount tracks (expected ${filePaths.size}, ${playlistLoadDuration}ms), applying position",
                                 )
 
                                 // Wait for player to be ready

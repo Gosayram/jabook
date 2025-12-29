@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.navigation
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
@@ -23,6 +24,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
+
+private const val TAG = "Navigation"
 
 /**
  * Remembers and creates a [JabookAppState] instance.
@@ -76,6 +79,7 @@ class JabookAppState(
      * @param topLevelDestination The destination to navigate to
      */
     fun navigateToTopLevelDestination(topLevelDestination: TopLevelDestination) {
+        Log.d(TAG, "🧭 Navigating to top-level destination: ${topLevelDestination.name}")
         when (topLevelDestination) {
             TopLevelDestination.LIBRARY -> {
                 // For library, use dedicated function to ensure proper navigation
@@ -98,6 +102,7 @@ class JabookAppState(
                         restoreState = true
                     }
                 navController.navigate(SettingsRoute, topLevelNavOptions)
+                Log.d(TAG, "✅ Navigated to Settings")
             }
         }
     }
@@ -109,6 +114,7 @@ class JabookAppState(
      * Useful for returning to the main screen from anywhere in the app.
      */
     fun navigateToLibrary() {
+        Log.d(TAG, "🧭 Navigating to Library (clearing back stack)")
         navController.navigate(LibraryRoute) {
             // Clear the entire back stack INCLUDING the current destination
             popUpTo(navController.graph.findStartDestination().id) {
@@ -120,5 +126,6 @@ class JabookAppState(
             // Don't restore state - fresh start
             restoreState = false
         }
+        Log.d(TAG, "✅ Navigated to Library")
     }
 }

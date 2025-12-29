@@ -14,15 +14,19 @@
 
 package com.jabook.app.jabook.compose.navigation
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
@@ -31,6 +35,9 @@ import com.jabook.app.jabook.compose.feature.search.SearchScreen
 import com.jabook.app.jabook.compose.feature.settings.SettingsScreen
 import com.jabook.app.jabook.compose.feature.topic.TopicScreen
 import com.jabook.app.jabook.compose.feature.webview.WebViewScreen
+
+// Logging for navigation changes
+private const val TAG = "Navigation"
 
 /**
  * Jabook app navigation graph.
@@ -49,6 +56,14 @@ fun JabookNavHost(
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
 ) {
     val navController = appState.navController
+
+    // Log navigation changes
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(currentBackStackEntry?.destination?.route) {
+        currentBackStackEntry?.destination?.route?.let { route ->
+            Log.d(TAG, "📍 Navigation: Current screen = $route")
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -257,6 +272,7 @@ fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onTopicClick = { topicId ->
+                    Log.d(TAG, "🧭 Navigating to Topic: topicId=$topicId")
                     navController.navigate(TopicRoute(topicId = topicId))
                 },
             )

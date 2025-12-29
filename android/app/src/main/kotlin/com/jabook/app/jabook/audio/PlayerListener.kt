@@ -556,7 +556,14 @@ internal class PlayerListener(
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-        android.util.Log.e("AudioPlayerService", "Player error occurred", error)
+        val currentIndex = getActivePlayer().currentMediaItemIndex
+        val mediaItem = getActivePlayer().currentMediaItem
+        val mediaId = mediaItem?.mediaId ?: "unknown"
+        android.util.Log.e(
+            "AudioPlayerService",
+            "❌ Playback error: track=$currentIndex, mediaId=$mediaId, code=${error.errorCode}, message=${error.message}",
+            error,
+        )
         handlePlayerError(error)
     }
 
@@ -644,7 +651,12 @@ internal class PlayerListener(
                 }
             }
 
-        android.util.Log.e("AudioPlayerService", "Player error (user-friendly): $userFriendlyMessage")
+        val currentIndex = getActivePlayer().currentMediaItemIndex
+        val totalTracks = getActualPlaylistSize?.invoke() ?: getActivePlayer().mediaItemCount
+        android.util.Log.e(
+            "AudioPlayerService",
+            "❌ Playback error (user-friendly): $userFriendlyMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries)",
+        )
         getNotificationManager()?.updateNotification()
 
         // Store error for retrieval via MethodChannel if needed
@@ -712,9 +724,18 @@ internal class PlayerListener(
     ) {
         // This is also handled in onEvents, but kept for explicit handling if needed
         val currentIndex = getActivePlayer().currentMediaItemIndex
-        android.util.Log.d(
+        val reasonName =
+            when (reason) {
+                Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> "AUTO"
+                Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED -> "PLAYLIST_CHANGED"
+                Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> "REPEAT"
+                Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> "SEEK"
+                else -> "UNKNOWN($reason)"
+            }
+        val mediaId = mediaItem?.mediaId ?: "unknown"
+        android.util.Log.i(
             "AudioPlayerService",
-            "Media item transition (explicit): index=$currentIndex, reason=$reason",
+            "🎵 Track switch: index=$currentIndex, reason=$reasonName, mediaId=$mediaId",
         )
 
         // CRITICAL: Update actual track index from onMediaItemTransition event
