@@ -370,8 +370,114 @@ class ForumIndexer
                         page++
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error indexing forum $forumId page $page", e)
-                    hasMorePages = false
+                    // Check if this is a network/DNS error that might be resolved by switching mirror
+                    val isNetworkError =
+                        e is java.net.UnknownHostException ||
+                            e is java.net.ConnectException ||
+                            e is java.net.SocketTimeoutException ||
+                            (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) ||
+                            (e.message?.contains("No address associated with hostname", ignoreCase = true) == true)
+
+                    if (isNetworkError) {
+                        Log.w(TAG, "Network error indexing forum $forumId page $page (${e.javaClass.simpleName}): ${e.message}")
+
+                        // Check if auto-switch is enabled before attempting mirror switch
+                        val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabled()
+
+                        if (!autoSwitchEnabled) {
+                            Log.w(TAG, "Auto-switch is disabled, not attempting mirror switch. User must switch mirror manually.")
+                            hasMorePages = false
+                        } else {
+                            // Try switching mirror and retry once
+                            var retrySucceeded = false
+                            try {
+                                Log.i(TAG, "Auto-switch enabled, attempting to switch mirror...")
+                                val switched = mirrorManager.switchToNextMirror()
+                                if (switched) {
+                                    val newMirror = mirrorManager.currentMirror.value
+                                    Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
+                                    delay(500) // Brief delay before retry
+                                    // Retry the request
+                                    val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                                    if (retryResponse.isSuccessful) {
+                                        val retryBody = retryResponse.body()
+                                        if (retryBody != null) {
+                                            val retryParseStartTime = System.currentTimeMillis()
+                                            val retryPageResult = parser.parseForumPageWithPagination(retryBody, forumId)
+                                            val retryTopics = retryPageResult.topics
+                                            val retryParseTime = System.currentTimeMillis() - retryParseStartTime
+
+                                            hasMorePages = retryPageResult.hasMorePages
+
+                                            if (retryTopics.isNotEmpty()) {
+                                                val newEntities = retryTopics.map { it.toCachedTopicEntity(indexVersion) }
+                                                entitiesBuffer.addAll(newEntities)
+                                                totalTopics += retryTopics.size
+
+                                                // Collect cover URLs
+                                                val baseUrl = mirrorManager.getBaseUrl()
+                                                retryTopics
+                                                    .mapNotNull { topic ->
+                                                        topic.coverUrl?.let { url ->
+                                                            when {
+                                                                url.startsWith("http://") || url.startsWith("https://") -> url
+                                                                url.startsWith("//") -> "https:$url"
+                                                                url.startsWith("/") -> "$baseUrl$url"
+                                                                else -> "$baseUrl/$url"
+                                                            }
+                                                        }
+                                                    }.forEach { coversToPreload.add(it) }
+
+                                                Log.i(
+                                                    TAG,
+                                                    "Retry succeeded after mirror switch: parsed ${retryTopics.size} topics (parse: ${retryParseTime}ms)",
+                                                )
+                                                retrySucceeded = true
+
+                                                // Flush if needed
+                                                if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
+                                                    val dbWriteStartTime = System.currentTimeMillis()
+                                                    offlineSearchDao.upsertTopics(entitiesBuffer)
+                                                    val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                                                    Log.d(
+                                                        TAG,
+                                                        "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms",
+                                                    )
+                                                    entitiesBuffer.clear()
+                                                }
+
+                                                onProgress?.invoke(page, totalTopics)
+                                                delay(DELAY_BETWEEN_REQUESTS_MS)
+                                                page++
+                                            } else {
+                                                Log.d(TAG, "Retry succeeded but no topics found, ending")
+                                                hasMorePages = false
+                                            }
+                                        } else {
+                                            Log.w(TAG, "Retry response body is null, stopping forum indexing")
+                                            hasMorePages = false
+                                        }
+                                    } else {
+                                        Log.w(TAG, "Retry failed with HTTP ${retryResponse.code()}, stopping forum indexing")
+                                        hasMorePages = false
+                                    }
+                                } else {
+                                    Log.e(TAG, "Failed to switch mirror, stopping forum indexing")
+                                    hasMorePages = false
+                                }
+                            } catch (retryException: Exception) {
+                                Log.e(TAG, "Error during mirror switch retry for forum $forumId page $page", retryException)
+                                hasMorePages = false
+                            }
+
+                            if (!retrySucceeded) {
+                                hasMorePages = false
+                            }
+                        }
+                    } else {
+                        Log.e(TAG, "Error indexing forum $forumId page $page", e)
+                        hasMorePages = false
+                    }
                 }
             }
 
@@ -476,8 +582,101 @@ class ForumIndexer
                         page++
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error updating forum $forumId page $page", e)
-                    hasMorePages = false
+                    // Check if this is a network/DNS error that might be resolved by switching mirror
+                    val isNetworkError =
+                        e is java.net.UnknownHostException ||
+                            e is java.net.ConnectException ||
+                            e is java.net.SocketTimeoutException ||
+                            (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) ||
+                            (e.message?.contains("No address associated with hostname", ignoreCase = true) == true)
+
+                    if (isNetworkError) {
+                        Log.w(TAG, "Network error updating forum $forumId page $page (${e.javaClass.simpleName}): ${e.message}")
+
+                        // Check if auto-switch is enabled before attempting mirror switch
+                        val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabled()
+
+                        if (!autoSwitchEnabled) {
+                            Log.w(TAG, "Auto-switch is disabled, not attempting mirror switch. User must switch mirror manually.")
+                            hasMorePages = false
+                        } else {
+                            // Try switching mirror and retry once
+                            try {
+                                Log.i(TAG, "Auto-switch enabled, attempting to switch mirror...")
+                                val switched = mirrorManager.switchToNextMirror()
+                                if (switched) {
+                                    val newMirror = mirrorManager.currentMirror.value
+                                    Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
+                                    delay(500) // Brief delay before retry
+                                    // Retry the request - will continue in next iteration if successful
+                                    val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                                    if (retryResponse.isSuccessful) {
+                                        val retryBody = retryResponse.body()
+                                        if (retryBody != null) {
+                                            val retryPageResult = parser.parseForumPageWithPagination(retryBody, forumId)
+                                            val retryTopics = retryPageResult.topics
+
+                                            hasMorePages = retryPageResult.hasMorePages
+
+                                            if (retryTopics.isNotEmpty()) {
+                                                // Filter topics to update
+                                                val topicsToUpdate =
+                                                    retryTopics.filter { topic ->
+                                                        val existing = offlineSearchDao.getTopicById(topic.topicId)
+                                                        existing == null ||
+                                                            existing.lastUpdated < (System.currentTimeMillis() - maxAgeMs) ||
+                                                            existing.indexVersion != currentIndexVersion
+                                                    }
+
+                                                if (topicsToUpdate.isNotEmpty()) {
+                                                    val entities = topicsToUpdate.map { it.toCachedTopicEntity(currentIndexVersion) }
+                                                    offlineSearchDao.upsertTopics(entities)
+                                                    totalUpdated += topicsToUpdate.size
+
+                                                    // Collect cover URLs
+                                                    val baseUrl = mirrorManager.getBaseUrl()
+                                                    topicsToUpdate
+                                                        .mapNotNull { topic ->
+                                                            topic.coverUrl?.let { url ->
+                                                                when {
+                                                                    url.startsWith("http://") || url.startsWith("https://") -> url
+                                                                    url.startsWith("//") -> "https:$url"
+                                                                    url.startsWith("/") -> "$baseUrl$url"
+                                                                    else -> "$baseUrl/$url"
+                                                                }
+                                                            }
+                                                        }.forEach { coversToPreload.add(it) }
+                                                }
+
+                                                onProgress?.invoke(forumId, totalUpdated, retryTopics.size)
+                                                delay(DELAY_BETWEEN_REQUESTS_MS)
+                                                page++
+                                                continue // Continue to next iteration
+                                            } else {
+                                                Log.d(TAG, "Retry succeeded but no topics found, ending")
+                                                hasMorePages = false
+                                            }
+                                        } else {
+                                            Log.w(TAG, "Retry response body is null, stopping forum update")
+                                            hasMorePages = false
+                                        }
+                                    } else {
+                                        Log.w(TAG, "Retry failed with HTTP ${retryResponse.code()}, stopping forum update")
+                                        hasMorePages = false
+                                    }
+                                } else {
+                                    Log.e(TAG, "Failed to switch mirror, stopping forum update")
+                                    hasMorePages = false
+                                }
+                            } catch (retryException: Exception) {
+                                Log.e(TAG, "Error during mirror switch retry for forum $forumId page $page", retryException)
+                                hasMorePages = false
+                            }
+                        }
+                    } else {
+                        Log.e(TAG, "Error updating forum $forumId page $page", e)
+                        hasMorePages = false
+                    }
                 }
             }
 

@@ -153,9 +153,18 @@ class DebugViewModel
         fun loadCacheStats() {
             viewModelScope.launch {
                 try {
-                    _cacheStats.value = rutrackerRepository.getCacheStatistics()
+                    val stats = rutrackerRepository.getCacheStatistics()
+                    _cacheStats.value = stats
+                } catch (e: NullPointerException) {
+                    android.util.Log.e(
+                        "DebugViewModel",
+                        "NullPointerException while loading cache stats - repository or cache may not be initialized",
+                        e,
+                    )
+                    _cacheStats.value = null
                 } catch (e: Exception) {
                     android.util.Log.e("DebugViewModel", "Failed to load cache stats", e)
+                    _cacheStats.value = null
                 }
             }
         }

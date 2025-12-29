@@ -111,9 +111,10 @@ class MirrorManager
                 return
             }
 
+            val previousMirror = _currentMirror.value
             _currentMirror.value = domain
             settingsRepository.updateSelectedMirror(domain)
-            Log.i(TAG, "Mirror set to: $domain")
+            Log.i(TAG, "Mirror changed from $previousMirror to $domain (saved to settings)")
         }
 
         /**
@@ -186,8 +187,9 @@ class MirrorManager
 
                 if (checkMirrorHealth(mirror)) {
                     val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
-                    setMirror(mirror)
-                    Log.i(TAG, "✅ Successfully switched to mirror: $mirror (health check: ${healthCheckDuration}ms)")
+                    Log.i(TAG, "✅ Mirror $mirror is healthy (health check: ${healthCheckDuration}ms), switching and saving to settings...")
+                    setMirror(mirror) // This will save to settings via settingsRepository.updateSelectedMirror()
+                    Log.i(TAG, "✅ Successfully switched from $currentDomain to $mirror and saved to settings")
                     return true
                 }
             }

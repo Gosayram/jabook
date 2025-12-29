@@ -122,21 +122,32 @@ class RutrackerSearchCache
          */
         fun getCacheSize(): Long {
             // Rough estimation: each SearchResult ~500 bytes
-            val resultsCount = cache.values.sumOf { it.results.size }
+            // Synchronize access to cache to prevent concurrent modification
+            val resultsCount =
+                synchronized(cache) {
+                    cache.values.sumOf { it.results.size }
+                }
             return resultsCount * AVERAGE_RESULT_SIZE_BYTES
         }
 
         /**
          * Get cache statistics.
          */
-        fun getStatistics(): CacheStatistics =
-            CacheStatistics(
+        fun getStatistics(): CacheStatistics {
+            // Synchronize access to cache to prevent concurrent modification
+            val entries =
+                synchronized(cache) {
+                    cache.values.toList()
+                }
+
+            return CacheStatistics(
                 entriesCount = cache.size,
-                totalResults = cache.values.sumOf { it.results.size },
+                totalResults = entries.sumOf { it.results.size },
                 estimatedSize = getCacheSize(),
-                oldestEntry = cache.values.minOfOrNull { it.timestamp } ?: 0L,
-                newestEntry = cache.values.maxOfOrNull { it.timestamp } ?: 0L,
+                oldestEntry = entries.minOfOrNull { it.timestamp } ?: 0L,
+                newestEntry = entries.maxOfOrNull { it.timestamp } ?: 0L,
             )
+        }
 
         /**
          * Generate cache key from query and filters.

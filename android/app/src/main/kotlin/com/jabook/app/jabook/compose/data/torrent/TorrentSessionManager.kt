@@ -176,15 +176,28 @@ class TorrentSessionManager
                 }
 
                 Log.i(TAG, "Torrent session initialized successfully")
+            } catch (e: NoClassDefFoundError) {
+                Log.e(TAG, "libtorrent4j classes not available - version mismatch", e)
+                session = null // Ensure session is null on error
+                // Don't throw - allow app to continue without torrent functionality
+                // User will see error when trying to download
+            } catch (e: LinkageError) {
+                Log.e(TAG, "libtorrent4j linkage error - version mismatch", e)
+                session = null // Ensure session is null on error
+                // Don't throw - allow app to continue without torrent functionality
+                // User will see error when trying to download
             } catch (e: NoSuchMethodError) {
                 Log.e(TAG, "libtorrent4j version mismatch - native library incompatible", e)
+                session = null // Ensure session is null on error
                 // Don't throw - allow app to continue without torrent functionality
                 // User will see error when trying to download
             } catch (e: UnsatisfiedLinkError) {
                 Log.e(TAG, "Failed to load libtorrent4j native library", e)
+                session = null // Ensure session is null on error
                 // Don't throw - allow app to continue
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize torrent session", e)
+                session = null // Ensure session is null on error
                 // Don't throw - allow app to continue
             }
         }
@@ -263,6 +276,12 @@ class TorrentSessionManager
                         return Result.failure(IllegalStateException("Session is not running"))
                     }
                     Log.d(TAG, "Session is running: $isRunning")
+                } catch (e: NoClassDefFoundError) {
+                    Log.e(TAG, "libtorrent4j classes not available when checking session", e)
+                    return Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
+                } catch (e: LinkageError) {
+                    Log.e(TAG, "libtorrent4j linkage error when checking session", e)
+                    return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: NoSuchMethodError) {
                     // isRunning() not available, assume session is running if no exception
                     Log.d(TAG, "isRunning() not available, assuming session is running")
@@ -274,12 +293,29 @@ class TorrentSessionManager
                 try {
                     Log.d(TAG, "Calling session.download() for hash=$hash, savePath=$savePath")
 
-                    val flags = org.libtorrent4j.swig.torrent_flags_t()
+                    // Create flags - this may fail if libtorrent4j classes are not available
+                    val flags =
+                        try {
+                            org.libtorrent4j.swig.torrent_flags_t()
+                        } catch (e: NoClassDefFoundError) {
+                            Log.e(TAG, "libtorrent4j classes not available - version mismatch", e)
+                            return Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
+                        } catch (e: LinkageError) {
+                            Log.e(TAG, "libtorrent4j linkage error - version mismatch", e)
+                            return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
+                        }
+
                     session.download(magnetUri, saveDir, flags)
                     Log.i(TAG, "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert...")
                     // Note: The actual torrent handle will be available in ADD_TORRENT alert
                     // We return the hash now, but the torrent won't be in torrents map until alert fires
                     Result.success(hash)
+                } catch (e: NoClassDefFoundError) {
+                    Log.e(TAG, "Class not found error while adding torrent: hash=$hash", e)
+                    Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
+                } catch (e: LinkageError) {
+                    Log.e(TAG, "Linkage error while adding torrent: hash=$hash", e)
+                    Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: UnsatisfiedLinkError) {
                     Log.e(TAG, "Native library error while adding torrent: hash=$hash", e)
                     Result.failure(IllegalStateException("Native library error: ${e.message}", e))
@@ -291,6 +327,12 @@ class TorrentSessionManager
                     Log.e(TAG, "Runtime error while adding torrent: hash=$hash, error=${e.message}", e)
                     Result.failure(IllegalStateException("Failed to add torrent: ${e.message}", e))
                 }
+            } catch (e: NoClassDefFoundError) {
+                Log.e(TAG, "Class not found error while adding torrent", e)
+                Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
+            } catch (e: LinkageError) {
+                Log.e(TAG, "Linkage error while adding torrent", e)
+                Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
             } catch (e: IllegalStateException) {
                 Log.e(TAG, "Illegal state while adding torrent", e)
                 Result.failure(e)
