@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -61,6 +62,8 @@ import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +85,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
@@ -336,7 +340,7 @@ fun PlayerScreen(
     )
 }
 
-@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun PlayerContent(
     state: PlayerUiState.Success,
@@ -359,13 +363,38 @@ private fun PlayerContent(
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
+    // Get window size class for adaptive sizing
+    val context = LocalContext.current
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            ?: throw IllegalStateException("Cannot get Activity from context")
+    val windowSizeClass = calculateWindowSizeClass(activity)
+
+    // Adaptive sizes for compact screens (phones)
+    val isCompact = windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+    val playPauseButtonSize = if (isCompact) 72.dp else 80.dp
+    val skipButtonSize = if (isCompact) 56.dp else 64.dp
+    val seekButtonSize = if (isCompact) 48.dp else 56.dp
+    val playPauseIconSize = if (isCompact) 40.dp else 48.dp
+    val skipIconSize = if (isCompact) 40.dp else 48.dp
+    val seekIconSize = if (isCompact) 32.dp else 40.dp
+    val coverWidth = if (isCompact) 0.8f else 0.85f
+    val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
+    val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
+
     androidx.compose.foundation.lazy.LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding =
             androidx.compose.foundation.layout
-                .PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
+                .PaddingValues(
+                    start = contentPadding,
+                    end = contentPadding,
+                    top = if (isCompact) 4.dp else 8.dp,
+                    bottom = if (isCompact) 96.dp else 112.dp,
+                ),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(itemSpacing),
     ) {
         // Book cover
         item {
@@ -398,7 +427,7 @@ private fun PlayerContent(
                 contentDescription = state.book.title,
                 modifier =
                     imageModifier
-                        .fillMaxWidth(0.85f)
+                        .fillMaxWidth(coverWidth)
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -515,31 +544,31 @@ private fun PlayerContent(
                 // Skip previous
                 IconButton(
                     onClick = onSkipPrevious,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(skipButtonSize),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.SkipPrevious,
                         contentDescription = stringResource(R.string.previousChapter),
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(skipIconSize),
                     )
                 }
 
                 // Seek backward (10s)
                 IconButton(
                     onClick = onSeekBackward,
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(seekButtonSize),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Replay,
                         contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(seekIconSize),
                     )
                 }
 
                 // Play/Pause
                 FilledIconButton(
                     onClick = onPlayPause,
-                    modifier = Modifier.size(80.dp),
+                    modifier = Modifier.size(playPauseButtonSize),
                     colors =
                         IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -560,31 +589,31 @@ private fun PlayerContent(
                             } else {
                                 stringResource(R.string.playButton)
                             },
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(playPauseIconSize),
                     )
                 }
 
                 // Seek forward (30s)
                 IconButton(
                     onClick = onSeekForward,
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(seekButtonSize),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.FastForward,
                         contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(seekIconSize),
                     )
                 }
 
                 // Skip next
                 IconButton(
                     onClick = onSkipNext,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(skipButtonSize),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.SkipNext,
                         contentDescription = stringResource(R.string.nextChapter),
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(skipIconSize),
                     )
                 }
             }
