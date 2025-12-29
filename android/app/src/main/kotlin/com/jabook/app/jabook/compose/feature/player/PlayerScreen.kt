@@ -397,7 +397,8 @@ private fun PlayerContent(
     val playPauseIconSize = if (isCompact) 40.dp else 48.dp
     val skipIconSize = if (isCompact) 40.dp else 48.dp
     val seekIconSize = if (isCompact) 32.dp else 40.dp
-    val coverWidth = if (isCompact) 0.8f else 0.85f
+    // Increased cover size: 88% for compact, 92% for larger screens
+    val coverWidth = if (isCompact) 0.88f else 0.92f
     val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
 
