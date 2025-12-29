@@ -41,6 +41,10 @@ message UserPreferences {
   
   // Library settings
   string library_sort_order = 23; // "BY_ACTIVITY", "BY_TITLE", "BY_AUTHOR", "BY_DATE_ADDED"
+  
+  // Playback behavior
+  bool auto_rewind_on_pause = 24; // Automatically rewind when pausing (inspired by Easybook)
+  int32 auto_rewind_seconds = 25; // Seconds to rewind on pause (default: 2, range: 0-10)
 }
 
 // Theme mode enum

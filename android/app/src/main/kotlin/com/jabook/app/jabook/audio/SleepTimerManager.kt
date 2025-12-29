@@ -16,16 +16,15 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.content.Intent
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * Manages sleep timer functionality.
  *
- * Inspired by EasyBook implementation: uses absolute end time instead of periodic timer.
+ * Inspired by lissen-android implementation: uses SuspendableCountDownTimer
+ * for pause/resume functionality when playback pauses/resumes.
  */
 internal class SleepTimerManager(
     private val context: Context,
@@ -34,13 +33,24 @@ internal class SleepTimerManager(
     private val getActivePlayer: () -> ExoPlayer,
     private val sendBroadcast: (Intent) -> Unit,
 ) {
-    // Sleep timer state (inspired by EasyBook implementation)
+    // Sleep timer state
     var sleepTimerEndTime: Long = 0
         private set
     var sleepTimerEndOfChapter: Boolean = false
         private set
     private var _sleepTimerRemainingSeconds: Int? = null
-    private var sleepTimerCheckJob: Job? = null
+
+    // SuspendableCountDownTimer for pause/resume functionality (inspired by lissen-android)
+    private var suspendableTimer: SuspendableCountDownTimer? = null
+    private var timerOption: TimerOption = TimerOption.FIXED_DURATION
+
+    /**
+     * Timer option types.
+     */
+    private enum class TimerOption {
+        FIXED_DURATION,
+        CURRENT_CHAPTER,
+    }
 
     companion object {
         const val ACTION_SLEEP_TIMER_EXPIRED = "com.jabook.app.jabook.audio.SLEEP_TIMER_EXPIRED"
@@ -49,44 +59,94 @@ internal class SleepTimerManager(
     /**
      * Sets sleep timer with specified duration in minutes.
      *
-     * Inspired by EasyBook implementation: uses absolute end time instead of periodic timer.
+     * Inspired by lissen-android: uses SuspendableCountDownTimer for pause/resume.
      *
      * @param minutes Timer duration in minutes
      */
     fun setSleepTimerMinutes(minutes: Int) {
-        sleepTimerEndTime = System.currentTimeMillis() + (minutes * 60 * 1000L)
+        stopTimer() // Stop existing timer if any
+
+        val totalMillis = minutes * 60 * 1000L
+        if (totalMillis <= 0) return
+
+        sleepTimerEndTime = System.currentTimeMillis() + totalMillis
         sleepTimerEndOfChapter = false
+        timerOption = TimerOption.FIXED_DURATION
         _sleepTimerRemainingSeconds = minutes * 60
+
         android.util.Log.d("AudioPlayerService", "Sleep timer set: $minutes minutes")
+
+        // Create and start SuspendableCountDownTimer
+        suspendableTimer =
+            SuspendableCountDownTimer(
+                totalMillis = totalMillis,
+                intervalMillis = 500L, // Update every 500ms
+                onTickSeconds = { seconds ->
+                    _sleepTimerRemainingSeconds = seconds.toInt()
+                    android.util.Log.v("AudioPlayerService", "Sleep timer tick: ${seconds}s remaining")
+                },
+                onFinished = {
+                    android.util.Log.d("AudioPlayerService", "Sleep timer expired, pausing playback")
+                    val player = getActivePlayer()
+                    player.playWhenReady = false
+                    cancelSleepTimer()
+                    sendTimerExpiredEvent()
+                },
+            )
+
+        // Start timer only if player is playing
+        val player = getActivePlayer()
+        if (player.isPlaying) {
+            suspendableTimer?.start()
+        } else {
+            // Timer will be started when playback resumes
+            android.util.Log.d("AudioPlayerService", "Sleep timer created but paused (player not playing)")
+        }
+
+        // Add player listener for pause/resume
+        setupPlayerListener()
+
         saveTimerState()
-        startSleepTimerCheck()
     }
 
     /**
      * Sets sleep timer to expire at end of current chapter.
      *
-     * Inspired by EasyBook implementation: uses boolean flag for "end of chapter" mode.
+     * Inspired by lissen-android: timer pauses when playback pauses.
      */
     fun setSleepTimerEndOfChapter() {
+        stopTimer() // Stop existing timer if any
+
         sleepTimerEndTime = 0
         sleepTimerEndOfChapter = true
+        timerOption = TimerOption.CURRENT_CHAPTER
         _sleepTimerRemainingSeconds = null
+        suspendableTimer = null
+
         android.util.Log.d("AudioPlayerService", "Sleep timer set: end of chapter")
         saveTimerState()
-        // Note: For "end of chapter" mode, we don't need periodic check
-        // Timer will be triggered in onMediaItemTransition or onPlaybackStateChanged
+        // Note: For "end of chapter" mode, timer will be triggered in onMediaItemTransition
     }
 
     /**
      * Cancels active sleep timer.
      */
     fun cancelSleepTimer() {
+        stopTimer()
         sleepTimerEndTime = 0
         sleepTimerEndOfChapter = false
         _sleepTimerRemainingSeconds = null
         android.util.Log.d("AudioPlayerService", "Sleep timer cancelled")
         saveTimerState()
-        stopSleepTimerCheck()
+    }
+
+    /**
+     * Stops and cleans up the timer.
+     */
+    private fun stopTimer() {
+        suspendableTimer?.cancel()
+        suspendableTimer = null
+        removePlayerListener()
     }
 
     /**
@@ -130,56 +190,51 @@ internal class SleepTimerManager(
     }
 
     /**
-     * Starts periodic check for sleep timer expiration (inspired by EasyBook progressUpdater).
+     * Sets up player listener for pause/resume timer functionality.
      *
-     * Checks timer every 500ms while player is playing, similar to EasyBook implementation.
+     * Inspired by lissen-android: timer pauses when playback pauses and resumes when playback resumes.
      */
-    fun startSleepTimerCheck() {
-        stopSleepTimerCheck() // Stop existing check if any
+    private var playerListener: Player.Listener? = null
 
-        if (sleepTimerEndTime <= 0) {
-            android.util.Log.d("AudioPlayerService", "Sleep timer check not started: no active timer")
-            return
-        }
+    private fun setupPlayerListener() {
+        removePlayerListener() // Remove existing listener if any
 
-        android.util.Log.d("AudioPlayerService", "Starting sleep timer periodic check (every 500ms)")
-        sleepTimerCheckJob =
-            playerServiceScope.launch {
-                while (true) {
-                    delay(500) // Check every 500ms like EasyBook
+        val player = getActivePlayer()
+        playerListener =
+            object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    val currentTimer = suspendableTimer ?: return
 
-                    val player = getActivePlayer()
-                    if (player.isPlaying && sleepTimerEndTime > 0) {
-                        val currentTime = System.currentTimeMillis()
-                        val remaining = ((sleepTimerEndTime - currentTime) / 1000).toInt()
-                        if (currentTime >= sleepTimerEndTime) {
-                            android.util.Log.d(
-                                "AudioPlayerService",
-                                "Sleep timer expired (fixed duration), pausing playback",
-                            )
-                            player.playWhenReady = false
-                            cancelSleepTimer()
-                            sendTimerExpiredEvent()
-                            break // Stop checking after expiration
+                    // Only handle pause/resume for fixed duration timer
+                    if (timerOption == TimerOption.FIXED_DURATION) {
+                        when (isPlaying) {
+                            true -> {
+                                // Resume timer when playback resumes
+                                suspendableTimer = currentTimer.resume()
+                                android.util.Log.d("AudioPlayerService", "Sleep timer resumed (playback resumed)")
+                            }
+                            false -> {
+                                // Pause timer when playback pauses
+                                currentTimer.pause()
+                                android.util.Log.d("AudioPlayerService", "Sleep timer paused (playback paused)")
+                            }
                         }
-                    } else if (!player.isPlaying || sleepTimerEndTime == 0L) {
-                        // Player stopped or timer cancelled, stop checking
-                        android.util.Log.d(
-                            "AudioPlayerService",
-                            "Sleep timer check stopped: player not playing or timer cancelled",
-                        )
-                        break
                     }
                 }
             }
+
+        player.addListener(playerListener!!)
     }
 
     /**
-     * Stops periodic sleep timer check.
+     * Removes player listener.
      */
-    fun stopSleepTimerCheck() {
-        sleepTimerCheckJob?.cancel()
-        sleepTimerCheckJob = null
+    private fun removePlayerListener() {
+        playerListener?.let {
+            val player = getActivePlayer()
+            player.removeListener(it)
+            playerListener = null
+        }
     }
 
     /**
@@ -232,10 +287,36 @@ internal class SleepTimerManager(
                         // Timer hasn't expired yet, restore it
                         sleepTimerEndTime = savedEndTime
                         sleepTimerEndOfChapter = false
+                        timerOption = TimerOption.FIXED_DURATION
                         _sleepTimerRemainingSeconds = remaining
+
+                        // Restore SuspendableCountDownTimer
+                        val totalMillis = remaining * 1000L
+                        suspendableTimer =
+                            SuspendableCountDownTimer(
+                                totalMillis = totalMillis,
+                                intervalMillis = 500L,
+                                onTickSeconds = { seconds ->
+                                    _sleepTimerRemainingSeconds = seconds.toInt()
+                                },
+                                onFinished = {
+                                    android.util.Log.d("AudioPlayerService", "Restored sleep timer expired, pausing playback")
+                                    val player = getActivePlayer()
+                                    player.playWhenReady = false
+                                    cancelSleepTimer()
+                                    sendTimerExpiredEvent()
+                                },
+                            )
+
+                        // Start timer only if player is playing
+                        val player = getActivePlayer()
+                        if (player.isPlaying) {
+                            suspendableTimer?.start()
+                        }
+
+                        setupPlayerListener()
+
                         android.util.Log.d("AudioPlayerService", "Sleep timer restored: $remaining seconds remaining")
-                        // Start periodic check for restored timer
-                        startSleepTimerCheck()
                     } else {
                         // Timer already expired, clear it
                         android.util.Log.d("AudioPlayerService", "Sleep timer expired while app was closed, clearing")

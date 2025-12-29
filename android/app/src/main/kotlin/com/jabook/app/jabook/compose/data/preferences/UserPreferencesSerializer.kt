@@ -46,6 +46,8 @@ object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setLimitDownloadSpeed(false)
             .setMaxDownloadSpeedKb(1000)
             .setMaxConcurrentDownloads(3)
+            .setAutoRewindOnPause(false) // Default: disabled
+            .setAutoRewindSeconds(2) // Default: 2 seconds
             .build()
 
     override suspend fun readFrom(input: InputStream): UserPreferences =

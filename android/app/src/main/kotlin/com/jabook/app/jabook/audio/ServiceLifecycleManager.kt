@@ -65,8 +65,7 @@ internal class ServiceLifecycleManager(
             android.util.Log.w("AudioPlayerService", "Failed to save position in onDestroy", e)
         }
 
-        // Stop sleep timer check
-        service.sleepTimerManager?.stopSleepTimerCheck()
+        // Sleep timer is automatically managed by SuspendableCountDownTimer
 
         // Cancel coroutine scope (inspired by lissen-android)
         service.playerServiceScope.cancel()

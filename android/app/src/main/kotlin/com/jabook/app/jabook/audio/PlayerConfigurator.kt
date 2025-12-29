@@ -83,7 +83,7 @@ internal class PlayerConfigurator(
                     cancelSleepTimer = { service.sleepTimerManager?.cancelSleepTimer() },
                     sendTimerExpiredEvent = { /* Handled by SleepTimerManager */ },
                     saveCurrentPosition = { service.saveCurrentPosition() },
-                    startSleepTimerCheck = { service.sleepTimerManager?.startSleepTimerCheck() },
+                    startSleepTimerCheck = { /* Handled automatically by SuspendableCountDownTimer */ },
                     getEmbeddedArtworkPath = { service.embeddedArtworkPath },
                     setEmbeddedArtworkPath = { service.embeddedArtworkPath = it },
                     getCurrentMetadata = { service.playlistManager?.currentMetadata },
@@ -106,6 +106,19 @@ internal class PlayerConfigurator(
                         }
                     },
                     getCurrentBookId = { service.currentGroupPath },
+                    getAutoRewindOnPause = {
+                        // Get auto rewind setting from preferences
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.userPreferences.firstOrNull()?.autoRewindOnPause ?: false
+                        }
+                    },
+                    getAutoRewindSeconds = {
+                        // Get auto rewind seconds from preferences (default: 2)
+                        kotlinx.coroutines.runBlocking {
+                            val prefs = service.settingsRepository.userPreferences.firstOrNull()
+                            (prefs?.autoRewindSeconds?.takeIf { it > 0 } ?: 2).coerceIn(0, 10)
+                        }
+                    },
                 )
 
             activePlayer.addListener(playerListener!!)

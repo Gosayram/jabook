@@ -232,20 +232,66 @@ internal class PlaybackController(
 
     /**
      * Skips to next track.
+     *
+     * Inspired by lissen-android: checks track availability before switching.
      */
     fun next() {
-        getActivePlayer().seekToNextMediaItem()
-        android.util.Log.d("AudioPlayerService", "Skipping to next track")
+        val player = getActivePlayer()
+        val currentIndex = player.currentMediaItemIndex
+
+        // Find next available track
+        val nextAvailableIndex =
+            TrackAvailabilityChecker.findAvailableTrackIndex(
+                player = player,
+                currentIndex = currentIndex,
+                direction = TrackAvailabilityChecker.Direction.FORWARD,
+            )
+
+        if (nextAvailableIndex != null && nextAvailableIndex != currentIndex) {
+            player.seekTo(nextAvailableIndex, 0L)
+            android.util.Log.d("AudioPlayerService", "Skipping to next available track: $nextAvailableIndex")
+        } else if (nextAvailableIndex == null) {
+            android.util.Log.w("AudioPlayerService", "No available tracks found, stopping playback")
+            player.playWhenReady = false
+        } else {
+            // Already on available track, use default behavior
+            player.seekToNextMediaItem()
+            android.util.Log.d("AudioPlayerService", "Skipping to next track (default)")
+        }
+
         // Reset inactivity timer (user action)
         resetInactivityTimer()
     }
 
     /**
      * Skips to previous track.
+     *
+     * Inspired by lissen-android: checks track availability before switching.
      */
     fun previous() {
-        getActivePlayer().seekToPreviousMediaItem()
-        android.util.Log.d("AudioPlayerService", "Skipping to previous track")
+        val player = getActivePlayer()
+        val currentIndex = player.currentMediaItemIndex
+
+        // Find previous available track
+        val prevAvailableIndex =
+            TrackAvailabilityChecker.findAvailableTrackIndex(
+                player = player,
+                currentIndex = currentIndex,
+                direction = TrackAvailabilityChecker.Direction.BACKWARD,
+            )
+
+        if (prevAvailableIndex != null && prevAvailableIndex != currentIndex) {
+            player.seekTo(prevAvailableIndex, 0L)
+            android.util.Log.d("AudioPlayerService", "Skipping to previous available track: $prevAvailableIndex")
+        } else if (prevAvailableIndex == null) {
+            android.util.Log.w("AudioPlayerService", "No available tracks found, stopping playback")
+            player.playWhenReady = false
+        } else {
+            // Already on available track, use default behavior
+            player.seekToPreviousMediaItem()
+            android.util.Log.d("AudioPlayerService", "Skipping to previous track (default)")
+        }
+
         // Reset inactivity timer (user action)
         resetInactivityTimer()
     }

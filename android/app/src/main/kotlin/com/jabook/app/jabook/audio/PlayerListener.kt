@@ -19,6 +19,7 @@ import android.content.Intent
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.ErrorHandler
 import kotlinx.coroutines.CompletableDeferred
@@ -54,6 +55,8 @@ internal class PlayerListener(
     private val updateLastPlayedTimestamp: ((String) -> Unit)? = null, // Callback to update last played timestamp
     private val markBookCompleted: ((String) -> Unit)? = null, // Callback to mark book as completed
     private val getCurrentBookId: (() -> String?)? = null, // Get current book ID
+    private val getAutoRewindOnPause: (() -> Boolean)? = null, // Get auto rewind on pause setting
+    private val getAutoRewindSeconds: (() -> Int)? = null, // Get auto rewind seconds setting
 ) : Player.Listener {
     private var retryCount = 0
     private val maxRetries = 3
@@ -311,6 +314,10 @@ internal class PlayerListener(
                 // Save position to ensure it's preserved
                 android.util.Log.d("AudioPlayerService", "Playback stopped, saving position")
                 saveCurrentPosition()
+
+                // Auto rewind on pause (inspired by Easybook)
+                // This helps users not lose context when resuming playback
+                handleAutoRewindOnPause(player)
             }
 
             // Save position when playback starts (critical event)
@@ -325,10 +332,7 @@ internal class PlayerListener(
                 }
             }
 
-            // Restart sleep timer check when playback starts (if timer is active)
-            if (isPlaying && getSleepTimerEndTime() > 0) {
-                startSleepTimerCheck()
-            }
+            // Sleep timer is automatically managed by SuspendableCountDownTimer (pause/resume)
 
             // Start/stop position checking for end-of-file detection when duration is incorrect
             // Only check when playing and not completed
@@ -556,14 +560,52 @@ internal class PlayerListener(
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-        val currentIndex = getActivePlayer().currentMediaItemIndex
-        val mediaItem = getActivePlayer().currentMediaItem
+        val player = getActivePlayer()
+        val currentIndex = player.currentMediaItemIndex
+        val mediaItem = player.currentMediaItem
         val mediaId = mediaItem?.mediaId ?: "unknown"
+        val metadata = getCurrentMetadata?.invoke()
+
+        // Enhanced error logging with context (inspired by Easybook)
+        val bookId = getCurrentBookId?.invoke() ?: "unknown"
+        val bookName = metadata?.get("title") ?: "unknown"
+        val chapterUrl = mediaId
+        val chapterIdx = currentIndex
+
         android.util.Log.e(
             "AudioPlayerService",
             "❌ Playback error: track=$currentIndex, mediaId=$mediaId, code=${error.errorCode}, message=${error.message}",
-            error,
         )
+        android.util.Log.e(
+            "AudioPlayerService",
+            "❌ Error context: bookId=$bookId, bookName=$bookName, chapterIdx=$chapterIdx, chapterUrl=$chapterUrl",
+        )
+
+        // Log HTTP-specific error details (inspired by Easybook)
+        val cause = error.cause
+        if (cause is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+            android.util.Log.e(
+                "AudioPlayerService",
+                "❌ HTTP error: responseCode=${cause.responseCode}, responseMessage=${cause.responseMessage}",
+            )
+            if (!cause.headerFields.isEmpty()) {
+                android.util.Log.e(
+                    "AudioPlayerService",
+                    "❌ HTTP headers: ${cause.headerFields}",
+                )
+            }
+        } else if (cause is androidx.media3.datasource.HttpDataSource.HttpDataSourceException) {
+            android.util.Log.e(
+                "AudioPlayerService",
+                "❌ HTTP data source error: type=${cause.type}",
+            )
+        } else if (cause is java.io.IOException) {
+            android.util.Log.e(
+                "AudioPlayerService",
+                "❌ IO error: ${cause.message}",
+            )
+        }
+
         handlePlayerError(error)
     }
 
@@ -651,11 +693,16 @@ internal class PlayerListener(
                 }
             }
 
-        val currentIndex = getActivePlayer().currentMediaItemIndex
-        val totalTracks = getActualPlaylistSize?.invoke() ?: getActivePlayer().mediaItemCount
+        val player = getActivePlayer()
+        val currentIndex = player.currentMediaItemIndex
+        val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
+        val metadata = getCurrentMetadata?.invoke()
+        val bookId = getCurrentBookId?.invoke() ?: "unknown"
+        val bookName = metadata?.get("title") ?: "unknown"
+
         android.util.Log.e(
             "AudioPlayerService",
-            "❌ Playback error (user-friendly): $userFriendlyMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries)",
+            "❌ Playback error (user-friendly): $userFriendlyMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries, bookId=$bookId, bookName=$bookName)",
         )
         getNotificationManager()?.updateNotification()
 
@@ -803,6 +850,41 @@ internal class PlayerListener(
         val currentIndex = newPosition.mediaItemIndex
         // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
         val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
+
+        // Check track availability for automatic transitions (inspired by lissen-android)
+        if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
+            if (!TrackAvailabilityChecker.isTrackAvailable(player, currentIndex)) {
+                android.util.Log.w(
+                    "AudioPlayerService",
+                    "Track $currentIndex is not available, searching for next available track",
+                )
+
+                val direction =
+                    when {
+                        currentIndex > previousIndex ||
+                            (currentIndex == 0 && previousIndex == player.mediaItemCount - 1)
+                        -> TrackAvailabilityChecker.Direction.FORWARD
+                        else -> TrackAvailabilityChecker.Direction.BACKWARD
+                    }
+
+                val nextAvailableIndex =
+                    TrackAvailabilityChecker.findAvailableTrackIndex(
+                        player = player,
+                        currentIndex = currentIndex,
+                        direction = direction,
+                    )
+
+                if (nextAvailableIndex != null && nextAvailableIndex != currentIndex) {
+                    player.seekTo(nextAvailableIndex, 0L)
+                    android.util.Log.d("AudioPlayerService", "Switched to available track: $nextAvailableIndex")
+                } else {
+                    // No available tracks found, pause playback
+                    android.util.Log.w("AudioPlayerService", "No available tracks found, pausing playback")
+                    player.playWhenReady = false
+                }
+                return // Skip further processing for this discontinuity
+            }
+        }
 
         // Allow manual track switching even if book is completed
         // Only block automatic transitions from last track
@@ -1376,6 +1458,35 @@ internal class PlayerListener(
                     putExtra("last_track_index", lastIndex)
                 }
             context.sendBroadcast(intent)
+        }
+    }
+
+    /**
+     * Handles automatic rewind on pause (inspired by Easybook).
+     *
+     * When playback pauses, automatically rewinds by a few seconds to help users
+     * not lose context when resuming playback.
+     */
+    private fun handleAutoRewindOnPause(player: ExoPlayer) {
+        val autoRewindEnabled = getAutoRewindOnPause?.invoke() ?: false
+        if (!autoRewindEnabled) {
+            return
+        }
+
+        val rewindSeconds = (getAutoRewindSeconds?.invoke() ?: 2).coerceIn(0, 10)
+        if (rewindSeconds <= 0) {
+            return
+        }
+
+        val currentPosition = player.currentPosition
+        val newPosition = (currentPosition - rewindSeconds * 1000L).coerceAtLeast(0L)
+
+        if (newPosition < currentPosition) {
+            player.seekTo(newPosition)
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Auto rewind on pause: ${rewindSeconds}s (from ${currentPosition}ms to ${newPosition}ms)",
+            )
         }
     }
 }
