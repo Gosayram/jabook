@@ -400,27 +400,29 @@ private fun PlayerContent(
     val playPauseIconSize = if (isCompact) 40.dp else 48.dp
     val skipIconSize = if (isCompact) 40.dp else 48.dp
     val seekIconSize = if (isCompact) 32.dp else 40.dp
-    // Adaptive sizes for control buttons (Speed, Repeat, Timer)
-    val controlButtonHeight = if (isCompact) 40.dp else 48.dp
-    val controlButtonIconSize = if (isCompact) 18.dp else 20.dp
+    // Adaptive sizes for control buttons (Speed, Repeat, Timer) - increased for better ergonomics
+    val controlButtonHeight = if (isCompact) 48.dp else 56.dp
+    val controlButtonIconSize = if (isCompact) 22.dp else 24.dp
     val controlButtonTextSize =
         if (isCompact) {
             androidx.compose.ui.unit.TextUnit(
-                12f,
+                14f,
                 androidx.compose.ui.unit.TextUnitType.Sp,
             )
         } else {
             androidx.compose.ui.unit
-                .TextUnit(14f, androidx.compose.ui.unit.TextUnitType.Sp)
+                .TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp)
         }
-    val controlButtonSpacing = if (isCompact) 6.dp else 8.dp
+    val controlButtonSpacing = if (isCompact) 8.dp else 12.dp
     // Increased cover size: 88% for compact, 92% for larger screens
     val coverWidth = if (isCompact) 0.88f else 0.92f
     val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
-    // Use tighter spacing for player on compact screens to reduce empty space
-    val itemSpacing = if (isCompact) 8.dp else AdaptiveUtils.getItemSpacing(windowSizeClass)
-    // Smaller spacing for compact screens between specific elements
-    val smallItemSpacing = if (isCompact) 4.dp else 8.dp
+    // Increased spacing for better ergonomics
+    val itemSpacing = if (isCompact) 16.dp else AdaptiveUtils.getItemSpacing(windowSizeClass)
+    // Spacing for compact screens between specific elements
+    val smallItemSpacing = if (isCompact) 8.dp else 12.dp
+    // Large spacing for major sections
+    val largeItemSpacing = if (isCompact) 24.dp else 32.dp
 
     // Get author from audio metadata if available
     var authorFromMetadata by remember { mutableStateOf<String?>(null) }
@@ -476,6 +478,11 @@ private fun PlayerContent(
             }
         }
 
+        // Spacer before cover
+        item {
+            Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+        }
+
         // Book cover
         item {
             val imageModifier =
@@ -515,6 +522,11 @@ private fun PlayerContent(
             )
         }
 
+        // Spacer after cover
+        item {
+            Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+        }
+
         // Book info
         item {
             Column(
@@ -532,6 +544,11 @@ private fun PlayerContent(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+
+        // Spacer after book title
+        item {
+            Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
         }
 
         // Progress section
@@ -586,6 +603,11 @@ private fun PlayerContent(
             }
         }
 
+        // Spacer before chapter button
+        item {
+            Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+        }
+
         // Current Chapter Button
         item {
             state.currentChapter?.let { chapter ->
@@ -628,6 +650,11 @@ private fun PlayerContent(
                     )
                 }
             }
+        }
+
+        // Spacer before playback controls
+        item {
+            Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
         }
 
         // Playback controls
@@ -718,6 +745,11 @@ private fun PlayerContent(
             }
         }
 
+        // Spacer before control buttons
+        item {
+            Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+        }
+
         // Control Buttons Row (Speed, Repeat & Sleep Timer)
         item {
             Row(
@@ -741,7 +773,7 @@ private fun PlayerContent(
                         modifier =
                             Modifier
                                 .size(controlButtonIconSize)
-                                .padding(end = if (isCompact) 4.dp else 8.dp),
+                                .padding(end = if (isCompact) 6.dp else 8.dp),
                     )
                     Text(
                         text =
@@ -785,27 +817,32 @@ private fun PlayerContent(
                                 },
                         ),
                 ) {
-                    Icon(
-                        imageVector =
-                            when (chapterRepeatMode) {
-                                ChapterRepeatMode.OFF -> Icons.Outlined.Repeat
-                                ChapterRepeatMode.ONCE -> Icons.Filled.RepeatOne
-                                ChapterRepeatMode.INFINITE -> Icons.Filled.Repeat
-                            },
-                        contentDescription =
-                            when (chapterRepeatMode) {
-                                ChapterRepeatMode.OFF -> stringResource(R.string.noRepeat)
-                                ChapterRepeatMode.ONCE -> stringResource(R.string.repeatTrack)
-                                ChapterRepeatMode.INFINITE -> stringResource(R.string.repeatPlaylist)
-                            },
-                        modifier = Modifier.size(controlButtonIconSize),
-                        tint =
-                            when (chapterRepeatMode) {
-                                ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.onSurfaceVariant
-                                ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.onPrimaryContainer
-                                ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.onPrimaryContainer
-                            },
-                    )
+                    when (chapterRepeatMode) {
+                        ChapterRepeatMode.INFINITE -> {
+                            // Show infinity symbol (∞) for infinite repeat mode
+                            Text(
+                                text = "∞",
+                                fontSize = controlButtonTextSize,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                        ChapterRepeatMode.OFF -> {
+                            Icon(
+                                imageVector = Icons.Outlined.Repeat,
+                                contentDescription = stringResource(R.string.noRepeat),
+                                modifier = Modifier.size(controlButtonIconSize),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        ChapterRepeatMode.ONCE -> {
+                            Icon(
+                                imageVector = Icons.Filled.RepeatOne,
+                                contentDescription = stringResource(R.string.repeatTrack),
+                                modifier = Modifier.size(controlButtonIconSize),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
                 }
 
                 // Sleep Timer Button
