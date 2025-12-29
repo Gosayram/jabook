@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
@@ -65,6 +66,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -87,12 +89,27 @@ import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
+import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * EntryPoint to access AudioMetadataParser from Hilt in Composable.
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface AudioMetadataParserEntryPoint {
+    fun audioMetadataParser(): AudioMetadataParser
+}
 
 /**
  * Player screen - full screen audio player.
@@ -384,6 +401,31 @@ private fun PlayerContent(
     val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
 
+    // Get author from audio metadata if available
+    var authorFromMetadata by remember { mutableStateOf<String?>(null) }
+    val metadataParser =
+        remember {
+            EntryPointAccessors
+                .fromApplication(
+                    context.applicationContext,
+                    AudioMetadataParserEntryPoint::class.java,
+                ).audioMetadataParser()
+        }
+
+    LaunchedEffect(state.currentChapter?.fileUrl) {
+        authorFromMetadata = null
+        val fileUrl = state.currentChapter?.fileUrl
+        if (!fileUrl.isNullOrBlank()) {
+            val file = File(fileUrl)
+            if (file.exists()) {
+                val metadata = metadataParser.parseMetadata(fileUrl)
+                authorFromMetadata = metadata?.artist?.takeIf { it.isNotBlank() }
+            }
+        }
+    }
+
+    val displayAuthor = authorFromMetadata
+
     androidx.compose.foundation.lazy.LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding =
@@ -397,6 +439,19 @@ private fun PlayerContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(itemSpacing),
     ) {
+        // Author from metadata (above cover)
+        if (displayAuthor != null) {
+            item {
+                Text(
+                    text = displayAuthor,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
         // Book cover
         item {
             val imageModifier =
@@ -448,15 +503,6 @@ private fun PlayerContent(
                     textAlign = TextAlign.Center,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = state.book.author,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
                 )
             }
         }
@@ -512,16 +558,19 @@ private fun PlayerContent(
 
         // Current Chapter Button
         item {
-            FilledTonalButton(
-                onClick = onChapterClick,
-                modifier = Modifier.fillMaxWidth(0.9f),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.SkipNext,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = 8.dp),
-                )
-                state.currentChapter?.let { chapter ->
+            state.currentChapter?.let { chapter ->
+                FilledTonalButton(
+                    onClick = onChapterClick,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth(0.95f)
+                            .wrapContentWidth(Alignment.CenterHorizontally),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SkipNext,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
                     Text(
                         text =
                             com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
@@ -530,6 +579,8 @@ private fun PlayerContent(
                                 stringResource(R.string.chapter_prefix),
                                 normalizeEnabled,
                             ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -704,16 +755,12 @@ private fun PlayerContent(
                     Icon(
                         imageVector = Icons.Filled.Timer,
                         contentDescription = stringResource(R.string.sleepTimer),
-                        modifier = Modifier.padding(end = 8.dp),
                     )
-                    Text(
-                        text =
-                            when (sleepTimerState) {
-                                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle -> stringResource(R.string.timer)
-                                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active ->
-                                    (sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime
-                            },
-                    )
+                    if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
+                        Text(
+                            text = (sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime,
+                        )
+                    }
                 }
             }
         }
