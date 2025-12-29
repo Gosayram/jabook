@@ -127,6 +127,29 @@ class TorrentSessionManager
             }
 
             try {
+                // CRITICAL: Check if libtorrent4j classes are available before creating SessionManager
+                // This helps catch NoSuchMethodError early, before static initialization
+                try {
+                    // Try to access a class that will trigger static initialization
+                    // This will fail early if native library is incompatible
+                    Class.forName("org.libtorrent4j.swig.alert")
+                    Log.d(TAG, "libtorrent4j classes are available")
+                } catch (e: NoClassDefFoundError) {
+                    Log.e(TAG, "libtorrent4j classes not available - version mismatch", e)
+                    session = null
+                    return
+                } catch (e: LinkageError) {
+                    Log.e(TAG, "libtorrent4j linkage error during class check", e)
+                    session = null
+                    return
+                } catch (e: NoSuchMethodError) {
+                    Log.e(TAG, "libtorrent4j native method not found - version mismatch", e)
+                    session = null
+                    return
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not verify libtorrent4j classes, proceeding anyway", e)
+                }
+
                 // Log libtorrent version for debugging (as shown in examples)
                 try {
                     val version = LibTorrent.version()

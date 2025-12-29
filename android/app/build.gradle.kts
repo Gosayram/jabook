@@ -264,6 +264,7 @@ dependencies {
     implementation("org.libtorrent4j:libtorrent4j-android-arm64:$libtorrent4jVersion")
     implementation("org.libtorrent4j:libtorrent4j-android-arm:$libtorrent4jVersion")
     implementation("org.libtorrent4j:libtorrent4j-android-x86:$libtorrent4jVersion")
+    implementation("org.libtorrent4j:libtorrent4j-android-x86_64:$libtorrent4jVersion")
 
     // Jetpack Compose - Modern UI toolkit
     implementation(platform("androidx.compose:compose-bom:2025.12.00"))

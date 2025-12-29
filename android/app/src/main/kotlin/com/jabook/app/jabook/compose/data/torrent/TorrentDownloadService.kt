@@ -56,8 +56,27 @@ class TorrentDownloadService : Service() {
         super.onCreate()
         Log.i(TAG, "Service created")
 
-        // Initialize torrent manager
-        torrentManager.initialize()
+        // Initialize torrent manager with error handling
+        // Wrap in try-catch to prevent crashes from libtorrent4j initialization errors
+        try {
+            torrentManager.initialize()
+        } catch (e: NoSuchMethodError) {
+            Log.e(TAG, "libtorrent4j version mismatch - native library incompatible", e)
+            // Don't crash - allow service to continue without torrent functionality
+            // User will see error when trying to download
+        } catch (e: NoClassDefFoundError) {
+            Log.e(TAG, "libtorrent4j classes not available - version mismatch", e)
+            // Don't crash - allow service to continue
+        } catch (e: LinkageError) {
+            Log.e(TAG, "libtorrent4j linkage error - version mismatch", e)
+            // Don't crash - allow service to continue
+        } catch (e: UnsatisfiedLinkError) {
+            Log.e(TAG, "Failed to load libtorrent4j native library", e)
+            // Don't crash - allow service to continue
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize TorrentManager", e)
+            // Don't crash - allow service to continue
+        }
 
         // Observe downloads for notification updates
         observeDownloads()

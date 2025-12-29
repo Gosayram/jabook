@@ -78,6 +78,24 @@
     native <methods>;
 }
 
+# -------- libtorrent4j (CRITICAL - prevent obfuscation) --------
+# Keep all libtorrent4j classes to prevent NoSuchMethodError
+-keep class org.libtorrent4j.** { *; }
+-keep class org.libtorrent4j.swig.** { *; }
+-keepclassmembers class org.libtorrent4j.** { *; }
+-keepclassmembers class org.libtorrent4j.swig.** { *; }
+# Keep native methods in libtorrent4j
+-keepclasseswithmembernames class org.libtorrent4j.swig.** {
+    native <methods>;
+}
+# Keep static methods that may be called from native code
+-keepclassmembers class org.libtorrent4j.swig.** {
+    static <methods>;
+}
+# Don't warn about missing classes (native library handles this)
+-dontwarn org.libtorrent4j.**
+-dontwarn org.libtorrent4j.swig.**
+
 # -------- Entry Points (Activities) --------
 -keep class com.jabook.app.jabook.MainActivity
 -keep class com.jabook.app.jabook.compose.ComposeMainActivity

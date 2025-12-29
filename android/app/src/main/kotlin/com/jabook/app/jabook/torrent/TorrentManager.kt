@@ -79,6 +79,28 @@ class TorrentManager
             Log.d(TAG, "Initializing libtorrent session...")
 
             try {
+                // Check if libtorrent4j classes are available before creating SessionManager
+                // This helps catch NoSuchMethodError early
+                try {
+                    // Try to access a class that will trigger static initialization
+                    Class.forName("org.libtorrent4j.swig.alert")
+                    Log.d(TAG, "libtorrent4j classes are available")
+                } catch (e: NoClassDefFoundError) {
+                    Log.e(TAG, "libtorrent4j classes not available - version mismatch", e)
+                    isInitialized = false
+                    return
+                } catch (e: LinkageError) {
+                    Log.e(TAG, "libtorrent4j linkage error during class check", e)
+                    isInitialized = false
+                    return
+                } catch (e: NoSuchMethodError) {
+                    Log.e(TAG, "libtorrent4j native method not found - version mismatch", e)
+                    isInitialized = false
+                    return
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not verify libtorrent4j classes, proceeding anyway", e)
+                }
+
                 session =
                     SessionManager().apply {
                         addListener(createAlertListener())
@@ -88,9 +110,31 @@ class TorrentManager
                 isInitialized = true
                 Log.i(TAG, "Libtorrent session initialized successfully")
                 startProgressUpdates()
+            } catch (e: NoSuchMethodError) {
+                Log.e(TAG, "libtorrent4j version mismatch - native library incompatible", e)
+                session = null
+                isInitialized = false
+                // Don't throw - allow app to continue without torrent functionality
+            } catch (e: NoClassDefFoundError) {
+                Log.e(TAG, "libtorrent4j classes not available - version mismatch", e)
+                session = null
+                isInitialized = false
+                // Don't throw - allow app to continue
+            } catch (e: LinkageError) {
+                Log.e(TAG, "libtorrent4j linkage error - version mismatch", e)
+                session = null
+                isInitialized = false
+                // Don't throw - allow app to continue
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "Failed to load libtorrent4j native library", e)
+                session = null
+                isInitialized = false
+                // Don't throw - allow app to continue
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize libtorrent session", e)
+                session = null
                 isInitialized = false
+                // Don't throw - allow app to continue
             }
         }
 
