@@ -518,6 +518,10 @@ private fun SearchResultCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val configuration = context.resources.configuration
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     Card(
         modifier =
             modifier
@@ -529,11 +533,14 @@ private fun SearchResultCard(
             modifier = Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Cover image
+            // Cover image - adaptive size based on orientation
             result.coverUrl?.let { coverUrl ->
-                val context = androidx.compose.ui.platform.LocalContext.current
                 val density = context.resources.displayMetrics.density
                 val cornerRadiusPx = 8f * density
+
+                // Smaller cover in landscape to save space
+                val coverWidth = if (isLandscape) 60.dp else 80.dp
+                val coverHeight = if (isLandscape) 90.dp else 120.dp
 
                 val imageRequest =
                     ImageRequest
@@ -564,8 +571,8 @@ private fun SearchResultCard(
                     contentDescription = result.title,
                     modifier =
                         Modifier
-                            .width(80.dp)
-                            .height(120.dp),
+                            .width(coverWidth)
+                            .height(coverHeight),
                     contentScale = ContentScale.Crop,
                 )
             }

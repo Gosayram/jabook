@@ -943,6 +943,21 @@ class RutrackerParser
                 cleaned = cleaned.replace(Regex(pattern, RegexOption.IGNORE_CASE), "")
             }
 
+            // Remove metadata values if they appear in HTML
+            metadata.values.forEach { value ->
+                if (value.isNotBlank() && value.length > 3) {
+                    // Remove exact matches and variations from HTML
+                    cleaned = cleaned.replace(value, "", ignoreCase = true)
+                }
+            }
+
+            // Remove "Описание:" or "Description:" prefix if present
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:Описание|Description)[:\\s]+", RegexOption.IGNORE_CASE),
+                    "",
+                )
+
             // Clean up multiple whitespace and normalize <br> tags
             cleaned =
                 cleaned

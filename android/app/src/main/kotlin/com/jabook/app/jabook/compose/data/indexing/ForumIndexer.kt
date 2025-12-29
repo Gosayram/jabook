@@ -79,7 +79,7 @@ class ForumIndexer
         companion object {
             private const val TAG = "ForumIndexer"
             private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
-            private const val DELAY_BETWEEN_REQUESTS_MS = 500L // Rate limiting
+            private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Rate limiting (reduced for faster indexing)
             private const val MAX_PAGES_PER_FORUM = 100 // Safety limit
 
             // Update strategy constants
@@ -92,9 +92,10 @@ class ForumIndexer
             private const val PRELOAD_COVERS_DELAY_MS = 100L // Delay between cover preloads
 
             // Performance optimization
-            private const val MAX_CONCURRENT_FORUMS = 2 // Max parallel forum indexing
-            private const val BATCH_SIZE_FOR_DB = 50 // Batch size for database inserts
+            private const val MAX_CONCURRENT_FORUMS = 3 // Increased from 2 to 3 for better performance
+            private const val BATCH_SIZE_FOR_DB = 100 // Increased from 50 to 100 for faster DB writes
             private const val MAX_MEMORY_TOPICS = 200 // Max topics to keep in memory before DB flush
+            private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Reduced from 500ms to 300ms for faster indexing
         }
 
         /**
@@ -119,6 +120,11 @@ class ForumIndexer
 
                 Log.i(TAG, "Starting full forum indexing for ${forumIdList.size} forums (version $currentIndexVersion)")
 
+                // Clear old indexed data before starting new index to ensure only audiobook forums are indexed
+                Log.i(TAG, "Clearing old indexed data before new index...")
+                clearIndex()
+                Log.i(TAG, "Old indexed data cleared")
+
                 onProgress?.invoke(
                     IndexingProgress.InProgress(
                         currentForum = forumIdList.firstOrNull() ?: "",
@@ -129,6 +135,11 @@ class ForumIndexer
                     ),
                 )
 
+                // Use AtomicInteger for thread-safe progress tracking
+                val topicsIndexedAtomic =
+                    java.util.concurrent.atomic
+                        .AtomicInteger(0)
+
                 // Process forums in parallel batches for better performance
                 forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEachIndexed { batchIndex, batch ->
                     val batchResults =
@@ -137,22 +148,27 @@ class ForumIndexer
                                 async(Dispatchers.IO) {
                                     try {
                                         val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
+                                        var forumTopicsCount = 0
                                         val (indexed, covers) =
                                             indexForum(
                                                 forumId,
                                                 currentIndexVersion,
-                                            ) { page, topics ->
-                                                // Update progress
+                                            ) { page, topicsInForum ->
+                                                forumTopicsCount = topicsInForum
+                                                // Update progress with thread-safe counter
+                                                val currentTotal = topicsIndexedAtomic.get()
                                                 onProgress?.invoke(
                                                     IndexingProgress.InProgress(
                                                         currentForum = forumId,
                                                         currentForumIndex = forumIndex,
                                                         totalForums = forumIdList.size,
                                                         currentPage = page,
-                                                        topicsIndexed = totalIndexed + topics,
+                                                        topicsIndexed = currentTotal,
                                                     ),
                                                 )
                                             }
+                                        // Update atomic counter after forum completion
+                                        topicsIndexedAtomic.addAndGet(indexed)
                                         Pair(indexed, covers)
                                     } catch (e: Exception) {
                                         Log.e(TAG, "Failed to index forum $forumId", e)

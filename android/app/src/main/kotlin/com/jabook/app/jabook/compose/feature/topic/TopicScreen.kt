@@ -188,13 +188,17 @@ private fun TopicDetailsContent(
     viewModel: TopicViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val configuration = context.resources.configuration
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
     var showDownloadMenu by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Cover image (if available)
+        // Cover image (if available) - adaptive size
         details.coverUrl?.let { rawCoverUrl ->
             item {
                 val context = LocalContext.current
@@ -236,12 +240,14 @@ private fun TopicDetailsContent(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center,
                 ) {
+                    // Adaptive cover size: smaller in landscape, larger in portrait
+                    val coverWidthFraction = if (isLandscape) 0.4f else 0.6f
                     coil3.compose.AsyncImage(
                         model = imageRequest,
                         contentDescription = details.title,
                         modifier =
                             Modifier
-                                .fillMaxWidth(0.6f)
+                                .fillMaxWidth(coverWidthFraction)
                                 .aspectRatio(0.7f),
                         contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                     )
@@ -621,10 +627,13 @@ private fun DescriptionAndCommentsSection(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val isLargeScreen = context.resources.configuration.screenWidthDp >= 600
+    val configuration = context.resources.configuration
+    val isLargeScreen = configuration.screenWidthDp >= 600
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
-    if (isLargeScreen && !description.isNullOrBlank() && comments.isNotEmpty()) {
-        // Two column layout for larger screens
+    // Use two-column layout for large screens or landscape orientation
+    if ((isLargeScreen || isLandscape) && !description.isNullOrBlank() && comments.isNotEmpty()) {
+        // Two column layout for larger screens or landscape
         Row(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
