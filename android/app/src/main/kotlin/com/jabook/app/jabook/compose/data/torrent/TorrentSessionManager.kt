@@ -28,9 +28,9 @@ import org.libtorrent4j.SettingsPack
 import org.libtorrent4j.TorrentHandle
 import org.libtorrent4j.TorrentInfo
 import org.libtorrent4j.TorrentStatus
-import org.libtorrent4j.AlertType
 import org.libtorrent4j.alerts.AddTorrentAlert
 import org.libtorrent4j.alerts.Alert
+import org.libtorrent4j.alerts.AlertType
 import org.libtorrent4j.alerts.BlockFinishedAlert
 import org.libtorrent4j.alerts.DhtErrorAlert
 import org.libtorrent4j.alerts.MetadataReceivedAlert
