@@ -377,17 +377,33 @@ class AudioPlayerService : MediaLibraryService() {
             PlayerPerformanceLogger.log("Service", "listener set")
 
             // Initialize service components using extracted initializer
-            //  Media3 automatically manages notifications - no custom provider needed
+            // Media3 automatically manages notifications via MediaLibrarySession
             android.util.Log.e("JABOOK_SERVICE", "Starting AudioPlayerServiceInitializer...")
             AudioPlayerServiceInitializer(this).initialize()
             android.util.Log.e("JABOOK_SERVICE", "[OK] AudioPlayerServiceInitializer completed")
 
-            // Initialize PlayerNotificationManager (androidx.media3.ui)
-            // This provides direct notification control that works with background service warmup
-            // CRITICAL: This is NOT a fallback - it's what powers Phone Speaker integration!
-            android.util.Log.e("JABOOK_SERVICE", "Initializing PlayerNotificationManager...")
-            setupPlayerNotificationManager()
-            android.util.Log.e("JABOOK_SERVICE", "[OK] PlayerNotificationManager initialized")
+            // Set MediaNotificationProvider for MediaLibrarySession (system media player)
+            // This ensures system media player notification has priority
+            if (mediaLibrarySession != null) {
+                setMediaNotificationProvider(AudioPlayerNotificationProvider(this))
+                android.util.Log.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
+            } else {
+                android.util.Log.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
+            }
+
+            // Initialize PlayerNotificationManager (androidx.media3.ui) ONLY as fallback
+            // This should only be used when MediaLibrarySession is not available
+            // CRITICAL: Disable PlayerNotificationManager when MediaLibrarySession is active
+            // to prevent duplicate notifications and ensure system media player has priority
+            if (mediaLibrarySession == null) {
+                android.util.Log.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
+                setupPlayerNotificationManager()
+            } else {
+                android.util.Log.i(
+                    "AudioPlayerService",
+                    "MediaLibrarySession active, skipping PlayerNotificationManager to ensure system media player priority",
+                )
+            }
 
             // Initialize AudioOutputManager for proximity sensor handling (Speaker/Earpiece switching)
             android.util.Log.e("JABOOK_SERVICE", "Setting up AudioOutputManager...")
@@ -890,6 +906,17 @@ class AudioPlayerService : MediaLibraryService() {
         // Guard: Prevent duplicate initialization
         if (playerNotificationManager != null) {
             android.util.Log.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
+            return
+        }
+
+        // CRITICAL: Only use PlayerNotificationManager as fallback when MediaLibrarySession is not available
+        // If MediaLibrarySession is active, it should handle notifications via MediaNotificationProvider
+        if (mediaLibrarySession != null) {
+            android.util.Log.w(
+                "AudioPlayerService",
+                "MediaLibrarySession is active, PlayerNotificationManager should not be used. " +
+                    "This may cause duplicate notifications. Disabling PlayerNotificationManager.",
+            )
             return
         }
 

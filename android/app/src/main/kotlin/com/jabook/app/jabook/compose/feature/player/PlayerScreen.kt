@@ -639,22 +639,7 @@ private fun PlayerContent(
                                 ChapterRepeatMode.ONCE -> stringResource(R.string.repeatTrack)
                                 ChapterRepeatMode.INFINITE -> stringResource(R.string.repeatPlaylist)
                             },
-                        modifier = Modifier.padding(end = 8.dp),
                         tint =
-                            when (chapterRepeatMode) {
-                                ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.onSurfaceVariant
-                                ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.onPrimaryContainer
-                                ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.onPrimaryContainer
-                            },
-                    )
-                    Text(
-                        text =
-                            when (chapterRepeatMode) {
-                                ChapterRepeatMode.OFF -> stringResource(R.string.noRepeat)
-                                ChapterRepeatMode.ONCE -> "1"
-                                ChapterRepeatMode.INFINITE -> stringResource(R.string.repeatInfinite)
-                            },
-                        color =
                             when (chapterRepeatMode) {
                                 ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.onSurfaceVariant
                                 ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.onPrimaryContainer

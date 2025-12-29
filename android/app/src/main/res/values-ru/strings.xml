@@ -1933,8 +1933,6 @@
     <string name="repeatTrack">Повторять трек</string>
     <!-- Режим повтора всего плейлиста -->
     <string name="repeatPlaylist">Повторять плейлист</string>
-    <!-- Символ бесконечного повтора -->
-    <string name="repeatInfinite">∞</string>
     <!-- Метка таймера сна -->
     <string name="timerLabel">Таймер</string>
     <!-- Метка скорости воспроизведения -->
