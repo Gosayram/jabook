@@ -18,17 +18,22 @@ import android.content.Context
 import android.util.Log
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
+import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
+import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -68,6 +73,9 @@ class ForumIndexer
         private val mirrorManager: MirrorManager,
         @param:ApplicationContext private val context: Context,
     ) {
+        // Background scope for non-blocking operations (cover preloading)
+        private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
         companion object {
             private const val TAG = "ForumIndexer"
             private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
@@ -82,22 +90,28 @@ class ForumIndexer
             // Cover preloading
             private const val PRELOAD_COVERS_BATCH_SIZE = 10 // Preload covers in batches
             private const val PRELOAD_COVERS_DELAY_MS = 100L // Delay between cover preloads
+
+            // Performance optimization
+            private const val MAX_CONCURRENT_FORUMS = 2 // Max parallel forum indexing
+            private const val BATCH_SIZE_FOR_DB = 50 // Batch size for database inserts
+            private const val MAX_MEMORY_TOPICS = 200 // Max topics to keep in memory before DB flush
         }
 
         /**
-         * Index all audiobook forums (full index).
+         * Index all audiobook forums (full index) with optimized parallel processing.
          *
          * @param forumIds Comma-separated list of forum IDs to index
          * @param preloadCovers Whether to preload cover images to Coil cache (default: true)
-         * @param onProgress Callback with (forumId, page, totalTopics) progress
+         * @param onProgress Callback with IndexingProgress updates
          * @return Total number of topics indexed
          */
         suspend fun indexForums(
             forumIds: String,
             preloadCovers: Boolean = true,
-            onProgress: ((forumId: String, page: Int, totalTopics: Int) -> Unit)? = null,
+            onProgress: ((IndexingProgress) -> Unit)? = null,
         ): Int =
             withContext(Dispatchers.IO) {
+                val startTime = System.currentTimeMillis()
                 val currentIndexVersion = getCurrentIndexVersion() + 1
                 val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                 var totalIndexed = 0
@@ -105,23 +119,81 @@ class ForumIndexer
 
                 Log.i(TAG, "Starting full forum indexing for ${forumIdList.size} forums (version $currentIndexVersion)")
 
-                for (forumId in forumIdList) {
-                    try {
-                        val (indexed, covers) = indexForum(forumId, currentIndexVersion, onProgress)
+                onProgress?.invoke(
+                    IndexingProgress.InProgress(
+                        currentForum = forumIdList.firstOrNull() ?: "",
+                        currentForumIndex = 0,
+                        totalForums = forumIdList.size,
+                        currentPage = 0,
+                        topicsIndexed = 0,
+                    ),
+                )
+
+                // Process forums in parallel batches for better performance
+                forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEachIndexed { batchIndex, batch ->
+                    val batchResults =
+                        batch
+                            .mapIndexed { indexInBatch, forumId ->
+                                async(Dispatchers.IO) {
+                                    try {
+                                        val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
+                                        val (indexed, covers) =
+                                            indexForum(
+                                                forumId,
+                                                currentIndexVersion,
+                                            ) { page, topics ->
+                                                // Update progress
+                                                onProgress?.invoke(
+                                                    IndexingProgress.InProgress(
+                                                        currentForum = forumId,
+                                                        currentForumIndex = forumIndex,
+                                                        totalForums = forumIdList.size,
+                                                        currentPage = page,
+                                                        topicsIndexed = totalIndexed + topics,
+                                                    ),
+                                                )
+                                            }
+                                        Pair(indexed, covers)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Failed to index forum $forumId", e)
+                                        onProgress?.invoke(
+                                            IndexingProgress.Error(
+                                                message = "Failed to index forum $forumId: ${e.message}",
+                                                forumId = forumId,
+                                            ),
+                                        )
+                                        Pair(0, emptyList<String>())
+                                    }
+                                }
+                            }.awaitAll()
+
+                    // Aggregate results
+                    batchResults.forEach { (indexed, covers) ->
                         totalIndexed += indexed
                         coversToPreload.addAll(covers)
-                        Log.i(TAG, "Indexed forum $forumId: $indexed topics, ${covers.size} covers")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to index forum $forumId", e)
                     }
                 }
 
-                // Preload covers in background
+                // Preload covers in background (non-blocking)
                 if (preloadCovers && coversToPreload.isNotEmpty()) {
-                    preloadCovers(coversToPreload)
+                    backgroundScope.launch {
+                        preloadCovers(coversToPreload)
+                    }
                 }
 
-                Log.i(TAG, "Forum indexing completed. Total topics: $totalIndexed, covers: ${coversToPreload.size}")
+                val duration = System.currentTimeMillis() - startTime
+                Log.i(
+                    TAG,
+                    "Forum indexing completed. Total topics: $totalIndexed, covers: ${coversToPreload.size}, duration: ${duration}ms",
+                )
+
+                onProgress?.invoke(
+                    IndexingProgress.Completed(
+                        totalTopics = totalIndexed,
+                        durationMs = duration,
+                    ),
+                )
+
                 totalIndexed
             }
 
@@ -169,22 +241,23 @@ class ForumIndexer
             }
 
         /**
-         * Index a single forum by fetching all pages.
+         * Index a single forum by fetching all pages with batched DB writes.
          *
          * @param forumId Forum ID to index
          * @param indexVersion Current index version
-         * @param onProgress Progress callback
+         * @param onProgress Progress callback with (page, topicsInForum)
          * @return Pair of (number of topics indexed, list of cover URLs to preload)
          */
         private suspend fun indexForum(
             forumId: String,
             indexVersion: Int,
-            onProgress: ((forumId: String, page: Int, totalTopics: Int) -> Unit)?,
+            onProgress: ((page: Int, topicsInForum: Int) -> Unit)? = null,
         ): Pair<Int, List<String>> {
             var totalTopics = 0
             var page = 0
             var hasMorePages = true
             val coversToPreload = mutableListOf<String>()
+            val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
 
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {
@@ -200,9 +273,9 @@ class ForumIndexer
                     if (topics.isEmpty()) {
                         hasMorePages = false
                     } else {
-                        // Save to database with current index version
-                        val entities = topics.map { it.toCachedTopicEntity(indexVersion) }
-                        offlineSearchDao.upsertTopics(entities)
+                        // Add to buffer with current index version
+                        val newEntities = topics.map { it.toCachedTopicEntity(indexVersion) }
+                        entitiesBuffer.addAll(newEntities)
                         totalTopics += topics.size
 
                         // Collect cover URLs for preloading (normalize URLs using current mirror)
@@ -219,7 +292,13 @@ class ForumIndexer
                                 }
                             }.forEach { coversToPreload.add(it) }
 
-                        onProgress?.invoke(forumId, page, totalTopics)
+                        // Flush to DB when buffer reaches batch size or at end
+                        if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
+                            offlineSearchDao.upsertTopics(entitiesBuffer)
+                            entitiesBuffer.clear()
+                        }
+
+                        onProgress?.invoke(page, totalTopics)
 
                         // Rate limiting
                         delay(DELAY_BETWEEN_REQUESTS_MS)
@@ -229,6 +308,11 @@ class ForumIndexer
                     Log.e(TAG, "Error indexing forum $forumId page $page", e)
                     hasMorePages = false
                 }
+            }
+
+            // Flush remaining entities
+            if (entitiesBuffer.isNotEmpty()) {
+                offlineSearchDao.upsertTopics(entitiesBuffer)
             }
 
             return Pair(totalTopics, coversToPreload)

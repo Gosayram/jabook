@@ -130,7 +130,11 @@ class RutrackerRepository
             }
 
         /**
-         * Search with Optimistic UI: Emits Cached results immediately, then Network results.
+         * Search with Index-First strategy: Always try index first, then network if needed.
+         *
+         * Priority:
+         * 1. Indexed topics (fast, offline) - MANDATORY for audiobooks
+         * 2. Network search (only if index doesn't have enough results or query is new)
          */
         fun searchAudiobooksFlow(
             query: String,
@@ -139,39 +143,51 @@ class RutrackerRepository
             flow {
                 Log.d(TAG, "Starting search flow for: $query")
 
-                // 1. Try indexed search first (fast, offline)
+                // 1. ALWAYS try indexed search first (mandatory for audiobooks)
                 if (forumIds == null || forumIds == RutrackerApi.AUDIOBOOKS_FORUM_IDS) {
                     try {
-                        val indexedResults = searchIndexedTopics(query, limit = 50)
+                        val indexedResults = searchIndexedTopics(query, limit = 100)
                         if (indexedResults.isNotEmpty()) {
                             Log.d(TAG, "Found ${indexedResults.size} results from index")
                             emit(Result.success(indexedResults))
+
+                            // If we have good results from index, we're done
+                            // Only fetch from network if index has very few results (< 5)
+                            if (indexedResults.size >= 5) {
+                                return@flow
+                            }
+                            Log.d(TAG, "Index has only ${indexedResults.size} results, fetching from network for more")
+                        } else {
+                            Log.d(TAG, "No results in index, fetching from network")
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Indexed search failed, falling back to network", e)
                     }
                 }
 
-                // 2. Emit DB Cache (if not in mem)
-                // A. Check Memory Cache
+                // 2. Check Memory Cache (quick lookup)
                 val memCached = searchCache.get(query, forumIds)
                 if (memCached != null) {
                     emit(Result.success(memCached))
-                } else {
-                    // B. Emit DB Cache (if not in mem)
-                    if (forumIds == null) {
-                        try {
-                            val entities = offlineSearchDao.getResultsForQuery(query)
-                            if (entities.isNotEmpty()) {
-                                emit(Result.success(entities.map { it.toSearchResult() }))
-                            }
-                        } catch (e: Exception) {
-                            Log.w(TAG, "DB read failed", e)
+                    return@flow
+                }
+
+                // 3. Check DB Cache (previous searches)
+                if (forumIds == null) {
+                    try {
+                        val entities = offlineSearchDao.getResultsForQuery(query)
+                        if (entities.isNotEmpty()) {
+                            val dbResults = entities.map { it.toSearchResult() }
+                            Log.d(TAG, "Found ${dbResults.size} results from DB cache")
+                            emit(Result.success(dbResults))
+                            return@flow
                         }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "DB read failed", e)
                     }
                 }
 
-                // C. Fetch Network
+                // 4. Fetch from Network (only if index/DB don't have results)
                 val networkResult = fetchFromNetwork(query, forumIds)
                 emit(networkResult)
             }.catch { e ->

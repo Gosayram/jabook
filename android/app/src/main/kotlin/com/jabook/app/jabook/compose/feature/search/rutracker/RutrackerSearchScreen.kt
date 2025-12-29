@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -60,11 +62,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil3.asImage
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.request.crossfade
+import coil3.request.transformations
+import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 
@@ -85,14 +97,49 @@ fun RutrackerSearchScreen(
     onTopicClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RutrackerSearchViewModel = hiltViewModel(),
+    indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel(),
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val searchState by viewModel.searchState.collectAsState()
     val filters by viewModel.filters.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
 
+    // Indexing state
+    val indexingProgress by indexingViewModel.indexingProgress.collectAsState()
+    val isIndexing by indexingViewModel.isIndexing.collectAsState()
+    var showIndexingDialog by remember { mutableStateOf(false) }
+
     var showFilters by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+
+    // Check if indexing is needed on first load
+    LaunchedEffect(Unit) {
+        val indexSize = indexingViewModel.getIndexSize()
+        if (indexSize == 0) {
+            // No index, show dialog to start indexing
+            showIndexingDialog = true
+        } else {
+            val needsUpdate = indexingViewModel.needsUpdate()
+            if (needsUpdate) {
+                // Index is old, suggest update
+                showIndexingDialog = true
+            }
+        }
+    }
+
+    // Show indexing dialog when indexing is active
+    if (showIndexingDialog && indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle) {
+        com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
+            progress = indexingProgress,
+            onDismiss = {
+                if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
+                    indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
+                ) {
+                    showIndexingDialog = false
+                }
+            },
+        )
+    }
 
     // Filter state for modal
     var tempMinSeeders by remember { mutableIntStateOf(filters.minSeeders ?: 0) }
@@ -200,6 +247,84 @@ fun RutrackerSearchScreen(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Index status card
+            val indexSize = remember { mutableStateOf(0) }
+            LaunchedEffect(Unit) {
+                indexSize.value = indexingViewModel.getIndexSize()
+            }
+
+            if (indexSize.value == 0) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = "Индекс не создан",
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Для быстрого поиска необходимо создать индекс форумов",
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = {
+                                showIndexingDialog = true
+                                indexingViewModel.startIndexing()
+                            },
+                        ) {
+                            Text("Начать индексацию")
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors =
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Индекс: ${indexSize.value} тем",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                text = "Поиск работает офлайн",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                showIndexingDialog = true
+                                indexingViewModel.startIndexing()
+                            },
+                        ) {
+                            Text("Обновить")
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Results
             when (val state = searchState) {
@@ -400,73 +525,120 @@ private fun SearchResultCard(
                 .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
-        Column(
+        Row(
             modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Title
-            Row(
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    result.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
+            // Cover image
+            result.coverUrl?.let { coverUrl ->
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val density = context.resources.displayMetrics.density
+                val cornerRadiusPx = 8f * density
 
-                if (isInLibrary) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = stringResource(R.string.in_library),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.width(20.dp).height(20.dp),
-                    )
-                }
+                val imageRequest =
+                    ImageRequest
+                        .Builder(context)
+                        .data(coverUrl)
+                        .crossfade(true)
+                        .allowHardware(true)
+                        .transformations(RoundedCornersTransformation(cornerRadiusPx))
+                        .placeholder(
+                            android.graphics.drawable
+                                .ColorDrawable(
+                                    MaterialTheme.colorScheme.surfaceVariant.toArgb(),
+                                ).asImage(),
+                        ).error(
+                            android.graphics.drawable
+                                .ColorDrawable(
+                                    MaterialTheme.colorScheme.error.toArgb(),
+                                ).asImage(),
+                        ).fallback(
+                            android.graphics.drawable
+                                .ColorDrawable(
+                                    MaterialTheme.colorScheme.surfaceVariant.toArgb(),
+                                ).asImage(),
+                        ).build()
+
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = result.title,
+                    modifier =
+                        Modifier
+                            .width(80.dp)
+                            .height(120.dp),
+                    contentScale = ContentScale.Crop,
+                )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Author
-            Text(
-                result.author,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Stats row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+            // Content
+            Column(
+                modifier = Modifier.weight(1f),
             ) {
-                // Size
+                // Title
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        result.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+
+                    if (isInLibrary) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = stringResource(R.string.in_library),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.width(20.dp).height(20.dp),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Author
                 Text(
-                    result.size,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    result.author,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Seeders/Leechers
-                Row {
+                // Stats row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    // Size
                     Text(
-                        "↑ ${result.seeders}",
+                        result.size,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary,
+                        color = MaterialTheme.colorScheme.primary,
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "↓ ${result.leechers}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // Seeders/Leechers
+                    Row {
+                        Text(
+                            "↑ ${result.seeders}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "↓ ${result.leechers}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
                 }
             }
         }

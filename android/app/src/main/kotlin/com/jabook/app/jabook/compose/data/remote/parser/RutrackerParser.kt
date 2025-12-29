@@ -842,9 +842,10 @@ class RutrackerParser
                     .trim()
 
             // Extract only the actual description text (after "Описание:" or "Description:")
+            // Fixed regex: escape $ and fix nested parentheses
             val descriptionMatch =
                 Regex(
-                    "(?i)(?:Описание|Description)[:\\s]+(.+?)(?=\\n\\s*(?:Страна|Год|Жанр|Режиссер|Тип|Контейнер|Видео|Аудио|MediaInfo|Общее|$)",
+                    "(?i)(?:Описание|Description)[:\\s]+(.+?)(?=\\n\\s*(?:Страна|Год|Жанр|Режиссер|Тип|Контейнер|Видео|Аудио|MediaInfo|Общее|\\$))",
                     RegexOption.DOT_MATCHES_ALL,
                 ).find(cleaned)
             if (descriptionMatch != null) {
