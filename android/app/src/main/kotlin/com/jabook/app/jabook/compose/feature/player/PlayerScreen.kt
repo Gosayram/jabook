@@ -397,6 +397,20 @@ private fun PlayerContent(
     val playPauseIconSize = if (isCompact) 40.dp else 48.dp
     val skipIconSize = if (isCompact) 40.dp else 48.dp
     val seekIconSize = if (isCompact) 32.dp else 40.dp
+    // Adaptive sizes for control buttons (Speed, Repeat, Timer)
+    val controlButtonHeight = if (isCompact) 40.dp else 48.dp
+    val controlButtonIconSize = if (isCompact) 18.dp else 20.dp
+    val controlButtonTextSize =
+        if (isCompact) {
+            androidx.compose.ui.unit.TextUnit(
+                12f,
+                androidx.compose.ui.unit.TextUnitType.Sp,
+            )
+        } else {
+            androidx.compose.ui.unit
+                .TextUnit(14f, androidx.compose.ui.unit.TextUnitType.Sp)
+        }
+    val controlButtonSpacing = if (isCompact) 6.dp else 8.dp
     // Increased cover size: 88% for compact, 92% for larger screens
     val coverWidth = if (isCompact) 0.88f else 0.92f
     val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
@@ -676,17 +690,23 @@ private fun PlayerContent(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
             ) {
                 // Playback Speed Button
                 FilledTonalButton(
                     onClick = onSpeedClick,
-                    modifier = Modifier.weight(1f),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(controlButtonHeight),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Speed,
                         contentDescription = stringResource(R.string.playbackSpeedTitle),
-                        modifier = Modifier.padding(end = 8.dp),
+                        modifier =
+                            Modifier
+                                .size(controlButtonIconSize)
+                                .padding(end = if (isCompact) 4.dp else 8.dp),
                     )
                     Text(
                         text =
@@ -709,13 +729,17 @@ private fun PlayerContent(
                                     }
                                 "${formattedSpeed}x"
                             },
+                        fontSize = controlButtonTextSize,
                     )
                 }
 
                 // Chapter Repeat Button
                 FilledTonalButton(
                     onClick = onChapterRepeatClick,
-                    modifier = Modifier.weight(1f),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(controlButtonHeight),
                     colors =
                         ButtonDefaults.filledTonalButtonColors(
                             containerColor =
@@ -739,6 +763,7 @@ private fun PlayerContent(
                                 ChapterRepeatMode.ONCE -> stringResource(R.string.repeatTrack)
                                 ChapterRepeatMode.INFINITE -> stringResource(R.string.repeatPlaylist)
                             },
+                        modifier = Modifier.size(controlButtonIconSize),
                         tint =
                             when (chapterRepeatMode) {
                                 ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -751,15 +776,20 @@ private fun PlayerContent(
                 // Sleep Timer Button
                 FilledTonalButton(
                     onClick = onSleepTimerClick,
-                    modifier = Modifier.weight(1f),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(controlButtonHeight),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Timer,
                         contentDescription = stringResource(R.string.sleepTimer),
+                        modifier = Modifier.size(controlButtonIconSize),
                     )
                     if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
                         Text(
                             text = (sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime,
+                            fontSize = controlButtonTextSize,
                         )
                     }
                 }

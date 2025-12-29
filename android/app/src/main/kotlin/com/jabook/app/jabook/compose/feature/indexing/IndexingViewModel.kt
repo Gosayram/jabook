@@ -25,6 +25,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -61,12 +62,24 @@ class IndexingViewModel
             viewModelScope.launch {
                 // Check if user is authenticated before starting indexing
                 // RuTracker requires authentication to access forum pages
-                val isAuthenticated = authRepository.isLoggedIn()
-                if (!isAuthenticated) {
-                    Log.w(TAG, "Cannot start indexing: user is not authenticated")
+                // Use authStatus flow to get current status (more reliable than isLoggedIn())
+                val currentAuthStatus = authRepository.authStatus.first()
+                val isAuthenticated = currentAuthStatus is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated
+
+                // Additional check: ensure username is valid (not "User" placeholder)
+                val hasValidUsername =
+                    when (currentAuthStatus) {
+                        is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> {
+                            currentAuthStatus.username.isNotBlank() && currentAuthStatus.username != "User"
+                        }
+                        else -> false
+                    }
+
+                if (!isAuthenticated || !hasValidUsername) {
+                    Log.w(TAG, "Cannot start indexing: user is not authenticated or has invalid username. Status: $currentAuthStatus")
                     _indexingProgress.value =
                         IndexingProgress.Error(
-                            message = "Требуется авторизация для индексации форумов",
+                            message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
                         )
                     return@launch
                 }

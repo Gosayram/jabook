@@ -75,13 +75,31 @@ class AuthRepositoryImpl
             val hasSession = cookies.any { it.name == "bb_session" }
 
             if (hasSession) {
-                // Validate with server (strict check)
-                val isValid = authService.validateAuth()
+                // Validate with server (strict check) with timeout handling
+                val isValid =
+                    try {
+                        authService.validateAuth()
+                    } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                        android.util.Log.w("AuthRepository", "Auth validation timeout - provider may be blocking", e)
+                        false
+                    } catch (e: Exception) {
+                        android.util.Log.w("AuthRepository", "Auth validation error", e)
+                        false
+                    }
+
                 if (isValid) {
                     val stored = secureStorage.getCredentials()
-                    val username = stored?.username ?: "User"
-                    _authStatus.value = AuthStatus.Authenticated(username)
-                    syncCookiesToWebView()
+                    // CRITICAL: Only show authenticated if we have stored credentials with username
+                    // If no credentials stored, user is not actually authenticated
+                    if (stored != null && stored.username.isNotBlank()) {
+                        _authStatus.value = AuthStatus.Authenticated(stored.username)
+                        syncCookiesToWebView()
+                    } else {
+                        // Session cookie exists but no stored credentials - invalid state
+                        android.util.Log.w("AuthRepository", "Session cookie exists but no stored credentials - clearing session")
+                        cookieJar.clear()
+                        _authStatus.value = AuthStatus.Unauthenticated
+                    }
                 } else {
                     // Cookies present but invalid (expired or guest mode)
                     android.util.Log.d("AuthRepository", "Session expired or invalid, attempting re-login if credentials exist")
@@ -133,7 +151,18 @@ class AuthRepositoryImpl
                     when (val result = authService.login(credentials)) {
                         is RutrackerAuthService.AuthResult.Success -> {
                             // Validate authentication to ensure it actually worked
-                            val isValid = authService.validateAuth(operationId)
+                            val isValid =
+                                try {
+                                    authService.validateAuth(operationId)
+                                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                                    android.util.Log.w("AuthRepository", "[$operationId] Validation timeout - provider may be blocking", e)
+                                    _authStatus.value =
+                                        AuthStatus.Error("Таймаут при проверке авторизации. Возможно, провайдер блокирует соединение.")
+                                    return@withLock Result.failure(Exception("Authentication validation timeout"))
+                                } catch (e: Exception) {
+                                    android.util.Log.w("AuthRepository", "[$operationId] Validation error", e)
+                                    false
+                                }
 
                             if (isValid) {
                                 // Persist cookies to all layers (Database, WebView, SecureStorage)
@@ -150,7 +179,7 @@ class AuthRepositoryImpl
                             } else {
                                 // Login appeared to succeed but validation failed
                                 android.util.Log.w("AuthRepository", "[$operationId] Login succeeded but validation failed")
-                                _authStatus.value = AuthStatus.Error("Login validation failed")
+                                _authStatus.value = AuthStatus.Error("Проверка авторизации не прошла. Попробуйте еще раз.")
                                 Result.failure(Exception("Authentication validation failed"))
                             }
                         }

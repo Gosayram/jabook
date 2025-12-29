@@ -240,33 +240,40 @@ class RutrackerAuthService
                 try {
                     Log.d(TAG, "[$validationId] Authentication validation started")
 
-                    // Test 1: Profile page (most reliable indicator)
-                    val profileResult = validateProfilePage(validationId)
-                    if (profileResult) {
-                        val duration = System.currentTimeMillis() - startTime
-                        Log.i(TAG, "[$validationId] Auth validated via profile (${duration}ms)")
-                        return@withContext true
-                    }
+                    // Apply timeout to prevent hanging on provider blocks
+                    kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
+                        // Test 1: Profile page (most reliable indicator)
+                        val profileResult = validateProfilePage(validationId)
+                        if (profileResult) {
+                            val duration = System.currentTimeMillis() - startTime
+                            Log.i(TAG, "[$validationId] Auth validated via profile (${duration}ms)")
+                            return@withTimeout true
+                        }
 
-                    // Test 2: Search page (fallback)
-                    val searchResult = validateSearchPage(validationId)
-                    if (searchResult) {
-                        val duration = System.currentTimeMillis() - startTime
-                        Log.i(TAG, "[$validationId] Auth validated via search (${duration}ms)")
-                        return@withContext true
-                    }
+                        // Test 2: Search page (fallback)
+                        val searchResult = validateSearchPage(validationId)
+                        if (searchResult) {
+                            val duration = System.currentTimeMillis() - startTime
+                            Log.i(TAG, "[$validationId] Auth validated via search (${duration}ms)")
+                            return@withTimeout true
+                        }
 
-                    // Test 3: Index page (final fallback)
-                    val indexResult = validateIndexPage(validationId)
+                        // Test 3: Index page (final fallback)
+                        val indexResult = validateIndexPage(validationId)
+                        val duration = System.currentTimeMillis() - startTime
+
+                        if (indexResult) {
+                            Log.i(TAG, "[$validationId] Auth validated via index (${duration}ms)")
+                        } else {
+                            Log.w(TAG, "[$validationId] Auth validation failed - all tests failed (${duration}ms)")
+                        }
+
+                        return@withTimeout indexResult
+                    }
+                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                     val duration = System.currentTimeMillis() - startTime
-
-                    if (indexResult) {
-                        Log.i(TAG, "[$validationId] Auth validated via index (${duration}ms)")
-                    } else {
-                        Log.w(TAG, "[$validationId] Auth validation failed - all tests failed (${duration}ms)")
-                    }
-
-                    return@withContext indexResult
+                    Log.e(TAG, "[$validationId] Validation timeout (${duration}ms) - provider may be blocking", e)
+                    return@withContext false
                 } catch (e: Exception) {
                     val duration = System.currentTimeMillis() - startTime
                     Log.e(TAG, "[$validationId] Validation exception (${duration}ms)", e)
@@ -303,7 +310,10 @@ class RutrackerAuthService
          */
         private suspend fun validateProfilePage(operationId: String): Boolean {
             return try {
-                val response = api.getProfile()
+                val response =
+                    kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
+                        api.getProfile()
+                    }
 
                 if (!response.isSuccessful) {
                     Log.d(TAG, "[$operationId] Profile check: HTTP ${response.code()}")
@@ -362,10 +372,12 @@ class RutrackerAuthService
                 // Perform a simple search to test authentication
                 // searchTopics only accepts query and forumIds (optional)
                 val response =
-                    api.searchTopics(
-                        query = "test",
-                        forumIds = "33", // Audiobooks forum
-                    )
+                    kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
+                        api.searchTopics(
+                            query = "test",
+                            forumIds = "33", // Audiobooks forum
+                        )
+                    }
 
                 if (!response.isSuccessful) {
                     Log.d(TAG, "[$operationId] Search check: HTTP ${response.code()}")
@@ -425,9 +437,12 @@ class RutrackerAuthService
          * Final fallback - checks if forum index is accessible.
          */
         private suspend fun validateIndexPage(operationId: String): Boolean {
-            try {
+            return try {
                 // Test 3: Index page (final fallback) using api.getIndex()
-                val response = api.getIndex()
+                val response =
+                    kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
+                        api.getIndex()
+                    }
                 if (response.isSuccessful) {
                     val bodyString = response.body()?.string()?.lowercase() ?: ""
                     val isValidIndex = bodyString.contains("форум") || bodyString.contains("rutracker.org")
@@ -437,6 +452,9 @@ class RutrackerAuthService
                     Log.w(TAG, "[$operationId] Index check failed: HTTP ${response.code()}")
                     return false
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                Log.w(TAG, "[$operationId] Index check timeout", e)
+                return false
             } catch (e: Exception) {
                 Log.w(TAG, "[$operationId] Index check exception", e)
                 return false
