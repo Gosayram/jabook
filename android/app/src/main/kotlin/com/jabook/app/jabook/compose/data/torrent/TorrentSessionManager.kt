@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.libtorrent4j.AlertListener
+import org.libtorrent4j.LibTorrent
 import org.libtorrent4j.SessionManager
 import org.libtorrent4j.SessionParams
 import org.libtorrent4j.SettingsPack
@@ -29,12 +30,16 @@ import org.libtorrent4j.TorrentInfo
 import org.libtorrent4j.TorrentStatus
 import org.libtorrent4j.alerts.AddTorrentAlert
 import org.libtorrent4j.alerts.Alert
-import org.libtorrent4j.alerts.AlertType
 import org.libtorrent4j.alerts.BlockFinishedAlert
+import org.libtorrent4j.alerts.DhtErrorAlert
 import org.libtorrent4j.alerts.MetadataReceivedAlert
+import org.libtorrent4j.alerts.PeerLogAlert
+import org.libtorrent4j.alerts.PieceFinishedAlert
 import org.libtorrent4j.alerts.StateChangedAlert
+import org.libtorrent4j.alerts.StateUpdateAlert
 import org.libtorrent4j.alerts.TorrentErrorAlert
 import org.libtorrent4j.alerts.TorrentFinishedAlert
+import org.libtorrent4j.alerts.TorrentLogAlert
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -57,24 +62,43 @@ class TorrentSessionManager
 
         private val alertListener =
             object : AlertListener {
-                override fun types(): IntArray =
-                    intArrayOf(
-                        AlertType.ADD_TORRENT.swig(),
-                        AlertType.STATE_CHANGED.swig(),
-                        AlertType.TORRENT_FINISHED.swig(),
-                        AlertType.TORRENT_ERROR.swig(),
-                        AlertType.METADATA_RECEIVED.swig(),
-                        AlertType.BLOCK_FINISHED.swig(),
-                    )
+                override fun types(): IntArray? {
+                    // Return null to receive all alert types for comprehensive debugging
+                    // This allows us to log all alerts for better debugging
+                    return null
+                }
 
                 override fun alert(alert: Alert<*>) {
-                    when (alert) {
-                        is AddTorrentAlert -> handleAddTorrent(alert)
-                        is StateChangedAlert -> handleStateChanged(alert)
-                        is TorrentFinishedAlert -> handleTorrentFinished(alert)
-                        is TorrentErrorAlert -> handleTorrentError(alert)
-                        is MetadataReceivedAlert -> handleMetadataReceived(alert)
-                        is BlockFinishedAlert -> handleBlockFinished(alert)
+                    try {
+                        val alertType = alert.type()
+
+                        // Handle specific alert types
+                        when (alert) {
+                            is AddTorrentAlert -> handleAddTorrent(alert)
+                            is StateChangedAlert -> handleStateChanged(alert)
+                            is TorrentFinishedAlert -> handleTorrentFinished(alert)
+                            is TorrentErrorAlert -> handleTorrentError(alert)
+                            is MetadataReceivedAlert -> handleMetadataReceived(alert)
+                            is BlockFinishedAlert -> handleBlockFinished(alert)
+                            is PieceFinishedAlert -> handlePieceFinished(alert)
+                            is DhtErrorAlert -> handleDhtError(alert)
+                            is StateUpdateAlert -> handleStateUpdate(alert)
+                            is PeerLogAlert -> {
+                                // Log peer-level debugging (can be verbose, so use debug level)
+                                Log.v(TAG, "PEER_LOG: ${(alert as PeerLogAlert).logMessage()}")
+                            }
+                            is TorrentLogAlert -> {
+                                // Log torrent-level debugging
+                                Log.d(TAG, "TORRENT_LOG: ${(alert as TorrentLogAlert).logMessage()}")
+                            }
+                            else -> {
+                                // Log unhandled alerts for debugging (use verbose to avoid spam)
+                                Log.v(TAG, "Unhandled alert: ${alertType.name} - ${alert.message()}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Catch any exceptions in alert handling to prevent crashes
+                        Log.e(TAG, "Error handling alert: ${alert.type().name}", e)
                     }
                 }
             }
@@ -89,6 +113,14 @@ class TorrentSessionManager
             }
 
             try {
+                // Log libtorrent version for debugging (as shown in examples)
+                try {
+                    val version = LibTorrent.version()
+                    Log.i(TAG, "Using libtorrent version: $version")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not get libtorrent version", e)
+                }
+
                 val settings =
                     SettingsPack().apply {
                         // Connection settings
@@ -149,6 +181,8 @@ class TorrentSessionManager
                 )
 
             return try {
+                Log.d(TAG, "addTorrent called: magnetUri=${magnetUri.take(100)}..., savePath=$savePath, topicId=$topicId")
+
                 // Validate magnet URI format
                 if (!magnetUri.startsWith("magnet:", ignoreCase = true)) {
                     Log.e(TAG, "Invalid magnet URI format: $magnetUri")
@@ -159,6 +193,8 @@ class TorrentSessionManager
                 val hash =
                     parseMagnetHash(magnetUri)
                         ?: return Result.failure(IllegalArgumentException("Invalid magnet URI: cannot parse info hash"))
+
+                Log.d(TAG, "Parsed magnet URI: hash=$hash")
 
                 // Check if already added
                 if (torrents.containsKey(hash)) {
@@ -191,19 +227,22 @@ class TorrentSessionManager
                 // Using empty flags (defaults)
                 // Wrap in try-catch to handle any native exceptions
                 try {
+                    Log.d(TAG, "Calling session.download() for hash=$hash, savePath=$savePath")
                     val flags = org.libtorrent4j.swig.torrent_flags_t()
                     session.download(magnetUri, saveDir, flags)
-                    Log.i(TAG, "Added torrent: $hash to $savePath")
+                    Log.i(TAG, "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert...")
+                    // Note: The actual torrent handle will be available in ADD_TORRENT alert
+                    // We return the hash now, but the torrent won't be in torrents map until alert fires
                     Result.success(hash)
                 } catch (e: UnsatisfiedLinkError) {
-                    Log.e(TAG, "Native library error while adding torrent", e)
+                    Log.e(TAG, "Native library error while adding torrent: hash=$hash", e)
                     Result.failure(IllegalStateException("Native library error: ${e.message}", e))
                 } catch (e: NoSuchMethodError) {
-                    Log.e(TAG, "Method not found error while adding torrent", e)
+                    Log.e(TAG, "Method not found error while adding torrent: hash=$hash", e)
                     Result.failure(IllegalStateException("Library version mismatch: ${e.message}", e))
                 } catch (e: RuntimeException) {
                     // libtorrent4j may throw RuntimeException for various errors
-                    Log.e(TAG, "Runtime error while adding torrent", e)
+                    Log.e(TAG, "Runtime error while adding torrent: hash=$hash, error=${e.message}", e)
                     Result.failure(IllegalStateException("Failed to add torrent: ${e.message}", e))
                 }
             } catch (e: IllegalStateException) {
@@ -360,6 +399,18 @@ class TorrentSessionManager
                 }
 
                 val hash = handle.infoHash().toHex()
+                val status = handle.status()
+                val torrentInfo = handle.torrentFile()
+
+                Log.i(
+                    TAG,
+                    "Torrent added: hash=$hash, " +
+                        "name='${torrentInfo?.name() ?: "unknown"}', " +
+                        "state=${status.state()}, " +
+                        "files=${torrentInfo?.numFiles() ?: 0}, " +
+                        "size=${torrentInfo?.totalSize() ?: 0} bytes",
+                )
+
                 torrents[hash] = handle
 
                 // Resume torrent to start downloading (required by libtorrent4j)
@@ -384,27 +435,138 @@ class TorrentSessionManager
         }
 
         private fun handleStateChanged(alert: StateChangedAlert) {
-            updateDownloads()
+            try {
+                val handle = alert.handle()
+                if (handle.isValid) {
+                    val hash = handle.infoHash().toHex()
+                    val status = handle.status()
+                    val oldState = alert.prevState
+                    val newState = status.state()
+
+                    if (oldState != newState) {
+                        Log.d(
+                            TAG,
+                            "State changed for $hash: " +
+                                "$oldState -> $newState, " +
+                                "progress=${(status.progress() * 100).toInt()}%",
+                        )
+                    }
+                }
+                updateDownloads()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling state changed alert", e)
+            }
         }
 
         private fun handleTorrentFinished(alert: TorrentFinishedAlert) {
-            updateDownloads()
+            try {
+                val handle = alert.handle()
+                if (handle.isValid) {
+                    val hash = handle.infoHash().toHex()
+                    val status = handle.status()
+                    Log.i(
+                        TAG,
+                        "Torrent finished: hash=$hash, " +
+                            "downloaded=${status.totalDone()} bytes, " +
+                            "uploaded=${status.totalUpload()} bytes, " +
+                            "downloadRate=${status.downloadRate()} bytes/s",
+                    )
+                }
+                updateDownloads()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling torrent finished alert", e)
+            }
         }
 
         private fun handleTorrentError(alert: TorrentErrorAlert) {
-            val hash = alert.handle().infoHash().toHex()
-            Log.e(TAG, "Torrent error for $hash: ${alert.error()}")
-            updateDownloads()
+            try {
+                val handle = alert.handle()
+                if (!handle.isValid) {
+                    Log.e(TAG, "Torrent error alert with invalid handle")
+                    return
+                }
+
+                val hash = handle.infoHash().toHex()
+                val error = alert.error()
+                val status = handle.status()
+
+                Log.e(
+                    TAG,
+                    "Torrent error for $hash: " +
+                        "error='${error.message}', " +
+                        "state=${status.state()}, " +
+                        "progress=${(status.progress() * 100).toInt()}%, " +
+                        "downloadRate=${status.downloadRate()} bytes/s, " +
+                        "uploadRate=${status.uploadRate()} bytes/s, " +
+                        "numPeers=${status.numPeers()}, " +
+                        "numSeeds=${status.numSeeds()}",
+                )
+                updateDownloads()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling torrent error alert", e)
+            }
         }
 
         private fun handleMetadataReceived(alert: MetadataReceivedAlert) {
-            updateDownloads()
+            try {
+                val handle = alert.handle()
+                if (handle.isValid) {
+                    val hash = handle.infoHash().toHex()
+                    val torrentInfo = handle.torrentFile()
+                    if (torrentInfo != null) {
+                        Log.i(
+                            TAG,
+                            "Metadata received for $hash: name='${torrentInfo.name()}', files=${torrentInfo.numFiles()}, size=${torrentInfo.totalSize()} bytes",
+                        )
+                    } else {
+                        Log.i(TAG, "Metadata received for $hash (torrent info not yet available)")
+                    }
+                }
+                updateDownloads()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling metadata received alert", e)
+            }
         }
 
         private fun handleBlockFinished(alert: BlockFinishedAlert) {
             // Update less frequently for performance
             if (System.currentTimeMillis() % 1000 < 100) {
                 updateDownloads()
+            }
+        }
+
+        private fun handlePieceFinished(alert: PieceFinishedAlert) {
+            try {
+                val handle = alert.handle()
+                if (handle.isValid) {
+                    val hash = handle.infoHash().toHex()
+                    val progress = (handle.status().progress() * 100).toInt()
+                    val pieceIndex = alert.pieceIndex()
+                    Log.d(TAG, "Piece finished: hash=$hash, piece=$pieceIndex, progress=$progress%")
+                }
+                // Update downloads less frequently for performance
+                if (System.currentTimeMillis() % 2000 < 200) {
+                    updateDownloads()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling piece finished alert", e)
+            }
+        }
+
+        private fun handleDhtError(alert: DhtErrorAlert) {
+            val error = alert.error()
+            Log.w(TAG, "DHT error: ${error.message}")
+            // DHT errors are usually non-critical, just log them
+        }
+
+        private fun handleStateUpdate(alert: StateUpdateAlert) {
+            try {
+                val message = alert.message()
+                Log.d(TAG, "State update: $message")
+                // State updates can be frequent, so we don't update downloads on every one
+                // The state changed alert will handle that
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling state update alert", e)
             }
         }
 
