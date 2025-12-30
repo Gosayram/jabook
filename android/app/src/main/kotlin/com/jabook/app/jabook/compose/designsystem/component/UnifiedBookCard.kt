@@ -84,6 +84,23 @@ fun UnifiedBookCard(
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
 ) {
+    // Log if book has invalid/empty data
+    androidx.compose.runtime.LaunchedEffect(book.id) {
+        val hasEmptyTitle = book.title.isBlank()
+        val hasEmptyAuthor = book.author.isBlank()
+        val hasEmptyId = book.id.isBlank()
+        if (hasEmptyTitle || hasEmptyAuthor || hasEmptyId) {
+            android.util.Log.w(
+                "UnifiedBookCard",
+                "⚠️ Book card with invalid data: " +
+                    "id='${book.id.take(20)}', " +
+                    "title=${if (hasEmptyTitle) "EMPTY" else "'${book.title.take(30)}'"}, " +
+                    "author=${if (hasEmptyAuthor) "EMPTY" else "'${book.author.take(20)}'"}, " +
+                    "coverUrl=${if (book.coverUrl.isNullOrBlank()) "null/empty" else "present"}",
+            )
+        }
+    }
+
     when {
         displayMode.isGrid() ->
             GridBookCard(

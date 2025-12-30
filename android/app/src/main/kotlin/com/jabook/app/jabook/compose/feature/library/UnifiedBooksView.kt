@@ -64,6 +64,47 @@ fun UnifiedBooksView(
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
+    // Log books for debugging
+    androidx.compose.runtime.LaunchedEffect(books.size) {
+        android.util.Log.d(
+            "UnifiedBooksView",
+            "📚 Rendering ${books.size} books in $displayMode mode",
+        )
+        if (books.isNotEmpty()) {
+            val invalidBooks = books.filter { it.title.isBlank() || it.author.isBlank() || it.id.isBlank() }
+            if (invalidBooks.isNotEmpty()) {
+                android.util.Log.w(
+                    "UnifiedBooksView",
+                    "⚠️ Found ${invalidBooks.size} books with empty/invalid data out of ${books.size} total",
+                )
+                invalidBooks.take(3).forEachIndexed { index, book ->
+                    android.util.Log.w(
+                        "UnifiedBooksView",
+                        "  Invalid[$index]: id='${book.id.take(20)}', " +
+                            "title='${book.title.take(30)}', " +
+                            "author='${book.author.take(20)}', " +
+                            "coverUrl=${if (book.coverUrl.isNullOrBlank()) "null/empty" else "present"}",
+                    )
+                }
+            }
+            // Log sample of valid books
+            val validBooks = books.filter { it.title.isNotBlank() && it.author.isNotBlank() && it.id.isNotBlank() }
+            if (validBooks.isNotEmpty()) {
+                val sample = validBooks.take(2)
+                sample.forEachIndexed { index, book ->
+                    android.util.Log.d(
+                        "UnifiedBooksView",
+                        "  Valid[$index]: id='${book.id.take(20)}', " +
+                            "title='${book.title.take(40)}', " +
+                            "author='${book.author.take(30)}'",
+                    )
+                }
+            }
+        } else {
+            android.util.Log.w("UnifiedBooksView", "⚠️ Empty books list provided")
+        }
+    }
+
     // Get WindowSizeClass from parameter or calculate from LocalContext
     val context = LocalContext.current
     val effectiveWindowSizeClass =

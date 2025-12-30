@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.search.rutracker
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
@@ -51,6 +52,10 @@ class RutrackerSearchViewModel
         private val repository: RutrackerRepository,
         private val booksRepository: BooksRepository,
     ) : ViewModel() {
+        companion object {
+            private const val TAG = "RutrackerSearchViewModel"
+        }
+
         private val _searchState = MutableStateFlow<SearchState>(SearchState.Empty)
         val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
 
@@ -85,10 +90,12 @@ class RutrackerSearchViewModel
             forumIds: String? = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
         ) {
             if (query.isBlank()) {
+                Log.d(TAG, "Empty query, clearing search state")
                 _searchState.value = SearchState.Empty
                 return
             }
 
+            Log.d(TAG, "🔍 Starting search: query='$query', forumIds=$forumIds")
             viewModelScope.launch {
                 _searchState.value = SearchState.Loading
 
@@ -106,8 +113,18 @@ class RutrackerSearchViewModel
 
                     result
                         .onSuccess { results ->
+                            Log.d(
+                                TAG,
+                                "✅ Search results received: ${results.size} results " +
+                                    "(cached: $isCachedEmission, libraryUrls: ${libraryUrls.size})",
+                            )
                             originalResults = results
                             val filtered = applyFiltersAndSort(results)
+                            Log.d(
+                                TAG,
+                                "🔄 After filters/sort: ${filtered.size} results " +
+                                    "(from ${results.size} original)",
+                            )
 
                             // Map to UI model
                             val uiResults =
@@ -121,19 +138,39 @@ class RutrackerSearchViewModel
                                     )
                                 }
 
+                            Log.d(
+                                TAG,
+                                "📊 UI results: ${uiResults.size} items, " +
+                                    "${uiResults.count { it.isInLibrary }} in library",
+                            )
+
                             _searchState.value =
                                 if (filtered.isEmpty()) {
-                                    if (!isCachedEmission) SearchState.Empty else _searchState.value
+                                    if (!isCachedEmission) {
+                                        Log.w(TAG, "⚠️ No results after filtering, setting Empty state")
+                                        SearchState.Empty
+                                    } else {
+                                        Log.d(TAG, "⏭️ Keeping current state (cached empty)")
+                                        _searchState.value
+                                    }
                                 } else {
+                                    Log.d(TAG, "✅ Setting Success state with ${uiResults.size} results")
                                     SearchState.Success(uiResults, isCached = isCachedEmission)
                                 }
                         }.onFailure { error ->
+                            Log.e(
+                                TAG,
+                                "❌ Search failed for query '$query': ${error.message}",
+                                error,
+                            )
                             val currentState = _searchState.value
                             if (currentState !is SearchState.Success) {
                                 _searchState.value =
                                     SearchState.Error(
                                         error.message,
                                     )
+                            } else {
+                                Log.d(TAG, "⏭️ Keeping current Success state despite error")
                             }
                         }
                 }

@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.domain.usecase.search
 
+import android.util.Log
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
@@ -29,6 +30,10 @@ class SearchRutrackerUseCase
     constructor(
         private val rutrackerRepository: RutrackerRepository,
     ) {
+        companion object {
+            private const val TAG = "SearchRutrackerUseCase"
+        }
+
         /**
          * Search for audiobooks by query.
          *
@@ -37,9 +42,32 @@ class SearchRutrackerUseCase
          */
         suspend operator fun invoke(query: String): Result<List<RutrackerSearchResult>> {
             if (query.isBlank()) {
+                Log.d(TAG, "Empty query provided, returning empty results")
                 return Result.Success(emptyList())
             }
 
-            return rutrackerRepository.search(query)
+            Log.d(TAG, "🔍 Invoking search for query: '$query'")
+            val result = rutrackerRepository.search(query)
+
+            when (result) {
+                is Result.Success -> {
+                    Log.d(
+                        TAG,
+                        "✅ Search completed: ${result.data.size} results for query '$query'",
+                    )
+                }
+                is Result.Error -> {
+                    Log.e(
+                        TAG,
+                        "❌ Search failed for query '$query': ${result.exception.message}",
+                        result.exception,
+                    )
+                }
+                is Result.Loading -> {
+                    Log.d(TAG, "⏳ Search in progress for query '$query'")
+                }
+            }
+
+            return result
         }
     }

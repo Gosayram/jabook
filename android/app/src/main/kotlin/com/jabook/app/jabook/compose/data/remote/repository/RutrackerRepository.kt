@@ -399,7 +399,20 @@ class RutrackerRepository
             return when (parsingResult) {
                 is ParsingResult.Success -> {
                     val dtoResults = parsingResult.data
+                    Log.d(TAG, "📊 Parsing success: ${dtoResults.size} DTO results for query '$query'")
                     val domainResults = dtoResults.toDomain()
+                    val filteredCount = dtoResults.size - domainResults.size
+                    if (filteredCount > 0) {
+                        Log.w(
+                            TAG,
+                            "⚠️ Filtered out $filteredCount invalid results during toDomain() conversion",
+                        )
+                    }
+                    Log.d(
+                        TAG,
+                        "✅ Final domain results: ${domainResults.size} valid results " +
+                            "(${dtoResults.size} DTO → ${domainResults.size} domain)",
+                    )
                     handleSuccess(query, forumIds, dtoResults) // Cache DTO models
                     val resultCount = domainResults.size
                     logger.logSuccess(
@@ -412,7 +425,23 @@ class RutrackerRepository
                 }
                 is ParsingResult.PartialSuccess -> {
                     val dtoResults = parsingResult.data
+                    Log.w(
+                        TAG,
+                        "📊 Partial parsing: ${dtoResults.size} DTO results, ${parsingResult.errors.size} errors for query '$query'",
+                    )
                     val domainResults = dtoResults.toDomain()
+                    val filteredCount = dtoResults.size - domainResults.size
+                    if (filteredCount > 0) {
+                        Log.w(
+                            TAG,
+                            "⚠️ Filtered out $filteredCount invalid results during toDomain() conversion",
+                        )
+                    }
+                    Log.d(
+                        TAG,
+                        "✅ Final domain results: ${domainResults.size} valid results " +
+                            "(${dtoResults.size} DTO → ${domainResults.size} domain)",
+                    )
                     handleSuccess(query, forumIds, dtoResults) // Cache DTO models
                     val resultCount = domainResults.size
                     logger.logWarning(
@@ -424,6 +453,20 @@ class RutrackerRepository
                 }
                 is ParsingResult.Failure -> {
                     val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
+                    Log.e(
+                        TAG,
+                        "❌ Parsing failed for query '$query': ${parsingResult.errors.size} errors",
+                    )
+                    parsingResult.errors.take(5).forEachIndexed { index, error ->
+                        Log.e(
+                            TAG,
+                            "  Error[$index]: ${error.field} - ${error.reason} " +
+                                "(severity: ${error.severity})",
+                        )
+                    }
+                    if (parsingResult.errors.size > 5) {
+                        Log.e(TAG, "  ... and ${parsingResult.errors.size - 5} more errors")
+                    }
 
                     // Check if it's a bad request or validation error
                     val isBadRequest =

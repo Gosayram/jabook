@@ -439,6 +439,43 @@ private fun OnlineSearchResults(
     onToggleFavorite: (RutrackerSearchResult) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Log results for debugging
+    androidx.compose.runtime.LaunchedEffect(results.size) {
+        android.util.Log.d(
+            "SearchScreen",
+            "📊 OnlineSearchResults: ${results.size} results, ${favoriteIds.size} favorites",
+        )
+        if (results.isNotEmpty()) {
+            val sample = results.take(3)
+            sample.forEachIndexed { index, result ->
+                android.util.Log.d(
+                    "SearchScreen",
+                    "  Result[$index]: id='${result.topicId}', " +
+                        "title='${result.title.take(40)}', " +
+                        "author='${result.author.take(30)}', " +
+                        "coverUrl=${if (result.coverUrl.isNullOrBlank()) "null/empty" else "present"}, " +
+                        "valid=${result.isValid()}",
+                )
+            }
+            // Check for invalid results
+            val invalidResults = results.filter { !it.isValid() }
+            if (invalidResults.isNotEmpty()) {
+                android.util.Log.w(
+                    "SearchScreen",
+                    "⚠️ Found ${invalidResults.size} invalid results out of ${results.size}",
+                )
+                invalidResults.take(3).forEachIndexed { index, result ->
+                    android.util.Log.w(
+                        "SearchScreen",
+                        "  Invalid[$index]: id='${result.topicId}', " +
+                            "title='${result.title.take(30)}', " +
+                            "author='${result.author.take(20)}'",
+                    )
+                }
+            }
+        }
+    }
+
     if (results.isEmpty()) {
         EmptyState(
             message = stringResource(R.string.noResults),
@@ -446,26 +483,41 @@ private fun OnlineSearchResults(
     } else {
         // Convert SearchResults to Books for unified display
         val booksFromResults =
-            results.map { result ->
-                com.jabook.app.jabook.compose.domain.model.Book(
-                    id = result.topicId,
-                    title = result.title,
-                    author = result.author,
-                    coverUrl = result.coverUrl,
-                    description = null,
-                    totalDuration = kotlin.time.Duration.ZERO,
-                    currentPosition = kotlin.time.Duration.ZERO,
-                    progress = 0f,
-                    currentChapterIndex = 0,
-                    downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
-                    downloadProgress = 0f,
-                    localPath = null,
-                    addedDate = System.currentTimeMillis(),
-                    lastPlayedDate = null,
-                    isFavorite = favoriteIds.contains(result.topicId),
-                    sourceUrl = result.torrentUrl,
-                )
+            results.mapIndexed { index, result ->
+                val book =
+                    com.jabook.app.jabook.compose.domain.model.Book(
+                        id = result.topicId,
+                        title = result.title,
+                        author = result.author,
+                        coverUrl = result.coverUrl,
+                        description = null,
+                        totalDuration = kotlin.time.Duration.ZERO,
+                        currentPosition = kotlin.time.Duration.ZERO,
+                        progress = 0f,
+                        currentChapterIndex = 0,
+                        downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
+                        downloadProgress = 0f,
+                        localPath = null,
+                        addedDate = System.currentTimeMillis(),
+                        lastPlayedDate = null,
+                        isFavorite = favoriteIds.contains(result.topicId),
+                        sourceUrl = result.torrentUrl,
+                    )
+                // Log if book has empty/invalid data
+                if (book.title.isBlank() || book.author.isBlank()) {
+                    android.util.Log.w(
+                        "SearchScreen",
+                        "⚠️ Book[$index] has empty data: id='${book.id}', " +
+                            "title='${book.title}', author='${book.author}'",
+                    )
+                }
+                book
             }
+
+        android.util.Log.d(
+            "SearchScreen",
+            "✅ Converted ${results.size} results to ${booksFromResults.size} books",
+        )
 
         com.jabook.app.jabook.compose.feature.library.UnifiedBooksView(
             books = booksFromResults,
