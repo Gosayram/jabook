@@ -33,7 +33,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -220,12 +219,8 @@ class ForumIndexer
                     )
                 }
 
-                // Preload covers in background (non-blocking)
-                if (preloadCovers && coversToPreload.isNotEmpty()) {
-                    backgroundScope.launch {
-                        preloadCovers(coversToPreload)
-                    }
-                }
+                // Cover preloading is disabled (optimization: covers not stored in index)
+                // Covers will be loaded on-demand when topic is opened via getTopicDetails()
 
                 val duration = System.currentTimeMillis() - startTime
                 val runtime = Runtime.getRuntime()
@@ -246,7 +241,7 @@ class ForumIndexer
                 Log.i(
                     TAG,
                     "Forum indexing completed. Indexed: $totalIndexed topics, database: $actualCountInDb topics, " +
-                        "covers: ${coversToPreload.size}, duration: ${duration}ms (${duration / 1000}s), " +
+                        "duration: ${duration}ms (${duration / 1000}s), " +
                         "speed: $topicsPerSecond topics/s, memory: +${memoryUsed}MB",
                 )
 
@@ -296,12 +291,9 @@ class ForumIndexer
                     }
                 }
 
-                // Preload new covers
-                if (preloadCovers && coversToPreload.isNotEmpty()) {
-                    preloadCovers(coversToPreload)
-                }
+                // Cover preloading is disabled (optimization: covers not stored in index)
 
-                Log.i(TAG, "Incremental update completed. Updated: $totalUpdated topics, covers: ${coversToPreload.size}")
+                Log.i(TAG, "Incremental update completed. Updated: $totalUpdated topics")
                 totalUpdated
             }
 
@@ -361,23 +353,13 @@ class ForumIndexer
                                 "body: ${bodySize / 1024}KB, fetch: ${fetchTime}ms, parse: ${parseTime}ms)",
                         )
                         // Add to buffer with current index version
+                        // Note: magnetUrl, torrentUrl, coverUrl are NOT saved (optimization)
                         val newEntities = topics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
                         totalTopics += topics.size
 
-                        // Collect cover URLs for preloading (normalize URLs using current mirror)
-                        val baseUrl = mirrorManager.getBaseUrl()
-                        topics
-                            .mapNotNull { topic ->
-                                topic.coverUrl?.let { url ->
-                                    when {
-                                        url.startsWith("http://") || url.startsWith("https://") -> url
-                                        url.startsWith("//") -> "https:$url"
-                                        url.startsWith("/") -> "$baseUrl$url"
-                                        else -> "$baseUrl/$url"
-                                    }
-                                }
-                            }.forEach { coversToPreload.add(it) }
+                        // Cover URLs are no longer collected for preloading since they're not stored in index
+                        // Covers will be loaded on-demand when topic is opened via getTopicDetails()
 
                         // Flush to DB when buffer reaches batch size or at end
                         if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
@@ -440,19 +422,7 @@ class ForumIndexer
                                                 entitiesBuffer.addAll(newEntities)
                                                 totalTopics += retryTopics.size
 
-                                                // Collect cover URLs
-                                                val baseUrl = mirrorManager.getBaseUrl()
-                                                retryTopics
-                                                    .mapNotNull { topic ->
-                                                        topic.coverUrl?.let { url ->
-                                                            when {
-                                                                url.startsWith("http://") || url.startsWith("https://") -> url
-                                                                url.startsWith("//") -> "https:$url"
-                                                                url.startsWith("/") -> "$baseUrl$url"
-                                                                else -> "$baseUrl/$url"
-                                                            }
-                                                        }
-                                                    }.forEach { coversToPreload.add(it) }
+                                                // Cover URLs are no longer collected (optimization)
 
                                                 Log.i(
                                                     TAG,
@@ -522,7 +492,7 @@ class ForumIndexer
 
             Log.i(
                 TAG,
-                "Forum $forumId indexing completed: $totalTopics topics, ${coversToPreload.size} covers, " +
+                "Forum $forumId indexing completed: $totalTopics topics, " +
                     "duration: ${forumDuration}ms (${forumDuration / 1000}s), " +
                     "avg: ${avgTimePerTopic}ms/topic, memory: +${memoryUsed}MB",
             )
@@ -586,19 +556,7 @@ class ForumIndexer
                             Log.d(TAG, "Forum $forumId incremental: updated ${entities.size} topics in DB (${dbWriteTime}ms)")
                             totalUpdated += topicsToUpdate.size
 
-                            // Collect cover URLs (normalize URLs using current mirror)
-                            val baseUrl = mirrorManager.getBaseUrl()
-                            topicsToUpdate
-                                .mapNotNull { topic ->
-                                    topic.coverUrl?.let { url ->
-                                        when {
-                                            url.startsWith("http://") || url.startsWith("https://") -> url
-                                            url.startsWith("//") -> "https:$url"
-                                            url.startsWith("/") -> "$baseUrl$url"
-                                            else -> "$baseUrl/$url"
-                                        }
-                                    }
-                                }.forEach { coversToPreload.add(it) }
+                            // Cover URLs are no longer collected (optimization)
                         }
 
                         onProgress?.invoke(forumId, totalUpdated, topics.size)
@@ -659,19 +617,7 @@ class ForumIndexer
                                                     offlineSearchDao.upsertTopics(entities)
                                                     totalUpdated += topicsToUpdate.size
 
-                                                    // Collect cover URLs
-                                                    val baseUrl = mirrorManager.getBaseUrl()
-                                                    topicsToUpdate
-                                                        .mapNotNull { topic ->
-                                                            topic.coverUrl?.let { url ->
-                                                                when {
-                                                                    url.startsWith("http://") || url.startsWith("https://") -> url
-                                                                    url.startsWith("//") -> "https:$url"
-                                                                    url.startsWith("/") -> "$baseUrl$url"
-                                                                    else -> "$baseUrl/$url"
-                                                                }
-                                                            }
-                                                        }.forEach { coversToPreload.add(it) }
+                                                    // Cover URLs are no longer collected (optimization)
                                                 }
 
                                                 onProgress?.invoke(forumId, totalUpdated, retryTopics.size)
