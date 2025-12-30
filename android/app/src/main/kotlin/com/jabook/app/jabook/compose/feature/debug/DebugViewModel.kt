@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.debug
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.core.util.StructuredLogger
 import com.jabook.app.jabook.compose.data.debug.DebugLogService
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,6 +39,7 @@ class DebugViewModel
         private val authService: com.jabook.app.jabook.compose.data.auth.RutrackerAuthService,
         private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
     ) : ViewModel() {
+        private val logger = StructuredLogger("DebugViewModel")
         private val _uiState = MutableStateFlow<DebugUiState>(DebugUiState.Initial)
         val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
 
@@ -55,13 +57,16 @@ class DebugViewModel
 
         fun loadLogs() {
             viewModelScope.launch {
-                try {
-                    _uiState.value = DebugUiState.Loading
-                    val logContent = debugLogService.collectLogs()
-                    _logs.value = logContent
-                    _uiState.value = DebugUiState.Success
-                } catch (e: Exception) {
-                    _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
+                logger.withOperation("loadLogs") { operationId ->
+                    try {
+                        _uiState.value = DebugUiState.Loading
+                        val logContent = debugLogService.collectLogs()
+                        _logs.value = logContent
+                        _uiState.value = DebugUiState.Success
+                    } catch (e: Exception) {
+                        logger.logError(operationId, "Failed to load logs", e)
+                        _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
+                    }
                 }
             }
         }
@@ -114,42 +119,45 @@ class DebugViewModel
 
         fun refreshAuthDebugInfo() {
             viewModelScope.launch {
-                try {
-                    // Get fresh auth status by validating
-                    val isAuthenticated = authService.validateAuth("debug_refresh")
-                    val connectivity = checkAllMirrors()
+                logger.withOperation("refreshAuthDebugInfo") { operationId ->
+                    try {
+                        // Get fresh auth status by validating
+                        val isAuthenticated = authService.validateAuth(operationId)
+                        val connectivity = checkAllMirrors()
 
-                    // Get last auth error from service
-                    val lastError = authService.lastAuthError
+                        // Get last auth error from service
+                        val lastError = authService.lastAuthError
 
-                    // Create debug info with fresh validation results
-                    val info =
-                        com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                            isAuthenticated = isAuthenticated,
-                            lastAuthAttempt = System.currentTimeMillis(),
-                            lastAuthError = lastError,
-                            mirrorConnectivity = connectivity,
-                            validationResults =
-                                com.jabook.app.jabook.compose.data.debug.ValidationResults(
-                                    profilePageCheck = isAuthenticated,
-                                    searchPageCheck = isAuthenticated,
-                                    indexPageCheck = connectivity.values.any { it },
-                                    lastValidation = System.currentTimeMillis(),
-                                ),
-                        )
-                    _authDebugInfo.value = info
-                } catch (e: Exception) {
-                    // Handle errors gracefully - update authDebugInfo with error state
-                    android.util.Log.e("DebugViewModel", "Failed to refresh auth debug info", e)
-                    val errorInfo =
-                        com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                            isAuthenticated = false,
-                            lastAuthAttempt = System.currentTimeMillis(),
-                            lastAuthError = e.message ?: "Unknown error",
-                            mirrorConnectivity = emptyMap(),
-                            validationResults = null,
-                        )
-                    _authDebugInfo.value = errorInfo
+                        // Create debug info with fresh validation results
+                        val info =
+                            com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                                isAuthenticated = isAuthenticated,
+                                lastAuthAttempt = System.currentTimeMillis(),
+                                lastAuthError = lastError,
+                                mirrorConnectivity = connectivity,
+                                validationResults =
+                                    com.jabook.app.jabook.compose.data.debug.ValidationResults(
+                                        profilePageCheck = isAuthenticated,
+                                        searchPageCheck = isAuthenticated,
+                                        indexPageCheck = connectivity.values.any { it },
+                                        lastValidation = System.currentTimeMillis(),
+                                    ),
+                            )
+                        _authDebugInfo.value = info
+                        logger.logSuccess(operationId, "Auth debug info refreshed")
+                    } catch (e: Exception) {
+                        // Handle errors gracefully - update authDebugInfo with error state
+                        logger.logError(operationId, "Failed to refresh auth debug info", e)
+                        val errorInfo =
+                            com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                                isAuthenticated = false,
+                                lastAuthAttempt = System.currentTimeMillis(),
+                                lastAuthError = e.message ?: "Unknown error",
+                                mirrorConnectivity = emptyMap(),
+                                validationResults = null,
+                            )
+                        _authDebugInfo.value = errorInfo
+                    }
                 }
             }
         }

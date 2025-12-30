@@ -401,9 +401,15 @@ class RutrackerRepository
 
                     if (!response.isSuccessful) {
                         Log.w(TAG, "Topic details failed: HTTP ${response.code()}")
-                        return@withContext Result.failure(
-                            Exception("HTTP ${response.code()}: ${response.message()}"),
-                        )
+                        val rutrackerError =
+                            when (response.code()) {
+                                401 -> RuTrackerError.Unauthorized
+                                403 -> RuTrackerError.Forbidden
+                                404 -> RuTrackerError.NotFound
+                                400 -> RuTrackerError.BadRequest
+                                else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                            }
+                        return@withContext Result.failure(rutrackerError)
                     }
 
                     // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)

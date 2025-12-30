@@ -460,7 +460,7 @@ class RutrackerParser
                     }
 
                     // 3. Page metadata
-                    val pageTitle = document.select("title").text()
+                    val pageTitle = document.selectFirst("title")?.toStr() ?: "No title"
                     Log.w(TAG, "📝 Page Title: $pageTitle")
 
                     // 4. HTML preview
@@ -815,7 +815,7 @@ class RutrackerParser
             }
 
             // Fallback: try to extract from text
-            val leechText = document.select("span.leech, .leech").text()
+            val leechText = document.selectFirst("span.leech, .leech")?.toStr() ?: ""
             val regex = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
             regex
                 .find(leechText)
