@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.remote.repository
 
 import android.util.Log
+import com.jabook.app.jabook.compose.core.util.StructuredLogger
 import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
 import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
@@ -62,6 +63,8 @@ class RutrackerRepository
             private const val TAG = "RutrackerRepository"
         }
 
+        private val logger = StructuredLogger(TAG)
+
         /**
          * Search for audiobooks on RuTracker.
          *
@@ -76,36 +79,51 @@ class RutrackerRepository
             forumIds: String? = null,
         ): Result<List<SearchResult>> =
             withContext(Dispatchers.IO) {
-                try {
-                    // 1. Try Memory Cache
-                    val memCached = searchCache.get(query, forumIds)
-                    if (memCached != null) {
-                        return@withContext Result.success(memCached)
-                    }
+                logger.withOperation("searchAudiobooks") { operationId ->
+                    try {
+                        logger.log(operationId, "Search started: query='$query', forumIds=$forumIds")
 
-                    // 2. Try Network
-                    val networkResult = fetchFromNetwork(query, forumIds)
+                        // 1. Try Memory Cache
+                        val memCached = searchCache.get(query, forumIds)
+                        if (memCached != null) {
+                            logger.logSuccess(operationId, "Found ${memCached.size} results from memory cache")
+                            Result.success(memCached)
+                        } else {
+                            // 2. Try Network
+                            val networkResult = fetchFromNetwork(query, forumIds, operationId)
 
-                    if (networkResult.isSuccess) {
-                        return@withContext networkResult
-                    }
+                            if (networkResult.isSuccess) {
+                                val count = networkResult.getOrNull()?.size ?: 0
+                                logger.logSuccess(operationId, "Found $count results from network")
+                                networkResult
+                            } else {
+                                // 3. Fallback to Database (Offline Mode)
+                                // Only for general search (no specific forum filter usually in DB mapping unless we handle it)
+                                if (forumIds == null) {
+                                    val entities = offlineSearchDao.getResultsForQuery(query)
+                                    val dbList = entities.map { it.toSearchResult() }
 
-                    // 3. Fallback to Database (Offline Mode)
-                    // Only for general search (no specific forum filter usually in DB mapping unless we handle it)
-                    if (forumIds == null) {
-                        val entities = offlineSearchDao.getResultsForQuery(query)
-                        val dbList = entities.map { it.toSearchResult() }
-
-                        if (dbList.isNotEmpty()) {
-                            Log.i(TAG, "Network failed, returned ${dbList.size} results from DB")
-                            return@withContext Result.success(dbList)
+                                    if (dbList.isNotEmpty()) {
+                                        logger.log(
+                                            operationId,
+                                            "Network failed, returned ${dbList.size} results from DB",
+                                            StructuredLogger.LogLevel.INFO,
+                                        )
+                                        Result.success(dbList)
+                                    } else {
+                                        // Return network error if DB is empty
+                                        networkResult
+                                    }
+                                } else {
+                                    // Return network error if DB is empty
+                                    networkResult
+                                }
+                            }
                         }
+                    } catch (e: Exception) {
+                        logger.logError(operationId, "Search failed", e)
+                        Result.failure(e)
                     }
-
-                    // Return network error if DB is empty
-                    networkResult
-                } catch (e: Exception) {
-                    Result.failure(e)
                 }
             }
 
@@ -222,9 +240,11 @@ class RutrackerRepository
         private suspend fun fetchFromNetwork(
             query: String,
             forumIds: String?,
+            operationId: String? = null,
         ): Result<List<SearchResult>> {
+            val opId = operationId ?: logger.startOperation("fetchFromNetwork")
             val networkStartTime = System.currentTimeMillis()
-            Log.i(TAG, "🌐 fetchFromNetwork called: query='$query', forumIds=$forumIds")
+            logger.log(opId, "Fetching from network: query='$query', forumIds=$forumIds")
             // === HTTP REQUEST LOGGING ===
             Log.w(TAG, "🔍 === SEARCH REQUEST ===")
             Log.w(TAG, "Query: '$query'")
@@ -240,15 +260,10 @@ class RutrackerRepository
 
             // === HTTP RESPONSE LOGGING ===
             val networkDuration = System.currentTimeMillis() - networkStartTime
-            Log.i(TAG, "📥 === SEARCH RESPONSE ===")
-            Log.i(TAG, "Status: ${response.code()} ${response.message()} (${networkDuration}ms)")
-            Log.d(TAG, "Final URL: ${response.raw().request.url}") // Detect redirects
+            logger.logWithDuration(opId, "Response received: HTTP ${response.code()} ${response.message()}", networkDuration)
+            logger.log(opId, "Final URL: ${response.raw().request.url}", StructuredLogger.LogLevel.DEBUG)
 
             if (!response.isSuccessful) {
-                Log.e(
-                    TAG,
-                    "❌ Request failed: HTTP ${response.code()}: ${response.message()} (${networkDuration}ms) - URL: ${response.raw().request.url}",
-                )
                 val error =
                     when (response.code()) {
                         401 -> RuTrackerError.Unauthorized
@@ -257,6 +272,8 @@ class RutrackerRepository
                         400 -> RuTrackerError.BadRequest
                         else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
                     }
+                logger.logError(opId, "Request failed: ${error.message}", error)
+                if (operationId == null) logger.endOperation(opId, success = false)
                 return Result.failure(error)
             }
 
@@ -351,15 +368,24 @@ class RutrackerRepository
             return when (parsingResult) {
                 is ParsingResult.Success -> {
                     handleSuccess(query, forumIds, parsingResult.data)
+                    val resultCount = parsingResult.data.size
+                    logger.logSuccess(opId, "Parsed $resultCount results", networkDuration)
+                    if (operationId == null) logger.endOperation(opId, success = true, "Found $resultCount results")
                     Result.success(parsingResult.data)
                 }
                 is ParsingResult.PartialSuccess -> {
                     handleSuccess(query, forumIds, parsingResult.data)
+                    val resultCount = parsingResult.data.size
+                    logger.logWarning(opId, "Partial success: parsed $resultCount results with ${parsingResult.errors.size} errors")
+                    if (operationId == null) logger.endOperation(opId, success = true, "Found $resultCount results (partial)")
                     Result.success(parsingResult.data)
                 }
                 is ParsingResult.Failure -> {
                     val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
-                    Result.failure(RuTrackerError.ParsingError(errorMessage))
+                    val error = RuTrackerError.ParsingError(errorMessage)
+                    logger.logError(opId, "Parsing failed: $errorMessage", error)
+                    if (operationId == null) logger.endOperation(opId, success = false, errorMessage)
+                    Result.failure(error)
                 }
             }
         }
@@ -394,45 +420,48 @@ class RutrackerRepository
          */
         suspend fun getTopicDetails(topicId: String): Result<TopicDetails> =
             withContext(Dispatchers.IO) {
-                try {
-                    Log.d(TAG, "Fetching topic details: $topicId")
+                logger.withOperation("getTopicDetails") { operationId ->
+                    try {
+                        logger.log(operationId, "Fetching topic details: $topicId")
 
-                    val response = api.getTopicDetails(topicId)
+                        val response = api.getTopicDetails(topicId)
 
-                    if (!response.isSuccessful) {
-                        Log.w(TAG, "Topic details failed: HTTP ${response.code()}")
-                        val rutrackerError =
-                            when (response.code()) {
-                                401 -> RuTrackerError.Unauthorized
-                                403 -> RuTrackerError.Forbidden
-                                404 -> RuTrackerError.NotFound
-                                400 -> RuTrackerError.BadRequest
-                                else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                        if (!response.isSuccessful) {
+                            logger.logWarning(operationId, "Topic details failed: HTTP ${response.code()}")
+                            val rutrackerError =
+                                when (response.code()) {
+                                    401 -> RuTrackerError.Unauthorized
+                                    403 -> RuTrackerError.Forbidden
+                                    404 -> RuTrackerError.NotFound
+                                    400 -> RuTrackerError.BadRequest
+                                    else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                                }
+                            logger.logError(operationId, "Failed to fetch topic details", rutrackerError)
+                            Result.failure(rutrackerError)
+                        } else {
+                            // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
+                            val rawBytes = response.body()?.bytes() ?: byteArrayOf()
+                            val html = String(rawBytes, charset("windows-1251"))
+                            val details = parser.parseTopicDetails(html, topicId)
+
+                            if (details != null) {
+                                logger.logSuccess(operationId, "Topic details parsed: ${details.title}")
+                                Result.success(details)
+                            } else {
+                                logger.logWarning(operationId, "Failed to parse topic details")
+                                Result.failure(RuTrackerError.ParsingError("Failed to parse topic details"))
                             }
-                        return@withContext Result.failure(rutrackerError)
+                        }
+                    } catch (e: java.net.UnknownHostException) {
+                        logger.logError(operationId, "Network error - unknown host", e)
+                        Result.failure(RuTrackerError.NoConnection)
+                    } catch (e: java.io.IOException) {
+                        logger.logError(operationId, "Network I/O error", e)
+                        Result.failure(RuTrackerError.NoConnection)
+                    } catch (e: Exception) {
+                        logger.logError(operationId, "Topic details error", e)
+                        Result.failure(RuTrackerError.Unknown(e.message))
                     }
-
-                    // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
-                    val rawBytes = response.body()?.bytes() ?: byteArrayOf()
-                    val html = String(rawBytes, charset("windows-1251"))
-                    val details = parser.parseTopicDetails(html, topicId)
-
-                    if (details != null) {
-                        Log.i(TAG, "Topic details parsed: ${details.title}")
-                        Result.success(details)
-                    } else {
-                        Log.w(TAG, "Failed to parse topic details")
-                        Result.failure(RuTrackerError.ParsingError("Failed to parse topic details"))
-                    }
-                } catch (e: java.net.UnknownHostException) {
-                    Log.e(TAG, "Network error - unknown host", e)
-                    Result.failure(RuTrackerError.NoConnection)
-                } catch (e: java.io.IOException) {
-                    Log.e(TAG, "Network I/O error", e)
-                    Result.failure(RuTrackerError.NoConnection)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Topic details error", e)
-                    Result.failure(RuTrackerError.Unknown(e.message))
                 }
             }
 
@@ -443,49 +472,59 @@ class RutrackerRepository
          */
         suspend fun getCategories(): Result<List<AudiobookCategory>> =
             withContext(Dispatchers.IO) {
-                try {
-                    Log.d(TAG, "Fetching categories")
+                logger.withOperation("getCategories") { operationId ->
+                    try {
+                        logger.log(operationId, "Fetching categories")
 
-                    val response = api.getIndex()
+                        val response = api.getIndex()
 
-                    if (!response.isSuccessful) {
-                        Log.w(TAG, "Categories failed: HTTP ${response.code()}")
-                        val error =
-                            when (response.code()) {
-                                401 -> RuTrackerError.Unauthorized
-                                403 -> RuTrackerError.Forbidden
-                                404 -> RuTrackerError.NotFound
-                                400 -> RuTrackerError.BadRequest
-                                else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                        if (!response.isSuccessful) {
+                            logger.logWarning(operationId, "Categories failed: HTTP ${response.code()}")
+                            val error =
+                                when (response.code()) {
+                                    401 -> RuTrackerError.Unauthorized
+                                    403 -> RuTrackerError.Forbidden
+                                    404 -> RuTrackerError.NotFound
+                                    400 -> RuTrackerError.BadRequest
+                                    else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                                }
+                            logger.logError(operationId, "Failed to fetch categories", error)
+                            Result.failure(error)
+                        } else {
+                            // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
+                            val rawBytes = response.body()?.bytes() ?: ByteArray(0)
+                            // Decode HTML (CategoryParser expects decoded string)
+                            val html = String(rawBytes, Charsets.UTF_8)
+
+                            val parsingResult = categoryParser.parseCategories(html)
+
+                            when (parsingResult) {
+                                is ParsingResult.Success -> {
+                                    logger.logSuccess(operationId, "Categories parsed: ${parsingResult.data.size}")
+                                    Result.success(parsingResult.data)
+                                }
+                                is ParsingResult.PartialSuccess -> {
+                                    logger.logWarning(
+                                        operationId,
+                                        "Categories partial: ${parsingResult.data.size} categories with ${parsingResult.errors.size} errors",
+                                    )
+                                    Result.success(parsingResult.data)
+                                }
+                                is ParsingResult.Failure -> {
+                                    val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Failed to parse categories"
+                                    logger.logError(
+                                        operationId,
+                                        "Categories parsing failed: $errorMessage",
+                                        RuTrackerError.ParsingError(errorMessage),
+                                    )
+                                    Result.failure(RuTrackerError.ParsingError(errorMessage))
+                                }
                             }
-                        return@withContext Result.failure(error)
+                        }
+                    } catch (e: Exception) {
+                        logger.logError(operationId, "Categories error", e)
+                        Result.failure(RuTrackerError.Unknown(e.message))
                     }
-
-                    // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
-                    val rawBytes = response.body()?.bytes() ?: ByteArray(0)
-                    // Decode HTML (CategoryParser expects decoded string)
-                    val html = String(rawBytes, Charsets.UTF_8)
-
-                    val parsingResult = categoryParser.parseCategories(html)
-
-                    when (parsingResult) {
-                        is ParsingResult.Success -> {
-                            Log.i(TAG, "Categories parsed: ${parsingResult.data.size}")
-                            Result.success(parsingResult.data)
-                        }
-                        is ParsingResult.PartialSuccess -> {
-                            Log.w(TAG, "Categories partial: ${parsingResult.data.size} categories")
-                            Result.success(parsingResult.data)
-                        }
-                        is ParsingResult.Failure -> {
-                            Log.e(TAG, "Categories parsing failed")
-                            val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Failed to parse categories"
-                            Result.failure(RuTrackerError.ParsingError(errorMessage))
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Categories error", e)
-                    Result.failure(RuTrackerError.Unknown(e.message))
                 }
             }
 

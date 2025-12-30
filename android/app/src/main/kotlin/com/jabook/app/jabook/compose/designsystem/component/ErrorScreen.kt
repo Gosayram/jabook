@@ -33,20 +33,40 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.getErrorMessage
+import com.jabook.app.jabook.compose.core.util.getStringRes
 
 /**
  * Standard error screen with icon, message, and optional retry action.
  *
- * @param message Error message to display
+ * Supports both string messages and Throwable for better error handling.
+ *
+ * @param message Error message to display (if throwable is null)
+ * @param throwable Optional throwable error (takes precedence over message)
  * @param modifier Modifier to be applied to the container
  * @param onRetry Optional retry action callback
  */
 @Composable
 fun ErrorScreen(
-    message: String,
+    message: String = "",
+    throwable: Throwable? = null,
     modifier: Modifier = Modifier,
     onRetry: (() -> Unit)? = null,
 ) {
+    val errorMessage =
+        if (throwable != null) {
+            throwable.getErrorMessage()
+        } else {
+            message.ifEmpty { stringResource(R.string.error_something_goes_wrong) }
+        }
+
+    val errorStringRes =
+        if (throwable != null) {
+            throwable.getStringRes()
+        } else {
+            R.string.error_something_goes_wrong
+        }
+
     Column(
         modifier =
             modifier
@@ -63,7 +83,7 @@ fun ErrorScreen(
         )
 
         Text(
-            text = message,
+            text = errorMessage.ifEmpty { stringResource(errorStringRes) },
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,

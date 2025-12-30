@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.auth
 
 import android.util.Log
+import com.jabook.app.jabook.compose.core.util.StructuredLogger
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
@@ -52,6 +53,8 @@ class RutrackerAuthService
         val lastAuthError: String?
             get() = _lastAuthError
 
+        private val logger = StructuredLogger(TAG)
+
         /**
          * Attempt login with detailed logging.
          * Based on Flutter's robust authentication implementation.
@@ -63,12 +66,12 @@ class RutrackerAuthService
             captchaCode: String? = null,
             captchaData: CaptchaData? = null,
         ): AuthResult {
-            val operationId = "auth_login_${System.currentTimeMillis()}"
+            val operationId = logger.startOperation("login", "auth_login_${System.currentTimeMillis()}")
             val startTime = System.currentTimeMillis()
 
             return withContext(Dispatchers.IO) {
                 try {
-                    Log.i(TAG, "[$operationId] Authentication started for user: ${credentials.username}")
+                    logger.log(operationId, "Authentication started for user: ${credentials.username}")
 
                     // Step 1: Encode credentials to CP1251
                     val encodeStart = System.currentTimeMillis()
@@ -153,45 +156,54 @@ class RutrackerAuthService
                     // Step 7: Convert result and log outcome
                     return@withContext when (result) {
                         is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Success -> {
-                            Log.i(TAG, "[$operationId] ✅ Authentication successful (${totalDuration}ms)")
+                            logger.logSuccess(operationId, "Authentication successful", totalDuration)
                             AuthResult.Success
                         }
                         is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Error -> {
-                            Log.w(TAG, "[$operationId] ❌ Authentication failed: ${result.message} (${totalDuration}ms)")
+                            logger.logError(operationId, "Authentication failed: ${result.message}")
+                            logger.logWithDuration(operationId, "Authentication failed", totalDuration)
                             _lastAuthError = result.message
                             AuthResult.Error(result.message)
                         }
                         is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Captcha -> {
-                            Log.i(TAG, "[$operationId] 🔐 Captcha required (${totalDuration}ms)")
+                            logger.log(operationId, "Captcha required", StructuredLogger.LogLevel.INFO)
+                            logger.logWithDuration(operationId, "Captcha required", totalDuration)
                             AuthResult.Captcha(result.data)
                         }
                     }
                 } catch (e: java.net.SocketTimeoutException) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.e(TAG, "[$operationId] ⏱️ Request timeout (${duration}ms)", e)
+                    logger.logError(operationId, "Request timeout", e)
+                    logger.logWithDuration(operationId, "Request timeout", duration)
                     _lastAuthError = RuTrackerError.NoConnection.message
                     return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: java.net.UnknownHostException) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.e(TAG, "[$operationId] 🌐 Network error - unknown host (${duration}ms)", e)
+                    logger.logError(operationId, "Network error - unknown host", e)
+                    logger.logWithDuration(operationId, "Network error - unknown host", duration)
                     _lastAuthError = RuTrackerError.NoConnection.message
                     return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: java.io.IOException) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.e(TAG, "[$operationId] 🌐 Network I/O error (${duration}ms)", e)
+                    logger.logError(operationId, "Network I/O error", e)
+                    logger.logWithDuration(operationId, "Network I/O error", duration)
                     _lastAuthError = RuTrackerError.NoConnection.message
                     return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.e(TAG, "[$operationId] ⏱️ Coroutine timeout (${duration}ms)", e)
+                    logger.logError(operationId, "Coroutine timeout", e)
+                    logger.logWithDuration(operationId, "Coroutine timeout", duration)
                     _lastAuthError = RuTrackerError.NoConnection.message
                     return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: Exception) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.e(TAG, "[$operationId] ⚠️ Unexpected error (${duration}ms)", e)
                     val error = RuTrackerError.Unknown(e.message)
+                    logger.logError(operationId, "Unexpected error: ${error.message}", e)
+                    logger.logWithDuration(operationId, "Unexpected error", duration)
                     _lastAuthError = error.message
                     return@withContext AuthResult.Error(error.message)
+                } finally {
+                    logger.endOperation(operationId, success = true)
                 }
             }
         }
@@ -252,12 +264,12 @@ class RutrackerAuthService
         suspend fun validateAuth(operationId: String? = null): Boolean {
             val validationId =
                 operationId?.let { "${it}_validation" }
-                    ?: "auth_validation_${System.currentTimeMillis()}"
+                    ?: logger.startOperation("validateAuth")
             val startTime = System.currentTimeMillis()
 
             return withContext(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "[$validationId] Authentication validation started")
+                    logger.log(validationId, "Authentication validation started")
 
                     // Apply timeout to prevent hanging on provider blocks
                     kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
@@ -265,7 +277,7 @@ class RutrackerAuthService
                         val profileResult = validateProfilePage(validationId)
                         if (profileResult) {
                             val duration = System.currentTimeMillis() - startTime
-                            Log.i(TAG, "[$validationId] Auth validated via profile (${duration}ms)")
+                            logger.logSuccess(validationId, "Auth validated via profile", duration)
                             return@withTimeout true
                         }
 
@@ -273,7 +285,7 @@ class RutrackerAuthService
                         val searchResult = validateSearchPage(validationId)
                         if (searchResult) {
                             val duration = System.currentTimeMillis() - startTime
-                            Log.i(TAG, "[$validationId] Auth validated via search (${duration}ms)")
+                            logger.logSuccess(validationId, "Auth validated via search", duration)
                             return@withTimeout true
                         }
 
@@ -282,21 +294,28 @@ class RutrackerAuthService
                         val duration = System.currentTimeMillis() - startTime
 
                         if (indexResult) {
-                            Log.i(TAG, "[$validationId] Auth validated via index (${duration}ms)")
+                            logger.logSuccess(validationId, "Auth validated via index", duration)
                         } else {
-                            Log.w(TAG, "[$validationId] Auth validation failed - all tests failed (${duration}ms)")
+                            logger.logWarning(validationId, "Auth validation failed - all tests failed")
+                            logger.logWithDuration(validationId, "Auth validation failed", duration)
                         }
 
                         return@withTimeout indexResult
                     }
                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.e(TAG, "[$validationId] Validation timeout (${duration}ms) - provider may be blocking", e)
+                    logger.logError(validationId, "Validation timeout - provider may be blocking", e)
+                    logger.logWithDuration(validationId, "Validation timeout", duration)
                     return@withContext false
                 } catch (e: Exception) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.e(TAG, "[$validationId] Validation exception (${duration}ms)", e)
+                    logger.logError(validationId, "Validation exception", e)
+                    logger.logWithDuration(validationId, "Validation exception", duration)
                     return@withContext false
+                } finally {
+                    if (operationId == null) {
+                        logger.endOperation(validationId, success = true)
+                    }
                 }
             }
         }
@@ -306,20 +325,24 @@ class RutrackerAuthService
          * Used for diagnostics.
          */
         suspend fun checkConnectivity(operationId: String? = null): Boolean {
-            val checkId = operationId?.let { "${it}_conn" } ?: "conn_check_${System.currentTimeMillis()}"
+            val checkId = operationId?.let { "${it}_conn" } ?: logger.startOperation("checkConnectivity")
             return try {
-                Log.d(TAG, "[$checkId] Checking connectivity...")
+                logger.log(checkId, "Checking connectivity...")
                 val response = api.getIndex()
                 if (response.isSuccessful) {
-                    Log.i(TAG, "[$checkId] Connectivity check passed (HTTP ${response.code()})")
+                    logger.logSuccess(checkId, "Connectivity check passed (HTTP ${response.code()})")
                     true
                 } else {
-                    Log.w(TAG, "[$checkId] Connectivity check failed (HTTP ${response.code()})")
+                    logger.logWarning(checkId, "Connectivity check failed (HTTP ${response.code()})")
                     false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "[$checkId] Connectivity check failed with exception", e)
+                logger.logError(checkId, "Connectivity check failed with exception", e)
                 false
+            } finally {
+                if (operationId == null) {
+                    logger.endOperation(checkId, success = true)
+                }
             }
         }
 
@@ -335,13 +358,13 @@ class RutrackerAuthService
                     }
 
                 if (!response.isSuccessful) {
-                    Log.d(TAG, "[$operationId] Profile check: HTTP ${response.code()}")
+                    logger.log(operationId, "Profile check: HTTP ${response.code()}", StructuredLogger.LogLevel.DEBUG)
                     return false
                 }
 
                 val rawBody =
                     response.body()?.bytes() ?: run {
-                        Log.d(TAG, "[$operationId] Profile check: empty body")
+                        logger.log(operationId, "Profile check: empty body", StructuredLogger.LogLevel.DEBUG)
                         return false
                     }
                 val bodyString = String(rawBody, CP1251).lowercase()
@@ -353,13 +376,13 @@ class RutrackerAuthService
 
                 // Check for redirect to login
                 if (finalUrl.contains("login.php")) {
-                    Log.d(TAG, "[$operationId] Profile check: redirected to login")
+                    logger.log(operationId, "Profile check: redirected to login", StructuredLogger.LogLevel.DEBUG)
                     return false
                 }
 
                 // Check for login form presence (not authenticated)
                 if (bodyString.contains("name=\"login_username\"")) {
-                    Log.d(TAG, "[$operationId] Profile check: login form present")
+                    logger.log(operationId, "Profile check: login form present", StructuredLogger.LogLevel.DEBUG)
                     return false
                 }
 
@@ -373,11 +396,11 @@ class RutrackerAuthService
                         bodyString.contains("личные данные")
 
                 val isAuthenticated = hasLogout || hasProfile
-                Log.d(TAG, "[$operationId] Profile check: logout=$hasLogout, profile=$hasProfile")
+                logger.log(operationId, "Profile check: logout=$hasLogout, profile=$hasProfile", StructuredLogger.LogLevel.DEBUG)
 
                 isAuthenticated
             } catch (e: Exception) {
-                Log.w(TAG, "[$operationId] Profile check exception", e)
+                logger.logError(operationId, "Profile check exception", e)
                 false
             }
         }
@@ -399,7 +422,7 @@ class RutrackerAuthService
                     }
 
                 if (!response.isSuccessful) {
-                    Log.d(TAG, "[$operationId] Search check: HTTP ${response.code()}")
+                    logger.log(operationId, "Search check: HTTP ${response.code()}", StructuredLogger.LogLevel.DEBUG)
                     return false
                 }
 
@@ -409,7 +432,7 @@ class RutrackerAuthService
                     if (rawBytes != null) {
                         String(rawBytes, charset("windows-1251")).lowercase()
                     } else {
-                        Log.d(TAG, "[$operationId] Search check: empty body")
+                        logger.log(operationId, "Search check: empty body", StructuredLogger.LogLevel.DEBUG)
                         return false
                     }
                 val finalUrl =
@@ -420,7 +443,7 @@ class RutrackerAuthService
 
                 // Check for redirect to login
                 if (finalUrl.contains("login.php")) {
-                    Log.d(TAG, "[$operationId] Search check: redirected to login")
+                    logger.log(operationId, "Search check: redirected to login", StructuredLogger.LogLevel.DEBUG)
                     return false
                 }
 
@@ -431,7 +454,7 @@ class RutrackerAuthService
                         bodyString.contains("войдите в систему")
 
                 if (requiresAuth) {
-                    Log.d(TAG, "[$operationId] Search check: auth required message found")
+                    logger.log(operationId, "Search check: auth required message found", StructuredLogger.LogLevel.DEBUG)
                     return false
                 }
 
@@ -442,11 +465,15 @@ class RutrackerAuthService
                         bodyString.contains("форум") ||
                         bodyString.length > 1000 // Search page usually >1KB
 
-                Log.d(TAG, "[$operationId] Search check: hasElements=$hasSearchElements, size=${bodyString.length}")
+                logger.log(
+                    operationId,
+                    "Search check: hasElements=$hasSearchElements, size=${bodyString.length}",
+                    StructuredLogger.LogLevel.DEBUG,
+                )
 
                 hasSearchElements
             } catch (e: Exception) {
-                Log.w(TAG, "[$operationId] Search check exception", e)
+                logger.logError(operationId, "Search check exception", e)
                 false
             }
         }
@@ -465,17 +492,21 @@ class RutrackerAuthService
                 if (response.isSuccessful) {
                     val bodyString = response.body()?.string()?.lowercase() ?: ""
                     val isValidIndex = bodyString.contains("форум") || bodyString.contains("rutracker.org")
-                    Log.d(TAG, "[$operationId] Index check: HTTP ${response.code()}, validContent=$isValidIndex")
+                    logger.log(
+                        operationId,
+                        "Index check: HTTP ${response.code()}, validContent=$isValidIndex",
+                        StructuredLogger.LogLevel.DEBUG,
+                    )
                     return isValidIndex
                 } else {
-                    Log.w(TAG, "[$operationId] Index check failed: HTTP ${response.code()}")
+                    logger.logWarning(operationId, "Index check failed: HTTP ${response.code()}")
                     return false
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                Log.w(TAG, "[$operationId] Index check timeout", e)
+                logger.logError(operationId, "Index check timeout", e)
                 return false
             } catch (e: Exception) {
-                Log.w(TAG, "[$operationId] Index check exception", e)
+                logger.logError(operationId, "Index check exception", e)
                 return false
             }
         }

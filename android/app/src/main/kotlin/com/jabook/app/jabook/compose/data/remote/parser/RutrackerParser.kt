@@ -1295,11 +1295,11 @@ class RutrackerParser
                                 ?: parentRow.selectFirst("a[onclick*='bbcode.onclickPoster']")
 
                         val author =
-                            authorElement?.text()?.trim()?.takeIf { it.isNotEmpty() }
+                            authorElement?.toStr()?.trim()?.takeIf { it.isNotEmpty() }
                                 ?: run {
                                     // Fallback 1: Try show-for-print span (for bots and special cases)
                                     parentRow.selectFirst("span.show-for-print.bold")?.let { span ->
-                                        val text = span.text()
+                                        val text = span.toStr()
                                         // Extract name before &middot; or ·
                                         text
                                             .split("·", "&middot;", "&nbsp;")
@@ -1311,7 +1311,7 @@ class RutrackerParser
                                 // Fallback 2: Try profile link text
                                 parentRow
                                     .selectFirst("a[href*='profile.php?mode=viewprofile']")
-                                    ?.text()
+                                    ?.toStr()
                                     ?.trim()
                                     ?.takeIf { it.isNotEmpty() }
                             } ?: "Unknown"
@@ -1321,7 +1321,7 @@ class RutrackerParser
                             parentRow.selectFirst("a.p-link.small")
                                 ?: parentRow.selectFirst(".post-time a")
                                 ?: parentRow.selectFirst(".p-link")
-                        val date = dateElement?.text()?.trim() ?: ""
+                        val date = dateElement?.toStr()?.trim() ?: ""
 
                         // Extract avatar URL and normalize CDN domain
                         val avatarElement = parentRow.selectFirst("p.avatar img")
