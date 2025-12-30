@@ -202,11 +202,12 @@ class RutrackerRepository
                         Log.e(TAG, "❌ Indexed search failed for query '$query'", e)
                         // If index exists but search failed, return empty instead of network search
                         // This prevents "bad request" errors when index exists but has issues
-                        val indexSize = try {
-                            offlineSearchDao.getTopicCount()
-                        } catch (ex: Exception) {
-                            0
-                        }
+                        val indexSize =
+                            try {
+                                offlineSearchDao.getTopicCount()
+                            } catch (ex: Exception) {
+                                0
+                            }
                         if (indexSize > 0) {
                             Log.w(TAG, "Index exists ($indexSize topics) but search failed, returning empty to avoid network bad request")
                             emit(Result.success(emptyList()))
@@ -402,14 +403,15 @@ class RutrackerRepository
                 }
                 is ParsingResult.Failure -> {
                     val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
-                    
+
                     // Check if it's a bad request or validation error
-                    val isBadRequest = parsingResult.errors.any { 
-                        it.reason.contains("Bad request", ignoreCase = true) || 
-                        it.reason.contains("BadRequest", ignoreCase = true) ||
-                        it.reason.contains("Content validation failed", ignoreCase = true)
-                    }
-                    
+                    val isBadRequest =
+                        parsingResult.errors.any {
+                            it.reason.contains("Bad request", ignoreCase = true) ||
+                                it.reason.contains("BadRequest", ignoreCase = true) ||
+                                it.reason.contains("Content validation failed", ignoreCase = true)
+                        }
+
                     if (isBadRequest) {
                         Log.w(TAG, "⚠️ Bad request or validation error detected in parsing result for query '$query'")
                         Log.w(TAG, "   Returning empty list instead of error to prevent user confusion")
