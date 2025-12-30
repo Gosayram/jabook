@@ -124,6 +124,20 @@ class RutrackerParser
             val results = mutableListOf<SearchResult>()
 
             try {
+                // Validate HTML content before parsing
+                val validationError = ParsingValidators.validateSearchResults(html)
+                if (validationError != null) {
+                    errors.add(
+                        ParsingError(
+                            field = "document",
+                            reason = "Content validation failed: ${validationError.message}",
+                            severity = ErrorSeverity.CRITICAL,
+                            htmlSnippet = html.take(500),
+                        ),
+                    )
+                    return ParsingResult.Failure(errors, emptyList())
+                }
+
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
                 val document = Jsoup.parse(html, getBaseUrl())
 
@@ -636,6 +650,13 @@ class RutrackerParser
             topicId: String,
         ): TopicDetails? {
             try {
+                // Validate HTML content before parsing
+                val validationError = ParsingValidators.validateTopicDetails(html)
+                if (validationError != null) {
+                    Log.w(TAG, "Topic $topicId validation failed: ${validationError.message}")
+                    return null
+                }
+
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
                 val document = Jsoup.parse(html, getBaseUrl())
 
