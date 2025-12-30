@@ -20,10 +20,14 @@ import com.jabook.app.jabook.compose.core.util.StructuredLogger
 import com.jabook.app.jabook.compose.data.debug.DebugLogService
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 /**
@@ -128,8 +132,18 @@ class DebugViewModel
                 try {
                     logger.withOperation("refreshAuthDebugInfo") { operationId ->
                         try {
-                            // Get fresh auth status by validating
-                            val isAuthenticated = authService.validateAuth(operationId)
+                            // Get fresh auth status by validating (with timeout protection)
+                            val isAuthenticated =
+                                try {
+                                    kotlinx.coroutines.withTimeout(20000L) {
+                                        authService.validateAuth(operationId)
+                                    }
+                                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                                    android.util.Log.w("DebugViewModel", "Auth validation timed out")
+                                    false
+                                }
+
+                            // Check mirrors (already has timeout protection)
                             val connectivity = checkAllMirrors()
 
                             // Get last auth error from service
@@ -184,28 +198,41 @@ class DebugViewModel
 
         private suspend fun checkAllMirrors(): Map<String, Boolean> =
             try {
-                // Get mirrors safely - handle case when MirrorManager might not be fully initialized
-                val mirrors =
-                    try {
-                        mirrorManager.availableMirrors.value
-                    } catch (e: Exception) {
-                        android.util.Log.w("DebugViewModel", "Failed to access available mirrors, using defaults", e)
-                        com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS
-                    }
-
-                if (mirrors.isEmpty()) {
-                    android.util.Log.w("DebugViewModel", "No mirrors available for health check")
-                    emptyMap()
-                } else {
-                    mirrors.associateWith { mirror ->
+                // Add overall timeout to prevent hanging (max 20 seconds for all mirrors)
+                kotlinx.coroutines.withTimeout(20000L) {
+                    // Get mirrors safely - handle case when MirrorManager might not be fully initialized
+                    val mirrors =
                         try {
-                            mirrorManager.checkMirrorHealth(mirror)
+                            mirrorManager.availableMirrors.value
                         } catch (e: Exception) {
-                            android.util.Log.e("DebugViewModel", "Failed to check health for mirror: $mirror", e)
-                            false
+                            android.util.Log.w("DebugViewModel", "Failed to access available mirrors, using defaults", e)
+                            com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS
+                        }
+
+                    if (mirrors.isEmpty()) {
+                        android.util.Log.w("DebugViewModel", "No mirrors available for health check")
+                        emptyMap()
+                    } else {
+                        // Check mirrors in parallel for better performance
+                        coroutineScope {
+                            mirrors
+                                .map { mirror ->
+                                    async {
+                                        try {
+                                            mirror to mirrorManager.checkMirrorHealth(mirror)
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("DebugViewModel", "Failed to check health for mirror: $mirror", e)
+                                            mirror to false
+                                        }
+                                    }
+                                }.awaitAll()
+                                .toMap()
                         }
                     }
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                android.util.Log.w("DebugViewModel", "Mirror health check timed out after 20 seconds")
+                emptyMap()
             } catch (e: Exception) {
                 android.util.Log.e("DebugViewModel", "Failed to get available mirrors", e)
                 emptyMap()
