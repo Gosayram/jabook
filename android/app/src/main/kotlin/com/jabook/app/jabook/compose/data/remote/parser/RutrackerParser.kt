@@ -53,6 +53,7 @@ class RutrackerParser
 
             // CSS Selectors for search results - UPDATED for 2025 based on robust Dart implementation
             // Primary and fallback selectors for rows
+            // Note: Some forums may have td.vf-col-icon, so we need to handle parent tr
             private val ROW_SELECTORS =
                 listOf(
                     "tr.hl-tr",
@@ -60,6 +61,9 @@ class RutrackerParser
                     "table.forumline tr.hl-tr", // More specific
                     "table.forumline tr[id^='t-']", // ID-based
                     "tbody#TORRENT_LIST_TBODY tr", // Structure-based
+                    "table.forumline tr", // Generic forum table rows
+                    "tr:has(td.vf-col-icon)", // Rows containing vf-col-icon cells
+                    "tr:has(td[class*='vf-col'])", // Rows with vf-col cells
                 )
 
             private const val TITLE_SELECTOR = "a.torTopic, a.tt-text, a[href*='viewtopic.php?t=']"
@@ -227,17 +231,42 @@ class RutrackerParser
 
                 for ((index, row) in rows.withIndex()) {
                     try {
+                        // Log row structure for debugging
+                        if (index < 3) {
+                            Log.d(
+                                TAG,
+                                "Parsing row $index: tag=${row.tagName()}, " +
+                                    "classes='${row.className()}', " +
+                                    "hasTitle=${row.selectFirst(TITLE_SELECTOR) != null}, " +
+                                    "textLength=${row.text().length}",
+                            )
+                        }
+
                         val result = parseSearchResultRow(row)
                         if (result != null) {
                             results.add(result)
+                            if (index < 3) {
+                                Log.d(TAG, "✅ Row $index parsed: topicId=${result.topicId}, title='${result.title.take(40)}'")
+                            }
                         } else {
                             // Only warn if we failed to parse a row that we thought was valid
                             // But skip clogging logs if it's just a spacer/ad row that slipped through
                             if (row.text().length > 50) {
+                                val rowTag = row.tagName()
+                                val rowClasses = row.className()
+                                val hasTitle = row.selectFirst(TITLE_SELECTOR) != null
+                                val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
+
+                                Log.w(
+                                    TAG,
+                                    "⚠️ Row $index failed to parse: tag=$rowTag, " +
+                                        "classes='$rowClasses', hasTitle=$hasTitle, topicId='$topicId'",
+                                )
+
                                 errors.add(
                                     ParsingError(
                                         field = "row_$index",
-                                        reason = "Failed to extract required fields",
+                                        reason = "Failed to extract required fields (tag=$rowTag, hasTitle=$hasTitle)",
                                         severity = ErrorSeverity.WARNING,
                                         htmlSnippet = row.html().take(200),
                                     ),
@@ -250,6 +279,7 @@ class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
+                        Log.e(TAG, "❌ Error parsing row $index: $errorDetails", e)
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -258,7 +288,6 @@ class RutrackerParser
                                 htmlSnippet = row.html().take(300),
                             ),
                         )
-                        Log.w(TAG, "Error parsing row $index: $errorDetails")
                     }
                 }
 
@@ -376,21 +405,59 @@ class RutrackerParser
 
                 for (selector in ROW_SELECTORS) {
                     val found = document.select(selector)
+                    Log.d(TAG, "Trying selector '$selector': found ${found.size} elements")
+
                     if (found.isNotEmpty()) {
+                        // Check if we found tr elements or something else
+                        val firstElement = found.firstOrNull()
+                        if (firstElement == null) {
+                            Log.w(TAG, "  ⚠️ Found elements but first() returned null")
+                            continue
+                        }
+                        val elementTag = firstElement.tagName()
+                        Log.d(TAG, "  First element tag: $elementTag, classes: '${firstElement.className()}'")
+
+                        // If we found td instead of tr, we need to find parent tr
+                        val actualRows =
+                            if (elementTag == "td") {
+                                Log.w(TAG, "  ⚠️ Selector found <td> instead of <tr>, looking for parent <tr>")
+                                found
+                                    .mapNotNull { td ->
+                                        td.parent()?.takeIf { parent -> parent.tagName() == "tr" }
+                                    }.distinct()
+                            } else {
+                                found
+                            }
+
+                        Log.d(TAG, "  After processing: ${actualRows.size} rows")
+
                         // Filter out header/ad rows if generic selector used
                         val validRows =
-                            found.filter { row ->
+                            actualRows.filter { row ->
                                 // Basic validation: must have some content/structure
                                 // Use selectFirst() for better performance (returns null if not found)
-                                !row.hasClass("vf-col-header-row") &&
-                                    row.selectFirst(TITLE_SELECTOR) != null
+                                val hasTitle = row.selectFirst(TITLE_SELECTOR) != null
+                                val isHeader = row.hasClass("vf-col-header-row")
+                                val isValid = !isHeader && hasTitle
+
+                                if (!isValid && row.text().length > 50) {
+                                    Log.d(
+                                        TAG,
+                                        "  Row filtered out: isHeader=$isHeader, hasTitle=$hasTitle, " +
+                                            "tag=${row.tagName()}, classes='${row.className()}'",
+                                    )
+                                }
+
+                                isValid
                             }
 
                         if (validRows.isNotEmpty()) {
                             rows = org.jsoup.select.Elements(validRows)
                             successfulSelector = selector
-                            Log.d(TAG, "Found ${rows.size} rows using validation-checked selector: $selector")
+                            Log.d(TAG, "✅ Found ${rows.size} valid rows using selector: $selector")
                             break
+                        } else {
+                            Log.w(TAG, "  ⚠️ Selector '$selector' found ${actualRows.size} rows but none are valid")
                         }
 
                         // If selected rows were all invalid, try next selector
@@ -454,10 +521,21 @@ class RutrackerParser
                             // Only warn if we failed to parse a row that we thought was valid
                             // But skip clogging logs if it's just a spacer/ad row that slipped through
                             if (row.text().length > 50) {
+                                val rowTag = row.tagName()
+                                val rowClasses = row.className()
+                                val hasTitle = row.selectFirst(TITLE_SELECTOR) != null
+                                val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
+
+                                Log.w(
+                                    TAG,
+                                    "⚠️ Row $index failed to parse: tag=$rowTag, " +
+                                        "classes='$rowClasses', hasTitle=$hasTitle, topicId='$topicId'",
+                                )
+
                                 errors.add(
                                     ParsingError(
                                         field = "row_$index",
-                                        reason = "Failed to extract required fields",
+                                        reason = "Failed to extract required fields (tag=$rowTag, hasTitle=$hasTitle)",
                                         severity = ErrorSeverity.WARNING,
                                         htmlSnippet = row.html().take(200),
                                     ),
@@ -470,6 +548,7 @@ class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
+                        Log.e(TAG, "❌ Error parsing row $index: $errorDetails", e)
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -478,7 +557,6 @@ class RutrackerParser
                                 htmlSnippet = row.html().take(300),
                             ),
                         )
-                        Log.w(TAG, "Error parsing row $index: $errorDetails")
                     }
                 }
 

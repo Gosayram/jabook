@@ -155,4 +155,19 @@ class IndexingViewModel
             // Start foreground service
             IndexingForegroundService.start(context)
         }
+
+        /**
+         * Clear the entire index (delete all indexed topics).
+         * Useful for rebuilding index from scratch.
+         */
+        suspend fun clearIndex(): Boolean =
+            try {
+                Log.i(TAG, "Clearing index...")
+                forumIndexer.clearIndex()
+                Log.i(TAG, "Index cleared successfully")
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to clear index", e)
+                false
+            }
     }

@@ -330,6 +330,53 @@ fun SettingsScreen(
                         },
                 )
 
+                // Add clear index button if index exists
+                if (indexSize > 0 && !isIndexing) {
+                    var showClearConfirmDialog by remember { mutableStateOf(false) }
+
+                    SettingsItem(
+                        title = "Сбросить индекс",
+                        subtitle = "Удалить все проиндексированные темы ($indexSize тем)",
+                        onClick = {
+                            showClearConfirmDialog = true
+                        },
+                    )
+
+                    if (showClearConfirmDialog) {
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { showClearConfirmDialog = false },
+                            title = { Text("Сбросить индекс?") },
+                            text = {
+                                Text(
+                                    "Это действие удалит все $indexSize проиндексированных тем. " +
+                                        "Для поиска потребуется создать новый индекс.",
+                                )
+                            },
+                            confirmButton = {
+                                androidx.compose.material3.TextButton(
+                                    onClick = {
+                                        showClearConfirmDialog = false
+                                        coroutineScope.launch {
+                                            val success = indexingViewModel.clearIndex()
+                                            if (success) {
+                                                indexSize = indexingViewModel.getIndexSize()
+                                                indexMetadata = indexingViewModel.getIndexMetadata()
+                                            }
+                                        }
+                                    },
+                                ) {
+                                    Text("Сбросить")
+                                }
+                            },
+                            dismissButton = {
+                                androidx.compose.material3.TextButton(onClick = { showClearConfirmDialog = false }) {
+                                    Text("Отмена")
+                                }
+                            },
+                        )
+                    }
+                }
+
                 // Show index metadata if available
                 indexMetadata?.let { metadata ->
                     if (indexSize > 0) {
