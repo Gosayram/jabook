@@ -479,7 +479,7 @@ class RutrackerRepository
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Categories error", e)
-                    Result.failure(e)
+                    Result.failure(RuTrackerError.Unknown(e.message))
                 }
             }
 
@@ -495,6 +495,7 @@ class RutrackerRepository
                     response.isSuccessful
                 } catch (e: Exception) {
                     Log.w(TAG, "Auth check failed", e)
+                    // Return false for any error - let caller handle specific error types if needed
                     false
                 }
             }

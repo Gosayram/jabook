@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.auth
 
 import android.util.Log
+import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
@@ -123,8 +124,17 @@ class RutrackerAuthService
 
                     // Step 5: Check HTTP status
                     if (!response.isSuccessful && statusCode !in 300..399) {
-                        val errorMsg = "HTTP Error: $statusCode"
+                        val rutrackerError =
+                            when (statusCode) {
+                                401 -> RuTrackerError.Unauthorized
+                                403 -> RuTrackerError.Forbidden
+                                404 -> RuTrackerError.NotFound
+                                400 -> RuTrackerError.BadRequest
+                                else -> RuTrackerError.Unknown("HTTP Error: $statusCode")
+                            }
+                        val errorMsg = rutrackerError.message ?: "Unknown error"
                         Log.w(TAG, "[$operationId] Authentication failed: $errorMsg")
+                        _lastAuthError = errorMsg
                         return@withContext AuthResult.Error(errorMsg)
                     }
 
@@ -159,20 +169,29 @@ class RutrackerAuthService
                 } catch (e: java.net.SocketTimeoutException) {
                     val duration = System.currentTimeMillis() - startTime
                     Log.e(TAG, "[$operationId] ⏱️ Request timeout (${duration}ms)", e)
-                    return@withContext AuthResult.Error("Request timeout. Please check your connection.")
+                    _lastAuthError = RuTrackerError.NoConnection.message
+                    return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: java.net.UnknownHostException) {
                     val duration = System.currentTimeMillis() - startTime
                     Log.e(TAG, "[$operationId] 🌐 Network error - unknown host (${duration}ms)", e)
-                    return@withContext AuthResult.Error("Cannot reach RuTracker. Check internet connection or try another mirror.")
+                    _lastAuthError = RuTrackerError.NoConnection.message
+                    return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: java.io.IOException) {
                     val duration = System.currentTimeMillis() - startTime
                     Log.e(TAG, "[$operationId] 🌐 Network I/O error (${duration}ms)", e)
-                    return@withContext AuthResult.Error("Network error: ${e.message}")
+                    _lastAuthError = RuTrackerError.NoConnection.message
+                    return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
+                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                    val duration = System.currentTimeMillis() - startTime
+                    Log.e(TAG, "[$operationId] ⏱️ Coroutine timeout (${duration}ms)", e)
+                    _lastAuthError = RuTrackerError.NoConnection.message
+                    return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: Exception) {
                     val duration = System.currentTimeMillis() - startTime
                     Log.e(TAG, "[$operationId] ⚠️ Unexpected error (${duration}ms)", e)
-                    _lastAuthError = e.message
-                    return@withContext AuthResult.Error(e.message ?: "Unknown error")
+                    val error = RuTrackerError.Unknown(e.message)
+                    _lastAuthError = error.message
+                    return@withContext AuthResult.Error(error.message)
                 }
             }
         }
