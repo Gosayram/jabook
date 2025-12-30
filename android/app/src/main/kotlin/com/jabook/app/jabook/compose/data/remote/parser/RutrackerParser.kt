@@ -255,12 +255,32 @@ class RutrackerParser
                                 val rowTag = row.tagName()
                                 val rowClasses = row.className()
                                 val hasTitle = row.selectFirst(TITLE_SELECTOR) != null
-                                val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
+                                val topicIdAttr = row.attr(TOPIC_ID_ATTR)
+                                val rowId = row.attr("id")
+                                val topicId = topicIdAttr.ifEmpty { rowId.removePrefix("tr-") }
+
+                                // Try to extract topicId from title link as fallback
+                                val topicIdFromLink =
+                                    row
+                                        .selectFirst(TITLE_SELECTOR)
+                                        ?.absUrl("href")
+                                        ?.substringAfter("t=")
+                                        ?.substringBefore("&")
+                                        ?: ""
+
+                                val finalTopicId = topicId.ifEmpty { topicIdFromLink }
+
+                                // Get title element for detailed logging
+                                val titleElement = row.selectFirst(TITLE_SELECTOR)
+                                val titleText = titleElement?.text()?.take(50) ?: ""
+                                val titleHtml = titleElement?.html()?.take(100) ?: ""
 
                                 Log.w(
                                     TAG,
                                     "⚠️ Row $index failed to parse: tag=$rowTag, " +
-                                        "classes='$rowClasses', hasTitle=$hasTitle, topicId='$topicId'",
+                                        "classes='$rowClasses', hasTitle=$hasTitle, " +
+                                        "topicId='$finalTopicId', titleText='$titleText', " +
+                                        "titleHtml='$titleHtml'",
                                 )
 
                                 errors.add(
@@ -847,7 +867,11 @@ class RutrackerParser
             // Extract title - use updated selector
             val titleElement = row.selectFirst(TITLE_SELECTOR)
             if (titleElement == null) {
-                Log.w(TAG, "⚠️ No title element found for topic $topicId")
+                Log.w(
+                    TAG,
+                    "⚠️ No title element found for topic $topicId. " +
+                        "Row HTML: ${row.html().take(200)}",
+                )
                 return null
             }
             val title = titleElement.toStr()
@@ -863,7 +887,8 @@ class RutrackerParser
                         TAG,
                         "⚠️ Empty title for topic $topicId: " +
                             "href='${titleElement.attr("href")}', " +
-                            "html='${titleElement.html().take(100)}'",
+                            "html='${titleElement.html().take(100)}', " +
+                            "outerHtml='${titleElement.outerHtml().take(150)}'",
                     )
                     return null
                 }
