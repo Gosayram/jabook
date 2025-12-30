@@ -99,11 +99,18 @@ internal object ParsingValidators {
      */
     fun isBadRequest(html: String): Boolean {
         val lowerHtml = html.lowercase()
+        // More specific patterns to avoid false positives
+        // Check for explicit error messages, not just presence of "400" and "error" separately
         return lowerHtml.contains("неверный запрос") ||
-            lowerHtml.contains("bad request") ||
-            lowerHtml.contains("400") &&
-            lowerHtml.contains("error") ||
-            lowerHtml.contains("invalid request")
+            (lowerHtml.contains("bad request") && (lowerHtml.contains("400") || lowerHtml.contains("http"))) ||
+            (
+                lowerHtml.contains("400") &&
+                    lowerHtml.contains("error") &&
+                    (lowerHtml.contains("http") || lowerHtml.contains("status") || lowerHtml.contains("code"))
+            ) ||
+            (lowerHtml.contains("invalid request") && (lowerHtml.contains("400") || lowerHtml.contains("http"))) ||
+            // Check for specific RuTracker error patterns
+            (lowerHtml.contains("ошибка") && lowerHtml.contains("400") && lowerHtml.contains("запрос"))
     }
 
     /**
@@ -187,5 +194,42 @@ internal object ParsingValidators {
      */
     fun validateTopicDetails(html: String): RuTrackerError? {
         return validateContent(html) // Topic details use the same validation as general content
+    }
+
+    /**
+     * Validate forum page HTML content.
+     *
+     * Forum pages are less strict than search results - they don't need to check for topic existence.
+     *
+     * @param html HTML content to validate
+     * @return RuTrackerError if validation fails, null if valid
+     */
+    fun validateForumPage(html: String): RuTrackerError? {
+        if (!isValidContent(html)) {
+            return RuTrackerError.NoData
+        }
+
+        if (requiresAuthentication(html)) {
+            return RuTrackerError.Unauthorized
+        }
+
+        if (isAccessForbidden(html)) {
+            return RuTrackerError.Forbidden
+        }
+
+        // For forum pages, only check for explicit bad request errors, not general patterns
+        // This avoids false positives from normal forum HTML content
+        val lowerHtml = html.lowercase()
+        val hasExplicitBadRequest =
+            lowerHtml.contains("неверный запрос") ||
+                (lowerHtml.contains("bad request") && (lowerHtml.contains("400") || lowerHtml.contains("http"))) ||
+                (lowerHtml.contains("invalid request") && (lowerHtml.contains("400") || lowerHtml.contains("http"))) ||
+                (lowerHtml.contains("ошибка") && lowerHtml.contains("400") && lowerHtml.contains("запрос"))
+
+        if (hasExplicitBadRequest) {
+            return RuTrackerError.BadRequest
+        }
+
+        return null // Forum page is valid
     }
 }

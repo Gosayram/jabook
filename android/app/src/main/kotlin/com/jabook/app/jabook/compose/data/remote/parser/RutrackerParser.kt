@@ -289,6 +289,180 @@ class RutrackerParser
         }
 
         /**
+         * Parse forum page with encoding detection.
+         * Uses forum-specific validation that is less strict than search results.
+         *
+         * @param bytes Raw response bytes
+         * @param contentType Optional Content-Type header
+         * @return ParsingResult with search results
+         */
+        fun parseForumPageWithEncoding(
+            bytes: ByteArray,
+            contentType: String? = null,
+        ): ParsingResult<List<SearchResult>> {
+            // Decode with simple decoder (matching Flutter implementation)
+            val decodedHtml = decoder.decode(bytes, contentType)
+
+            // Parse the decoded HTML with forum-specific validation
+            return parseForumPageDefensive(decodedHtml, bytes)
+        }
+
+        /**
+         * Parse forum page with graceful error handling and forum-specific validation.
+         *
+         * @param html Decoded HTML content
+         * @param rawBytes Raw bytes for error reporting
+         * @return ParsingResult with results, warnings, or errors
+         */
+        private fun parseForumPageDefensive(
+            html: String,
+            rawBytes: ByteArray,
+        ): ParsingResult<List<SearchResult>> {
+            val errors = mutableListOf<ParsingError>()
+            val results = mutableListOf<SearchResult>()
+
+            try {
+                // Validate HTML content before parsing - use forum-specific validation
+                val validationError = ParsingValidators.validateForumPage(html)
+                if (validationError != null) {
+                    errors.add(
+                        ParsingError(
+                            field = "document",
+                            reason = "Content validation failed: ${validationError.message}",
+                            severity = ErrorSeverity.CRITICAL,
+                            htmlSnippet = html.take(500),
+                        ),
+                    )
+                    return ParsingResult.Failure(errors, emptyList())
+                }
+
+                // Parse with baseUri for proper absolute URL resolution (using current mirror)
+                val document = Jsoup.parse(html, getBaseUrl())
+
+                // Try to find rows using multiple selectors strategy
+                var rows = org.jsoup.select.Elements()
+                var successfulSelector = ""
+
+                for (selector in ROW_SELECTORS) {
+                    val found = document.select(selector)
+                    if (found.isNotEmpty()) {
+                        // Filter out header/ad rows if generic selector used
+                        val validRows =
+                            found.filter { row ->
+                                // Basic validation: must have some content/structure
+                                // Use selectFirst() for better performance (returns null if not found)
+                                !row.hasClass("vf-col-header-row") &&
+                                    row.selectFirst(TITLE_SELECTOR) != null
+                            }
+
+                        if (validRows.isNotEmpty()) {
+                            rows = org.jsoup.select.Elements(validRows)
+                            successfulSelector = selector
+                            Log.d(TAG, "Found ${rows.size} rows using validation-checked selector: $selector")
+                            break
+                        }
+
+                        // If selected rows were all invalid, try next selector
+                    }
+                }
+
+                if (rows.isEmpty()) {
+                    // Check if it's just an empty result set (valid page, no results)
+                    val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
+                    val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
+
+                    // Enhanced Debug Logging
+                    val title = document.title()
+                    val bodySnippet = document.body().text().take(500)
+                    Log.w(TAG, "NO ROWS FOUND. Details:")
+                    Log.w(TAG, "Title: '$title'")
+                    Log.w(TAG, "IsSearchPage: $isSearchPage, IsIndexPage: $isIndexPage")
+                    Log.w(TAG, "Body Text (first 500): $bodySnippet")
+                    Log.w(TAG, "HTML (first 2000): ${document.outerHtml().take(2000)}")
+
+                    if (isSearchPage || isIndexPage) {
+                        Log.i(TAG, "No rows found, but page looks like valid search/index page (empty results)")
+                        return ParsingResult.Success(emptyList())
+                    }
+
+                    errors.add(
+                        ParsingError(
+                            field = "rows",
+                            reason = "No topic rows found with any selector. Tried: $ROW_SELECTORS",
+                            severity = ErrorSeverity.CRITICAL,
+                            htmlSnippet = html.take(500),
+                        ),
+                    )
+                    return ParsingResult.Failure(errors, emptyList())
+                }
+
+                for ((index, row) in rows.withIndex()) {
+                    try {
+                        val result = parseSearchResultRow(row)
+                        if (result != null) {
+                            results.add(result)
+                        } else {
+                            // Only warn if we failed to parse a row that we thought was valid
+                            // But skip clogging logs if it's just a spacer/ad row that slipped through
+                            if (row.text().length > 50) {
+                                errors.add(
+                                    ParsingError(
+                                        field = "row_$index",
+                                        reason = "Failed to extract required fields",
+                                        severity = ErrorSeverity.WARNING,
+                                        htmlSnippet = row.html().take(200),
+                                    ),
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        val errorDetails =
+                            when {
+                                e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
+                                else -> e.javaClass.simpleName
+                            }
+                        errors.add(
+                            ParsingError(
+                                field = "row_$index",
+                                reason = errorDetails,
+                                severity = ErrorSeverity.ERROR,
+                                htmlSnippet = row.html().take(300),
+                            ),
+                        )
+                        Log.w(TAG, "Error parsing row $index: $errorDetails")
+                    }
+                }
+
+                // Determine result type based on success/error ratio
+                return when {
+                    errors.isEmpty() -> ParsingResult.Success(results)
+                    results.isNotEmpty() -> ParsingResult.PartialSuccess(results, errors)
+                    else -> ParsingResult.Failure(errors, emptyList())
+                }
+            } catch (e: Exception) {
+                val errorDetails =
+                    when {
+                        e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
+                        else -> e.javaClass.simpleName
+                    }
+                Log.e(
+                    TAG,
+                    "❌ Failed to parse forum page: $errorDetails (HTML size: ${rawBytes.size} bytes)",
+                    e,
+                )
+                errors.add(
+                    ParsingError(
+                        field = "document",
+                        reason = "Failed to parse HTML: $errorDetails",
+                        severity = ErrorSeverity.CRITICAL,
+                        htmlSnippet = String(rawBytes, Charsets.UTF_8).take(500),
+                    ),
+                )
+                return ParsingResult.Failure(errors, emptyList())
+            }
+        }
+
+        /**
          * Parse forum page with pagination detection.
          * Checks for "След." (Next) link or pagination info to determine if more pages exist.
          */
@@ -300,7 +474,7 @@ class RutrackerParser
             val rawBytes = body.bytes()
             val contentType = body.contentType()?.toString()
             Log.d(TAG, "Parsing forum $forumId page: ${rawBytes.size} bytes, content-type: $contentType")
-            val result = parseSearchResultsWithEncoding(rawBytes, contentType)
+            val result = parseForumPageWithEncoding(rawBytes, contentType)
 
             val topics =
                 when (result) {
