@@ -26,6 +26,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -237,12 +238,15 @@ class DebugViewModel
             try {
                 // Add overall timeout to prevent hanging (max 20 seconds for all mirrors)
                 kotlinx.coroutines.withTimeout(20000L) {
-                    // Get mirrors safely - handle case when MirrorManager might not be fully initialized
+                    // Get mirrors safely - use first() to wait for Flow to emit value
                     val mirrors =
                         try {
-                            mirrorManager.availableMirrors.value
+                            mirrorManager.availableMirrors.first()
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            // Re-throw cancellation to propagate timeout
+                            throw e
                         } catch (e: Exception) {
-                            android.util.Log.w("DebugViewModel", "Failed to access available mirrors, using defaults", e)
+                            android.util.Log.w("DebugViewModel", "Failed to get available mirrors from Flow, using defaults", e)
                             com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS
                         }
 
@@ -257,8 +261,12 @@ class DebugViewModel
                                     async {
                                         try {
                                             mirror to mirrorManager.checkMirrorHealth(mirror)
+                                        } catch (e: kotlinx.coroutines.CancellationException) {
+                                            // Re-throw cancellation to propagate timeout
+                                            throw e
                                         } catch (e: Exception) {
-                                            android.util.Log.e("DebugViewModel", "Failed to check health for mirror: $mirror", e)
+                                            // Only log non-cancellation errors
+                                            android.util.Log.w("DebugViewModel", "Failed to check health for mirror: $mirror", e)
                                             mirror to false
                                         }
                                     }
@@ -270,8 +278,11 @@ class DebugViewModel
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 android.util.Log.w("DebugViewModel", "Mirror health check timed out after 20 seconds")
                 emptyMap()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Re-throw cancellation to allow proper cleanup
+                throw e
             } catch (e: Exception) {
-                android.util.Log.e("DebugViewModel", "Failed to get available mirrors", e)
+                android.util.Log.e("DebugViewModel", "Failed to check mirrors", e)
                 emptyMap()
             }
 
