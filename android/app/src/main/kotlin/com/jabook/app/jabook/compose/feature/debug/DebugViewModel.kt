@@ -54,16 +54,24 @@ class DebugViewModel
         val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
 
         init {
-            // Initialize debug data asynchronously
-            // Each function handles its own errors, so we just start them
-            // Wrap in try-catch to prevent crashes during initialization
+            // Delay initialization until viewModelScope is fully ready
+            // Post initialization to ensure ViewModel is fully constructed
+            // Use Handler to post initialization to the next message loop iteration
             try {
-                loadLogs()
-                loadCacheStats()
-                refreshAuthDebugInfo()
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    try {
+                        // Now viewModelScope should be ready
+                        loadLogs()
+                        loadCacheStats()
+                        refreshAuthDebugInfo()
+                    } catch (e: Exception) {
+                        android.util.Log.e("DebugViewModel", "Failed to initialize debug data", e)
+                        _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
+                    }
+                }
             } catch (e: Exception) {
-                // Handle case when initialization fails (e.g., viewModelScope not ready or dependency issue)
-                android.util.Log.e("DebugViewModel", "Failed to start initialization in init block", e)
+                // Handle case when initialization fails
+                android.util.Log.e("DebugViewModel", "Failed to post initialization", e)
                 _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
             }
         }
