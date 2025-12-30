@@ -54,30 +54,45 @@ class DebugViewModel
         val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
 
         init {
-            loadLogs()
-            loadCacheStats()
-            refreshAuthDebugInfo()
+            // Initialize debug data asynchronously
+            // Each function handles its own errors, so we just start them
+            // Wrap in try-catch to prevent crashes during initialization
+            try {
+                loadLogs()
+                loadCacheStats()
+                refreshAuthDebugInfo()
+            } catch (e: Exception) {
+                // Handle case when initialization fails (e.g., viewModelScope not ready or dependency issue)
+                android.util.Log.e("DebugViewModel", "Failed to start initialization in init block", e)
+                _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
+            }
         }
 
         fun loadLogs() {
-            viewModelScope.launch {
-                try {
-                    logger.withOperation("loadLogs") { operationId ->
-                        try {
-                            _uiState.value = DebugUiState.Loading
-                            val logContent = debugLogService.collectLogs()
-                            _logs.value = logContent
-                            _uiState.value = DebugUiState.Success
-                        } catch (e: Exception) {
-                            logger.logError(operationId, "Failed to load logs", e)
-                            _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
+            try {
+                viewModelScope.launch {
+                    try {
+                        logger.withOperation("loadLogs") { operationId ->
+                            try {
+                                _uiState.value = DebugUiState.Loading
+                                val logContent = debugLogService.collectLogs()
+                                _logs.value = logContent
+                                _uiState.value = DebugUiState.Success
+                            } catch (e: Exception) {
+                                logger.logError(operationId, "Failed to load logs", e)
+                                _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
+                            }
                         }
+                    } catch (e: Exception) {
+                        // Handle case when logger.withOperation itself throws an exception
+                        android.util.Log.e("DebugViewModel", "Failed to initialize log loading operation", e)
+                        _uiState.value = DebugUiState.Error("Failed to initialize log loading: ${e.message}")
                     }
-                } catch (e: Exception) {
-                    // Handle case when logger.withOperation itself throws an exception
-                    android.util.Log.e("DebugViewModel", "Failed to initialize log loading operation", e)
-                    _uiState.value = DebugUiState.Error("Failed to initialize log loading: ${e.message}")
                 }
+            } catch (e: Exception) {
+                // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
+                android.util.Log.e("DebugViewModel", "Failed to launch loadLogs coroutine", e)
+                _uiState.value = DebugUiState.Error("Failed to start log loading: ${e.message}")
             }
         }
 
@@ -128,71 +143,85 @@ class DebugViewModel
         }
 
         fun refreshAuthDebugInfo() {
-            viewModelScope.launch {
-                try {
-                    logger.withOperation("refreshAuthDebugInfo") { operationId ->
-                        try {
-                            // Get fresh auth status by validating (with timeout protection)
-                            val isAuthenticated =
-                                try {
-                                    kotlinx.coroutines.withTimeout(20000L) {
-                                        authService.validateAuth(operationId)
+            try {
+                viewModelScope.launch {
+                    try {
+                        logger.withOperation("refreshAuthDebugInfo") { operationId ->
+                            try {
+                                // Get fresh auth status by validating (with timeout protection)
+                                val isAuthenticated =
+                                    try {
+                                        kotlinx.coroutines.withTimeout(20000L) {
+                                            authService.validateAuth(operationId)
+                                        }
+                                    } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                                        android.util.Log.w("DebugViewModel", "Auth validation timed out")
+                                        false
                                     }
-                                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                                    android.util.Log.w("DebugViewModel", "Auth validation timed out")
-                                    false
-                                }
 
-                            // Check mirrors (already has timeout protection)
-                            val connectivity = checkAllMirrors()
+                                // Check mirrors (already has timeout protection)
+                                val connectivity = checkAllMirrors()
 
-                            // Get last auth error from service
-                            val lastError = authService.lastAuthError
+                                // Get last auth error from service
+                                val lastError = authService.lastAuthError
 
-                            // Create debug info with fresh validation results
-                            val info =
-                                com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                                    isAuthenticated = isAuthenticated,
-                                    lastAuthAttempt = System.currentTimeMillis(),
-                                    lastAuthError = lastError,
-                                    mirrorConnectivity = connectivity,
-                                    validationResults =
-                                        com.jabook.app.jabook.compose.data.debug.ValidationResults(
-                                            profilePageCheck = isAuthenticated,
-                                            searchPageCheck = isAuthenticated,
-                                            indexPageCheck = connectivity.isNotEmpty() && connectivity.values.any { it },
-                                            lastValidation = System.currentTimeMillis(),
-                                        ),
-                                )
-                            _authDebugInfo.value = info
-                            logger.logSuccess(operationId, "Auth debug info refreshed")
-                        } catch (e: Exception) {
-                            // Handle errors gracefully - update authDebugInfo with error state
-                            logger.logError(operationId, "Failed to refresh auth debug info", e)
-                            val errorInfo =
-                                com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                                    isAuthenticated = false,
-                                    lastAuthAttempt = System.currentTimeMillis(),
-                                    lastAuthError = e.message ?: "Unknown error",
-                                    mirrorConnectivity = emptyMap(),
-                                    validationResults = null,
-                                )
-                            _authDebugInfo.value = errorInfo
+                                // Create debug info with fresh validation results
+                                val info =
+                                    com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                                        isAuthenticated = isAuthenticated,
+                                        lastAuthAttempt = System.currentTimeMillis(),
+                                        lastAuthError = lastError,
+                                        mirrorConnectivity = connectivity,
+                                        validationResults =
+                                            com.jabook.app.jabook.compose.data.debug.ValidationResults(
+                                                profilePageCheck = isAuthenticated,
+                                                searchPageCheck = isAuthenticated,
+                                                indexPageCheck = connectivity.isNotEmpty() && connectivity.values.any { it },
+                                                lastValidation = System.currentTimeMillis(),
+                                            ),
+                                    )
+                                _authDebugInfo.value = info
+                                logger.logSuccess(operationId, "Auth debug info refreshed")
+                            } catch (e: Exception) {
+                                // Handle errors gracefully - update authDebugInfo with error state
+                                logger.logError(operationId, "Failed to refresh auth debug info", e)
+                                val errorInfo =
+                                    com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                                        isAuthenticated = false,
+                                        lastAuthAttempt = System.currentTimeMillis(),
+                                        lastAuthError = e.message ?: "Unknown error",
+                                        mirrorConnectivity = emptyMap(),
+                                        validationResults = null,
+                                    )
+                                _authDebugInfo.value = errorInfo
+                            }
                         }
+                    } catch (e: Exception) {
+                        // Handle case when logger.withOperation itself throws an exception
+                        android.util.Log.e("DebugViewModel", "Failed to initialize auth debug info operation", e)
+                        val errorInfo =
+                            com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                                isAuthenticated = false,
+                                lastAuthAttempt = System.currentTimeMillis(),
+                                lastAuthError = "Failed to initialize: ${e.message}",
+                                mirrorConnectivity = emptyMap(),
+                                validationResults = null,
+                            )
+                        _authDebugInfo.value = errorInfo
                     }
-                } catch (e: Exception) {
-                    // Handle case when logger.withOperation itself throws an exception
-                    android.util.Log.e("DebugViewModel", "Failed to initialize auth debug info operation", e)
-                    val errorInfo =
-                        com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                            isAuthenticated = false,
-                            lastAuthAttempt = System.currentTimeMillis(),
-                            lastAuthError = "Failed to initialize: ${e.message}",
-                            mirrorConnectivity = emptyMap(),
-                            validationResults = null,
-                        )
-                    _authDebugInfo.value = errorInfo
                 }
+            } catch (e: Exception) {
+                // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
+                android.util.Log.e("DebugViewModel", "Failed to launch refreshAuthDebugInfo coroutine", e)
+                val errorInfo =
+                    com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                        isAuthenticated = false,
+                        lastAuthAttempt = System.currentTimeMillis(),
+                        lastAuthError = "Failed to start: ${e.message}",
+                        mirrorConnectivity = emptyMap(),
+                        validationResults = null,
+                    )
+                _authDebugInfo.value = errorInfo
             }
         }
 
@@ -244,21 +273,27 @@ class DebugViewModel
                 .asStateFlow()
 
         fun loadCacheStats() {
-            viewModelScope.launch {
-                try {
-                    val stats = rutrackerRepository.getCacheStatistics()
-                    _cacheStats.value = stats
-                } catch (e: NullPointerException) {
-                    android.util.Log.e(
-                        "DebugViewModel",
-                        "NullPointerException while loading cache stats - repository or cache may not be initialized",
-                        e,
-                    )
-                    _cacheStats.value = null
-                } catch (e: Exception) {
-                    android.util.Log.e("DebugViewModel", "Failed to load cache stats", e)
-                    _cacheStats.value = null
+            try {
+                viewModelScope.launch {
+                    try {
+                        val stats = rutrackerRepository.getCacheStatistics()
+                        _cacheStats.value = stats
+                    } catch (e: NullPointerException) {
+                        android.util.Log.e(
+                            "DebugViewModel",
+                            "NullPointerException while loading cache stats - repository or cache may not be initialized",
+                            e,
+                        )
+                        _cacheStats.value = null
+                    } catch (e: Exception) {
+                        android.util.Log.e("DebugViewModel", "Failed to load cache stats", e)
+                        _cacheStats.value = null
+                    }
                 }
+            } catch (e: Exception) {
+                // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
+                android.util.Log.e("DebugViewModel", "Failed to launch loadCacheStats coroutine", e)
+                _cacheStats.value = null
             }
         }
 
