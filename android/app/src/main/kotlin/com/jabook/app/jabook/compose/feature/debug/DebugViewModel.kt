@@ -50,6 +50,7 @@ class DebugViewModel
         init {
             loadLogs()
             loadCacheStats()
+            refreshAuthDebugInfo()
         }
 
         fun loadLogs() {
@@ -138,18 +139,41 @@ class DebugViewModel
                         )
                     _authDebugInfo.value = info
                 } catch (e: Exception) {
-                    // Handle errors gracefully
+                    // Handle errors gracefully - update authDebugInfo with error state
                     android.util.Log.e("DebugViewModel", "Failed to refresh auth debug info", e)
+                    val errorInfo =
+                        com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                            isAuthenticated = false,
+                            lastAuthAttempt = System.currentTimeMillis(),
+                            lastAuthError = e.message ?: "Unknown error",
+                            mirrorConnectivity = emptyMap(),
+                            validationResults = null,
+                        )
+                    _authDebugInfo.value = errorInfo
                 }
             }
         }
 
-        private suspend fun checkAllMirrors(): Map<String, Boolean> {
-            val mirrors = mirrorManager.availableMirrors.value
-            return mirrors.associateWith { mirror ->
-                mirrorManager.checkMirrorHealth(mirror)
+        private suspend fun checkAllMirrors(): Map<String, Boolean> =
+            try {
+                val mirrors = mirrorManager.availableMirrors.value
+                if (mirrors.isEmpty()) {
+                    android.util.Log.w("DebugViewModel", "No mirrors available for health check")
+                    emptyMap()
+                } else {
+                    mirrors.associateWith { mirror ->
+                        try {
+                            mirrorManager.checkMirrorHealth(mirror)
+                        } catch (e: Exception) {
+                            android.util.Log.e("DebugViewModel", "Failed to check health for mirror: $mirror", e)
+                            false
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DebugViewModel", "Failed to get available mirrors", e)
+                emptyMap()
             }
-        }
 
         private val _cacheStats = MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
         val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =

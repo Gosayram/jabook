@@ -48,7 +48,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +60,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.debug.toIcon
 import kotlinx.coroutines.launch
@@ -84,8 +84,8 @@ fun DebugScreen(
             stringResource(R.string.cacheSectionTitle),
         )
 
-    val uiState by viewModel.uiState.collectAsState()
-    val logs by viewModel.logs.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val logs by viewModel.logs.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -168,9 +168,9 @@ fun DebugScreen(
             // Tab Content
             when (selectedTab) {
                 0 -> LogsTab(logs, uiState)
-                1 -> RutrackerTab(viewModel)
-                2 -> MirrorsTab(viewModel)
-                3 -> CacheTab()
+                1 -> RutrackerTab(viewModel, selectedTab)
+                2 -> MirrorsTab(viewModel, selectedTab)
+                3 -> CacheTab(viewModel, selectedTab)
             }
         }
     }
@@ -243,10 +243,13 @@ private fun LogsTab(
 }
 
 @Composable
-private fun MirrorsTab(viewModel: DebugViewModel) {
-    val authInfo by viewModel.authDebugInfo.collectAsState()
+private fun MirrorsTab(
+    viewModel: DebugViewModel,
+    tabIndex: Int,
+) {
+    val authInfo by viewModel.authDebugInfo.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(tabIndex) {
         viewModel.testAllMirrors()
     }
 
@@ -265,8 +268,9 @@ private fun MirrorsTab(viewModel: DebugViewModel) {
                 )
                 Spacer(modifier = Modifier.padding(8.dp))
 
-                if (authInfo?.mirrorConnectivity?.isNotEmpty() == true) {
-                    authInfo?.mirrorConnectivity?.forEach { (mirror, isReachable) ->
+                val mirrorConnectivity = authInfo?.mirrorConnectivity
+                if (mirrorConnectivity != null && mirrorConnectivity.isNotEmpty()) {
+                    mirrorConnectivity.forEach { (mirror, isReachable) ->
                         Row(
                             modifier =
                                 Modifier
@@ -319,11 +323,14 @@ private fun MirrorsTab(viewModel: DebugViewModel) {
 }
 
 @Composable
-private fun CacheTab(viewModel: DebugViewModel = hiltViewModel()) {
-    val cacheStats by viewModel.cacheStats.collectAsState()
+private fun CacheTab(
+    viewModel: DebugViewModel,
+    tabIndex: Int,
+) {
+    val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
 
     // Load stats when tab opens
-    LaunchedEffect(Unit) {
+    LaunchedEffect(tabIndex) {
         viewModel.loadCacheStats()
     }
 
@@ -402,11 +409,14 @@ private fun DebugInfoRow(
 }
 
 @Composable
-private fun RutrackerTab(viewModel: DebugViewModel) {
-    val authInfo by viewModel.authDebugInfo.collectAsState()
+private fun RutrackerTab(
+    viewModel: DebugViewModel,
+    tabIndex: Int,
+) {
+    val authInfo by viewModel.authDebugInfo.collectAsStateWithLifecycle()
 
     // Auto-refresh when tab opens
-    LaunchedEffect(Unit) {
+    LaunchedEffect(tabIndex) {
         viewModel.refreshAuthDebugInfo()
     }
 
@@ -473,18 +483,23 @@ private fun RutrackerTab(viewModel: DebugViewModel) {
                 )
                 Spacer(modifier = Modifier.padding(4.dp))
 
-                authInfo?.mirrorConnectivity?.forEach { (mirror, isReachable) ->
-                    Row {
-                        Text(
-                            text = "${if (isReachable) "✅" else "❌"} $mirror",
-                            modifier = Modifier.padding(vertical = 2.dp),
-                        )
+                val mirrorConnectivity = authInfo?.mirrorConnectivity
+                if (mirrorConnectivity != null && mirrorConnectivity.isNotEmpty()) {
+                    mirrorConnectivity.forEach { (mirror, isReachable) ->
+                        Row {
+                            Text(
+                                text = "${if (isReachable) "✅" else "❌"} $mirror",
+                                modifier = Modifier.padding(vertical = 2.dp),
+                            )
+                        }
                     }
-                } ?: Text(
-                    text = "—",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                } else {
+                    Text(
+                        text = "—",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
