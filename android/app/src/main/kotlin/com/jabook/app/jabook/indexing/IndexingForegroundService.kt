@@ -155,15 +155,17 @@ class IndexingForegroundService : Service() {
                 NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_DEFAULT, // Changed from LOW to DEFAULT for better visibility
+                    NotificationManager.IMPORTANCE_LOW, // Keep LOW to avoid sound/vibration, but make visible
                 ).apply {
                     description = "Уведомления о процессе индексации форумов"
                     setShowBadge(true)
-                    enableLights(true)
+                    enableLights(false)
                     enableVibration(false)
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC // Make visible on lock screen
                 }
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
+            Log.d(TAG, "Notification channel created: $CHANNEL_ID")
         }
     }
 
@@ -333,5 +335,6 @@ class IndexingForegroundService : Service() {
         val notification = createNotification(progress)
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.notify(NOTIFICATION_ID, notification)
+        Log.d(TAG, "Notification updated: ${progress::class.simpleName}")
     }
 }

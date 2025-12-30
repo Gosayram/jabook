@@ -118,6 +118,7 @@ fun SearchScreen(
     // Check index status for online search
     val indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel()
     val context = androidx.compose.ui.platform.LocalContext.current
+    val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
     var indexSize by remember { mutableStateOf(0) }
     var showIndexingMessage by remember { mutableStateOf(false) }
 
@@ -125,6 +126,13 @@ fun SearchScreen(
         indexSize = indexingViewModel.getIndexSize()
         if (indexSize == 0) {
             showIndexingMessage = true
+        }
+    }
+
+    // Update index size when indexing completes
+    androidx.compose.runtime.LaunchedEffect(isIndexing) {
+        if (!isIndexing) {
+            indexSize = indexingViewModel.getIndexSize()
         }
     }
 
@@ -265,47 +273,64 @@ fun SearchScreen(
                             Spacer(Modifier.height(16.dp))
                         }
 
-                        // Online search button
-                        if (searchQuery.isNotEmpty() && indexSize > 0) {
-                            Button(
-                                onClick = viewModel::searchOnline,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Icon(Icons.Filled.Search, contentDescription = null)
-                                Spacer(Modifier.padding(4.dp))
-                                Text(stringResource(R.string.searchOnlineRutracker))
-                            }
-
-                            Spacer(Modifier.height(16.dp))
-                        } else if (searchQuery.isNotEmpty() && indexSize == 0) {
-                            // Show message that indexing is needed
-                            androidx.compose.material3.Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors =
-                                    androidx.compose.material3.CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    ),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
+                        // Online search button - only show if index exists
+                        if (searchQuery.isNotEmpty()) {
+                            if (indexSize > 0) {
+                                Button(
+                                    onClick = viewModel::searchOnline,
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    Text(
-                                        text = "Индекс не создан",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Для поиска необходимо создать индекс. Нажмите кнопку выше.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
+                                    Icon(Icons.Filled.Search, contentDescription = null)
+                                    Spacer(Modifier.padding(4.dp))
+                                    Text(stringResource(R.string.searchOnlineRutracker))
                                 }
+                                Spacer(Modifier.height(16.dp))
+                            } else {
+                                // Show message that indexing is needed for online search
+                                val isIndexingNow = indexingViewModel.isIndexing.collectAsStateWithLifecycle().value
+                                androidx.compose.material3.Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors =
+                                        androidx.compose.material3.CardDefaults.cardColors(
+                                            containerColor =
+                                                if (isIndexingNow) {
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.secondaryContainer
+                                                },
+                                        ),
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    ) {
+                                        Text(
+                                            text =
+                                                if (isIndexingNow) {
+                                                    "Индексация в процессе..."
+                                                } else {
+                                                    "Индекс не создан"
+                                                },
+                                            style = MaterialTheme.typography.titleSmall,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text =
+                                                if (isIndexingNow) {
+                                                    "Пожалуйста, подождите завершения индексации. " +
+                                                        "Прогресс можно увидеть в уведомлениях."
+                                                } else {
+                                                    "Для онлайн поиска необходимо создать индекс. " +
+                                                        "Локальный поиск работает всегда."
+                                                },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(16.dp))
                             }
-                            Spacer(Modifier.height(16.dp))
                         }
 
                         // Content based on UI state
