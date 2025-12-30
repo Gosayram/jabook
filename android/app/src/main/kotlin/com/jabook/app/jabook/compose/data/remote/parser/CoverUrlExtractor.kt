@@ -53,14 +53,15 @@ class CoverUrlExtractor
         }
 
         /**
-         * Extract cover URL with 5 priority-based strategies.
+         * Extract cover URL with 6 priority-based strategies.
          *
-         * Priority order:
-         * 1. var.postImg with title (most reliable)
-         * 2. img from static.rutracker or fastpic
-         * 3. img with data-src (lazy loading)
-         * 4. img with srcset
-         * 5. First valid img (last resort, with filtering)
+         * Priority order (based on Flow project analysis):
+         * 1. img.postImg.postImgAligned.img-right with title (MOST RELIABLE - как в Flow)
+         * 2. var.postImg with title (fallback для старых форматов)
+         * 3. img from static.rutracker or fastpic
+         * 4. img with data-src (lazy loading)
+         * 5. img with srcset
+         * 6. First valid img (last resort, with filtering)
          *
          * No domain validation - accepts any image with valid extension (.jpg, .jpeg, .png, .webp, .gif)
          * and HTTP(S) scheme.
@@ -69,7 +70,29 @@ class CoverUrlExtractor
          * @return Cover URL or null if not found
          */
         fun extract(container: Element): String? {
-            // Priority 1: var.postImg with title attribute (Gold standard)
+            // Priority 1: img.postImg.postImgAligned.img-right with title (как в Flow - РАБОТАЕТ!)
+            // This is the correct selector used in Flow project that successfully loads covers
+            val imgElement =
+                container.selectFirst(".postImg.postImgAligned.img-right")
+                    ?: container.selectFirst(".postImg.img-right")
+                    ?: container.selectFirst("img.postImg[title]")
+                    ?: container.selectFirst("img.postImgAligned[title]")
+
+            imgElement?.let { element ->
+                // Try title attribute first (most common in Flow)
+                val url =
+                    element.attr("title").takeIf { it.isNotBlank() }
+                        ?: element.absUrl("src") // Use absUrl() for proper absolute URL resolution
+
+                if (isValidImageUrl(url)) {
+                    Log.d(TAG, "Cover found via img.postImg.postImgAligned.img-right: $url")
+                    return normalizeUrl(url)
+                } else {
+                    Log.d(TAG, "Cover URL from img.postImg is invalid or blank: '$url'")
+                }
+            }
+
+            // Priority 2: var.postImg with title (fallback для старых форматов)
             // Try multiple selectors to catch all variations
             val varElement =
                 container.selectFirst("var.postImg[title]")
@@ -80,14 +103,14 @@ class CoverUrlExtractor
             varElement?.let { element ->
                 val url = element.attr("title")
                 if (url.isNotBlank() && isValidImageUrl(url)) {
-                    Log.d(TAG, "Cover found via var.postImg: $url")
+                    Log.d(TAG, "Cover found via var.postImg (fallback): $url")
                     return normalizeUrl(url)
                 } else {
                     Log.d(TAG, "Cover URL from var.postImg is invalid or blank: '$url'")
                 }
             }
 
-            // Priority 2: img from static.rutracker or fastpic (Highly reliable)
+            // Priority 3: img from static.rutracker or fastpic (Highly reliable)
             // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
             container
                 .selectFirst("img[src*='static.rutracker'], img[src*='fastpic'], img[src*='i.rutracker']")
@@ -99,16 +122,17 @@ class CoverUrlExtractor
                     }
                 }
 
-            // Priority 3: img with data-src (Lazy loading)
+            // Priority 4: img with data-src (Lazy loading)
             container.selectFirst("img[data-src]")?.let { imgElement ->
-                val url = imgElement.attr("data-src")
+                // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
+                val url = imgElement.absUrl("data-src")
                 if (isValidImageUrl(url) && !isIconOrSmile(url)) {
                     Log.d(TAG, "Cover found via data-src: $url")
                     return normalizeUrl(url)
                 }
             }
 
-            // Priority 4: img with srcset
+            // Priority 5: img with srcset
             container.selectFirst("img[srcset]")?.let { imgElement ->
                 val srcset = imgElement.attr("srcset")
                 val firstUrl =
@@ -124,8 +148,8 @@ class CoverUrlExtractor
                 }
             }
 
-            // Priority 5: First valid img (last resort with strict filtering)
-            // Use selectStream() for lazy evaluation of large lists (jsoup 1.19.1+)
+            // Priority 6: First valid img (last resort with strict filtering)
+            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
             container.select("img[src]").forEach { imgElement ->
                 val url = imgElement.absUrl("src")
                 if (isValidImageUrl(url) && !isIconOrSmile(url)) {
@@ -180,20 +204,33 @@ class CoverUrlExtractor
          * Normalize URL to absolute form using CDN when possible.
          *
          * Handles:
-         * - Protocol-relative URLs (//static.rutracker.org/...)
+         * - Protocol-relative URLs (//static.rutracker.org/...) - как в Flow
          * - Relative URLs (/forum/...)
          * - Already absolute URLs
          * - CDN normalization: replaces static.rutracker.* with static.rutracker.cc (always available)
+         *
+         * Note: This method should be called after absUrl() when possible,
+         * as absUrl() handles relative URLs better when baseUri is set in Jsoup.parse().
          */
         fun normalizeUrl(url: String): String {
+            // If URL is already absolute and valid, just normalize CDN domain
+            if (url.startsWith("http://") || url.startsWith("https://")) {
+                // Replace static.rutracker.* domains with static.rutracker.cc (CDN is always available)
+                // This ensures images load even if main mirror is blocked
+                return url.replace(
+                    Regex("https?://static\\.rutracker\\.(org|net|me|nl)"),
+                    "https://static.rutracker.cc",
+                )
+            }
+
             val baseUrl = mirrorManager.getBaseUrl()
             val normalized =
                 when {
-                    url.startsWith("http://") || url.startsWith("https://") -> url
                     url.startsWith("//") -> {
-                        // Protocol-relative URL - check if it's static.rutracker CDN
+                        // Protocol-relative URL - как в Flow
+                        // Check if it's static.rutracker CDN
                         if (url.contains("static.rutracker.", ignoreCase = true)) {
-                            // Replace domain with static.rutracker.cc
+                            // Replace domain with static.rutracker.cc (CDN is always available)
                             "https:" +
                                 url.replace(
                                     Regex("//static\\.rutracker\\.(org|net|me|nl)"),
@@ -207,8 +244,7 @@ class CoverUrlExtractor
                     else -> "$baseUrl/$url"
                 }
 
-            // Replace static.rutracker.* domains with static.rutracker.cc (CDN is always available)
-            // This ensures images load even if main mirror is blocked
+            // Final CDN normalization (in case baseUrl contained static.rutracker.*)
             return normalized.replace(
                 Regex("https?://static\\.rutracker\\.(org|net|me|nl)"),
                 "https://static.rutracker.cc",
