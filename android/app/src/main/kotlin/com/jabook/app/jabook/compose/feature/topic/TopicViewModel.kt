@@ -26,10 +26,10 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
-import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
+import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import com.jabook.app.jabook.compose.navigation.TopicRoute
@@ -55,7 +55,7 @@ sealed interface TopicUiState {
     data object Loading : TopicUiState
 
     data class Success(
-        val details: TopicDetails,
+        val details: RutrackerTopicDetails,
     ) : TopicUiState
 
     data class Error(

@@ -23,12 +23,14 @@ import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.model.AudiobookCategory
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
-import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.remote.parser.CategoryParser
 import com.jabook.app.jabook.compose.data.remote.parser.ParsingResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
+import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -77,7 +79,7 @@ class RutrackerRepository
         suspend fun searchAudiobooks(
             query: String,
             forumIds: String? = null,
-        ): Result<List<SearchResult>> =
+        ): Result<List<RutrackerSearchResult>> =
             withContext(Dispatchers.IO) {
                 logger.withOperation("searchAudiobooks") { operationId ->
                     try {
@@ -86,8 +88,9 @@ class RutrackerRepository
                         // 1. Try Memory Cache
                         val memCached = searchCache.get(query, forumIds)
                         if (memCached != null) {
-                            logger.logSuccess(operationId, "Found ${memCached.size} results from memory cache")
-                            Result.success(memCached)
+                            val domainResults = memCached.toDomain()
+                            logger.logSuccess(operationId, "Found ${domainResults.size} results from memory cache")
+                            Result.success(domainResults)
                         } else {
                             // 2. Try Network
                             val networkResult = fetchFromNetwork(query, forumIds, operationId)
@@ -102,14 +105,15 @@ class RutrackerRepository
                                 if (forumIds == null) {
                                     val entities = offlineSearchDao.getResultsForQuery(query)
                                     val dbList = entities.map { it.toSearchResult() }
+                                    val domainResults = dbList.toDomain()
 
-                                    if (dbList.isNotEmpty()) {
+                                    if (domainResults.isNotEmpty()) {
                                         logger.log(
                                             operationId,
-                                            "Network failed, returned ${dbList.size} results from DB",
+                                            "Network failed, returned ${domainResults.size} results from DB (${dbList.size} DTO, ${domainResults.size} valid domain)",
                                             StructuredLogger.LogLevel.INFO,
                                         )
-                                        Result.success(dbList)
+                                        Result.success(domainResults)
                                     } else {
                                         // Return network error if DB is empty
                                         networkResult
@@ -137,11 +141,12 @@ class RutrackerRepository
         suspend fun searchIndexedTopics(
             query: String,
             limit: Int = 100,
-        ): List<SearchResult> =
+        ): List<RutrackerSearchResult> =
             withContext(Dispatchers.IO) {
                 try {
                     val entities = offlineSearchDao.searchIndexedTopics(query, limit)
-                    entities.map { it.toSearchResult() }
+                    val dtoResults = entities.map { it.toSearchResult() }
+                    dtoResults.toDomain()
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to search indexed topics", e)
                     emptyList()
@@ -164,7 +169,7 @@ class RutrackerRepository
         fun searchAudiobooksFlow(
             query: String,
             forumIds: String? = null,
-        ): Flow<Result<List<SearchResult>>> =
+        ): Flow<Result<List<RutrackerSearchResult>>> =
             flow {
                 Log.i(TAG, "🔍 Search started: query='$query', forumIds=$forumIds")
 
@@ -221,7 +226,8 @@ class RutrackerRepository
                 // 2. Check Memory Cache (quick lookup)
                 val memCached = searchCache.get(query, forumIds)
                 if (memCached != null) {
-                    emit(Result.success(memCached))
+                    val domainResults = memCached.toDomain()
+                    emit(Result.success(domainResults))
                     return@flow
                 }
 
@@ -233,8 +239,12 @@ class RutrackerRepository
                         val dbReadDuration = System.currentTimeMillis() - dbReadStartTime
                         if (entities.isNotEmpty()) {
                             val dbResults = entities.map { it.toSearchResult() }
-                            Log.i(TAG, "💾 Found ${dbResults.size} results from DB cache (query: '$query', ${dbReadDuration}ms)")
-                            emit(Result.success(dbResults))
+                            val domainResults = dbResults.toDomain()
+                            Log.i(
+                                TAG,
+                                "💾 Found ${domainResults.size} results from DB cache (query: '$query', ${dbReadDuration}ms, ${dbResults.size} DTO, ${domainResults.size} valid domain)",
+                            )
+                            emit(Result.success(domainResults))
                             return@flow
                         } else {
                             Log.d(TAG, "💾 No results in DB cache for query: '$query' (${dbReadDuration}ms)")
@@ -256,7 +266,7 @@ class RutrackerRepository
             query: String,
             forumIds: String?,
             operationId: String? = null,
-        ): Result<List<SearchResult>> {
+        ): Result<List<RutrackerSearchResult>> {
             val opId = operationId ?: logger.startOperation("fetchFromNetwork")
             val networkStartTime = System.currentTimeMillis()
             logger.log(opId, "Fetching from network: query='$query', forumIds=$forumIds")
@@ -388,18 +398,29 @@ class RutrackerRepository
 
             return when (parsingResult) {
                 is ParsingResult.Success -> {
-                    handleSuccess(query, forumIds, parsingResult.data)
-                    val resultCount = parsingResult.data.size
-                    logger.logSuccess(opId, "Parsed $resultCount results", networkDuration)
+                    val dtoResults = parsingResult.data
+                    val domainResults = dtoResults.toDomain()
+                    handleSuccess(query, forumIds, dtoResults) // Cache DTO models
+                    val resultCount = domainResults.size
+                    logger.logSuccess(
+                        opId,
+                        "Parsed $resultCount results (${dtoResults.size} DTO, $resultCount valid domain)",
+                        networkDuration,
+                    )
                     if (operationId == null) logger.endOperation(opId, success = true, "Found $resultCount results")
-                    Result.success(parsingResult.data)
+                    Result.success(domainResults)
                 }
                 is ParsingResult.PartialSuccess -> {
-                    handleSuccess(query, forumIds, parsingResult.data)
-                    val resultCount = parsingResult.data.size
-                    logger.logWarning(opId, "Partial success: parsed $resultCount results with ${parsingResult.errors.size} errors")
+                    val dtoResults = parsingResult.data
+                    val domainResults = dtoResults.toDomain()
+                    handleSuccess(query, forumIds, dtoResults) // Cache DTO models
+                    val resultCount = domainResults.size
+                    logger.logWarning(
+                        opId,
+                        "Partial success: parsed $resultCount results with ${parsingResult.errors.size} errors (${dtoResults.size} DTO, $resultCount valid domain)",
+                    )
                     if (operationId == null) logger.endOperation(opId, success = true, "Found $resultCount results (partial)")
-                    Result.success(parsingResult.data)
+                    Result.success(domainResults)
                 }
                 is ParsingResult.Failure -> {
                     val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
@@ -458,10 +479,16 @@ class RutrackerRepository
          * @param topicId Topic ID
          * @return Result with topic details or error
          */
-        suspend fun getTopicDetails(topicId: String): Result<TopicDetails> =
+        suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails> =
             withContext(Dispatchers.IO) {
                 logger.withOperation("getTopicDetails") { operationId ->
                     try {
+                        // Validate input
+                        if (topicId.isBlank()) {
+                            logger.logError(operationId, "Topic ID is blank", IllegalArgumentException("Topic ID cannot be blank"))
+                            return@withOperation Result.failure(IllegalArgumentException("Topic ID cannot be blank"))
+                        }
+
                         logger.log(operationId, "Fetching topic details: $topicId")
 
                         val response = api.getTopicDetails(topicId)
@@ -481,12 +508,24 @@ class RutrackerRepository
                         } else {
                             // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
                             val rawBytes = response.body()?.bytes() ?: byteArrayOf()
-                            val html = String(rawBytes, charset("windows-1251"))
-                            val details = parser.parseTopicDetails(html, topicId)
+                            if (rawBytes.isEmpty()) {
+                                logger.logError(operationId, "Empty response body", IllegalArgumentException("Response body is empty"))
+                                return@withOperation Result.failure(IllegalArgumentException("Response body is empty"))
+                            }
 
-                            if (details != null) {
-                                logger.logSuccess(operationId, "Topic details parsed: ${details.title}")
-                                Result.success(details)
+                            val html = String(rawBytes, charset("windows-1251"))
+                            val dtoDetails = parser.parseTopicDetails(html, topicId)
+
+                            if (dtoDetails != null) {
+                                // Map DTO to domain model with validation
+                                val domainDetails = dtoDetails.toDomain()
+                                if (domainDetails.isValid()) {
+                                    logger.logSuccess(operationId, "Topic details parsed and validated: ${domainDetails.title}")
+                                    Result.success(domainDetails)
+                                } else {
+                                    logger.logWarning(operationId, "Topic details parsed but failed validation")
+                                    Result.failure(RuTrackerError.ParsingError("Topic details failed validation"))
+                                }
                             } else {
                                 logger.logWarning(operationId, "Failed to parse topic details")
                                 Result.failure(RuTrackerError.ParsingError("Failed to parse topic details"))

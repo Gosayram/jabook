@@ -17,10 +17,10 @@ package com.jabook.app.jabook.compose.feature.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
-import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Result
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
 import com.jabook.app.jabook.compose.domain.usecase.library.SearchBooksUseCase
@@ -48,7 +48,7 @@ sealed interface SearchUiState {
 
     data class Success(
         val localResults: List<Book>,
-        val onlineResults: List<SearchResult>,
+        val onlineResults: List<RutrackerSearchResult>,
     ) : SearchUiState
 
     data class Error(
@@ -85,7 +85,7 @@ class SearchViewModel
         val sortOrder: StateFlow<SearchSortOrder> = _sortOrder.asStateFlow()
 
         // Raw results to support client-side filtering
-        private val rawOnlineResults = MutableStateFlow<List<SearchResult>>(emptyList())
+        private val rawOnlineResults = MutableStateFlow<List<RutrackerSearchResult>>(emptyList())
 
         // UI state - derived from raw results and filters
         private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
@@ -207,7 +207,7 @@ class SearchViewModel
                 )
         }
 
-        private fun applyFiltersAndSort(results: List<SearchResult>): List<SearchResult> {
+        private fun applyFiltersAndSort(results: List<RutrackerSearchResult>): List<RutrackerSearchResult> {
             var processing = results
 
             // Apply filters
@@ -288,7 +288,7 @@ class SearchViewModel
         /**
          * Toggle favorite status for a search result.
          */
-        fun toggleFavorite(result: SearchResult) {
+        fun toggleFavorite(result: RutrackerSearchResult) {
             viewModelScope.launch {
                 if (favoriteIds.value.contains(result.topicId)) {
                     favoritesRepository.removeFromFavorites(result.topicId)
@@ -340,21 +340,21 @@ fun SearchViewModel.createLocalBookActionsProvider(
     )
 
 /**
- * Creates a BookActionsProvider for online search results (SearchResult).
+ * Creates a BookActionsProvider for online search results (RutrackerSearchResult).
  *
- * Note: onBookClick takes the full SearchResult instead of just ID.
+ * Note: onBookClick takes the full RutrackerSearchResult instead of just ID.
  */
 fun SearchViewModel.createOnlineBookActionsProvider(
-    onBookClick: (com.jabook.app.jabook.compose.data.remote.model.SearchResult) -> Unit,
-    onToggleFavorite: (com.jabook.app.jabook.compose.data.remote.model.SearchResult) -> Unit,
+    onBookClick: (RutrackerSearchResult) -> Unit,
+    onToggleFavorite: (RutrackerSearchResult) -> Unit,
 ): Pair<
     com.jabook.app.jabook.compose.domain.model.BookActionsProvider,
     (
         String,
-    ) -> com.jabook.app.jabook.compose.data.remote.model.SearchResult?,
+    ) -> RutrackerSearchResult?,
 > {
-    // We need a way to map book ID back to SearchResult for callbacks
-    val currentResults = mutableMapOf<String, com.jabook.app.jabook.compose.data.remote.model.SearchResult>()
+    // We need a way to map book ID back to RutrackerSearchResult for callbacks
+    val currentResults = mutableMapOf<String, RutrackerSearchResult>()
 
     val provider =
         com.jabook.app.jabook.compose.domain.model.BookActionsProvider(

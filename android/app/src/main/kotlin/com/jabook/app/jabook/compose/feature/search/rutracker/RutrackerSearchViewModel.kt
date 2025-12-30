@@ -17,9 +17,9 @@ package com.jabook.app.jabook.compose.feature.search.rutracker
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
-import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,7 +35,7 @@ import javax.inject.Inject
  * UI model for search result with library status.
  */
 data class SearchResultUi(
-    val result: SearchResult,
+    val result: RutrackerSearchResult,
     val isInLibrary: Boolean = false,
 )
 
@@ -61,7 +61,7 @@ class RutrackerSearchViewModel
         val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
 
         // Store original results for client-side filtering/sorting
-        private var originalResults: List<SearchResult> = emptyList()
+        private var originalResults: List<RutrackerSearchResult> = emptyList()
 
         // Cache of library book source URLs to check "In Library" status against
         private val librarySourceUrls: StateFlow<Set<String>> =
@@ -195,7 +195,7 @@ class RutrackerSearchViewModel
         /**
          * Apply filters and sorting to results.
          */
-        private fun applyFiltersAndSort(results: List<SearchResult>): List<SearchResult> {
+        private fun applyFiltersAndSort(results: List<RutrackerSearchResult>): List<RutrackerSearchResult> {
             var filtered = results
 
             // Apply filters

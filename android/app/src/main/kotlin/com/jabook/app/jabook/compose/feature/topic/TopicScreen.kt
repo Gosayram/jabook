@@ -87,8 +87,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
-import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
+import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 
 /**
  * Topic Screen - displays detailed information about a RuTracker topic.
@@ -203,7 +203,7 @@ fun TopicScreen(
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun TopicDetailsContent(
-    details: TopicDetails,
+    details: RutrackerTopicDetails,
     viewModel: TopicViewModel,
     modifier: Modifier = Modifier,
 ) {
@@ -653,7 +653,7 @@ private fun SeedersLeechersChip(
 private fun DescriptionAndCommentsSection(
     description: String?,
     descriptionHtml: String? = null,
-    comments: List<com.jabook.app.jabook.compose.data.remote.model.Comment>,
+    comments: List<com.jabook.app.jabook.compose.domain.model.RutrackerComment>,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -851,7 +851,7 @@ private fun FileListItem(
  */
 @Composable
 private fun ExpandableComments(
-    comments: List<com.jabook.app.jabook.compose.data.remote.model.Comment>,
+    comments: List<com.jabook.app.jabook.compose.domain.model.RutrackerComment>,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -896,7 +896,7 @@ private fun ExpandableComments(
  */
 @Composable
 private fun CommentItem(
-    comment: com.jabook.app.jabook.compose.data.remote.model.Comment,
+    comment: com.jabook.app.jabook.compose.domain.model.RutrackerComment,
     modifier: Modifier = Modifier,
 ) {
     Card(

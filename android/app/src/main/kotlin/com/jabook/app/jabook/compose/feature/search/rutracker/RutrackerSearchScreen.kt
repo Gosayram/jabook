@@ -74,8 +74,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
-import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 
 /**
  * RuTracker search screen.
@@ -534,7 +534,7 @@ private fun FilterBottomSheet(
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 private fun SearchResultCard(
-    result: SearchResult,
+    result: RutrackerSearchResult,
     isInLibrary: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,

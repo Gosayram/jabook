@@ -14,9 +14,9 @@
 
 package com.jabook.app.jabook.compose.domain.usecase.search
 
-import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.domain.model.Result
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import javax.inject.Inject
 
 /**
@@ -35,7 +35,7 @@ class SearchRutrackerUseCase
          * @param query Search query
          * @return Result with list of search results
          */
-        suspend operator fun invoke(query: String): Result<List<SearchResult>> {
+        suspend operator fun invoke(query: String): Result<List<RutrackerSearchResult>> {
             if (query.isBlank()) {
                 return Result.Success(emptyList())
             }

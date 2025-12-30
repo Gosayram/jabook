@@ -18,10 +18,12 @@ import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
-import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.Result
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
+import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
@@ -39,7 +41,7 @@ interface RutrackerRepository {
      * @param query Search query
      * @return Result with list of search results
      */
-    suspend fun search(query: String): Result<List<SearchResult>>
+    suspend fun search(query: String): Result<List<RutrackerSearchResult>>
 
     /**
      * Get topic details.
@@ -47,7 +49,7 @@ interface RutrackerRepository {
      * @param topicId Topic ID
      * @return Result with topic details
      */
-    suspend fun getTopicDetails(topicId: String): Result<TopicDetails>
+    suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails>
 
     /**
      * Login to Rutracker.
@@ -73,7 +75,7 @@ class RutrackerRepositoryImpl
         private val parser: RutrackerParser,
         private val offlineSearchDao: OfflineSearchDao,
     ) : RutrackerRepository {
-        override suspend fun search(query: String): Result<List<SearchResult>> {
+        override suspend fun search(query: String): Result<List<RutrackerSearchResult>> {
             try {
                 // 1. Try Network
                 val response = api.searchTopics(query)
@@ -88,18 +90,22 @@ class RutrackerRepositoryImpl
 
                         return when (parsingResult) {
                             is com.jabook.app.jabook.compose.data.remote.parser.ParsingResult.Success -> {
-                                // Save to DB (Background)
-                                if (parsingResult.data.isNotEmpty()) {
-                                    saveResultsToDb(query, parsingResult.data)
+                                val dtoResults = parsingResult.data
+                                val domainResults = dtoResults.toDomain()
+                                // Save to DB (Background) - save DTO models
+                                if (dtoResults.isNotEmpty()) {
+                                    saveResultsToDb(query, dtoResults)
                                 }
-                                Result.Success(parsingResult.data)
+                                Result.Success(domainResults)
                             }
                             is com.jabook.app.jabook.compose.data.remote.parser.ParsingResult.PartialSuccess -> {
-                                // Save to DB even with warnings
-                                if (parsingResult.data.isNotEmpty()) {
-                                    saveResultsToDb(query, parsingResult.data)
+                                val dtoResults = parsingResult.data
+                                val domainResults = dtoResults.toDomain()
+                                // Save to DB even with warnings - save DTO models
+                                if (dtoResults.isNotEmpty()) {
+                                    saveResultsToDb(query, dtoResults)
                                 }
-                                Result.Success(parsingResult.data)
+                                Result.Success(domainResults)
                             }
                             is com.jabook.app.jabook.compose.data.remote.parser.ParsingResult.Failure -> {
                                 // Parsing failed, fallback to DB
@@ -117,8 +123,9 @@ class RutrackerRepositoryImpl
             return try {
                 val cached = offlineSearchDao.getResultsForQuery(query)
                 if (cached.isNotEmpty()) {
-                    val results = cached.map { it.toSearchResult() }
-                    Result.Success(results)
+                    val dtoResults = cached.map { it.toSearchResult() }
+                    val domainResults = dtoResults.toDomain()
+                    Result.Success(domainResults)
                 } else {
                     Result.Error(Exception("No cached results found and network failed"))
                 }
@@ -138,7 +145,7 @@ class RutrackerRepositoryImpl
             }
         }
 
-        override suspend fun getTopicDetails(topicId: String): Result<TopicDetails> {
+        override suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails> {
             return try {
                 val response = api.getTopicDetails(topicId)
 
@@ -150,11 +157,17 @@ class RutrackerRepositoryImpl
                 val rawBytes = response.body()?.bytes() ?: return Result.Error(Exception("Empty response body"))
                 val html = String(rawBytes, charset("windows-1251"))
 
-                val details =
+                val dtoDetails =
                     parser.parseTopicDetails(html, topicId)
                         ?: return Result.Error(Exception("Failed to parse topic details"))
 
-                Result.Success(details)
+                // Map DTO to domain model
+                val domainDetails = dtoDetails.toDomain()
+                if (domainDetails.isValid()) {
+                    Result.Success(domainDetails)
+                } else {
+                    Result.Error(Exception("Topic details failed validation"))
+                }
             } catch (e: Exception) {
                 Result.Error(e)
             }

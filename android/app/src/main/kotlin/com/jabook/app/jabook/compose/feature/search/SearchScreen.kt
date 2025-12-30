@@ -69,8 +69,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
-import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
 import kotlinx.coroutines.launch
@@ -97,7 +97,7 @@ import kotlinx.coroutines.launch
 fun SearchScreen(
     onNavigateBack: () -> Unit,
     onBookClick: (String) -> Unit,
-    onOnlineBookClick: (SearchResult) -> Unit,
+    onOnlineBookClick: (RutrackerSearchResult) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
@@ -433,10 +433,10 @@ private fun SearchHistoryList(
  */
 @Composable
 private fun OnlineSearchResults(
-    results: List<SearchResult>,
+    results: List<RutrackerSearchResult>,
     favoriteIds: Set<String>,
-    onBookClick: (SearchResult) -> Unit,
-    onToggleFavorite: (SearchResult) -> Unit,
+    onBookClick: (RutrackerSearchResult) -> Unit,
+    onToggleFavorite: (RutrackerSearchResult) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (results.isEmpty()) {
