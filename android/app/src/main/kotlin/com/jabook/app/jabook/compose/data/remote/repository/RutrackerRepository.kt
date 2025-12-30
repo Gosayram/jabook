@@ -68,13 +68,17 @@ class RutrackerRepository
         private val logger = StructuredLogger(TAG)
 
         /**
-         * Search for audiobooks on RuTracker.
+         * Search for audiobooks using ONLY indexed topics (offline, no network).
          *
-         * Uses RutrackerSimpleDecoder (matching Flutter implementation) and cascading selectors for robust parsing.
+         * This method uses the pre-indexed topics from forums, ensuring:
+         * - Fast, offline search
+         * - Only audiobook topics (from indexed forums)
+         * - No unwanted topics from other forums
+         * - No network requests
          *
          * @param query Search query
-         * @param forumIds Optional forum IDs to search in (e.g., "2388,2389")
-         * @return Result with search results or error
+         * @param forumIds Optional forum IDs (ignored - uses all indexed topics)
+         * @return Result with search results (empty if index is empty or search fails)
          */
         suspend fun searchAudiobooks(
             query: String,
@@ -83,50 +87,30 @@ class RutrackerRepository
             withContext(Dispatchers.IO) {
                 logger.withOperation("searchAudiobooks") { operationId ->
                     try {
-                        logger.log(operationId, "Search started: query='$query', forumIds=$forumIds")
+                        logger.log(operationId, "Index-only search started: query='$query', forumIds=$forumIds")
 
-                        // 1. Try Memory Cache
-                        val memCached = searchCache.get(query, forumIds)
-                        if (memCached != null) {
-                            val domainResults = memCached.toDomain()
-                            logger.logSuccess(operationId, "Found ${domainResults.size} results from memory cache")
-                            Result.success(domainResults)
+                        // Use ONLY indexed search
+                        val indexSize = offlineSearchDao.getTopicCount()
+                        if (indexSize > 0) {
+                            val indexSearchStartTime = System.currentTimeMillis()
+                            val indexedResults = searchIndexedTopics(query, limit = 200)
+                            val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
+
+                            logger.logSuccess(
+                                operationId,
+                                "Found ${indexedResults.size} results from index (${indexSearchDuration}ms, index size: $indexSize)",
+                            )
+                            Result.success(indexedResults)
                         } else {
-                            // 2. Try Network
-                            val networkResult = fetchFromNetwork(query, forumIds, operationId)
-
-                            if (networkResult.isSuccess) {
-                                val count = networkResult.getOrNull()?.size ?: 0
-                                logger.logSuccess(operationId, "Found $count results from network")
-                                networkResult
-                            } else {
-                                // 3. Fallback to Database (Offline Mode)
-                                // Only for general search (no specific forum filter usually in DB mapping unless we handle it)
-                                if (forumIds == null) {
-                                    val entities = offlineSearchDao.getResultsForQuery(query)
-                                    val dbList = entities.map { it.toSearchResult() }
-                                    val domainResults = dbList.toDomain()
-
-                                    if (domainResults.isNotEmpty()) {
-                                        logger.log(
-                                            operationId,
-                                            "Network failed, returned ${domainResults.size} results from DB (${dbList.size} DTO, ${domainResults.size} valid domain)",
-                                            StructuredLogger.LogLevel.INFO,
-                                        )
-                                        Result.success(domainResults)
-                                    } else {
-                                        // Return network error if DB is empty
-                                        networkResult
-                                    }
-                                } else {
-                                    // Return network error if DB is empty
-                                    networkResult
-                                }
-                            }
+                            logger.logWarning(
+                                operationId,
+                                "Index is empty ($indexSize topics) - cannot search. Please run indexing first.",
+                            )
+                            Result.success(emptyList())
                         }
                     } catch (e: Exception) {
-                        logger.logError(operationId, "Search failed", e)
-                        Result.failure(e)
+                        logger.logError(operationId, "Indexed search failed", e)
+                        Result.success(emptyList()) // Return empty instead of error
                     }
                 }
             }
@@ -154,112 +138,62 @@ class RutrackerRepository
             }
 
         /**
-         * Search with Index-First strategy: Always try index first, then network if needed.
+         * Search using ONLY indexed topics (offline, no network).
          *
-         * Priority:
-         * 1. Indexed topics (fast, offline) - MANDATORY for audiobooks
-         * 2. Network search (only if index doesn't exist or is empty)
-         *
-         * For audiobooks, if index exists and has any results, we use ONLY index (no network).
-         * This ensures:
+         * This method uses the pre-indexed topics from forums, ensuring:
          * - Fast, offline search
          * - Only audiobook topics (from indexed forums)
          * - No unwanted topics from other forums
+         * - No network requests
+         *
+         * If index is empty or search fails, returns empty list (never falls back to network).
          */
         fun searchAudiobooksFlow(
             query: String,
             forumIds: String? = null,
         ): Flow<Result<List<RutrackerSearchResult>>> =
             flow {
-                Log.i(TAG, "🔍 Search started: query='$query', forumIds=$forumIds")
+                Log.i(TAG, "🔍 Index-only search started: query='$query', forumIds=$forumIds")
 
-                // 1. ALWAYS try indexed search first (mandatory for audiobooks)
-                if (forumIds == null || forumIds == RutrackerApi.AUDIOBOOKS_FORUM_IDS) {
-                    try {
-                        // Check if index exists and has data
-                        val indexSize = offlineSearchDao.getTopicCount()
-                        if (indexSize > 0) {
-                            val indexSearchStartTime = System.currentTimeMillis()
-                            val indexedResults = searchIndexedTopics(query, limit = 200) // Increased limit for better coverage
-                            val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
+                try {
+                    // Check if index exists and has data
+                    val indexSize = offlineSearchDao.getTopicCount()
+                    if (indexSize > 0) {
+                        val indexSearchStartTime = System.currentTimeMillis()
+                        val indexedResults = searchIndexedTopics(query, limit = 200)
+                        val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
 
-                            if (indexedResults.isNotEmpty()) {
-                                Log.i(
-                                    TAG,
-                                    "✅ Found ${indexedResults.size} results from index (query: '$query', ${indexSearchDuration}ms, index size: $indexSize)",
-                                )
-                                emit(Result.success(indexedResults))
-                                // For audiobooks with existing index, ALWAYS use index results only
-                                // This ensures we only get audiobook topics, no unwanted results
-                                return@flow
-                            } else {
-                                Log.i(TAG, "⚠️ Index exists ($indexSize topics) but no results for query '$query', returning empty")
-                                // Index exists but no matches - return empty (don't search network)
-                                // This prevents "bad request" errors when index exists
-                                emit(Result.success(emptyList()))
-                                return@flow
-                            }
-                        } else {
-                            Log.i(TAG, "⚠️ Index is empty ($indexSize topics), will try network search if needed")
-                            // Index is empty - proceed to network search only if no DB cache
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "❌ Indexed search failed for query '$query'", e)
-                        // If index exists but search failed, return empty instead of network search
-                        // This prevents "bad request" errors when index exists but has issues
-                        val indexSize =
-                            try {
-                                offlineSearchDao.getTopicCount()
-                            } catch (ex: Exception) {
-                                0
-                            }
-                        if (indexSize > 0) {
-                            Log.w(TAG, "Index exists ($indexSize topics) but search failed, returning empty to avoid network bad request")
-                            emit(Result.success(emptyList()))
-                            return@flow
-                        }
-                        // Only proceed to network if index doesn't exist
-                        Log.w(TAG, "Index doesn't exist or is empty, will try network search")
-                    }
-                }
-
-                // 2. Check Memory Cache (quick lookup)
-                val memCached = searchCache.get(query, forumIds)
-                if (memCached != null) {
-                    val domainResults = memCached.toDomain()
-                    emit(Result.success(domainResults))
-                    return@flow
-                }
-
-                // 3. Check DB Cache (previous searches)
-                if (forumIds == null) {
-                    try {
-                        val dbReadStartTime = System.currentTimeMillis()
-                        val entities = offlineSearchDao.getResultsForQuery(query)
-                        val dbReadDuration = System.currentTimeMillis() - dbReadStartTime
-                        if (entities.isNotEmpty()) {
-                            val dbResults = entities.map { it.toSearchResult() }
-                            val domainResults = dbResults.toDomain()
+                        if (indexedResults.isNotEmpty()) {
                             Log.i(
                                 TAG,
-                                "💾 Found ${domainResults.size} results from DB cache (query: '$query', ${dbReadDuration}ms, ${dbResults.size} DTO, ${domainResults.size} valid domain)",
+                                "✅ Found ${indexedResults.size} results from index (query: '$query', ${indexSearchDuration}ms, index size: $indexSize)",
                             )
-                            emit(Result.success(domainResults))
-                            return@flow
+                            emit(Result.success(indexedResults))
                         } else {
-                            Log.d(TAG, "💾 No results in DB cache for query: '$query' (${dbReadDuration}ms)")
+                            Log.i(
+                                TAG,
+                                "⚠️ Index exists ($indexSize topics) but no results for query '$query', returning empty",
+                            )
+                            // Index exists but no matches - return empty (no network fallback)
+                            emit(Result.success(emptyList()))
                         }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "❌ DB read failed for query: '$query'", e)
+                    } else {
+                        Log.w(
+                            TAG,
+                            "⚠️ Index is empty ($indexSize topics) - cannot search. " +
+                                "Please run indexing first. Returning empty results.",
+                        )
+                        // Index is empty - return empty (no network fallback)
+                        emit(Result.success(emptyList()))
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Indexed search failed for query '$query'", e)
+                    // Search failed - return empty (no network fallback)
+                    emit(Result.success(emptyList()))
                 }
-
-                // 4. Fetch from Network (only if index/DB don't have results)
-                val networkResult = fetchFromNetwork(query, forumIds)
-                emit(networkResult)
             }.catch { e ->
                 Log.e(TAG, "Search flow error", e)
-                emit(Result.failure(e))
+                emit(Result.success(emptyList())) // Return empty instead of error
             }
 
         private suspend fun fetchFromNetwork(

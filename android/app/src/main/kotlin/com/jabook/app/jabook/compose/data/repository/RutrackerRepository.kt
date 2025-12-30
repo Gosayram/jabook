@@ -76,61 +76,21 @@ class RutrackerRepositoryImpl
         private val offlineSearchDao: OfflineSearchDao,
     ) : RutrackerRepository {
         override suspend fun search(query: String): Result<List<RutrackerSearchResult>> {
-            try {
-                // 1. Try Network
-                val response = api.searchTopics(query)
-
-                if (response.isSuccessful) {
-                    // Get raw bytes to handle Windows-1251 encoding properly
-                    val rawBytes = response.body()?.bytes()
-                    if (rawBytes != null) {
-                        // Use encoding-aware parsing
-                        val contentType = response.headers()["Content-Type"]
-                        val parsingResult = parser.parseSearchResultsWithEncoding(rawBytes, contentType)
-
-                        return when (parsingResult) {
-                            is com.jabook.app.jabook.compose.data.remote.parser.ParsingResult.Success -> {
-                                val dtoResults = parsingResult.data
-                                val domainResults = dtoResults.toDomain()
-                                // Save to DB (Background) - save DTO models
-                                if (dtoResults.isNotEmpty()) {
-                                    saveResultsToDb(query, dtoResults)
-                                }
-                                Result.Success(domainResults)
-                            }
-                            is com.jabook.app.jabook.compose.data.remote.parser.ParsingResult.PartialSuccess -> {
-                                val dtoResults = parsingResult.data
-                                val domainResults = dtoResults.toDomain()
-                                // Save to DB even with warnings - save DTO models
-                                if (dtoResults.isNotEmpty()) {
-                                    saveResultsToDb(query, dtoResults)
-                                }
-                                Result.Success(domainResults)
-                            }
-                            is com.jabook.app.jabook.compose.data.remote.parser.ParsingResult.Failure -> {
-                                // Parsing failed, fallback to DB
-                                Result.Error(Exception(parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"))
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Log error
-                // Log.w("RutrackerRepo", "Network search failed: ${e.message}")
-            }
-
-            // 3. Fallback to DB
+            // Use ONLY indexed search (no network)
             return try {
-                val cached = offlineSearchDao.getResultsForQuery(query)
-                if (cached.isNotEmpty()) {
-                    val dtoResults = cached.map { it.toSearchResult() }
+                val indexSize = offlineSearchDao.getTopicCount()
+                if (indexSize > 0) {
+                    val entities = offlineSearchDao.searchIndexedTopics(query, limit = 200)
+                    val dtoResults = entities.map { it.toSearchResult() }
                     val domainResults = dtoResults.toDomain()
                     Result.Success(domainResults)
                 } else {
-                    Result.Error(Exception("No cached results found and network failed"))
+                    // Index is empty - return empty results
+                    Result.Success(emptyList())
                 }
-            } catch (dbEx: Exception) {
-                Result.Error(dbEx)
+            } catch (e: Exception) {
+                // Search failed - return empty results
+                Result.Success(emptyList())
             }
         }
 
