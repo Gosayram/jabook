@@ -1,0 +1,793 @@
+---
+title: "RuTracker Индексация и Парсинг"
+format: html
+---
+
+# RuTracker Индексация и Парсинг
+
+Подробное описание процесса индексации форумов RuTracker, парсинга HTML страниц и извлечения данных о аудиокнигах.
+
+## Обзор процесса
+
+```{mermaid}
+%%| label: fig-01
+%%| fig-cap: "Общий процесс индексации RuTracker"
+graph TB
+    Start[Начало индексации] --> Validate[Валидация форумов]
+    Validate --> Clear[Очистка старого индекса]
+    Clear --> Forums[Обработка форумов<br/>параллельно по 3]
+    
+    Forums --> ForumLoop[Для каждого форума]
+    ForumLoop --> FetchPage[Загрузка страницы<br/>GET viewforum.php]
+    FetchPage --> Decode[Декодирование HTML<br/>Windows-1251 to UTF-8]
+    Decode --> ValidateHTML[Валидация HTML<br/>проверка на ошибки]
+    ValidateHTML --> Parse[Парсинг страницы<br/>Jsoup + CSS селекторы]
+    Parse --> ExtractRows[Извлечение строк<br/>tr.hl-tr]
+    ExtractRows --> ExtractFields[Извлечение полей<br/>из каждой строки]
+    ExtractFields --> Buffer[Буферизация в памяти<br/>до 100 записей]
+    Buffer --> DBWrite[Запись в БД<br/>batch insert]
+    DBWrite --> CheckPages{Есть еще<br/>страницы?}
+    CheckPages -->|Да| FetchPage
+    CheckPages -->|Нет| NextForum[Следующий форум]
+    NextForum --> AllDone{Все форумы<br/>обработаны?}
+    AllDone -->|Нет| ForumLoop
+    AllDone -->|Да| PreloadCovers[Предзагрузка обложек<br/>в фоне]
+    PreloadCovers --> End[Завершение]
+    
+    style Start fill:#e1f5ff
+    style End fill:#c8e6c9
+    style Parse fill:#fff3e0
+    style DBWrite fill:#f3e5f5
+```
+
+## Структура форумов RuTracker
+
+### Список индексируемых форумов
+
+Приложение индексирует только форумы с аудиокнигами. Полный список форумов:
+
+**Основные форумы:**
+- `2326` - Радиоспектакли, история, мемуары
+- `2389` - Художественная литература
+- `2327` - Фантастика, фэнтези, мистика, ужасы
+- `2324` - Религии
+- `2328` - Прочая литература
+
+**Подфорумы:**
+- `574` - [Аудио] Радиоспектакли и литературные чтения
+- `1036` - [Аудио] Биографии и мемуары
+- `400` - [Аудио] История, культурология, философия
+- `2388` - [Аудио] Зарубежная фантастика, фэнтези, мистика
+- `2387` - [Аудио] Российская фантастика, фэнтези, мистика
+- `661` - [Аудио] Любовно-фантастический роман
+- `2348` - [Аудио] Сборники/разное Фантастика
+- `695` - [Аудио] Зарубежная литература
+- `399` - [Аудио] Зарубежные детективы, приключения
+- `402` - [Аудио] Русская литература
+- `467` - [Аудио] Современные любовные романы
+- `490` - [Аудио] Детская литература
+- `499` - [Аудио] Зарубежные детективы, приключения, триллеры
+- `2137` - [Аудио] Российские детективы, приключения, триллеры
+- `2127` - [Аудио] Азиатская подростковая литература
+- `2325` - [Аудио] Православие
+- `2342` - [Аудио] Ислам
+- `530` - [Аудио] Другие традиционные религии
+- `2152` - [Аудио] Нетрадиционные религиозно-философские учения
+- `1350` - [Аудио] Книги по медицине
+- `403` - [Аудио] Учебная и научно-популярная литература
+- `1279` - [Аудио] lossless-аудиокниги
+- `716` - [Аудио] Бизнес
+- `2165` - [Аудио] Разное
+- `401` - [Аудио] Некондиционные раздачи
+
+**Всего: 29 форумов**
+
+## Процесс парсинга HTML страницы
+
+### Шаг 1: Загрузка и декодирование
+
+```{mermaid}
+%%| label: fig-02
+%%| fig-cap: "Декодирование HTML страницы"
+graph LR
+    HTTP[HTTP Response<br/>Raw Bytes] --> Encoding[Определение кодировки<br/>Content-Type header]
+    Encoding --> Decoder[RutrackerSimpleDecoder<br/>Windows-1251 to UTF-8]
+    Decoder --> HTML[Декодированный HTML<br/>String UTF-8]
+    HTML --> Jsoup[Jsoup.parse<br/>с baseUri]
+    
+    style HTTP fill:#e1f5ff
+    style HTML fill:#c8e6c9
+    style Jsoup fill:#fff3e0
+```
+
+**Особенности:**
+- RuTracker использует кодировку **Windows-1251** (CP1251)
+- Декодер автоматически определяет кодировку из заголовка `Content-Type`
+- После декодирования HTML парсится через **Jsoup** с указанием `baseUri` для правильного разрешения относительных URL
+
+### Шаг 2: Валидация HTML
+
+Перед парсингом HTML валидируется на наличие ошибок:
+
+```{mermaid}
+%%| label: fig-03
+%%| fig-cap: "Валидация HTML контента"
+graph TD
+    HTML[HTML String] --> ValidContent{Минимальная<br/>валидация}
+    ValidContent -->|Нет| NoData[RuTrackerError.NoData]
+    ValidContent -->|Да| CheckAuth{Требуется<br/>авторизация?}
+    CheckAuth -->|Да| Unauthorized[RuTrackerError.Unauthorized]
+    CheckAuth -->|Нет| CheckForbidden{Доступ<br/>запрещен?}
+    CheckForbidden -->|Да| Forbidden[RuTrackerError.Forbidden]
+    CheckForbidden -->|Нет| CheckBadRequest{Плохой<br/>запрос?}
+    CheckBadRequest -->|Да| BadRequest[RuTrackerError.BadRequest]
+    CheckBadRequest -->|Нет| Valid[Валидный HTML<br/>можно парсить]
+    
+    style Valid fill:#c8e6c9
+    style NoData fill:#ffcdd2
+    style Unauthorized fill:#ffcdd2
+    style Forbidden fill:#ffcdd2
+    style BadRequest fill:#ffcdd2
+```
+
+**Валидация для форумов (`validateForumPage`):**
+- Проверка минимального размера HTML (> 100 символов)
+- Проверка наличия `<html>` или `<body>`
+- Проверка на страницу авторизации
+- Проверка на запрет доступа (403)
+- **НЕ проверяет** наличие топиков (форумы - это списки топиков)
+
+**Валидация для поиска (`validateSearchResults`):**
+- Те же проверки, что и для форумов
+- Более строгая проверка `isBadRequest` для поисковых запросов
+
+### Шаг 3: Поиск строк таблицы
+
+```{mermaid}
+%%| label: fig-04
+%%| fig-cap: "Поиск строк с топиками"
+graph TD
+    Document[Jsoup Document] --> Try1[Попытка 1:<br/>tr.hl-tr]
+    Try1 --> Found1{Найдено?}
+    Found1 -->|Да| Filter1[Фильтрация:<br/>убрать заголовки]
+    Found1 -->|Нет| Try2[Попытка 2:<br/>tr data-topic_id]
+    Try2 --> Found2{Найдено?}
+    Found2 -->|Да| Filter2[Фильтрация]
+    Found2 -->|Нет| Try3[Попытка 3:<br/>table.forumline tr.hl-tr]
+    Try3 --> Found3{Найдено?}
+    Found3 -->|Да| Filter3[Фильтрация]
+    Found3 -->|Нет| Try4[Попытка 4:<br/>table.forumline tr id]
+    Try4 --> Found4{Найдено?}
+    Found4 -->|Да| Filter4[Фильтрация]
+    Found4 -->|Нет| Try5[Попытка 5:<br/>tbody TORRENT_LIST_TBODY tr]
+    Try5 --> Found5{Найдено?}
+    Found5 -->|Да| Filter5[Фильтрация]
+    Found5 -->|Нет| Empty[Пустой результат]
+    
+    Filter1 --> ValidRows[Валидные строки<br/>с заголовком]
+    Filter2 --> ValidRows
+    Filter3 --> ValidRows
+    Filter4 --> ValidRows
+    Filter5 --> ValidRows
+    
+    style ValidRows fill:#c8e6c9
+    style Empty fill:#ffcdd2
+```
+
+**CSS селекторы (в порядке приоритета):**
+1. `tr.hl-tr` - основной селектор для строк с топиками
+2. `tr[data-topic_id]` - по атрибуту data-topic_id
+3. `table.forumline tr.hl-tr` - более специфичный
+4. `table.forumline tr[id^='t-']` - по ID строки
+5. `tbody#TORRENT_LIST_TBODY tr` - по структуре таблицы
+
+**Фильтрация строк:**
+- Убираются строки с классом `vf-col-header-row` (заголовки таблицы)
+- Оставляются только строки, содержащие элемент с селектором `TITLE_SELECTOR` (ссылка на топик)
+
+## Извлечение данных из строки
+
+### Структура данных топика
+
+Каждая строка таблицы содержит информацию об одном топике (аудиокниге):
+
+```{mermaid}
+%%| label: fig-05
+%%| fig-cap: "Извлечение полей из строки таблицы"
+graph TB
+    Row[HTML Row Element<br/>tr.hl-tr] --> ExtractID[Извлечение Topic ID]
+    ExtractID --> ExtractTitle[Извлечение заголовка]
+    ExtractTitle --> ExtractAuthor[Извлечение автора]
+    ExtractAuthor --> ExtractSize[Извлечение размера]
+    ExtractSize --> ExtractSeeders[Извлечение сидов]
+    ExtractSeeders --> ExtractLeechers[Извлечение личей]
+    ExtractLeechers --> ExtractMagnet[Извлечение magnet URL]
+    ExtractMagnet --> ExtractTorrent[Извлечение torrent URL]
+    ExtractTorrent --> ExtractCover[Извлечение обложки]
+    ExtractCover --> SearchResult[SearchResult объект]
+    
+    style Row fill:#e1f5ff
+    style SearchResult fill:#c8e6c9
+```
+
+### Детальное извлечение полей
+
+#### 1. Topic ID
+
+**Приоритет извлечения:**
+1. Атрибут `data-topic_id` строки (предпочтительно)
+2. Атрибут `id` строки с префиксом `tr-` (например, `tr-12345` → `12345`)
+3. Извлечение из URL ссылки на топик: `viewtopic.php?t=12345` → `12345`
+
+**Селектор ссылки:** `a.torTopic, a.tt-text, a[href*='viewtopic.php?t=']`
+
+#### 2. Заголовок (Title)
+
+**Селектор:** `a.torTopic, a.tt-text, a[href*='viewtopic.php?t=']`
+
+**Процесс:**
+- Находится элемент ссылки на топик
+- Извлекается текст ссылки
+- Текст очищается от лишних пробелов
+
+**Пример:** `"Война и мир. Том 1"`
+
+#### 3. Автор (Author)
+
+**Селектор:** `a.topicAuthor, a.pmed, a[href*='profile.php']`
+
+**Процесс:**
+- Находится ссылка на профиль автора
+- Извлекается текст (имя автора)
+- Если не найдено → `"Unknown"`
+
+**Пример:** `"Лев Толстой"` или `"Unknown"`
+
+#### 4. Размер (Size)
+
+**Стратегии извлечения (DefensiveFieldExtractor):**
+
+```{mermaid}
+%%| label: fig-06
+%%| fig-cap: "Извлечение размера файла"
+graph TD
+    Start[Начало] --> S1[Стратегия 1:<br/>a.f-dl, a.dl-stub]
+    S1 --> Found1{Найдено?}
+    Found1 -->|Да| Extract1[Извлечь текст]
+    Found1 -->|Нет| S2[Стратегия 2:<br/>span.small, td.small]
+    S2 --> Found2{Найдено?}
+    Found2 -->|Да| Extract2[Извлечь текст]
+    Found2 -->|Нет| S3[Стратегия 3:<br/>data-size атрибут]
+    S3 --> Found3{Найдено?}
+    Found3 -->|Да| Extract3[Использовать значение]
+    Found3 -->|Нет| S4[Стратегия 4:<br/>Regex в тексте строки]
+    S4 --> Found4{Найдено?}
+    Found4 -->|Да| Extract4[Извлечь паттерн<br/>regex pattern]
+    Found4 -->|Нет| Unknown[Unknown]
+    
+    Extract1 --> Result[Размер]
+    Extract2 --> Result
+    Extract3 --> Result
+    Extract4 --> Result
+    
+    style Result fill:#c8e6c9
+    style Unknown fill:#ffcdd2
+```
+
+**Примеры форматов:**
+- `"1.2 GB"`
+- `"500 MB"`
+- `"2.5 GB"`
+
+#### 5. Сиды (Seeders)
+
+**Стратегии извлечения:**
+
+```{mermaid}
+%%| label: fig-07
+%%| fig-cap: "Извлечение количества сидов"
+graph TD
+    Start[Начало] --> S1[Стратегия 1:<br/>td.vf-col-tor > span.seedmed > b]
+    S1 --> Found1{Найдено?}
+    Found1 -->|Да| Extract1[Извлечь число]
+    Found1 -->|Нет| S2[Стратегия 2:<br/>span.seed, span.seedmed]
+    S2 --> Found2{Найдено?}
+    Found2 -->|Да| Extract2[Извлечь из b или текста]
+    Found2 -->|Нет| S3[Стратегия 3:<br/>td.seed]
+    S3 --> Found3{Найдено?}
+    Found3 -->|Да| Extract3[Извлечь число]
+    Found3 -->|Нет| S4[Стратегия 4:<br/>data-seeds атрибут]
+    S4 --> Found4{Найдено?}
+    Found4 -->|Да| Extract4[Использовать значение]
+    Found4 -->|Нет| S5[Стратегия 5:<br/>7-я колонка таблицы]
+    S5 --> Found5{Найдено?}
+    Found5 -->|Да| Extract5[Извлечь число]
+    Found5 -->|Нет| S6[Стратегия 6:<br/>Regex в тексте]
+    S6 --> Found6{Найдено?}
+    Found6 -->|Да| Extract6[Найти число]
+    Found6 -->|Нет| Zero[0]
+    
+    Extract1 --> Result[Количество сидов]
+    Extract2 --> Result
+    Extract3 --> Result
+    Extract4 --> Result
+    Extract5 --> Result
+    Extract6 --> Result
+    
+    style Result fill:#c8e6c9
+    style Zero fill:#ffcdd2
+```
+
+**Селекторы:**
+- `span.seedmed b, b.seedmed, span.seed b, .seed b, .seedmed, .seed`
+
+**Пример:** `42` сидов
+
+#### 6. Личи (Leechers)
+
+Аналогично сидам, но с селекторами:
+- `span.leechmed b, b.leechmed, span.leech b, .leech b, .leechmed, .leech`
+
+**Пример:** `15` личей
+
+#### 7. Magnet URL
+
+**Селектор:** `a.magnet-link, a[href^='magnet:']`
+
+**Процесс:**
+- Находится ссылка с протоколом `magnet:`
+- Извлекается абсолютный URL через `absUrl("href")`
+- Если не найдено → `null`
+
+**Пример:** `"magnet:?xt=urn:btih:ABC123..."`
+
+#### 8. Torrent URL
+
+**Селектор:** `a[href^="dl.php?t="]`
+
+**Процесс:**
+- Находится ссылка на скачивание торрента
+- Извлекается абсолютный URL через `absUrl("href")` (требует baseUri)
+- Если не найдено → пустая строка
+
+**Пример:** `"https://rutracker.org/forum/dl.php?t=12345"`
+
+#### 9. Обложка (Cover URL)
+
+**Стратегии извлечения (CoverUrlExtractor):**
+
+```{mermaid}
+%%| label: fig-08
+%%| fig-cap: "Извлечение URL обложки"
+graph TD
+    Start[Начало] --> S1[Стратегия 1:<br/>img.postImg.postImgAligned.img-right<br/>с title атрибутом]
+    S1 --> Found1{Найдено?}
+    Found1 -->|Да| Check1{Валидный URL?}
+    Check1 -->|Да| Result1[Использовать]
+    Check1 -->|Нет| S2[Стратегия 2:<br/>var.postImg с title]
+    Found1 -->|Нет| S2
+    S2 --> Found2{Найдено?}
+    Found2 -->|Да| Check2{Валидный URL?}
+    Check2 -->|Да| Result2[Использовать]
+    Check2 -->|Нет| S3[Стратегия 3:<br/>img от static.rutracker<br/>или fastpic]
+    Found2 -->|Нет| S3
+    S3 --> Found3{Найдено?}
+    Found3 -->|Да| Check3{Валидный URL?}
+    Check3 -->|Да| Result3[Использовать]
+    Check3 -->|Нет| S4[Стратегия 4:<br/>img с data-src<br/>lazy loading]
+    Found3 -->|Нет| S4
+    S4 --> Found4{Найдено?}
+    Found4 -->|Да| Check4{Валидный URL?}
+    Check4 -->|Да| Result4[Использовать]
+    Check4 -->|Нет| S5[Стратегия 5:<br/>img с srcset]
+    Found4 -->|Нет| S5
+    S5 --> Found5{Найдено?}
+    Found5 -->|Да| Check5{Валидный URL?}
+    Check5 -->|Да| Result5[Использовать]
+    Check5 -->|Нет| S6[Стратегия 6:<br/>Первая валидная img<br/>с фильтрацией]
+    Found5 -->|Нет| S6
+    S6 --> Found6{Найдено?}
+    Found6 -->|Да| Result6[Использовать]
+    Found6 -->|Нет| Null[null]
+    
+    Result1 --> Normalize[Нормализация URL<br/>относительные to абсолютные]
+    Result2 --> Normalize
+    Result3 --> Normalize
+    Result4 --> Normalize
+    Result5 --> Normalize
+    Result6 --> Normalize
+    Normalize --> Result[Cover URL]
+    
+    style Result fill:#c8e6c9
+    style Null fill:#ffcdd2
+```
+
+**Фильтрация обложек:**
+- Исключаются иконки: содержит `icon`, `smile`, `emoji`, `button`, `avatar`, `rank`
+- Исключаются маленькие изображения: содержит `/images/`, `16x16`, `32x32`, `48x48`
+- Принимаются только: `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`
+- Только HTTP/HTTPS URL
+
+**Нормализация URL:**
+- Если URL начинается с `http://` или `https://` → используется как есть
+- Если начинается с `//` → добавляется `https:`
+- Если начинается с `/` → добавляется базовый URL текущего зеркала
+- Иначе → добавляется базовый URL + `/`
+
+**Пример:** `"https://static.rutracker.org/forum/images/cover.jpg"`
+
+### Результат парсинга строки
+
+После извлечения всех полей создается объект `SearchResult`:
+
+```kotlin
+data class SearchResult(
+    val topicId: String,        // ID топика
+    val title: String,          // Заголовок
+    val author: String,         // Автор
+    val category: String,      // Категория/форум
+    val size: String,          // Размер файла
+    val seeders: Int,          // Количество сидов
+    val leechers: Int,         // Количество личей
+    val magnetUrl: String?,    // Magnet ссылка
+    val torrentUrl: String,    // URL торрента
+    val coverUrl: String?,    // URL обложки
+)
+```
+
+## Определение пагинации
+
+После парсинга страницы определяется, есть ли еще страницы:
+
+```{mermaid}
+%%| label: fig-09
+%%| fig-cap: "Определение наличия следующих страниц"
+graph TD
+    Start[После парсинга] --> Method1[Метод 1:<br/>Поиск ссылки "След."<br/>a.pg с текстом "След" или "Next"]
+    Method1 --> Found1{Найдено?}
+    Found1 -->|Да| HasMore1[hasMorePages = true]
+    Found1 -->|Нет| Method2[Метод 2:<br/>Парсинг текста пагинации<br/>"Страница X из Y"]
+    Method2 --> Found2{Найдено?}
+    Found2 -->|Да| Compare{currentPage<br/>< totalPages?}
+    Compare -->|Да| HasMore2[hasMorePages = true]
+    Compare -->|Нет| HasMore3[hasMorePages = false]
+    Found2 -->|Нет| Method3[Метод 3:<br/>Эвристика:<br/>topics.size >= 50]
+    Method3 --> HasMore4[hasMorePages = topics.size >= 50]
+    
+    HasMore1 --> Result[Результат]
+    HasMore2 --> Result
+    HasMore3 --> Result
+    HasMore4 --> Result
+    
+    style Result fill:#c8e6c9
+```
+
+**Логика:**
+- Если найдена ссылка "След." → есть еще страницы
+- Если найдена пагинация "Страница X из Y" → сравниваем текущую и общую
+- Если ничего не найдено → если топиков >= 50 (TOPICS_PER_PAGE), предполагаем, что есть еще
+
+## Сохранение в базу данных
+
+### Преобразование в CachedTopicEntity
+
+```{mermaid}
+%%| label: fig-10
+%%| fig-cap: "Преобразование SearchResult в CachedTopicEntity"
+graph LR
+    SearchResult[SearchResult<br/>domain model] --> Convert[toCachedTopicEntity<br/>indexVersion]
+    Convert --> Entity[CachedTopicEntity<br/>database entity]
+    
+    Entity --> Fields[topicId: String<br/>title: String<br/>author: String<br/>category: String<br/>size: String<br/>seeders: Int<br/>leechers: Int<br/>magnetUrl: String?<br/>torrentUrl: String<br/>coverUrl: String?<br/>indexVersion: Int<br/>indexedAt: Long]
+    
+    style SearchResult fill:#e1f5ff
+    style Entity fill:#c8e6c9
+```
+
+**Дополнительные поля:**
+- `indexVersion` - версия индекса (увеличивается при каждой полной индексации)
+- `indexedAt` - timestamp индексации (System.currentTimeMillis())
+
+### Батчинг записей
+
+```{mermaid}
+%%| label: fig-11
+%%| fig-cap: "Батчинг записей для оптимизации"
+graph TD
+    Parse[Парсинг страницы<br/>получено N топиков] --> Buffer[Добавить в буфер<br/>entitiesBuffer]
+    Buffer --> Check{Размер буфера<br/>>= 100?}
+    Check -->|Да| DBWrite[Запись в БД<br/>upsertTopics batch]
+    Check -->|Нет| NextPage[Следующая страница]
+    DBWrite --> Clear[Очистить буфер]
+    Clear --> NextPage
+    NextPage --> LastPage{Последняя<br/>страница?}
+    LastPage -->|Да| FinalWrite[Финальная запись<br/>остатков буфера]
+    LastPage -->|Нет| Parse
+    
+    style DBWrite fill:#fff3e0
+    style FinalWrite fill:#c8e6c9
+```
+
+**Параметры:**
+- `BATCH_SIZE_FOR_DB = 100` - размер батча для записи
+- `MAX_MEMORY_TOPICS = 200` - максимум топиков в памяти перед flush
+
+**Оптимизация:**
+- Запись в БД происходит батчами по 100 записей
+- Это значительно быстрее, чем запись по одной записи
+- Остатки буфера записываются в конце форума
+
+## Параллельная обработка форумов
+
+```{mermaid}
+%%| label: fig-12
+%%| fig-cap: "Параллельная обработка форумов"
+graph TB
+    Forums[Список форумов<br/>29 форумов] --> Chunk[Разбить на чанки<br/>по 3 форума]
+    Chunk --> Batch1[Батч 1:<br/>Форум 1, 2, 3]
+    Chunk --> Batch2[Батч 2:<br/>Форум 4, 5, 6]
+    Chunk --> Batch3[...]
+    
+    Batch1 --> Async1[async Forum 1]
+    Batch1 --> Async2[async Forum 2]
+    Batch1 --> Async3[async Forum 3]
+    
+    Async1 --> Wait1[awaitAll]
+    Async2 --> Wait1
+    Async3 --> Wait1
+    
+    Wait1 --> NextBatch[Следующий батч]
+    
+    style Batch1 fill:#e1f5ff
+    style Wait1 fill:#fff3e0
+```
+
+**Параметры:**
+- `MAX_CONCURRENT_FORUMS = 3` - максимум форумов обрабатывается параллельно
+- Это баланс между скоростью и нагрузкой на сеть/БД
+
+## Инкрементальное обновление
+
+Индексация может быть полной или инкрементальной:
+
+```{mermaid}
+%%| label: fig-13
+%%| fig-cap: "Инкрементальное обновление индекса"
+graph TD
+    Start[Начало обновления] --> CheckAge[Проверить возраст<br/>топика в БД]
+    CheckAge --> Old{Топик старше<br/>24 часов?}
+    Old -->|Да| Update[Обновить топик<br/>новыми данными]
+    Old -->|Нет| Skip[Пропустить<br/>оставить старые данные]
+    Update --> Next[Следующий топик]
+    Skip --> Next
+    Next --> Done{Все топики<br/>проверены?}
+    Done -->|Нет| CheckAge
+    Done -->|Да| End[Завершение]
+    
+    style Update fill:#fff3e0
+    style Skip fill:#c8e6c9
+```
+
+**Стратегия:**
+- **Полная индексация:** Рекомендуется раз в неделю (или при первой установке)
+- **Инкрементальное обновление:** Ежедневно (обновляет топики старше 24 часов)
+- `MAX_AGE_FOR_UPDATE_MS = 24 * 60 * 60 * 1000` (24 часа)
+
+**Логика:**
+1. Загружается страница форума
+2. Парсятся топики
+3. Для каждого топика проверяется, есть ли он в БД
+4. Если есть и он старше 24 часов → обновляется
+5. Если нет → добавляется
+6. Если есть и он свежий (< 24 часов) → пропускается
+
+## Предзагрузка обложек
+
+После индексации обложки предзагружаются в кэш Coil:
+
+```{mermaid}
+%%| label: fig-14
+%%| fig-cap: "Предзагрузка обложек"
+graph TD
+    Start[Список URL обложек] --> Batch[Разбить на батчи<br/>по 10 URL]
+    Batch --> Preload1[Батч 1:<br/>10 обложек]
+    Batch --> Preload2[Батч 2:<br/>10 обложек]
+    Batch --> Preload3[...]
+    
+    Preload1 --> Coil1[Coil ImageLoader<br/>preload]
+    Preload2 --> Coil2[Coil ImageLoader<br/>preload]
+    
+    Coil1 --> Delay1[Задержка 100ms]
+    Coil2 --> Delay2[Задержка 100ms]
+    
+    Delay1 --> Next1[Следующий батч]
+    Delay2 --> Next1
+    
+    style Preload1 fill:#e1f5ff
+    style Coil1 fill:#fff3e0
+```
+
+**Параметры:**
+- `PRELOAD_COVERS_BATCH_SIZE = 10` - размер батча
+- `PRELOAD_COVERS_DELAY_MS = 100L` - задержка между батчами
+- Предзагрузка происходит в фоне (не блокирует UI)
+
+**Процесс:**
+1. Собираются все URL обложек из проиндексированных топиков
+2. URL нормализуются (относительные → абсолютные)
+3. Обложки предзагружаются в кэш Coil батчами
+4. Это позволяет мгновенно показывать обложки в UI без загрузки
+
+## Обработка ошибок
+
+### Сетевые ошибки
+
+```{mermaid}
+%%| label: fig-15
+%%| fig-cap: "Обработка сетевых ошибок"
+graph TD
+    Request[HTTP запрос] --> Error{Ошибка?}
+    Error -->|Нет| Success[Успех]
+    Error -->|Да| CheckType{Тип ошибки}
+    CheckType -->|UnknownHostException| NetworkError[Сетевая ошибка]
+    CheckType -->|ConnectException| NetworkError
+    CheckType -->|SocketTimeoutException| NetworkError
+    CheckType -->|HTTP 4xx/5xx| HTTPError[HTTP ошибка]
+    
+    NetworkError --> AutoSwitch{Автопереключение<br/>зеркал включено?}
+    AutoSwitch -->|Да| SwitchMirror[Переключить зеркало]
+    AutoSwitch -->|Нет| Fail[Пропустить форум]
+    SwitchMirror --> Retry[Повторить запрос]
+    Retry --> Success2{Успех?}
+    Success2 -->|Да| Continue[Продолжить]
+    Success2 -->|Нет| Fail
+    
+    HTTPError --> Fail
+    
+    style SwitchMirror fill:#fff3e0
+    style Fail fill:#ffcdd2
+    style Continue fill:#c8e6c9
+```
+
+**Автопереключение зеркал:**
+- При сетевой ошибке (DNS, таймаут, соединение) проверяется, включено ли автопереключение
+- Если включено → автоматически переключается на следующее доступное зеркало
+- Повторяется запрос один раз
+- Если успешно → продолжается индексация
+- Если снова ошибка → форум пропускается
+
+### Ошибки парсинга
+
+```{mermaid}
+%%| label: fig-16
+%%| fig-cap: "Обработка ошибок парсинга"
+graph TD
+    Parse[Парсинг строки] --> Error{Ошибка?}
+    Error -->|Нет| Success[Успех]
+    Error -->|Да| LogError[Логировать ошибку]
+    LogError --> Partial{Есть успешные<br/>результаты?}
+    Partial -->|Да| PartialSuccess[PartialSuccess<br/>результаты + ошибки]
+    Partial -->|Нет| Failure[Failure<br/>только ошибки]
+    
+    PartialSuccess --> Continue[Продолжить<br/>с валидными данными]
+    Failure --> Skip[Пропустить страницу]
+    
+    style PartialSuccess fill:#fff3e0
+    style Failure fill:#ffcdd2
+    style Continue fill:#c8e6c9
+```
+
+**Типы результатов парсинга:**
+- `ParsingResult.Success` - все строки успешно распарсены
+- `ParsingResult.PartialSuccess` - часть строк распарсена, часть с ошибками
+- `ParsingResult.Failure` - все строки не удалось распарсить
+
+**Стратегия:**
+- Если есть хотя бы один успешный результат → используется `PartialSuccess`
+- Это позволяет продолжить индексацию даже при частичных ошибках
+- Ошибки логируются для отладки
+
+## Производительность
+
+### Оптимизации
+
+1. **Параллельная обработка форумов:** до 3 форумов одновременно
+2. **Батчинг записей в БД:** запись по 100 записей вместо одной
+3. **Буферизация в памяти:** до 200 топиков перед flush
+4. **Rate limiting:** задержка 300ms между запросами страниц
+5. **Предзагрузка обложек в фоне:** не блокирует индексацию
+
+### Метрики
+
+**Типичные значения:**
+- **Топиков на странице:** 50 (TOPICS_PER_PAGE)
+- **Максимум страниц на форум:** 100 (MAX_PAGES_PER_FORUM)
+- **Задержка между запросами:** 300ms (DELAY_BETWEEN_REQUESTS_MS)
+- **Размер батча для БД:** 100 записей (BATCH_SIZE_FOR_DB)
+- **Максимум параллельных форумов:** 3 (MAX_CONCURRENT_FORUMS)
+
+**Оценка времени:**
+- При 29 форумах и ~1000 топиков на форум:
+- Всего топиков: ~29,000
+- Страниц: ~29,000 / 50 = ~580 страниц
+- Время загрузки: 580 * 0.3s = ~174 секунды (3 минуты) только на задержки
+- С учетом парсинга и записи в БД: ~5-10 минут для полной индексации
+
+## Что сохраняется в индексе
+
+### CachedTopicEntity (Room Database)
+
+```kotlin
+@Entity(tableName = "cached_topics")
+data class CachedTopicEntity(
+    @PrimaryKey
+    @ColumnInfo(name = "topic_id")
+    val topicId: String,              // ID топика (primary key)
+    
+    @ColumnInfo(name = "title")
+    val title: String,                 // Заголовок топика
+    
+    @ColumnInfo(name = "author")
+    val author: String,                // Автор раздачи
+    
+    @ColumnInfo(name = "category")
+    val category: String,              // Категория/форум
+    
+    @ColumnInfo(name = "size")
+    val size: String,                  // Размер файла (например, "1.2 GB")
+    
+    @ColumnInfo(name = "seeders")
+    val seeders: Int,                  // Количество сидов
+    
+    @ColumnInfo(name = "leechers")
+    val leechers: Int,                 // Количество личей
+    
+    @ColumnInfo(name = "magnet_url")
+    val magnetUrl: String?,             // Magnet ссылка (nullable)
+    
+    @ColumnInfo(name = "torrent_url")
+    val torrentUrl: String,            // URL для скачивания торрента
+    
+    @ColumnInfo(name = "cover_url")
+    val coverUrl: String?,             // URL обложки (nullable)
+    
+    @ColumnInfo(name = "index_version")
+    val indexVersion: Int,             // Версия индекса
+    
+    @ColumnInfo(name = "indexed_at")
+    val indexedAt: Long,               // Timestamp индексации
+)
+```
+
+### Индексы базы данных
+
+Для быстрого поиска создаются индексы:
+- По `topic_id` (primary key)
+- По `title` (для полнотекстового поиска)
+- По `author` (для поиска по автору)
+- По `indexed_at` (для инкрементального обновления)
+
+## Использование индекса
+
+После индексации данные используются для:
+
+1. **Офлайн поиск:** Поиск по индексированным топикам без сетевых запросов
+2. **Быстрое отображение:** Мгновенная загрузка списков топиков
+3. **Предзагруженные обложки:** Обложки уже в кэше Coil
+4. **Фильтрация и сортировка:** По размеру, сидам, дате и т.д.
+
+## Заключение
+
+Процесс индексации RuTracker включает:
+
+1. **Загрузку HTML страниц** форумов с правильным декодированием Windows-1251
+2. **Валидацию HTML** на наличие ошибок (авторизация, запрет доступа, плохой запрос)
+3. **Парсинг HTML** через Jsoup с множественными CSS селекторами для надежности
+4. **Извлечение полей** из каждой строки таблицы с fallback стратегиями
+5. **Батчинг и сохранение** в Room Database для быстрого доступа
+6. **Параллельную обработку** форумов для оптимизации времени
+7. **Инкрементальное обновление** для поддержания актуальности данных
+8. **Предзагрузку обложек** для мгновенного отображения в UI
+
+Все это позволяет приложению работать офлайн и быстро находить аудиокниги без необходимости делать сетевые запросы к RuTracker при каждом поиске.
+
