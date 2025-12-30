@@ -831,26 +831,71 @@ class RutrackerParser
                             ?.absUrl("href")
                             ?.substringAfter("t=")
                             ?.substringBefore("&")
-                            ?: return null
+                            ?: run {
+                                Log.d(TAG, "⚠️ No topicId found in row")
+                                return null
+                            }
                     }
                 }
 
             if (topicId.isEmpty()) {
                 // Common for header rows or ads, detailed logging usually not needed unless debugging structure
+                Log.d(TAG, "⚠️ Empty topicId in row")
                 return null
             }
 
             // Extract title - use updated selector
             val titleElement = row.selectFirst(TITLE_SELECTOR)
             if (titleElement == null) {
-                // Log.w(TAG, "No title found for topic $topicId")
+                Log.w(TAG, "⚠️ No title element found for topic $topicId")
                 return null
             }
             val title = titleElement.toStr()
             if (title.isEmpty()) {
-                return null
+                // Try to get title from href or other attributes
+                val titleFromHref = titleElement.attr("title").takeIf { it.isNotBlank() }
+                val titleFromText = titleElement.text().takeIf { it.isNotBlank() }
+                val titleFromOwnText = titleElement.ownText().takeIf { it.isNotBlank() }
+
+                val finalTitle = titleFromHref ?: titleFromText ?: titleFromOwnText
+                if (finalTitle == null) {
+                    Log.w(
+                        TAG,
+                        "⚠️ Empty title for topic $topicId: " +
+                            "href='${titleElement.attr("href")}', " +
+                            "html='${titleElement.html().take(100)}'",
+                    )
+                    return null
+                }
+                // Use the found title
+                val cleanedTitle = cleanTitle(finalTitle)
+                // Continue with parsing using the found title
+                return createSearchResult(
+                    topicId = topicId,
+                    title = cleanedTitle,
+                    row = row,
+                )
             }
 
+            // Clean the title to remove technical details
+            val cleanedTitle = cleanTitle(title)
+
+            return createSearchResult(
+                topicId = topicId,
+                title = cleanedTitle,
+                row = row,
+            )
+        }
+
+        /**
+         * Create SearchResult from extracted fields.
+         * Extracted to avoid code duplication.
+         */
+        private fun createSearchResult(
+            topicId: String,
+            title: String,
+            row: Element,
+        ): SearchResult {
             // Extract author - use new selector
             val authorElement = row.selectFirst(AUTHOR_SELECTOR)
             val author =
@@ -874,7 +919,16 @@ class RutrackerParser
             // Extract torrent download URL (using DOWNLOAD_HREF_SELECTOR)
             // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
             val torrentElement = row.selectFirst(DOWNLOAD_HREF_SELECTOR)
-            val torrentUrl = torrentElement?.absUrl("href") ?: ""
+            val torrentUrl =
+                torrentElement?.absUrl("href") ?: run {
+                    // Fallback: construct torrent URL from topicId if download link not found in row
+                    // This is common on forum pages where download link is on topic details page
+                    if (topicId.isNotEmpty()) {
+                        "${getBaseUrl()}dl.php?t=$topicId"
+                    } else {
+                        ""
+                    }
+                }
 
             // Extract cover URL using CoverUrlExtractor for consistent extraction
             // This uses the same logic as topic details page
@@ -940,12 +994,9 @@ class RutrackerParser
                     }
                 }
 
-            // Clean the title to remove technical details
-            val cleanedTitle = cleanTitle(title)
-
             return SearchResult(
                 topicId = topicId,
-                title = cleanedTitle,
+                title = title,
                 author = author,
                 category = category,
                 size = size,
