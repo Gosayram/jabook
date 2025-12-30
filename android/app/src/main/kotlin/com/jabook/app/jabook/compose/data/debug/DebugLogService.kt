@@ -175,21 +175,22 @@ class DebugLogService
                     logs.append("    (MM-DD = Month-Day, not Day-Month)\n\n")
 
                     // Collect and filter logs
-                    var line: String?
+                    // Add safety limit to prevent infinite loops if process hangs
                     var totalLines = 0
                     var filteredLines = 0
+                    val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
 
-                    while (bufferedReader.readLine().also { line = it } != null) {
+                    while (totalLines < maxLinesToRead) {
+                        val line = bufferedReader.readLine() ?: break
                         totalLines++
-                        if (line == null) continue
 
                         // Skip empty lines
-                        if (line!!.trim().isEmpty()) continue
+                        if (line.trim().isEmpty()) continue
 
                         // Skip system noise patterns
                         val shouldSkip =
                             SYSTEM_LOG_PATTERNS.any { pattern ->
-                                line!!.contains(pattern, ignoreCase = true)
+                                line.contains(pattern, ignoreCase = true)
                             }
 
                         if (shouldSkip) {
@@ -198,10 +199,14 @@ class DebugLogService
                         }
 
                         // Skip frame rate logs
-                        if (line!!.contains("setRequestedFrameRate")) continue
+                        if (line.contains("setRequestedFrameRate")) continue
 
                         // Include the line
                         logs.append(line).append("\n")
+                    }
+
+                    if (totalLines >= maxLinesToRead) {
+                        Log.w(TAG, "Reached safety limit of $maxLinesToRead lines, stopping log collection")
                     }
 
                     // Add summary
@@ -214,7 +219,13 @@ class DebugLogService
                     logs.append("App logs included: ${totalLines - filteredLines}\n")
 
                     bufferedReader.close()
-                    process.waitFor()
+
+                    // Wait for process with timeout to prevent hanging
+                    val processExited = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
+                    if (!processExited) {
+                        Log.w(TAG, "Logcat process did not exit within timeout, destroying")
+                        process.destroyForcibly()
+                    }
 
                     logs.toString()
                 } catch (e: Exception) {
@@ -239,11 +250,19 @@ class DebugLogService
                 Log.d(TAG, "Logs exported to ${logFile.absolutePath} (${logFile.length()} bytes)")
 
                 // Return FileProvider URI for sharing
-                FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    logFile,
-                )
+                try {
+                    FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        logFile,
+                    )
+                } catch (e: IllegalArgumentException) {
+                    Log.e(TAG, "FileProvider not configured properly. Please check AndroidManifest.xml", e)
+                    throw Exception(
+                        "FileProvider not configured. Please add FileProvider configuration to AndroidManifest.xml. " +
+                            "See: https://developer.android.com/reference/androidx/core/content/FileProvider",
+                    )
+                }
             }
 
         /**

@@ -57,16 +57,22 @@ class DebugViewModel
 
         fun loadLogs() {
             viewModelScope.launch {
-                logger.withOperation("loadLogs") { operationId ->
-                    try {
-                        _uiState.value = DebugUiState.Loading
-                        val logContent = debugLogService.collectLogs()
-                        _logs.value = logContent
-                        _uiState.value = DebugUiState.Success
-                    } catch (e: Exception) {
-                        logger.logError(operationId, "Failed to load logs", e)
-                        _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
+                try {
+                    logger.withOperation("loadLogs") { operationId ->
+                        try {
+                            _uiState.value = DebugUiState.Loading
+                            val logContent = debugLogService.collectLogs()
+                            _logs.value = logContent
+                            _uiState.value = DebugUiState.Success
+                        } catch (e: Exception) {
+                            logger.logError(operationId, "Failed to load logs", e)
+                            _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
+                        }
                     }
+                } catch (e: Exception) {
+                    // Handle case when logger.withOperation itself throws an exception
+                    android.util.Log.e("DebugViewModel", "Failed to initialize log loading operation", e)
+                    _uiState.value = DebugUiState.Error("Failed to initialize log loading: ${e.message}")
                 }
             }
         }
@@ -119,45 +125,59 @@ class DebugViewModel
 
         fun refreshAuthDebugInfo() {
             viewModelScope.launch {
-                logger.withOperation("refreshAuthDebugInfo") { operationId ->
-                    try {
-                        // Get fresh auth status by validating
-                        val isAuthenticated = authService.validateAuth(operationId)
-                        val connectivity = checkAllMirrors()
+                try {
+                    logger.withOperation("refreshAuthDebugInfo") { operationId ->
+                        try {
+                            // Get fresh auth status by validating
+                            val isAuthenticated = authService.validateAuth(operationId)
+                            val connectivity = checkAllMirrors()
 
-                        // Get last auth error from service
-                        val lastError = authService.lastAuthError
+                            // Get last auth error from service
+                            val lastError = authService.lastAuthError
 
-                        // Create debug info with fresh validation results
-                        val info =
-                            com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                                isAuthenticated = isAuthenticated,
-                                lastAuthAttempt = System.currentTimeMillis(),
-                                lastAuthError = lastError,
-                                mirrorConnectivity = connectivity,
-                                validationResults =
-                                    com.jabook.app.jabook.compose.data.debug.ValidationResults(
-                                        profilePageCheck = isAuthenticated,
-                                        searchPageCheck = isAuthenticated,
-                                        indexPageCheck = connectivity.isNotEmpty() && connectivity.values.any { it },
-                                        lastValidation = System.currentTimeMillis(),
-                                    ),
-                            )
-                        _authDebugInfo.value = info
-                        logger.logSuccess(operationId, "Auth debug info refreshed")
-                    } catch (e: Exception) {
-                        // Handle errors gracefully - update authDebugInfo with error state
-                        logger.logError(operationId, "Failed to refresh auth debug info", e)
-                        val errorInfo =
-                            com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                                isAuthenticated = false,
-                                lastAuthAttempt = System.currentTimeMillis(),
-                                lastAuthError = e.message ?: "Unknown error",
-                                mirrorConnectivity = emptyMap(),
-                                validationResults = null,
-                            )
-                        _authDebugInfo.value = errorInfo
+                            // Create debug info with fresh validation results
+                            val info =
+                                com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                                    isAuthenticated = isAuthenticated,
+                                    lastAuthAttempt = System.currentTimeMillis(),
+                                    lastAuthError = lastError,
+                                    mirrorConnectivity = connectivity,
+                                    validationResults =
+                                        com.jabook.app.jabook.compose.data.debug.ValidationResults(
+                                            profilePageCheck = isAuthenticated,
+                                            searchPageCheck = isAuthenticated,
+                                            indexPageCheck = connectivity.isNotEmpty() && connectivity.values.any { it },
+                                            lastValidation = System.currentTimeMillis(),
+                                        ),
+                                )
+                            _authDebugInfo.value = info
+                            logger.logSuccess(operationId, "Auth debug info refreshed")
+                        } catch (e: Exception) {
+                            // Handle errors gracefully - update authDebugInfo with error state
+                            logger.logError(operationId, "Failed to refresh auth debug info", e)
+                            val errorInfo =
+                                com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                                    isAuthenticated = false,
+                                    lastAuthAttempt = System.currentTimeMillis(),
+                                    lastAuthError = e.message ?: "Unknown error",
+                                    mirrorConnectivity = emptyMap(),
+                                    validationResults = null,
+                                )
+                            _authDebugInfo.value = errorInfo
+                        }
                     }
+                } catch (e: Exception) {
+                    // Handle case when logger.withOperation itself throws an exception
+                    android.util.Log.e("DebugViewModel", "Failed to initialize auth debug info operation", e)
+                    val errorInfo =
+                        com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                            isAuthenticated = false,
+                            lastAuthAttempt = System.currentTimeMillis(),
+                            lastAuthError = "Failed to initialize: ${e.message}",
+                            mirrorConnectivity = emptyMap(),
+                            validationResults = null,
+                        )
+                    _authDebugInfo.value = errorInfo
                 }
             }
         }
@@ -165,13 +185,14 @@ class DebugViewModel
         private suspend fun checkAllMirrors(): Map<String, Boolean> =
             try {
                 // Get mirrors safely - handle case when MirrorManager might not be fully initialized
-                val mirrors = try {
-                    mirrorManager.availableMirrors.value
-                } catch (e: Exception) {
-                    android.util.Log.w("DebugViewModel", "Failed to access available mirrors, using defaults", e)
-                    com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS
-                }
-                
+                val mirrors =
+                    try {
+                        mirrorManager.availableMirrors.value
+                    } catch (e: Exception) {
+                        android.util.Log.w("DebugViewModel", "Failed to access available mirrors, using defaults", e)
+                        com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS
+                    }
+
                 if (mirrors.isEmpty()) {
                     android.util.Log.w("DebugViewModel", "No mirrors available for health check")
                     emptyMap()
