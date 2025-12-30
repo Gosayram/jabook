@@ -139,7 +139,7 @@ class DebugViewModel
                                     com.jabook.app.jabook.compose.data.debug.ValidationResults(
                                         profilePageCheck = isAuthenticated,
                                         searchPageCheck = isAuthenticated,
-                                        indexPageCheck = connectivity.values.any { it },
+                                        indexPageCheck = connectivity.isNotEmpty() && connectivity.values.any { it },
                                         lastValidation = System.currentTimeMillis(),
                                     ),
                             )
@@ -164,7 +164,14 @@ class DebugViewModel
 
         private suspend fun checkAllMirrors(): Map<String, Boolean> =
             try {
-                val mirrors = mirrorManager.availableMirrors.value
+                // Get mirrors safely - handle case when MirrorManager might not be fully initialized
+                val mirrors = try {
+                    mirrorManager.availableMirrors.value
+                } catch (e: Exception) {
+                    android.util.Log.w("DebugViewModel", "Failed to access available mirrors, using defaults", e)
+                    com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS
+                }
+                
                 if (mirrors.isEmpty()) {
                     android.util.Log.w("DebugViewModel", "No mirrors available for health check")
                     emptyMap()

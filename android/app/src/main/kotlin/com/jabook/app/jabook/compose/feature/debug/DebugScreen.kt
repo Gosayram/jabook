@@ -466,9 +466,9 @@ private fun RutrackerTab(
                 )
                 Spacer(modifier = Modifier.padding(4.dp))
 
-                Text(stringResource(R.string.profilePageCheck, (authInfo?.validationResults?.profilePageCheck ?: false).toIcon()))
-                Text(stringResource(R.string.searchPageCheck, (authInfo?.validationResults?.searchPageCheck ?: false).toIcon()))
-                Text(stringResource(R.string.indexPageCheck, (authInfo?.validationResults?.indexPageCheck ?: false).toIcon()))
+                Text(stringResource(R.string.profilePageCheck, authInfo?.validationResults?.profilePageCheck.toIcon()))
+                Text(stringResource(R.string.searchPageCheck, authInfo?.validationResults?.searchPageCheck.toIcon()))
+                Text(stringResource(R.string.indexPageCheck, authInfo?.validationResults?.indexPageCheck.toIcon()))
             }
         }
 
