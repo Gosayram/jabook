@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.feature.topic
 
 import android.content.Intent
-import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -75,7 +74,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -86,20 +84,11 @@ import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.asImage
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.allowHardware
-import coil3.request.crossfade
-import coil3.request.error
-import coil3.request.placeholder
-import coil3.request.transformations
-import coil3.transform.CircleCropTransformation
-import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
+import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 
 /**
  * Topic Screen - displays detailed information about a RuTracker topic.
@@ -262,43 +251,21 @@ private fun TopicDetailsContent(
                         else -> rawCoverUrl // Keep as is, Coil will handle relative URLs if baseUri is set
                     }
 
-                // Use high priority for detail screen - cover must load immediately
-                // Note: Coil3 handles caching automatically via ImageLoader config
-                val imageRequest =
-                    coil3.request.ImageRequest
-                        .Builder(context)
-                        .data(coverUrl)
-                        .crossfade(true)
-                        .allowHardware(true)
-                        .transformations(RoundedCornersTransformation(cornerRadiusPx))
-                        .placeholder(
-                            ColorDrawable(
-                                MaterialTheme.colorScheme.surfaceVariant.toArgb(),
-                            ).asImage(),
-                        ).error(
-                            ColorDrawable(
-                                MaterialTheme.colorScheme.error.toArgb(),
-                            ).asImage(),
-                        ).fallback(
-                            ColorDrawable(
-                                MaterialTheme.colorScheme.surfaceVariant.toArgb(),
-                            ).asImage(),
-                        ).build()
-
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center,
                 ) {
                     // Adaptive cover size: smaller on larger screens, larger on compact
                     val coverWidthFraction = if (isCompact) 0.6f else 0.5f
-                    coil3.compose.AsyncImage(
-                        model = imageRequest,
+                    RemoteImage(
+                        src = coverUrl,
                         contentDescription = details.title,
                         modifier =
                             Modifier
                                 .fillMaxWidth(coverWidthFraction)
                                 .aspectRatio(0.7f),
                         contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                        cornerRadius = 16f,
                     )
                 }
             }
@@ -952,18 +919,12 @@ private fun CommentItem(
                         .aspectRatio(1f),
             ) {
                 comment.avatarUrl?.let { url ->
-                    AsyncImage(
-                        model =
-                            ImageRequest
-                                .Builder(LocalContext.current)
-                                .data(url)
-                                .crossfade(true)
-                                .transformations(CircleCropTransformation())
-                                .placeholder(ColorDrawable(MaterialTheme.colorScheme.surfaceContainerHighest.toArgb()))
-                                .error(ColorDrawable(MaterialTheme.colorScheme.surfaceContainerHighest.toArgb()))
-                                .build(),
+                    RemoteImage(
+                        src = url,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        cornerRadius = null, // Circle crop handled by contentScale
                     )
                 } ?: run {
                     // Placeholder when no avatar - show first letter of username

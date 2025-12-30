@@ -24,12 +24,14 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
+import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import com.jabook.app.jabook.compose.navigation.TopicRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -75,6 +77,7 @@ class TopicViewModel
         private val torrentManager: TorrentManager,
         private val rutrackerApi: RutrackerApi,
         private val mirrorManager: MirrorManager,
+        private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
         @param:ApplicationContext private val context: Context,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
@@ -194,13 +197,6 @@ class TopicViewModel
                     val savePath = bookFolder.absolutePath
                     Log.d("TopicViewModel", "Saving torrent to: $savePath")
 
-                    // Ensure TorrentManager is initialized
-                    try {
-                        torrentManager.initialize()
-                    } catch (e: Exception) {
-                        Log.w("TopicViewModel", "TorrentManager already initialized or error: ${e.message}")
-                    }
-
                     // Check if downloadUrl is a magnet URI or HTTP/HTTPS URL
                     // TorrentManager.addTorrent only accepts magnet URIs
                     if (!downloadUrl.startsWith("magnet:", ignoreCase = true)) {
@@ -213,23 +209,36 @@ class TopicViewModel
                         return@launch
                     }
 
-                    val result =
-                        torrentManager.addTorrent(
-                            magnetUri = downloadUrl,
-                            savePath = savePath,
-                            topicId = topicId,
-                        )
+                    // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
+                    withAuthorisedCheckUseCase(operationId = "download_torrent_$topicId") {
+                        // Ensure TorrentManager is initialized
+                        try {
+                            torrentManager.initialize()
+                        } catch (e: Exception) {
+                            Log.w("TopicViewModel", "TorrentManager already initialized or error: ${e.message}")
+                        }
 
-                    if (result.isSuccess) {
-                        val hash = result.getOrNull()
-                        Log.i("TopicViewModel", "Torrent download started: $hash")
-                        _message.value = context.getString(R.string.downloadStarted)
-                    } else {
-                        val exception = result.exceptionOrNull()
-                        val error = exception?.message ?: context.getString(R.string.unknownError)
-                        Log.e("TopicViewModel", "Failed to start torrent download: $error", exception)
-                        _message.value = context.getString(R.string.failedToStartDownloadWithError, error)
+                        val result =
+                            torrentManager.addTorrent(
+                                magnetUri = downloadUrl,
+                                savePath = savePath,
+                                topicId = topicId,
+                            )
+
+                        if (result.isSuccess) {
+                            val hash = result.getOrNull()
+                            Log.i("TopicViewModel", "Torrent download started: $hash")
+                            _message.value = context.getString(R.string.downloadStarted)
+                        } else {
+                            val exception = result.exceptionOrNull()
+                            val error = exception?.message ?: context.getString(R.string.unknownError)
+                            Log.e("TopicViewModel", "Failed to start torrent download: $error", exception)
+                            _message.value = context.getString(R.string.failedToStartDownloadWithError, error)
+                        }
                     }
+                } catch (e: RuTrackerError.Unauthorized) {
+                    Log.w("TopicViewModel", "Download requires authentication")
+                    _message.value = context.getString(R.string.authenticationRequired)
                 } catch (e: IllegalStateException) {
                     Log.e("TopicViewModel", "Illegal state during torrent download", e)
                     _message.value = context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
@@ -247,35 +256,41 @@ class TopicViewModel
         fun downloadTorrentFile() {
             viewModelScope.launch {
                 try {
-                    val response = rutrackerApi.downloadTorrent(topicId)
-                    if (response.isSuccessful) {
-                        val body: ResponseBody? = response.body()
-                        if (body != null) {
-                            withContext(Dispatchers.IO) {
-                                // Save to Downloads directory
-                                val downloadsDir =
-                                    android.os.Environment.getExternalStoragePublicDirectory(
-                                        android.os.Environment.DIRECTORY_DOWNLOADS,
-                                    )
-                                val torrentFile = File(downloadsDir, "$topicId.torrent")
+                    // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
+                    withAuthorisedCheckUseCase(operationId = "download_torrent_file_$topicId") {
+                        val response = rutrackerApi.downloadTorrent(topicId)
+                        if (response.isSuccessful) {
+                            val body: ResponseBody? = response.body()
+                            if (body != null) {
+                                withContext(Dispatchers.IO) {
+                                    // Save to Downloads directory
+                                    val downloadsDir =
+                                        android.os.Environment.getExternalStoragePublicDirectory(
+                                            android.os.Environment.DIRECTORY_DOWNLOADS,
+                                        )
+                                    val torrentFile = File(downloadsDir, "$topicId.torrent")
 
-                                body.byteStream().use { input ->
-                                    FileOutputStream(torrentFile).use { output ->
-                                        input.copyTo(output)
+                                    body.byteStream().use { input ->
+                                        FileOutputStream(torrentFile).use { output ->
+                                            input.copyTo(output)
+                                        }
                                     }
-                                }
 
-                                Log.i("TopicViewModel", "Torrent file saved: ${torrentFile.absolutePath}")
-                                _message.value = context.getString(R.string.torrentFileSaved)
+                                    Log.i("TopicViewModel", "Torrent file saved: ${torrentFile.absolutePath}")
+                                    _message.value = context.getString(R.string.torrentFileSaved)
+                                }
+                            } else {
+                                Log.e("TopicViewModel", "Response body is null")
+                                _message.value = context.getString(R.string.failedToDownloadTorrentFile)
                             }
                         } else {
-                            Log.e("TopicViewModel", "Response body is null")
-                            _message.value = context.getString(R.string.failedToDownloadTorrentFile)
+                            Log.e("TopicViewModel", "Failed to download torrent file: ${response.code()}")
+                            _message.value = context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code())
                         }
-                    } else {
-                        Log.e("TopicViewModel", "Failed to download torrent file: ${response.code()}")
-                        _message.value = context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code())
                     }
+                } catch (e: RuTrackerError.Unauthorized) {
+                    Log.w("TopicViewModel", "Download torrent file requires authentication")
+                    _message.value = context.getString(R.string.authenticationRequired)
                 } catch (e: Exception) {
                     Log.e("TopicViewModel", "Error downloading torrent file", e)
                 }

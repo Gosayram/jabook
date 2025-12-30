@@ -65,7 +65,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -73,16 +72,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.asImage
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.allowHardware
-import coil3.request.crossfade
-import coil3.request.transformations
-import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
+import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 
 /**
  * RuTracker search screen.
@@ -581,45 +574,19 @@ private fun SearchResultCard(
         ) {
             // Cover image - adaptive size based on screen size
             result.coverUrl?.let { coverUrl ->
-                val density = context.resources.displayMetrics.density
-                val cornerRadiusPx = 8f * density
-
                 // Adaptive cover size: smaller on compact screens
                 val coverWidth = if (isCompact) 60.dp else 80.dp
                 val coverHeight = if (isCompact) 90.dp else 120.dp
 
-                val imageRequest =
-                    ImageRequest
-                        .Builder(context)
-                        .data(coverUrl)
-                        .crossfade(true)
-                        .allowHardware(true)
-                        .transformations(RoundedCornersTransformation(cornerRadiusPx))
-                        .placeholder(
-                            android.graphics.drawable
-                                .ColorDrawable(
-                                    MaterialTheme.colorScheme.surfaceVariant.toArgb(),
-                                ).asImage(),
-                        ).error(
-                            android.graphics.drawable
-                                .ColorDrawable(
-                                    MaterialTheme.colorScheme.error.toArgb(),
-                                ).asImage(),
-                        ).fallback(
-                            android.graphics.drawable
-                                .ColorDrawable(
-                                    MaterialTheme.colorScheme.surfaceVariant.toArgb(),
-                                ).asImage(),
-                        ).build()
-
-                AsyncImage(
-                    model = imageRequest,
+                RemoteImage(
+                    src = coverUrl,
                     contentDescription = result.title,
                     modifier =
                         Modifier
                             .width(coverWidth)
                             .height(coverHeight),
                     contentScale = ContentScale.Crop,
+                    cornerRadius = 8f,
                 )
             }
 

@@ -20,14 +20,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
+import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
+import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import com.jabook.app.jabook.indexing.IndexingForegroundService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -40,6 +41,7 @@ class IndexingViewModel
     constructor(
         private val forumIndexer: ForumIndexer,
         private val authRepository: AuthRepository,
+        private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
     ) : ViewModel() {
         companion object {
             private const val TAG = "IndexingViewModel"
@@ -62,40 +64,26 @@ class IndexingViewModel
             }
 
             viewModelScope.launch {
-                // Check if user is authenticated before starting indexing
-                // RuTracker requires authentication to access forum pages
-                // Use authStatus flow to get current status (more reliable than isLoggedIn())
-                val currentAuthStatus = authRepository.authStatus.first()
-                val isAuthenticated = currentAuthStatus is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated
-
-                // Additional check: ensure username is valid (not "User" placeholder)
-                val hasValidUsername =
-                    when (currentAuthStatus) {
-                        is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> {
-                            currentAuthStatus.username.isNotBlank() && currentAuthStatus.username != "User"
-                        }
-                        else -> false
-                    }
-
-                if (!isAuthenticated || !hasValidUsername) {
-                    Log.w(TAG, "Cannot start indexing: user is not authenticated or has invalid username. Status: $currentAuthStatus")
-                    _indexingProgress.value =
-                        IndexingProgress.Error(
-                            message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
-                        )
-                    return@launch
-                }
-
                 _isIndexing.value = true
                 _indexingProgress.value = IndexingProgress.Idle
 
                 try {
-                    forumIndexer.indexForums(
-                        forumIds = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
-                        preloadCovers = true,
-                    ) { progress ->
-                        _indexingProgress.value = progress
+                    // Use WithAuthorisedCheckUseCase to ensure authentication before indexing
+                    // RuTracker requires authentication to access forum pages
+                    withAuthorisedCheckUseCase(operationId = "indexing") {
+                        forumIndexer.indexForums(
+                            forumIds = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
+                            preloadCovers = true,
+                        ) { progress ->
+                            _indexingProgress.value = progress
+                        }
                     }
+                } catch (e: RuTrackerError.Unauthorized) {
+                    Log.w(TAG, "Indexing requires authentication")
+                    _indexingProgress.value =
+                        IndexingProgress.Error(
+                            message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
+                        )
                 } catch (e: Exception) {
                     Log.e(TAG, "Indexing failed", e)
                     _indexingProgress.value =
