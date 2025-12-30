@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.remote.parser
 
 import android.util.Log
+import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.model.RelatedBook
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
@@ -124,22 +125,30 @@ class RutrackerParser
             val results = mutableListOf<SearchResult>()
 
             try {
-                // Validate HTML content before parsing
-                val validationError = ParsingValidators.validateSearchResults(html)
-                if (validationError != null) {
-                    errors.add(
-                        ParsingError(
-                            field = "document",
-                            reason = "Content validation failed: ${validationError.message}",
-                            severity = ErrorSeverity.CRITICAL,
-                            htmlSnippet = html.take(500),
-                        ),
-                    )
-                    return ParsingResult.Failure(errors, emptyList())
-                }
-
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
                 val document = Jsoup.parse(html, getBaseUrl())
+
+                // Check if it's a valid search page first (before strict validation)
+                // This allows empty results to pass through
+                val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
+                val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
+
+                // Only validate if it's NOT a search/index page (to avoid blocking valid empty results)
+                // For search pages, we'll validate after checking for rows
+                if (!isSearchPage && !isIndexPage) {
+                    val validationError = ParsingValidators.validateSearchResults(html)
+                    if (validationError != null) {
+                        errors.add(
+                            ParsingError(
+                                field = "document",
+                                reason = "Content validation failed: ${validationError.message}",
+                                severity = ErrorSeverity.CRITICAL,
+                                htmlSnippet = html.take(500),
+                            ),
+                        )
+                        return ParsingResult.Failure(errors, emptyList())
+                    }
+                }
 
                 // Try to find rows using multiple selectors strategy
                 var rows = org.jsoup.select.Elements()
@@ -169,10 +178,6 @@ class RutrackerParser
                 }
 
                 if (rows.isEmpty()) {
-                    // Check if it's just an empty result set (valid page, no results)
-                    val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
-                    val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
-
                     // Enhanced Debug Logging
                     val title = document.title()
                     val bodySnippet = document.body().text().take(500)
@@ -184,7 +189,29 @@ class RutrackerParser
 
                     if (isSearchPage || isIndexPage) {
                         Log.i(TAG, "No rows found, but page looks like valid search/index page (empty results)")
+                        // For valid search pages with no results, validate now to catch real errors
+                        // but still return empty list if it's just empty results
+                        val validationError = ParsingValidators.validateSearchResults(html)
+                        if (validationError != null && validationError !is RuTrackerError.NoData) {
+                            // Only log warning if it's a real error (not just empty data)
+                            Log.w(TAG, "Validation error detected on empty search page: ${validationError.message}")
+                            // Still return empty list to avoid blocking valid empty results
+                        }
                         return ParsingResult.Success(emptyList())
+                    }
+
+                    // Not a search/index page and no rows - validate to check for errors
+                    val validationError = ParsingValidators.validateSearchResults(html)
+                    if (validationError != null) {
+                        errors.add(
+                            ParsingError(
+                                field = "document",
+                                reason = "Content validation failed: ${validationError.message}",
+                                severity = ErrorSeverity.CRITICAL,
+                                htmlSnippet = html.take(500),
+                            ),
+                        )
+                        return ParsingResult.Failure(errors, emptyList())
                     }
 
                     errors.add(
@@ -339,6 +366,10 @@ class RutrackerParser
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
                 val document = Jsoup.parse(html, getBaseUrl())
 
+                // Check if it's a valid search/index page
+                val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
+                val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
+
                 // Try to find rows using multiple selectors strategy
                 var rows = org.jsoup.select.Elements()
                 var successfulSelector = ""
@@ -367,10 +398,6 @@ class RutrackerParser
                 }
 
                 if (rows.isEmpty()) {
-                    // Check if it's just an empty result set (valid page, no results)
-                    val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
-                    val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
-
                     // Enhanced Debug Logging
                     val title = document.title()
                     val bodySnippet = document.body().text().take(500)
@@ -382,7 +409,29 @@ class RutrackerParser
 
                     if (isSearchPage || isIndexPage) {
                         Log.i(TAG, "No rows found, but page looks like valid search/index page (empty results)")
+                        // For valid search pages with no results, validate now to catch real errors
+                        // but still return empty list if it's just empty results
+                        val validationError = ParsingValidators.validateForumPage(html)
+                        if (validationError != null && validationError !is RuTrackerError.NoData) {
+                            // Only log warning if it's a real error (not just empty data)
+                            Log.w(TAG, "Validation error detected on empty forum page: ${validationError.message}")
+                            // Still return empty list to avoid blocking valid empty results
+                        }
                         return ParsingResult.Success(emptyList())
+                    }
+
+                    // Not a search/index page and no rows - validate to check for errors
+                    val validationError = ParsingValidators.validateForumPage(html)
+                    if (validationError != null) {
+                        errors.add(
+                            ParsingError(
+                                field = "document",
+                                reason = "Content validation failed: ${validationError.message}",
+                                severity = ErrorSeverity.CRITICAL,
+                                htmlSnippet = html.take(500),
+                            ),
+                        )
+                        return ParsingResult.Failure(errors, emptyList())
                     }
 
                     errors.add(
