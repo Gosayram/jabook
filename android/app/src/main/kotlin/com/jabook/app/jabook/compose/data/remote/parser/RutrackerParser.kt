@@ -23,6 +23,8 @@ import org.jsoup.nodes.Element
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// Safe parsing extensions are in the same package, no import needed
+
 /**
  * Parser for Rutracker HTML pages.
  *
@@ -329,7 +331,7 @@ class RutrackerParser
                     // Method 1: Check for "След." (Next) link with class "pg"
                     val nextLink =
                         document.select("a.pg").firstOrNull { link ->
-                            val text = link.text().trim()
+                            val text = link.toStr().trim()
                             text.contains("След", ignoreCase = true) || text.contains("Next", ignoreCase = true)
                         }
 
@@ -338,7 +340,7 @@ class RutrackerParser
                         true
                     } else {
                         // Method 2: Check pagination text "Страница X из Y"
-                        val paginationText = document.select("#pagination, .nav").text()
+                        val paginationText = document.select("#pagination, .nav").toStr()
                         val pageMatch = Regex("Страница\\s+\\d+\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE).find(paginationText)
                         if (pageMatch != null) {
                             val currentPage =
@@ -512,7 +514,7 @@ class RutrackerParser
                 // Log.w(TAG, "No title found for topic $topicId")
                 return null
             }
-            val title = titleElement.text()
+            val title = titleElement.toStr()
             if (title.isEmpty()) {
                 return null
             }
@@ -520,7 +522,7 @@ class RutrackerParser
             // Extract author - use new selector
             val authorElement = row.selectFirst(AUTHOR_SELECTOR)
             val author =
-                authorElement?.text()?.trim()?.ifEmpty { null } ?: run {
+                authorElement?.toStr()?.trim()?.ifEmpty { null } ?: run {
                     "Unknown"
                 }
 
@@ -639,14 +641,14 @@ class RutrackerParser
 
                 // Extract title
                 val titleElement = document.selectFirst(MAIN_TITLE_SELECTOR) ?: return null
-                val title = titleElement.text()
+                val title = titleElement.toStr()
 
                 // Extract post body for metadata
                 val postBody = document.selectFirst(POST_BODY_SELECTOR)
 
                 // Extract size
                 val sizeElement = document.selectFirst(TOR_SIZE_SELECTOR)
-                val size = sizeElement?.text() ?: "Unknown"
+                val size = sizeElement?.toStr() ?: "Unknown"
 
                 // Extract magnet link
                 // Use absUrl() for proper absolute URL resolution (magnet: links are already absolute)
@@ -670,7 +672,7 @@ class RutrackerParser
 
                 // Extract description - clean text without metadata fields
                 // Remove common metadata patterns to avoid duplication
-                val rawDescriptionText = postBody?.text() ?: ""
+                val rawDescriptionText = postBody?.toStr() ?: ""
                 val descriptionText = cleanDescription(rawDescriptionText, metadata)
                 val parsedMediaInfo = mediaInfoParser.parse(rawDescriptionText)
 
@@ -747,7 +749,7 @@ class RutrackerParser
 
             for (selector in selectors) {
                 val element = document.selectFirst(selector)
-                val text = element?.text()?.trim() ?: ""
+                val text = element?.toStr()?.trim() ?: ""
                 val number = text.toIntOrNull()
                 if (number != null && number >= 0) {
                     return number
@@ -755,7 +757,7 @@ class RutrackerParser
             }
 
             // Fallback: try to extract from text
-            val seedText = document.select("span.seed, .seed").text()
+            val seedText = document.select("span.seed, .seed").toStr()
             val regex = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
             regex
                 .find(seedText)
@@ -784,7 +786,7 @@ class RutrackerParser
 
             for (selector in selectors) {
                 val element = document.selectFirst(selector)
-                val text = element?.text()?.trim() ?: ""
+                val text = element?.toStr()?.trim() ?: ""
                 val number = text.toIntOrNull()
                 if (number != null && number >= 0) {
                     return number
@@ -808,7 +810,7 @@ class RutrackerParser
             val metadata = mutableMapOf<String, String>()
             if (postBody == null) return metadata
 
-            val text = postBody.text()
+            val text = postBody.toStr()
 
             // Extract common patterns
             // Author: Pattern like "Автор:" or "Author:"
@@ -870,7 +872,7 @@ class RutrackerParser
         private fun extractGenres(postBody: Element?): List<String> {
             if (postBody == null) return emptyList()
 
-            val text = postBody.text()
+            val text = postBody.toStr()
             val genrePattern = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()
             val match = genrePattern.find(text) ?: return emptyList()
 
@@ -887,7 +889,7 @@ class RutrackerParser
         private fun extractSeries(postBody: Element?): String? {
             if (postBody == null) return null
 
-            val text = postBody.text()
+            val text = postBody.toStr()
             // Try multiple patterns
             val patterns =
                 listOf(
@@ -907,7 +909,7 @@ class RutrackerParser
 
             // Try HTML structure
             postBody.select("span.post-b").forEach { span ->
-                val label = span.text().trim()
+                val label = span.toStr().trim()
                 if (label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true)) {
                     val nextText = span.nextSibling()?.toString() ?: ""
                     val match = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)
@@ -1319,9 +1321,9 @@ class RutrackerParser
                                     .let {
                                         org.jsoup.Jsoup
                                             .parse(it)
-                                            .text()
+                                            .toStr()
                                     }.trim()
-                            } ?: postBody.text().trim()
+                            } ?: postBody.toStr().trim()
 
                         // Clean HTML: normalize <br> tags and preserve links
                         val cleanedHtml =
@@ -1435,9 +1437,9 @@ class RutrackerParser
                                 .let {
                                     org.jsoup.Jsoup
                                         .parse(it)
-                                        .text()
+                                        .toStr()
                                 }.trim()
-                        } ?: postBody.text().trim()
+                        } ?: postBody.toStr().trim()
 
                     // Clean HTML: normalize <br> tags and preserve links
                     val cleanedHtml =

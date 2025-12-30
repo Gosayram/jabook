@@ -20,6 +20,7 @@ import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
+import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.AudiobookCategory
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
@@ -248,7 +249,15 @@ class RutrackerRepository
                     TAG,
                     "❌ Request failed: HTTP ${response.code()}: ${response.message()} (${networkDuration}ms) - URL: ${response.raw().request.url}",
                 )
-                return Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
+                val error =
+                    when (response.code()) {
+                        401 -> RuTrackerError.Unauthorized
+                        403 -> RuTrackerError.Forbidden
+                        404 -> RuTrackerError.NotFound
+                        400 -> RuTrackerError.BadRequest
+                        else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                    }
+                return Result.failure(error)
             }
 
             // Log important headers
@@ -349,7 +358,8 @@ class RutrackerRepository
                     Result.success(parsingResult.data)
                 }
                 is ParsingResult.Failure -> {
-                    Result.failure(Exception(parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"))
+                    val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
+                    Result.failure(RuTrackerError.ParsingError(errorMessage))
                 }
             }
         }
@@ -406,11 +416,17 @@ class RutrackerRepository
                         Result.success(details)
                     } else {
                         Log.w(TAG, "Failed to parse topic details")
-                        Result.failure(Exception("Failed to parse topic details"))
+                        Result.failure(RuTrackerError.ParsingError("Failed to parse topic details"))
                     }
+                } catch (e: java.net.UnknownHostException) {
+                    Log.e(TAG, "Network error - unknown host", e)
+                    Result.failure(RuTrackerError.NoConnection)
+                } catch (e: java.io.IOException) {
+                    Log.e(TAG, "Network I/O error", e)
+                    Result.failure(RuTrackerError.NoConnection)
                 } catch (e: Exception) {
                     Log.e(TAG, "Topic details error", e)
-                    Result.failure(e)
+                    Result.failure(RuTrackerError.Unknown(e.message))
                 }
             }
 
@@ -428,9 +444,15 @@ class RutrackerRepository
 
                     if (!response.isSuccessful) {
                         Log.w(TAG, "Categories failed: HTTP ${response.code()}")
-                        return@withContext Result.failure(
-                            Exception("HTTP ${response.code()}: ${response.message()}"),
-                        )
+                        val error =
+                            when (response.code()) {
+                                401 -> RuTrackerError.Unauthorized
+                                403 -> RuTrackerError.Forbidden
+                                404 -> RuTrackerError.NotFound
+                                400 -> RuTrackerError.BadRequest
+                                else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                            }
+                        return@withContext Result.failure(error)
                     }
 
                     // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
@@ -451,7 +473,8 @@ class RutrackerRepository
                         }
                         is ParsingResult.Failure -> {
                             Log.e(TAG, "Categories parsing failed")
-                            Result.failure(Exception("Failed to parse categories"))
+                            val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Failed to parse categories"
+                            Result.failure(RuTrackerError.ParsingError(errorMessage))
                         }
                     }
                 } catch (e: Exception) {

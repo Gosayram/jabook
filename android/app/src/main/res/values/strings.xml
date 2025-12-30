@@ -2293,6 +2293,16 @@
     <string name="indexPageCheck">Index Page: %s</string>
     <string name="mirrorConnectivityTitle">Mirror Connectivity</string>
     
+    <!-- Error Messages -->
+    <string name="error_title">Error</string>
+    <string name="error_something_goes_wrong">Something went wrong</string>
+    <string name="noDataAvailable">No data available</string>
+    <string name="noConnection">No network connection</string>
+    <string name="notFound">Resource not found</string>
+    <string name="badRequest">Bad request</string>
+    <string name="forbidden">Access forbidden</string>
+    <string name="parsingError">Parsing error</string>
+    
     <!-- View Mode Strings -->
     <string name="viewModeList">List view</string>
     <string name="viewModeGrid">Grid view</string>

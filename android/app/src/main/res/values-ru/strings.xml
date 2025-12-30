@@ -2316,6 +2316,16 @@
     <string name="searchPageCheck">Страница поиска: %s</string>
     <string name="indexPageCheck">Главная страница: %s</string>
     <string name="mirrorConnectivityTitle">Доступность зеркал</string>
+    
+    <!-- Сообщения об ошибках -->
+    <string name="error_title">Ошибка</string>
+    <string name="error_something_goes_wrong">Что-то пошло не так</string>
+    <string name="noDataAvailable">Данные недоступны</string>
+    <string name="noConnection">Нет сетевого подключения</string>
+    <string name="notFound">Ресурс не найден</string>
+    <string name="badRequest">Неверный запрос</string>
+    <string name="forbidden">Доступ запрещен</string>
+    <string name="parsingError">Ошибка парсинга</string>
 
     <!-- View Mode Strings -->
     <string name="viewModeList">Список</string>
