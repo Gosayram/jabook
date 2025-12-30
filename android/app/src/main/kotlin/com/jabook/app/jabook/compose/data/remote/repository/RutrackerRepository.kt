@@ -190,16 +190,30 @@ class RutrackerRepository
                             } else {
                                 Log.i(TAG, "⚠️ Index exists ($indexSize topics) but no results for query '$query', returning empty")
                                 // Index exists but no matches - return empty (don't search network)
+                                // This prevents "bad request" errors when index exists
                                 emit(Result.success(emptyList()))
                                 return@flow
                             }
                         } else {
-                            Log.i(TAG, "⚠️ Index is empty ($indexSize topics), fetching from network")
-                            // Index is empty - proceed to network search
+                            Log.i(TAG, "⚠️ Index is empty ($indexSize topics), will try network search if needed")
+                            // Index is empty - proceed to network search only if no DB cache
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Indexed search failed, falling back to network", e)
-                        // On error, proceed to network search
+                        Log.e(TAG, "❌ Indexed search failed for query '$query'", e)
+                        // If index exists but search failed, return empty instead of network search
+                        // This prevents "bad request" errors when index exists but has issues
+                        val indexSize = try {
+                            offlineSearchDao.getTopicCount()
+                        } catch (ex: Exception) {
+                            0
+                        }
+                        if (indexSize > 0) {
+                            Log.w(TAG, "Index exists ($indexSize topics) but search failed, returning empty to avoid network bad request")
+                            emit(Result.success(emptyList()))
+                            return@flow
+                        }
+                        // Only proceed to network if index doesn't exist
+                        Log.w(TAG, "Index doesn't exist or is empty, will try network search")
                     }
                 }
 
@@ -269,7 +283,13 @@ class RutrackerRepository
                         401 -> RuTrackerError.Unauthorized
                         403 -> RuTrackerError.Forbidden
                         404 -> RuTrackerError.NotFound
-                        400 -> RuTrackerError.BadRequest
+                        400 -> {
+                            Log.w(TAG, "⚠️ HTTP 400 Bad Request for query '$query' - returning empty list instead of error")
+                            // For bad request, return empty list instead of error
+                            // This prevents showing confusing error to user
+                            if (operationId == null) logger.endOperation(opId, success = false)
+                            return Result.success(emptyList())
+                        }
                         else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
                     }
                 logger.logError(opId, "Request failed: ${error.message}", error)
@@ -382,10 +402,28 @@ class RutrackerRepository
                 }
                 is ParsingResult.Failure -> {
                     val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
-                    val error = RuTrackerError.ParsingError(errorMessage)
-                    logger.logError(opId, "Parsing failed: $errorMessage", error)
-                    if (operationId == null) logger.endOperation(opId, success = false, errorMessage)
-                    Result.failure(error)
+                    
+                    // Check if it's a bad request or validation error
+                    val isBadRequest = parsingResult.errors.any { 
+                        it.reason.contains("Bad request", ignoreCase = true) || 
+                        it.reason.contains("BadRequest", ignoreCase = true) ||
+                        it.reason.contains("Content validation failed", ignoreCase = true)
+                    }
+                    
+                    if (isBadRequest) {
+                        Log.w(TAG, "⚠️ Bad request or validation error detected in parsing result for query '$query'")
+                        Log.w(TAG, "   Returning empty list instead of error to prevent user confusion")
+                        Log.w(TAG, "   Error details: $errorMessage")
+                        // Return empty list instead of error for bad request
+                        // This prevents showing "bad request" error to user when it's just an empty/invalid result
+                        if (operationId == null) logger.endOperation(opId, success = false, "Bad request - returning empty")
+                        Result.success(emptyList())
+                    } else {
+                        val error = RuTrackerError.ParsingError(errorMessage)
+                        logger.logError(opId, "Parsing failed: $errorMessage", error)
+                        if (operationId == null) logger.endOperation(opId, success = false, errorMessage)
+                        Result.failure(error)
+                    }
                 }
             }
         }
