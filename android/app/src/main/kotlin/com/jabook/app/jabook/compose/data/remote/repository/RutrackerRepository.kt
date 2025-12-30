@@ -128,11 +128,22 @@ class RutrackerRepository
         ): List<RutrackerSearchResult> =
             withContext(Dispatchers.IO) {
                 try {
+                    val searchStartTime = System.currentTimeMillis()
+                    Log.d(TAG, "Starting DB search for query: '$query' (limit: $limit)")
+
                     val entities = offlineSearchDao.searchIndexedTopics(query, limit)
+                    val dbDuration = System.currentTimeMillis() - searchStartTime
+                    Log.d(TAG, "DB query completed: ${entities.size} entities (${dbDuration}ms)")
+
+                    val mapStartTime = System.currentTimeMillis()
                     val dtoResults = entities.map { it.toSearchResult() }
-                    dtoResults.toDomain()
+                    val domainResults = dtoResults.toDomain()
+                    val mapDuration = System.currentTimeMillis() - mapStartTime
+                    Log.d(TAG, "Mapping completed: ${domainResults.size} domain results (${mapDuration}ms)")
+
+                    domainResults
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to search indexed topics", e)
+                    Log.e(TAG, "Failed to search indexed topics for query '$query'", e)
                     emptyList()
                 }
             }
@@ -156,27 +167,40 @@ class RutrackerRepository
                 Log.i(TAG, "🔍 Index-only search started: query='$query', forumIds=$forumIds")
 
                 try {
-                    // Check if index exists and has data
-                    val indexSize = offlineSearchDao.getTopicCount()
+                    // Check if index exists and has data with timeout
+                    val countStartTime = System.currentTimeMillis()
+                    val indexSize =
+                        withContext(Dispatchers.IO) {
+                            try {
+                                offlineSearchDao.getTopicCount()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to get topic count", e)
+                                0
+                            }
+                        }
+                    val countDuration = System.currentTimeMillis() - countStartTime
+                    Log.d(TAG, "Index size check: $indexSize topics (${countDuration}ms)")
+
                     if (indexSize > 0) {
                         val indexSearchStartTime = System.currentTimeMillis()
-                        val indexedResults = searchIndexedTopics(query, limit = 200)
+                        val indexedResults =
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    searchIndexedTopics(query, limit = 200)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Failed to search indexed topics", e)
+                                    emptyList()
+                                }
+                            }
                         val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
 
-                        if (indexedResults.isNotEmpty()) {
-                            Log.i(
-                                TAG,
-                                "✅ Found ${indexedResults.size} results from index (query: '$query', ${indexSearchDuration}ms, index size: $indexSize)",
-                            )
-                            emit(Result.success(indexedResults))
-                        } else {
-                            Log.i(
-                                TAG,
-                                "⚠️ Index exists ($indexSize topics) but no results for query '$query', returning empty",
-                            )
-                            // Index exists but no matches - return empty (no network fallback)
-                            emit(Result.success(emptyList()))
-                        }
+                        Log.i(
+                            TAG,
+                            "Search completed: ${indexedResults.size} results " +
+                                "(query: '$query', ${indexSearchDuration}ms, index size: $indexSize)",
+                        )
+
+                        emit(Result.success(indexedResults))
                     } else {
                         Log.w(
                             TAG,

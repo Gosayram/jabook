@@ -77,18 +77,47 @@ class RutrackerRepositoryImpl
     ) : RutrackerRepository {
         override suspend fun search(query: String): Result<List<RutrackerSearchResult>> {
             // Use ONLY indexed search (no network)
+            android.util.Log.d("RutrackerRepositoryImpl", "🔍 Search started: query='$query'")
             return try {
+                val countStartTime = System.currentTimeMillis()
                 val indexSize = offlineSearchDao.getTopicCount()
+                val countDuration = System.currentTimeMillis() - countStartTime
+                android.util.Log.d(
+                    "RutrackerRepositoryImpl",
+                    "Index size check: $indexSize topics (${countDuration}ms)",
+                )
+
                 if (indexSize > 0) {
+                    val searchStartTime = System.currentTimeMillis()
                     val entities = offlineSearchDao.searchIndexedTopics(query, limit = 200)
+                    val searchDuration = System.currentTimeMillis() - searchStartTime
+                    android.util.Log.d(
+                        "RutrackerRepositoryImpl",
+                        "DB search: ${entities.size} entities (${searchDuration}ms)",
+                    )
+
+                    val mapStartTime = System.currentTimeMillis()
                     val dtoResults = entities.map { it.toSearchResult() }
                     val domainResults = dtoResults.toDomain()
+                    val mapDuration = System.currentTimeMillis() - mapStartTime
+                    android.util.Log.d(
+                        "RutrackerRepositoryImpl",
+                        "Mapping: ${domainResults.size} results (${mapDuration}ms)",
+                    )
+
+                    android.util.Log.i(
+                        "RutrackerRepositoryImpl",
+                        "✅ Search completed: ${domainResults.size} results " +
+                            "(total: ${System.currentTimeMillis() - countStartTime}ms)",
+                    )
                     Result.Success(domainResults)
                 } else {
+                    android.util.Log.w("RutrackerRepositoryImpl", "⚠️ Index is empty, returning empty results")
                     // Index is empty - return empty results
                     Result.Success(emptyList())
                 }
             } catch (e: Exception) {
+                android.util.Log.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
                 // Search failed - return empty results
                 Result.Success(emptyList())
             }
