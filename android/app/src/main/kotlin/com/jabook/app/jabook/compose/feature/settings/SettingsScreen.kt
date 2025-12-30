@@ -302,12 +302,13 @@ fun SettingsScreen(
 
             SettingsSection(title = "Индексация форумов", contentPadding = contentPadding, itemSpacing = itemSpacing)
 
+            val context = androidx.compose.ui.platform.LocalContext.current
             SettingsItem(
                 title = if (indexSize == 0) "Индекс не создан" else "Индекс: $indexSize тем",
                 subtitle = if (indexSize == 0) "Нажмите для создания индекса" else "Нажмите для обновления индекса",
                 onClick = {
                     showIndexingDialog = true
-                    indexingViewModel.startIndexing()
+                    indexingViewModel.startIndexing(context)
                 },
             )
 

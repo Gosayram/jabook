@@ -115,6 +115,19 @@ fun SearchScreen(
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
     val scope = rememberCoroutineScope()
 
+    // Check index status for online search
+    val indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var indexSize by remember { mutableStateOf(0) }
+    var showIndexingMessage by remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        indexSize = indexingViewModel.getIndexSize()
+        if (indexSize == 0) {
+            showIndexingMessage = true
+        }
+    }
+
     // Removed filter sheet - using adaptive pane instead
 
     // SupportingPaneScaffold for adaptive filter display
@@ -213,8 +226,47 @@ fun SearchScreen(
                                 .padding(padding)
                                 .padding(16.dp),
                     ) {
+                        // Show indexing message if index is empty
+                        if (showIndexingMessage && indexSize == 0) {
+                            androidx.compose.material3.Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors =
+                                    androidx.compose.material3.CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    ),
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    Text(
+                                        text = "Индекс не создан",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text =
+                                            "Для поиска аудиокниг необходимо создать индекс форумов. " +
+                                                "Индексация работает в фоне, вы можете продолжать использовать приложение.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Button(
+                                        onClick = {
+                                            indexingViewModel.startIndexing(context)
+                                        },
+                                    ) {
+                                        Text("Начать индексацию")
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(16.dp))
+                        }
+
                         // Online search button
-                        if (searchQuery.isNotEmpty()) {
+                        if (searchQuery.isNotEmpty() && indexSize > 0) {
                             Button(
                                 onClick = viewModel::searchOnline,
                                 modifier = Modifier.fillMaxWidth(),
@@ -224,6 +276,35 @@ fun SearchScreen(
                                 Text(stringResource(R.string.searchOnlineRutracker))
                             }
 
+                            Spacer(Modifier.height(16.dp))
+                        } else if (searchQuery.isNotEmpty() && indexSize == 0) {
+                            // Show message that indexing is needed
+                            androidx.compose.material3.Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors =
+                                    androidx.compose.material3.CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    ),
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    Text(
+                                        text = "Индекс не создан",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Для поиска необходимо создать индекс. Нажмите кнопку выше.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                }
+                            }
                             Spacer(Modifier.height(16.dp))
                         }
 

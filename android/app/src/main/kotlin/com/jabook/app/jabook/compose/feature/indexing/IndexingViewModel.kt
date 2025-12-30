@@ -54,15 +54,31 @@ class IndexingViewModel
         val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
 
         /**
-         * Start full indexing of all audiobook forums.
+         * Start full indexing of all audiobook forums using Foreground Service.
+         * This allows indexing to continue in background with notification progress.
          * Checks authentication before starting - RuTracker requires login for forum access.
+         *
+         * @param context Context needed to start foreground service
          */
-        fun startIndexing() {
+        fun startIndexing(context: Context? = null) {
             if (_isIndexing.value) {
                 Log.w(TAG, "Indexing already in progress")
                 return
             }
 
+            // If context is provided, use foreground service for background indexing
+            if (context != null) {
+                Log.d(TAG, "Starting indexing via Foreground Service (background mode)")
+                _isIndexing.value = true
+                _indexingProgress.value = IndexingProgress.Idle
+                IndexingForegroundService.start(context)
+                // Progress will be updated from service via broadcast or we can observe service state
+                // For now, we'll update state when service completes
+                return
+            }
+
+            // Fallback: direct indexing (for testing or when context is not available)
+            Log.d(TAG, "Starting indexing directly (no context provided)")
             viewModelScope.launch {
                 _isIndexing.value = true
                 _indexingProgress.value = IndexingProgress.Idle

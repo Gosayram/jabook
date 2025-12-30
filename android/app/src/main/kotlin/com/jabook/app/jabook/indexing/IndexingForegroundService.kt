@@ -155,11 +155,11 @@ class IndexingForegroundService : Service() {
                 NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_LOW,
+                    NotificationManager.IMPORTANCE_DEFAULT, // Changed from LOW to DEFAULT for better visibility
                 ).apply {
                     description = "Уведомления о процессе индексации форумов"
-                    setShowBadge(false)
-                    enableLights(false)
+                    setShowBadge(true)
+                    enableLights(true)
                     enableVibration(false)
                 }
             val notificationManager = getSystemService(NotificationManager::class.java)
@@ -259,8 +259,13 @@ class IndexingForegroundService : Service() {
                 .setContentIntent(pendingIntent)
                 .setOngoing(progress is IndexingProgress.InProgress || progress is IndexingProgress.Idle)
                 .setOnlyAlertOnce(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+                .setPriority(
+                    if (progress is IndexingProgress.InProgress) {
+                        NotificationCompat.PRIORITY_DEFAULT // More visible during indexing
+                    } else {
+                        NotificationCompat.PRIORITY_LOW
+                    },
+                ).setCategory(NotificationCompat.CATEGORY_PROGRESS)
                 .setAutoCancel(progress is IndexingProgress.Completed || progress is IndexingProgress.Error)
 
         when (progress) {

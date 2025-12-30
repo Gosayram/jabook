@@ -156,6 +156,11 @@ fun RutrackerSearchScreen(
                     showIndexingDialog = false
                 }
             },
+            onHide = {
+                // Hide dialog and start foreground service to continue indexing in background
+                showIndexingDialog = false
+                indexingViewModel.startIndexingInBackground(context)
+            },
         )
     }
 
@@ -299,7 +304,7 @@ fun RutrackerSearchScreen(
                         Button(
                             onClick = {
                                 showIndexingDialog = true
-                                indexingViewModel.startIndexing()
+                                indexingViewModel.startIndexing(context)
                             },
                         ) {
                             Text("Начать индексацию")
@@ -334,7 +339,7 @@ fun RutrackerSearchScreen(
                         TextButton(
                             onClick = {
                                 showIndexingDialog = true
-                                indexingViewModel.startIndexing()
+                                indexingViewModel.startIndexing(context)
                             },
                         ) {
                             Text("Обновить")
