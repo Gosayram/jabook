@@ -63,38 +63,48 @@ class RutrackerSimpleDecoder
                 return ""
             }
 
-            Log.w(TAG, "=== DECODING START ===")
-            Log.w(TAG, "Bytes size: ${bytes.size}")
-            Log.w(TAG, "Content-Type: $contentType")
-
             // Extract charset from Content-Type header
             val detectedEncoding = extractCharsetFromContentType(contentType)
-            Log.w(TAG, "Detected encoding from header: $detectedEncoding")
-
-            // Preview first 100 bytes as hex for debugging
-            val hexPreview = bytes.take(100).joinToString(" ") { "%02x".format(it) }
-            Log.w(TAG, "First 100 bytes (hex): $hexPreview")
 
             val result =
-                when {
-                    detectedEncoding != null && isWindows1251(detectedEncoding) -> {
-                        Log.w(TAG, "Using Windows-1251 (from header)")
-                        String(bytes, CP1251)
+                try {
+                    when {
+                        detectedEncoding != null && isWindows1251(detectedEncoding) -> {
+                            String(bytes, CP1251)
+                        }
+                        detectedEncoding != null && isUtf8(detectedEncoding) -> {
+                            String(bytes, UTF8)
+                        }
+                        else -> {
+                            // No encoding specified - use Windows-1251 (RuTracker default)
+                            String(bytes, CP1251)
+                        }
                     }
-                    detectedEncoding != null && isUtf8(detectedEncoding) -> {
-                        Log.w(TAG, "Using UTF-8 (from header)")
+                } catch (e: Exception) {
+                    // Log decoding error only when it occurs
+                    Log.e(
+                        TAG,
+                        "Decoding error: ${e.javaClass.simpleName}: ${e.message} " +
+                            "(bytes: ${bytes.size}, encoding: $detectedEncoding)",
+                        e,
+                    )
+                    // Fallback to UTF-8 if Windows-1251 fails
+                    try {
                         String(bytes, UTF8)
-                    }
-                    else -> {
-                        // No encoding specified - use Windows-1251 (RuTracker default)
-                        Log.w(TAG, "Using Windows-1251 (default, no header)")
-                        String(bytes, CP1251)
+                    } catch (e2: Exception) {
+                        Log.e(TAG, "UTF-8 fallback also failed: ${e2.message}", e2)
+                        String(bytes, Charsets.ISO_8859_1) // Last resort
                     }
                 }
 
-            Log.w(TAG, "Decoded length: ${result.length}")
-            Log.w(TAG, "First 200 chars: ${result.take(200)}")
-            Log.w(TAG, "=== DECODING END ===")
+            // Only log if result looks invalid (contains replacement characters or is suspiciously short)
+            if (result.contains("\uFFFD") || (result.length < 10 && bytes.size > 100)) {
+                Log.w(
+                    TAG,
+                    "Decoding may have failed: result contains replacement chars or suspiciously short " +
+                        "(result length: ${result.length}, bytes: ${bytes.size}, encoding: $detectedEncoding)",
+                )
+            }
 
             return result
         }

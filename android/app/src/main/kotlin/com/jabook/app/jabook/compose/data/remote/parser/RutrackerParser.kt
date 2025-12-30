@@ -532,7 +532,24 @@ class RutrackerParser
                         result.data
                     }
                     is ParsingResult.PartialSuccess -> {
-                        Log.w(TAG, "Forum $forumId: partial parse - ${result.data.size} topics, ${result.errors.size} errors")
+                        // Log only critical errors, not warnings
+                        val criticalErrors = result.errors.filter { it.severity == ErrorSeverity.CRITICAL }
+                        if (criticalErrors.isNotEmpty()) {
+                            Log.w(
+                                TAG,
+                                "Forum $forumId: partial parse - ${result.data.size} topics, " +
+                                    "${criticalErrors.size} critical errors (${result.errors.size} total)",
+                            )
+                            criticalErrors.take(5).forEach { error ->
+                                Log.w(TAG, "  - ${error.field}: ${error.reason}")
+                            }
+                        } else {
+                            Log.d(
+                                TAG,
+                                "Forum $forumId: partial parse - ${result.data.size} topics, " +
+                                    "${result.errors.size} non-critical warnings",
+                            )
+                        }
                         result.data
                     }
                     is ParsingResult.Failure -> {

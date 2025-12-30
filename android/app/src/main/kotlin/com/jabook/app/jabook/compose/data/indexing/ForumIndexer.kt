@@ -25,6 +25,7 @@ import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -347,16 +348,31 @@ class ForumIndexer
                         hasMorePages = false
                     } else {
                         val dbStartTime = System.currentTimeMillis()
+                        // Validate topics before adding to index - only count valid ones
+                        val validTopics =
+                            topics.filter { topic ->
+                                val domain = topic.toDomain()
+                                domain.isValid()
+                            }
+                        val invalidCount = topics.size - validTopics.size
+                        if (invalidCount > 0) {
+                            Log.w(
+                                TAG,
+                                "Forum $forumId page $page: filtered out $invalidCount invalid topics " +
+                                    "(out of ${topics.size} parsed)",
+                            )
+                        }
                         Log.d(
                             TAG,
-                            "Forum $forumId page $page: parsed ${topics.size} topics (total: $totalTopics, " +
+                            "Forum $forumId page $page: parsed ${topics.size} topics, " +
+                                "${validTopics.size} valid (total: $totalTopics, " +
                                 "body: ${bodySize / 1024}KB, fetch: ${fetchTime}ms, parse: ${parseTime}ms)",
                         )
-                        // Add to buffer with current index version
+                        // Add only valid topics to buffer with current index version
                         // Note: magnetUrl, torrentUrl, coverUrl are NOT saved (optimization)
-                        val newEntities = topics.map { it.toCachedTopicEntity(indexVersion) }
+                        val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
-                        totalTopics += topics.size
+                        totalTopics += validTopics.size // Count only valid topics
 
                         // Cover URLs are no longer collected for preloading since they're not stored in index
                         // Covers will be loaded on-demand when topic is opened via getTopicDetails()
@@ -366,7 +382,8 @@ class ForumIndexer
                             val dbWriteStartTime = System.currentTimeMillis()
                             offlineSearchDao.upsertTopics(entitiesBuffer)
                             val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
-                            Log.d(TAG, "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms")
+                            val writtenCount = entitiesBuffer.size
+                            Log.d(TAG, "Forum $forumId: wrote $writtenCount topics to DB in ${dbWriteTime}ms")
                             entitiesBuffer.clear()
                         }
 
@@ -537,9 +554,23 @@ class ForumIndexer
                     if (topics.isEmpty()) {
                         hasMorePages = false
                     } else {
+                        // Validate topics before processing - only count valid ones
+                        val validTopics =
+                            topics.filter { topic ->
+                                val domain = topic.toDomain()
+                                domain.isValid()
+                            }
+                        val invalidCount = topics.size - validTopics.size
+                        if (invalidCount > 0) {
+                            Log.w(
+                                TAG,
+                                "Forum $forumId page $page incremental: filtered out $invalidCount invalid topics " +
+                                    "(out of ${topics.size} parsed)",
+                            )
+                        }
                         // Filter: only update new topics or topics that need updating
                         val topicsToUpdate =
-                            topics.filter { topic ->
+                            validTopics.filter { topic ->
                                 val existing = offlineSearchDao.getTopicById(topic.topicId)
                                 existing == null ||
                                     // New topic
@@ -559,7 +590,7 @@ class ForumIndexer
                             // Cover URLs are no longer collected (optimization)
                         }
 
-                        onProgress?.invoke(forumId, totalUpdated, topics.size)
+                        onProgress?.invoke(forumId, totalUpdated, validTopics.size)
 
                         // Rate limiting
                         delay(DELAY_BETWEEN_REQUESTS_MS)
