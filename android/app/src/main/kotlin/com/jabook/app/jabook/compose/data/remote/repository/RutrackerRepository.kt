@@ -24,6 +24,7 @@ import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
+import com.jabook.app.jabook.compose.data.remote.mapper.toDomainFromIndex
 import com.jabook.app.jabook.compose.data.remote.model.AudiobookCategory
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.parser.CategoryParser

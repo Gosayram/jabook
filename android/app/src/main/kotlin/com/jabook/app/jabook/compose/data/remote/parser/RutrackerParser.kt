@@ -672,6 +672,25 @@ class RutrackerParser
                     }
                 }
 
+            // Extract forum name from HTML for category assignment
+            val forumName =
+                try {
+                    val decodedHtml = decoder.decode(rawBytes, contentType)
+                    extractForumNameFromHTML(decodedHtml)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to extract forum name for forum $forumId", e)
+                    "Аудиокниги" // Fallback
+                }
+
+            Log.d(TAG, "Forum $forumId: extracted forum name = '$forumName'")
+
+            // Assign category to all topics if not already set
+            topics.forEach { topic ->
+                if (topic.category.isBlank()) {
+                    topic.category = forumName
+                }
+            }
+
             // Check pagination to determine if there are more pages
             // Use the same decoder as for parsing topics to ensure correct encoding (Windows-1251)
             val hasMorePages =
