@@ -33,76 +33,77 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class RutrackerRepositoryTest {
-
     private val api: RutrackerApi = mock()
     private val parser: RutrackerParser = mock()
     private val offlineSearchDao: OfflineSearchDao = mock()
-
 
     private lateinit var repository: RutrackerRepositoryImpl
 
     @Before
     fun setup() {
-        repository = RutrackerRepositoryImpl(
-            api,
-            parser,
-            offlineSearchDao,
-        )
-    }
-
-    @Test
-    fun `search with !index command calls getSampleTopics`() = runTest {
-        // Arrange
-        val sampleTopics = listOf(
-            CachedTopicEntity(
-                topicId = "1",
-                title = "Test Title",
-                author = "Test Author",
-                category = "Books",
-                seeders = 10,
-                leechers = 0,
-                size = "100 MB",
-                timestamp = 1000L,
-                indexVersion = 1,
-                magnetUrl = "magnet:?xt=urn:btih:123"
+        repository =
+            RutrackerRepositoryImpl(
+                api,
+                parser,
+                offlineSearchDao,
             )
-        )
-        whenever(offlineSearchDao.getSampleTopics(10)).thenReturn(sampleTopics)
-        whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
-
-
-        // Act
-        val result = repository.search("!index")
-
-        // Assert
-        verify(offlineSearchDao).getSampleTopics(10)
-        assertTrue(result is com.jabook.app.jabook.compose.domain.model.Result.Success)
-        val data = (result as com.jabook.app.jabook.compose.domain.model.Result.Success).data
-        assertEquals(1, data.size)
-        assertEquals("[DEBUG] Test Title", data[0].title)
     }
 
     @Test
-    fun `search with normal query builds correct SQL`() = runTest {
-        // Arrange
-        val query = "Harry Potter"
-        whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
-        whenever(offlineSearchDao.searchIndexedTopicsRaw(any())).thenReturn(emptyList())
+    fun `search with !index command calls getSampleTopics`() =
+        runTest {
+            // Arrange
+            val sampleTopics =
+                listOf(
+                    CachedTopicEntity(
+                        topicId = "1",
+                        title = "Test Title",
+                        author = "Test Author",
+                        category = "Books",
+                        seeders = 10,
+                        leechers = 0,
+                        size = "100 MB",
+                        timestamp = 1000L,
+                        indexVersion = 1,
+                        magnetUrl = "magnet:?xt=urn:btih:123",
+                    ),
+                )
+            whenever(offlineSearchDao.getSampleTopics(10)).thenReturn(sampleTopics)
+            whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
 
-        // Act
-        repository.search(query)
+            // Act
+            val result = repository.search("!index")
 
-        // Assert
-        val captor = argumentCaptor<androidx.sqlite.db.SupportSQLiteQuery>()
-        verify(offlineSearchDao).searchIndexedTopicsRaw(captor.capture())
+            // Assert
+            verify(offlineSearchDao).getSampleTopics(10)
+            assertTrue(result is com.jabook.app.jabook.compose.domain.model.Result.Success)
+            val data = (result as com.jabook.app.jabook.compose.domain.model.Result.Success).data
+            assertEquals(1, data.size)
+            assertEquals("[DEBUG] Test Title", data[0].title)
+        }
 
-        val sqlQuery = captor.firstValue
-        val sql = sqlQuery.sql
-        
-        // Expect logic: SELECT * FROM cached_topics WHERE (title LIKE ? OR author LIKE ?) AND (title LIKE ? OR author LIKE ?) ...
-        assertTrue(sql.contains("SELECT * FROM cached_topics WHERE"))
-        assertTrue(sql.contains("(title LIKE ? OR author LIKE ?)"))
-        assertTrue(sql.contains("AND"))
-        assertTrue(sql.contains("ORDER BY seeders DESC, timestamp DESC LIMIT 200"))
-    }
+    @Test
+    fun `search with normal query builds correct SQL`() =
+        runTest {
+            // Arrange
+            val query = "Harry Potter"
+            whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
+            whenever(offlineSearchDao.searchIndexedTopicsRaw(any())).thenReturn(emptyList())
+
+            // Act
+            repository.search(query)
+
+            // Assert
+            val captor = argumentCaptor<androidx.sqlite.db.SupportSQLiteQuery>()
+            verify(offlineSearchDao).searchIndexedTopicsRaw(captor.capture())
+
+            val sqlQuery = captor.firstValue
+            val sql = sqlQuery.sql
+
+            // Expect logic: SELECT * FROM cached_topics WHERE (title LIKE ? OR author LIKE ?) AND (title LIKE ? OR author LIKE ?) ...
+            assertTrue(sql.contains("SELECT * FROM cached_topics WHERE"))
+            assertTrue(sql.contains("(title LIKE ? OR author LIKE ?)"))
+            assertTrue(sql.contains("AND"))
+            assertTrue(sql.contains("ORDER BY seeders DESC, timestamp DESC LIMIT 200"))
+        }
 }

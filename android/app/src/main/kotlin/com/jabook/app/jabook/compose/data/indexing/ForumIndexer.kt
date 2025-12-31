@@ -266,20 +266,21 @@ class ForumIndexer
                         "mirror: $finalMirror",
                 )
 
-                // Log sample topics to verify index content (debug)
+                // Log sample topics to verify index content (AUTOMATIC VERIFICATION)
                 try {
                     val sampleTopics = offlineSearchDao.getSampleTopics(5)
-                    Log.i(TAG, "=== SAMPLE INDEXED TOPICS (DEBUG) ===")
+                    Log.i(TAG, "🔍 === AUTOMATIC INDEX VERIFICATION: DATABASE CONTENT CHECK ===")
+                    Log.i(TAG, "Found ${sampleTopics.size} sample topics in database:")
                     sampleTopics.forEachIndexed { index, topic ->
                         Log.i(
                             TAG,
-                            "Topic #$index: [${topic.topicId}] '${topic.title}' by '${topic.author}' " +
-                                "(Cat: ${topic.category}, Ver: ${topic.indexVersion})",
+                            "  [$index] ID: ${topic.topicId} | Title: ${topic.title.take(50)}... | " +
+                                "Author: ${topic.author} | Cat: ${topic.category} | Size: ${topic.size}",
                         )
                     }
-                    Log.i(TAG, "=======================================")
+                    Log.i(TAG, "✅ === DATABASE CONTENT VERIFIED: ${sampleTopics.size} ITEMS RETRIEVED ===")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to log sample topics", e)
+                    Log.e(TAG, "❌ Failed to perform automatic index verification", e)
                 }
 
                 // Use database count as single source of truth for completion

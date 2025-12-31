@@ -54,7 +54,7 @@ class RutrackerParserTest {
         fieldExtractor = DefensiveFieldExtractor()
         // CoverUrlExtractor requires MirrorManager
         coverExtractor = CoverUrlExtractor(mirrorManager)
-        
+
         parser =
             RutrackerParser(
                 mockMediaInfoParser,
