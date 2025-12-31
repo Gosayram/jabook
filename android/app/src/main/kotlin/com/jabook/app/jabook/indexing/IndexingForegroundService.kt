@@ -107,8 +107,9 @@ class IndexingForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        Log.i(TAG, "=== IndexingForegroundService onCreate() ===")
         createNotificationChannel()
-        Log.d(TAG, "Service created")
+        Log.i(TAG, "Service created and notification channel initialized")
     }
 
     override fun onStartCommand(
@@ -116,20 +117,28 @@ class IndexingForegroundService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
+        Log.i(TAG, "onStartCommand() called with action: ${intent?.action}")
         when (intent?.action) {
             ACTION_START -> {
-                Log.d(TAG, "Starting indexing")
+                Log.i(TAG, "=== ACTION_START: Starting indexing ===")
                 startForegroundWithNotification()
                 startIndexing()
             }
             ACTION_STOP -> {
-                Log.d(TAG, "Stopping service")
+                Log.i(TAG, "=== ACTION_STOP: Stopping service ===")
                 stopSelf()
             }
             ACTION_UPDATE_PROGRESS -> {
+                Log.d(TAG, "ACTION_UPDATE_PROGRESS received")
                 // Progress update from external source (if needed)
                 // Note: IndexingProgress is not Serializable, so we update from service's own state
                 updateNotification(currentProgress)
+            }
+            null -> {
+                Log.w(TAG, "⚠️ onStartCommand called with null action")
+            }
+            else -> {
+                Log.w(TAG, "⚠️ Unknown action: ${intent.action}")
             }
         }
 
@@ -151,6 +160,7 @@ class IndexingForegroundService : Service() {
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Log.i(TAG, "Creating notification channel: $CHANNEL_ID")
             val channel =
                 NotificationChannel(
                     CHANNEL_ID,
@@ -165,7 +175,18 @@ class IndexingForegroundService : Service() {
                 }
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
-            Log.d(TAG, "Notification channel created: $CHANNEL_ID")
+
+            // Verify channel was created
+            val createdChannel = notificationManager.getNotificationChannel(CHANNEL_ID)
+            if (createdChannel != null) {
+                Log.i(TAG, "✅ Notification channel created successfully: $CHANNEL_ID")
+                Log.i(TAG, "Channel importance: ${createdChannel.importance}")
+                Log.i(TAG, "Channel can show badge: ${createdChannel.canShowBadge()}")
+            } else {
+                Log.e(TAG, "❌ Failed to create notification channel!")
+            }
+        } else {
+            Log.i(TAG, "Android < O, notification channel not needed")
         }
     }
 
@@ -173,8 +194,15 @@ class IndexingForegroundService : Service() {
      * Starts foreground service with initial notification.
      */
     private fun startForegroundWithNotification() {
-        val notification = createNotification(IndexingProgress.Idle)
-        startForeground(NOTIFICATION_ID, notification)
+        Log.i(TAG, "Starting foreground service with notification ID: $NOTIFICATION_ID")
+        try {
+            val notification = createNotification(IndexingProgress.Idle)
+            startForeground(NOTIFICATION_ID, notification)
+            Log.i(TAG, "✅ Foreground service started successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to start foreground service", e)
+            throw e
+        }
     }
 
     /**
@@ -242,6 +270,7 @@ class IndexingForegroundService : Service() {
      * Creates notification with current progress.
      */
     private fun createNotification(progress: IndexingProgress): Notification {
+        Log.d(TAG, "Creating notification for progress: ${progress::class.simpleName}")
         val intent =
             Intent(this, ComposeMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -253,6 +282,7 @@ class IndexingForegroundService : Service() {
                 intent,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
+        Log.d(TAG, "PendingIntent created for notification")
 
         val builder =
             NotificationCompat
@@ -325,16 +355,31 @@ class IndexingForegroundService : Service() {
             }
         }
 
-        return builder.build()
+        val notification = builder.build()
+        Log.d(TAG, "Notification built successfully")
+        return notification
     }
 
     /**
      * Updates notification with current progress.
      */
     private fun updateNotification(progress: IndexingProgress) {
-        val notification = createNotification(progress)
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.notify(NOTIFICATION_ID, notification)
-        Log.d(TAG, "Notification updated: ${progress::class.simpleName}")
+        try {
+            Log.d(TAG, "Updating notification for: ${progress::class.simpleName}")
+            val notification = createNotification(progress)
+            val notificationManager = getSystemService(NotificationManager::class.java)
+
+            // Check if notifications are enabled
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                if (!notificationManager.areNotificationsEnabled()) {
+                    Log.w(TAG, "⚠️ Notifications are DISABLED by user in system settings!")
+                }
+            }
+
+            notificationManager.notify(NOTIFICATION_ID, notification)
+            Log.i(TAG, "✅ Notification posted successfully: ${progress::class.simpleName}")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to update notification", e)
+        }
     }
 }
