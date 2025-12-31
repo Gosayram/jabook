@@ -193,7 +193,9 @@ class DebugViewModel
                                 logger.logSuccess(operationId, "Auth debug info refreshed")
                             } catch (e: Exception) {
                                 // Handle errors gracefully - update authDebugInfo with error state
-                                logger.logError(operationId, "Failed to refresh auth debug info", e)
+                                // Use WARNING for individual failures, not ERROR
+                                android.util.Log.w("DebugViewModel", "Auth debug info refresh incomplete: ${e.message}")
+                                logger.logError(operationId, "Auth debug info refresh incomplete", e)
                                 val errorInfo =
                                     com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                                         isAuthenticated = false,
@@ -251,38 +253,50 @@ class DebugViewModel
                         }
 
                     if (mirrors.isEmpty()) {
-                        android.util.Log.w("DebugViewModel", "No mirrors available for health check")
+                        android.util.Log.w("DebugViewModel", "No mirrors configured for health check")
                         emptyMap()
                     } else {
                         // Check mirrors in parallel for better performance
-                        coroutineScope {
+                        val results = coroutineScope {
                             mirrors
                                 .map { mirror ->
                                     async {
                                         try {
-                                            mirror to mirrorManager.checkMirrorHealth(mirror)
+                                            val isHealthy = mirrorManager.checkMirrorHealth(mirror)
+                                            mirror to isHealthy
                                         } catch (e: kotlinx.coroutines.CancellationException) {
                                             // Re-throw cancellation to propagate timeout
                                             throw e
                                         } catch (e: Exception) {
-                                            // Only log non-cancellation errors
-                                            android.util.Log.w("DebugViewModel", "Failed to check health for mirror: $mirror", e)
+                                            // Individual mirror check failed - this is normal, not an error
+                                            android.util.Log.i("DebugViewModel", "Mirror $mirror unavailable (expected behavior): ${e.message}")
                                             mirror to false
                                         }
                                     }
                                 }.awaitAll()
                                 .toMap()
                         }
+                        
+                        // Log summary of mirror health check
+                        val availableCount = results.values.count { it }
+                        val totalCount = results.size
+                        if (availableCount == 0) {
+                            android.util.Log.w("DebugViewModel", "All mirrors unavailable ($totalCount checked)")
+                        } else {
+                            android.util.Log.i("DebugViewModel", "Mirror health check complete: $availableCount/$totalCount available")
+                        }
+                        
+                        results
                     }
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                android.util.Log.w("DebugViewModel", "Mirror health check timed out after 20 seconds")
+                android.util.Log.i("DebugViewModel", "Mirror health check timed out after 20s (some mirrors slow to respond)")
                 emptyMap()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // Re-throw cancellation to allow proper cleanup
                 throw e
             } catch (e: Exception) {
-                android.util.Log.e("DebugViewModel", "Failed to check mirrors", e)
+                android.util.Log.e("DebugViewModel", "Unexpected error during mirror check", e)
                 emptyMap()
             }
 

@@ -151,7 +151,8 @@ class MirrorManager
 
                     isHealthy
                 } catch (e: Exception) {
-                    Log.w(TAG, "Mirror $domain health check failed: ${e.message}")
+                    // Individual mirror unavailable is normal, not a warning
+                    Log.i(TAG, "Mirror $domain unavailable (timeout or unreachable): ${e.message}")
                     false
                 }
             }
