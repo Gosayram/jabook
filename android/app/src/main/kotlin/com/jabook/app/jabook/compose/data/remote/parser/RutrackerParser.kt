@@ -66,7 +66,7 @@ class RutrackerParser
                     "tr:has(td[class*='vf-col'])", // Rows with vf-col cells
                 )
 
-            private const val TITLE_SELECTOR = "a.torTopic, a.tt-text, a[href*='viewtopic.php?t=']"
+            private const val TITLE_SELECTOR = "a[id^='tt-'], a.tt-text, a.torTopic:not(.t-is-unread)"
             private const val AUTHOR_SELECTOR = "a.topicAuthor, a.pmed, a[href*='profile.php']"
             private const val SIZE_SELECTOR = "a.f-dl, a.dl-stub, span.small, td.small, div.small"
 
