@@ -117,6 +117,13 @@ class ForumIndexer
                 var totalIndexed = 0
                 val coversToPreload = mutableListOf<String>()
 
+                // Log current mirror at start of indexing
+                val initialMirror = mirrorManager.getCurrentMirrorDomain()
+                Log.i(TAG, "=== FORUM INDEXING START ===")
+                Log.i(TAG, "Using mirror: $initialMirror")
+                Log.i(TAG, "Indexing version: $currentIndexVersion")
+                Log.i(TAG, "Forums to index: ${forumIdList.size}")
+
                 // Validate that only audiobook forums are being indexed
                 val allowedForums =
                     RutrackerApi.AUDIOBOOKS_FORUM_IDS
@@ -229,6 +236,18 @@ class ForumIndexer
                 val memoryUsed = finalMemory / (1024 * 1024) // MB
                 val topicsPerSecond = if (duration > 0) (totalIndexed * 1000) / duration else 0
 
+                // Verify mirror didn't change during indexing
+                val finalMirror = mirrorManager.getCurrentMirrorDomain()
+                if (finalMirror != initialMirror) {
+                    Log.w(
+                        TAG,
+                        "⚠️ Mirror changed during indexing! Initial: $initialMirror, Final: $finalMirror. " +
+                            "This may indicate auto-switch occurred or connection issues.",
+                    )
+                } else {
+                    Log.d(TAG, "Mirror remained stable: $finalMirror")
+                }
+
                 // Verify actual count in database matches indexed count (single source of truth)
                 val actualCountInDb = getIndexSize()
                 if (actualCountInDb != totalIndexed) {
@@ -243,7 +262,8 @@ class ForumIndexer
                     TAG,
                     "Forum indexing completed. Indexed: $totalIndexed topics, database: $actualCountInDb topics, " +
                         "duration: ${duration}ms (${duration / 1000}s), " +
-                        "speed: $topicsPerSecond topics/s, memory: +${memoryUsed}MB",
+                        "speed: $topicsPerSecond topics/s, memory: +${memoryUsed}MB, " +
+                        "mirror: $finalMirror",
                 )
 
                 // Use database count as single source of truth for completion

@@ -21,6 +21,7 @@ import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
@@ -61,6 +62,7 @@ class RutrackerRepository
         private val authService: RutrackerAuthService,
         private val searchCache: RutrackerSearchCache,
         private val offlineSearchDao: OfflineSearchDao,
+        private val mirrorManager: MirrorManager,
     ) {
         companion object {
             private const val TAG = "RutrackerRepository"
@@ -134,8 +136,10 @@ class RutrackerRepository
             withContext(Dispatchers.IO) {
                 try {
                     val searchStartTime = System.currentTimeMillis()
+                    val currentMirror = mirrorManager.getCurrentMirrorDomain()
                     Log.i(TAG, "=== INDEXED SEARCH START ===")
                     Log.i(TAG, "Input query: '$query', limit: $limit")
+                    Log.i(TAG, "Current mirror: $currentMirror")
 
                     // Log exact SQL that will be executed (reconstructed for visibility)
                     val sqlPattern =
@@ -238,7 +242,9 @@ class RutrackerRepository
             forumIds: String? = null,
         ): Flow<Result<List<RutrackerSearchResult>>> =
             flow {
+                val currentMirror = mirrorManager.getCurrentMirrorDomain()
                 Log.i(TAG, "🔍 Index-only search started: query='$query', forumIds=$forumIds")
+                Log.i(TAG, "Using mirror: $currentMirror")
 
                 try {
                     // Check if index exists and has data with timeout
@@ -301,10 +307,13 @@ class RutrackerRepository
         ): Result<List<RutrackerSearchResult>> {
             val opId = operationId ?: logger.startOperation("fetchFromNetwork")
             val networkStartTime = System.currentTimeMillis()
+            val currentMirror = mirrorManager.getCurrentMirrorDomain()
             logger.log(opId, "Fetching from network: query='$query', forumIds=$forumIds")
+            logger.log(opId, "Current mirror: $currentMirror")
             // === HTTP REQUEST LOGGING ===
             Log.w(TAG, "🔍 === SEARCH REQUEST ===")
             Log.w(TAG, "Query: '$query'")
+            Log.w(TAG, "Mirror: $currentMirror")
             if (forumIds != null) {
                 Log.w(TAG, "Forum IDs: $forumIds")
             }
