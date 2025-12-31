@@ -108,6 +108,7 @@ fun TopicScreen(
     viewModel: TopicViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
 
@@ -179,6 +180,8 @@ fun TopicScreen(
                 TopicDetailsContent(
                     details = state.details,
                     viewModel = viewModel,
+                    isRefreshing = isRefreshing,
+                    onRefresh = { viewModel.refreshTopicDetails(silent = true) },
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -205,6 +208,8 @@ fun TopicScreen(
 private fun TopicDetailsContent(
     details: RutrackerTopicDetails,
     viewModel: TopicViewModel,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -498,6 +503,8 @@ private fun TopicDetailsContent(
                     description = details.description,
                     descriptionHtml = details.descriptionHtml,
                     comments = details.comments,
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRefresh,
                 )
             }
         }
@@ -654,6 +661,8 @@ private fun DescriptionAndCommentsSection(
     description: String?,
     descriptionHtml: String? = null,
     comments: List<com.jabook.app.jabook.compose.domain.model.RutrackerComment>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -695,7 +704,11 @@ private fun DescriptionAndCommentsSection(
             Column(
                 modifier = Modifier.weight(1f),
             ) {
-                ExpandableComments(comments = comments)
+                ExpandableComments(
+                    comments = comments,
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRefresh,
+                )
             }
         }
     } else {
@@ -711,7 +724,11 @@ private fun DescriptionAndCommentsSection(
                 )
             }
             if (comments.isNotEmpty()) {
-                ExpandableComments(comments = comments)
+                ExpandableComments(
+                    comments = comments,
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRefresh,
+                )
             }
         }
     }
@@ -852,9 +869,18 @@ private fun FileListItem(
 @Composable
 private fun ExpandableComments(
     comments: List<com.jabook.app.jabook.compose.domain.model.RutrackerComment>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
+
+    // Refresh when expanded
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            onRefresh()
+        }
+    }
 
     Column(modifier = modifier) {
         Row(
@@ -866,6 +892,13 @@ private fun ExpandableComments(
                 text = stringResource(R.string.commentsLabel, comments.size),
                 style = MaterialTheme.typography.titleSmall,
             )
+
+            if (isRefreshing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.height(16.dp).width(16.dp),
+                    strokeWidth = 2.dp,
+                )
+            }
 
             TextButton(
                 onClick = { expanded = !expanded },
@@ -882,8 +915,8 @@ private fun ExpandableComments(
             Spacer(Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Show comments from newest to oldest (fresh comments first)
-                // Parser returns comments in chronological order (oldest first), so we reverse
-                comments.reversed().forEach { comment ->
+                // Sorting is now handled in ViewModel
+                comments.forEach { comment ->
                     CommentItem(comment = comment)
                 }
             }

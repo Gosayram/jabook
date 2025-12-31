@@ -96,6 +96,9 @@ class TopicViewModel
                 initialValue = AuthStatus.Unauthenticated,
             )
 
+        private val _isRefreshing = MutableStateFlow(false)
+        val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
         init {
             loadTopicDetails()
         }
@@ -109,7 +112,11 @@ class TopicViewModel
                 _uiState.value =
                     when (result) {
                         is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
-                            TopicUiState.Success(result.data)
+                            TopicUiState.Success(
+                                result.data.copy(
+                                    comments = result.data.comments.reversed(), // Sort comments newest first
+                                ),
+                            )
                         }
                         is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
                             TopicUiState.Error(result.message ?: context.getString(R.string.unknownError))
@@ -118,6 +125,41 @@ class TopicViewModel
                             TopicUiState.Loading
                         }
                     }
+            }
+        }
+
+        fun refreshTopicDetails(silent: Boolean = true) {
+            viewModelScope.launch {
+                if (!silent) {
+                    _uiState.value = TopicUiState.Loading
+                } else {
+                    _isRefreshing.value = true
+                }
+
+                val result = rutrackerRepository.getTopicDetails(topicId)
+
+                when (result) {
+                    is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                        _uiState.value =
+                            TopicUiState.Success(
+                                result.data.copy(
+                                    comments = result.data.comments.reversed(), // Sort comments newest first
+                                ),
+                            )
+                    }
+                    is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
+                        if (!silent) {
+                            _uiState.value = TopicUiState.Error(result.message ?: context.getString(R.string.unknownError))
+                        } else {
+                            _message.value = result.message ?: context.getString(R.string.unknownError)
+                        }
+                    }
+                    is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
+                        // Ignore loading state during silent refresh
+                    }
+                }
+
+                _isRefreshing.value = false
             }
         }
 
