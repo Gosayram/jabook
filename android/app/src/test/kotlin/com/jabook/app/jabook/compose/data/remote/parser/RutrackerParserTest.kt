@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
-import com.jabook.app.jabook.compose.data.remote.encoding.DefensiveEncodingHandler
+import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -40,24 +41,27 @@ import org.mockito.kotlin.mock
  */
 class RutrackerParserTest {
     private lateinit var parser: RutrackerParser
-    private lateinit var mockEncodingHandler: DefensiveEncodingHandler
+    private lateinit var mockDecoder: RutrackerSimpleDecoder
     private lateinit var mockMediaInfoParser: MediaInfoParser
     private lateinit var fieldExtractor: DefensiveFieldExtractor
     private lateinit var coverExtractor: CoverUrlExtractor
+    private lateinit var mirrorManager: MirrorManager
 
     @Before
     fun setup() {
-        mockEncodingHandler = mock()
+        mockDecoder = mock()
         mockMediaInfoParser = mock()
         fieldExtractor = DefensiveFieldExtractor()
         coverExtractor = CoverUrlExtractor()
+        mirrorManager = mock()
 
         parser =
             RutrackerParser(
                 mockMediaInfoParser,
-                mockEncodingHandler,
+                mockDecoder,
                 fieldExtractor,
                 coverExtractor,
+                mirrorManager,
             )
     }
 

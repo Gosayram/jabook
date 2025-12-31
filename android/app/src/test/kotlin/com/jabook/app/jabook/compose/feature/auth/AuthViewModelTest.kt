@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
@@ -40,6 +41,7 @@ import org.mockito.kotlin.whenever
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {
     private val authRepository: AuthRepository = mock()
+    private val mirrorManager: MirrorManager = mock()
     private lateinit var viewModel: AuthViewModel
     private val testDispatcher = StandardTestDispatcher()
 
@@ -49,7 +51,7 @@ class AuthViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         whenever(authRepository.authStatus).thenReturn(authStatusFlow)
-        viewModel = AuthViewModel(authRepository)
+        viewModel = AuthViewModel(authRepository, mirrorManager)
     }
 
     @After
@@ -78,7 +80,7 @@ class AuthViewModelTest {
             // Since loadSavedCredentials is async in init, we need to advance dispatcher.
 
             // Let's create a new VM instance for this test to correctly capture init behavior
-            viewModel = AuthViewModel(authRepository)
+            viewModel = AuthViewModel(authRepository, mirrorManager)
             testDispatcher.scheduler.advanceUntilIdle()
 
             assertEquals(credentials, viewModel.uiState.value.savedCredentials)
