@@ -138,7 +138,6 @@ fun List<SearchResult>.toDomainFromIndex(): List<RutrackerSearchResult> {
     return results
 }
 
-
 /**
  * Maps TopicDetails DTO to RutrackerTopicDetails domain model.
  *

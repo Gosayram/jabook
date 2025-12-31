@@ -685,11 +685,14 @@ class RutrackerParser
             Log.d(TAG, "Forum $forumId: extracted forum name = '$forumName'")
 
             // Assign category to all topics if not already set
-            topics.forEach { topic ->
-                if (topic.category.isBlank()) {
-                    topic.category = forumName
+            val topicsWithCategory =
+                topics.map { topic ->
+                    if (topic.category.isBlank()) {
+                        topic.copy(category = forumName)
+                    } else {
+                        topic
+                    }
                 }
-            }
 
             // Check pagination to determine if there are more pages
             // Use the same decoder as for parsing topics to ensure correct encoding (Windows-1251)
@@ -738,7 +741,7 @@ class RutrackerParser
                     topics.size >= 50
                 }
 
-            return ForumPageResult(topics = topics, hasMorePages = hasMorePages)
+            return ForumPageResult(topics = topicsWithCategory, hasMorePages = hasMorePages)
         }
 
         /**
