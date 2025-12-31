@@ -110,6 +110,22 @@ fun SettingsScreen(
 ) {
     // Get window size class for adaptive sizing
     val context = LocalContext.current
+    // Request notification permission for Android 13+
+    val notificationPermissionLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .RequestPermission(),
+        ) { isGranted ->
+            if (!isGranted) {
+                android.widget.Toast
+                    .makeText(
+                        context,
+                        "Разрешение на уведомления отклонено. Вы не увидите прогресс индексации.",
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+            }
+        }
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
@@ -307,6 +323,14 @@ fun SettingsScreen(
                 title = if (indexSize == 0) "Индекс не создан" else "Индекс: $indexSize тем",
                 subtitle = if (indexSize == 0) "Нажмите для создания индекса" else "Нажмите для обновления индекса",
                 onClick = {
+                    // Check and request notification permission on Android 13+
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                            android.content.pm.PackageManager.PERMISSION_GRANTED
+                        ) {
+                            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
                     showIndexingDialog = true
                     indexingViewModel.startIndexing(context)
                 },
@@ -328,7 +352,30 @@ fun SettingsScreen(
                                 "Ошибка: ${progress.message}"
                             else -> "Готово к индексации"
                         },
-                )
+                ) {
+                    // Show progress bar during indexing
+                    if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress) {
+                        val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
+                        val progressValue = progress.currentForumIndex.toFloat() / progress.totalForums.toFloat()
+
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            androidx.compose.material3.LinearProgressIndicator(
+                                progress = { progressValue },
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                            )
+                            // Progress text
+                            Text(
+                                text = "Прогресс: ${(progressValue * 100).toInt()}% • Тем: ${progress.topicsIndexed}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    }
+                }
 
                 // Add clear index button if index exists
                 if (indexSize > 0 && !isIndexing) {

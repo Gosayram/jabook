@@ -50,6 +50,13 @@ class IndexingViewModel
         private val _indexingProgress = MutableStateFlow<IndexingProgress>(IndexingProgress.Idle)
         val indexingProgress: StateFlow<IndexingProgress> = _indexingProgress.asStateFlow()
 
+        // Timing state
+        private val _indexingStartTime = MutableStateFlow<Long?>(null)
+        val indexingStartTime: StateFlow<Long?> = _indexingStartTime.asStateFlow()
+
+        private val _clearingInProgress = MutableStateFlow(false)
+        val clearingInProgress: StateFlow<Boolean> = _clearingInProgress.asStateFlow()
+
         private val _isIndexing = MutableStateFlow(false)
         val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
 
@@ -70,6 +77,7 @@ class IndexingViewModel
             if (context != null) {
                 Log.d(TAG, "Starting indexing via Foreground Service (background mode)")
                 _isIndexing.value = true
+                _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
                 IndexingForegroundService.start(context)
                 // Progress will be updated from service via broadcast or we can observe service state
@@ -81,6 +89,7 @@ class IndexingViewModel
             Log.d(TAG, "Starting indexing directly (no context provided)")
             viewModelScope.launch {
                 _isIndexing.value = true
+                _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
 
                 try {
@@ -163,11 +172,16 @@ class IndexingViewModel
         suspend fun clearIndex(): Boolean =
             try {
                 Log.i(TAG, "Clearing index...")
+                _clearingInProgress.value = true
+                val startTime = System.currentTimeMillis()
                 forumIndexer.clearIndex()
-                Log.i(TAG, "Index cleared successfully")
+                val duration = System.currentTimeMillis() - startTime
+                Log.i(TAG, "Index cleared successfully in ${duration}ms (${duration / 1000}s)")
+                _clearingInProgress.value = false
                 true
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to clear index", e)
+                _clearingInProgress.value = false
                 false
             }
     }
