@@ -57,6 +57,7 @@ class IndexingForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var indexingJob: Job? = null
     private var currentProgress: IndexingProgress = IndexingProgress.Idle
+    private var startTime: Long = 0L
 
     companion object {
         private const val TAG = "IndexingForegroundService"
@@ -239,6 +240,7 @@ class IndexingForegroundService : Service() {
                     }
 
                     currentProgress = IndexingProgress.Idle
+                    startTime = System.currentTimeMillis()
                     updateNotification(currentProgress)
 
                     forumIndexer.indexForums(
@@ -312,18 +314,19 @@ class IndexingForegroundService : Service() {
                 builder
                     .setContentTitle("Индексация форумов")
                     .setContentText(
-                        "Форум ${progress.currentForumIndex + 1}/${progress.totalForums}: ${progress.currentForum}\n" +
-                            "Страница ${progress.currentPage + 1}, тем: ${progress.topicsIndexed}",
+                        "Форум ${progress.currentForumIndex + 1}/${progress.totalForums}: ${progress.currentForum}",
                     ).setProgress(100, progressPercent, false)
+                    .setUsesChronometer(true)
+                    .setWhen(startTime)
+                    .setSubText("${progress.topicsIndexed} тем")
                     .setStyle(
                         NotificationCompat
                             .BigTextStyle()
                             .bigText(
-                                "Индексируем форум: ${progress.currentForum}\n" +
-                                    "Форум ${progress.currentForumIndex + 1} из ${progress.totalForums}\n" +
-                                    "Страница ${progress.currentPage + 1}\n" +
-                                    "Проиндексировано: ${progress.topicsIndexed} тем\n" +
-                                    "Прогресс: $progressPercent%",
+                                "Форум: ${progress.currentForum}\n" +
+                                    "Прогресс: $progressPercent% (${progress.currentForumIndex + 1}/${progress.totalForums})\n" +
+                                    "Страница: ${progress.currentPage + 1}\n" +
+                                    "Найдено тем: ${progress.topicsIndexed}",
                             ),
                     )
             }

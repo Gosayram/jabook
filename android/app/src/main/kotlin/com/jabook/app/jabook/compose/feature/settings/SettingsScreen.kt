@@ -298,9 +298,33 @@ fun SettingsScreen(
             // Indexing Section
             val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
             val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
+            val indexingStartTime by indexingViewModel.indexingStartTime.collectAsStateWithLifecycle()
+            val clearingInProgress by indexingViewModel.clearingInProgress.collectAsStateWithLifecycle()
+            
             var showIndexingDialog by remember { mutableStateOf(false) }
             var indexSize by remember { mutableStateOf(0) }
             var indexMetadata by remember { mutableStateOf<com.jabook.app.jabook.compose.data.local.dao.IndexMetadata?>(null) }
+            var elapsedTimeStr by remember { mutableStateOf("") }
+            
+            // Timer for elapsed time
+            LaunchedEffect(isIndexing, indexingStartTime) {
+                if (isIndexing && indexingStartTime != null) {
+                    while (true) {
+                        val duration = System.currentTimeMillis() - indexingStartTime!!
+                        val seconds = duration / 1000
+                        val minutes = seconds / 60
+                        val hours = minutes / 60
+                        elapsedTimeStr = if (hours > 0) {
+                            String.format("%d:%02d:%02d", hours, minutes % 60, seconds % 60)
+                        } else {
+                            String.format("%02d:%02d", minutes % 60, seconds % 60)
+                        }
+                        kotlinx.coroutines.delay(1000)
+                    }
+                } else {
+                    elapsedTimeStr = ""
+                }
+            }
 
             LaunchedEffect(Unit) {
                 indexSize = indexingViewModel.getIndexSize()
@@ -336,25 +360,31 @@ fun SettingsScreen(
                 },
             )
 
-            if (isIndexing || indexSize > 0) {
+            if (isIndexing || indexSize > 0 || clearingInProgress) {
                 SettingsItem(
-                    title = "Статус индексации",
+                    title = if (clearingInProgress) "Очистка индекса..." else "Статус индексации",
                     subtitle =
-                        when (val progress = indexingProgress) {
-                            is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress ->
-                                "Индексируем: ${progress.currentForum} (${progress.currentForumIndex + 1}/${progress.totalForums})"
-                            is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed -> {
-                                // Use indexSize from database as single source of truth
-                                val displayCount = if (indexSize > 0) indexSize else progress.totalTopics
-                                "Завершено: $displayCount тем за ${progress.durationMs / 1000} сек"
+                        when {
+                            clearingInProgress -> "Пожалуйста, подождите..."
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress -> {
+                                val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
+                                val timeText = if (elapsedTimeStr.isNotEmpty()) " • $elapsedTimeStr" else ""
+                                "Индексируем: ${progress.currentForum} (${progress.currentForumIndex + 1}/${progress.totalForums})$timeText"
                             }
-                            is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error ->
-                                "Ошибка: ${progress.message}"
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed -> {
+                                // Use indexSize from database as single source of truth
+                                val displayCount = if (indexSize > 0) indexSize else (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed).totalTopics
+                                val durationMs = (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed).durationMs
+                                val durationText = if (durationMs > 0) " за ${durationMs / 1000} сек" else ""
+                                "Завершено: $displayCount тем$durationText"
+                            }
+                            indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error ->
+                                "Ошибка: ${(indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error).message}"
                             else -> "Готово к индексации"
                         },
                 ) {
-                    // Show progress bar during indexing
-                    if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress) {
+                    // Show progress bar during indexing or clearing
+                    if (isIndexing && indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress) {
                         val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
                         val progressValue = progress.currentForumIndex.toFloat() / progress.totalForums.toFloat()
 
@@ -374,11 +404,18 @@ fun SettingsScreen(
                                 modifier = Modifier.padding(top = 4.dp),
                             )
                         }
+                    } else if (clearingInProgress) {
+                        androidx.compose.material3.LinearProgressIndicator(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                        )
                     }
                 }
 
-                // Add clear index button if index exists
-                if (indexSize > 0 && !isIndexing) {
+                // Add clear index button if index exists and not busy
+                if (indexSize > 0 && !isIndexing && !clearingInProgress) {
                     var showClearConfirmDialog by remember { mutableStateOf(false) }
 
                     SettingsItem(
