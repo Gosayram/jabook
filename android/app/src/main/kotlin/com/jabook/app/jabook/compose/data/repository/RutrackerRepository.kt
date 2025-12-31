@@ -19,6 +19,7 @@ import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
+import com.jabook.app.jabook.compose.data.remote.mapper.toDomainFromIndex
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.Result
@@ -99,7 +100,7 @@ class RutrackerRepositoryImpl
                                         title = "[DEBUG] ${it.title}",
                                         author = "[${it.author}] (ID: ${it.topicId}, Ver: ${it.indexVersion})",
                                     )
-                                }.toDomain()
+                                }.toDomainFromIndex()
                         return Result.Success(domainResults)
                     }
 
@@ -140,7 +141,8 @@ class RutrackerRepositoryImpl
 
                     val mapStartTime = System.currentTimeMillis()
                     val dtoResults = entities.map { it.toSearchResult() }
-                    val domainResults = dtoResults.toDomain()
+                    // Use toDomainFromIndex() for offline results (lenient validation, allows missing torrentUrl)
+                    val domainResults = dtoResults.toDomainFromIndex()
                     val mapDuration = System.currentTimeMillis() - mapStartTime
                     android.util.Log.d(
                         "RutrackerRepositoryImpl",

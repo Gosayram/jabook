@@ -37,7 +37,7 @@ class RutrackerRepositoryTest {
     private val api: RutrackerApi = mock()
     private val parser: RutrackerParser = mock()
     private val offlineSearchDao: OfflineSearchDao = mock()
-    private val mirrorManager: MirrorManager = mock()
+
 
     private lateinit var repository: RutrackerRepositoryImpl
 
@@ -68,13 +68,15 @@ class RutrackerRepositoryTest {
             )
         )
         whenever(offlineSearchDao.getSampleTopics(10)).thenReturn(sampleTopics)
+        whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
+
 
         // Act
         val result = repository.search("!index")
 
         // Assert
         verify(offlineSearchDao).getSampleTopics(10)
-        assert(result is com.jabook.app.jabook.compose.domain.model.Result.Success)
+        assertTrue(result is com.jabook.app.jabook.compose.domain.model.Result.Success)
         val data = (result as com.jabook.app.jabook.compose.domain.model.Result.Success).data
         assertEquals(1, data.size)
         assertEquals("[DEBUG] Test Title", data[0].title)
@@ -84,6 +86,7 @@ class RutrackerRepositoryTest {
     fun `search with normal query builds correct SQL`() = runTest {
         // Arrange
         val query = "Harry Potter"
+        whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
         whenever(offlineSearchDao.searchIndexedTopicsRaw(any())).thenReturn(emptyList())
 
         // Act
