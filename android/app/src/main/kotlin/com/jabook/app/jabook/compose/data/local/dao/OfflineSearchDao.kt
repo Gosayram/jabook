@@ -128,9 +128,12 @@ interface OfflineSearchDao {
     @Query(
         """
         SELECT * FROM cached_topics
-        WHERE title LIKE '%' || :query || '%' 
-           OR author LIKE '%' || :query || '%'
-        ORDER BY seeders DESC, timestamp DESC
+        WHERE (title LIKE '%' || :query || '%' OR author LIKE '%' || :query || '%')
+          AND category IS NOT NULL AND category != ''
+        ORDER BY 
+          CASE WHEN title LIKE :query || '%' THEN 1 ELSE 2 END,
+          seeders DESC, 
+          timestamp DESC
         LIMIT :limit
     """,
     )
