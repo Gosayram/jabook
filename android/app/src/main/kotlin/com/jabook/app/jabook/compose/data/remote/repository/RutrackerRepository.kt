@@ -133,52 +133,91 @@ class RutrackerRepository
         ): List<RutrackerSearchResult> =
             withContext(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "=== INDEXED SEARCH START ===")
-                    Log.d(TAG, "Query: '$query', Limit: $limit")
-
                     val searchStartTime = System.currentTimeMillis()
+                    Log.i(TAG, "=== INDEXED SEARCH START ===")
+                    Log.i(TAG, "Input query: '$query', limit: $limit")
+
+                    // Log exact SQL that will be executed (reconstructed for visibility)
+                    val sqlPattern =
+                        "SELECT * FROM cached_topics " +
+                            "WHERE (title LIKE '%$query%' OR author LIKE '%$query%') " +
+                            "AND category IS NOT NULL AND category != '' " +
+                            "ORDER BY CASE WHEN title LIKE '$query%' THEN 1 ELSE 2 END, " +
+                            "seeders DESC, timestamp DESC LIMIT $limit"
+                    Log.d(TAG, "SQL query pattern: $sqlPattern")
+                    Log.d(TAG, "Query filters: title/author contains '$query', category NOT NULL/empty")
+
                     val entities = offlineSearchDao.searchIndexedTopics(query, limit)
                     val dbDuration = System.currentTimeMillis() - searchStartTime
 
-                    Log.d(TAG, "DB returned: ${entities.size} entities (${dbDuration}ms)")
+                    Log.i(TAG, "DB query completed: ${entities.size} entities returned in ${dbDuration}ms")
+
+                    // Diagnostic: if no results, check why
+                    if (entities.isEmpty()) {
+                        Log.w(TAG, "⚠️ Zero results from DB - running diagnostics...")
+                        val totalTopics = offlineSearchDao.getTopicCount()
+                        val topicsWithCategory = offlineSearchDao.getTopicsWithNonEmptyCategory()
+                        Log.w(TAG, "Total topics in DB: $totalTopics")
+                        Log.w(TAG, "Topics with non-empty category: $topicsWithCategory")
+                        Log.w(TAG, "Topics filtered by category constraint: ${totalTopics - topicsWithCategory}")
+
+                        // Sample a few topics to see what's in DB
+                        val sampleTopics = offlineSearchDao.getSampleTopics(5)
+                        sampleTopics.forEachIndexed { i, topic ->
+                            Log.d(TAG, "Sample[$i]: title='${topic.title.take(40)}', category='${topic.category}'")
+                        }
+                    }
 
                     // Log first 3 entities for diagnostics
                     entities.take(3).forEachIndexed { i, entity ->
                         Log.d(
                             TAG,
-                            "Entity[$i]: id=${entity.topicId}, " +
-                                "title='${entity.title.take(30)}', " +
+                            "Result[$i]: id=${entity.topicId}, " +
+                                "title='${entity.title.take(40)}', " +
                                 "author='${entity.author.take(20)}', " +
-                                "category='${entity.category}'",
+                                "category='${entity.category}', " +
+                                "seeders=${entity.seeders}",
                         )
                     }
 
                     val mapStartTime = System.currentTimeMillis()
+                    Log.d(TAG, "Mapping ${entities.size} entities to DTO...")
                     val dtoResults = entities.map { it.toSearchResult() }
-                    Log.d(TAG, "Mapped to ${dtoResults.size} DTO results")
+                    val dtoMapDuration = System.currentTimeMillis() - mapStartTime
+                    Log.d(TAG, "DTO mapping: ${entities.size} → ${dtoResults.size} in ${dtoMapDuration}ms")
 
+                    val domainMapStartTime = System.currentTimeMillis()
                     // Use lenient validation for indexed results
                     val domainResults = dtoResults.toDomainFromIndex()
-                    val mapDuration = System.currentTimeMillis() - mapStartTime
+                    val domainMapDuration = System.currentTimeMillis() - domainMapStartTime
 
                     val filteredCount = dtoResults.size - domainResults.size
                     if (filteredCount > 0) {
                         Log.w(
                             TAG,
-                            "⚠️ Filtered out $filteredCount invalid results during mapping " +
-                                "(${dtoResults.size} DTO → ${domainResults.size} domain)",
+                            "⚠️ Validation filtered out $filteredCount results " +
+                                "(${dtoResults.size} DTO → ${domainResults.size} domain, ${domainMapDuration}ms)",
                         )
+                        // Log why items were filtered
+                        val filtered = dtoResults.toDomainFromIndex()
+                        if (filtered.isEmpty() && dtoResults.isNotEmpty()) {
+                            Log.e(TAG, "❌ ALL results filtered out! First DTO: ${dtoResults.first()}")
+                        }
+                    } else {
+                        Log.d(TAG, "Domain mapping: ${dtoResults.size} → ${domainResults.size} in ${domainMapDuration}ms (no filtering)")
                     }
 
-                    Log.d(
+                    val totalDuration = System.currentTimeMillis() - searchStartTime
+                    Log.i(
                         TAG,
-                        "Final: ${domainResults.size} valid domain results (mapping: ${mapDuration}ms)",
+                        "=== SEARCH COMPLETE === Query: '$query' | Results: ${domainResults.size} | " +
+                            "Total: ${totalDuration}ms (DB: ${dbDuration}ms, DTO map: ${dtoMapDuration}ms, Domain map: ${domainMapDuration}ms)",
                     )
-                    Log.d(TAG, "=== INDEXED SEARCH END ===")
 
                     domainResults
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Indexed search failed for query '$query'", e)
+                    Log.e(TAG, "❌ Indexed search EXCEPTION for query '$query': ${e.message}", e)
+                    Log.e(TAG, "Exception type: ${e.javaClass.simpleName}, stack trace below")
                     emptyList()
                 }
             }

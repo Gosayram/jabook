@@ -143,6 +143,18 @@ interface OfflineSearchDao {
     ): List<CachedTopicEntity>
 
     /**
+     * Get count of topics with non-empty category (for diagnostics).
+     */
+    @Query("SELECT COUNT(*) FROM cached_topics WHERE category IS NOT NULL AND category != ''")
+    suspend fun getTopicsWithNonEmptyCategory(): Int
+
+    /**
+     * Get a sample of topics for diagnostic logging.
+     */
+    @Query("SELECT * FROM cached_topics LIMIT :limit")
+    suspend fun getSampleTopics(limit: Int = 5): List<CachedTopicEntity>
+
+    /**
      * Get all indexed topics (for browsing).
      *
      * @param limit Maximum number of results

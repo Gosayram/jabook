@@ -257,26 +257,30 @@ class DebugViewModel
                         emptyMap()
                     } else {
                         // Check mirrors in parallel for better performance
-                        val results = coroutineScope {
-                            mirrors
-                                .map { mirror ->
-                                    async {
-                                        try {
-                                            val isHealthy = mirrorManager.checkMirrorHealth(mirror)
-                                            mirror to isHealthy
-                                        } catch (e: kotlinx.coroutines.CancellationException) {
-                                            // Re-throw cancellation to propagate timeout
-                                            throw e
-                                        } catch (e: Exception) {
-                                            // Individual mirror check failed - this is normal, not an error
-                                            android.util.Log.i("DebugViewModel", "Mirror $mirror unavailable (expected behavior): ${e.message}")
-                                            mirror to false
+                        val results =
+                            coroutineScope {
+                                mirrors
+                                    .map { mirror ->
+                                        async {
+                                            try {
+                                                val isHealthy = mirrorManager.checkMirrorHealth(mirror)
+                                                mirror to isHealthy
+                                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                                // Re-throw cancellation to propagate timeout
+                                                throw e
+                                            } catch (e: Exception) {
+                                                // Individual mirror check failed - this is normal, not an error
+                                                android.util.Log.i(
+                                                    "DebugViewModel",
+                                                    "Mirror $mirror unavailable (expected behavior): ${e.message}",
+                                                )
+                                                mirror to false
+                                            }
                                         }
-                                    }
-                                }.awaitAll()
-                                .toMap()
-                        }
-                        
+                                    }.awaitAll()
+                                    .toMap()
+                            }
+
                         // Log summary of mirror health check
                         val availableCount = results.values.count { it }
                         val totalCount = results.size
@@ -285,7 +289,7 @@ class DebugViewModel
                         } else {
                             android.util.Log.i("DebugViewModel", "Mirror health check complete: $availableCount/$totalCount available")
                         }
-                        
+
                         results
                     }
                 }
