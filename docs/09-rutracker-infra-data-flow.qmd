@@ -331,30 +331,31 @@ graph TB
 ```{mermaid}
 %%| label: fig-09
 %%| fig-cap: "Database schema и индексы"
-erDiagram
-    CACHED_TOPICS {
-        string topic_id
-        string title
-        string author
-        string category
-        string size
-        int seeders
-        int leechers
-        string magnet_url
-        string torrent_url
-        string cover_url
-        int index_version
-        long timestamp
-        long last_updated
+classDiagram
+    note "Displaying as Class Diagram for compatibility"
+    class CachedTopics {
+        +String topic_id
+        +String title
+        +String author
+        +String category
+        +String size
+        +int seeders
+        +int leechers
+        +String magnet_url
+        +String torrent_url
+        +String cover_url
+        +int index_version
+        +long timestamp
+        +long last_updated
     }
     
-    SEARCH_QUERY_MAP {
-        string query
-        string topic_id
-        int rank
+    class SearchQueryMap {
+        +String query
+        +String topic_id
+        +int rank
     }
     
-    CACHED_TOPICS ||--o{ SEARCH_QUERY_MAP : contains
+    CachedTopics "1" -- "*" SearchQueryMap : contains
 ```
 
 ## 10. Оптимизация производительности
