@@ -102,11 +102,11 @@ class DefensiveFieldExtractor
                 }
             }
 
-            // Strategy 5: Column position (often 7th column = index 6)
+            // Strategy 5: Column position (often 6th column = index 5)
             val colValue =
                 row
                     .select("td")
-                    .getOrNull(6)
+                    .getOrNull(5)
                     ?.text()
                     ?.trim()
                     ?.toIntOrNull()
@@ -182,11 +182,11 @@ class DefensiveFieldExtractor
                 if (value != null) return value
             }
 
-            // Strategy 5: Column position (often 8th column = index 7)
+            // Strategy 5: Column position (often 7th column = index 6)
             val colValue =
                 row
                     .select("td")
-                    .getOrNull(7)
+                    .getOrNull(6)
                     ?.text()
                     ?.trim()
                     ?.toIntOrNull()
@@ -234,8 +234,8 @@ class DefensiveFieldExtractor
                 if (isValidSize(size)) return size
             }
 
-            // Strategy 3: Column position (often 6th column = index 5)
-            val colElement = row.select("td").getOrNull(5)
+            // Strategy 3: Column position (often 5th column = index 4)
+            val colElement = row.select("td").getOrNull(4)
             if (colElement != null) {
                 val size = colElement.text().trim()
                 if (isValidSize(size)) return size

@@ -943,12 +943,15 @@ class RutrackerParser
             title: String,
             row: Element,
         ): SearchResult {
-            // Extract author - use new selector
+            // Extract author
+            // Priority 1: Extract from title (e.g. "Author - Book Name")
+            // Priority 2: Use uploader/author column
+            val titleAuthor = extractAuthorFromTitle(title)
+
             val authorElement = row.selectFirst(AUTHOR_SELECTOR)
-            val author =
-                authorElement?.toStr()?.trim()?.ifEmpty { null } ?: run {
-                    "Unknown"
-                }
+            val uploaderName = authorElement?.toStr()?.trim()?.ifEmpty { null }
+
+            val author = titleAuthor ?: uploaderName ?: "Unknown"
 
             // Extract category (from data attribute or default)
             val category = row.attr("data-forum_id").ifEmpty { "Audiobooks" }
@@ -999,7 +1002,7 @@ class RutrackerParser
                             Log.d(TAG, "Cover found in table cell for topic $topicId: $fromCells")
                             fromCells
                         } else {
-                            // Third try: search in all nested elements (div, span, etc.)
+                            // Third try: search in all nested elements (div, span, p)
                             // var.postImg might be in a nested container
                             val fromNested =
                                 row.select("div, span, p").firstNotNullOfOrNull { element ->
@@ -1056,6 +1059,32 @@ class RutrackerParser
         }
 
         /**
+         * Extract author from title string.
+         * Assumes format "Author - Title" or "Author / Title".
+         */
+        private fun extractAuthorFromTitle(title: String): String? {
+            // Split by common separators
+            val separators = listOf(" - ", " / ", " – ", " — ") // including ndash, mdash
+
+            for (separator in separators) {
+                if (title.contains(separator)) {
+                    val parts = title.split(separator, limit = 2)
+                    if (parts.isNotEmpty()) {
+                        val potentialAuthor = parts[0].trim()
+                        // Basic validation: Author name shouldn't be too long or contain weird chars
+                        // Allow letters, dots, spaces, hyphens
+                        if (potentialAuthor.length in 2..60 &&
+                            !potentialAuthor.contains(Regex("[0-9]{3,}"))
+                        ) { // simple heuristic: no long numbers
+                            return potentialAuthor
+                        }
+                    }
+                }
+            }
+            return null
+        }
+
+        /**
          * Parse topic details from HTML.
          *
          * @param html HTML content from topic details page
@@ -1079,6 +1108,9 @@ class RutrackerParser
                 // Extract title
                 val titleElement = document.selectFirst(MAIN_TITLE_SELECTOR) ?: return null
                 val title = titleElement.toStr()
+
+                // Try to extract author from detailed title as well
+                val titleAuthor = extractAuthorFromTitle(cleanTitle(title))
 
                 // Extract post body for metadata
                 val postBody = document.selectFirst(POST_BODY_SELECTOR)
