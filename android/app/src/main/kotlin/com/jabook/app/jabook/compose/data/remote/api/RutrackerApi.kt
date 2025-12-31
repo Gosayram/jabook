@@ -111,9 +111,9 @@ interface RutrackerApi {
     companion object {
         // Audiobook categories forum IDs
         // Format: comma-separated list for search query parameter
-        // Main forums: 2326,2389,2327,2324,2328
-        // Subforums: 574,1036,400,2388,2387,661,2348,695,399,402,467,490,499,2137,2127,2325,2342,530,2152,1350,403,1279,716,2165,401
+        // ONLY child forums with actual topics - parent category IDs removed
+        // (2326, 2389, 2327, 2324, 2328 are parent groups showing only subforum lists)
         const val AUDIOBOOKS_FORUM_IDS =
-            "2326,2389,2327,2324,2328,574,1036,400,2388,2387,661,2348,695,399,402,467,490,499,2137,2127,2325,2342,530,2152,1350,403,1279,716,2165,401"
+            "574,1036,400,2388,2387,661,2348,695,399,402,467,490,499,2137,2127,2325,2342,530,2152,1350,403,1279,716,2165,401"
     }
 }
