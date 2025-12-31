@@ -143,6 +143,13 @@ interface OfflineSearchDao {
     ): List<CachedTopicEntity>
 
     /**
+     * Raw query string search for dynamic token-based matching.
+     * Allows constructs like: (title LIKE %t1% OR author LIKE %t1%) AND (title LIKE %t2% OR author LIKE %t2%)
+     */
+    @androidx.room.RawQuery(observedEntities = [CachedTopicEntity::class])
+    suspend fun searchIndexedTopicsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): List<CachedTopicEntity>
+
+    /**
      * Get count of topics with non-empty category (for diagnostics).
      */
     @Query("SELECT COUNT(*) FROM cached_topics WHERE category IS NOT NULL AND category != ''")

@@ -266,6 +266,22 @@ class ForumIndexer
                         "mirror: $finalMirror",
                 )
 
+                // Log sample topics to verify index content (debug)
+                try {
+                    val sampleTopics = offlineSearchDao.getSampleTopics(5)
+                    Log.i(TAG, "=== SAMPLE INDEXED TOPICS (DEBUG) ===")
+                    sampleTopics.forEachIndexed { index, topic ->
+                        Log.i(
+                            TAG,
+                            "Topic #$index: [${topic.topicId}] '${topic.title}' by '${topic.author}' " +
+                                "(Cat: ${topic.category}, Ver: ${topic.indexVersion})",
+                        )
+                    }
+                    Log.i(TAG, "=======================================")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to log sample topics", e)
+                }
+
                 // Use database count as single source of truth for completion
                 val finalCount = actualCountInDb
                 onProgress?.invoke(

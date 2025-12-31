@@ -300,12 +300,12 @@ fun SettingsScreen(
             val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
             val indexingStartTime by indexingViewModel.indexingStartTime.collectAsStateWithLifecycle()
             val clearingInProgress by indexingViewModel.clearingInProgress.collectAsStateWithLifecycle()
-            
+
             var showIndexingDialog by remember { mutableStateOf(false) }
             var indexSize by remember { mutableStateOf(0) }
             var indexMetadata by remember { mutableStateOf<com.jabook.app.jabook.compose.data.local.dao.IndexMetadata?>(null) }
             var elapsedTimeStr by remember { mutableStateOf("") }
-            
+
             // Timer for elapsed time
             LaunchedEffect(isIndexing, indexingStartTime) {
                 if (isIndexing && indexingStartTime != null) {
@@ -314,11 +314,12 @@ fun SettingsScreen(
                         val seconds = duration / 1000
                         val minutes = seconds / 60
                         val hours = minutes / 60
-                        elapsedTimeStr = if (hours > 0) {
-                            String.format("%d:%02d:%02d", hours, minutes % 60, seconds % 60)
-                        } else {
-                            String.format("%02d:%02d", minutes % 60, seconds % 60)
-                        }
+                        elapsedTimeStr =
+                            if (hours > 0) {
+                                String.format("%d:%02d:%02d", hours, minutes % 60, seconds % 60)
+                            } else {
+                                String.format("%02d:%02d", minutes % 60, seconds % 60)
+                            }
                         kotlinx.coroutines.delay(1000)
                     }
                 } else {
@@ -373,8 +374,17 @@ fun SettingsScreen(
                             }
                             indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed -> {
                                 // Use indexSize from database as single source of truth
-                                val displayCount = if (indexSize > 0) indexSize else (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed).totalTopics
-                                val durationMs = (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed).durationMs
+                                val completed =
+                                    indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed
+                                val displayCount =
+                                    if (indexSize > 0) {
+                                        indexSize
+                                    } else {
+                                        completed.totalTopics
+                                    }
+                                val durationMs =
+                                    (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed)
+                                        .durationMs
                                 val durationText = if (durationMs > 0) " за ${durationMs / 1000} сек" else ""
                                 "Завершено: $displayCount тем$durationText"
                             }

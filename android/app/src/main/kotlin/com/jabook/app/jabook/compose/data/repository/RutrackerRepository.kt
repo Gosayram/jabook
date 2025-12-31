@@ -88,12 +88,54 @@ class RutrackerRepositoryImpl
                 )
 
                 if (indexSize > 0) {
+                    // Check for debug command
+                    if (query.trim() == "!index" || query.trim() == ":debug") {
+                        android.util.Log.d("RutrackerRepositoryImpl", "🐞 Debug command detected, fetching sample topics")
+                        val sampleTopics = offlineSearchDao.getSampleTopics(10)
+                        val domainResults =
+                            sampleTopics
+                                .map {
+                                    it.toSearchResult().copy(
+                                        title = "[DEBUG] ${it.title}",
+                                        author = "[${it.author}] (ID: ${it.topicId}, Ver: ${it.indexVersion})",
+                                    )
+                                }.toDomain()
+                        return Result.Success(domainResults)
+                    }
+
                     val searchStartTime = System.currentTimeMillis()
-                    val entities = offlineSearchDao.searchIndexedTopics(query, limit = 200)
+
+                    // Tokenize query for fuzzy search
+                    val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+
+                    val entities =
+                        if (tokens.isEmpty()) {
+                            emptyList()
+                        } else {
+                            // Build dynamic SQL query for token-based search
+                            // Each token must be present in either title OR author
+                            val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
+                            val args = ArrayList<Any>()
+
+                            tokens.forEachIndexed { index, token ->
+                                if (index > 0) sqlBuilder.append(" AND ")
+                                sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
+                                val likePattern = "%$token%"
+                                args.add(likePattern)
+                                args.add(likePattern)
+                            }
+
+                            // Add ordering and limit
+                            sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
+
+                            val simpleQuery = androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray())
+                            offlineSearchDao.searchIndexedTopicsRaw(simpleQuery)
+                        }
+
                     val searchDuration = System.currentTimeMillis() - searchStartTime
                     android.util.Log.d(
                         "RutrackerRepositoryImpl",
-                        "DB search: ${entities.size} entities (${searchDuration}ms)",
+                        "DB search (fuzzy): ${entities.size} entities (${searchDuration}ms)",
                     )
 
                     val mapStartTime = System.currentTimeMillis()
