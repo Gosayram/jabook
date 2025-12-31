@@ -1340,6 +1340,69 @@ class RutrackerParser
         }
 
         /**
+         * Extracts forum name from HTML page for use as category during indexing.
+         *
+         * Strategies (in priority order):
+         * 1. From breadcrumbs navigation (td.nav or td.nav-top)
+         * 2. From page title
+         * 3. From h1.maintitle
+         * 4. Fallback: "Аудиокниги"
+         *
+         * @param html HTML content of forum page
+         * @return Forum name to use as category
+         */
+        private fun extractForumNameFromHTML(html: String): String {
+            try {
+                val document = Jsoup.parse(html, getBaseUrl())
+
+                // Strategy 1: Breadcrumbs
+                // <td class="nav">Аудиокниги » Российская фантастика...</td>
+                val breadcrumbs = document.selectFirst("td.nav, td.nav-top")
+                if (breadcrumbs != null) {
+                    val links = breadcrumbs.select("a")
+                    if (links.size >= 2) {
+                        // Second element is usually the forum name
+                        val forumName = links[1].text().trim()
+                        if (forumName.isNotBlank()) {
+                            Log.d(TAG, "Extracted forum name from breadcrumbs: '$forumName'")
+                            return forumName
+                        }
+                    }
+                }
+
+                // Strategy 2: Page title
+                // <title>Фантастика, фэнтези... :: Аудиокниги :: RuTracker.org</title>
+                val title = document.title()
+                val titleParts = title.split("::")
+                if (titleParts.isNotEmpty()) {
+                    val forumName = titleParts[0].trim()
+                    if (forumName.isNotBlank() && !forumName.contains("RuTracker", ignoreCase = true)) {
+                        Log.d(TAG, "Extracted forum name from title: '$forumName'")
+                        return forumName
+                    }
+                }
+
+                // Strategy 3: H1 maintitle
+                // <h1 class="maintitle"><a href="...">Фантастика...</a></h1>
+                val h1 = document.selectFirst("h1.maintitle a, h1.maintitle")
+                if (h1 != null) {
+                    val forumName = h1.text().trim()
+                    if (forumName.isNotBlank()) {
+                        Log.d(TAG, "Extracted forum name from h1: '$forumName'")
+                        return forumName
+                    }
+                }
+
+                // Fallback
+                Log.d(TAG, "No forum name found, using fallback: 'Аудиокниги'")
+                return "Аудиокниги"
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to extract forum name from HTML", e)
+                return "Аудиокниги"
+            }
+        }
+
+        /**
          * Clean description text by removing metadata fields that are already extracted separately.
          * This prevents duplication of information like author, performer, year, etc.
          */
