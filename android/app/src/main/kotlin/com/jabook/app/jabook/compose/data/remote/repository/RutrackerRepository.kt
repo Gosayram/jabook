@@ -118,6 +118,10 @@ class RutrackerRepository
         /**
          * Fast search in indexed topics (offline, no network required).
          *
+         * Uses lenient validation (isValidForIndex) since indexed topics:
+         * - May have fallback category values
+         * - Don't have torrentUrl (retrieved on-demand via getTopicDetails())
+         *
          * @param query Search query
          * @param limit Maximum number of results
          * @return List of search results from index
@@ -128,22 +132,52 @@ class RutrackerRepository
         ): List<RutrackerSearchResult> =
             withContext(Dispatchers.IO) {
                 try {
-                    val searchStartTime = System.currentTimeMillis()
-                    Log.d(TAG, "Starting DB search for query: '$query' (limit: $limit)")
+                    Log.d(TAG, "=== INDEXED SEARCH START ===")
+                    Log.d(TAG, "Query: '$query', Limit: $limit")
 
+                    val searchStartTime = System.currentTimeMillis()
                     val entities = offlineSearchDao.searchIndexedTopics(query, limit)
                     val dbDuration = System.currentTimeMillis() - searchStartTime
-                    Log.d(TAG, "DB query completed: ${entities.size} entities (${dbDuration}ms)")
+
+                    Log.d(TAG, "DB returned: ${entities.size} entities (${dbDuration}ms)")
+
+                    // Log first 3 entities for diagnostics
+                    entities.take(3).forEachIndexed { i, entity ->
+                        Log.d(
+                            TAG,
+                            "Entity[$i]: id=${entity.topicId}, " +
+                                "title='${entity.title.take(30)}', " +
+                                "author='${entity.author.take(20)}', " +
+                                "category='${entity.category}'",
+                        )
+                    }
 
                     val mapStartTime = System.currentTimeMillis()
                     val dtoResults = entities.map { it.toSearchResult() }
-                    val domainResults = dtoResults.toDomain()
+                    Log.d(TAG, "Mapped to ${dtoResults.size} DTO results")
+
+                    // Use lenient validation for indexed results
+                    val domainResults = dtoResults.toDomainFromIndex()
                     val mapDuration = System.currentTimeMillis() - mapStartTime
-                    Log.d(TAG, "Mapping completed: ${domainResults.size} domain results (${mapDuration}ms)")
+
+                    val filteredCount = dtoResults.size - domainResults.size
+                    if (filteredCount > 0) {
+                        Log.w(
+                            TAG,
+                            "⚠️ Filtered out $filteredCount invalid results during mapping " +
+                                "(${dtoResults.size} DTO → ${domainResults.size} domain)",
+                        )
+                    }
+
+                    Log.d(
+                        TAG,
+                        "Final: ${domainResults.size} valid domain results (mapping: ${mapDuration}ms)",
+                    )
+                    Log.d(TAG, "=== INDEXED SEARCH END ===")
 
                     domainResults
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to search indexed topics for query '$query'", e)
+                    Log.e(TAG, "❌ Indexed search failed for query '$query'", e)
                     emptyList()
                 }
             }

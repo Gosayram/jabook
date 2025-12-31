@@ -96,6 +96,50 @@ fun List<SearchResult>.toDomain(): List<RutrackerSearchResult> {
 }
 
 /**
+ * Maps list of SearchResult DTOs from offline index to domain models.
+ *
+ * Uses lenient validation (isValidForIndex) since indexed topics:
+ * - May have fallback category values
+ * - Don't have torrentUrl (retrieved on-demand)
+ *
+ * @return List of valid domain models from index
+ */
+fun List<SearchResult>.toDomainFromIndex(): List<RutrackerSearchResult> {
+    val totalCount = this.size
+    val invalidResults = mutableListOf<Pair<Int, SearchResult>>()
+    val results =
+        mapIndexedNotNull { index, dto ->
+            val domain = dto.toDomain()
+            if (domain.isValidForIndex()) {
+                domain
+            } else {
+                invalidResults.add(index to dto)
+                null
+            }
+        }
+    val filteredCount = invalidResults.size
+    if (filteredCount > 0) {
+        android.util.Log.w(
+            "RutrackerMapper",
+            "⚠️ [INDEX] Filtered out $filteredCount invalid indexed results out of $totalCount total",
+        )
+        invalidResults.take(5).forEach { (index, dto) ->
+            android.util.Log.w(
+                "RutrackerMapper",
+                "  Invalid[$index]: topicId='${dto.topicId.take(20)}', " +
+                    "title='${dto.title.take(30)}', " +
+                    "author='${dto.author.take(20)}'",
+            )
+        }
+        if (filteredCount > 5) {
+            android.util.Log.w("RutrackerMapper", "  ... and ${filteredCount - 5} more invalid results")
+        }
+    }
+    return results
+}
+
+
+/**
  * Maps TopicDetails DTO to RutrackerTopicDetails domain model.
  *
  * @return Domain model with validated data

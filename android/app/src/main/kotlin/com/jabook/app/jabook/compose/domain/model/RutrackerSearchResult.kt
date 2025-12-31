@@ -60,6 +60,35 @@ data class RutrackerSearchResult(
             torrentUrl.isNotBlank()
 
     /**
+     * Validates search result from offline index (more lenient).
+     *
+     * For indexed topics:
+     * - category is optional (will have fallback value)
+     * - torrentUrl is optional (retrieved on-demand via getTopicDetails())
+     *
+     * @return true if valid for index, false otherwise
+     */
+    fun isValidForIndex(): Boolean =
+        topicId.isNotBlank() &&
+            title.isNotBlank() &&
+            author.isNotBlank()
+    // category and torrentUrl are optional for indexed results
+
+    /**
+     * Validates search result from network (strict).
+     *
+     * For network results, all fields must be present.
+     *
+     * @return true if valid for network, false otherwise
+     */
+    fun isValidForNetwork(): Boolean =
+        topicId.isNotBlank() &&
+            title.isNotBlank() &&
+            author.isNotBlank() &&
+            category.isNotBlank() &&
+            torrentUrl.isNotBlank()
+
+    /**
      * Checks if download is available (has magnet or torrent URL).
      *
      * @return true if download is available
