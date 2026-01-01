@@ -538,4 +538,30 @@ class RutrackerParserTest {
         assertEquals(1, details?.currentPage)
         assertEquals(1, details?.totalPages)
     }
+
+    @Test
+    fun `parseTopicDetails extracts last page pagination`() {
+        val html =
+            """
+            <html>
+                <head><title>Last Page Test</title></head>
+                <body>
+                    <h1 class="maintitle"><a>Topic Title</a></h1>
+                    <table id="pagination" class="topic">
+                        <tr>
+                            <td class="nav pad_6 row1">
+                                <p style="float: left">Страница <b>30</b> из <b>30</b></p>
+                            </td>
+                        </tr>
+                    </table>
+                    <div class="post_body">Post body</div>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "123")
+        assertNotNull(details)
+        assertEquals(30, details?.currentPage)
+        assertEquals(30, details?.totalPages)
+    }
 }

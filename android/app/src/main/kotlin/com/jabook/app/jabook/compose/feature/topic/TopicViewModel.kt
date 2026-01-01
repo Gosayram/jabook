@@ -168,8 +168,9 @@ class TopicViewModel
                         // Preload avatars for new comments
                         avatarPreloader.preloadAvatars(context, result.data.comments)
 
-                        // Add new comments to the list
-                        loadedComments.addAll(result.data.comments.reversed())
+                        // Add new comments to the list (no reverse - these are older comments)
+                        // Page 1 has newest comments (reversed), page 2+ has progressively older comments
+                        loadedComments.addAll(result.data.comments)
                         currentLoadedPage = nextPage
 
                         // Update UI state with all comments
