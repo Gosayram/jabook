@@ -22,9 +22,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.kotlin.mock
-
 import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
 import org.robolectric.RobolectricTestRunner
 
 /**
@@ -57,10 +56,12 @@ class RutrackerParserTest {
         mockMediaInfoParser = mock()
         mirrorManager = mock()
         fieldExtractor = DefensiveFieldExtractor()
-        
+
         // Mock getBaseUrl behavior
-        org.mockito.kotlin.whenever(mirrorManager.getBaseUrl()).thenReturn("https://rutracker.org")
-        
+        org.mockito.kotlin
+            .whenever(mirrorManager.getBaseUrl())
+            .thenReturn("https://rutracker.org")
+
         // CoverUrlExtractor requires MirrorManager
         coverExtractor = CoverUrlExtractor(mirrorManager)
 

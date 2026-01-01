@@ -1285,7 +1285,8 @@ class RutrackerParser
                 val label = span.text().trim().removeSuffix(":")
                 // Get the text node immediately following the span
                 val value =
-                    span.nextSibling()
+                    span
+                        .nextSibling()
                         ?.toString()
                         ?.trim()
                         ?.removePrefix(":")
@@ -1326,7 +1327,6 @@ class RutrackerParser
                     }
                 }
             }
-
 
             if (metadata.isEmpty()) {
                 val text = postBody?.wholeText() ?: ""
@@ -1373,7 +1373,8 @@ class RutrackerParser
             var genreText: String? = null
             if (genreSpan != null) {
                 genreText =
-                    genreSpan.nextSibling()
+                    genreSpan
+                        .nextSibling()
                         ?.toString()
                         ?.trim()
                         ?.removePrefix(":")

@@ -78,6 +78,7 @@ class TopicViewModel
         private val rutrackerApi: RutrackerApi,
         private val mirrorManager: MirrorManager,
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
+        private val avatarPreloader: AvatarPreloader,
         @param:ApplicationContext private val context: Context,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
@@ -112,6 +113,9 @@ class TopicViewModel
                 _uiState.value =
                     when (result) {
                         is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                            // Preload avatars for comments (offline support)
+                            avatarPreloader.preloadAvatars(context, result.data.comments)
+
                             TopicUiState.Success(
                                 result.data.copy(
                                     comments = result.data.comments.reversed(), // Sort comments newest first
@@ -140,6 +144,9 @@ class TopicViewModel
 
                 when (result) {
                     is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                        // Preload avatars for comments (offline support)
+                        avatarPreloader.preloadAvatars(context, result.data.comments)
+
                         _uiState.value =
                             TopicUiState.Success(
                                 result.data.copy(
