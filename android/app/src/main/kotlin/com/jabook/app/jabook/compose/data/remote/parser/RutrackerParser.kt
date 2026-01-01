@@ -1946,29 +1946,8 @@ class RutrackerParser
                                     }.trim()
                             } ?: postBody.toStr().trim()
 
-                        // Clean HTML: normalize <br> tags and preserve links
-                        val cleanedHtml =
-                            html?.let { htmlContent ->
-                                htmlContent
-                                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
-                                    .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
-                                    // Ensure all links have absolute URLs
-                                    .let { content ->
-                                        val doc = org.jsoup.Jsoup.parse(content, getBaseUrl())
-                                        // Convert relative links to absolute
-                                        doc.select("a[href]").forEach { link ->
-                                            val href = link.attr("href")
-                                            if (href.isNotEmpty() &&
-                                                !href.startsWith("http://") &&
-                                                !href.startsWith("https://") &&
-                                                !href.startsWith("magnet:")
-                                            ) {
-                                                link.attr("href", doc.baseUri() + href.removePrefix("/"))
-                                            }
-                                        }
-                                        doc.body().html()
-                                    }
-                            }
+                        // Clean HTML: normalize <br> tags, quotes and preserve links
+                        val cleanedHtml = html?.let { processCommentHtml(it).body().html() }
 
                         if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                             comments.add(
@@ -2062,29 +2041,8 @@ class RutrackerParser
                                 }.trim()
                         } ?: postBody.toStr().trim()
 
-                    // Clean HTML: normalize <br> tags and preserve links
-                    val cleanedHtml =
-                        html?.let { htmlContent ->
-                            htmlContent
-                                .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
-                                .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
-                                // Ensure all links have absolute URLs
-                                .let { content ->
-                                    val doc = org.jsoup.Jsoup.parse(content, getBaseUrl())
-                                    // Convert relative links to absolute
-                                    doc.select("a[href]").forEach { link ->
-                                        val href = link.attr("href")
-                                        if (href.isNotEmpty() &&
-                                            !href.startsWith("http://") &&
-                                            !href.startsWith("https://") &&
-                                            !href.startsWith("magnet:")
-                                        ) {
-                                            link.attr("href", doc.baseUri() + href.removePrefix("/"))
-                                        }
-                                    }
-                                    doc.body().html()
-                                }
-                        }
+                    // Clean HTML: normalize <br> tags, quotes and preserve links
+                    val cleanedHtml = html?.let { processCommentHtml(it).body().html() }
 
                     if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                         comments.add(
@@ -2109,6 +2067,62 @@ class RutrackerParser
                 comments.takeLast(50)
             } else {
                 comments
+            }
+        }
+
+        private fun processCommentHtml(rawHtml: String): org.jsoup.nodes.Document {
+            // Normalize <br> and <span class="post-br">
+            val intermediate =
+                rawHtml
+                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
+                    .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
+
+            // Parse with baseUri for proper absolute URL resolution
+            val doc = org.jsoup.Jsoup.parse(intermediate, getBaseUrl())
+
+            // Transform quotes
+            transformQuotes(doc)
+
+            // Convert relative links to absolute
+            doc.select("a[href]").forEach { link ->
+                val href = link.attr("href")
+                if (href.isNotEmpty() &&
+                    !href.startsWith("http://") &&
+                    !href.startsWith("https://") &&
+                    !href.startsWith("magnet:")
+                ) {
+                    link.attr("href", doc.baseUri() + href.removePrefix("/"))
+                }
+            }
+            return doc
+        }
+
+        private fun transformQuotes(doc: org.jsoup.nodes.Document) {
+            val headers = doc.select("div.q-head")
+            for (header in headers) {
+                val quoteBody = header.nextElementSibling()
+                if (quoteBody != null && quoteBody.hasClass("q")) {
+                    val blockquote = doc.createElement("blockquote")
+
+                    // Format header
+                    val authorRaw = header.text().replace("писал(а):", "").trim()
+                    if (authorRaw.isNotEmpty()) {
+                        blockquote.appendElement("b").text("$authorRaw wrote:")
+                        blockquote.appendElement("br")
+                    } else {
+                        blockquote.appendElement("b").text("Quote:")
+                        blockquote.appendElement("br")
+                    }
+
+                    // Remove internal post ID
+                    quoteBody.select("u.q-post").remove()
+
+                    // Move content
+                    blockquote.appendChildren(quoteBody.childNodes())
+
+                    header.replaceWith(blockquote)
+                    quoteBody.remove()
+                }
             }
         }
 
