@@ -240,6 +240,10 @@ class CoverUrlExtractor
                             "https:$url"
                         }
                     }
+                    url.startsWith("/avatars/") || url.startsWith("/tt/") || url.startsWith("/sm/") -> {
+                        // Static content paths should use static.rutracker.cc CDN
+                        "https://static.rutracker.cc$url"
+                    }
                     url.startsWith("/") -> "$baseUrl$url"
                     else -> "$baseUrl/$url"
                 }
