@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.remote.parser
 
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder
+import okhttp3.MediaType.Companion.toMediaType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -23,7 +24,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 
 /**
@@ -563,5 +567,223 @@ class RutrackerParserTest {
         assertNotNull(details)
         assertEquals(30, details?.currentPage)
         assertEquals(30, details?.totalPages)
+    }
+
+    // ============ Forum Page Parsing Tests ============
+
+    @Test
+    fun `parseForumPageWithPagination extracts topics from forum page`() {
+        val html =
+            """
+            <html>
+                <head><title>Forum Page Test</title></head>
+                <body>
+                    <table class="vf-table forumline">
+                        <tr id="tr-6795747" class="hl-tr" data-topic_id="6795747">
+                            <td class="vf-col-icon"></td>
+                            <td class="vf-col-t-title">
+                                <div class="torTopic">
+                                    <a id="tt-6795747" href="viewtopic.php?t=6795747" class="torTopic bold tt-text">Панежин Евгений – Проклятая заимка [2025, 128 kbps, MP3]</a>
+                                </div>
+                                <div class="topicAuthor">
+                                    <a href="profile.php?mode=viewprofile&amp;u=22098407" class="topicAuthor">Gefestel</a>
+                                </div>
+                            </td>
+                            <td class="vf-col-tor">
+                                <span class="seedmed"><b>5</b></span>
+                                <span class="leechmed"><b>3</b></span>
+                                <a href="dl.php?t=6795747" class="f-dl">239.3 MB</a>
+                            </td>
+                        </tr>
+                        <tr id="tr-6257322" class="hl-tr" data-topic_id="6257322">
+                            <td class="vf-col-icon"></td>
+                            <td class="vf-col-t-title">
+                                <div class="torTopic">
+                                    <a id="tt-6257322" href="viewtopic.php?t=6257322" class="torTopic bold tt-text">Дроздов Анатолий – Мастеровой [2022, 80 kbps, MP3]</a>
+                                </div>
+                                <div class="topicAuthor">
+                                    <a href="profile.php?mode=viewprofile&amp;u=24304817" class="topicAuthor">Аудиокниги</a>
+                                </div>
+                            </td>
+                            <td class="vf-col-tor">
+                                <span class="seedmed"><b>45</b></span>
+                                <span class="leechmed"><b>3</b></span>
+                                <a href="dl.php?t=6257322" class="f-dl">314 MB</a>
+                            </td>
+                        </tr>
+                    </table>
+                    <div id="pagination">
+                        <p>Страница <b>1</b> из <b>356</b></p>
+                        <a class="pg" href="viewforum.php?f=2387&amp;start=50">След.</a>
+                    </div>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val bytes = html.toByteArray(Charsets.UTF_8)
+        whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
+        val mockResponseBody = okhttp3.ResponseBody.create(
+            "text/html; charset=utf-8".toMediaType(),
+            bytes,
+        )
+
+        val result = parser.parseForumPageWithPagination(mockResponseBody, "2387")
+
+        assertTrue("Should have topics", result.topics.isNotEmpty())
+        assertEquals(2, result.topics.size)
+        assertTrue("Should have more pages", result.hasMorePages)
+
+        // Verify first topic
+        val firstTopic = result.topics.first()
+        assertEquals("6795747", firstTopic.topicId)
+        assertTrue(firstTopic.title.contains("Проклятая заимка"))
+    }
+
+    @Test
+    fun `parseForumPageWithPagination detects last page correctly`() {
+        val html =
+            """
+            <html>
+                <head><title>Last Page Test</title></head>
+                <body>
+                    <table class="vf-table forumline">
+                        <tr id="tr-5473836" class="hl-tr" data-topic_id="5473836">
+                            <td class="vf-col-icon"></td>
+                            <td class="vf-col-t-title">
+                                <div class="torTopic">
+                                    <a id="tt-5473836" href="viewtopic.php?t=5473836" class="torTopic bold tt-text">Чубарова Алёна - Смежная Зона [2017, 128 kbps, MP3]</a>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                    <div id="pagination">
+                        <p>Страница <b>356</b> из <b>356</b></p>
+                        <a class="pg" href="viewforum.php?f=2387&amp;start=17700">Пред.</a>
+                    </div>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val bytes = html.toByteArray(Charsets.UTF_8)
+        whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
+        val mockResponseBody = okhttp3.ResponseBody.create(
+            "text/html; charset=utf-8".toMediaType(),
+            bytes,
+        )
+
+        val result = parser.parseForumPageWithPagination(mockResponseBody, "2387")
+
+        assertTrue("Should have topics", result.topics.isNotEmpty())
+        assertEquals(1, result.topics.size)
+        assertEquals(false, result.hasMorePages) // Last page - no more pages!
+    }
+
+    @Test
+    fun `parseForumPageWithPagination detects hasMorePages via Next link`() {
+        val html =
+            """
+            <html>
+                <head><title>Next Link Test</title></head>
+                <body>
+                    <table class="vf-table forumline">
+                        <tr id="tr-123456" class="hl-tr" data-topic_id="123456">
+                            <td class="vf-col-t-title">
+                                <div class="torTopic">
+                                    <a id="tt-123456" href="viewtopic.php?t=123456" class="torTopic bold tt-text">Test Topic</a>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                    <a class="pg" href="viewforum.php?f=2387&amp;start=50">След.</a>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val bytes = html.toByteArray(Charsets.UTF_8)
+        whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
+        val mockResponseBody = okhttp3.ResponseBody.create(
+            "text/html; charset=utf-8".toMediaType(),
+            bytes,
+        )
+
+        val result = parser.parseForumPageWithPagination(mockResponseBody, "2387")
+
+        assertTrue("Should detect more pages via 'След.' link", result.hasMorePages)
+    }
+
+    @Test
+    fun `parseForumPageWithPagination extracts seeders and leechers`() {
+        val html =
+            """
+            <html>
+                <body>
+                    <table class="forumline">
+                        <tr id="tr-100" class="hl-tr" data-topic_id="100">
+                            <td class="vf-col-t-title">
+                                <div class="torTopic">
+                                    <a id="tt-100" href="viewtopic.php?t=100" class="torTopic tt-text">Test</a>
+                                </div>
+                            </td>
+                            <td class="vf-col-tor">
+                                <span class="seedmed" title="Seeders"><b>235</b></span>
+                                <span class="leechmed" title="Leechers"><b>26</b></span>
+                                <a href="dl.php?t=100" class="f-dl">566.4 MB</a>
+                            </td>
+                        </tr>
+                    </table>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val bytes = html.toByteArray(Charsets.UTF_8)
+        whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
+        val mockResponseBody = okhttp3.ResponseBody.create(
+            "text/html; charset=utf-8".toMediaType(),
+            bytes,
+        )
+
+        val result = parser.parseForumPageWithPagination(mockResponseBody, "test")
+
+        assertEquals(1, result.topics.size)
+        val topic = result.topics.first()
+        assertEquals(235, topic.seeders)
+        assertEquals(26, topic.leechers)
+        assertTrue(topic.size.contains("566"))
+    }
+
+    @Test
+    fun `parseForumPageWithPagination handles middle page correctly`() {
+        val html =
+            """
+            <html>
+                <body>
+                    <table class="forumline">
+                        <tr id="tr-999" class="hl-tr" data-topic_id="999">
+                            <td class="vf-col-t-title">
+                                <div class="torTopic">
+                                    <a id="tt-999" href="viewtopic.php?t=999" class="tt-text">Middle Page Topic</a>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                    <div id="pagination" class="nav">
+                        <p style="float: left">Страница <b>178</b> из <b>356</b></p>
+                        <a class="pg" href="viewforum.php?start=8850">Пред.</a>
+                        <a class="pg" href="viewforum.php?start=8950">След.</a>
+                    </div>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val bytes = html.toByteArray(Charsets.UTF_8)
+        whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
+        val mockResponseBody = okhttp3.ResponseBody.create(
+            "text/html; charset=utf-8".toMediaType(),
+            bytes,
+        )
+
+        val result = parser.parseForumPageWithPagination(mockResponseBody, "test")
+
+        assertTrue("Middle page should have more pages", result.hasMorePages)
     }
 }
