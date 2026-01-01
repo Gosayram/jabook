@@ -100,6 +100,8 @@ data class TopicDetails(
     val currentPage: Int = 1,
     /** Total number of pages */
     val totalPages: Int = 1,
+    /** All extracted metadata fields */
+    val allMetadata: Map<String, String> = emptyMap(),
 )
 
 /**

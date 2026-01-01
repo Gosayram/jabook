@@ -304,6 +304,25 @@ private fun TopicDetailsContent(
                 // Size
                 MetadataRow(stringResource(R.string.sizeLabel), details.size)
 
+                // Render all other metadata fields
+                details.allMetadata.forEach { (label, value) ->
+                    // Skip fields already handled or standard ones if we want to customize them
+                    val standardLabels =
+                        setOf(
+                            "Автор",
+                            "Author",
+                            "Исполнитель",
+                            "Narrator",
+                            "Цикл",
+                            "Серия",
+                            "Время звучания",
+                            "Duration",
+                        )
+                    if (label !in standardLabels) {
+                        MetadataRow(label, value)
+                    }
+                }
+
                 // Registered / Downloaded
                 if (!details.registeredDate.isNullOrBlank()) {
                     val downloadText =
@@ -316,12 +335,6 @@ private fun TopicDetailsContent(
                         }
                     MetadataRow(stringResource(R.string.registeredLabel), details.registeredDate + downloadText)
                 }
-
-                // Duration
-                details.duration?.let { MetadataRow(stringResource(R.string.durationLabel), it) }
-
-                // Bitrate
-                details.bitrate?.let { MetadataRow(stringResource(R.string.bitrateLabel), it) }
 
                 // Seeders/Leechers (Split Left/Right)
                 Row(
@@ -457,25 +470,6 @@ private fun TopicDetailsContent(
         // Bitrate and Codec (Duration already shown in compact row)
         if (!details.bitrate.isNullOrBlank() || !details.audioCodec.isNullOrBlank()) {
             item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(vertical = 4.dp),
-                ) {
-                    details.bitrate?.let { bitrate ->
-                        Text(
-                            text = stringResource(R.string.bitrateFormat, bitrate),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    details.audioCodec?.let { codec ->
-                        Text(
-                            text = stringResource(R.string.formatFormat, codec),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
             }
         }
 

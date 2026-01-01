@@ -172,6 +172,7 @@ fun TopicDetails.toDomain(): RutrackerTopicDetails =
         downloadsCount = downloadsCount,
         currentPage = currentPage,
         totalPages = totalPages,
+        allMetadata = allMetadata,
     )
 
 /**

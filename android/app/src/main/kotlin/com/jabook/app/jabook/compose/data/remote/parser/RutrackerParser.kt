@@ -1204,6 +1204,7 @@ class RutrackerParser
                     downloadsCount = downloadsCount,
                     currentPage = currentPage,
                     totalPages = totalPages,
+                    allMetadata = metadata,
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to parse topic details", e)
@@ -1343,7 +1344,11 @@ class RutrackerParser
                         ?.trim()
                         ?: ""
 
-                if (value.isNotEmpty()) {
+                if (value.isNotEmpty() && label.isNotEmpty()) {
+                    // Keep original label and value
+                    metadata[label] = value
+
+                    // Map to standard internal keys for UI components
                     when {
                         // Author
                         label.contains("Автор", ignoreCase = true) || label.contains("Author", ignoreCase = true) -> {
@@ -1370,9 +1375,17 @@ class RutrackerParser
                         label.contains("Год выпуска", ignoreCase = true) || label.contains("Year", ignoreCase = true) -> {
                             metadata["addedDate"] = value
                         }
-                        // Series/Cycle (Also handled in extractSeries but useful here too)
+                        // Series/Cycle
                         label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true) -> {
                             metadata["series"] = value
+                        }
+                        // Genre
+                        label.contains("Жанр", ignoreCase = true) || label.contains("Genre", ignoreCase = true) -> {
+                            metadata["genre"] = value
+                        }
+                        // Publisher
+                        label.contains("Издательство", ignoreCase = true) || label.contains("Publisher", ignoreCase = true) -> {
+                            metadata["publisher"] = value
                         }
                     }
                 }
@@ -1684,20 +1697,22 @@ class RutrackerParser
 
             // Remove content BEFORE "Description" / "Описание" to avoid duplicating metadata
             // Pattern: <span class="post-b">Описание</span>:
-            val descriptionStartPattern =
-                Regex(
-                    "<span[^>]*class=[\"']post-b[\"'][^>]*>\\s*(?:Описание|Description)\\s*</span>\\s*:?",
-                    RegexOption.IGNORE_CASE,
-                )
-            val match = descriptionStartPattern.find(cleaned)
-            if (match != null) {
-                // Keep everything AFTER the match
-                cleaned = cleaned.substring(match.range.last + 1).trim()
-                // If it starts with a <br>, remove it
-                if (cleaned.startsWith("<br")) {
-                    cleaned = cleaned.replaceFirst(Regex("^<br\\s*/?>"), "").trim()
-                }
-            }
+            // Actually the user wants to keep "Цикл" block which usually comes before Description.
+            // Let's NOT strip before description anymore to keep all useful links.
+            // val descriptionStartPattern =
+            //     Regex(
+            //         "<span[^>]*class=['\"]post-b['\"][^>]*>\\s*(?:Описание|Description)\\s*</span>\\s*:?",
+            //         RegexOption.IGNORE_CASE,
+            //     )
+            // val match = descriptionStartPattern.find(cleaned)
+            // if (match != null) {
+            //     // Keep everything AFTER the match
+            //     cleaned = cleaned.substring(match.range.last + 1).trim()
+            //     // If it starts with a <br>, remove it
+            //     if (cleaned.startsWith("<br")) {
+            //         cleaned = cleaned.replaceFirst(Regex("^<br\\s*/?>"), "").trim()
+            //     }
+            // }
 
             // Remove MediaInfo section (everything from "Общее" or "MediaInfo" to end or next section)
             // Use regex to find and remove MediaInfo divs
@@ -1941,11 +1956,17 @@ class RutrackerParser
 
                         // Extract avatar URL and normalize CDN domain
                         val avatarElement = parentRow.selectFirst("p.avatar img")
-                        val avatarUrl =
+                        var avatarUrl =
                             avatarElement
-                                ?.absUrl("src")
+                                ?.attr("src")
                                 ?.takeIf { it.isNotEmpty() }
-                                ?.let { coverExtractor.normalizeUrl(it) }
+
+                        // Root relative URLs
+                        if (avatarUrl != null && avatarUrl.startsWith("/")) {
+                            avatarUrl = "https://rutracker.net$avatarUrl"
+                        }
+
+                        val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 
                         // Extract comment text and HTML (preserve links)
                         val html = postBody.html()?.takeIf { it.isNotEmpty() }
@@ -1973,7 +1994,7 @@ class RutrackerParser
                                     date = date,
                                     text = text,
                                     html = cleanedHtml,
-                                    avatarUrl = avatarUrl,
+                                    avatarUrl = normalizedAvatarUrl,
                                 ),
                             )
                         }
@@ -2036,11 +2057,17 @@ class RutrackerParser
 
                     // Extract avatar URL and normalize CDN domain
                     val avatarElement = postRow.selectFirst("p.avatar img")
-                    val avatarUrl =
+                    var avatarUrl =
                         avatarElement
-                            ?.absUrl("src")
+                            ?.attr("src")
                             ?.takeIf { it.isNotEmpty() }
-                            ?.let { coverExtractor.normalizeUrl(it) }
+
+                    // Root relative URLs
+                    if (avatarUrl != null && avatarUrl.startsWith("/")) {
+                        avatarUrl = "https://rutracker.net$avatarUrl"
+                    }
+
+                    val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 
                     // Extract comment text and HTML (preserve links)
                     val html = postBody.html()?.takeIf { it.isNotEmpty() }

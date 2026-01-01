@@ -76,6 +76,8 @@ data class RutrackerTopicDetails(
     val downloadsCount: String? = null,
     val currentPage: Int = 1,
     val totalPages: Int = 1,
+    /** All extracted metadata fields */
+    val allMetadata: Map<String, String> = emptyMap(),
 ) {
     /**
      * Validates that the topic details have required fields.
