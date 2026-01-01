@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.topic
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AudioFile
@@ -73,6 +75,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -103,6 +106,7 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 fun TopicScreen(
     topicId: String,
     onNavigateBack: () -> Unit,
+    onNavigateToTopic: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TopicViewModel = hiltViewModel(),
 ) {
@@ -134,7 +138,14 @@ fun TopicScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
-                navigationIcon = {}, // No back arrow (use swipe)
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
+                    }
+                },
                 actions = {
                     when (uiState) {
                         is TopicUiState.Success -> {
@@ -180,6 +191,7 @@ fun TopicScreen(
                     viewModel = viewModel,
                     isRefreshing = isRefreshing,
                     onRefresh = { viewModel.refreshTopicDetails(silent = true) },
+                    onNavigateToTopic = onNavigateToTopic,
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -208,6 +220,7 @@ private fun TopicDetailsContent(
     viewModel: TopicViewModel,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    onNavigateToTopic: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -479,6 +492,7 @@ private fun TopicDetailsContent(
                     totalPages = details.totalPages,
                     isLoadingMore = viewModel.isLoadingMoreComments.collectAsStateWithLifecycle().value,
                     onLoadMore = { viewModel.loadMoreComments() },
+                    onNavigateToTopic = onNavigateToTopic,
                 )
             }
         }
@@ -641,6 +655,7 @@ private fun DescriptionAndCommentsSection(
     totalPages: Int = 1,
     isLoadingMore: Boolean = false,
     onLoadMore: (() -> Unit)? = null,
+    onNavigateToTopic: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -650,7 +665,7 @@ private fun DescriptionAndCommentsSection(
             ?: null
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
     val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
-    val isMediumOrExpanded = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
+    val isNarrow = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     val itemSpacing =
         if (windowSizeClass != null) {
@@ -659,13 +674,30 @@ private fun DescriptionAndCommentsSection(
             16.dp
         }
 
-    // Use two-column layout for medium/expanded screens
-    if (isMediumOrExpanded && !description.isNullOrBlank() && comments.isNotEmpty()) {
-        // Two column layout for larger screens or landscape
-        Row(
-            modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-        ) {
+    if (isNarrow) {
+        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(itemSpacing)) {
+            if (!description.isNullOrBlank()) {
+                ExpandableDescription(
+                    description = description,
+                    descriptionHtml = descriptionHtml,
+                    onNavigateToTopic = onNavigateToTopic,
+                )
+            }
+            if (comments.isNotEmpty()) {
+                ExpandableComments(
+                    comments = comments,
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRefresh,
+                    onNavigateToTopic = onNavigateToTopic,
+                    currentPage = currentPage,
+                    totalPages = totalPages,
+                    isLoadingMore = isLoadingMore,
+                    onLoadMore = onLoadMore,
+                )
+            }
+        }
+    } else {
+        Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(itemSpacing)) {
             // Description column
             Column(
                 modifier = Modifier.weight(1f),
@@ -674,6 +706,7 @@ private fun DescriptionAndCommentsSection(
                     ExpandableDescription(
                         description = description,
                         descriptionHtml = descriptionHtml,
+                        onNavigateToTopic = onNavigateToTopic,
                     )
                 }
             }
@@ -686,30 +719,7 @@ private fun DescriptionAndCommentsSection(
                     comments = comments,
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
-                    currentPage = currentPage,
-                    totalPages = totalPages,
-                    isLoadingMore = isLoadingMore,
-                    onLoadMore = onLoadMore,
-                )
-            }
-        }
-    } else {
-        // Single column layout for smaller screens or when only one section exists
-        Column(
-            modifier = modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(itemSpacing),
-        ) {
-            if (!description.isNullOrBlank()) {
-                ExpandableDescription(
-                    description = description,
-                    descriptionHtml = descriptionHtml,
-                )
-            }
-            if (comments.isNotEmpty()) {
-                ExpandableComments(
-                    comments = comments,
-                    isRefreshing = isRefreshing,
-                    onRefresh = onRefresh,
+                    onNavigateToTopic = onNavigateToTopic,
                     currentPage = currentPage,
                     totalPages = totalPages,
                     isLoadingMore = isLoadingMore,
@@ -728,6 +738,7 @@ private fun DescriptionAndCommentsSection(
 private fun ExpandableDescription(
     description: String,
     descriptionHtml: String? = null,
+    onNavigateToTopic: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -806,6 +817,7 @@ private fun ExpandableDescription(
                 }
             }
 
+        var layoutResult by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
         Text(
             text = annotatedText,
             style =
@@ -823,7 +835,23 @@ private fun ExpandableDescription(
                     3
                 },
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth(),
+            onTextLayout = { layoutResult = it },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .pointerInput(annotatedText) {
+                        detectTapGestures { offset ->
+                            layoutResult?.let { layout ->
+                                val position = layout.getOffsetForPosition(offset)
+                                annotatedText
+                                    .getStringAnnotations("TOPIC_ID", position, position)
+                                    .firstOrNull()
+                                    ?.let { annotation ->
+                                        onNavigateToTopic(annotation.item)
+                                    }
+                            }
+                        }
+                    },
         )
     }
 }
@@ -857,6 +885,7 @@ private fun ExpandableComments(
     comments: List<com.jabook.app.jabook.compose.domain.model.RutrackerComment>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    onNavigateToTopic: (String) -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
     isLoadingMore: Boolean = false,
@@ -916,7 +945,10 @@ private fun ExpandableComments(
                 // Show comments from newest to oldest (fresh comments first)
                 // Sorting is now handled in ViewModel
                 comments.forEach { comment ->
-                    CommentItem(comment = comment)
+                    CommentItem(
+                        comment = comment,
+                        onNavigateToTopic = onNavigateToTopic,
+                    )
                 }
 
                 // Load More button
@@ -974,6 +1006,7 @@ private fun ExpandableComments(
 @Composable
 private fun CommentItem(
     comment: com.jabook.app.jabook.compose.domain.model.RutrackerComment,
+    onNavigateToTopic: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -1065,6 +1098,7 @@ private fun CommentItem(
                         }
                     }
 
+                val layoutResult = remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
                 Text(
                     text = annotatedText,
                     style =
@@ -1072,7 +1106,26 @@ private fun CommentItem(
                             color = MaterialTheme.colorScheme.onSurface,
                             lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.2,
                         ),
-                    modifier = Modifier.fillMaxWidth(),
+                    onTextLayout = { layoutResult.value = it },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .pointerInput(annotatedText) {
+                                detectTapGestures { offset ->
+                                    layoutResult.value?.let { result ->
+                                        val position = result.getOffsetForPosition(offset)
+                                        annotatedText
+                                            .getStringAnnotations(
+                                                tag = "TOPIC_ID",
+                                                start = position,
+                                                end = position,
+                                            ).firstOrNull()
+                                            ?.let { annotation ->
+                                                onNavigateToTopic(annotation.item)
+                                            }
+                                    }
+                                }
+                            },
                 )
             }
         }

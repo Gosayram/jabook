@@ -345,6 +345,9 @@ fun JabookNavHost(
                 onNavigateBack = {
                     navController.popBackStack()
                 },
+                onNavigateToTopic = { topicId ->
+                    navController.navigate(TopicRoute(topicId = topicId))
+                },
             )
         }
 

@@ -882,4 +882,47 @@ class RutrackerParserTest {
         assertTrue("Should contain description text", description.contains("Молодой солдат"))
         assertTrue("Should NOT contain Доп. информация", !description.contains("Релиз Книжного трекера"))
     }
+
+    @Test
+    fun `parseTopicDetails handles modern listing with VBR and preserves content`() {
+        val html =
+            """
+            <html>
+            <body>
+                <h1 class="maintitle">
+                    <a id="topic-title" href="https://rutracker.net/forum/viewtopic.php?t=5532748">Атаманов Михаил – Искажающие реальность 1</a>
+                </h1>
+                <div class="post_body" id="p-74963777">
+                    <span style="font-size: 24px;">Искажающие реальность Книга 1</span><br>
+                    <span class="post-b">Год выпуска</span>: 2018<br>
+                    <span class="post-b">Битрейт</span>: 56 kbps<br>
+                    <span class="post-b">Вид битрейта</span>: переменный битрейт (VBR)<br>
+                    <span class="post-b">Описание</span>: Случившийся долгожданный Первый Контакт...<br>
+                    <div class="sp-wrap">
+                        <div class="sp-head folded"><span>Содержание:</span></div>
+                        <div class="sp-body">Глава первая. Сетевой турнир</div>
+                    </div>
+                    <span class="post-b">Цикл «Искажающие реальность»:</span>
+                    <ol type="1">
+                        <li><span class="post-b"><a href="viewtopic.php?t=5603017" class="postLink">Искажающие реальность Книга 2</a></span></li>
+                    </ol>
+                </div>
+            </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "5532748")
+
+        // Bitrate should be 56 kbps, not VBR
+        assertNotNull(details)
+        assertEquals("56 kbps", details!!.bitrate)
+
+        // Description should preserve the spoiler and links in HTML
+        assertNotNull(details.descriptionHtml)
+        assertTrue("Should contain Content spoiler", details.descriptionHtml?.contains("Содержание") == true)
+        assertTrue("Should contain Book 2 link", details.descriptionHtml?.contains("viewtopic.php?t=5603017") == true)
+
+        // Plain text description should also contain some content if extractDescriptionSection worked
+        assertTrue("Should contain description text", details.description?.contains("Случившийся долгожданный") == true)
+    }
 }

@@ -46,22 +46,22 @@
     <!-- Prompt to start searching -->
     <string name="enterSearchTerm">Enter a search term to begin</string>
     <!-- Label for author field -->
-    <string name="authorLabel">Author: </string>
-    <string name="performerLabel">Performer: </string>
-    <string name="seriesLabel">Series: </string>
+    <string name="authorLabel">Author</string>
+    <string name="performerLabel">Performer</string>
+    <string name="seriesLabel">Series</string>
     <string name="commentsLabel">Comments (%d)</string>
     <!-- Label for size field -->
-    <string name="sizeLabel">Size: </string>
-    <string name="durationLabel">Duration: </string>
-    <string name="bitrateLabel">Bitrate: </string>
+    <string name="sizeLabel">Size</string>
+    <string name="durationLabel">Duration</string>
+    <string name="bitrateLabel">Bitrate</string>
     <!-- Label for seeders count -->
     <string name="seedersLabel"> seeders</string>
     <!-- Label for leechers count -->
     <string name="leechersLabel"> leechers</string>
     <string name="seeders">Seeders</string>
     <string name="leechers">Leechers</string>
-    <string name="registeredLabel">Registered: </string>
-    <string name="downloadedLabel">Downloaded: </string>
+    <string name="registeredLabel">Registered</string>
+    <string name="downloadedLabel">Downloaded</string>
     <string name="downloadedTimes"> %1$s times</string>
     <string name="pageOfPages">Page %1$d of %2$d</string>
     <string name="loadMoreComments">Load More (%1$d pages remaining)</string>

@@ -46,22 +46,22 @@
     <!-- Приглашение начать поиск -->
     <string name="enterSearchTerm">Введите поисковый запрос чтобы начать</string>
     <!-- Метка для поля автора -->
-    <string name="authorLabel">Автор: </string>
-    <string name="performerLabel">Исполнитель: </string>
-    <string name="seriesLabel">Цикл/серия: </string>
+    <string name="authorLabel">Автор</string>
+    <string name="performerLabel">Исполнитель</string>
+    <string name="seriesLabel">Цикл/серия</string>
     <string name="commentsLabel">Комментарии (%d)</string>
     <!-- Метка для поля размера -->
-    <string name="sizeLabel">Размер: </string>
-    <string name="durationLabel">Длительность: </string>
-    <string name="bitrateLabel">Битрейт: </string>
+    <string name="sizeLabel">Размер</string>
+    <string name="durationLabel">Длительность</string>
+    <string name="bitrateLabel">Битрейт</string>
     <!-- Метка для количества сидеров -->
     <string name="seedersLabel"> сидеров</string>
     <!-- Метка для количества личеров -->
     <string name="leechersLabel"> личеров</string>
     <string name="seeders">Сидеры</string>
     <string name="leechers">Личеры</string>
-    <string name="registeredLabel">Зарегистрирован: </string>
-    <string name="downloadedLabel">Скачан: </string>
+    <string name="registeredLabel">Зарегистрирован</string>
+    <string name="downloadedLabel">Скачан</string>
     <string name="downloadedTimes"> %1$s раз</string>
     <string name="pageOfPages">Страница %1$d из %2$d</string>
     <string name="loadMoreComments">Загрузить ещё (%1$d стр. осталось)</string>

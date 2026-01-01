@@ -69,6 +69,30 @@ object HtmlToAnnotatedString {
             }
             is Element -> {
                 when (node.tagName()) {
+                    "div" -> {
+                        when (node.attr("class")) {
+                            "sp-wrap" -> {
+                                append("\n")
+                                node.childNodes().forEach { processNode(it, linkColor) }
+                                append("\n")
+                            }
+                            "sp-head" -> {
+                                withStyle(SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = linkColor)) {
+                                    append("[ ")
+                                    node.childNodes().forEach { processNode(it, linkColor) }
+                                    append(" ]")
+                                }
+                                append("\n")
+                            }
+                            "sp-body" -> {
+                                node.childNodes().forEach { processNode(it, linkColor) }
+                            }
+                            else -> {
+                                node.childNodes().forEach { processNode(it, linkColor) }
+                                append("\n")
+                            }
+                        }
+                    }
                     "a" -> {
                         val href = node.attr("href")
                         val linkStyle =
@@ -83,11 +107,23 @@ object HtmlToAnnotatedString {
                                 node.childNodes().forEach { processNode(it, linkColor) }
                             }
                             val end = length
-                            addLink(
-                                LinkAnnotation.Url(href),
-                                start = start,
-                                end = end,
-                            )
+
+                            // Identify internal topic links
+                            val topicId = extractTopicId(href)
+                            if (topicId != null) {
+                                addStringAnnotation(
+                                    tag = "TOPIC_ID",
+                                    annotation = topicId,
+                                    start = start,
+                                    end = end,
+                                )
+                            } else {
+                                addLink(
+                                    LinkAnnotation.Url(href),
+                                    start = start,
+                                    end = end,
+                                )
+                            }
                         } else {
                             node.childNodes().forEach { processNode(it, linkColor) }
                         }
@@ -114,6 +150,16 @@ object HtmlToAnnotatedString {
                             node.childNodes().forEach { processNode(it, linkColor) }
                         }
                     }
+                    "ul" -> {
+                        append("\n")
+                        node.childNodes().forEach { processNode(it, linkColor) }
+                        append("\n")
+                    }
+                    "li" -> {
+                        append("• ")
+                        node.childNodes().forEach { processNode(it, linkColor) }
+                        append("\n")
+                    }
                     else -> {
                         // Process child nodes for other tags
                         node.childNodes().forEach { processNode(it, linkColor) }
@@ -125,4 +171,16 @@ object HtmlToAnnotatedString {
             }
         }
     }
+
+    /**
+     * Extract topic ID from Rutracker URL.
+     * Example: viewtopic.php?t=12345
+     */
+    private fun extractTopicId(url: String): String? =
+        if (url.contains("viewtopic.php")) {
+            val regex = Regex("[?&]t=(\\d+)")
+            regex.find(url)?.groupValues?.get(1)
+        } else {
+            null
+        }
 }

@@ -1359,7 +1359,7 @@ class RutrackerParser
                             metadata["duration"] = value
                         }
                         // Bitrate
-                        label.contains("Битрейт", ignoreCase = true) || label.contains("Bitrate", ignoreCase = true) -> {
+                        (label.equals("Битрейт", ignoreCase = true) || label.equals("Bitrate", ignoreCase = true)) -> {
                             metadata["bitrate"] = value
                         }
                         // Audio Codec
@@ -1668,16 +1668,19 @@ class RutrackerParser
             var cleaned = rawHtml
 
             // Truncate at "Доп. информация" / "Дополнительная информация" BEFORE other cleaning
-            val cutoffMarkers = listOf("Доп. информация", "Дополнительная информация")
+            // But we skip this for now to preserve more content as requested by user?
+            // "сохранять оригинальное форматирование... внутри приложения"
+            // Actually, "Доп. информация" often contains tracklists or links, so let's keep it if possible
+            // but the user said "original formatting of descriptions, content, and hyperlinks"
+            // Let's keep it but maybe clean it better.
+
+            /* val cutoffMarkers = listOf("Доп. информация", "Дополнительная информация")
             for (marker in cutoffMarkers) {
                 val index = cleaned.indexOf(marker, ignoreCase = true)
                 if (index != -1) {
-                    // Find the preceding tag to be safe? Or just cut.
-                    // Ideally we cut at the start of the line or span containing this.
-                    // For now, simple truncation as requested.
                     cleaned = cleaned.substring(0, index).trim()
                 }
-            }
+            } */
 
             // Remove content BEFORE "Description" / "Описание" to avoid duplicating metadata
             // Pattern: <span class="post-b">Описание</span>:
