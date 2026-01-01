@@ -24,6 +24,9 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
 
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
 /**
  * Unit tests for RutrackerParser.
  *
@@ -39,6 +42,7 @@ import org.mockito.kotlin.mock
  * to run successfully due to android.util.Log dependencies in RutrackerParser.
  * For now, they serve as documentation of expected behavior.
  */
+@RunWith(RobolectricTestRunner::class)
 class RutrackerParserTest {
     private lateinit var parser: RutrackerParser
     private lateinit var mockDecoder: RutrackerSimpleDecoder
@@ -51,7 +55,12 @@ class RutrackerParserTest {
     fun setup() {
         mockDecoder = mock()
         mockMediaInfoParser = mock()
+        mirrorManager = mock()
         fieldExtractor = DefensiveFieldExtractor()
+        
+        // Mock getBaseUrl behavior
+        org.mockito.kotlin.whenever(mirrorManager.getBaseUrl()).thenReturn("https://rutracker.org")
+        
         // CoverUrlExtractor requires MirrorManager
         coverExtractor = CoverUrlExtractor(mirrorManager)
 
@@ -73,6 +82,7 @@ class RutrackerParserTest {
             """
             <html>
             <body>
+                <table>
                 <tr class="hl-tr" data-topic_id="6171728">
                     <td><a class="torTopic" href="viewtopic.php?t=6171728">Л.Н. Толстой - Война и мир</a></td>
                     <td><a class="pmed" href="profile.php?user=123">Narrator</a></td>
@@ -80,6 +90,7 @@ class RutrackerParserTest {
                     <td><span class="leech"><b>3</b></span></td>
                     <td><span class="small">2.5 GB</span></td>
                 </tr>
+                </table>
             </body>
             </html>
             """.trimIndent()
@@ -90,7 +101,9 @@ class RutrackerParserTest {
         val result = results[0]
         assertEquals("6171728", result.topicId)
         assertEquals("Л.Н. Толстой - Война и мир", result.title)
-        assertEquals("Narrator", result.author)
+        // Expected author is from Title (Л.Н. Толстой), not Uploader (Narrator)
+        // because extractAuthorFromTitle logic prioritizes title parsing
+        assertEquals("Л.Н. Толстой", result.author)
         assertEquals(15, result.seeders)
         assertEquals(3, result.leechers)
     }
@@ -101,6 +114,7 @@ class RutrackerParserTest {
             """
             <html>
             <body>
+                <table>
                 <tr class="hl-tr" data-topic_id="1">
                     <td><a class="torTopic" href="viewtopic.php?t=1">Book One</a></td>
                     <td><a class="pmed">Author 1</a></td>
@@ -109,6 +123,7 @@ class RutrackerParserTest {
                     <td><a class="torTopic" href="viewtopic.php?t=2">Book Two</a></td>
                     <td><a class="pmed">Author 2</a></td>
                 </tr>
+                </table>
             </body>
             </html>
             """.trimIndent()
@@ -138,10 +153,12 @@ class RutrackerParserTest {
             """
             <html>
             <body>
+                <table>
                 <tr class="hl-tr" data-topic_id="100">
                     <td><a class="torTopic" href="viewtopic.php?t=100">Test Book</a></td>
                     <td></td>
                 </tr>
+                </table>
             </body>
             </html>
             """.trimIndent()
@@ -150,6 +167,33 @@ class RutrackerParserTest {
 
         assertEquals(1, results.size)
         assertEquals("Unknown", results[0].author)
+    }
+
+    @Test
+    fun `parseSearchResults extracts uploader nickname`() {
+        val html =
+            """
+            <html>
+            <body>
+                <table>
+                <tr class="hl-tr" data-topic_id="555">
+                    <td><a class="torTopic" href="viewtopic.php?t=555">Book Title</a></td>
+                    <td><a class="topicAuthor" href="profile.php?u=777">UploaderNick</a></td>
+                    <td><span class="seed">1</span></td>
+                    <td><span class="leech">0</span></td>
+                    <td><span class="small">1 GB</span></td>
+                </tr>
+                </table>
+            </body>
+            </html>
+            """.trimIndent()
+
+        val results = parser.parseSearchResults(html)
+
+        assertEquals(1, results.size)
+        assertEquals("UploaderNick", results[0].uploader)
+        // Author should fallback to uploader if not in title
+        assertEquals("UploaderNick", results[0].author)
     }
 
     // ============ Title Cleaning Tests ============
@@ -184,9 +228,9 @@ class RutrackerParserTest {
             <body>
                 <h1 class="maintitle"><a>Test Audiobook Title</a></h1>
                 <div class="post_body">
-                    <p>Автор: Test Author</p>
-                    <p>Исполнитель: Test Narrator</p>
-                    <p>Жанр: Fiction, Drama</p>
+                    <span class="post-b">Автор</span>: Test Author<br>
+                    <span class="post-b">Исполнитель</span>: Test Narrator<br>
+                    <span class="post-b">Жанр</span>: Fiction, Drama<br>
                     <a class="magnet-link" href="magnet:?xt=urn:btih:test123"></a>
                     <span id="tor-size-humn">1.5 GB</span>
                 </div>
@@ -200,6 +244,7 @@ class RutrackerParserTest {
         details?.let {
             assertEquals("12345", it.topicId)
             assertEquals("Test Audiobook Title", it.title)
+
             assertEquals("Test Author", it.author)
             assertEquals("Test Narrator", it.performer)
             assertEquals("1.5 GB", it.size)
@@ -241,6 +286,68 @@ class RutrackerParserTest {
             assertEquals("Minimal Topic", it.title)
             assertNull(it.author)
             assertNull(it.performer)
+        }
+    }
+
+    @Test
+    fun `parseTopicDetails truncates description at additional info`() {
+        val html =
+            """
+            <html>
+            <body>
+                <h1 class="maintitle"><a>Truncation Test</a></h1>
+                <div class="post_body">
+                    <p>Description line 1.</p>
+                    <p>Description line 2.</p>
+                    <span class="post-b">Доп. информация</span>:
+                    <p>Some unnecessary footer info.</p>
+                </div>
+            </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "123")
+
+        assertNotNull(details)
+        val description = details?.description ?: ""
+
+        // Should contain lines before marker
+        assertTrue(description.contains("Description line 1"))
+
+        // Should NOT contain lines after marker
+        assertEquals(-1, description.indexOf("footer info"))
+    }
+
+    @Test
+    fun `parseTopicDetails extracts structural metadata`() {
+        val html =
+            """
+            <html>
+            <head><title>Topic</title></head>
+            <body>
+                <h1 class="maintitle"><a>Test Audiobook</a></h1>
+                <div class="post_body">
+                    <span class="post-b">Автор</span>: Mikhail Atamanov<br>
+                    <span class="post-b">Исполнитель</span>: Kirill Zakharchuk<br>
+                    <span class="post-b">Цикл/серия</span>: Dark Herbalist<br>
+                    <span class="post-b">Время звучания</span>: 11:00:00<br>
+                    <span class="post-b">Битрейт</span>: 64 kbps<br>
+                    
+                    Some description text here.
+                </div>
+            </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "123")
+
+        assertNotNull(details)
+        details?.let {
+            assertEquals("Mikhail Atamanov", it.author)
+            assertEquals("Kirill Zakharchuk", it.performer)
+            assertEquals("Dark Herbalist", it.series)
+            assertEquals("11:00:00", it.duration)
+            assertEquals("64 kbps", it.bitrate)
         }
     }
 

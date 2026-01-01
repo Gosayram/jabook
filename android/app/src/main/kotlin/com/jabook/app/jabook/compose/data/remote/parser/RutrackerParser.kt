@@ -1327,10 +1327,10 @@ class RutrackerParser
                 }
             }
 
-            // Fallback: If map is empty, try regex (for older layouts without span.post-b)
+
             if (metadata.isEmpty()) {
-                val text = postBody.toStr()
-                // Author
+                val text = postBody?.wholeText() ?: ""
+                // Author (fallback)
                 "Автор[:\\s]+(.+?)(?=\\n|Исполнитель|Год|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["author"] = it
                 }
@@ -1363,14 +1363,35 @@ class RutrackerParser
         private fun extractGenres(postBody: Element?): List<String> {
             if (postBody == null) return emptyList()
 
-            val text = postBody.toStr()
-            val genrePattern = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()
-            val match = genrePattern.find(text) ?: return emptyList()
+            // Strategy 1: Structural parsing (span.post-b)
+            val genreSpan =
+                postBody.select("span.post-b").firstOrNull {
+                    it.text().contains("Жанр", ignoreCase = true) ||
+                        it.text().contains("Genre", ignoreCase = true)
+                }
 
-            return match.groupValues[1]
-                .split(",", ";")
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
+            var genreText: String? = null
+            if (genreSpan != null) {
+                genreText =
+                    genreSpan.nextSibling()
+                        ?.toString()
+                        ?.trim()
+                        ?.removePrefix(":")
+                        ?.trim()
+            }
+
+            // Strategy 2: Regex fallback (using wholeText to preserve newlines)
+            if (genreText == null) {
+                val text = postBody.wholeText()
+                val genrePattern = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()
+                genreText = genrePattern.find(text)?.groupValues?.get(1)
+            }
+
+            return genreText
+                ?.split(",", ";")
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() }
+                ?: emptyList()
         }
 
         /**
