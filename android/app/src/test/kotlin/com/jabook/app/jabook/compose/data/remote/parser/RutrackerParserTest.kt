@@ -497,4 +497,45 @@ class RutrackerParserTest {
         assertEquals("21-Май-19 15:42", details?.registeredDate)
         assertEquals("11,783", details?.downloadsCount)
     }
+
+    @Test
+    fun `parseTopicDetails extracts pagination info`() {
+        val html =
+            """
+            <html>
+                <head><title>Pagination Test</title></head>
+                <body>
+                    <h1 class="maintitle"><a>Topic Title</a></h1>
+                    <div id="pagination">
+                        <p>Страница 2 из 10</p>
+                    </div>
+                    <div class="post_body">Post body</div>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "123")
+        assertNotNull(details)
+        assertEquals(2, details?.currentPage)
+        assertEquals(10, details?.totalPages)
+    }
+
+    @Test
+    fun `parseTopicDetails defaults pagination to 1`() {
+        val html =
+            """
+            <html>
+                <head><title>No Pagination Test</title></head>
+                <body>
+                    <h1 class="maintitle"><a>Topic Title</a></h1>
+                    <div class="post_body">Post body</div>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "123")
+        assertNotNull(details)
+        assertEquals(1, details?.currentPage)
+        assertEquals(1, details?.totalPages)
+    }
 }

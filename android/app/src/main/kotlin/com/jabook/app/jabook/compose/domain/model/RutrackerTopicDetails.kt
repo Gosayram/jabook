@@ -74,6 +74,8 @@ data class RutrackerTopicDetails(
     val registeredDate: String? = null,
     /** Download count */
     val downloadsCount: String? = null,
+    val currentPage: Int = 1,
+    val totalPages: Int = 1,
 ) {
     /**
      * Validates that the topic details have required fields.

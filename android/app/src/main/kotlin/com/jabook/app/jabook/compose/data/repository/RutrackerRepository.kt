@@ -63,6 +63,18 @@ interface RutrackerRepository {
         username: String,
         password: String,
     ): Result<Unit>
+
+    /**
+     * Get topic details at a specific page.
+     *
+     * @param topicId Topic ID
+     * @param page Page number (1-indexed)
+     * @return Result with topic details for that page
+     */
+    suspend fun getTopicDetailsPage(
+        topicId: String,
+        page: Int,
+    ): Result<RutrackerTopicDetails>
 }
 
 /**
@@ -227,6 +239,37 @@ class RutrackerRepositoryImpl
                 // Check if login was successful by checking cookies or response content
                 // Rutracker sets session cookies on successful login
                 Result.Success(Unit)
+            } catch (e: Exception) {
+                Result.Error(e)
+            }
+        }
+
+        override suspend fun getTopicDetailsPage(
+            topicId: String,
+            page: Int,
+        ): Result<RutrackerTopicDetails> {
+            return try {
+                // Calculate offset: each page has 30 comments, offset = (page - 1) * 30
+                val offset = (page - 1) * 30
+                val response = api.getTopicDetailsAtPage(topicId, offset)
+
+                if (!response.isSuccessful) {
+                    return Result.Error(Exception("HTTP ${response.code()}: ${response.message()}"))
+                }
+
+                val rawBytes = response.body()?.bytes() ?: return Result.Error(Exception("Empty response body"))
+                val html = String(rawBytes, charset("windows-1251"))
+
+                val dtoDetails =
+                    parser.parseTopicDetails(html, topicId)
+                        ?: return Result.Error(Exception("Failed to parse topic details"))
+
+                val domainDetails = dtoDetails.toDomain()
+                if (domainDetails.isValid()) {
+                    Result.Success(domainDetails)
+                } else {
+                    Result.Error(Exception("Topic details failed validation"))
+                }
             } catch (e: Exception) {
                 Result.Error(e)
             }

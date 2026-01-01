@@ -63,6 +63,8 @@
     <string name="registeredLabel">Зарегистрирован: </string>
     <string name="downloadedLabel">Скачан: </string>
     <string name="downloadedTimes"> %1$s раз</string>
+    <string name="pageOfPages">Страница %1$d из %2$d</string>
+    <string name="loadMoreComments">Загрузить ещё (%1$d стр. осталось)</string>
     <!-- Запасной вариант для отсутствующего названия -->
     <string name="unknownTitle">Неизвестное название</string>
     <!-- Запасной вариант для отсутствующего автора -->

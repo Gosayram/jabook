@@ -100,6 +100,13 @@ class TopicViewModel
         private val _isRefreshing = MutableStateFlow(false)
         val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+        // Pagination state
+        private val _isLoadingMoreComments = MutableStateFlow(false)
+        val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
+
+        private val loadedComments = mutableListOf<com.jabook.app.jabook.compose.domain.model.RutrackerComment>()
+        private var currentLoadedPage = 1
+
         init {
             loadTopicDetails()
         }
@@ -107,6 +114,9 @@ class TopicViewModel
         private fun loadTopicDetails() {
             viewModelScope.launch {
                 _uiState.value = TopicUiState.Loading
+                // Reset pagination state on initial load
+                loadedComments.clear()
+                currentLoadedPage = 1
 
                 val result = rutrackerRepository.getTopicDetails(topicId)
 
@@ -116,9 +126,13 @@ class TopicViewModel
                             // Preload avatars for comments (offline support)
                             avatarPreloader.preloadAvatars(context, result.data.comments)
 
+                            // Initialize all comments with reversed order (newest first)
+                            val reversedComments = result.data.comments.reversed()
+                            loadedComments.addAll(reversedComments)
+
                             TopicUiState.Success(
                                 result.data.copy(
-                                    comments = result.data.comments.reversed(), // Sort comments newest first
+                                    comments = reversedComments,
                                 ),
                             )
                         }
@@ -129,6 +143,53 @@ class TopicViewModel
                             TopicUiState.Loading
                         }
                     }
+            }
+        }
+
+        /**
+         * Load more comments from the next page.
+         */
+        fun loadMoreComments() {
+            val currentState = _uiState.value
+            if (currentState !is TopicUiState.Success) return
+
+            val details = currentState.details
+            if (currentLoadedPage >= details.totalPages) return // No more pages
+            if (_isLoadingMoreComments.value) return // Already loading
+
+            viewModelScope.launch {
+                _isLoadingMoreComments.value = true
+                val nextPage = currentLoadedPage + 1
+
+                val result = rutrackerRepository.getTopicDetailsPage(topicId, nextPage)
+
+                when (result) {
+                    is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                        // Preload avatars for new comments
+                        avatarPreloader.preloadAvatars(context, result.data.comments)
+
+                        // Add new comments to the list
+                        loadedComments.addAll(result.data.comments.reversed())
+                        currentLoadedPage = nextPage
+
+                        // Update UI state with all comments
+                        _uiState.value =
+                            TopicUiState.Success(
+                                details.copy(
+                                    comments = loadedComments.toList(),
+                                    currentPage = nextPage,
+                                ),
+                            )
+                    }
+                    is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
+                        _message.value = result.message ?: context.getString(R.string.unknownError)
+                    }
+                    is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
+                        // Ignore
+                    }
+                }
+
+                _isLoadingMoreComments.value = false
             }
         }
 

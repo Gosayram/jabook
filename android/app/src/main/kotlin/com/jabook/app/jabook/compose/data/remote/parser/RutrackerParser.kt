@@ -1175,6 +1175,8 @@ class RutrackerParser
                 // Extract comments (skip first post_body which is the main post)
                 val comments = extractComments(document, topicId)
 
+                val (currentPage, totalPages) = extractTopicPagination(document)
+
                 return TopicDetails(
                     topicId = topicId,
                     title = cleanedTitle,
@@ -1200,6 +1202,8 @@ class RutrackerParser
                     comments = comments,
                     registeredDate = registeredDate,
                     downloadsCount = downloadsCount,
+                    currentPage = currentPage,
+                    totalPages = totalPages,
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to parse topic details", e)
@@ -1229,6 +1233,23 @@ class RutrackerParser
                 }
 
             return date to count
+        }
+
+        private fun extractTopicPagination(doc: org.jsoup.nodes.Document): Pair<Int, Int> {
+            val paginationText = doc.select("#pagination, .nav").text()
+            if (paginationText.isBlank()) return 1 to 1
+
+            // Regex for "Страница X из Y" (Page X of Y)
+            val regex = Regex("Страница\\s+(\\d+)\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE)
+            val match = regex.find(paginationText)
+
+            return if (match != null) {
+                val current = match.groupValues[1].toIntOrNull() ?: 1
+                val total = match.groupValues[2].toIntOrNull() ?: 1
+                current to total
+            } else {
+                1 to 1
+            }
         }
 
         /**

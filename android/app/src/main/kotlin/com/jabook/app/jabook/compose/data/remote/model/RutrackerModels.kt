@@ -96,6 +96,10 @@ data class TopicDetails(
     val registeredDate: String? = null,
     /** Download count */
     val downloadsCount: String? = null,
+    /** Current page number (1-indexed) */
+    val currentPage: Int = 1,
+    /** Total number of pages */
+    val totalPages: Int = 1,
 )
 
 /**

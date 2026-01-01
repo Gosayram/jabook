@@ -475,6 +475,10 @@ private fun TopicDetailsContent(
                     comments = details.comments,
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
+                    currentPage = details.currentPage,
+                    totalPages = details.totalPages,
+                    isLoadingMore = viewModel.isLoadingMoreComments.collectAsStateWithLifecycle().value,
+                    onLoadMore = { viewModel.loadMoreComments() },
                 )
             }
         }
@@ -633,6 +637,10 @@ private fun DescriptionAndCommentsSection(
     comments: List<com.jabook.app.jabook.compose.domain.model.RutrackerComment>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    currentPage: Int = 1,
+    totalPages: Int = 1,
+    isLoadingMore: Boolean = false,
+    onLoadMore: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -678,6 +686,10 @@ private fun DescriptionAndCommentsSection(
                     comments = comments,
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
+                    currentPage = currentPage,
+                    totalPages = totalPages,
+                    isLoadingMore = isLoadingMore,
+                    onLoadMore = onLoadMore,
                 )
             }
         }
@@ -698,6 +710,10 @@ private fun DescriptionAndCommentsSection(
                     comments = comments,
                     isRefreshing = isRefreshing,
                     onRefresh = onRefresh,
+                    currentPage = currentPage,
+                    totalPages = totalPages,
+                    isLoadingMore = isLoadingMore,
+                    onLoadMore = onLoadMore,
                 )
             }
         }
@@ -841,6 +857,10 @@ private fun ExpandableComments(
     comments: List<com.jabook.app.jabook.compose.domain.model.RutrackerComment>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    currentPage: Int = 1,
+    totalPages: Int = 1,
+    isLoadingMore: Boolean = false,
+    onLoadMore: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -858,10 +878,19 @@ private fun ExpandableComments(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(R.string.commentsLabel, comments.size),
-                style = MaterialTheme.typography.titleSmall,
-            )
+            Column {
+                Text(
+                    text = stringResource(R.string.commentsLabel, comments.size),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                if (totalPages > 1 && expanded) {
+                    Text(
+                        text = stringResource(R.string.pageOfPages, currentPage, totalPages),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             if (isRefreshing) {
                 CircularProgressIndicator(
@@ -888,6 +917,28 @@ private fun ExpandableComments(
                 // Sorting is now handled in ViewModel
                 comments.forEach { comment ->
                     CommentItem(comment = comment)
+                }
+
+                // Load More button
+                if (currentPage < totalPages && onLoadMore != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = onLoadMore,
+                        enabled = !isLoadingMore,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (isLoadingMore) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.height(20.dp).width(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = stringResource(R.string.loadMoreComments, totalPages - currentPage),
+                        )
+                    }
                 }
             }
         }

@@ -55,6 +55,19 @@ interface RutrackerApi {
     ): Response<ResponseBody>
 
     /**
+     * Get topic details page at specific offset.
+     *
+     * @param topicId Topic ID
+     * @param start Starting offset (0, 30, 60, etc. - 30 comments per page)
+     * @return HTML response with topic details (raw bytes for encoding detection)
+     */
+    @GET("viewtopic.php")
+    suspend fun getTopicDetailsAtPage(
+        @Query("t") topicId: String,
+        @Query("start") start: Int,
+    ): Response<ResponseBody>
+
+    /**
      * Download torrent file.
      *
      * @param topicId Topic ID

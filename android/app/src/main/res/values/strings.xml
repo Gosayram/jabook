@@ -63,6 +63,8 @@
     <string name="registeredLabel">Registered: </string>
     <string name="downloadedLabel">Downloaded: </string>
     <string name="downloadedTimes"> %1$s times</string>
+    <string name="pageOfPages">Page %1$d of %2$d</string>
+    <string name="loadMoreComments">Load More (%1$d pages remaining)</string>
     <!-- Fallback for missing title -->
     <string name="unknownTitle">Unknown Title</string>
     <!-- Fallback for missing author -->
