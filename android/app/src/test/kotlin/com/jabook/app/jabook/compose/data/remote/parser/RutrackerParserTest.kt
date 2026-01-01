@@ -302,8 +302,7 @@ class RutrackerParserTest {
             <body>
                 <h1 class="maintitle"><a>Truncation Test</a></h1>
                 <div class="post_body">
-                    <p>Description line 1.</p>
-                    <p>Description line 2.</p>
+                    <span class="post-b">Описание</span>: Description line 1. Description line 2.
                     <span class="post-b">Доп. информация</span>:
                     <p>Some unnecessary footer info.</p>
                 </div>
@@ -622,10 +621,11 @@ class RutrackerParserTest {
 
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
-        val mockResponseBody = okhttp3.ResponseBody.create(
-            "text/html; charset=utf-8".toMediaType(),
-            bytes,
-        )
+        val mockResponseBody =
+            okhttp3.ResponseBody.create(
+                "text/html; charset=utf-8".toMediaType(),
+                bytes,
+            )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "2387")
 
@@ -666,10 +666,11 @@ class RutrackerParserTest {
 
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
-        val mockResponseBody = okhttp3.ResponseBody.create(
-            "text/html; charset=utf-8".toMediaType(),
-            bytes,
-        )
+        val mockResponseBody =
+            okhttp3.ResponseBody.create(
+                "text/html; charset=utf-8".toMediaType(),
+                bytes,
+            )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "2387")
 
@@ -701,10 +702,11 @@ class RutrackerParserTest {
 
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
-        val mockResponseBody = okhttp3.ResponseBody.create(
-            "text/html; charset=utf-8".toMediaType(),
-            bytes,
-        )
+        val mockResponseBody =
+            okhttp3.ResponseBody.create(
+                "text/html; charset=utf-8".toMediaType(),
+                bytes,
+            )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "2387")
 
@@ -737,10 +739,11 @@ class RutrackerParserTest {
 
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
-        val mockResponseBody = okhttp3.ResponseBody.create(
-            "text/html; charset=utf-8".toMediaType(),
-            bytes,
-        )
+        val mockResponseBody =
+            okhttp3.ResponseBody.create(
+                "text/html; charset=utf-8".toMediaType(),
+                bytes,
+            )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "test")
 
@@ -777,13 +780,106 @@ class RutrackerParserTest {
 
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
-        val mockResponseBody = okhttp3.ResponseBody.create(
-            "text/html; charset=utf-8".toMediaType(),
-            bytes,
-        )
+        val mockResponseBody =
+            okhttp3.ResponseBody.create(
+                "text/html; charset=utf-8".toMediaType(),
+                bytes,
+            )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "test")
 
         assertTrue("Middle page should have more pages", result.hasMorePages)
+    }
+
+    // ============ Description Extraction Tests ============
+
+    @Test
+    fun `parseTopicDetails extracts description when at end of post`() {
+        // This test verifies the fix for description extraction when "Описание:" is at the end
+        val html =
+            """
+            <html>
+                <head><title>Test Topic</title></head>
+                <body>
+                    <h1 class="maintitle"><a>Атаманов Михаил - Забаненный [2025, MP3]</a></h1>
+                    <div class="post_body">
+                        <span class="post-b">Год выпуска</span>: 2025<br>
+                        <span class="post-b">Фамилия автора</span>: Атаманов<br>
+                        <span class="post-b">Имя автора</span>: Михаил<br>
+                        <span class="post-b">Исполнитель</span>: Анатолий Константинов<br>
+                        <span class="post-b">Жанр</span>: ЛитРПГ<br>
+                        <span class="post-b">Описание</span>: Михаил Атаманов – популярный писатель-фантаст. Предлагаем полностью погрузиться в прослушивание аудиокниги!<br>
+                        <a href="#">Цикл «Забаненный»</a><br>
+                        Забаненный. Книга 1<br>
+                        Забаненный. Книга 2
+                    </div>
+                    <span id="tor-size-humn">369.9 MB</span>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "6708781")
+
+        assertNotNull(details)
+        // The description should contain the actual description text
+        assertTrue(
+            "Description should contain 'популярный писатель-фантаст'",
+            details?.description?.contains("популярный писатель-фантаст") == true,
+        )
+        // Description should NOT contain metadata fields
+        assertTrue(
+            "Description should NOT contain 'Фамилия автора'",
+            details?.description?.contains("Фамилия автора") != true,
+        )
+    }
+
+    @Test
+    fun `parseTopicDetails handles old book format from 2014`() {
+        // Test old book format with:
+        // - Тип издания, Категория (instead of modern fields)
+        // - Описание and Доп. информация on same line
+        // - No Цикл/серия, Издательство
+        val html =
+            """
+            <html>
+                <head><title>Old Book</title></head>
+                <body>
+                    <h1 class="maintitle"><a>Анин Владимир - Манагуанда [2014, MP3]</a></h1>
+                    <div class="post_body">
+                        <span class="post-b">Год выпуска</span>: 2014 г.<br>
+                        <span class="post-b">Фамилия автора</span>: Анин<br>
+                        <span class="post-b">Имя автора</span>: Владимир<br>
+                        <span class="post-b">Исполнитель</span>: Богдан Скромный<br>
+                        <span class="post-b">Жанр</span>: Ужасы, мистика<br>
+                        <span class="post-b">Тип издания</span>: аудиокнига своими руками<br>
+                        <span class="post-b">Категория</span>: аудиокнига<br>
+                        <span class="post-b">Описание</span>: Молодой солдат знакомится с библиотекаршей.<span class="post-br"><br></span><span class="post-b">Доп. информация</span>: Релиз Книжного трекера.
+                    </div>
+                    <span id="tor-size-humn">106.6 MB</span>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "4882867")
+
+        assertNotNull(details)
+
+        // Verify author extracted (Surname + Name combined)
+        assertEquals("Анин Владимир", details?.author)
+
+        // Verify performer extracted
+        assertEquals("Богдан Скромный", details?.performer)
+
+        // Verify year extracted (Note: it includes 'г.' in old format)
+        assertEquals("2014 г.", details?.addedDate)
+
+        // Verify genre extracted
+        assertTrue(details?.genres?.contains("Ужасы") == true)
+        assertTrue(details?.genres?.contains("мистика") == true)
+
+        // Verify description extracted, truncated at "Доп. информация"
+        val description = details?.description ?: ""
+        assertTrue("Should contain description text", description.contains("Молодой солдат"))
+        assertTrue("Should NOT contain Доп. информация", !description.contains("Релиз Книжного трекера"))
     }
 }

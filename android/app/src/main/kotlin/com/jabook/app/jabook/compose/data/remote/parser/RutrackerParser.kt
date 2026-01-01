@@ -1560,129 +1560,55 @@ class RutrackerParser
         ): String {
             var cleaned = rawText
 
-            // Remove MediaInfo section (everything from "Общее" or "MediaInfo" to end or next section)
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(Общее|MediaInfo|Видео|Аудио|General|Video|Audio).*", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
+            // FIRST: Try to extract description text directly (before any cleaning)
+            // This preserves the original description even when metadata is present before it
+            val descriptionExtracted = extractDescriptionSection(cleaned)
+            if (descriptionExtracted != null) {
+                cleaned = descriptionExtracted
+            } else {
+                // Fallback: clean metadata from the entire text
 
-            // Remove common metadata patterns (extended list)
-            val patternsToRemove =
-                listOf(
-                    // Basic metadata
-                    "Год выпуска[:\\s]+\\d{4}",
-                    "Автор[:\\s]+.+?(?=\\n|Исполнитель|Год|Жанр|$)",
-                    "Исполнитель[:\\s]+.+?(?=\\n|Год|Жанр|$)",
-                    "Жанр[:\\s]+.+?(?=\\n|$)",
-                    "Издательство[:\\s]+.+?(?=\\n|$)",
-                    "Битрейт[:\\s]+.+?(?=\\n|$)",
-                    "Время звучания[:\\s]+.+?(?=\\n|$)",
-                    "Тип аудиокниги[:\\s]+.+?(?=\\n|$)",
-                    "Аудио кодек[:\\s]+.+?(?=\\n|$)",
-                    "Формат[:\\s]+.+?(?=\\n|$)",
-                    "Частота оцифровки[:\\s]+.+?(?=\\n|$)",
-                    "Общая продолжительность[:\\s]+.+?(?=\\n|$)",
-                    // Video/Technical metadata
-                    "Тип релиза[:\\s]+.+?(?=\\n|$)",
-                    "Контейнер[:\\s]+.+?(?=\\n|$)",
-                    "Видео кодек[:\\s]+.+?(?=\\n|$)",
-                    "Видео[:\\s]+.+?(?=\\n|$)",
-                    "Аудио[:\\s]+.+?(?=\\n|$)",
-                    "Ширина[:\\s]+.+?(?=\\n|$)",
-                    "Высота[:\\s]+.+?(?=\\n|$)",
-                    "Соотношение сторон[:\\s]+.+?(?=\\n|$)",
-                    "Частота кадров[:\\s]+.+?(?=\\n|$)",
-                    "Битрейт[:\\s]+.+?(?=\\n|$)",
-                    "Бит/(Пиксели\\*Кадры)[:\\s]+.+?(?=\\n|$)",
-                    "Размер потока[:\\s]+.+?(?=\\n|$)",
-                    "Библиотека кодирования[:\\s]+.+?(?=\\n|$)",
-                    "Параметры библиотеки кодирования[:\\s]+.+?(?=\\n|$)",
-                    "Цветовое пространство[:\\s]+.+?(?=\\n|$)",
-                    "Цветовая субдискретизация[:\\s]+.+?(?=\\n|$)",
-                    "Битовая глубина[:\\s]+.+?(?=\\n|$)",
-                    "Тип развёртки[:\\s]+.+?(?=\\n|$)",
-                    "Режим частоты кадров[:\\s]+.+?(?=\\n|$)",
-                    "Каналы[:\\s]+.+?(?=\\n|$)",
-                    "Расположение каналов[:\\s]+.+?(?=\\n|$)",
-                    "Частота дискретизации[:\\s]+.+?(?=\\n|$)",
-                    "Метод сжатия[:\\s]+.+?(?=\\n|$)",
-                    "Язык[:\\s]+.+?(?=\\n|$)",
-                    "По умолчанию[:\\s]+.+?(?=\\n|$)",
-                    "Принудительно[:\\s]+.+?(?=\\n|$)",
-                    "Цветовой диапазон[:\\s]+.+?(?=\\n|$)",
-                    "Основные цвета[:\\s]+.+?(?=\\n|$)",
-                    "Характеристики трансфера[:\\s]+.+?(?=\\n|$)",
-                    "Коэффициенты матрицы[:\\s]+.+?(?=\\n|$)",
-                )
+                // Remove MediaInfo section (everything from "Общее" or "MediaInfo" to end)
+                cleaned =
+                    cleaned.replace(
+                        Regex("(?i)(Общее|MediaInfo|Видео|Аудио|General|Video|Audio).*", RegexOption.DOT_MATCHES_ALL),
+                        "",
+                    )
 
-            for (pattern in patternsToRemove) {
-                cleaned = cleaned.replace(Regex(pattern, RegexOption.IGNORE_CASE), "")
-            }
+                // Remove common metadata patterns
+                val patternsToRemove =
+                    listOf(
+                        "Год выпуска[:\\s]+\\d{4}",
+                        "Автор[:\\s]+.+?(?=\\n|Исполнитель|Год|Жанр|$)",
+                        "Исполнитель[:\\s]+.+?(?=\\n|Год|Жанр|$)",
+                        "Жанр[:\\s]+.+?(?=\\n|$)",
+                        "Издательство[:\\s]+.+?(?=\\n|$)",
+                        "Битрейт[:\\s]+.+?(?=\\n|$)",
+                        "Время звучания[:\\s]+.+?(?=\\n|$)",
+                        "Формат[:\\s]+.+?(?=\\n|$)",
+                        "Фамилия автора[:\\s]+.+?(?=\\n|$)",
+                        "Имя автора[:\\s]+.+?(?=\\n|$)",
+                        "Цикл/серия[:\\s]+.+?(?=\\n|$)",
+                        "Номер книги[:\\s]+.+?(?=\\n|$)",
+                        "Аудиокодек[:\\s]+.+?(?=\\n|$)",
+                        "Вид битрейта[:\\s]+.+?(?=\\n|$)",
+                        "Частота дискретизации[:\\s]+.+?(?=\\n|$)",
+                        "Количество каналов[:\\s]+.+?(?=\\n|$)",
+                    )
 
-            // Remove metadata values if they appear in text
-            metadata.values.forEach { value ->
-                if (value.isNotBlank() && value.length > 3) {
-                    // Remove exact matches and variations
-                    cleaned = cleaned.replace(value, "", ignoreCase = true)
+                for (pattern in patternsToRemove) {
+                    cleaned = cleaned.replace(Regex(pattern, RegexOption.IGNORE_CASE), "")
+                }
+
+                // Remove metadata values if they appear in text
+                metadata.values.forEach { value ->
+                    if (value.isNotBlank() && value.length > 3) {
+                        cleaned = cleaned.replace(value, "", ignoreCase = true)
+                    }
                 }
             }
 
-            // Remove technical encoding parameters (x264, etc.)
-            cleaned =
-                cleaned.replace(
-                    Regex(
-                        "(?i)(cabac|ref|deblock|analyse|me|subme|psy|mixed_ref|me_range|chroma_me|trellis|8x8dct|cqm|deadzone|fast_pskip|chroma_qp_offset|threads|lookahead_threads|sliced_threads|nr|decimate|interlaced|bluray_compat|stitchable|constrained_intra|bframes|b_pyramid|b_adapt|b_bias|direct|weightb|open_gop|weightp|keyint|keyint_min|scenecut|intra_refresh|rc_lookahead|rc|mbtree|bitrate|ratetol|qcomp|qpmin|qpmax|qpstep|cplxblur|qblur|vbv_maxrate|vbv_bufsize|nal_hrd|filler|ip_ratio|aq)[=:].+?(?=\\n|/|$)",
-                        RegexOption.IGNORE_CASE,
-                    ),
-                    "",
-                )
-
-            // Clean up multiple whitespace and newlines
-            cleaned =
-                cleaned
-                    .replace(Regex("\\s+"), " ")
-                    .replace(Regex("\\n\\s*\\n+"), "\n")
-                    .trim()
-
-            // Extract only the actual description text (after "Описание:" or "Description:")
-            // Fixed regex: escape $ and fix nested parentheses
-            val descriptionMatch =
-                Regex(
-                    "(?i)(?:Описание|Description)[:\\s]+(.+?)(?=\\n\\s*(?:Страна|Год|Жанр|Режиссер|Тип|Контейнер|Видео|Аудио|MediaInfo|Общее|Цикл|Cycle|Серия|Series|\\$))",
-                    RegexOption.DOT_MATCHES_ALL,
-                ).find(cleaned)
-            if (descriptionMatch != null) {
-                cleaned = descriptionMatch.groupValues[1].trim()
-            }
-
-            // Remove cycle/series links and lists from text description
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:Цикл|Cycle|Серия|Series)[\\s«»\"'].*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
-            // Remove book lists like "Забаненный. Книга 1\nЗабаненный. Книга 2"
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:[А-Яа-яA-Za-z0-9\\s.]+\\s+Книга\\s+\\d+\\s*\\n?)+", RegexOption.MULTILINE),
-                    "",
-                )
-            // Remove advertising text (VPN ads, etc.)
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:Скидка|Discount|VPN|ВПН).*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
-
-            // Remove advertising text (VPN ads, etc.)
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:Скидка|Discount|VPN|ВПН).*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
-
-            // Truncate at "Доп. информация" / "Дополнительная информация"
+            // Truncate at "Доп. информация" BEFORE cleanup (must be done on raw text)
             val cutoffMarkers = listOf("Доп. информация", "Дополнительная информация")
             for (marker in cutoffMarkers) {
                 val index = cleaned.indexOf(marker, ignoreCase = true)
@@ -1691,7 +1617,44 @@ class RutrackerParser
                 }
             }
 
-            return cleaned
+            // Clean up whitespace
+            cleaned =
+                cleaned
+                    .replace(Regex("\\s+"), " ")
+                    .replace(Regex("\\n\\s*\\n+"), "\n")
+                    .trim()
+
+            // Remove cycle/series links and book lists
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:Цикл|Cycle|Серия|Series)[\\s«»\"'].*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:[А-Яа-яA-Za-z0-9\\s.]+\\s+Книга\\s+\\d+\\s*\\n?)+", RegexOption.MULTILINE),
+                    "",
+                )
+
+            // Remove advertising text
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:Скидка|Discount|VPN|ВПН|Набор в группу).*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+
+            return cleaned.trim()
+        }
+
+        /**
+         * Extract description section from raw text by finding "Описание:" label.
+         * Returns null if not found.
+         */
+        private fun extractDescriptionSection(rawText: String): String? {
+            // Try to find "Описание:" and extract everything after it
+            val regex = Regex("(?i)(?:Описание|Description)[:\\s]+(.+)", RegexOption.DOT_MATCHES_ALL)
+            val match = regex.find(rawText)
+            return match?.groupValues?.get(1)?.trim()
         }
 
         /**
