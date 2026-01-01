@@ -80,7 +80,7 @@ class ForumIndexer
             private const val TAG = "ForumIndexer"
             private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
             private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Rate limiting (reduced for faster indexing)
-            private const val MAX_PAGES_PER_FORUM = 100 // Safety limit
+            private const val MAX_PAGES_PER_FORUM = 100_000 // Effectively unlimited (some forums have 350+ pages)
 
             // Update strategy constants
             private const val FULL_UPDATE_INTERVAL_DAYS = 7L // Full re-index every 7 days
