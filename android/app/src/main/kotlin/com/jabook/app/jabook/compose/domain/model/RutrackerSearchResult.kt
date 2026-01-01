@@ -46,6 +46,8 @@ data class RutrackerSearchResult(
     val torrentUrl: String,
     /** Cover image URL (optional, may not be available in search results) */
     val coverUrl: String? = null,
+    /** Uploader nickname (optional) */
+    val uploader: String? = null,
 ) {
     /**
      * Validates that the search result has required fields.

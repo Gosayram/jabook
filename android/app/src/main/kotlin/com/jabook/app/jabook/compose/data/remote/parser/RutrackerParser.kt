@@ -1055,6 +1055,7 @@ class RutrackerParser
                 magnetUrl = magnetUrl,
                 torrentUrl = torrentUrl,
                 coverUrl = coverUrl,
+                uploader = uploaderName,
             )
         }
 
@@ -1166,7 +1167,7 @@ class RutrackerParser
                     }
 
                 // Extract series/cycle
-                val series = extractSeries(postBody)
+                val series = metadata["series"] ?: extractSeries(postBody)
 
                 // Extract comments (skip first post_body which is the main post)
                 val comments = extractComments(document, topicId)
@@ -1279,52 +1280,73 @@ class RutrackerParser
             val metadata = mutableMapOf<String, String>()
             if (postBody == null) return metadata
 
-            val text = postBody.toStr()
+            // Parse using HTML structure: <span class="post-b">Label</span>: Value
+            postBody.select("span.post-b").forEach { span ->
+                val label = span.text().trim().removeSuffix(":")
+                // Get the text node immediately following the span
+                val value =
+                    span.nextSibling()
+                        ?.toString()
+                        ?.trim()
+                        ?.removePrefix(":")
+                        ?.trim()
+                        ?: ""
 
-            // Extract common patterns
-            // Author: Pattern like "Автор:" or "Author:"
-            "Автор[:\\s]+(.+?)(?=\\n|Исполнитель|Год|$)"
-                .toRegex()
-                .find(text)
-                ?.groupValues
-                ?.get(1)
-                ?.trim()
-                ?.let {
+                if (value.isNotEmpty()) {
+                    when {
+                        // Author
+                        label.contains("Автор", ignoreCase = true) || label.contains("Author", ignoreCase = true) -> {
+                            val current = metadata["author"] ?: ""
+                            metadata["author"] = if (current.isEmpty()) value else "$current $value"
+                        }
+                        // Performer
+                        label.contains("Исполнитель", ignoreCase = true) || label.contains("Narrator", ignoreCase = true) -> {
+                            metadata["performer"] = value
+                        }
+                        // Duration
+                        label.contains("Время звучания", ignoreCase = true) || label.contains("Duration", ignoreCase = true) -> {
+                            metadata["duration"] = value
+                        }
+                        // Bitrate
+                        label.contains("Битрейт", ignoreCase = true) || label.contains("Bitrate", ignoreCase = true) -> {
+                            metadata["bitrate"] = value
+                        }
+                        // Audio Codec
+                        label.contains("Аудиокодек", ignoreCase = true) || label.contains("Codec", ignoreCase = true) -> {
+                            metadata["codec"] = value
+                        }
+                        // Year/Date
+                        label.contains("Год выпуска", ignoreCase = true) || label.contains("Year", ignoreCase = true) -> {
+                            metadata["addedDate"] = value
+                        }
+                        // Series/Cycle (Also handled in extractSeries but useful here too)
+                        label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true) -> {
+                            metadata["series"] = value
+                        }
+                    }
+                }
+            }
+
+            // Fallback: If map is empty, try regex (for older layouts without span.post-b)
+            if (metadata.isEmpty()) {
+                val text = postBody.toStr()
+                // Author
+                "Автор[:\\s]+(.+?)(?=\\n|Исполнитель|Год|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["author"] = it
                 }
-
-            // Performer: Pattern like "Исполнитель:" or "Narrator:"
-            "Исполнитель[:\\s]+(.+?)(?=\\n|Год|Жанр|$)"
-                .toRegex()
-                .find(text)
-                ?.groupValues
-                ?.get(1)
-                ?.trim()
-                ?.let {
+                // Performer
+                "Исполнитель[:\\s]+(.+?)(?=\\n|Год|Жанр|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["performer"] = it
                 }
-
-            // Duration: Pattern like "Время звучания:"
-            "Время звучания[:\\s]+(.+?)(?=\\n|$)"
-                .toRegex()
-                .find(text)
-                ?.groupValues
-                ?.get(1)
-                ?.trim()
-                ?.let {
+                // Duration
+                "Время звучания[:\\s]+(.+?)(?=\\n|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["duration"] = it
                 }
-
-            // Bitrate: Pattern like "Битрейт:" or "kbps"
-            "Битрейт[:\\s]+(.+?)(?=\\n|$)"
-                .toRegex()
-                .find(text)
-                ?.groupValues
-                ?.get(1)
-                ?.trim()
-                ?.let {
+                // Bitrate
+                "Битрейт[:\\s]+(.+?)(?=\\n|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["bitrate"] = it
                 }
+            }
 
             return metadata
         }
@@ -1581,6 +1603,22 @@ class RutrackerParser
                     "",
                 )
 
+            // Remove advertising text (VPN ads, etc.)
+            cleaned =
+                cleaned.replace(
+                    Regex("(?i)(?:Скидка|Discount|VPN|ВПН).*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+
+            // Truncate at "Доп. информация" / "Дополнительная информация"
+            val cutoffMarkers = listOf("Доп. информация", "Дополнительная информация")
+            for (marker in cutoffMarkers) {
+                val index = cleaned.indexOf(marker, ignoreCase = true)
+                if (index != -1) {
+                    cleaned = cleaned.substring(0, index).trim()
+                }
+            }
+
             return cleaned
         }
 
@@ -1593,6 +1631,35 @@ class RutrackerParser
             metadata: Map<String, String>,
         ): String {
             var cleaned = rawHtml
+
+            // Truncate at "Доп. информация" / "Дополнительная информация" BEFORE other cleaning
+            val cutoffMarkers = listOf("Доп. информация", "Дополнительная информация")
+            for (marker in cutoffMarkers) {
+                val index = cleaned.indexOf(marker, ignoreCase = true)
+                if (index != -1) {
+                    // Find the preceding tag to be safe? Or just cut.
+                    // Ideally we cut at the start of the line or span containing this.
+                    // For now, simple truncation as requested.
+                    cleaned = cleaned.substring(0, index).trim()
+                }
+            }
+
+            // Remove content BEFORE "Description" / "Описание" to avoid duplicating metadata
+            // Pattern: <span class="post-b">Описание</span>:
+            val descriptionStartPattern =
+                Regex(
+                    "<span[^>]*class=[\"']post-b[\"'][^>]*>\\s*(?:Описание|Description)\\s*</span>\\s*:?",
+                    RegexOption.IGNORE_CASE,
+                )
+            val match = descriptionStartPattern.find(cleaned)
+            if (match != null) {
+                // Keep everything AFTER the match
+                cleaned = cleaned.substring(match.range.last + 1).trim()
+                // If it starts with a <br>, remove it
+                if (cleaned.startsWith("<br")) {
+                    cleaned = cleaned.replaceFirst(Regex("^<br\\s*/?>"), "").trim()
+                }
+            }
 
             // Remove MediaInfo section (everything from "Общее" or "MediaInfo" to end or next section)
             // Use regex to find and remove MediaInfo divs

@@ -594,7 +594,7 @@ private fun OnlineSearchResults(
                     com.jabook.app.jabook.compose.domain.model.Book(
                         id = result.topicId,
                         title = result.title,
-                        author = result.author,
+                        author = result.uploader ?: result.author,
                         coverUrl = result.coverUrl,
                         description = null,
                         totalDuration = kotlin.time.Duration.ZERO,

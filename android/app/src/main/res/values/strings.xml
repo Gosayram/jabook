@@ -52,10 +52,14 @@
     <string name="commentsLabel">Comments (%d)</string>
     <!-- Label for size field -->
     <string name="sizeLabel">Size: </string>
+    <string name="durationLabel">Duration: </string>
+    <string name="bitrateLabel">Bitrate: </string>
     <!-- Label for seeders count -->
     <string name="seedersLabel"> seeders</string>
     <!-- Label for leechers count -->
     <string name="leechersLabel"> leechers</string>
+    <string name="seeders">Seeders</string>
+    <string name="leechers">Leechers</string>
     <!-- Fallback for missing title -->
     <string name="unknownTitle">Unknown Title</string>
     <!-- Fallback for missing author -->
@@ -2015,7 +2019,6 @@
     <!-- Resolution: %s -->
     <string name="resolutionLabel">Resolution: %s</string>
     <!-- Bitrate: %s -->
-    <string name="bitrateLabel">Bitrate: %s</string>
     <!-- Channels: %s -->
     <string name="channelsLabel">Channels: %s</string>
     <!-- Language: %s -->
@@ -2043,7 +2046,6 @@
     <!-- Largest First -->
     <string name="largestFirst">Largest First</string>
     <!-- $leechers -->
-    <string name="leechers">$leechers</string>
     <!-- Leechers -->
     <!-- Loading logs... -->
     <string name="loadingLogs">Loading logs...</string>
@@ -2070,7 +2072,6 @@
     <!-- Search books... -->
     <string name="searchBooks">Search books...</string>
     <!-- $seeders -->
-    <string name="seeders">$seeders</string>
     <!-- Seeders -->
     <!-- Share logs -->
     <string name="shareLogs">Share logs</string>

@@ -52,10 +52,14 @@
     <string name="commentsLabel">Комментарии (%d)</string>
     <!-- Метка для поля размера -->
     <string name="sizeLabel">Размер: </string>
+    <string name="durationLabel">Длительность: </string>
+    <string name="bitrateLabel">Битрейт: </string>
     <!-- Метка для количества сидеров -->
     <string name="seedersLabel"> сидеров</string>
     <!-- Метка для количества личеров -->
     <string name="leechersLabel"> личеров</string>
+    <string name="seeders">Сидеры</string>
+    <string name="leechers">Личеры</string>
     <!-- Запасной вариант для отсутствующего названия -->
     <string name="unknownTitle">Неизвестное название</string>
     <!-- Запасной вариант для отсутствующего автора -->
@@ -2009,7 +2013,6 @@
     <!-- Разрешение: %s -->
     <string name="resolutionLabel">Разрешение: %s</string>
     <!-- Битрейт: %s -->
-    <string name="bitrateLabel">Битрейт: %s</string>
     <!-- Каналы: %s -->
     <string name="channelsLabel">Каналы: %s</string>
     <!-- Язык: %s -->
@@ -2035,7 +2038,6 @@
     <!-- Самый большой первый -->
     <string name="largestFirst">Самый большой первый</string>
     <!-- $личеры -->
-    <string name="leechers">$личеры</string>
     <!-- Пиявки -->
     <!-- Загрузка журналов... -->
     <string name="loadingLogs">Загрузка журналов...</string>
@@ -2060,7 +2062,6 @@
     <!-- Поиск книг... -->
     <string name="searchBooks">Поиск книг...</string>
     <!-- Сиды -->
-    <string name="seeders">сиды</string>
     <!-- Поделиться журналами -->
     <string name="shareLogs">Поделиться журналами</string>
     <!-- Таймер сна -->

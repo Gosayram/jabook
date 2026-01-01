@@ -50,6 +50,7 @@ fun SearchResult.toDomain(): RutrackerSearchResult =
         magnetUrl = magnetUrl?.takeIf { it.isNotBlank() },
         torrentUrl = torrentUrl.trim(),
         coverUrl = coverUrl?.takeIf { it.isNotBlank() },
+        uploader = uploader?.takeIf { it.isNotBlank() }?.trim(),
     )
 
 /**

@@ -33,7 +33,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AudioFile
@@ -130,13 +129,12 @@ fun TopicScreen(
                             is TopicUiState.Success -> (uiState as TopicUiState.Success).details.title
                             else -> stringResource(R.string.bookDetails)
                         },
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
+                navigationIcon = {}, // No back arrow (use swipe)
                 actions = {
                     when (uiState) {
                         is TopicUiState.Success -> {
@@ -277,101 +275,60 @@ private fun TopicDetailsContent(
         }
 
         // Compact info row: Author, Performer, Duration, Size
+        // Compact info row: Author, Performer, Duration, Size
         item {
-            val smallSpacing =
-                if (windowSizeClass != null) {
-                    AdaptiveUtils.getSmallSpacing(windowSizeClass)
-                } else {
-                    4.dp
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Metadata List (Label: Value)
+                if (!details.author.isNullOrBlank()) {
+                    MetadataRow(stringResource(R.string.authorLabel), details.author)
                 }
-            Column(verticalArrangement = Arrangement.spacedBy(itemSpacing)) {
-                // Author, Performer, and Series in compact layout
-                if (!details.author.isNullOrBlank() || !details.performer.isNullOrBlank() || !details.series.isNullOrBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(itemSpacing)) {
-                        // Author and Performer in one row
-                        if (!details.author.isNullOrBlank() || !details.performer.isNullOrBlank()) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                details.author?.let { author ->
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(R.string.authorLabel),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        Spacer(Modifier.height(smallSpacing))
-                                        Text(
-                                            text = author,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                        )
-                                    }
-                                }
-                                details.performer?.let { performer ->
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(R.string.performerLabel),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        Spacer(Modifier.height(smallSpacing))
-                                        Text(
-                                            text = performer,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        // Series/Cycle
-                        details.series?.let { series ->
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.seriesLabel),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = series,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            }
-                        }
-                    }
+                if (!details.performer.isNullOrBlank()) {
+                    MetadataRow(stringResource(R.string.performerLabel), details.performer)
                 }
+                if (!details.series.isNullOrBlank()) {
+                    MetadataRow(stringResource(R.string.seriesLabel), details.series)
+                }
+                // Size
+                MetadataRow(stringResource(R.string.sizeLabel), details.size)
 
-                // Seeders/Leechers on first row
+                // Duration
+                details.duration?.let { MetadataRow(stringResource(R.string.durationLabel), it) }
+
+                // Bitrate
+                details.bitrate?.let { MetadataRow(stringResource(R.string.bitrateLabel), it) }
+
+                // Seeders/Leechers (Split Left/Right)
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    SeedersLeechersChip(
-                        seeders = details.seeders,
-                        leechers = details.leechers,
-                    )
-                }
-
-                // Size + Duration on second row (new line)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 4.dp),
-                ) {
-                    Text(
-                        text = details.size,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("${details.seeders}") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Filled.ArrowUpward,
+                                contentDescription = stringResource(R.string.seeders),
+                                tint = Color(0xFF4CAF50), // Green
+                            )
+                        },
                     )
 
-                    details.duration?.let { duration ->
-                        Text(
-                            text = duration,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("${details.leechers}") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Filled.ArrowDownward,
+                                contentDescription = stringResource(R.string.leechers),
+                                tint = Color(0xFFFF9800), // Orange
+                            )
+                        },
+                    )
                 }
             }
         }
@@ -1060,5 +1017,28 @@ private fun ErrorContent(
         Button(onClick = onRetry) {
             Text(stringResource(R.string.retry))
         }
+    }
+}
+
+@Composable
+private fun MetadataRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = "$label: ",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(120.dp), // Fixed width for labels
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
