@@ -92,6 +92,10 @@ data class TopicDetails(
     val series: String? = null,
     /** Comments from topic */
     val comments: List<Comment> = emptyList(),
+    /** Registration date */
+    val registeredDate: String? = null,
+    /** Download count */
+    val downloadsCount: String? = null,
 )
 
 /**

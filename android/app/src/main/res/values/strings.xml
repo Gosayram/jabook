@@ -60,6 +60,9 @@
     <string name="leechersLabel"> leechers</string>
     <string name="seeders">Seeders</string>
     <string name="leechers">Leechers</string>
+    <string name="registeredLabel">Registered: </string>
+    <string name="downloadedLabel">Downloaded: </string>
+    <string name="downloadedTimes"> %1$s times</string>
     <!-- Fallback for missing title -->
     <string name="unknownTitle">Unknown Title</string>
     <!-- Fallback for missing author -->

@@ -467,4 +467,34 @@ class RutrackerParserTest {
         assertEquals("UserNoAvatar", comment2?.author)
         assertNull(comment2?.avatarUrl)
     }
+
+    @Test
+    fun `parseTopicDetails extracts registered date and download count`() {
+        val html =
+            """
+            <html>
+                <head><title>Stats Test</title></head>
+                <body>
+                    <h1 class="maintitle"><a>Stats Test</a></h1>
+                    <div class="post_body">Body</div>
+                    <table>
+                        <tr class="row1">
+                             <td>Зарегистрирован</td>
+                             <td>
+                                <ul>
+                                    <li>21-Май-19 15:42</li>
+                                    <li>Скачан: 11,783 раза</li>
+                                </ul>
+                             </td>
+                        </tr>
+                    </table>
+                </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "123")
+        assertNotNull(details)
+        assertEquals("21-Май-19 15:42", details?.registeredDate)
+        assertEquals("11,783", details?.downloadsCount)
+    }
 }

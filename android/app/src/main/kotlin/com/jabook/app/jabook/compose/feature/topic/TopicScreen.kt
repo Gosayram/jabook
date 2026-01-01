@@ -291,6 +291,19 @@ private fun TopicDetailsContent(
                 // Size
                 MetadataRow(stringResource(R.string.sizeLabel), details.size)
 
+                // Registered / Downloaded
+                if (!details.registeredDate.isNullOrBlank()) {
+                    val downloadText =
+                        if (!details.downloadsCount.isNullOrBlank()) {
+                            " • " +
+                                stringResource(R.string.downloadedLabel) +
+                                stringResource(R.string.downloadedTimes, details.downloadsCount).trim()
+                        } else {
+                            ""
+                        }
+                    MetadataRow(stringResource(R.string.registeredLabel), details.registeredDate + downloadText)
+                }
+
                 // Duration
                 details.duration?.let { MetadataRow(stringResource(R.string.durationLabel), it) }
 

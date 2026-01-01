@@ -70,6 +70,10 @@ data class RutrackerTopicDetails(
     val series: String? = null,
     /** Comments from topic */
     val comments: List<RutrackerComment> = emptyList(),
+    /** Registration date */
+    val registeredDate: String? = null,
+    /** Download count */
+    val downloadsCount: String? = null,
 ) {
     /**
      * Validates that the topic details have required fields.

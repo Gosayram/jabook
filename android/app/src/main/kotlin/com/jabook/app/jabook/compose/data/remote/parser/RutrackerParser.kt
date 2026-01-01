@@ -1134,6 +1134,9 @@ class RutrackerParser
                 val seeders = extractSeeders(document)
                 val leechers = extractLeechers(document)
 
+                // Extract additional stats (Registered date, Downloads count)
+                val (registeredDate, downloadsCount) = extractTopicStats(document)
+
                 // Extract metadata from post body
                 val metadata = extractMetadata(postBody)
 
@@ -1195,11 +1198,37 @@ class RutrackerParser
                     relatedBooks = extractRelatedBooks(postBody),
                     series = series,
                     comments = comments,
+                    registeredDate = registeredDate,
+                    downloadsCount = downloadsCount,
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to parse topic details", e)
                 return null
             }
+        }
+
+        private fun extractTopicStats(doc: org.jsoup.nodes.Document): Pair<String?, String?> {
+            // Find the cell with "Зарегистрирован:" label
+            // Usually in tr.row1 > td
+            val labelTd = doc.select("td").firstOrNull { it.text().contains("Зарегистрирован") }
+            if (labelTd == null) return null to null
+
+            val valueTd = labelTd.nextElementSibling() ?: return null to null
+            val lis = valueTd.select("ul li")
+
+            // First LI is usually the date: "21-Май-19 15:42"
+            val date = lis.getOrNull(0)?.text()?.trim()
+
+            // Second LI is the count: "Скачан: 11,783 раза"
+            val countRaw = lis.getOrNull(1)?.text()?.trim() ?: ""
+            val count =
+                if (countRaw.contains("Скачан", ignoreCase = true)) {
+                    countRaw.substringAfter(":").replace("раза", "").trim()
+                } else {
+                    null
+                }
+
+            return date to count
         }
 
         /**

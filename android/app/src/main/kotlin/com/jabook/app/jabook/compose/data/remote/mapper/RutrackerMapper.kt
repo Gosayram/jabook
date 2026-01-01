@@ -168,6 +168,8 @@ fun TopicDetails.toDomain(): RutrackerTopicDetails =
         relatedBooks = relatedBooks.mapNotNull { it.toDomain() },
         series = series?.takeIf { it.isNotBlank() }?.trim(),
         comments = comments.mapNotNull { it.toDomain() },
+        registeredDate = registeredDate?.takeIf { it.isNotBlank() }?.trim(),
+        downloadsCount = downloadsCount?.takeIf { it.isNotBlank() }?.trim(),
     )
 
 /**
