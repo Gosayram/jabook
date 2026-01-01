@@ -21,6 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -96,5 +97,54 @@ class QuoteParsingTest {
         assertTrue("Should contain bold header", comment?.html?.contains("That1987 wrote:") == true)
         // Assert internal ID removal
         assertTrue("Should NOT contain internal ID 77595503", comment?.html?.contains("77595503") == false)
+    }
+
+    @Test
+    fun `parseTopicDetails handles signatures and fixes relative links`() {
+        val signatureHtml =
+            """
+            <div class="signature hide-for-print">
+                <div class="sig-body">
+                    <a href="search.php?uid=123" class="postLink">Link</a>
+                </div>
+            </div>
+            """.trimIndent()
+
+        val fullHtml =
+            """
+            <html>
+            <body>
+                <h1 class="maintitle"><a id="topic-title" href="viewtopic.php?t=123">Test Topic</a></h1>
+                <table class="topic" id="topic_main">
+                    <tbody id="post_1"><tr><td><div class="post_body">Main</div></td></tr></tbody>
+                    <tbody id="post_2">
+                       <tr>
+                           <td>
+                               <p class="nick"><a href="#">User</a></p>
+                               <div class="post_body" id="p-2">Comment must be longer than ten chars</div>
+                               $signatureHtml
+                           </td>
+                       </tr>
+                    </tbody>
+                </table>
+            </body>
+            </html>
+            """.trimIndent()
+
+        whenever(mockDecoder.decode(any(), any())).thenReturn(fullHtml)
+
+        val details = parser.parseTopicDetails(fullHtml, "123")
+        val comment = details?.comments?.first()
+
+        // Assert signature is present
+        assertTrue("Signature should be present", comment?.html?.contains("sig-body") == true)
+
+        // Assert link is absolute and correct
+        // getBaseUrl returns https://rutracker.org/forum/
+        // So link should be https://rutracker.org/forum/search.php?uid=123
+        assertTrue(
+            "Link should be absolute to forum",
+            comment?.html?.contains("https://rutracker.org/forum/search.php?uid=123") == true,
+        )
     }
 }

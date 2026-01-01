@@ -2042,7 +2042,20 @@ class RutrackerParser
                         } ?: postBody.toStr().trim()
 
                     // Clean HTML: normalize <br> tags, quotes and preserve links
-                    val cleanedHtml = html?.let { processCommentHtml(it).body().html() }
+                    val cleanedHtml =
+                        html?.let {
+                            val doc = processCommentHtml(it)
+
+                            // Append signature if present
+                            val signature = postRow.selectFirst(".signature")
+                            if (signature != null) {
+                                // Process signature links similar to body
+                                val signatureDoc = processCommentHtml(signature.html())
+                                doc.body().append("<br><div class='signature'>${signatureDoc.body().html()}</div>")
+                            }
+
+                            doc.body().html()
+                        }
 
                     if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                         comments.add(
