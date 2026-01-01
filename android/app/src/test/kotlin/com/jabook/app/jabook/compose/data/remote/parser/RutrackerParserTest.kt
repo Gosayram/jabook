@@ -407,4 +407,63 @@ class RutrackerParserTest {
             assertEquals("https://static.t-ru.org/captcha/test.jpg", it.data.url)
         }
     }
+
+    @Test
+    fun `parseTopicDetails extracts comments with avatars`() {
+        val html =
+            """
+            <html>
+            <head><title>Topic with Comments</title></head>
+            <body>
+                <h1 class="maintitle"><a>Topic Title</a></h1>
+                <div class="post_body">Description</div>
+                
+                <table>
+                    <!-- Main Post (should be skipped) -->
+                    <tbody id="post_main" class="row1">
+                        <tr><td><div class="post_body">Main Post Content</div></td></tr>
+                    </tbody>
+                    
+                    <!-- Comment 1 with avatar -->
+                    <tbody id="post_123456" class="row1">
+                        <tr>
+                            <td class="poster_info td1">
+                                <p class="nick"><a href="#">UserWithAvatar</a></p>
+                                <p class="avatar"><img src="https://static.rutracker.cc/avatars/1/1/1234.png" alt=""></p>
+                            </td>
+                            <td class="message td2">
+                                <div class="post_body" id="p-123456">Comment text</div>
+                            </td>
+                        </tr>
+                    </tbody>
+
+                    <!-- Comment 2 without avatar -->
+                    <tbody id="post_789012" class="row2">
+                        <tr>
+                            <td class="poster_info td1">
+                                <p class="nick"><a href="#">UserNoAvatar</a></p>
+                            </td>
+                            <td class="message td2">
+                                <div class="post_body" id="p-789012">Another comment</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "111")
+
+        assertNotNull(details)
+        assertEquals(2, details?.comments?.size)
+
+        val comment1 = details?.comments?.get(0)
+        assertEquals("UserWithAvatar", comment1?.author)
+        assertEquals("https://static.rutracker.cc/avatars/1/1/1234.png", comment1?.avatarUrl)
+
+        val comment2 = details?.comments?.get(1)
+        assertEquals("UserNoAvatar", comment2?.author)
+        assertNull(comment2?.avatarUrl)
+    }
 }
