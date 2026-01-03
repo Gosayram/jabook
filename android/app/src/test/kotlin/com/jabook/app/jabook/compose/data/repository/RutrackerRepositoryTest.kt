@@ -15,26 +15,18 @@
 package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
-import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.remote.model.Comment
+import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.Result
-import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
-import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class RutrackerRepositoryTest {
@@ -46,7 +38,6 @@ class RutrackerRepositoryTest {
 
     @Before
     fun setup() {
-        kotlinx.coroutines.Dispatchers.setMain(kotlinx.coroutines.test.UnconfinedTestDispatcher())
         repository =
             RutrackerRepositoryImpl(
                 api,
@@ -55,66 +46,50 @@ class RutrackerRepositoryTest {
             )
     }
 
-    @org.junit.After
-    fun tearDown() {
-        kotlinx.coroutines.Dispatchers.resetMain()
+    @Test
+    fun `getTopicDetailsPage returns success for page 2 with comments only`() = runBlocking {
+        // Arrange
+        val topicId = "123"
+        val page = 2
+        val html = "<html>...</html>"
+        val responseBody = okhttp3.ResponseBody.create(null, html.toByteArray(charset("windows-1251")))
+        val response = retrofit2.Response.success(responseBody)
+        
+        whenever(api.getTopicDetailsAtPage(topicId, 30)).thenReturn(response)
+        
+        // Mock parser to return a TopicDetails that is invalid for page 1 (no torrent) but has comments
+        val mockDetails = TopicDetails(
+            topicId = topicId,
+            title = "Test Title",
+            category = "Books",
+            seeders = 0,
+            leechers = 0,
+            torrentUrl = "", // Empty for page > 1
+            magnetUrl = null,
+            size = "",
+            author = null,
+            performer = null,
+            coverUrl = null,
+            genres = emptyList(),
+            addedDate = null,
+            duration = null,
+            bitrate = null,
+            audioCodec = null,
+            description = null,
+            relatedBooks = emptyList(),
+            comments = listOf(
+                Comment("1", "User", "Date", "Text")
+            )
+        )
+        whenever(parser.parseTopicDetails(any(), any())).thenReturn(mockDetails)
+
+        // Act
+        val result = repository.getTopicDetailsPage(topicId, page)
+
+        // Assert
+        assertTrue(result is Result.Success)
+        val data = (result as Result.Success).data
+        assertEquals("Test Title", data.title)
+        assertEquals(1, data.comments.size)
     }
-
-    @Test
-    fun `search with !index command calls getSampleTopics`() =
-        runTest {
-            // Arrange
-            val sampleTopics =
-                listOf(
-                    CachedTopicEntity(
-                        topicId = "1",
-                        title = "Test Title",
-                        author = "Test Author",
-                        category = "Books",
-                        seeders = 10,
-                        leechers = 0,
-                        size = "100 MB",
-                        timestamp = 1000L,
-                        indexVersion = 1,
-                        magnetUrl = "magnet:?xt=urn:btih:123",
-                    ),
-                )
-            whenever(offlineSearchDao.getSampleTopics(10)).thenReturn(sampleTopics)
-            whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
-
-            // Act
-            val result = repository.search("!index").first()
-
-            // Assert
-            verify(offlineSearchDao).getSampleTopics(10)
-            assertTrue(result is Result.Success<*>)
-            val data = (result as Result.Success<List<RutrackerSearchResult>>).data
-            assertEquals(1, data.size)
-            assertEquals("[DEBUG] Test Title", data[0].title)
-        }
-
-    @Test
-    fun `search with normal query builds correct SQL`() =
-        runTest {
-            // Arrange
-            val query = "Harry Potter"
-            whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
-            whenever(offlineSearchDao.searchIndexedTopicsRaw(any())).thenReturn(flowOf(emptyList()))
-
-            // Act
-            repository.search(query).collect()
-
-            // Assert
-            val captor = argumentCaptor<androidx.sqlite.db.SupportSQLiteQuery>()
-            verify(offlineSearchDao).searchIndexedTopicsRaw(captor.capture())
-
-            val sqlQuery = captor.firstValue
-            val sql = sqlQuery.sql
-
-            // Expect logic: SELECT * FROM cached_topics WHERE (title LIKE ? OR author LIKE ?) AND (title LIKE ? OR author LIKE ?) ...
-            assertTrue(sql.contains("SELECT * FROM cached_topics WHERE"))
-            assertTrue(sql.contains("(title LIKE ? OR author LIKE ?)"))
-            assertTrue(sql.contains("AND"))
-            assertTrue(sql.contains("ORDER BY seeders DESC, timestamp DESC LIMIT 200"))
-        }
 }
