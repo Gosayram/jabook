@@ -309,12 +309,22 @@ private fun TopicDetailsContent(
                         setOf(
                             "Автор",
                             "Author",
+                            "author",
                             "Исполнитель",
                             "Narrator",
+                            "performer",
                             "Цикл",
                             "Серия",
+                            "series",
                             "Время звучания",
                             "Duration",
+                            "duration",
+                            "bitrate",
+                            "codec",
+                            "genre",
+                            "publisher",
+                            "year",
+                            "addedDate",
                         )
                     if (label !in standardLabels) {
                         MetadataRow(label, value)

@@ -1697,22 +1697,22 @@ class RutrackerParser
 
             // Remove content BEFORE "Description" / "Описание" to avoid duplicating metadata
             // Pattern: <span class="post-b">Описание</span>:
-            // Actually the user wants to keep "Цикл" block which usually comes before Description.
-            // Let's NOT strip before description anymore to keep all useful links.
-            // val descriptionStartPattern =
-            //     Regex(
-            //         "<span[^>]*class=['\"]post-b['\"][^>]*>\\s*(?:Описание|Description)\\s*</span>\\s*:?",
-            //         RegexOption.IGNORE_CASE,
-            //     )
-            // val match = descriptionStartPattern.find(cleaned)
-            // if (match != null) {
-            //     // Keep everything AFTER the match
-            //     cleaned = cleaned.substring(match.range.last + 1).trim()
-            //     // If it starts with a <br>, remove it
-            //     if (cleaned.startsWith("<br")) {
-            //         cleaned = cleaned.replaceFirst(Regex("^<br\\s*/?>"), "").trim()
-            //     }
-            // }
+            // Remove content BEFORE "Description" / "Описание" to avoid duplicating metadata
+            // Pattern: <span class="post-b">Описание</span>:
+            val descriptionStartPattern =
+                Regex(
+                    "<span[^>]*class=['\"]post-b['\"][^>]*>\\s*(?:Описание|Description)\\s*</span>\\s*:?",
+                    RegexOption.IGNORE_CASE,
+                )
+            val match = descriptionStartPattern.find(cleaned)
+            if (match != null) {
+                // Keep everything AFTER the match
+                cleaned = cleaned.substring(match.range.last + 1).trim()
+                // If it starts with a <br>, remove it
+                if (cleaned.startsWith("<br")) {
+                    cleaned = cleaned.replaceFirst(Regex("^<br\\s*/?>"), "").trim()
+                }
+            }
 
             // Remove MediaInfo section (everything from "Общее" or "MediaInfo" to end or next section)
             // Use regex to find and remove MediaInfo divs
