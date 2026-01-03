@@ -25,6 +25,9 @@ import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
@@ -40,9 +43,18 @@ interface RutrackerRepository {
      * Search for audiobooks on Rutracker.
      *
      * @param query Search query
-     * @return Result with list of search results
+     * @param query Search query
+     * @return Flow of Result with list of search results
      */
-    suspend fun search(query: String): Result<List<RutrackerSearchResult>>
+    suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>>>
+
+    /**
+     * Fetch topic details and save cover URL to database.
+     *
+     * @param topicId Topic ID
+     * @return Result indicating success or failure
+     */
+    suspend fun fetchAndSaveCover(topicId: String): Result<Unit>
 
     /**
      * Get topic details.
@@ -88,42 +100,41 @@ class RutrackerRepositoryImpl
         private val parser: RutrackerParser,
         private val offlineSearchDao: OfflineSearchDao,
     ) : RutrackerRepository {
-        override suspend fun search(query: String): Result<List<RutrackerSearchResult>> {
-            // Use ONLY indexed search (no network)
-            android.util.Log.d("RutrackerRepositoryImpl", "🔍 Search started: query='$query'")
-            return try {
-                val countStartTime = System.currentTimeMillis()
-                val indexSize = offlineSearchDao.getTopicCount()
-                val countDuration = System.currentTimeMillis() - countStartTime
-                android.util.Log.d(
-                    "RutrackerRepositoryImpl",
-                    "Index size check: $indexSize topics (${countDuration}ms)",
-                )
+        override suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>>> =
+            flow {
+                // Use ONLY indexed search (no network)
+                android.util.Log.d("RutrackerRepositoryImpl", "🔍 Search started: query='$query'")
+                try {
+                    val countStartTime = System.currentTimeMillis()
+                    val indexSize = offlineSearchDao.getTopicCount()
+                    val countDuration = System.currentTimeMillis() - countStartTime
+                    android.util.Log.d(
+                        "RutrackerRepositoryImpl",
+                        "Index size check: $indexSize topics (${countDuration}ms)",
+                    )
 
-                if (indexSize > 0) {
-                    // Check for debug command
-                    if (query.trim() == "!index" || query.trim() == ":debug") {
-                        android.util.Log.d("RutrackerRepositoryImpl", "🐞 Debug command detected, fetching sample topics")
-                        val sampleTopics = offlineSearchDao.getSampleTopics(10)
-                        val domainResults =
-                            sampleTopics
-                                .map {
-                                    it.toSearchResult().copy(
-                                        title = "[DEBUG] ${it.title}",
-                                        author = "[${it.author}] (ID: ${it.topicId}, Ver: ${it.indexVersion})",
-                                    )
-                                }.toDomainFromIndex()
-                        return Result.Success(domainResults)
-                    }
+                    if (indexSize > 0) {
+                        // Check for debug command
+                        if (query.trim() == "!index" || query.trim() == ":debug") {
+                            android.util.Log.d("RutrackerRepositoryImpl", "🐞 Debug command detected, fetching sample topics")
+                            val sampleTopics = offlineSearchDao.getSampleTopics(10)
+                            val domainResults =
+                                sampleTopics
+                                    .map {
+                                        it.toSearchResult().copy(
+                                            title = "[DEBUG] ${it.title}",
+                                            author = "[${it.author}] (ID: ${it.topicId}, Ver: ${it.indexVersion})",
+                                        )
+                                    }.toDomainFromIndex()
+                            emit(Result.Success(domainResults))
+                            return@flow
+                        }
 
-                    val searchStartTime = System.currentTimeMillis()
+                        // Tokenize query for fuzzy search
+                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
 
-                    // Tokenize query for fuzzy search
-                    val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-
-                    val entities =
                         if (tokens.isEmpty()) {
-                            emptyList()
+                            emit(Result.Success(emptyList()))
                         } else {
                             // Build dynamic SQL query for token-based search
                             // Each token must be present in either title OR author
@@ -142,42 +153,56 @@ class RutrackerRepositoryImpl
                             sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
 
                             val simpleQuery = androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray())
-                            offlineSearchDao.searchIndexedTopicsRaw(simpleQuery)
+
+                            // Emit Flow from Room
+                            offlineSearchDao
+                                .searchIndexedTopicsRaw(simpleQuery)
+                                .map { entities ->
+                                    val dtoResults = entities.map { it.toSearchResult() }
+                                    val domainResults = dtoResults.toDomainFromIndex()
+                                    Result.Success(domainResults)
+                                }.collect {
+                                    emit(it)
+                                }
                         }
+                    } else {
+                        android.util.Log.w("RutrackerRepositoryImpl", "⚠️ Index is empty, returning empty results")
+                        // Index is empty - return empty results
+                        emit(Result.Success(emptyList()))
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
+                    // Search failed - return empty results
+                    emit(Result.Success(emptyList()))
+                }
+            }
 
-                    val searchDuration = System.currentTimeMillis() - searchStartTime
-                    android.util.Log.d(
-                        "RutrackerRepositoryImpl",
-                        "DB search (fuzzy): ${entities.size} entities (${searchDuration}ms)",
-                    )
+        override suspend fun fetchAndSaveCover(topicId: String): Result<Unit> =
+            try {
+                // Re-use existing getTopicDetails which fetches HTML and parses it
+                // This extracts the cover URL inside RutrackerParser
+                val result = getTopicDetails(topicId)
 
-                    val mapStartTime = System.currentTimeMillis()
-                    val dtoResults = entities.map { it.toSearchResult() }
-                    // Use toDomainFromIndex() for offline results (lenient validation, allows missing torrentUrl)
-                    val domainResults = dtoResults.toDomainFromIndex()
-                    val mapDuration = System.currentTimeMillis() - mapStartTime
-                    android.util.Log.d(
-                        "RutrackerRepositoryImpl",
-                        "Mapping: ${domainResults.size} results (${mapDuration}ms)",
-                    )
-
-                    android.util.Log.i(
-                        "RutrackerRepositoryImpl",
-                        "✅ Search completed: ${domainResults.size} results " +
-                            "(total: ${System.currentTimeMillis() - countStartTime}ms)",
-                    )
-                    Result.Success(domainResults)
-                } else {
-                    android.util.Log.w("RutrackerRepositoryImpl", "⚠️ Index is empty, returning empty results")
-                    // Index is empty - return empty results
-                    Result.Success(emptyList())
+                when (result) {
+                    is Result.Success -> {
+                        val coverUrl = result.data.coverUrl
+                        if (!coverUrl.isNullOrBlank()) {
+                            android.util.Log.d("RutrackerRepositoryImpl", "Updating cover for $topicId: $coverUrl")
+                            offlineSearchDao.updateCoverUrl(topicId, coverUrl)
+                            Result.Success(Unit)
+                        } else {
+                            android.util.Log.d("RutrackerRepositoryImpl", "No cover found for $topicId")
+                            Result.Success(Unit) // Success even if no cover, just nothing to save
+                        }
+                    }
+                    is Result.Error -> {
+                        Result.Error(result.exception)
+                    }
+                    is Result.Loading -> Result.Loading
                 }
             } catch (e: Exception) {
-                android.util.Log.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
-                // Search failed - return empty results
-                Result.Success(emptyList())
+                Result.Error(e)
             }
-        }
 
         private suspend fun saveResultsToDb(
             query: String,

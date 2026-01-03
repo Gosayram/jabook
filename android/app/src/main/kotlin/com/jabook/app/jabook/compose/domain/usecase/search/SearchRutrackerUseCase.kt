@@ -18,6 +18,8 @@ import android.util.Log
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 
 /**
@@ -40,34 +42,35 @@ class SearchRutrackerUseCase
          * @param query Search query
          * @return Result with list of search results
          */
-        suspend operator fun invoke(query: String): Result<List<RutrackerSearchResult>> {
+        suspend operator fun invoke(query: String): Flow<Result<List<RutrackerSearchResult>>> {
             if (query.isBlank()) {
                 Log.d(TAG, "Empty query provided, returning empty results")
-                return Result.Success(emptyList())
+                // We need to return a Flow, so we use repository's search which handles empty query internally
+                // OR construct a flow here. Repository handles it.
             }
 
             Log.d(TAG, "🔍 Invoking search for query: '$query'")
-            val result = rutrackerRepository.search(query)
-
-            when (result) {
-                is Result.Success -> {
-                    Log.d(
-                        TAG,
-                        "✅ Search completed: ${result.data.size} results for query '$query'",
-                    )
+            return rutrackerRepository
+                .search(query)
+                .onEach { result ->
+                    when (result) {
+                        is Result.Success -> {
+                            Log.d(
+                                TAG,
+                                "✅ Search completed: ${result.data.size} results for query '$query'",
+                            )
+                        }
+                        is Result.Error -> {
+                            Log.e(
+                                TAG,
+                                "❌ Search failed for query '$query': ${result.exception.message}",
+                                result.exception,
+                            )
+                        }
+                        is Result.Loading -> {
+                            Log.d(TAG, "⏳ Search in progress for query '$query'")
+                        }
+                    }
                 }
-                is Result.Error -> {
-                    Log.e(
-                        TAG,
-                        "❌ Search failed for query '$query': ${result.exception.message}",
-                        result.exception,
-                    )
-                }
-                is Result.Loading -> {
-                    Log.d(TAG, "⏳ Search in progress for query '$query'")
-                }
-            }
-
-            return result
         }
     }

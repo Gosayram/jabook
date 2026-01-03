@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -176,46 +177,48 @@ class SearchViewModel
             viewModelScope.launch {
                 _uiState.value = SearchUiState.Loading
 
-                when (val result = searchRutrackerUseCase(query)) {
-                    is Result.Success -> {
-                        android.util.Log.d(
-                            "SearchViewModel",
-                            "✅ Search successful: received ${result.data.size} results for query '$query'",
-                        )
-                        // Log details about results
-                        if (result.data.isNotEmpty()) {
-                            val sample = result.data.take(3)
-                            sample.forEachIndexed { index, item ->
-                                android.util.Log.d(
-                                    "SearchViewModel",
-                                    "  Result[$index]: topicId='${item.topicId}', " +
-                                        "title='${item.title.take(50)}', " +
-                                        "author='${item.author.take(30)}', " +
-                                        "coverUrl=${if (item.coverUrl.isNullOrBlank()) "null" else "present"}, " +
-                                        "valid=${item.isValid()}",
-                                )
-                            }
-                        } else {
-                            android.util.Log.w("SearchViewModel", "⚠️ Search returned empty results for query '$query'")
-                        }
-                        rawOnlineResults.value = result.data
-                        recalculateUiState()
-                    }
-                    is Result.Error -> {
-                        android.util.Log.e(
-                            "SearchViewModel",
-                            "❌ Search failed for query '$query': ${result.exception.message}",
-                            result.exception,
-                        )
-                        rawOnlineResults.value = emptyList()
-                        _uiState.value =
-                            SearchUiState.Error(
-                                result.exception.message ?: "Unknown error",
+                searchRutrackerUseCase(query).collect { result ->
+                    when (result) {
+                        is Result.Success -> {
+                            android.util.Log.d(
+                                "SearchViewModel",
+                                "✅ Search successful: received ${result.data.size} results for query '$query'",
                             )
-                    }
-                    is Result.Loading -> {
-                        // Already in loading state
-                        android.util.Log.d("SearchViewModel", "⏳ Search in progress for query '$query'")
+                            // Log details about results
+                            if (result.data.isNotEmpty()) {
+                                val sample = result.data.take(3)
+                                sample.forEachIndexed { index, item ->
+                                    android.util.Log.d(
+                                        "SearchViewModel",
+                                        "  Result[$index]: topicId='${item.topicId}', " +
+                                            "title='${item.title.take(50)}', " +
+                                            "author='${item.author.take(30)}', " +
+                                            "coverUrl=${if (item.coverUrl.isNullOrBlank()) "null" else "present"}, " +
+                                            "valid=${item.isValid()}",
+                                    )
+                                }
+                            } else {
+                                android.util.Log.w("SearchViewModel", "⚠️ Search returned empty results for query '$query'")
+                            }
+                            rawOnlineResults.value = result.data
+                            recalculateUiState()
+                        }
+                        is Result.Error -> {
+                            android.util.Log.e(
+                                "SearchViewModel",
+                                "❌ Search failed for query '$query': ${result.exception.message}",
+                                result.exception,
+                            )
+                            rawOnlineResults.value = emptyList()
+                            _uiState.value =
+                                SearchUiState.Error(
+                                    result.exception.message ?: "Unknown error",
+                                )
+                        }
+                        is Result.Loading -> {
+                            // Already in loading state
+                            android.util.Log.d("SearchViewModel", "⏳ Search in progress for query '$query'")
+                        }
                     }
                 }
             }

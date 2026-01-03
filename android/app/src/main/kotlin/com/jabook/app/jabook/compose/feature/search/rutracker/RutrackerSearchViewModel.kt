@@ -51,6 +51,7 @@ class RutrackerSearchViewModel
     constructor(
         private val repository: RutrackerRepository,
         private val booksRepository: BooksRepository,
+        private val coverLoader: CoverLoader,
     ) : ViewModel() {
         companion object {
             private const val TAG = "RutrackerSearchViewModel"
@@ -157,6 +158,15 @@ class RutrackerSearchViewModel
                                     Log.d(TAG, "✅ Setting Success state with ${uiResults.size} results")
                                     SearchState.Success(uiResults, isCached = isCachedEmission)
                                 }
+
+                            // Trigger background cover loading for items without covers
+                            if (filtered.isNotEmpty()) {
+                                filtered.forEach { item ->
+                                    if (item.coverUrl.isNullOrBlank()) {
+                                        coverLoader.loadCover(item.topicId)
+                                    }
+                                }
+                            }
                         }.onFailure { error ->
                             Log.e(
                                 TAG,

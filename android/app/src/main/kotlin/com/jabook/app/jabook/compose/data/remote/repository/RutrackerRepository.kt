@@ -37,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -247,8 +248,7 @@ class RutrackerRepository
                 Log.i(TAG, "Using mirror: $currentMirror")
 
                 try {
-                    // Check if index exists and has data with timeout
-                    val countStartTime = System.currentTimeMillis()
+                    // Check if index exists and has data
                     val indexSize =
                         withContext(Dispatchers.IO) {
                             try {
@@ -258,46 +258,89 @@ class RutrackerRepository
                                 0
                             }
                         }
-                    val countDuration = System.currentTimeMillis() - countStartTime
-                    Log.d(TAG, "Index size check: $indexSize topics (${countDuration}ms)")
 
                     if (indexSize > 0) {
-                        val indexSearchStartTime = System.currentTimeMillis()
-                        val indexedResults =
-                            withContext(Dispatchers.IO) {
-                                try {
-                                    searchIndexedTopics(query, limit = 200)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Failed to search indexed topics", e)
-                                    emptyList()
-                                }
+                        // Check for debug command
+                        if (query.trim() == "!index" || query.trim() == ":debug") {
+                            val sampleTopics = offlineSearchDao.getSampleTopics(10)
+                            val domainResults = sampleTopics.map { it.toSearchResult() }.toDomainFromIndex()
+                            emit(Result.success(domainResults))
+                            return@flow
+                        }
+
+                        // Tokenize query for fuzzy search
+                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+
+                        if (tokens.isEmpty()) {
+                            emit(Result.success(emptyList()))
+                        } else {
+                            // Build dynamic SQL query for token-based search
+                            val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
+                            val args = ArrayList<Any>()
+
+                            tokens.forEachIndexed { index, token ->
+                                if (index > 0) sqlBuilder.append(" AND ")
+                                sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
+                                val likePattern = "%$token%"
+                                args.add(likePattern)
+                                args.add(likePattern)
                             }
-                        val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
 
-                        Log.i(
-                            TAG,
-                            "Search completed: ${indexedResults.size} results " +
-                                "(query: '$query', ${indexSearchDuration}ms, index size: $indexSize)",
-                        )
+                            // Add ordering and limit
+                            sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
 
-                        emit(Result.success(indexedResults))
+                            val simpleQuery = androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray())
+
+                            // Emit Flow from Room
+                            offlineSearchDao
+                                .searchIndexedTopicsRaw(simpleQuery)
+                                .map { entities ->
+                                    val dtoResults = entities.map { it.toSearchResult() }
+                                    val domainResults = dtoResults.toDomainFromIndex()
+                                    Result.success(domainResults)
+                                }.collect {
+                                    emit(it)
+                                }
+                        }
                     } else {
-                        Log.w(
-                            TAG,
-                            "⚠️ Index is empty ($indexSize topics) - cannot search. " +
-                                "Please run indexing first. Returning empty results.",
-                        )
-                        // Index is empty - return empty (no network fallback)
+                        Log.w(TAG, "⚠️ Index is empty ($indexSize topics). Returning empty results.")
                         emit(Result.success(emptyList()))
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "❌ Indexed search failed for query '$query'", e)
-                    // Search failed - return empty (no network fallback)
                     emit(Result.success(emptyList()))
                 }
             }.catch { e ->
                 Log.e(TAG, "Search flow error", e)
-                emit(Result.success(emptyList())) // Return empty instead of error
+                emit(Result.success(emptyList()))
+            }
+
+        /**
+         * Fetch topic details and save cover URL to database.
+         */
+        suspend fun fetchAndSaveCover(topicId: String): Result<Unit> =
+            try {
+                // Re-use existing getTopicDetails which fetches HTML and parses it
+                val result = getTopicDetails(topicId)
+
+                // Extract success data to check coverUrl
+                if (result.isSuccess) {
+                    val details = result.getOrNull()
+                    val coverUrl = details?.coverUrl
+
+                    if (!coverUrl.isNullOrBlank()) {
+                        Log.d(TAG, "Updating cover for $topicId: $coverUrl")
+                        offlineSearchDao.updateCoverUrl(topicId, coverUrl)
+                        Result.success(Unit)
+                    } else {
+                        Log.d(TAG, "No cover found for $topicId")
+                        Result.success(Unit)
+                    }
+                } else {
+                    Result.failure(result.exceptionOrNull() ?: Exception("Unknown error"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
             }
 
         private suspend fun fetchFromNetwork(

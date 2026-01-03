@@ -23,6 +23,7 @@ import androidx.room.RewriteQueriesToDropUnusedColumns
 import androidx.room.Transaction
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface OfflineSearchDao {
@@ -147,7 +148,16 @@ interface OfflineSearchDao {
      * Allows constructs like: (title LIKE %t1% OR author LIKE %t1%) AND (title LIKE %t2% OR author LIKE %t2%)
      */
     @androidx.room.RawQuery(observedEntities = [CachedTopicEntity::class])
-    suspend fun searchIndexedTopicsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): List<CachedTopicEntity>
+    fun searchIndexedTopicsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<CachedTopicEntity>>
+
+    /**
+     * Update cover URL for a specific topic.
+     */
+    @Query("UPDATE cached_topics SET cover_url = :coverUrl WHERE topic_id = :topicId")
+    suspend fun updateCoverUrl(
+        topicId: String,
+        coverUrl: String,
+    )
 
     /**
      * Get count of topics with non-empty category (for diagnostics).
