@@ -47,49 +47,52 @@ class RutrackerRepositoryTest {
     }
 
     @Test
-    fun `getTopicDetailsPage returns success for page 2 with comments only`() = runBlocking {
-        // Arrange
-        val topicId = "123"
-        val page = 2
-        val html = "<html>...</html>"
-        val responseBody = okhttp3.ResponseBody.create(null, html.toByteArray(charset("windows-1251")))
-        val response = retrofit2.Response.success(responseBody)
-        
-        whenever(api.getTopicDetailsAtPage(topicId, 30)).thenReturn(response)
-        
-        // Mock parser to return a TopicDetails that is invalid for page 1 (no torrent) but has comments
-        val mockDetails = TopicDetails(
-            topicId = topicId,
-            title = "Test Title",
-            category = "Books",
-            seeders = 0,
-            leechers = 0,
-            torrentUrl = "", // Empty for page > 1
-            magnetUrl = null,
-            size = "",
-            author = null,
-            performer = null,
-            coverUrl = null,
-            genres = emptyList(),
-            addedDate = null,
-            duration = null,
-            bitrate = null,
-            audioCodec = null,
-            description = null,
-            relatedBooks = emptyList(),
-            comments = listOf(
-                Comment("1", "User", "Date", "Text")
-            )
-        )
-        whenever(parser.parseTopicDetails(any(), any())).thenReturn(mockDetails)
+    fun `getTopicDetailsPage returns success for page 2 with comments only`() =
+        runBlocking {
+            // Arrange
+            val topicId = "123"
+            val page = 2
+            val html = "<html>...</html>"
+            val responseBody = okhttp3.ResponseBody.create(null, html.toByteArray(charset("windows-1251")))
+            val response = retrofit2.Response.success(responseBody)
 
-        // Act
-        val result = repository.getTopicDetailsPage(topicId, page)
+            whenever(api.getTopicDetailsAtPage(topicId, 30)).thenReturn(response)
 
-        // Assert
-        assertTrue(result is Result.Success)
-        val data = (result as Result.Success).data
-        assertEquals("Test Title", data.title)
-        assertEquals(1, data.comments.size)
-    }
+            // Mock parser to return a TopicDetails that is invalid for page 1 (no torrent) but has comments
+            val mockDetails =
+                TopicDetails(
+                    topicId = topicId,
+                    title = "Test Title",
+                    category = "Books",
+                    seeders = 0,
+                    leechers = 0,
+                    torrentUrl = "", // Empty for page > 1
+                    magnetUrl = null,
+                    size = "",
+                    author = null,
+                    performer = null,
+                    coverUrl = null,
+                    genres = emptyList(),
+                    addedDate = null,
+                    duration = null,
+                    bitrate = null,
+                    audioCodec = null,
+                    description = null,
+                    relatedBooks = emptyList(),
+                    comments =
+                        listOf(
+                            Comment("1", "User", "Date", "Text"),
+                        ),
+                )
+            whenever(parser.parseTopicDetails(any(), any())).thenReturn(mockDetails)
+
+            // Act
+            val result = repository.getTopicDetailsPage(topicId, page)
+
+            // Assert
+            assertTrue(result is Result.Success)
+            val data = (result as Result.Success).data
+            assertEquals("Test Title", data.title)
+            assertEquals(1, data.comments.size)
+        }
 }
