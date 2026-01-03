@@ -1143,31 +1143,18 @@ class RutrackerParser
                 // Clean the title
                 val cleanedTitle = cleanTitle(title)
 
-                // Extract description - clean text without metadata fields
-                // Remove common metadata patterns to avoid duplication
-                val rawDescriptionText = postBody?.toStr() ?: ""
-                val descriptionText = cleanDescription(rawDescriptionText, metadata)
-                val parsedMediaInfo = mediaInfoParser.parse(rawDescriptionText)
-
-                // Extract description HTML (preserve links)
                 val descriptionHtml =
                     postBody?.html()?.let { html ->
-                        // Clean HTML: remove MediaInfo sections and technical metadata
-                        val cleanedHtml = cleanDescriptionHtml(html, metadata)
-                        // Ensure all links have absolute URLs
-                        val doc = org.jsoup.Jsoup.parse(cleanedHtml, getBaseUrl())
-                        doc.select("a[href]").forEach { link ->
-                            val href = link.attr("href")
-                            if (href.isNotEmpty() &&
-                                !href.startsWith("http://") &&
-                                !href.startsWith("https://") &&
-                                !href.startsWith("magnet:")
-                            ) {
-                                link.attr("href", doc.baseUri() + href.removePrefix("/"))
-                            }
-                        }
-                        doc.body().html()
+                        // Clean HTML: using DOM manipulation
+                        val cleaned = cleanDescriptionHtml(html, metadata)
+                        // Ensure all links have absolute URLs (now handled in cleanDescriptionHtml)
+                        cleaned
                     }
+
+                // Extract description - clean text from cleaned HTML
+                val rawDescriptionText = postBody?.text() ?: "" // fallback
+                val descriptionText = cleanDescription(rawDescriptionText, metadata, descriptionHtml)
+                val parsedMediaInfo = mediaInfoParser.parse(rawDescriptionText)
 
                 // Extract series/cycle
                 val series = metadata["series"] ?: extractSeries(postBody)
@@ -1363,13 +1350,15 @@ class RutrackerParser
                         label.contains("Время звучания", ignoreCase = true) || label.contains("Duration", ignoreCase = true) -> {
                             metadata["duration"] = value
                         }
-                        // Bitrate
-                        (label.equals("Битрейт", ignoreCase = true) || label.equals("Bitrate", ignoreCase = true)) -> {
-                            metadata["bitrate"] = value
-                        }
                         // Audio Codec
-                        label.contains("Аудиокодек", ignoreCase = true) || label.contains("Codec", ignoreCase = true) -> {
+                        label.contains("Аудиокодек", ignoreCase = true) ||
+                            label.contains("Аудио кодек", ignoreCase = true) ||
+                            label.contains("Codec", ignoreCase = true) -> {
                             metadata["codec"] = value
+                        }
+                        // Bitrate
+                        label.contains("Битрейт", ignoreCase = true) || label.contains("Bitrate", ignoreCase = true) -> {
+                            metadata["bitrate"] = value
                         }
                         // Year/Date
                         label.contains("Год выпуска", ignoreCase = true) || label.contains("Year", ignoreCase = true) -> {
@@ -1386,6 +1375,24 @@ class RutrackerParser
                         // Publisher
                         label.contains("Издательство", ignoreCase = true) || label.contains("Publisher", ignoreCase = true) -> {
                             metadata["publisher"] = value
+                        }
+                        // Correction (Корректор)
+                        label.contains("Корректор", ignoreCase = true) || label.contains("Correction", ignoreCase = true) -> {
+                            metadata["correction"] = value
+                        }
+                        // Poster Author (Авторский постер)
+                        // Handle tricky cases like "Авторский постер: :"
+                        label.contains("Авторский постер", ignoreCase = true) || label.contains("Poster", ignoreCase = true) -> {
+                            val cleanValue = value.removePrefix(":").trim()
+                            metadata["poster_author"] = cleanValue
+                        }
+                        // Book Type (Тип аудиокниги)
+                        label.contains("Тип аудиокниги", ignoreCase = true) || label.contains("Type", ignoreCase = true) -> {
+                            metadata["book_type"] = value
+                        }
+                        // Music (Музыка)
+                        label.contains("Музыка", ignoreCase = true) || label.contains("Music", ignoreCase = true) -> {
+                            metadata["music"] = value
                         }
                     }
                 }
@@ -1567,328 +1574,163 @@ class RutrackerParser
          * Clean description text by removing metadata fields that are already extracted separately.
          * This prevents duplication of information like author, performer, year, etc.
          */
-        private fun cleanDescription(
-            rawText: String,
-            metadata: Map<String, String>,
-        ): String {
-            var cleaned = rawText
-
-            // FIRST: Try to extract description text directly (before any cleaning)
-            // This preserves the original description even when metadata is present before it
-            val descriptionExtracted = extractDescriptionSection(cleaned)
-            if (descriptionExtracted != null) {
-                cleaned = descriptionExtracted
-            } else {
-                // Fallback: clean metadata from the entire text
-
-                // Remove MediaInfo section (everything from "Общее" or "MediaInfo" to end)
-                cleaned =
-                    cleaned.replace(
-                        Regex("(?i)(Общее|MediaInfo|Видео|Аудио|General|Video|Audio).*", RegexOption.DOT_MATCHES_ALL),
-                        "",
-                    )
-
-                // Remove common metadata patterns
-                val patternsToRemove =
-                    listOf(
-                        "Год выпуска[:\\s]+\\d{4}",
-                        "Автор[:\\s]+.+?(?=\\n|Исполнитель|Год|Жанр|$)",
-                        "Исполнитель[:\\s]+.+?(?=\\n|Год|Жанр|$)",
-                        "Жанр[:\\s]+.+?(?=\\n|$)",
-                        "Издательство[:\\s]+.+?(?=\\n|$)",
-                        "Битрейт[:\\s]+.+?(?=\\n|$)",
-                        "Время звучания[:\\s]+.+?(?=\\n|$)",
-                        "Формат[:\\s]+.+?(?=\\n|$)",
-                        "Фамилия автора[:\\s]+.+?(?=\\n|$)",
-                        "Имя автора[:\\s]+.+?(?=\\n|$)",
-                        "Цикл/серия[:\\s]+.+?(?=\\n|$)",
-                        "Номер книги[:\\s]+.+?(?=\\n|$)",
-                        "Аудиокодек[:\\s]+.+?(?=\\n|$)",
-                        "Вид битрейта[:\\s]+.+?(?=\\n|$)",
-                        "Частота дискретизации[:\\s]+.+?(?=\\n|$)",
-                        "Количество каналов[:\\s]+.+?(?=\\n|$)",
-                    )
-
-                for (pattern in patternsToRemove) {
-                    cleaned = cleaned.replace(Regex(pattern, RegexOption.IGNORE_CASE), "")
-                }
-
-                // Remove metadata values if they appear in text
-                metadata.values.forEach { value ->
-                    if (value.isNotBlank() && value.length > 3) {
-                        cleaned = cleaned.replace(value, "", ignoreCase = true)
-                    }
-                }
-            }
-
-            // Truncate at "Доп. информация" BEFORE cleanup (must be done on raw text)
-            val cutoffMarkers = listOf("Доп. информация", "Дополнительная информация")
-            for (marker in cutoffMarkers) {
-                val index = cleaned.indexOf(marker, ignoreCase = true)
-                if (index != -1) {
-                    cleaned = cleaned.substring(0, index).trim()
-                }
-            }
-
-            // Clean up whitespace
-            cleaned =
-                cleaned
-                    .replace(Regex("\\s+"), " ")
-                    .replace(Regex("\\n\\s*\\n+"), "\n")
-                    .trim()
-
-            // Remove cycle/series links and book lists
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:Цикл|Cycle|Серия|Series)[\\s«»\"'].*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:[А-Яа-яA-Za-z0-9\\s.]+\\s+Книга\\s+\\d+\\s*\\n?)+", RegexOption.MULTILINE),
-                    "",
-                )
-
-            // Remove advertising text
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:Скидка|Discount|VPN|ВПН|Набор в группу).*?(?=\\n|$)", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
-
-            return cleaned.trim()
-        }
 
         /**
-         * Extract description section from raw text by finding "Описание:" label.
-         * Returns null if not found.
+         * Clean description text by parsing the cleaned HTML.
          */
-        private fun extractDescriptionSection(rawText: String): String? {
-            // Try to find "Описание:" and extract everything after it
-            val regex = Regex("(?i)(?:Описание|Description)[:\\s]+(.+)", RegexOption.DOT_MATCHES_ALL)
-            val match = regex.find(rawText)
-            return match?.groupValues?.get(1)?.trim()
+        private fun cleanDescription(
+            rawText: String, // Kept for signature compatibility, but we might mostly rely on html
+            metadata: Map<String, String>,
+            cleanedHtml: String? = null,
+        ): String {
+            // If we have cleaned HTML, use it to generate the text
+            if (cleanedHtml != null) {
+                return org.jsoup.Jsoup
+                    .parse(cleanedHtml)
+                    .body()
+                    .text()
+                    .trim()
+            }
+
+            // Fallback to previous logic if no HTML (shouldn't happen with new flow)
+            return rawText
         }
 
         /**
-         * Clean description HTML by removing MediaInfo sections and technical metadata.
-         * Similar to cleanDescription but preserves HTML structure and links.
+         * Clean description HTML by removing metadata fields from the DOM.
+         * Preserves all other content and links.
          */
         private fun cleanDescriptionHtml(
             rawHtml: String,
             metadata: Map<String, String>,
         ): String {
-            var cleaned = rawHtml
+            val doc = org.jsoup.Jsoup.parse(rawHtml, getBaseUrl())
+            val body = doc.body()
 
-            // Truncate at "Доп. информация" / "Дополнительная информация" BEFORE other cleaning
-            // But we skip this for now to preserve more content as requested by user?
-            // "сохранять оригинальное форматирование... внутри приложения"
-            // Actually, "Доп. информация" often contains tracklists or links, so let's keep it if possible
-            // but the user said "original formatting of descriptions, content, and hyperlinks"
-            // Let's keep it but maybe clean it better.
-
-            /* val cutoffMarkers = listOf("Доп. информация", "Дополнительная информация")
-            for (marker in cutoffMarkers) {
-                val index = cleaned.indexOf(marker, ignoreCase = true)
-                if (index != -1) {
-                    cleaned = cleaned.substring(0, index).trim()
-                }
-            } */
-
-            // Remove content BEFORE "Description" / "Описание" to avoid duplicating metadata
-            // Pattern: <span class="post-b">Описание</span>:
-            // Remove content BEFORE "Description" / "Описание" to avoid duplicating metadata
-            // Pattern: <span class="post-b">Описание</span>:
-            val descriptionStartPattern =
-                Regex(
-                    "<span[^>]*class=['\"]post-b['\"][^>]*>\\s*(?:Описание|Description)\\s*</span>\\s*:?",
-                    RegexOption.IGNORE_CASE,
-                )
-            val match = descriptionStartPattern.find(cleaned)
-            if (match != null) {
-                // Keep everything AFTER the match
-                cleaned = cleaned.substring(match.range.last + 1).trim()
-                // If it starts with a <br>, remove it
-                if (cleaned.startsWith("<br")) {
-                    cleaned = cleaned.replaceFirst(Regex("^<br\\s*/?>"), "").trim()
-                }
-            }
-
-            // Remove MediaInfo section (everything from "Общее" or "MediaInfo" to end or next section)
-            // Use regex to find and remove MediaInfo divs
-            cleaned =
-                cleaned.replace(
-                    Regex(
-                        "(?i)(<div[^>]*class=\"sp-wrap\"[^>]*>.*?<div[^>]*class=\"sp-head\"[^>]*>.*?MediaInfo.*?</div>.*?<div[^>]*class=\"sp-body\"[^>]*>.*?</div>.*?</div>)",
-                        RegexOption.DOT_MATCHES_ALL,
-                    ),
-                    "",
-                )
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(Общее|MediaInfo|Видео|Аудио|General|Video|Audio).*", RegexOption.DOT_MATCHES_ALL),
-                    "",
+            // 1. Remove metadata blocks
+            // Iterate over span.post-b to find metadata labels
+            val metadataLabels =
+                setOf(
+                    "Год выпуска",
+                    "Year",
+                    "Автор",
+                    "Author",
+                    "Авторы",
+                    "Authors",
+                    "Исполнитель",
+                    "Narrator",
+                    "Жанр",
+                    "Genre",
+                    "Издательство",
+                    "Publisher",
+                    "Тип аудиокниги",
+                    "Type",
+                    "Audiobook type",
+                    "Аудио кодек",
+                    "Аудиокодек",
+                    "Audio codec",
+                    "Codec",
+                    "Битрейт",
+                    "Битрейт аудио",
+                    "Bitrate",
+                    "Время звучания",
+                    "Duration",
+                    "Корректор",
+                    "Correction",
+                    "Авторский постер",
+                    "Poster",
+                    "Музыка",
+                    "Music",
+                    "Цикл",
+                    "Серия",
+                    "Series",
+                    "Cycle",
+                    "Номер книги",
+                    "Book number",
                 )
 
-            // Remove book title if it appears at the beginning (duplicate of main title)
-            // Pattern: <span style="font-size: 24px...">Title</span> or similar
-            cleaned =
-                cleaned.replace(
-                    Regex(
-                        "(?i)<span[^>]*style=\"[^\"]*font-size:\\s*24px[^\"]*\"[^>]*>.*?</span>",
-                        RegexOption.DOT_MATCHES_ALL,
-                    ),
-                    "",
-                )
+            // Find all potential metadata labels
+            // We convert to list to avoid concurrent modification exceptions when removing
+            val spans = body.select("span.post-b").toList()
 
-            // Remove var.postImg elements (cover images) - they're handled separately
-            cleaned =
-                cleaned.replace(
-                    Regex("<var[^>]*class=\"[^\"]*postImg[^\"]*\"[^>]*>.*?</var>", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
+            for (span in spans) {
+                val text =
+                    span
+                        .text()
+                        .trim()
+                        .removeSuffix(":")
+                        .trim()
 
-            // Remove all metadata fields with HTML tags (more aggressive)
-            val metadataPatterns =
-                listOf(
-                    // HTML patterns for metadata fields
-                    "<span[^>]*class=\"post-b\"[^>]*>Год выпуска</span>[:\\s]*\\d{4}",
-                    "<span[^>]*class=\"post-b\"[^>]*>Фамилия автора</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Имя автора</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Автор</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Исполнитель</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Жанр</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Издательство</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Аудиокодек</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Битрейт</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Вид битрейта</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Частота дискретизации</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Количество каналов</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Время звучания</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Цикл/серия</span>[:\\s]*.+?(?=<br|</)",
-                    "<span[^>]*class=\"post-b\"[^>]*>Номер книги</span>[:\\s]*.+?(?=<br|</)",
-                    // Plain text patterns (fallback)
-                    "Год выпуска[:\\s]+\\d{4}",
-                    "Автор[:\\s]+.+?(?=<br|</|$)",
-                    "Исполнитель[:\\s]+.+?(?=<br|</|$)",
-                    "Жанр[:\\s]+.+?(?=<br|</|$)",
-                    "Битрейт[:\\s]+.+?(?=<br|</|$)",
-                    "Тип релиза[:\\s]+.+?(?=<br|</|$)",
-                    "Контейнер[:\\s]+.+?(?=<br|</|$)",
-                    "Видео кодек[:\\s]+.+?(?=<br|</|$)",
-                    "Аудио кодек[:\\s]+.+?(?=<br|</|$)",
-                )
+                // Check if this span is a metadata label
+                val isMetadata =
+                    metadataLabels.any { label ->
+                        text.equals(label, ignoreCase = true) || text.startsWith(label, ignoreCase = true)
+                    }
 
-            for (pattern in metadataPatterns) {
-                cleaned = cleaned.replace(Regex(pattern, RegexOption.IGNORE_CASE), "")
-            }
+                if (isMetadata) {
+                    // This is a metadata label. We need to remove it and its value.
+                    // The value usually follows in a TextNode or another Element, up to the next <br>
 
-            // Remove metadata values if they appear in HTML
-            metadata.values.forEach { value ->
-                if (value.isNotBlank() && value.length > 3) {
-                    // Remove exact matches and variations from HTML
-                    cleaned = cleaned.replace(value, "", ignoreCase = true)
+                    var next = span.nextSibling()
+                    while (next != null) {
+                        val current = next
+                        next = next.nextSibling() // Advance before removing
+
+                        // Stop if we hit a <br> (end of line)
+                        if (current is org.jsoup.nodes.Element && current.tagName() == "br") {
+                            current.remove()
+                            break
+                        }
+
+                        // Stop if we hit another metadata label (safety check, though usually separated by br)
+                        if (current is org.jsoup.nodes.Element && current.hasClass("post-b")) {
+                            // Oops, we went too far (maybe missing br).
+                            // But wait, our loop will handle this next span.
+                            // We should probably stop removing *values* if we see a new label.
+                            break
+                        }
+
+                        // Remove the value node (text or element)
+                        current.remove()
+                    }
+                    // Finally remove the label span itself
+                    span.remove()
                 }
             }
 
-            // Extract only description section (after "Описание:" or "Description:")
-            // This ensures we only get the actual description text, not metadata
-            val descriptionMatch =
-                Regex(
-                    "(?i)(?:<span[^>]*class=\"post-b\"[^>]*>)?(?:Описание|Description)(?:</span>)?[:\\s]+(.+?)(?=<hr|<span[^>]*class=\"post-b\"|Цикл|Cycle|Серия|Series|$)",
-                    RegexOption.DOT_MATCHES_ALL,
-                ).find(cleaned)
-            if (descriptionMatch != null) {
-                cleaned = descriptionMatch.groupValues[1].trim()
-            } else {
-                // Fallback: remove "Описание:" prefix if present
-                cleaned =
-                    cleaned.replace(
-                        Regex("(?i)(?:Описание|Description)[:\\s]+", RegexOption.IGNORE_CASE),
-                        "",
-                    )
+            // 2. Remove other clutter
+            // Remove MediaInfo section
+            body.select("div.sp-wrap:has(div.sp-head:contains(MediaInfo))").remove()
+            // Remove "General", "Audio", "Video" headers if floating
+            body.select("div.sp-body").forEach {
+                if (it.text().contains("MediaInfo", ignoreCase = true)) it.remove()
             }
 
-            // Remove duplicate text blocks (same text appearing multiple times)
-            // Split by common separators and remove duplicates
-            val lines = cleaned.split(Regex("<br\\s*/?>|<hr[^>]*>|\\n"))
-            val uniqueLines = mutableListOf<String>()
-            val seenLines = mutableSetOf<String>()
-            for (line in lines) {
-                val trimmed = line.trim().replace(Regex("<[^>]+>"), "") // Remove HTML tags for comparison
-                if (trimmed.isNotBlank() && trimmed.length > 10 && !seenLines.contains(trimmed.lowercase())) {
-                    seenLines.add(trimmed.lowercase())
-                    uniqueLines.add(line)
+            // Remove var.postImg elements (cover images) - they're handled separately/extracted
+            body.select("var.postImg, var.postImgAligned").remove()
+
+            // Remove advertising blocks
+            body.select("span.post-align[style*='text-align: center']").remove()
+            body.select("a[href*='/go/']").remove()
+
+            // Remove "clear" divs
+            body.select("div.clear").remove()
+
+            // 3. Process Links
+            // Rewrite local links to absolute, and ensure forum/topic links are correct
+            body.select("a[href]").forEach { link ->
+                val href = link.attr("href")
+                if (href.isNotEmpty()) {
+                    if (href.startsWith("viewtopic.php") || href.startsWith("tracker.php")) {
+                        // Make absolute using current mirror
+                        link.attr("href", doc.baseUri() + href)
+                    } else if (href.startsWith("/")) {
+                        link.attr("href", doc.baseUri() + href.removePrefix("/"))
+                    }
                 }
             }
-            cleaned = uniqueLines.joinToString("<br>")
 
-            // Remove file lists and chapter lists (common patterns like "Книга 11. Глава 19 05:38:23.475")
-            // This removes long lists of chapters/files that clutter the description
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:Книга|Book|Глава|Chapter|Файл|File)\\s+\\d+[.\\s]+.*?\\d{2}:\\d{2}:\\d{2}[.\\d]*", RegexOption.MULTILINE),
-                    "",
-                )
-
-            // Remove "Содержание" (Contents) sections with file lists
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:Содержание|Contents)[:\\s]*<br>.*?(?=<br><br>|$)", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
-
-            // Remove "Вшитая обложка" and "Разбитие на главы" metadata
-            cleaned =
-                cleaned.replace(
-                    Regex(
-                        "(?i)(?:Вшитая обложка|Embedded cover|Разбитие на главы|Chapter breakdown)[:\\s]+(?:есть|yes|нет|no).*?(?=<br>|$)",
-                        RegexOption.MULTILINE,
-                    ),
-                    "",
-                )
-
-            // Remove cycle/series links and lists (e.g., "Цикл «Забаненный»" and book lists)
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:Цикл|Cycle|Серия|Series)[\\s«»\"'].*?(?=<br>|</a>|$)", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
-            // Remove book lists like "Забаненный. Книга 1<br />Забаненный. Книга 2"
-            cleaned =
-                cleaned.replace(
-                    Regex("(?i)(?:[А-Яа-яA-Za-z0-9\\s.]+\\s+Книга\\s+\\d+<br\\s*/?>)+", RegexOption.MULTILINE),
-                    "",
-                )
-
-            // Remove advertising blocks (VPN ads, etc.) - usually in centered spans with links
-            cleaned =
-                cleaned.replace(
-                    Regex(
-                        "<span[^>]*class=\"post-align\"[^>]*style=\"[^\"]*text-align:\\s*center[^\"]*\"[^>]*>.*?</span>",
-                        RegexOption.DOT_MATCHES_ALL,
-                    ),
-                    "",
-                )
-            // Remove links with /go/ (advertising links)
-            cleaned =
-                cleaned.replace(
-                    Regex("<a[^>]*href=\"[^\"]*/go/\\d+[^\"]*\"[^>]*>.*?</a>", RegexOption.DOT_MATCHES_ALL),
-                    "",
-                )
-
-            // Remove <div class="clear"> elements (layout clearing divs)
-            cleaned = cleaned.replace(Regex("<div[^>]*class=\"clear\"[^>]*>.*?</div>", RegexOption.DOT_MATCHES_ALL), "")
-
-            // Clean up multiple whitespace and normalize <br> tags
-            cleaned =
-                cleaned
-                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
-                    .replace(Regex("\\s+"), " ")
-                    .replace(Regex("<br>\\s*<br>\\s*<br>+"), "<br><br>") // Max 2 consecutive <br>
-                    .trim()
-
-            return cleaned
+            return body.html()
         }
 
         /**

@@ -103,20 +103,20 @@ class RutrackerRepositoryImpl
         override suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>>> =
             flow {
                 // Use ONLY indexed search (no network)
-                android.util.Log.d("RutrackerRepositoryImpl", "🔍 Search started: query='$query'")
+                // android.util.Log.d("RutrackerRepositoryImpl", "🔍 Search started: query='$query'")
                 try {
                     val countStartTime = System.currentTimeMillis()
                     val indexSize = offlineSearchDao.getTopicCount()
                     val countDuration = System.currentTimeMillis() - countStartTime
-                    android.util.Log.d(
-                        "RutrackerRepositoryImpl",
-                        "Index size check: $indexSize topics (${countDuration}ms)",
-                    )
+                    // android.util.Log.d(
+                    //    "RutrackerRepositoryImpl",
+                    //    "Index size check: $indexSize topics (${countDuration}ms)",
+                    // )
 
                     if (indexSize > 0) {
                         // Check for debug command
                         if (query.trim() == "!index" || query.trim() == ":debug") {
-                            android.util.Log.d("RutrackerRepositoryImpl", "🐞 Debug command detected, fetching sample topics")
+                            // android.util.Log.d("RutrackerRepositoryImpl", "🐞 Debug command detected, fetching sample topics")
                             val sampleTopics = offlineSearchDao.getSampleTopics(10)
                             val domainResults =
                                 sampleTopics
@@ -166,12 +166,12 @@ class RutrackerRepositoryImpl
                                 }
                         }
                     } else {
-                        android.util.Log.w("RutrackerRepositoryImpl", "⚠️ Index is empty, returning empty results")
+                        // android.util.Log.w("RutrackerRepositoryImpl", "⚠️ Index is empty, returning empty results")
                         // Index is empty - return empty results
                         emit(Result.Success(emptyList()))
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
+                    // android.util.Log.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
                     // Search failed - return empty results
                     emit(Result.Success(emptyList()))
                 }
@@ -187,11 +187,11 @@ class RutrackerRepositoryImpl
                     is Result.Success -> {
                         val coverUrl = result.data.coverUrl
                         if (!coverUrl.isNullOrBlank()) {
-                            android.util.Log.d("RutrackerRepositoryImpl", "Updating cover for $topicId: $coverUrl")
+                            // android.util.Log.d("RutrackerRepositoryImpl", "Updating cover for $topicId: $coverUrl")
                             offlineSearchDao.updateCoverUrl(topicId, coverUrl)
                             Result.Success(Unit)
                         } else {
-                            android.util.Log.d("RutrackerRepositoryImpl", "No cover found for $topicId")
+                            // android.util.Log.d("RutrackerRepositoryImpl", "No cover found for $topicId")
                             Result.Success(Unit) // Success even if no cover, just nothing to save
                         }
                     }

@@ -18,6 +18,14 @@ import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
+import com.jabook.app.jabook.compose.domain.model.Result
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -30,8 +38,6 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
-
-@RunWith(RobolectricTestRunner::class)
 class RutrackerRepositoryTest {
     private val api: RutrackerApi = mock()
     private val parser: RutrackerParser = mock()
@@ -41,12 +47,18 @@ class RutrackerRepositoryTest {
 
     @Before
     fun setup() {
+        kotlinx.coroutines.Dispatchers.setMain(kotlinx.coroutines.test.UnconfinedTestDispatcher())
         repository =
             RutrackerRepositoryImpl(
                 api,
                 parser,
                 offlineSearchDao,
             )
+    }
+
+    @org.junit.After
+    fun tearDown() {
+        kotlinx.coroutines.Dispatchers.resetMain()
     }
 
     @Test
@@ -72,12 +84,12 @@ class RutrackerRepositoryTest {
             whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
 
             // Act
-            val result = repository.search("!index")
+            val result = repository.search("!index").first()
 
             // Assert
             verify(offlineSearchDao).getSampleTopics(10)
-            assertTrue(result is com.jabook.app.jabook.compose.domain.model.Result.Success)
-            val data = (result as com.jabook.app.jabook.compose.domain.model.Result.Success).data
+            assertTrue(result is Result.Success<*>)
+            val data = (result as Result.Success<List<RutrackerSearchResult>>).data
             assertEquals(1, data.size)
             assertEquals("[DEBUG] Test Title", data[0].title)
         }
@@ -88,10 +100,10 @@ class RutrackerRepositoryTest {
             // Arrange
             val query = "Harry Potter"
             whenever(offlineSearchDao.getTopicCount()).thenReturn(100)
-            whenever(offlineSearchDao.searchIndexedTopicsRaw(any())).thenReturn(emptyList())
+            whenever(offlineSearchDao.searchIndexedTopicsRaw(any())).thenReturn(flowOf(emptyList()))
 
             // Act
-            repository.search(query)
+            repository.search(query).collect()
 
             // Assert
             val captor = argumentCaptor<androidx.sqlite.db.SupportSQLiteQuery>()
