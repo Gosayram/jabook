@@ -81,8 +81,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -779,74 +777,44 @@ private fun ExpandableDescription(
             }
         }
 
-        // Use HTML if available, otherwise use plain text
-        val linkColor = MaterialTheme.colorScheme.primary
-        val annotatedText =
-            remember(descriptionHtml, description, expanded, linkColor) {
-                if (descriptionHtml != null && expanded) {
-                    // Clean HTML description before converting
+        if (descriptionHtml != null && expanded) {
+            // Render full HTML description with spoilers
+            val linkColor = MaterialTheme.colorScheme.primary
+            val blocks =
+                remember(descriptionHtml, linkColor) {
+                    // Clean HTML description before parsing
                     val cleanedHtml =
                         descriptionHtml
                             .replace(Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL), "<br>")
                             .replace(Regex("<br\\s*/?>\\s*<br\\s*/?>+"), "<br><br>") // Normalize multiple <br> tags
                             .trim()
-                    HtmlToAnnotatedString.convert(
-                        cleanedHtml,
-                        linkColor = linkColor,
-                    )
-                } else {
-                    val text =
-                        if (expanded) {
-                            description
-                                .replace(Regex("[ \t]+"), " ")
-                                .replace(Regex("\n{3,}"), "\n\n")
-                                .trim()
-                        } else {
-                            description
-                                .take(maxPreviewLength)
-                                .replace(Regex("[ \t]+"), " ")
-                                .trim() + if (shouldShowExpand) "..." else ""
-                        }
-                    AnnotatedString(text)
+                    com.jabook.app.jabook.compose.core.util.HtmlBlockParser
+                        .parse(cleanedHtml, linkColor)
+                }
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                blocks.forEach { block ->
+                    DescriptionBlockRenderer(block, onNavigateToTopic)
                 }
             }
-
-        var layoutResult by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
-        Text(
-            text = annotatedText,
-            style =
-                MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = if (isCompact) TextUnit(16f, TextUnitType.Sp) else MaterialTheme.typography.bodyMedium.lineHeight,
-                ),
-            // Adaptive maxLines for collapsed state
-            maxLines =
+        } else {
+            // Render preview or collapsed plain text
+            val text =
                 if (expanded) {
-                    Int.MAX_VALUE
-                } else if (isCompact) {
-                    2
+                    description
                 } else {
-                    3
-                },
-            overflow = TextOverflow.Ellipsis,
-            onTextLayout = { layoutResult = it },
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .pointerInput(annotatedText) {
-                        detectTapGestures { offset ->
-                            layoutResult?.let { layout ->
-                                val position = layout.getOffsetForPosition(offset)
-                                annotatedText
-                                    .getStringAnnotations("TOPIC_ID", position, position)
-                                    .firstOrNull()
-                                    ?.let { annotation ->
-                                        onNavigateToTopic(annotation.item)
-                                    }
-                            }
-                        }
-                    },
-        )
+                    if (shouldShowExpand) {
+                        description.take(maxPreviewLength) + "..."
+                    } else {
+                        description
+                    }
+                }
+
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }
 

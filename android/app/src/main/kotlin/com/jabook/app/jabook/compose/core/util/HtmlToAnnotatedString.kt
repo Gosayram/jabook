@@ -111,9 +111,16 @@ object HtmlToAnnotatedString {
                             // Identify internal topic links
                             val topicId = extractTopicId(href)
                             if (topicId != null) {
-                                addStringAnnotation(
-                                    tag = "TOPIC_ID",
-                                    annotation = topicId,
+                                // We attach the topic ID as the annotation's tag or we can imply it.
+                                // Actually, LinkAnnotation.Clickable takes a tag string which is passed to the listener?
+                                // No, LinkAnnotation.Clickable(tag: String, styles: TextLinkStyles?, linkInteractionListener: LinkInteractionListener?)
+                                // The listener receives the LinkAnnotation.
+                                // So we need to encode the topic ID in the tag.
+                                addLink(
+                                    LinkAnnotation.Clickable(
+                                        tag = topicId,
+                                        linkInteractionListener = null, // Listener will be provided by Text
+                                    ),
                                     start = start,
                                     end = end,
                                 )
