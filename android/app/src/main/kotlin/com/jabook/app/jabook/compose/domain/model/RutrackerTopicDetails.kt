@@ -91,6 +91,15 @@ data class RutrackerTopicDetails(
             torrentUrl.isNotBlank()
 
     /**
+     * Validates that the topic details have enough fields for a pagination page.
+     * Pages > 1 might not have torrent info (magnet, size, etc.) but should have comments.
+     */
+    fun isValidForPagination(): Boolean =
+        topicId.isNotBlank() &&
+            title.isNotBlank() &&
+            comments.isNotEmpty()
+
+    /**
      * Checks if download is available (has magnet or torrent URL).
      *
      * @return true if download is available

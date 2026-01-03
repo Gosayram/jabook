@@ -290,7 +290,7 @@ class RutrackerRepositoryImpl
                         ?: return Result.Error(Exception("Failed to parse topic details"))
 
                 val domainDetails = dtoDetails.toDomain()
-                if (domainDetails.isValid()) {
+                if (domainDetails.isValid() || (page > 1 && domainDetails.isValidForPagination())) {
                     Result.Success(domainDetails)
                 } else {
                     Result.Error(Exception("Topic details failed validation"))
