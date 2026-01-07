@@ -160,6 +160,8 @@ data class AudioProcessingSettings(
     val speechEnhancer: Boolean = false,
     val autoVolumeLeveling: Boolean = false,
     val skipSilence: Boolean = false,
+    val isCrossfadeEnabled: Boolean = false,
+    val crossfadeDurationMs: Long = 2000L,
 ) {
     companion object {
         /**
@@ -173,6 +175,8 @@ data class AudioProcessingSettings(
                 speechEnhancer = false,
                 autoVolumeLeveling = false,
                 skipSilence = false,
+                isCrossfadeEnabled = false,
+                crossfadeDurationMs = 2000L,
             )
     }
 }
