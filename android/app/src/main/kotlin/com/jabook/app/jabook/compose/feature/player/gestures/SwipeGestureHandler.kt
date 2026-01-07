@@ -145,9 +145,18 @@ class SwipeGestureHandler(
      * @return Formatted string like "+10s" or "-5s"
      */
     fun formatSeekDelta(deltaMs: Long): String {
-        val seconds = deltaMs / 1000
-        val sign = if (seconds >= 0) "+" else ""
-        return "${sign}${seconds}s"
+        val totalSeconds = deltaMs / 1000
+        val absSeconds = abs(totalSeconds)
+        val sign = if (totalSeconds >= 0) "+" else "-"
+        
+        val m = absSeconds / 60
+        val s = absSeconds % 60
+        
+        return if (m > 0) {
+            "$sign$m:${s.toString().padStart(2, '0')}"
+        } else {
+            "$sign${absSeconds}s"
+        }
     }
 
     companion object {
