@@ -26,7 +26,6 @@ import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.RenderersFactory
 import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.utils.PerformanceClass
@@ -212,13 +211,12 @@ object MediaModule {
                             context: Context,
                             enableFloatOutput: Boolean,
                             enableAudioOffload: Boolean,
-                        ): androidx.media3.exoplayer.audio.AudioSink {
-                            return androidx.media3.exoplayer.audio.DefaultAudioSink
+                        ): androidx.media3.exoplayer.audio.AudioSink =
+                            androidx.media3.exoplayer.audio.DefaultAudioSink
                                 .Builder()
                                 .setAudioProcessors(processors.toTypedArray())
                                 .setEnableFloatOutput(enableFloatOutput)
                                 .build()
-                        }
                     }
 
                 val builder =

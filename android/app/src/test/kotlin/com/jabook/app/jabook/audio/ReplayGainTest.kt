@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import androidx.media3.common.Metadata
+import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import org.junit.Before
 import org.junit.Test
@@ -24,36 +25,35 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
-import androidx.test.core.app.ApplicationProvider
 
 @RunWith(RobolectricTestRunner::class)
 class ReplayGainTest {
-
     private lateinit var playerListener: PlayerListener
     private lateinit var loudnessNormalizer: LoudnessNormalizer
 
     @Before
     fun setup() {
         loudnessNormalizer = mock()
-        
+
         // Create PlayerListener with mocks for dependencies
-        playerListener = PlayerListener(
-            context = ApplicationProvider.getApplicationContext(),
-            getActivePlayer = { mock() },
-            getNotificationManager = { null },
-            getIsBookCompleted = { false },
-            setIsBookCompleted = { },
-            getSleepTimerEndOfChapter = { false },
-            getSleepTimerEndTime = { 0L },
-            cancelSleepTimer = { },
-            sendTimerExpiredEvent = { },
-            saveCurrentPosition = { },
-            startSleepTimerCheck = { },
-            getEmbeddedArtworkPath = { null },
-            setEmbeddedArtworkPath = { },
-            getCurrentMetadata = { null }
-        )
-        
+        playerListener =
+            PlayerListener(
+                context = ApplicationProvider.getApplicationContext(),
+                getActivePlayer = { mock() },
+                getNotificationManager = { null },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { false },
+                getSleepTimerEndTime = { 0L },
+                cancelSleepTimer = { },
+                sendTimerExpiredEvent = { },
+                saveCurrentPosition = { },
+                startSleepTimerCheck = { },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+            )
+
         // Inject the mock normalizer
         playerListener.loudnessNormalizer = loudnessNormalizer
     }
@@ -63,7 +63,7 @@ class ReplayGainTest {
         // Given a metadata entry with ReplayGain info
         val mockEntry = mock<Metadata.Entry>()
         whenever(mockEntry.toString()).thenReturn("TXXX: description=REPLAYGAIN_TRACK_GAIN, value=-5.20 dB")
-        
+
         val metadata = Metadata(mockEntry)
 
         // When metadata is received
@@ -78,7 +78,7 @@ class ReplayGainTest {
         // Given a metadata entry with irrelevant info
         val mockEntry = mock<Metadata.Entry>()
         whenever(mockEntry.toString()).thenReturn("TIT2: value=Some Title")
-        
+
         val metadata = Metadata(mockEntry)
 
         // When metadata is received

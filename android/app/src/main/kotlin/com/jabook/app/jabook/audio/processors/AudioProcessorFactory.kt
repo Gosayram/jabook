@@ -32,7 +32,7 @@ object AudioProcessorFactory {
      */
     data class ProcessorChainResult(
         val processors: List<AudioProcessor>,
-        val loudnessNormalizer: LoudnessNormalizer? = null
+        val loudnessNormalizer: LoudnessNormalizer? = null,
     )
 
     /**

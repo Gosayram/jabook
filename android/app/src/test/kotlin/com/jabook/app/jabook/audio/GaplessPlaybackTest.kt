@@ -22,12 +22,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
-import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -35,7 +33,7 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * Verifies Gapless Playback prerequisites: multi-item playlist support.
- * 
+ *
  * Note: True gapless playback is handled by ExoPlayer's internal engine and DefaultRenderersFactory.
  * This test verifies that we are correctly populating the playlist, which is the
  * application-side requirement for gapless playback.
@@ -43,7 +41,6 @@ import org.robolectric.RobolectricTestRunner
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class GaplessPlaybackTest {
-
     private lateinit var context: Context
     private lateinit var exoPlayer: ExoPlayer
     private lateinit var playlistManager: PlaylistManager
@@ -63,35 +60,37 @@ class GaplessPlaybackTest {
         val playbackController = mock<PlaybackController>()
 
         // Create PlaylistManager with mocks
-        playlistManager = PlaylistManager(
-            context = context,
-            mediaCache = mock(),
-            getActivePlayer = { exoPlayer },
-            getNotificationManager = { null },
-            playerServiceScope = testScope,
-            mediaItemDispatcher = testDispatcher,
-            getFlavorSuffix = { "" },
-            durationManager = durationManager,
-            playerPersistenceManager = playerPersistenceManager,
-            playbackController = playbackController
-        )
+        playlistManager =
+            PlaylistManager(
+                context = context,
+                mediaCache = mock(),
+                getActivePlayer = { exoPlayer },
+                getNotificationManager = { null },
+                playerServiceScope = testScope,
+                mediaItemDispatcher = testDispatcher,
+                getFlavorSuffix = { "" },
+                durationManager = durationManager,
+                playerPersistenceManager = playerPersistenceManager,
+                playbackController = playbackController,
+            )
     }
 
     @Test
-    fun `preparePlaybackOptimized adds multiple items to player`() = testScope.runTest {
-        // Given a list of files
-        val files = listOf("/storage/book/1.mp3", "/storage/book/2.mp3", "/storage/book/3.mp3")
-        
-        // Mock player behavior
-        whenever(exoPlayer.mediaItemCount).thenReturn(3)
+    fun `preparePlaybackOptimized adds multiple items to player`() =
+        testScope.runTest {
+            // Given a list of files
+            val files = listOf("/storage/book/1.mp3", "/storage/book/2.mp3", "/storage/book/3.mp3")
 
-        // When playlist is prepared
-        playlistManager.preparePlaybackOptimized(files, null)
-        
-        // Then items are added to the player
-        // 1. First item added synchronously
-        verify(exoPlayer).addMediaSource(any(), any()) // At least one addMediaSource call
-        // 2. Clear items called first
-        verify(exoPlayer).clearMediaItems()
-    }
+            // Mock player behavior
+            whenever(exoPlayer.mediaItemCount).thenReturn(3)
+
+            // When playlist is prepared
+            playlistManager.preparePlaybackOptimized(files, null)
+
+            // Then items are added to the player
+            // 1. First item added synchronously
+            verify(exoPlayer).addMediaSource(any(), any()) // At least one addMediaSource call
+            // 2. Clear items called first
+            verify(exoPlayer).clearMediaItems()
+        }
 }

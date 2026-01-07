@@ -239,9 +239,9 @@ internal class PlayerConfigurator(
                 customExoPlayer = MediaModule.createExoPlayerWithProcessors(service, settings)
 
                 // Copy listener from singleton player (using instance from this class)
-                playerListener?.let { 
+                playerListener?.let {
                     it.loudnessNormalizer = loudnessNormalizer // Update listener with new normalizer
-                    customExoPlayer?.addListener(it) 
+                    customExoPlayer?.addListener(it)
                 }
 
                 android.util.Log.i(
