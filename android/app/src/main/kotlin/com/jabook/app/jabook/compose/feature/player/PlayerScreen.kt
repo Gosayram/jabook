@@ -302,51 +302,69 @@ fun PlayerScreen(
                                 // Click debouncer for preventing double clicks (inspired by Easybook)
                                 val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300L)
 
-                                PlayerContent(
-                                    state = state,
-                                    playbackSpeed = playbackSpeed,
-                                    sleepTimerState = sleepTimerState,
-                                    normalizeEnabled = normalizeEnabled,
-                                    chapterRepeatMode = chapterRepeatMode,
-                                    onPlayPause = {
-                                        clickDebouncer.debounce {
-                                            if (state.isPlaying) viewModel.pause() else viewModel.play()
-                                        }
+                                com.jabook.app.jabook.compose.feature.player.gestures.GestureOverlay(
+                                    onSeek = { delta ->
+                                        val totalDuration =
+                                            state.currentChapter?.duration?.inWholeMilliseconds
+                                                ?: 0L
+                                        val newPos =
+                                            (state.currentPosition + delta).coerceIn(
+                                                0L,
+                                                totalDuration,
+                                            )
+                                        viewModel.seekTo(newPos)
                                     },
-                                    onSkipNext = {
-                                        clickDebouncer.debounce { viewModel.skipToNext() }
-                                    },
-                                    onSkipPrevious = {
-                                        clickDebouncer.debounce { viewModel.skipToPrevious() }
-                                    },
-                                    onSeek = viewModel::seekTo,
-                                    onSeekForward = {
-                                        clickDebouncer.debounce { viewModel.seekForward() }
-                                    },
-                                    onSeekBackward = {
-                                        clickDebouncer.debounce { viewModel.seekBackward() }
-                                    },
-                                    onSelectChapter = viewModel::skipToChapter,
-                                    onChapterClick = {
-                                        // Toggle chapters pane on medium/expanded screens
-                                        clickDebouncer.debounce {
-                                            scope.launch {
-                                                if (scaffoldNavigator.canNavigateBack()) {
-                                                    scaffoldNavigator.navigateBack()
-                                                } else {
-                                                    scaffoldNavigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
+                                ) {
+                                    PlayerContent(
+                                        state = state,
+                                        playbackSpeed = playbackSpeed,
+                                        sleepTimerState = sleepTimerState,
+                                        normalizeEnabled = normalizeEnabled,
+                                        chapterRepeatMode = chapterRepeatMode,
+                                        onPlayPause = {
+                                            clickDebouncer.debounce {
+                                                if (state.isPlaying) viewModel.pause() else viewModel.play()
+                                            }
+                                        },
+                                        onSkipNext = {
+                                            clickDebouncer.debounce { viewModel.skipToNext() }
+                                        },
+                                        onSkipPrevious = {
+                                            clickDebouncer.debounce { viewModel.skipToPrevious() }
+                                        },
+                                        onSeek = viewModel::seekTo,
+                                        onSeekForward = {
+                                            clickDebouncer.debounce { viewModel.seekForward() }
+                                        },
+                                        onSeekBackward = {
+                                            clickDebouncer.debounce { viewModel.seekBackward() }
+                                        },
+                                        onSelectChapter = viewModel::skipToChapter,
+                                        onChapterClick = {
+                                            // Toggle chapters pane on medium/expanded screens
+                                            clickDebouncer.debounce {
+                                                scope.launch {
+                                                    if (scaffoldNavigator.canNavigateBack()) {
+                                                        scaffoldNavigator.navigateBack()
+                                                    } else {
+                                                        scaffoldNavigator.navigateTo(
+                                                            SupportingPaneScaffoldRole.Supporting,
+                                                        )
+                                                    }
                                                 }
                                             }
-                                        }
-                                    },
-                                    onSpeedClick = { showSpeedSheet = true },
-                                    onSleepTimerClick = { showSleepTimerSheet = true },
-                                    onChapterRepeatClick = {
-                                        clickDebouncer.debounce { viewModel.toggleChapterRepeat() }
-                                    },
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                )
+                                        },
+                                        onSpeedClick = { showSpeedSheet = true },
+                                        onSleepTimerClick = { showSleepTimerSheet = true },
+                                        onChapterRepeatClick = {
+                                            clickDebouncer.debounce {
+                                                viewModel.toggleChapterRepeat()
+                                            }
+                                        },
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                    )
+                                }
                             }
 
                             is PlayerUiState.Error -> {
