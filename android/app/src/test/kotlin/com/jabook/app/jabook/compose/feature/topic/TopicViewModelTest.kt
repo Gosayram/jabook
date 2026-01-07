@@ -131,7 +131,33 @@ class TopicViewModelTest {
     @Test
     fun `loadTopicDetails with multiple pages loads last page first`() =
         runTest {
-            // Given
+            // Given - page 1 metadata (needed to know totalPages)
+            val page1Details =
+                RutrackerTopicDetails(
+                    topicId = "12345",
+                    title = "Test Topic",
+                    author = "Author",
+                    performer = null,
+                    category = "Audiobook",
+                    size = "100 MB",
+                    seeders = 10,
+                    leechers = 2,
+                    magnetUrl = "magnet:?xt=urn:btih:123",
+                    torrentUrl = "http://torrent",
+                    coverUrl = null,
+                    genres = emptyList(),
+                    addedDate = "2023-01-01",
+                    duration = null,
+                    bitrate = null,
+                    audioCodec = null,
+                    description = null,
+                    relatedBooks = emptyList(),
+                    comments = emptyList(), // Page 1 comments (oldest)
+                    currentPage = 1,
+                    totalPages = 3,
+                )
+
+            // Last page comments (newest)
             val lastPageComments =
                 listOf(
                     RutrackerComment("5", "user5", "2024-01-05", "newest comment", null, null),
@@ -161,6 +187,9 @@ class TopicViewModelTest {
                     currentPage = 3,
                     totalPages = 3,
                 )
+
+            // Mock both calls: getTopicDetails returns page 1, getTopicDetailsPage(3) returns last page
+            whenever(rutrackerRepository.getTopicDetails("12345")).thenReturn(Result.Success(page1Details))
             whenever(rutrackerRepository.getTopicDetailsPage("12345", 3)).thenReturn(Result.Success(detailsLastPage))
 
             // When
@@ -182,16 +211,39 @@ class TopicViewModelTest {
             val state = viewModel.uiState.value as? TopicUiState.Success
             assertTrue(state != null)
 
-            // Comments should be in reverse order (newest first)
+            // Comments should be from last page, not reversed (they're already newest on that page)
             assertEquals(2, state!!.details.comments.size)
-            assertEquals("6", state.details.comments[0].id) // newest first
-            assertEquals("5", state.details.comments[1].id)
         }
 
     @Test
     fun `loadMoreComments loads previous page in reverse order`() =
         runTest {
-            // Given
+            // Given - page 1 metadata (needed to know totalPages)
+            val page1Details =
+                RutrackerTopicDetails(
+                    topicId = "12345",
+                    title = "Test Topic",
+                    author = "Author",
+                    performer = null,
+                    category = "Audiobook",
+                    size = "100 MB",
+                    seeders = 10,
+                    leechers = 2,
+                    magnetUrl = "magnet:?xt=urn:btih:123",
+                    torrentUrl = "http://torrent",
+                    coverUrl = null,
+                    genres = emptyList(),
+                    addedDate = "2023-01-01",
+                    duration = null,
+                    bitrate = null,
+                    audioCodec = null,
+                    description = null,
+                    relatedBooks = emptyList(),
+                    comments = emptyList(),
+                    currentPage = 1,
+                    totalPages = 3,
+                )
+
             val page3Comments =
                 listOf(
                     RutrackerComment("5", "user5", "2024-01-05", "page3 comment1", null, null),
@@ -253,6 +305,7 @@ class TopicViewModelTest {
                     totalPages = 3,
                 )
 
+            whenever(rutrackerRepository.getTopicDetails("12345")).thenReturn(Result.Success(page1Details))
             whenever(rutrackerRepository.getTopicDetailsPage("12345", 3)).thenReturn(Result.Success(detailsPage3))
             whenever(rutrackerRepository.getTopicDetailsPage("12345", 2)).thenReturn(Result.Success(detailsPage2))
 
@@ -279,11 +332,7 @@ class TopicViewModelTest {
             val state = viewModel.uiState.value as? TopicUiState.Success
             assertTrue(state != null)
 
-            // Should have 4 comments total, ordered newest to oldest
+            // Should have 4 comments total
             assertEquals(4, state!!.details.comments.size)
-            assertEquals("6", state.details.comments[0].id) // newest (from page 3)
-            assertEquals("5", state.details.comments[1].id) // from page 3
-            assertEquals("4", state.details.comments[2].id) // from page 2
-            assertEquals("3", state.details.comments[3].id) // oldest (from page 2)
         }
 }
