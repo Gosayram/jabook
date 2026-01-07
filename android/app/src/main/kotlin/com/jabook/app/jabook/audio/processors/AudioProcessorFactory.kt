@@ -119,11 +119,8 @@ object AudioProcessorFactory {
             if (settings.skipSilence) {
                 try {
                     val silenceSkippingProcessor =
-                        androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor(
-                            2_000_000, // minimumSilenceDurationUs: 2 seconds (standard)
-                            20_000, // paddingSilenceUs: 20ms (smooth transitions)
-                            256.toShort(), // silenceThresholdLevel (standard)
-                        )
+                        androidx.media3.exoplayer.audio
+                            .SilenceSkippingAudioProcessor()
                     // Enable the processor immediately
                     silenceSkippingProcessor.setEnabled(true)
                     processors.add(silenceSkippingProcessor)

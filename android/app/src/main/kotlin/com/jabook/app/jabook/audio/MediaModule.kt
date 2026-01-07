@@ -213,7 +213,7 @@ object MediaModule {
                             enableAudioOffload: Boolean,
                         ): androidx.media3.exoplayer.audio.AudioSink =
                             androidx.media3.exoplayer.audio.DefaultAudioSink
-                                .Builder()
+                                .Builder(context)
                                 .setAudioProcessors(processors.toTypedArray())
                                 .setEnableFloatOutput(enableFloatOutput)
                                 .build()
