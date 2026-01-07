@@ -27,7 +27,6 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class PlaybackSpeedTest {
-
     private lateinit var playbackController: PlaybackController
     private lateinit var exoPlayer: ExoPlayer
     private lateinit var testScope: TestScope
@@ -36,11 +35,11 @@ class PlaybackSpeedTest {
     fun setup() {
         exoPlayer = mock()
         testScope = TestScope()
-        
+
         // Mock getActivePlayer
         val getActivePlayer = { exoPlayer }
         val resetTimer = {}
-        
+
         playbackController = PlaybackController(getActivePlayer, testScope, resetTimer)
     }
 
@@ -56,16 +55,16 @@ class PlaybackSpeedTest {
         // Then
         verify(exoPlayer).setPlaybackSpeed(speed)
     }
-    
+
     @Test
     fun `getSpeed returns current player speed`() {
         // Given
         val expectedSpeed = 1.25f
         whenever(exoPlayer.playbackParameters).thenReturn(PlaybackParameters(expectedSpeed))
-        
+
         // When
         val actualSpeed = playbackController.getSpeed()
-        
+
         // Then
         assert(actualSpeed == expectedSpeed)
     }

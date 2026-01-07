@@ -19,20 +19,16 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLooper
 
 @RunWith(RobolectricTestRunner::class)
 class CrossfadeTest {
-
     private lateinit var context: Context
     private lateinit var crossFadePlayer: CrossFadePlayer
     private lateinit var playerA: ExoPlayer
@@ -43,7 +39,7 @@ class CrossfadeTest {
         context = ApplicationProvider.getApplicationContext()
         playerA = mock()
         playerB = mock()
-        
+
         // Mock factory to return our mocks
         var callCount = 0
         val factory = { _: Context ->
@@ -60,13 +56,13 @@ class CrossfadeTest {
     fun `Swap players after crossfade`() {
         // Given
         val activeBefore = crossFadePlayer.getActivePlayer()
-        
+
         // When
         crossFadePlayer.startCrossFade()
-        
+
         // Advance time to complete animation
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
-        
+
         // Then
         val activeAfter = crossFadePlayer.getActivePlayer()
         assertNotEquals("Active player should swap after crossfade", activeBefore, activeAfter)
@@ -76,10 +72,10 @@ class CrossfadeTest {
     fun `Prepare next track sets item on idle player`() {
         // Given
         val mediaItem = MediaItem.fromUri("file://test.mp3")
-        
+
         // When
         crossFadePlayer.setNextTrack(mediaItem)
-        
+
         // Then (assuming playerA is active, playerB is next)
         verify(playerB).setMediaItem(mediaItem)
         verify(playerB).prepare()

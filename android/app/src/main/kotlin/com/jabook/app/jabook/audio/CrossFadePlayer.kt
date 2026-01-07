@@ -20,7 +20,6 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.view.animation.LinearInterpolator
 import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 
 /**
@@ -39,14 +38,14 @@ import androidx.media3.exoplayer.ExoPlayer
  */
 class CrossFadePlayer(
     private val context: Context,
-    private val playerFactory: (Context) -> ExoPlayer
+    private val playerFactory: (Context) -> ExoPlayer,
 ) {
     private var playerA: ExoPlayer = playerFactory(context)
     private var playerB: ExoPlayer = playerFactory(context)
-    
+
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
-    
+
     var crossFadeDurationMs: Long = 2000L
     private var currentAnimator: ValueAnimator? = null
     private var isCrossFading = false
@@ -89,53 +88,56 @@ class CrossFadePlayer(
 
     /**
      * Starts the crossfade transition.
-     * 
+     *
      * @param onComplete Callback when crossfade is finished.
      */
     fun startCrossFade(onComplete: () -> Unit = {}) {
         if (isCrossFading) return
         isCrossFading = true
-        
+
         val fadingOutPlayer = currentPlayer
         val fadingInPlayer = nextPlayer
-        
+
         // Ensure starting volumes
         fadingOutPlayer.volume = 1f
         fadingInPlayer.volume = 0f
-        
+
         // Start the next player
         fadingInPlayer.play()
-        
+
         android.util.Log.d("CrossFadePlayer", "Starting crossfade: Out=$fadingOutPlayer, In=$fadingInPlayer")
 
-        currentAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = crossFadeDurationMs
-            interpolator = LinearInterpolator()
-            
-            addUpdateListener { animation ->
-                val progress = animation.animatedValue as Float
-                try {
-                    fadingOutPlayer.volume = 1f - progress
-                    fadingInPlayer.volume = progress
-                } catch (e: Exception) {
-                    // Handle potential player release during animation
+        currentAnimator =
+            ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = crossFadeDurationMs
+                interpolator = LinearInterpolator()
+
+                addUpdateListener { animation ->
+                    val progress = animation.animatedValue as Float
+                    try {
+                        fadingOutPlayer.volume = 1f - progress
+                        fadingInPlayer.volume = progress
+                    } catch (e: Exception) {
+                        // Handle potential player release during animation
+                    }
                 }
+
+                addListener(
+                    object : AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: Animator) {
+                            isCrossFading = false
+                            fadingOutPlayer.pause()
+                            fadingOutPlayer.volume = 1f
+
+                            // Swap players
+                            swapPlayers()
+                            onComplete()
+                            android.util.Log.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
+                        }
+                    },
+                )
+                start()
             }
-            
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    isCrossFading = false
-                    fadingOutPlayer.pause()
-                    fadingOutPlayer.volume = 1f
-                    
-                    // Swap players
-                    swapPlayers()
-                    onComplete()
-                    android.util.Log.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
-                }
-            })
-            start()
-        }
     }
 
     private fun swapPlayers() {
