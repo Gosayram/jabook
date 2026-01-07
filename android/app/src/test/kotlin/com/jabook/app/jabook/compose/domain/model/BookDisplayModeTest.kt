@@ -30,6 +30,7 @@ import org.junit.Test
  * - Grid cells configuration
  * - List cover sizes
  */
+@Suppress("DEPRECATION")
 class BookDisplayModeTest {
     @Test
     fun `GRID_COMPACT is identified as grid mode`() {

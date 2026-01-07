@@ -21,6 +21,7 @@ import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.Result
 import kotlinx.coroutines.runBlocking
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -53,7 +54,7 @@ class RutrackerRepositoryTest {
             val topicId = "123"
             val page = 2
             val html = "<html>...</html>"
-            val responseBody = okhttp3.ResponseBody.create(null, html.toByteArray(charset("windows-1251")))
+            val responseBody = html.toByteArray(charset("windows-1251")).toResponseBody(null)
             val response = retrofit2.Response.success(responseBody)
 
             whenever(api.getTopicDetailsAtPage(topicId, 30)).thenReturn(response)

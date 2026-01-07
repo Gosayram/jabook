@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.data.remote.parser
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -622,9 +623,8 @@ class RutrackerParserTest {
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
         val mockResponseBody =
-            okhttp3.ResponseBody.create(
+            bytes.toResponseBody(
                 "text/html; charset=utf-8".toMediaType(),
-                bytes,
             )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "2387")
@@ -667,9 +667,8 @@ class RutrackerParserTest {
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
         val mockResponseBody =
-            okhttp3.ResponseBody.create(
+            bytes.toResponseBody(
                 "text/html; charset=utf-8".toMediaType(),
-                bytes,
             )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "2387")
@@ -703,9 +702,8 @@ class RutrackerParserTest {
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
         val mockResponseBody =
-            okhttp3.ResponseBody.create(
+            bytes.toResponseBody(
                 "text/html; charset=utf-8".toMediaType(),
-                bytes,
             )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "2387")
@@ -740,9 +738,8 @@ class RutrackerParserTest {
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
         val mockResponseBody =
-            okhttp3.ResponseBody.create(
+            bytes.toResponseBody(
                 "text/html; charset=utf-8".toMediaType(),
-                bytes,
             )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "test")
@@ -781,9 +778,8 @@ class RutrackerParserTest {
         val bytes = html.toByteArray(Charsets.UTF_8)
         whenever(mockDecoder.decode(any(), anyOrNull())).thenReturn(html)
         val mockResponseBody =
-            okhttp3.ResponseBody.create(
+            bytes.toResponseBody(
                 "text/html; charset=utf-8".toMediaType(),
-                bytes,
             )
 
         val result = parser.parseForumPageWithPagination(mockResponseBody, "test")
