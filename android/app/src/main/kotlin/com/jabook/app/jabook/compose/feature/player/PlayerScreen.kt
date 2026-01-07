@@ -202,6 +202,34 @@ fun PlayerScreen(
         }
     }
 
+    // Request RECORD_AUDIO permission for audio visualizer
+    val recordAudioPermissionLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .RequestPermission(),
+            onResult = { isGranted ->
+                if (isGranted) {
+                    android.util.Log.d("PlayerScreen", "RECORD_AUDIO permission granted, visualizer enabled")
+                } else {
+                    android.util.Log.w("PlayerScreen", "RECORD_AUDIO permission denied, visualizer disabled")
+                }
+            },
+        )
+
+    // Check and request RECORD_AUDIO permission
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val hasPermission =
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.RECORD_AUDIO,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (!hasPermission) {
+            recordAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     // Handle back gesture - prioritize chapters pane, then screen exit
     // Always intercept to ensure proper navigation handling
     androidx.activity.compose.BackHandler {
@@ -602,6 +630,35 @@ private fun PlayerContent(
                     )
                 }
             }
+        }
+
+        // Audio Visualizer
+        item {
+            val service =
+                com.jabook.app.jabook.audio.AudioPlayerService
+                    .getInstance()
+            val waveformData by service
+                ?.getVisualizerWaveformData()
+                ?.collectAsStateWithLifecycle()
+                ?: remember { androidx.compose.runtime.mutableStateOf(FloatArray(256)) }
+
+            // Initialize visualizer when playing
+            LaunchedEffect(state.isPlaying) {
+                if (state.isPlaying) {
+                    service?.initializeVisualizer()
+                }
+            }
+
+            AudioVisualizer(
+                waveformData = waveformData,
+                isPlaying = state.isPlaying,
+                style = VisualizerStyle.BARS,
+                height = if (isCompact) 40.dp else 48.dp,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isCompact) 8.dp else 0.dp),
+            )
         }
 
         // Spacer before chapter button

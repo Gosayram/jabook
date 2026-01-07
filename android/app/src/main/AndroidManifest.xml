@@ -52,6 +52,10 @@
     <!-- Allows PhoneStateListener to detect when calls end and resume playback -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
+    <!-- RECORD_AUDIO: Required for audio visualizer to capture audio data -->
+    <!-- Android Visualizer API needs this permission to access audio session -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- Power and audio service permissions -->
     <!-- WAKE_LOCK: Prevents device from sleeping during audio playback (API 21+) -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
