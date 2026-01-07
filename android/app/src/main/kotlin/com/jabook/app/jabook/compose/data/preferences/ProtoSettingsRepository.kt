@@ -137,6 +137,11 @@ interface SettingsRepository {
     suspend fun updateLibrarySortOrder(sortOrder: String)
 
     /**
+     * Update onboarding completion status.
+     */
+    suspend fun updateOnboardingCompleted(completed: Boolean)
+
+    /**
      * Reset all settings to defaults.
      */
     suspend fun resetToDefaults()
@@ -300,6 +305,12 @@ class ProtoSettingsRepository
         override suspend fun updateLibrarySortOrder(sortOrder: String) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setLibrarySortOrder(sortOrder).build()
+            }
+        }
+
+        override suspend fun updateOnboardingCompleted(completed: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setOnboardingCompleted(completed).build()
             }
         }
 

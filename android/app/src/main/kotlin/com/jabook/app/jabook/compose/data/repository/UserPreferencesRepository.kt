@@ -67,4 +67,9 @@ interface UserPreferencesRepository {
      * Update chapter title normalization preference.
      */
     suspend fun setNormalizeChapterTitles(enabled: Boolean)
+
+    /**
+     * Update onboarding completion status.
+     */
+    suspend fun setOnboardingCompleted(completed: Boolean)
 }

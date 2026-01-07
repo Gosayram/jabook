@@ -53,6 +53,9 @@ message UserPreferences {
   
   // Library Organization
   bool normalize_chapter_titles = 29;
+  
+  // Onboarding status
+  bool onboarding_completed = 30;
 }
 
 // Theme mode enum

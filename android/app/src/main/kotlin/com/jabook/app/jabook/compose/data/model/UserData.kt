@@ -27,6 +27,7 @@ data class UserData(
     val playbackSpeed: Float = 1.0f,
     val font: AppFont = AppFont.DEFAULT,
     val normalizeChapterTitles: Boolean = false, // Default: OFF
+    val onboardingCompleted: Boolean = false,
 )
 
 /**

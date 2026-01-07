@@ -147,6 +147,27 @@
     <string name="permissionDeniedMessage">Storage permission is required to download files. Please enable it in app settings.</string>
     <!-- Button text for permission denied action -->
     <string name="permissionDeniedButton">Open Settings</string>
+
+    <!-- Onboarding Strings -->
+    <string name="onboardingWelcomeTitle">Welcome to JaBook</string>
+    <string name="onboardingWelcomeSubtitle">Your premium destination for audiobooks from RuTracker. Experience high-quality storytelling with modern features.</string>
+    <string name="onboardingGetStarted">Get Started</string>
+    <string name="onboardingNext">Next</string>
+    <string name="onboardingBack">Back</string>
+    <string name="onboardingSkip">Skip</string>
+    <string name="onboardingFinish">Finish</string>
+
+    <string name="onboardingFeatureDiscoveryTitle">Endless Discovery</string>
+    <string name="onboardingFeatureDiscoveryDesc">Access thousands of audiobooks directly from RuTracker. Search, discover, and download with ease.</string>
+    <string name="onboardingFeatureThemesTitle">Dynamic Theming</string>
+    <string name="onboardingFeatureThemesDesc">The player adapts its colors to match the cover art of your current book for a truly immersive experience.</string>
+    <string name="onboardingFeatureAdvancedTitle">Advanced Playback</string>
+    <string name="onboardingFeatureAdvancedDesc">Enjoy gapless playback, silence skipping, crossfade, and precise speed control tailored for audiobooks.</string>
+
+    <string name="onboardingPermissionsTitle">Stay Connected &amp; Save</string>
+    <string name="onboardingPermissionsDesc">We need storage access to save your books and notification access to keep the player controls accessible.</string>
+    <string name="onboardingGrantAccess">Grant Access</string>
+
     <!-- Navigation label for library -->
     <string name="navLibrary">Library</string>
     <!-- Navigation label for authentication -->

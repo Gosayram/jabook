@@ -127,3 +127,9 @@ object AudioSettingsRoute
  */
 @Serializable
 object MigrationRoute
+
+/**
+ * Onboarding screen route - introduces the app to new users.
+ */
+@Serializable
+object OnboardingRoute

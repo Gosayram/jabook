@@ -147,6 +147,17 @@ fun JabookNavHost(
             )
         }
 
+        // Onboarding screen - introduces the app
+        composable<OnboardingRoute> {
+            com.jabook.app.jabook.compose.feature.onboarding.OnboardingScreen(
+                onFinish = {
+                    navController.navigate(LibraryRoute) {
+                        popUpTo(OnboardingRoute) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         // Player screen - shows audio player
         composable<PlayerRoute>(
             deepLinks =
