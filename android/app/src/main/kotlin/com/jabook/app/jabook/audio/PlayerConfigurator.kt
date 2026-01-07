@@ -112,6 +112,7 @@ internal class PlayerConfigurator(
                     markBookCompleted = { bookId ->
                         service.playerServiceScope.launch {
                             service.playerPersistenceManager.markCompleted(bookId)
+                            service.playerPersistenceManager.incrementPlayCount(bookId)
                         }
                     },
                     getCurrentBookId = { service.currentGroupPath },

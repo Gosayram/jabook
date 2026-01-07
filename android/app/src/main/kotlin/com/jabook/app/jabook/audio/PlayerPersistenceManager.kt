@@ -250,6 +250,36 @@ class PlayerPersistenceManager
             }
         }
 
+        /**
+         * Increments the play count for a book.
+         * Should be called when a book/chapter is completed.
+         */
+        suspend fun incrementPlayCount(bookId: String) {
+            val currentState = getPlayerState(bookId)
+            val newState =
+                if (currentState != null) {
+                    currentState.copy(playCount = currentState.playCount + 1)
+                } else {
+                    PlayerState(
+                        bookId = bookId,
+                        positionMs = 0,
+                        durationMs = 0,
+                        filePaths = emptyList(),
+                        playCount = 1,
+                    )
+                }
+            savePlayerState(newState)
+            android.util.Log.d("PlayerPersistence", "Play count for $bookId incremented to ${newState.playCount}")
+        }
+
+        /**
+         * Gets the play count for a book.
+         */
+        suspend fun getPlayCount(bookId: String): Int {
+            val state = getPlayerState(bookId)
+            return state?.playCount ?: 0
+        }
+
         private fun sanitizeGroupPath(path: String): String = path.replace(Regex("[^\\w\\-.]"), "_")
     }
 
