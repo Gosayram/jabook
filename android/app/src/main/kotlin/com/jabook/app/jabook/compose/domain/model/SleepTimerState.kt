@@ -43,4 +43,9 @@ sealed interface SleepTimerState {
                 return String.format("%02d:%02d", minutes, seconds)
             }
     }
+
+    /**
+     * Timer is set to end of current chapter.
+     */
+    data object EndOfChapter : SleepTimerState
 }

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -43,6 +44,7 @@ import com.jabook.app.jabook.compose.domain.model.SleepTimerState
  *
  * @param currentState Current sleep timer state
  * @param onStartTimer Callback when timer duration is selected
+ * @param onStartTimerEndOfChapter Callback when "End of Chapter" is selected
  * @param onCancelTimer Callback to cancel active timer
  * @param onDismiss Callback to dismiss the sheet
  */
@@ -51,6 +53,7 @@ import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 fun SleepTimerSheet(
     currentState: SleepTimerState,
     onStartTimer: (Int) -> Unit,
+    onStartTimerEndOfChapter: () -> Unit,
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -78,6 +81,24 @@ fun SleepTimerSheet(
 
             when (currentState) {
                 is SleepTimerState.Idle -> {
+                    // End of Chapter option
+                    ListItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.endOfChapterLabel))
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Filled.Timer,
+                                contentDescription = null,
+                            )
+                        },
+                        modifier =
+                            Modifier.clickable {
+                                onStartTimerEndOfChapter()
+                                onDismiss()
+                            },
+                    )
+
                     // Timer options
                     val durations = listOf(5, 10, 15, 30, 45, 60)
 
@@ -87,7 +108,7 @@ fun SleepTimerSheet(
                                 Text("$minutes ${stringResource(R.string.minutes)}")
                             },
                             leadingContent = {
-                                androidx.compose.material3.Icon(
+                                Icon(
                                     Icons.Filled.Timer,
                                     contentDescription = null,
                                 )
@@ -103,45 +124,67 @@ fun SleepTimerSheet(
 
                 is SleepTimerState.Active -> {
                     // Show countdown
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.timerActive),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                    ActiveTimerContent(
+                        timeText = currentState.formattedTime,
+                        onCancelTimer = onCancelTimer,
+                        onDismiss = onDismiss,
+                    )
+                }
 
-                        Text(
-                            text = currentState.formattedTime,
-                            style = MaterialTheme.typography.displayLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-
-                        Text(
-                            text = stringResource(R.string.playbackWillStopAutomatically),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Button(
-                            onClick = {
-                                onCancelTimer()
-                                onDismiss()
-                            },
-                            modifier = Modifier.fillMaxWidth(0.7f),
-                        ) {
-                            Text(stringResource(R.string.cancelTimer))
-                        }
-                    }
+                is SleepTimerState.EndOfChapter -> {
+                    // Show End of Chapter status
+                    ActiveTimerContent(
+                        timeText = stringResource(R.string.endOfChapterLabel),
+                        onCancelTimer = onCancelTimer,
+                        onDismiss = onDismiss,
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ActiveTimerContent(
+    timeText: String,
+    onCancelTimer: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.timerActive),
+            style = MaterialTheme.typography.titleMedium,
+        )
+
+        Text(
+            text = timeText,
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+
+        Text(
+            text = stringResource(R.string.playbackWillStopAutomatically),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            onClick = {
+                onCancelTimer()
+                onDismiss()
+            },
+            modifier = Modifier.fillMaxWidth(0.7f),
+        ) {
+            Text(stringResource(R.string.cancelTimer))
         }
     }
 }

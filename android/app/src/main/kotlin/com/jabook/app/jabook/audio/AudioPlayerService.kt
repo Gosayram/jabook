@@ -802,6 +802,11 @@ class AudioPlayerService : MediaLibraryService() {
      */
     fun isSleepTimerActive(): Boolean = sleepTimerManager?.isSleepTimerActive() ?: false
 
+    /**
+     * Checks if sleep timer is set to end of chapter.
+     */
+    fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
+
     fun next() {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {

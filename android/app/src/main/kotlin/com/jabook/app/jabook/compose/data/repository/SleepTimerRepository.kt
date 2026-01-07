@@ -36,6 +36,11 @@ interface SleepTimerRepository {
     fun startTimer(durationMinutes: Int)
 
     /**
+     * Start sleep timer for end of chapter.
+     */
+    fun startTimerEndOfChapter()
+
+    /**
      * Cancel active timer.
      */
     fun cancelTimer()

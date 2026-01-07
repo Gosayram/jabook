@@ -298,6 +298,10 @@ class PlayerViewModel
             sleepTimerRepository.startTimer(minutes)
         }
 
+        fun startSleepTimerEndOfChapter() {
+            sleepTimerRepository.startTimerEndOfChapter()
+        }
+
         fun cancelSleepTimer() {
             sleepTimerRepository.cancelTimer()
         }

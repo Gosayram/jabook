@@ -20,7 +20,6 @@ import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,9 +31,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Implementation of SleepTimerRepository using coroutines.
+ * Implementation of SleepTimerRepository using AudioPlayerService as source of truth.
  *
- * Manages countdown timer and auto-pauses playback when timer expires.
+ * Polls the service to keep UI state in sync.
  */
 @Singleton
 class SleepTimerRepositoryImpl
@@ -47,42 +46,56 @@ class SleepTimerRepositoryImpl
         private val _timerState = MutableStateFlow<SleepTimerState>(SleepTimerState.Idle)
         override val timerState: StateFlow<SleepTimerState> = _timerState.asStateFlow()
 
-        private var timerJob: Job? = null
+        init {
+            // Poll service for timer state
+            scope.launch {
+                while (isActive) {
+                    updateTimerState()
+                    delay(1000)
+                }
+            }
+        }
 
-        override fun startTimer(durationMinutes: Int) {
-            // Cancel existing timer if any
-            timerJob?.cancel()
+        private fun updateTimerState() {
+            val service = AudioPlayerService.getInstance()
+            if (service == null) {
+                if (_timerState.value !is SleepTimerState.Idle) {
+                    _timerState.value = SleepTimerState.Idle
+                }
+                return
+            }
 
-            var remainingSeconds = durationMinutes * 60
-            _timerState.value = SleepTimerState.Active(remainingSeconds)
-
-            timerJob =
-                scope.launch {
-                    while (remainingSeconds > 0 && isActive) {
-                        delay(1000) // 1 second
-                        remainingSeconds--
-
-                        if (remainingSeconds > 0) {
-                            _timerState.value = SleepTimerState.Active(remainingSeconds)
-                        }
-                    }
-
-                    if (remainingSeconds == 0 && isActive) {
-                        // Timer finished - pause playback
+            // Sync state with service
+            if (service.isSleepTimerEndOfChapter()) {
+                if (_timerState.value !is SleepTimerState.EndOfChapter) {
+                    _timerState.value = SleepTimerState.EndOfChapter
+                }
+            } else {
+                val remaining = service.getSleepTimerRemainingSeconds()
+                if (remaining != null && remaining > 0) {
+                    _timerState.value = SleepTimerState.Active(remaining)
+                } else {
+                    if (_timerState.value !is SleepTimerState.Idle) {
                         _timerState.value = SleepTimerState.Idle
-                        pausePlayback()
                     }
                 }
+            }
+        }
+
+        override fun startTimer(durationMinutes: Int) {
+            AudioPlayerService.getInstance()?.setSleepTimerMinutes(durationMinutes)
+            // State will be updated by polling
+            // But we can eagerly update to feel responsive
+            _timerState.value = SleepTimerState.Active(durationMinutes * 60)
+        }
+
+        override fun startTimerEndOfChapter() {
+            AudioPlayerService.getInstance()?.setSleepTimerEndOfChapter()
+            _timerState.value = SleepTimerState.EndOfChapter
         }
 
         override fun cancelTimer() {
-            timerJob?.cancel()
-            timerJob = null
+            AudioPlayerService.getInstance()?.cancelSleepTimer()
             _timerState.value = SleepTimerState.Idle
-        }
-
-        private fun pausePlayback() {
-            // Pause via AudioPlayerService
-            AudioPlayerService.getInstance()?.pause()
         }
     }
