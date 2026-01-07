@@ -278,6 +278,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
+    // Palette for extracting colors from images (Dynamic Theme)
+    implementation("androidx.palette:palette:1.0.0")
+
     // Material 3 Adaptive - Official adaptive UI components
     val adaptiveVersion = "1.3.0-alpha05"
     implementation("androidx.compose.material3.adaptive:adaptive:$adaptiveVersion")

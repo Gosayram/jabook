@@ -148,10 +148,10 @@ class SwipeGestureHandler(
         val totalSeconds = deltaMs / 1000
         val absSeconds = abs(totalSeconds)
         val sign = if (totalSeconds >= 0) "+" else "-"
-        
+
         val m = absSeconds / 60
         val s = absSeconds % 60
-        
+
         return if (m > 0) {
             "$sign$m:${s.toString().padStart(2, '0')}"
         } else {

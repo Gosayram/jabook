@@ -14,10 +14,14 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import coil3.SingletonImageLoader
+import coil3.request.allowHardware
+import coil3.toBitmap
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
@@ -25,6 +29,7 @@ import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCas
 import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -64,6 +69,7 @@ class PlayerViewModel
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
         private val playbackPositionRepository: PlaybackPositionRepository,
+        @ApplicationContext private val context: Context,
     ) : ViewModel() {
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
@@ -82,6 +88,10 @@ class PlayerViewModel
 
         // Track if we've already repeated once (for ONCE mode)
         private var hasRepeatedOnce = false
+
+        // Dynamic Theme Colors
+        private val _themeColors = MutableStateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?>(null)
+        val themeColors: StateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?> = _themeColors.asStateFlow()
 
         init {
             // CRITICAL: Restore saved position from database on init
@@ -173,11 +183,56 @@ class PlayerViewModel
                         forwardInterval = forwardInterval,
                     )
                 }
+            }.combine(_themeColors) { state, themeColors ->
+                if (state is PlayerUiState.Success) {
+                    state.copy(themeColors = themeColors)
+                } else {
+                    state
+                }
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.Eagerly, // Start immediately to avoid race conditions
                 initialValue = PlayerUiState.Loading,
             )
+
+        // Load artwork and extract colors when book changes
+        init {
+            viewModelScope.launch {
+                getBookDetailsUseCase(bookId).collect { book ->
+                    if (book?.coverUrl != null) {
+                        extractColorsFromCover(book.coverUrl!!)
+                    }
+                }
+            }
+        }
+
+        private suspend fun extractColorsFromCover(coverUrl: String) {
+            try {
+                val loader = SingletonImageLoader.get(context)
+                val request =
+                    coil3.request
+                        .ImageRequest
+                        .Builder(context)
+                        .data(coverUrl)
+                        .allowHardware(false) // Software bitmap required for Palette
+                        .build()
+
+                val result = loader.execute(request)
+                if (result is coil3.request.SuccessResult) {
+                    val bitmap = result.image.toBitmap()
+                    if (bitmap != null) {
+                        val colors =
+                            com.jabook.app.jabook.compose.core.theme.DynamicThemeManager.extractColors(
+                                bitmap,
+                            )
+                        _themeColors.value = colors
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore errors, keep default theme
+                android.util.Log.e("PlayerViewModel", "Failed to extract dynamic colors", e)
+            }
+        }
 
         /**
          * Current playback speed from user preferences.
@@ -454,6 +509,7 @@ sealed interface PlayerUiState {
         val currentChapter: Chapter?,
         val rewindInterval: Int,
         val forwardInterval: Int,
+        val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
     ) : PlayerUiState
 
     /**

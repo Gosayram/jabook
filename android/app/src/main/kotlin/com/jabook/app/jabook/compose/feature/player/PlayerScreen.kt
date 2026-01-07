@@ -56,6 +56,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
@@ -75,6 +76,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -496,8 +498,26 @@ private fun PlayerContent(
 
     val displayAuthor = authorFromMetadata
 
+    // Dynamic Theme Background
+    val themeColors = state.themeColors
+    val backgroundModifier =
+        if (themeColors != null) {
+            Modifier.background(
+                brush =
+                    Brush.verticalGradient(
+                        colors =
+                            listOf(
+                                themeColors.containerColor.copy(alpha = 0.5f),
+                                themeColors.surfaceColor,
+                            ),
+                    ),
+            )
+        } else {
+            Modifier
+        }
+
     androidx.compose.foundation.lazy.LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().then(backgroundModifier),
         contentPadding =
             androidx.compose.foundation.layout
                 .PaddingValues(
@@ -628,6 +648,12 @@ private fun PlayerContent(
                                 val total = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0)
                                 stateDescription = "$current of $total"
                             },
+                    colors =
+                        SliderDefaults.colors(
+                            thumbColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                            activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
+                        ),
                 )
 
                 // Time labels
@@ -694,6 +720,14 @@ private fun PlayerContent(
                             .fillMaxWidth(if (isCompact) 0.98f else 0.95f)
                             .wrapContentWidth(Alignment.CenterHorizontally)
                             .height(if (isCompact) 40.dp else 48.dp),
+                    colors =
+                        ButtonDefaults.filledTonalButtonColors(
+                            containerColor =
+                                themeColors?.secondaryColor?.copy(
+                                    alpha = 0.4f,
+                                ) ?: MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = themeColors?.onSurfaceColor ?: MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.SkipNext,
@@ -773,7 +807,8 @@ private fun PlayerContent(
                     modifier = Modifier.size(playPauseButtonSize),
                     colors =
                         IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
+                            containerColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                            contentColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
                         ),
                 ) {
                     Icon(
