@@ -77,10 +77,21 @@ fun JabookApp(
 
     // Permission State
     val permissionUiState by permissionViewModel.uiState.collectAsStateWithLifecycle()
+    var permissionSkipped by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
-    // Check permissions on start
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        permissionViewModel.checkPermissions()
+    // Check permissions on start and when returning to the app
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer =
+            androidx.lifecycle.LifecycleEventObserver { _, event ->
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                    permissionViewModel.checkPermissions()
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     val onboardingCompleted =
@@ -99,18 +110,18 @@ fun JabookApp(
             com.jabook.app.jabook.compose.feature.onboarding.OnboardingScreen(
                 isBeta = isBetaFlavor,
                 onFinish = {
-                    // This will trigger a state change in SettingsRepository,
-                    // which will update uiState and cause a recompose to show the main app.
+                    permissionSkipped = true
                 },
             )
         }
         return
     }
 
-    // Existing check for storage permission - keep as backup if somehow onboarding was skipped but permission missing
-    if (!permissionUiState.hasStoragePermission && onboardingCompleted) {
+    // Existing check for storage permission
+    if (!permissionUiState.hasStoragePermission && onboardingCompleted && !permissionSkipped) {
         com.jabook.app.jabook.compose.feature.permissions.PermissionScreen(
             onPermissionsGranted = { permissionViewModel.checkPermissions() },
+            onSkip = { permissionSkipped = true },
         )
         return
     }

@@ -16,7 +16,7 @@ package com.jabook.app.jabook.compose.feature.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,7 +48,7 @@ data class OnboardingUiState(
 class OnboardingViewModel
     @Inject
     constructor(
-        private val settingsRepository: SettingsRepository,
+        private val userPreferencesRepository: UserPreferencesRepository,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(OnboardingUiState())
         val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
@@ -80,7 +80,7 @@ class OnboardingViewModel
 
         fun finishOnboarding() {
             viewModelScope.launch {
-                settingsRepository.updateOnboardingCompleted(true)
+                userPreferencesRepository.setOnboardingCompleted(true)
                 _uiState.value = _uiState.value.copy(isFinished = true)
             }
         }
