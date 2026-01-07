@@ -21,7 +21,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,7 +33,7 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for PlayerPersistenceManager.
- * 
+ *
  * Tests cover:
  * - Saving playback position on pause
  * - Restoring position after app restart
@@ -45,7 +44,6 @@ import org.robolectric.RobolectricTestRunner
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class PlayerPersistenceManagerTest {
-
     private lateinit var context: Context
     private lateinit var sharedPrefs: SharedPreferences
     private lateinit var editor: SharedPreferences.Editor
@@ -69,127 +67,133 @@ class PlayerPersistenceManagerTest {
     // ============ saveCurrentMediaItem Tests ============
 
     @Test
-    fun `saveCurrentMediaItem saves playback position to SharedPreferences`() = runTest {
-        // Given
-        val mediaId = "/storage/audiobook/chapter1.mp3"
-        val positionMs = 30000L
-        val durationMs = 120000L
-        val artworkPath = "/storage/audiobook/cover.jpg"
-        val title = "Chapter 1"
-        val artist = "Author Name"
-        val groupPath = "/storage/audiobook"
+    fun `saveCurrentMediaItem saves playback position to SharedPreferences`() =
+        runTest {
+            // Given
+            val mediaId = "/storage/audiobook/chapter1.mp3"
+            val positionMs = 30000L
+            val durationMs = 120000L
+            val artworkPath = "/storage/audiobook/cover.jpg"
+            val title = "Chapter 1"
+            val artist = "Author Name"
+            val groupPath = "/storage/audiobook"
 
-        // When
-        manager.saveCurrentMediaItem(
-            mediaId = mediaId,
-            positionMs = positionMs,
-            durationMs = durationMs,
-            artworkPath = artworkPath,
-            title = title,
-            artist = artist,
-            groupPath = groupPath
-        )
+            // When
+            manager.saveCurrentMediaItem(
+                mediaId = mediaId,
+                positionMs = positionMs,
+                durationMs = durationMs,
+                artworkPath = artworkPath,
+                title = title,
+                artist = artist,
+                groupPath = groupPath,
+            )
 
-        // Then
-        verify(editor).putString(eq("playback_resumption_file_path"), eq(mediaId))
-        verify(editor).putLong(eq("playback_resumption_position_ms"), eq(positionMs))
-        verify(editor).putLong(eq("playback_resumption_duration_ms"), eq(durationMs))
-        verify(editor).putString(eq("playback_resumption_artwork_path"), eq(artworkPath))
-        verify(editor).putString(eq("playback_resumption_title"), eq(title))
-        verify(editor).putString(eq("playback_resumption_artist"), eq(artist))
-        verify(editor).putString(eq("playback_resumption_group_path"), eq(groupPath))
-        verify(editor).apply()
-    }
+            // Then
+            verify(editor).putString(eq("playback_resumption_file_path"), eq(mediaId))
+            verify(editor).putLong(eq("playback_resumption_position_ms"), eq(positionMs))
+            verify(editor).putLong(eq("playback_resumption_duration_ms"), eq(durationMs))
+            verify(editor).putString(eq("playback_resumption_artwork_path"), eq(artworkPath))
+            verify(editor).putString(eq("playback_resumption_title"), eq(title))
+            verify(editor).putString(eq("playback_resumption_artist"), eq(artist))
+            verify(editor).putString(eq("playback_resumption_group_path"), eq(groupPath))
+            verify(editor).apply()
+        }
 
     // ============ retrieveLastStoredMediaItem Tests ============
 
     @Test
-    fun `retrieveLastStoredMediaItem returns null when no stored media item exists`() = runTest {
-        // Given
-        whenever(sharedPrefs.getString(eq("playback_resumption_file_path"), any())).thenReturn(null)
+    fun `retrieveLastStoredMediaItem returns null when no stored media item exists`() =
+        runTest {
+            // Given
+            whenever(sharedPrefs.getString(eq("playback_resumption_file_path"), any())).thenReturn(null)
 
-        // When
-        val result = manager.retrieveLastStoredMediaItem()
+            // When
+            val result = manager.retrieveLastStoredMediaItem()
 
-        // Then
-        assertNull(result)
-    }
+            // Then
+            assertNull(result)
+        }
 
     @Test
-    fun `retrieveLastStoredMediaItem returns stored media item with all fields`() = runTest {
-        // Given
-        val mediaId = "/storage/audiobook/chapter1.mp3"
-        val positionMs = 45000L
-        val durationMs = 180000L
-        val artworkPath = "/storage/audiobook/cover.jpg"
-        val title = "Chapter 1"
-        val artist = "Author Name"
-        val groupPath = "/storage/audiobook"
+    fun `retrieveLastStoredMediaItem returns stored media item with all fields`() =
+        runTest {
+            // Given
+            val mediaId = "/storage/audiobook/chapter1.mp3"
+            val positionMs = 45000L
+            val durationMs = 180000L
+            val artworkPath = "/storage/audiobook/cover.jpg"
+            val title = "Chapter 1"
+            val artist = "Author Name"
+            val groupPath = "/storage/audiobook"
 
-        // Use anyOrNull() instead of any() for nullable parameters
-        whenever(sharedPrefs.getString(eq("playback_resumption_file_path"), org.mockito.kotlin.isNull())).thenReturn(mediaId)
-        whenever(sharedPrefs.getLong(eq("playback_resumption_position_ms"), eq(0L))).thenReturn(positionMs)
-        whenever(sharedPrefs.getLong(eq("playback_resumption_duration_ms"), eq(0L))).thenReturn(durationMs)
-        whenever(sharedPrefs.getString(eq("playback_resumption_artwork_path"), eq(""))).thenReturn(artworkPath)
-        whenever(sharedPrefs.getString(eq("playback_resumption_title"), eq(""))).thenReturn(title)
-        whenever(sharedPrefs.getString(eq("playback_resumption_artist"), eq(""))).thenReturn(artist)
-        whenever(sharedPrefs.getString(eq("playback_resumption_group_path"), eq(""))).thenReturn(groupPath)
+            // Use anyOrNull() instead of any() for nullable parameters
+            whenever(sharedPrefs.getString(eq("playback_resumption_file_path"), org.mockito.kotlin.isNull())).thenReturn(mediaId)
+            whenever(sharedPrefs.getLong(eq("playback_resumption_position_ms"), eq(0L))).thenReturn(positionMs)
+            whenever(sharedPrefs.getLong(eq("playback_resumption_duration_ms"), eq(0L))).thenReturn(durationMs)
+            whenever(sharedPrefs.getString(eq("playback_resumption_artwork_path"), eq(""))).thenReturn(artworkPath)
+            whenever(sharedPrefs.getString(eq("playback_resumption_title"), eq(""))).thenReturn(title)
+            whenever(sharedPrefs.getString(eq("playback_resumption_artist"), eq(""))).thenReturn(artist)
+            whenever(sharedPrefs.getString(eq("playback_resumption_group_path"), eq(""))).thenReturn(groupPath)
 
-        // When
-        val result = manager.retrieveLastStoredMediaItem()
+            // When
+            val result = manager.retrieveLastStoredMediaItem()
 
-        // Then
-        assertNotNull(result)
-        assertEquals(mediaId, result!!["filePath"])
-        assertEquals(positionMs, result["positionMs"])
-        assertEquals(durationMs, result["durationMs"])
-        assertEquals(artworkPath, result["artworkPath"])
-        assertEquals(title, result["title"])
-        assertEquals(artist, result["artist"])
-        assertEquals(groupPath, result["groupPath"])
-    }
+            // Then
+            assertNotNull(result)
+            assertEquals(mediaId, result!!["filePath"])
+            assertEquals(positionMs, result["positionMs"])
+            assertEquals(durationMs, result["durationMs"])
+            assertEquals(artworkPath, result["artworkPath"])
+            assertEquals(title, result["title"])
+            assertEquals(artist, result["artist"])
+            assertEquals(groupPath, result["groupPath"])
+        }
 
     // ============ Per-book state management Tests ============
 
     @Test
-    fun `updateLastPlayed updates lastPlayedTimestamp correctly`() = runTest {
-        // Given
-        val bookId = "book_123"
-        whenever(sharedPrefs.getString(eq("book_state_$bookId"), any())).thenReturn(null)
+    fun `updateLastPlayed updates lastPlayedTimestamp correctly`() =
+        runTest {
+            // Given
+            val bookId = "book_123"
+            whenever(sharedPrefs.getString(eq("book_state_$bookId"), any())).thenReturn(null)
 
-        // When
-        manager.updateLastPlayed(bookId)
+            // When
+            manager.updateLastPlayed(bookId)
 
-        // Then - verify JSON string saved
-        verify(editor).putString(eq("book_state_$bookId"), any())
-        verify(editor).putString(eq("last_played_book_id"), eq(bookId))
-        assertEquals(bookId, manager.lastPlayedBookId.value)
-    }
+            // Then - verify JSON string saved
+            verify(editor).putString(eq("book_state_$bookId"), any())
+            verify(editor).putString(eq("last_played_book_id"), eq(bookId))
+            assertEquals(bookId, manager.lastPlayedBookId.value)
+        }
 
     @Test
-    fun `markCompleted marks book as completed`() = runTest {
-        // Given
-        val bookId = "book_789"
-        val existingState = """{"bookId":"$bookId","positionMs":0,"durationMs":0,"lastPlayedTimestamp":0,"completedTimestamp":0,"playCount":0}"""
-        whenever(sharedPrefs.getString(eq("book_state_$bookId"), any())).thenReturn(existingState)
+    fun `markCompleted marks book as completed`() =
+        runTest {
+            // Given
+            val bookId = "book_789"
+            val existingState = """{"bookId":"$bookId","positionMs":0,"durationMs":0,"lastPlayedTimestamp":0,"completedTimestamp":0,"playCount":0}"""
+            whenever(sharedPrefs.getString(eq("book_state_$bookId"), any())).thenReturn(existingState)
 
-        // When
-        manager.markCompleted(bookId)
+            // When
+            manager.markCompleted(bookId)
 
-        // Then
-        verify(editor).putString(eq("book_state_$bookId"), any())
-    }
+            // Then
+            verify(editor).putString(eq("book_state_$bookId"), any())
+        }
 
     // ============ PlayerState data class Tests ============
 
     @Test
     fun `PlayerState creates with default values`() {
-        val state = PlayerState(
-            bookId = "test_book",
-            positionMs = 0L,
-            durationMs = 0L,
-            filePaths = emptyList()
-        )
+        val state =
+            PlayerState(
+                bookId = "test_book",
+                positionMs = 0L,
+                durationMs = 0L,
+                filePaths = emptyList(),
+            )
 
         assertEquals(0L, state.lastPlayedTimestamp)
         assertEquals(0L, state.completedTimestamp)
@@ -198,13 +202,14 @@ class PlayerPersistenceManagerTest {
 
     @Test
     fun `PlayerState copies correctly`() {
-        val original = PlayerState(
-            bookId = "test_book",
-            positionMs = 1000L,
-            durationMs = 10000L,
-            filePaths = listOf("/path1", "/path2"),
-            lastPlayedTimestamp = 123456789L
-        )
+        val original =
+            PlayerState(
+                bookId = "test_book",
+                positionMs = 1000L,
+                durationMs = 10000L,
+                filePaths = listOf("/path1", "/path2"),
+                lastPlayedTimestamp = 123456789L,
+            )
 
         val updated = original.copy(positionMs = 5000L)
 

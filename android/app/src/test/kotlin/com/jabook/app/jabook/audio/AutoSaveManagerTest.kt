@@ -35,19 +35,19 @@ import org.robolectric.RobolectricTestRunner
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class AutoSaveManagerTest {
-
     private lateinit var persistenceManager: PlayerPersistenceManager
     private lateinit var autoSaveManager: AutoSaveManager
 
-    private val testSnapshot = PlaybackSnapshot(
-        mediaId = "/storage/book/chapter1.mp3",
-        positionMs = 30000L,
-        durationMs = 120000L,
-        artworkPath = "/storage/book/cover.jpg",
-        title = "Chapter 1",
-        artist = "Author",
-        groupPath = "/storage/book"
-    )
+    private val testSnapshot =
+        PlaybackSnapshot(
+            mediaId = "/storage/book/chapter1.mp3",
+            positionMs = 30000L,
+            durationMs = 120000L,
+            artworkPath = "/storage/book/cover.jpg",
+            title = "Chapter 1",
+            artist = "Author",
+            groupPath = "/storage/book",
+        )
 
     @Before
     fun setup() {
@@ -58,57 +58,60 @@ class AutoSaveManagerTest {
     // ============ saveNow Tests ============
 
     @Test
-    fun `saveNow saves state immediately when called with force`() = runTest {
-        // When
-        autoSaveManager.saveNow(testSnapshot, force = true)
+    fun `saveNow saves state immediately when called with force`() =
+        runTest {
+            // When
+            autoSaveManager.saveNow(testSnapshot, force = true)
 
-        // Then
-        verify(persistenceManager).saveCurrentMediaItem(
-            mediaId = eq(testSnapshot.mediaId),
-            positionMs = eq(testSnapshot.positionMs),
-            durationMs = eq(testSnapshot.durationMs),
-            artworkPath = eq(testSnapshot.artworkPath),
-            title = eq(testSnapshot.title),
-            artist = eq(testSnapshot.artist),
-            groupPath = eq(testSnapshot.groupPath)
-        )
-    }
-
-    @Test
-    fun `saveNow debounces rapid saves`() = runTest {
-        // Given - two rapid saves
-        autoSaveManager.saveNow(testSnapshot, force = false)
-        autoSaveManager.saveNow(testSnapshot, force = false) // Should be debounced
-
-        // Then - only one save should occur
-        verify(persistenceManager, times(1)).saveCurrentMediaItem(
-            mediaId = any(),
-            positionMs = any(),
-            durationMs = any(),
-            artworkPath = any(),
-            title = any(),
-            artist = any(),
-            groupPath = any()
-        )
-    }
+            // Then
+            verify(persistenceManager).saveCurrentMediaItem(
+                mediaId = eq(testSnapshot.mediaId),
+                positionMs = eq(testSnapshot.positionMs),
+                durationMs = eq(testSnapshot.durationMs),
+                artworkPath = eq(testSnapshot.artworkPath),
+                title = eq(testSnapshot.title),
+                artist = eq(testSnapshot.artist),
+                groupPath = eq(testSnapshot.groupPath),
+            )
+        }
 
     @Test
-    fun `saveNow with force ignores debounce`() = runTest {
-        // Given
-        autoSaveManager.saveNow(testSnapshot, force = false)
-        autoSaveManager.saveNow(testSnapshot, force = true) // Force overrides debounce
+    fun `saveNow debounces rapid saves`() =
+        runTest {
+            // Given - two rapid saves
+            autoSaveManager.saveNow(testSnapshot, force = false)
+            autoSaveManager.saveNow(testSnapshot, force = false) // Should be debounced
 
-        // Then - both saves should occur
-        verify(persistenceManager, times(2)).saveCurrentMediaItem(
-            mediaId = any(),
-            positionMs = any(),
-            durationMs = any(),
-            artworkPath = any(),
-            title = any(),
-            artist = any(),
-            groupPath = any()
-        )
-    }
+            // Then - only one save should occur
+            verify(persistenceManager, times(1)).saveCurrentMediaItem(
+                mediaId = any(),
+                positionMs = any(),
+                durationMs = any(),
+                artworkPath = any(),
+                title = any(),
+                artist = any(),
+                groupPath = any(),
+            )
+        }
+
+    @Test
+    fun `saveNow with force ignores debounce`() =
+        runTest {
+            // Given
+            autoSaveManager.saveNow(testSnapshot, force = false)
+            autoSaveManager.saveNow(testSnapshot, force = true) // Force overrides debounce
+
+            // Then - both saves should occur
+            verify(persistenceManager, times(2)).saveCurrentMediaItem(
+                mediaId = any(),
+                positionMs = any(),
+                durationMs = any(),
+                artworkPath = any(),
+                title = any(),
+                artist = any(),
+                groupPath = any(),
+            )
+        }
 
     // ============ Auto-save lifecycle Tests ============
 
@@ -157,15 +160,16 @@ class AutoSaveManagerTest {
 
     @Test
     fun `PlaybackSnapshot creates with all fields`() {
-        val snapshot = PlaybackSnapshot(
-            mediaId = "test_id",
-            positionMs = 1000L,
-            durationMs = 10000L,
-            artworkPath = "/path/to/art.jpg",
-            title = "Test Title",
-            artist = "Test Artist",
-            groupPath = "/path/to/group"
-        )
+        val snapshot =
+            PlaybackSnapshot(
+                mediaId = "test_id",
+                positionMs = 1000L,
+                durationMs = 10000L,
+                artworkPath = "/path/to/art.jpg",
+                title = "Test Title",
+                artist = "Test Artist",
+                groupPath = "/path/to/group",
+            )
 
         assertEquals("test_id", snapshot.mediaId)
         assertEquals(1000L, snapshot.positionMs)
@@ -178,16 +182,17 @@ class AutoSaveManagerTest {
 
     @Test
     fun `PlaybackSnapshot equality works correctly`() {
-        val snapshot1 = PlaybackSnapshot(
-            mediaId = "same_id",
-            positionMs = 1000L,
-            durationMs = 10000L,
-            artworkPath = "",
-            title = "",
-            artist = "",
-            groupPath = ""
-        )
-        
+        val snapshot1 =
+            PlaybackSnapshot(
+                mediaId = "same_id",
+                positionMs = 1000L,
+                durationMs = 10000L,
+                artworkPath = "",
+                title = "",
+                artist = "",
+                groupPath = "",
+            )
+
         val snapshot2 = snapshot1.copy()
 
         assertEquals(snapshot1, snapshot2)

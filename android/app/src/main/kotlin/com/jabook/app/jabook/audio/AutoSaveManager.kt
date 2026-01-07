@@ -27,15 +27,15 @@ import javax.inject.Singleton
 
 /**
  * Manages automatic periodic saving of playback state.
- * 
+ *
  * Inspired by InnerTune's approach: saves queue every 30 seconds to prevent
  * data loss from crashes or force kills.
- * 
+ *
  * Features:
  * - Periodic auto-save every [AUTO_SAVE_INTERVAL_MS] milliseconds
  * - Save on significant events (pause, track change, seek)
  * - Debounced saves to avoid excessive disk writes
- * 
+ *
  * Usage:
  * ```
  * autoSaveManager.startAutoSave { getCurrentState() }
@@ -44,96 +44,102 @@ import javax.inject.Singleton
  * ```
  */
 @Singleton
-class AutoSaveManager @Inject constructor(
-    private val persistenceManager: PlayerPersistenceManager,
-) {
-    companion object {
-        private const val TAG = "AutoSaveManager"
-        
-        /** Interval between auto-saves in milliseconds (30 seconds) */
-        const val AUTO_SAVE_INTERVAL_MS = 30_000L
-        
-        /** Minimum interval between saves to avoid excessive writes */
-        const val MIN_SAVE_INTERVAL_MS = 5_000L
-    }
+class AutoSaveManager
+    @Inject
+    constructor(
+        private val persistenceManager: PlayerPersistenceManager,
+    ) {
+        companion object {
+            private const val TAG = "AutoSaveManager"
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var autoSaveJob: Job? = null
-    private var lastSaveTime = 0L
+            /** Interval between auto-saves in milliseconds (30 seconds) */
+            const val AUTO_SAVE_INTERVAL_MS = 30_000L
 
-    /**
-     * Starts periodic auto-save of playback state.
-     * 
-     * @param stateProvider Lambda that provides current playback state.
-     *                       Called every [AUTO_SAVE_INTERVAL_MS] to get fresh state.
-     */
-    fun startAutoSave(stateProvider: suspend () -> PlaybackSnapshot?) {
-        stopAutoSave() // Cancel any existing job
-        
-        autoSaveJob = scope.launch {
-            Log.d(TAG, "Auto-save started")
-            while (isActive) {
-                delay(AUTO_SAVE_INTERVAL_MS)
-                try {
-                    val snapshot = stateProvider()
-                    if (snapshot != null) {
-                        saveSnapshot(snapshot)
-                        Log.v(TAG, "Auto-saved state: ${snapshot.mediaId}, position=${snapshot.positionMs}ms")
+            /** Minimum interval between saves to avoid excessive writes */
+            const val MIN_SAVE_INTERVAL_MS = 5_000L
+        }
+
+        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private var autoSaveJob: Job? = null
+        private var lastSaveTime = 0L
+
+        /**
+         * Starts periodic auto-save of playback state.
+         *
+         * @param stateProvider Lambda that provides current playback state.
+         *                       Called every [AUTO_SAVE_INTERVAL_MS] to get fresh state.
+         */
+        fun startAutoSave(stateProvider: suspend () -> PlaybackSnapshot?) {
+            stopAutoSave() // Cancel any existing job
+
+            autoSaveJob =
+                scope.launch {
+                    Log.d(TAG, "Auto-save started")
+                    while (isActive) {
+                        delay(AUTO_SAVE_INTERVAL_MS)
+                        try {
+                            val snapshot = stateProvider()
+                            if (snapshot != null) {
+                                saveSnapshot(snapshot)
+                                Log.v(TAG, "Auto-saved state: ${snapshot.mediaId}, position=${snapshot.positionMs}ms")
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Auto-save failed", e)
+                        }
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Auto-save failed", e)
                 }
+        }
+
+        /**
+         * Stops periodic auto-save.
+         * Should be called when playback stops or service is destroyed.
+         */
+        fun stopAutoSave() {
+            autoSaveJob?.cancel()
+            autoSaveJob = null
+            Log.d(TAG, "Auto-save stopped")
+        }
+
+        /**
+         * Immediately saves current state (debounced).
+         * Use for important events like pause, track change, or seek.
+         *
+         * @param snapshot Current playback state to save
+         * @param force If true, ignores debounce interval
+         */
+        suspend fun saveNow(
+            snapshot: PlaybackSnapshot,
+            force: Boolean = false,
+        ) {
+            val now = System.currentTimeMillis()
+            if (!force && (now - lastSaveTime) < MIN_SAVE_INTERVAL_MS) {
+                Log.v(TAG, "Save skipped (debounced)")
+                return
             }
+
+            saveSnapshot(snapshot)
+            lastSaveTime = now
+            Log.d(TAG, "Saved state immediately: ${snapshot.mediaId}, position=${snapshot.positionMs}ms")
         }
-    }
 
-    /**
-     * Stops periodic auto-save.
-     * Should be called when playback stops or service is destroyed.
-     */
-    fun stopAutoSave() {
-        autoSaveJob?.cancel()
-        autoSaveJob = null
-        Log.d(TAG, "Auto-save stopped")
-    }
-
-    /**
-     * Immediately saves current state (debounced).
-     * Use for important events like pause, track change, or seek.
-     * 
-     * @param snapshot Current playback state to save
-     * @param force If true, ignores debounce interval
-     */
-    suspend fun saveNow(snapshot: PlaybackSnapshot, force: Boolean = false) {
-        val now = System.currentTimeMillis()
-        if (!force && (now - lastSaveTime) < MIN_SAVE_INTERVAL_MS) {
-            Log.v(TAG, "Save skipped (debounced)")
-            return
+        private suspend fun saveSnapshot(snapshot: PlaybackSnapshot) {
+            persistenceManager.saveCurrentMediaItem(
+                mediaId = snapshot.mediaId,
+                positionMs = snapshot.positionMs,
+                durationMs = snapshot.durationMs,
+                artworkPath = snapshot.artworkPath,
+                title = snapshot.title,
+                artist = snapshot.artist,
+                groupPath = snapshot.groupPath,
+            )
+            lastSaveTime = System.currentTimeMillis()
         }
-        
-        saveSnapshot(snapshot)
-        lastSaveTime = now
-        Log.d(TAG, "Saved state immediately: ${snapshot.mediaId}, position=${snapshot.positionMs}ms")
-    }
 
-    private suspend fun saveSnapshot(snapshot: PlaybackSnapshot) {
-        persistenceManager.saveCurrentMediaItem(
-            mediaId = snapshot.mediaId,
-            positionMs = snapshot.positionMs,
-            durationMs = snapshot.durationMs,
-            artworkPath = snapshot.artworkPath,
-            title = snapshot.title,
-            artist = snapshot.artist,
-            groupPath = snapshot.groupPath
-        )
-        lastSaveTime = System.currentTimeMillis()
+        /**
+         * Checks if auto-save is currently running.
+         */
+        fun isRunning(): Boolean = autoSaveJob?.isActive == true
     }
-
-    /**
-     * Checks if auto-save is currently running.
-     */
-    fun isRunning(): Boolean = autoSaveJob?.isActive == true
-}
 
 /**
  * Snapshot of current playback state for persistence.
