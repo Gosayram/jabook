@@ -67,6 +67,9 @@ interface SettingsRepository {
         speechEnhancer: Boolean? = null,
         autoVolumeLeveling: Boolean? = null,
         normalizeVolume: Boolean? = null,
+        skipSilence: Boolean? = null,
+        crossfadeEnabled: Boolean? = null,
+        crossfadeDurationMs: Long? = null,
     )
 
     /**
@@ -186,6 +189,9 @@ class ProtoSettingsRepository
             speechEnhancer: Boolean?,
             autoVolumeLeveling: Boolean?,
             normalizeVolume: Boolean?,
+            skipSilence: Boolean?,
+            crossfadeEnabled: Boolean?,
+            crossfadeDurationMs: Long?,
         ) {
             dataStore.updateData { preferences ->
                 val builder = preferences.toBuilder()
@@ -196,6 +202,9 @@ class ProtoSettingsRepository
                 speechEnhancer?.let { builder.setSpeechEnhancer(it) }
                 autoVolumeLeveling?.let { builder.setAutoVolumeLeveling(it) }
                 normalizeVolume?.let { builder.setNormalizeVolume(it) }
+                skipSilence?.let { builder.setSkipSilence(it) }
+                crossfadeEnabled?.let { builder.setCrossfadeEnabled(it) }
+                crossfadeDurationMs?.let { builder.setCrossfadeDurationMs(it) }
                 builder.build()
             }
         }

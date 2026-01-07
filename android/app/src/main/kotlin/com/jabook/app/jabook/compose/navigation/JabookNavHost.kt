@@ -214,6 +214,9 @@ fun JabookNavHost(
                 onNavigateToScanSettings = {
                     navController.navigate(ScanSettingsRoute)
                 },
+                onNavigateToAudioSettings = {
+                    navController.navigate(AudioSettingsRoute)
+                },
                 onNavigateToDownloads = {
                     navController.navigate(DownloadsRoute())
                 },
@@ -223,6 +226,15 @@ fun JabookNavHost(
         // Scan Settings Screen
         composable<ScanSettingsRoute> {
             com.jabook.app.jabook.compose.feature.settings.ScanSettingsScreen(
+                onNavigateUp = {
+                    navController.navigateUp()
+                },
+            )
+        }
+
+        // Audio Settings Screen
+        composable<AudioSettingsRoute> {
+            com.jabook.app.jabook.compose.feature.settings.AudioSettingsScreen(
                 onNavigateUp = {
                     navController.navigateUp()
                 },

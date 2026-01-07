@@ -220,6 +220,10 @@ class SettingsViewModel
             drcLevel: String? = null,
             speechEnhancer: Boolean? = null,
             normalizeVolume: Boolean? = null,
+            autoVolumeLeveling: Boolean? = null,
+            skipSilence: Boolean? = null,
+            crossfadeEnabled: Boolean? = null,
+            crossfadeDurationMs: Long? = null,
         ) {
             viewModelScope.launch {
                 settingsRepository.updateAudioSettings(
@@ -229,6 +233,10 @@ class SettingsViewModel
                     drcLevel = drcLevel,
                     speechEnhancer = speechEnhancer,
                     normalizeVolume = normalizeVolume,
+                    autoVolumeLeveling = autoVolumeLeveling,
+                    skipSilence = skipSilence,
+                    crossfadeEnabled = crossfadeEnabled,
+                    crossfadeDurationMs = crossfadeDurationMs,
                 )
             }
         }

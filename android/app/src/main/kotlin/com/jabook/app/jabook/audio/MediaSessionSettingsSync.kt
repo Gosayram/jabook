@@ -43,6 +43,7 @@ class MediaSessionSettingsSync(
      * Should be called once in AudioPlayerService.onCreate().
      */
     fun start() {
+        // Observe skip duration changes
         scope.launch {
             settingsRepository.userPreferences
                 .map { prefs ->
@@ -72,6 +73,50 @@ class MediaSessionSettingsSync(
 
                     // Update MediaSession custom commands
                     service.updateMediaSessionCommands(rewindSeconds, forwardSeconds)
+                }
+        }
+
+        // Observe audio processing settings changes
+        scope.launch {
+            settingsRepository.userPreferences
+                .map { prefs ->
+                    com.jabook.app.jabook.audio.processors.AudioProcessingSettings(
+                        normalizeVolume = prefs.normalizeVolume,
+                        volumeBoostLevel =
+                            try {
+                                if (prefs.volumeBoostLevel.isNotEmpty()) {
+                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel
+                                        .valueOf(prefs.volumeBoostLevel)
+                                } else {
+                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
+                                }
+                            } catch (e: Exception) {
+                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
+                            },
+                        drcLevel =
+                            try {
+                                if (prefs.drcLevel.isNotEmpty()) {
+                                    com.jabook.app.jabook.audio.processors.DRCLevel
+                                        .valueOf(prefs.drcLevel)
+                                } else {
+                                    com.jabook.app.jabook.audio.processors.DRCLevel.Off
+                                }
+                            } catch (e: Exception) {
+                                com.jabook.app.jabook.audio.processors.DRCLevel.Off
+                            },
+                        speechEnhancer = prefs.speechEnhancer,
+                        autoVolumeLeveling = prefs.autoVolumeLeveling,
+                        skipSilence = prefs.skipSilence,
+                        isCrossfadeEnabled = prefs.crossfadeEnabled,
+                        crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
+                    )
+                }.distinctUntilChanged()
+                .collect { settings ->
+                    android.util.Log.d(
+                        "MediaSessionSettingsSync",
+                        "Syncing audio settings: $settings",
+                    )
+                    service.configureExoPlayer(settings)
                 }
         }
     }

@@ -253,8 +253,21 @@
     <string name="highContrast">High contrast</string>
     <!-- Title for audio settings -->
     <string name="audioTitle">Audio</string>
+    <string name="audioSettingsTitle">Audio Settings</string>
     <!-- Description for audio settings -->
     <string name="audioDescription">Audio settings</string>
+    
+    <string name="playback_general">General Playback</string>
+    <string name="auto_rewind_title">Rewind on Pause</string>
+    <string name="auto_rewind_desc">Rewind 2 seconds when resuming after a long pause</string>
+    
+    <string name="audio_quality_title">Audio Quality</string>
+    <string name="crossfade_title">Crossfade</string>
+    <string name="crossfade_desc">Fade out current track while fading in next track</string>
+    <string name="crossfade_duration">Crossfade Duration</string>
+    
+    <string name="skip_silence_title">Skip Silence</string>
+    <string name="skip_silence_desc">Skip silent parts during playback</string>
     <!-- Title for audio enhancement settings -->
     <string name="audioEnhancementTitle">Audio Enhancement</string>
     <!-- Description for audio enhancement settings -->

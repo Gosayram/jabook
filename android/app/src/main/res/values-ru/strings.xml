@@ -255,6 +255,19 @@
     <string name="audioTitle">Аудио</string>
     <!-- Описание настройки аудио -->
     <string name="audioDescription">Настройки аудио</string>
+    <string name="audioSettingsTitle">Настройки аудио</string>
+
+    <string name="playback_general">Общие настройки</string>
+    <string name="auto_rewind_title">Перемотка при паузе</string>
+    <string name="auto_rewind_desc">Перематывать на 2 секунды назад при возобновлении после долгой паузы</string>
+
+    <string name="audio_quality_title">Качество аудио</string>
+    <string name="crossfade_title">Плавный переход (Crossfade)</string>
+    <string name="crossfade_desc">Плавное затухание текущего трека при начале следующего</string>
+    <string name="crossfade_duration">Длительность перехода</string>
+
+    <string name="skip_silence_title">Пропуск тишины</string>
+    <string name="skip_silence_desc">Пропускать тихие участки в аудио</string>
     <!-- Заголовок настроек улучшения звука -->
     <string name="audioEnhancementTitle">Улучшение звука</string>
     <!-- Описание настроек улучшения звука -->

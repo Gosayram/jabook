@@ -117,6 +117,12 @@ object RutrackerSearchRoute
 object ScanSettingsRoute
 
 /**
+ * Audio Settings screen route - configure audio playback settings.
+ */
+@Serializable
+object AudioSettingsRoute
+
+/**
  * Migration screen route - shows data migration progress.
  */
 @Serializable

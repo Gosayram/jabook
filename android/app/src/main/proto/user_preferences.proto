@@ -45,6 +45,14 @@ message UserPreferences {
   // Playback behavior
   bool auto_rewind_on_pause = 24; // Automatically rewind when pausing (inspired by Easybook)
   int32 auto_rewind_seconds = 25; // Seconds to rewind on pause (default: 2, range: 0-10)
+  
+  // Advanced Audio
+  bool skip_silence = 26;
+  bool crossfade_enabled = 27;
+  int64 crossfade_duration_ms = 28;
+  
+  // Library Organization
+  bool normalize_chapter_titles = 29;
 }
 
 // Theme mode enum

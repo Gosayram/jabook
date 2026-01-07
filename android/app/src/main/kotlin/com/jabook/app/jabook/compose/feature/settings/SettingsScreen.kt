@@ -103,6 +103,7 @@ fun SettingsScreen(
     onNavigateToAuth: () -> Unit,
     onNavigateToDebug: () -> Unit = {},
     onNavigateToScanSettings: () -> Unit = {},
+    onNavigateToAudioSettings: () -> Unit = {},
     onNavigateToDownloads: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
@@ -589,6 +590,17 @@ fun SettingsScreen(
                 contentPadding = contentPadding,
                 itemSpacing = itemSpacing,
                 smallSpacing = smallSpacing,
+            )
+
+            HorizontalDivider()
+
+            // Audio Section
+            SettingsSection(title = stringResource(R.string.audioTitle), contentPadding = contentPadding, itemSpacing = itemSpacing)
+
+            SettingsItem(
+                title = stringResource(R.string.audioSettingsTitle),
+                subtitle = stringResource(R.string.audioDescription),
+                onClick = onNavigateToAudioSettings,
             )
 
             HorizontalDivider()
