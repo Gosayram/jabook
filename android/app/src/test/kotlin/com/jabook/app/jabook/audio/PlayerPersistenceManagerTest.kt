@@ -173,7 +173,9 @@ class PlayerPersistenceManagerTest {
         runTest {
             // Given
             val bookId = "book_789"
-            val existingState = """{"bookId":"$bookId","positionMs":0,"durationMs":0,"lastPlayedTimestamp":0,"completedTimestamp":0,"playCount":0}"""
+            val existingState =
+                """{"bookId":"$bookId","positionMs":0,"durationMs":0,""" +
+                    """"lastPlayedTimestamp":0,"completedTimestamp":0,"playCount":0}"""
             whenever(sharedPrefs.getString(eq("book_state_$bookId"), any())).thenReturn(existingState)
 
             // When
