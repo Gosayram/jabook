@@ -36,6 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.Cache
 import javax.inject.Inject
 import androidx.media.app.NotificationCompat as MediaNotificationCompat
@@ -554,10 +555,12 @@ class AudioPlayerService : MediaLibraryService() {
         // Delegate to PlaylistManager to prepare next track on secondary player
         // Then start crossfade
         playerServiceScope.launch {
-            // 1. Prepare next track on CrossFadePlayer's NEXT player (hidden)
-            val success = playlistManager?.prepareNextTrackForCrossfade() == true
-            if (success) {
+            val currentPlayer = getActivePlayer()
+            val nextSource = playlistManager?.getNextMediaSource(currentPlayer.currentMediaItemIndex)
+
+            if (nextSource != null) {
                 withContext(Dispatchers.Main) {
+                    crossFadePlayer?.setNextMediaSource(nextSource)
                     crossFadePlayer?.startCrossFade()
                 }
             }
