@@ -207,7 +207,9 @@ private fun FeaturesStep(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
         ) { page ->
-            FeaturePage(page, isBeta, pagerState.currentPageOffsetFraction, page == pagerState.currentPage)
+            // Calculate absolute offset for this page
+            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+            FeaturePage(page, isBeta, pageOffset)
         }
 
         // Navigation and Indicators overlay
@@ -291,7 +293,6 @@ private fun FeaturePage(
     page: Int,
     isBeta: Boolean,
     offset: Float,
-    isSelected: Boolean,
 ) {
     val imageRes =
         when (page) {
@@ -326,9 +327,11 @@ private fun FeaturePage(
                         // Parallax effect: shift background slightly
                         translationX = -offset * size.width * 0.2f
                         // 3D Tilt effect
-                        rotationY = offset * 10f
+                        rotationY = offset * -20f // Inverted for more natural feel
                         scaleX = 1.1f
                         scaleY = 1.1f
+                        // Better 3D perspective
+                        cameraDistance = 8f * density
                     },
             contentScale = ContentScale.Crop,
         )
@@ -368,7 +371,8 @@ private fun FeaturePage(
                 textAlign = TextAlign.Center,
                 modifier =
                     Modifier.graphicsLayer {
-                        alpha = 1f - offset.absoluteValue.coerceIn(0f, 1f)
+                        alpha = (1f - offset.absoluteValue * 1.5f).coerceIn(0f, 1f)
+                        translationX = offset * size.width * 0.1f
                     },
             )
 
@@ -381,8 +385,9 @@ private fun FeaturePage(
                 textAlign = TextAlign.Center,
                 modifier =
                     Modifier.graphicsLayer {
-                        alpha = 1f - offset.absoluteValue.coerceIn(0f, 1f)
-                        translationY = offset.absoluteValue * 50f
+                        alpha = (1f - offset.absoluteValue * 2f).coerceIn(0f, 1f)
+                        translationX = offset * size.width * 0.15f
+                        translationY = offset.absoluteValue * 30f
                     },
             )
 
