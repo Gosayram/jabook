@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.onboarding
 
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -45,8 +46,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -124,7 +127,7 @@ private fun WelcomeStep(
             contentScale = ContentScale.Crop,
         )
 
-        // Gradient Overlay for readability
+        // Cinematic Gradient Overlay for readability
         Box(
             modifier =
                 Modifier
@@ -134,9 +137,10 @@ private fun WelcomeStep(
                             colors =
                                 listOf(
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.5f),
+                                    Color.Black.copy(alpha = 0.3f),
                                     Color.Black.copy(alpha = 0.8f),
                                 ),
+                            startY = 0f,
                         ),
                     ),
         )
@@ -154,19 +158,36 @@ private fun WelcomeStep(
 
             Text(
                 text = stringResource(R.string.onboardingWelcomeTitle),
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.Bold,
+                style =
+                    MaterialTheme.typography.displayMedium.copy(
+                        shadow =
+                            Shadow(
+                                color = Color.Black.copy(alpha = 0.5f),
+                                offset = Offset(2f, 4f),
+                                blurRadius = 8f,
+                            ),
+                    ),
+                fontWeight = FontWeight.ExtraBold,
                 color = Color.White,
                 textAlign = TextAlign.Center,
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = stringResource(R.string.onboardingWelcomeSubtitle),
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.8f),
+                style =
+                    MaterialTheme.typography.titleLarge.copy(
+                        shadow =
+                            Shadow(
+                                color = Color.Black.copy(alpha = 0.3f),
+                                offset = Offset(1f, 2f),
+                                blurRadius = 4f,
+                            ),
+                    ),
+                color = Color.White.copy(alpha = 0.9f),
                 textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -176,16 +197,20 @@ private fun WelcomeStep(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(64.dp)
+                        .padding(horizontal = 8.dp),
+                shape = CircleShape,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
                 colors =
                     ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = Color.White.copy(alpha = 0.15f),
+                        contentColor = Color.White,
                     ),
             ) {
                 Text(
                     text = stringResource(R.string.onboardingGetStarted),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
                 )
             }
 
@@ -269,18 +294,23 @@ private fun FeaturesStep(
                             onNext()
                         }
                     },
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
                     colors =
                         ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black,
+                            containerColor = Color.White.copy(alpha = 0.15f),
+                            contentColor = Color.White,
                         ),
                 ) {
                     Text(
-                        if (pagerState.currentPage < 2) {
-                            stringResource(R.string.onboardingNext)
-                        } else {
-                            stringResource(R.string.onboardingFinish)
-                        },
+                        text =
+                            if (pagerState.currentPage < 2) {
+                                stringResource(R.string.onboardingNext)
+                            } else {
+                                stringResource(R.string.onboardingFinish)
+                            },
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -336,7 +366,7 @@ private fun FeaturePage(
             contentScale = ContentScale.Crop,
         )
 
-        // Gradient for readability
+        // Cinematic Gradient Overlay
         Box(
             modifier =
                 Modifier
@@ -346,9 +376,11 @@ private fun FeaturePage(
                             colors =
                                 listOf(
                                     Color.Transparent,
+                                    Color.Black.copy(alpha = 0.2f),
                                     Color.Black.copy(alpha = 0.6f),
-                                    Color.Black.copy(alpha = 0.9f),
+                                    Color.Black.copy(alpha = 0.95f),
                                 ),
+                            startY = 200f,
                         ),
                     ),
         )
@@ -365,14 +397,25 @@ private fun FeaturePage(
 
             Text(
                 text = stringResource(titleRes),
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
+                style =
+                    MaterialTheme.typography.headlineLarge.copy(
+                        shadow =
+                            Shadow(
+                                color = Color.Black.copy(alpha = 0.6f),
+                                offset = Offset(2f, 4f),
+                                blurRadius = 10f,
+                            ),
+                    ),
+                fontWeight = FontWeight.ExtraBold,
                 color = Color.White,
                 textAlign = TextAlign.Center,
                 modifier =
                     Modifier.graphicsLayer {
-                        alpha = (1f - offset.absoluteValue * 1.5f).coerceIn(0f, 1f)
+                        val alphaVal = (1f - offset.absoluteValue * 1.5f).coerceIn(0f, 1f)
+                        alpha = alphaVal
                         translationX = offset * size.width * 0.1f
+                        scaleX = 0.9f + alphaVal * 0.1f
+                        scaleY = 0.9f + alphaVal * 0.1f
                     },
             )
 
@@ -380,15 +423,25 @@ private fun FeaturePage(
 
             Text(
                 text = stringResource(descRes),
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.8f),
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        shadow =
+                            Shadow(
+                                color = Color.Black.copy(alpha = 0.4f),
+                                offset = Offset(1f, 2f),
+                                blurRadius = 5f,
+                            ),
+                    ),
+                color = Color.White.copy(alpha = 0.85f),
                 textAlign = TextAlign.Center,
                 modifier =
-                    Modifier.graphicsLayer {
-                        alpha = (1f - offset.absoluteValue * 2f).coerceIn(0f, 1f)
-                        translationX = offset * size.width * 0.15f
-                        translationY = offset.absoluteValue * 30f
-                    },
+                    Modifier
+                        .graphicsLayer {
+                            val alphaVal = (1f - offset.absoluteValue * 2f).coerceIn(0f, 1f)
+                            alpha = alphaVal
+                            translationX = offset * size.width * 0.15f
+                            translationY = offset.absoluteValue * 30f
+                        }.padding(horizontal = 24.dp),
             )
 
             Spacer(modifier = Modifier.height(120.dp))
