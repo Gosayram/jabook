@@ -34,7 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Brightness5
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -119,7 +119,7 @@ private fun VolumeIndicator(value: Float) {
     // Value is 0.0 to 1.0 (normalized volume)
     GestureIndicatorCard {
         Icon(
-            imageVector = if (value == 0f) Icons.Default.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+            imageVector = if (value == 0f) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(48.dp),

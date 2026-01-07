@@ -69,7 +69,7 @@ class PlayerViewModel
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
         private val playbackPositionRepository: PlaybackPositionRepository,
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
@@ -220,13 +220,11 @@ class PlayerViewModel
                 val result = loader.execute(request)
                 if (result is coil3.request.SuccessResult) {
                     val bitmap = result.image.toBitmap()
-                    if (bitmap != null) {
-                        val colors =
-                            com.jabook.app.jabook.compose.core.theme.DynamicThemeManager.extractColors(
-                                bitmap,
-                            )
-                        _themeColors.value = colors
-                    }
+                    val colors =
+                        com.jabook.app.jabook.compose.core.theme.DynamicThemeManager.extractColors(
+                            bitmap,
+                        )
+                    _themeColors.value = colors
                 }
             } catch (e: Exception) {
                 // Ignore errors, keep default theme
