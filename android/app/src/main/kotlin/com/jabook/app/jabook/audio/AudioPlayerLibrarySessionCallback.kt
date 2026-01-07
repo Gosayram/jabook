@@ -44,6 +44,7 @@ class AudioPlayerLibrarySessionCallback(
     private val service: AudioPlayerService,
     private val playerPersistenceManager: PlayerPersistenceManager,
     private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
+    private val mediaButtonHandler: MediaButtonHandler?,
     private val getDurationForFile: (String) -> Long?,
 ) : MediaLibraryService.MediaLibrarySession.Callback {
     val customCommands =
@@ -159,6 +160,26 @@ class AudioPlayerLibrarySessionCallback(
                 val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 15
                 service.rewind(rewindSeconds)
                 android.util.Log.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
+                return true
+            }
+            KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE,
+            -> {
+                mediaButtonHandler?.onMediaButtonEvent(
+                    keyEvent.keyCode,
+                    onSingleClick = {
+                        if (service.isPlaying) service.pause() else service.play()
+                        android.util.Log.d("AudioPlayerService", "Media button: Single click (Play/Pause)")
+                    },
+                    onDoubleClick = {
+                        service.next()
+                        android.util.Log.d("AudioPlayerService", "Media button: Double click (Next)")
+                    },
+                    onTripleClick = {
+                        service.previous()
+                        android.util.Log.d("AudioPlayerService", "Media button: Triple click (Previous)")
+                    },
+                )
                 return true
             }
             else -> return super.onMediaButtonEvent(session, controller, intent)

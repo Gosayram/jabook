@@ -127,6 +127,10 @@ class AudioPlayerService : MediaLibraryService() {
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null
 
+    // Headset and Media Button handlers (Quick Wins)
+    internal var headsetAutoplayHandler: HeadsetAutoplayHandler? = null
+    internal var mediaButtonHandler: MediaButtonHandler? = null
+
     // Track if playback was active before phone call (for auto-resume)
     internal var wasPlayingBeforeCall = false
 
@@ -611,6 +615,9 @@ class AudioPlayerService : MediaLibraryService() {
         // MediaLibraryService automatically updates notification when Player state changes
     }
 
+    val isPlaying: Boolean
+        get() = getActivePlayer().isPlaying
+
     fun play() {
         playbackController?.play() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
@@ -660,6 +667,8 @@ class AudioPlayerService : MediaLibraryService() {
             android.util.Log.e("AudioPlayerService", "ServiceLifecycleManager not initialized for stopAndCleanup")
             // Fallback manual cleanup if needed, or just log error
         }
+
+        headsetAutoplayHandler?.stopListening()
     }
 
     internal fun saveCurrentPosition() {

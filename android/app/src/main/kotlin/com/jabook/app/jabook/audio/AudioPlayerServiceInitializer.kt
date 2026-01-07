@@ -156,6 +156,21 @@ class AudioPlayerServiceInitializer(
                 setWasPlayingBeforeCall = { value -> service.wasPlayingBeforeCall = value },
             )
 
+        // Initialize MediaButtonHandler for multi-click headset support
+        service.mediaButtonHandler = MediaButtonHandler()
+
+        // Initialize HeadsetAutoplayHandler
+        service.headsetAutoplayHandler =
+            HeadsetAutoplayHandler(
+                context = service,
+                onHeadsetConnected = {
+                    if (!service.isPlaying) {
+                        service.play()
+                    }
+                },
+            )
+        service.headsetAutoplayHandler?.startListening()
+
         // Ensure ExoPlayer is initialized
         // Note: Hilt initialization check removed to avoid backing field access error
         // We assume Hilt has initialized exoPlayer before onCreate calls initialize()
@@ -187,6 +202,7 @@ class AudioPlayerServiceInitializer(
                     service,
                     service.playerPersistenceManager,
                     service.torrentDownloadRepository,
+                    service.mediaButtonHandler,
                     { filePath -> service.getDurationForFile(filePath) },
                 )
 
