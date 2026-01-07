@@ -45,40 +45,43 @@ data class OnboardingUiState(
  * ViewModel for the Onboarding feature.
  */
 @HiltViewModel
-class OnboardingViewModel @Inject constructor(
-    private val settingsRepository: SettingsRepository,
-) : ViewModel() {
+class OnboardingViewModel
+    @Inject
+    constructor(
+        private val settingsRepository: SettingsRepository,
+    ) : ViewModel() {
+        private val _uiState = MutableStateFlow(OnboardingUiState())
+        val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
-    private val _uiState = MutableStateFlow(OnboardingUiState())
-    val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
+        fun nextStep() {
+            val current = _uiState.value.currentStep
+            val next =
+                when (current) {
+                    OnboardingStep.WELCOME -> OnboardingStep.FEATURES
+                    OnboardingStep.FEATURES -> OnboardingStep.PERMISSIONS
+                    OnboardingStep.PERMISSIONS -> {
+                        finishOnboarding()
+                        return
+                    }
+                }
+            _uiState.value = _uiState.value.copy(currentStep = next)
+        }
 
-    fun nextStep() {
-        val current = _uiState.value.currentStep
-        val next = when (current) {
-            OnboardingStep.WELCOME -> OnboardingStep.FEATURES
-            OnboardingStep.FEATURES -> OnboardingStep.PERMISSIONS
-            OnboardingStep.PERMISSIONS -> {
-                finishOnboarding()
-                return
+        fun previousStep() {
+            val current = _uiState.value.currentStep
+            val prev =
+                when (current) {
+                    OnboardingStep.WELCOME -> return
+                    OnboardingStep.FEATURES -> OnboardingStep.WELCOME
+                    OnboardingStep.PERMISSIONS -> OnboardingStep.FEATURES
+                }
+            _uiState.value = _uiState.value.copy(currentStep = prev)
+        }
+
+        fun finishOnboarding() {
+            viewModelScope.launch {
+                settingsRepository.updateOnboardingCompleted(true)
+                _uiState.value = _uiState.value.copy(isFinished = true)
             }
         }
-        _uiState.value = _uiState.value.copy(currentStep = next)
     }
-
-    fun previousStep() {
-        val current = _uiState.value.currentStep
-        val prev = when (current) {
-            OnboardingStep.WELCOME -> return
-            OnboardingStep.FEATURES -> OnboardingStep.WELCOME
-            OnboardingStep.PERMISSIONS -> OnboardingStep.FEATURES
-        }
-        _uiState.value = _uiState.value.copy(currentStep = prev)
-    }
-
-    fun finishOnboarding() {
-        viewModelScope.launch {
-            settingsRepository.updateOnboardingCompleted(true)
-            _uiState.value = _uiState.value.copy(isFinished = true)
-        }
-    }
-}

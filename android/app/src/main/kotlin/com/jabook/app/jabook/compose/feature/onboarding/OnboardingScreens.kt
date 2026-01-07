@@ -14,19 +14,32 @@
 
 package com.jabook.app.jabook.compose.feature.onboarding
 
-import androidx.compose.animation.*
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -43,7 +56,9 @@ import com.jabook.app.jabook.compose.feature.permissions.PermissionScreen
 fun OnboardingScreen(
     onFinish: () -> Unit,
     isBeta: Boolean = false,
-    viewModel: OnboardingViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel(),
+    viewModel: OnboardingViewModel =
+        androidx.hilt.lifecycle.viewmodel.compose
+            .hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -55,23 +70,26 @@ fun OnboardingScreen(
 
     Surface(
         color = MaterialTheme.colorScheme.background,
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         Crossfade(targetState = uiState.currentStep, label = "OnboardingTransition") { step ->
             when (step) {
-                OnboardingStep.WELCOME -> WelcomeStep(
-                    isBeta = isBeta,
-                    onNext = { viewModel.nextStep() }
-                )
-                OnboardingStep.FEATURES -> FeaturesStep(
-                    isBeta = isBeta,
-                    onNext = { viewModel.nextStep() },
-                    onBack = { viewModel.previousStep() }
-                )
-                OnboardingStep.PERMISSIONS -> OnboardingPermissionStep(
-                    onNext = { viewModel.finishOnboarding() },
-                    onBack = { viewModel.previousStep() }
-                )
+                OnboardingStep.WELCOME ->
+                    WelcomeStep(
+                        isBeta = isBeta,
+                        onNext = { viewModel.nextStep() },
+                    )
+                OnboardingStep.FEATURES ->
+                    FeaturesStep(
+                        isBeta = isBeta,
+                        onNext = { viewModel.nextStep() },
+                        onBack = { viewModel.previousStep() },
+                    )
+                OnboardingStep.PERMISSIONS ->
+                    OnboardingPermissionStep(
+                        onNext = { viewModel.finishOnboarding() },
+                        onBack = { viewModel.previousStep() },
+                    )
             }
         }
     }
@@ -80,24 +98,26 @@ fun OnboardingScreen(
 @Composable
 private fun WelcomeStep(
     isBeta: Boolean,
-    onNext: () -> Unit
+    onNext: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
         val imageRes = if (isBeta) R.drawable.onboarding_welcome_beta else R.drawable.onboarding_welcome_prod
 
         Image(
             painter = painterResource(id = imageRes),
             contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp),
-            contentScale = ContentScale.Fit
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(300.dp),
+            contentScale = ContentScale.Fit,
         )
 
         Spacer(modifier = Modifier.height(48.dp))
@@ -106,7 +126,7 @@ private fun WelcomeStep(
             text = stringResource(R.string.onboardingWelcomeTitle),
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -115,16 +135,17 @@ private fun WelcomeStep(
             text = stringResource(R.string.onboardingWelcomeSubtitle),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         Spacer(modifier = Modifier.height(64.dp))
 
         Button(
             onClick = onNext,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
         ) {
             Text(stringResource(R.string.onboardingGetStarted))
         }
@@ -135,28 +156,30 @@ private fun WelcomeStep(
 private fun FeaturesStep(
     isBeta: Boolean,
     onNext: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val pagerState = rememberPagerState(pageCount = { 3 })
-    
+
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
         ) { page ->
             FeaturePage(page, isBeta)
         }
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = onBack) {
                 Text(stringResource(R.string.onboardingBack))
@@ -165,21 +188,23 @@ private fun FeaturesStep(
             // Page indicators
             Row {
                 repeat(3) { index ->
-                    val color = if (pagerState.currentPage == index) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.primaryContainer
-                    }
+                    val color =
+                        if (pagerState.currentPage == index) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        }
                     Box(
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .size(if (pagerState.currentPage == index) 12.dp else 8.dp)
-                            .padding(2.dp)
-                            .size(8.dp)
-                            .background(
-                                color = color,
-                                shape = androidx.compose.foundation.shape.CircleShape
-                            )
+                        modifier =
+                            Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(if (pagerState.currentPage == index) 12.dp else 8.dp)
+                                .padding(2.dp)
+                                .size(8.dp)
+                                .background(
+                                    color = color,
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                ),
                     )
                 }
             }
@@ -192,39 +217,47 @@ private fun FeaturesStep(
 }
 
 @Composable
-private fun FeaturePage(page: Int, isBeta: Boolean) {
+private fun FeaturePage(
+    page: Int,
+    isBeta: Boolean,
+) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
-        val imageRes = when(page) {
-            0 -> if (isBeta) R.drawable.onboarding_features_beta else R.drawable.onboarding_features_prod
-            1 -> if (isBeta) R.drawable.onboarding_welcome_beta else R.drawable.onboarding_welcome_prod
-            else -> if (isBeta) R.drawable.onboarding_features_beta else R.drawable.onboarding_features_prod
-        }
+        val imageRes =
+            when (page) {
+                0 -> if (isBeta) R.drawable.onboarding_features_beta else R.drawable.onboarding_features_prod
+                1 -> if (isBeta) R.drawable.onboarding_welcome_beta else R.drawable.onboarding_welcome_prod
+                else -> if (isBeta) R.drawable.onboarding_features_beta else R.drawable.onboarding_features_prod
+            }
 
-        val titleRes = when(page) {
-            0 -> R.string.onboardingFeatureDiscoveryTitle
-            1 -> R.string.onboardingFeatureThemesTitle
-            else -> R.string.onboardingFeatureAdvancedTitle
-        }
+        val titleRes =
+            when (page) {
+                0 -> R.string.onboardingFeatureDiscoveryTitle
+                1 -> R.string.onboardingFeatureThemesTitle
+                else -> R.string.onboardingFeatureAdvancedTitle
+            }
 
-        val descRes = when(page) {
-            0 -> R.string.onboardingFeatureDiscoveryDesc
-            1 -> R.string.onboardingFeatureThemesDesc
-            else -> R.string.onboardingFeatureAdvancedDesc
-        }
+        val descRes =
+            when (page) {
+                0 -> R.string.onboardingFeatureDiscoveryDesc
+                1 -> R.string.onboardingFeatureThemesDesc
+                else -> R.string.onboardingFeatureAdvancedDesc
+            }
 
         Image(
             painter = painterResource(id = imageRes),
             contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp),
-            contentScale = ContentScale.Fit
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(250.dp),
+            contentScale = ContentScale.Fit,
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -233,7 +266,7 @@ private fun FeaturePage(page: Int, isBeta: Boolean) {
             text = stringResource(titleRes),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -242,26 +275,30 @@ private fun FeaturePage(page: Int, isBeta: Boolean) {
             text = stringResource(descRes),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 @Composable
-private fun OnboardingPermissionStep(onNext: () -> Unit, onBack: () -> Unit) {
+private fun OnboardingPermissionStep(
+    onNext: () -> Unit,
+    onBack: () -> Unit,
+) {
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         Box(modifier = Modifier.weight(1f)) {
-             PermissionScreen(onPermissionsGranted = onNext)
+            PermissionScreen(onPermissionsGranted = onNext)
         }
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = onBack) {
                 Text(stringResource(R.string.onboardingBack))

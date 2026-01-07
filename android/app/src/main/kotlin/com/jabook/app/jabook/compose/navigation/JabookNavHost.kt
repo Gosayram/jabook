@@ -154,7 +154,7 @@ fun JabookNavHost(
                     navController.navigate(LibraryRoute) {
                         popUpTo(OnboardingRoute) { inclusive = true }
                     }
-                }
+                },
             )
         }
 

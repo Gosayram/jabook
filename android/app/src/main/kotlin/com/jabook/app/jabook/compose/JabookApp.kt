@@ -42,7 +42,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
 import com.jabook.app.jabook.compose.navigation.LibraryRoute
-import com.jabook.app.jabook.compose.navigation.OnboardingRoute
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
 import com.jabook.app.jabook.compose.navigation.TopLevelDestination
 import com.jabook.app.jabook.compose.navigation.rememberJabookAppState
@@ -84,12 +83,13 @@ fun JabookApp(
         permissionViewModel.checkPermissions()
     }
 
-    val onboardingCompleted = when (uiState) {
-        is MainActivityUiState.Success -> (uiState as MainActivityUiState.Success).userData.onboardingCompleted
-        else -> true // Default to true while loading to avoid flickering
-    }
+    val onboardingCompleted =
+        when (uiState) {
+            is MainActivityUiState.Success -> (uiState as MainActivityUiState.Success).userData.onboardingCompleted
+            else -> true // Default to true while loading to avoid flickering
+        }
 
-    // If onboarding is not completed, we show it. 
+    // If onboarding is not completed, we show it.
     // It will handle its own internal navigation and permissions.
     if (!onboardingCompleted && uiState is MainActivityUiState.Success) {
         JabookTheme(
@@ -99,9 +99,9 @@ fun JabookApp(
             com.jabook.app.jabook.compose.feature.onboarding.OnboardingScreen(
                 isBeta = isBetaFlavor,
                 onFinish = {
-                    // This will trigger a state change in SettingsRepository, 
+                    // This will trigger a state change in SettingsRepository,
                     // which will update uiState and cause a recompose to show the main app.
-                }
+                },
             )
         }
         return
