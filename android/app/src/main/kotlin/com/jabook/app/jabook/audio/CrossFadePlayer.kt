@@ -50,6 +50,8 @@ class CrossFadePlayer(
     private var currentAnimator: ValueAnimator? = null
     private var isCrossFading = false
 
+    var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
+
     /**
      * Prepares the next player with the given media item.
      */
@@ -57,6 +59,15 @@ class CrossFadePlayer(
         nextPlayer.setMediaItem(mediaItem)
         nextPlayer.prepare()
         android.util.Log.d("CrossFadePlayer", "Next track prepared on $nextPlayer")
+    }
+
+    /**
+     * Prepares the next player with the given media source.
+     */
+    fun setNextMediaSource(mediaSource: androidx.media3.exoplayer.source.MediaSource) {
+        nextPlayer.setMediaSource(mediaSource)
+        nextPlayer.prepare()
+        android.util.Log.d("CrossFadePlayer", "Next media source prepared on $nextPlayer")
     }
 
     /**
@@ -105,6 +116,12 @@ class CrossFadePlayer(
         // Start the next player
         fadingInPlayer.play()
 
+        // Notify listener that active player (logically) might need considering,
+        // but typically we switch the "Active" pointer after fade.
+        // However, for UI, we might want to show next track metadata immediately?
+        // Usually, we switch metadata halfway or at start.
+        // For now, we switch "Active Player" reference at END of fade.
+
         android.util.Log.d("CrossFadePlayer", "Starting crossfade: Out=$fadingOutPlayer, In=$fadingInPlayer")
 
         currentAnimator =
@@ -128,6 +145,8 @@ class CrossFadePlayer(
                             isCrossFading = false
                             fadingOutPlayer.pause()
                             fadingOutPlayer.volume = 1f
+                            fadingOutPlayer.seekTo(0) // Reset position
+                            fadingOutPlayer.clearMediaItems() // Clear for reuse
 
                             // Swap players
                             swapPlayers()
@@ -144,10 +163,13 @@ class CrossFadePlayer(
         val temp = currentPlayer
         currentPlayer = nextPlayer
         nextPlayer = temp
+        onPlayerChanged?.invoke(currentPlayer)
     }
 
     /**
      * Returns the currently active player (for UI/State queries).
      */
     fun getActivePlayer(): ExoPlayer = currentPlayer
+
+    fun getNextPlayer(): ExoPlayer = nextPlayer
 }

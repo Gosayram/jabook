@@ -246,6 +246,10 @@ class AudioPlayerService : MediaLibraryService() {
     // internal var customExoPlayer: ExoPlayer? = null // Delegated to PlayerConfigurator
     internal var customExoPlayer: ExoPlayer? = null
 
+    // Crossfade components
+    internal var crossFadePlayer: CrossFadePlayer? = null
+    internal var crossfadeHandler: CrossfadeHandler? = null
+
     internal val playerServiceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
@@ -428,6 +432,21 @@ class AudioPlayerService : MediaLibraryService() {
             playbackEnhancerService.initialize()
             android.util.Log.e("JABOOK_SERVICE", "[OK] PlaybackEnhancerService initialized")
 
+            // Initialize CrossFadePlayer
+            android.util.Log.e("JABOOK_SERVICE", "Initializing CrossFadePlayer...")
+            crossFadePlayer =
+                CrossFadePlayer(this) { context ->
+                    ExoPlayer.Builder(context).build()
+                }
+            crossFadePlayer?.onPlayerChanged = { newPlayer ->
+                // Update MediaSession player when crossfade swaps logic
+                mediaLibrarySession?.player = newPlayer
+                // Update notification if needed
+                notificationManager?.updateNotification()
+            }
+            // Initialize CrossfadeHandler (requires playlistManager which is set in initializer)
+            // Deferred initialization of handler to setListener/Initializer completion
+
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
 
@@ -519,7 +538,31 @@ class AudioPlayerService : MediaLibraryService() {
     /**
      * Gets the active ExoPlayer instance (custom with processors or singleton).
      */
-    internal fun getActivePlayer(): ExoPlayer = playerConfigurator?.getActivePlayer(exoPlayer) ?: exoPlayer
+    internal fun getActivePlayer(): ExoPlayer {
+        val settings = playerConfigurator?.audioProcessingSettings
+        if (settings?.isCrossfadeEnabled == true && crossFadePlayer != null) {
+            return crossFadePlayer!!.getActivePlayer()
+        }
+        return playerConfigurator?.getActivePlayer(exoPlayer) ?: exoPlayer
+    }
+
+    /**
+     * Triggers crossfade transition.
+     * Called by CrossfadeHandler when condition is met.
+     */
+    fun triggerCrossfadeTransition() {
+        // Delegate to PlaylistManager to prepare next track on secondary player
+        // Then start crossfade
+        playerServiceScope.launch {
+            // 1. Prepare next track on CrossFadePlayer's NEXT player (hidden)
+            val success = playlistManager?.prepareNextTrackForCrossfade() == true
+            if (success) {
+                withContext(Dispatchers.Main) {
+                    crossFadePlayer?.startCrossFade()
+                }
+            }
+        }
+    }
 
     /**
      * Updates the actual track index from onMediaItemTransition events.

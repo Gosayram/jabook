@@ -897,6 +897,23 @@ internal class PlaylistManager(
     }
 
     /**
+     * Creates and returns the MediaSource for the next track.
+     * Used for Crossfade pre-loading.
+     */
+    fun getNextMediaSource(currentIndex: Int): MediaSource? {
+        val paths = currentFilePaths ?: return null
+        val nextIndex = currentIndex + 1
+        if (nextIndex >= paths.size) return null // End of playlist
+
+        return createMediaSourceForIndex(
+            paths,
+            nextIndex,
+            currentMetadata,
+            SimpleMediaDataSourceFactory(),
+        )
+    }
+
+    /**
      * DataSource factory for media playback with caching and network support.
      * Private inner class to avoid build duplication issues.
      */

@@ -16,16 +16,8 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.test.core.app.ApplicationProvider
-import org.junit.Assert.assertNotEquals
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.shadows.ShadowLooper
+import androidx.media3.exoplayer.source.MediaSource
+import org.junit.Assert.assertNotNull
 
 @RunWith(RobolectricTestRunner::class)
 class CrossfadeTest {
@@ -78,6 +70,26 @@ class CrossfadeTest {
 
         // Then (assuming playerA is active, playerB is next)
         verify(playerB).setMediaItem(mediaItem)
+        verify(playerB).prepare()
+    }
+
+    @Test
+    fun `onPlayerChanged callback fired after crossfade`() {
+        var callbackPlayer: ExoPlayer? = null
+        crossFadePlayer.onPlayerChanged = { callbackPlayer = it }
+
+        crossFadePlayer.startCrossFade()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        assertNotNull(callbackPlayer)
+        assertNotEquals(playerA, callbackPlayer)
+    }
+
+    @Test
+    fun `Prepare next MediaSource sets source on idle player`() {
+        val mediaSource = mock<MediaSource>()
+        crossFadePlayer.setNextMediaSource(mediaSource)
+        verify(playerB).setMediaSource(mediaSource)
         verify(playerB).prepare()
     }
 }
