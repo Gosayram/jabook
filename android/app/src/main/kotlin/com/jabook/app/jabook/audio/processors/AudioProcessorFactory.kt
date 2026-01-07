@@ -27,6 +27,15 @@ import androidx.media3.common.util.UnstableApi
 @UnstableApi
 object AudioProcessorFactory {
     /**
+     * Result of creating a processor chain.
+     * Contains the list of processors and a reference to the LoudnessNormalizer if created.
+     */
+    data class ProcessorChainResult(
+        val processors: List<AudioProcessor>,
+        val loudnessNormalizer: LoudnessNormalizer? = null
+    )
+
+    /**
      * Creates a chain of AudioProcessors based on the provided settings.
      *
      * Processor order (important for quality):
@@ -37,10 +46,11 @@ object AudioProcessorFactory {
      * 5. AutoVolumeLeveler (if enabled) - maintains consistent volume
      *
      * @param settings Audio processing settings
-     * @return List of AudioProcessors to apply, or empty list if none enabled
+     * @return Result containing list of AudioProcessors and optional LoudnessNormalizer
      */
-    fun createProcessorChain(settings: AudioProcessingSettings): List<AudioProcessor> {
+    fun createProcessorChain(settings: AudioProcessingSettings): ProcessorChainResult {
         val processors = mutableListOf<AudioProcessor>()
+        var loudnessNormalizer: LoudnessNormalizer? = null
 
         try {
             // 1. Loudness Normalization (applied first for baseline volume)
@@ -48,6 +58,7 @@ object AudioProcessorFactory {
                 try {
                     val normalizer = LoudnessNormalizer(settings)
                     processors.add(normalizer)
+                    loudnessNormalizer = normalizer
                     android.util.Log.d("AudioProcessorFactory", "Added LoudnessNormalizer to chain")
                 } catch (e: Exception) {
                     android.util.Log.e("AudioProcessorFactory", "Failed to create LoudnessNormalizer", e)
@@ -104,6 +115,25 @@ object AudioProcessorFactory {
                 }
             }
 
+            // 6. Skip Silence (applied at the very end to remove silent parts)
+            if (settings.skipSilence) {
+                try {
+                    val silenceSkippingProcessor =
+                        androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor(
+                            2_000_000, // minimumSilenceDurationUs: 2 seconds (standard)
+                            20_000, // paddingSilenceUs: 20ms (smooth transitions)
+                            256.toShort(), // silenceThresholdLevel (standard)
+                        )
+                    // Enable the processor immediately
+                    silenceSkippingProcessor.setEnabled(true)
+                    processors.add(silenceSkippingProcessor)
+
+                    android.util.Log.d("AudioProcessorFactory", "Added SilenceSkippingAudioProcessor to chain")
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioProcessorFactory", "Failed to create SilenceSkippingAudioProcessor", e)
+                }
+            }
+
             android.util.Log.i(
                 "AudioProcessorFactory",
                 "Created processor chain with ${processors.size} processors: " +
@@ -113,7 +143,7 @@ object AudioProcessorFactory {
             android.util.Log.e("AudioProcessorFactory", "Error creating processor chain", e)
         }
 
-        return processors
+        return ProcessorChainResult(processors, loudnessNormalizer)
     }
 }
 
@@ -129,6 +159,7 @@ data class AudioProcessingSettings(
     val drcLevel: DRCLevel = DRCLevel.Off,
     val speechEnhancer: Boolean = false,
     val autoVolumeLeveling: Boolean = false,
+    val skipSilence: Boolean = false,
 ) {
     companion object {
         /**
@@ -141,6 +172,7 @@ data class AudioProcessingSettings(
                 drcLevel = DRCLevel.Off,
                 speechEnhancer = false,
                 autoVolumeLeveling = false,
+                skipSilence = false,
             )
     }
 }

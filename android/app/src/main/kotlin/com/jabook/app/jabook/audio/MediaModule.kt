@@ -198,24 +198,28 @@ object MediaModule {
         android.util.Log.d("MediaModule", "Creating ExoPlayer with AudioProcessors...")
 
         // Create processor chain
-        val processors =
+        val chainResult =
             com.jabook.app.jabook.audio.processors.AudioProcessorFactory
                 .createProcessorChain(settings)
+        val processors = chainResult.processors
 
         val player =
             try {
-                // Create RenderersFactory
-                // Note: AudioProcessors support in Media3 1.8.0 may require a different approach
-                // For now, we'll create the player without processors and log a warning
-                val renderersFactory: RenderersFactory = DefaultRenderersFactory(context)
-
-                if (processors.isNotEmpty()) {
-                    android.util.Log.w(
-                        "MediaModule",
-                        "AudioProcessors requested but may not be fully supported in Media3 1.8.0. " +
-                            "Processors: ${processors.size}. Consider upgrading Media3 version.",
-                    )
-                }
+                // Create RenderersFactory with custom AudioSink that supports processors
+                val renderersFactory =
+                    object : DefaultRenderersFactory(context) {
+                        override fun buildAudioSink(
+                            context: Context,
+                            enableFloatOutput: Boolean,
+                            enableAudioOffload: Boolean,
+                        ): androidx.media3.exoplayer.audio.AudioSink {
+                            return androidx.media3.exoplayer.audio.DefaultAudioSink
+                                .Builder()
+                                .setAudioProcessors(processors.toTypedArray())
+                                .setEnableFloatOutput(enableFloatOutput)
+                                .build()
+                        }
+                    }
 
                 val builder =
                     ExoPlayer
@@ -233,7 +237,7 @@ object MediaModule {
                         )
 
                 if (processors.isNotEmpty()) {
-                    android.util.Log.d("MediaModule", "Added ${processors.size} AudioProcessors to ExoPlayer")
+                    android.util.Log.d("MediaModule", "Attach ${processors.size} AudioProcessors to ExoPlayer via custom RenderersFactory")
                 }
 
                 builder.build()

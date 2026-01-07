@@ -20,8 +20,11 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.common.Metadata
+import androidx.media3.container.MdtaMetadataEntry
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.ErrorHandler
+import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import kotlinx.coroutines.CompletableDeferred
 import java.io.File
 
@@ -63,6 +66,12 @@ internal class PlayerListener(
     private var retryCount = 0
     private val maxRetries = 3
     private val retryDelayMs = 2000L // 2 seconds
+
+    /**
+     * Active LoudnessNormalizer for ReplayGain application.
+     * Injected by PlayerConfigurator when processor chain is created.
+     */
+    var loudnessNormalizer: LoudnessNormalizer? = null
 
     // CRITICAL: Deferred for waiting on track switch events
     // This allows PlaylistManager to wait for onMediaItemTransition instead of polling
@@ -549,11 +558,62 @@ internal class PlayerListener(
         }
     }
 
-    // Keep individual listeners for backward compatibility and specific handling
-    override fun onPlaybackStateChanged(playbackState: Int) {
-        // This is also handled in onEvents, but kept for explicit handling
-        getNotificationManager()?.updateNotification()
+    /**
+     * Handles metadata updates to extract ReplayGain info.
+     */
+    override fun onMetadata(metadata: Metadata) {
+        val normalizer = loudnessNormalizer ?: return
+        
+        for (i in 0 until metadata.length()) {
+            val entry = metadata.get(i)
+            // Handle ID3 TXXX frames (UserDefinedTextInformationFrame)
+            // Note: Media3 may map these to different classes depending on implementation
+            // Using reflection or string checking if direct class access is difficult
+            
+            // Check for ReplayGain tags
+            // Common keys: REPLAYGAIN_TRACK_GAIN, R128_TRACK_GAIN
+            
+            try {
+                // Check for TextInformationFrame or similar
+                // Since Media3 implementation details vary, we check toString representation or specific fields if accessible
+                // Common ID3v2: TXXX frame with description "REPLAYGAIN_TRACK_GAIN"
+                
+                // Optimized: Check simple string representation first to avoid heavy reflection
+                val entryString = entry.toString()
+                
+                if (entryString.contains("REPLAYGAIN_TRACK_GAIN", ignoreCase = true)) {
+                    // Extract value, e.g., "-5.2 dB"
+                    parseAndSetReplayGain(entry, normalizer)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerService", "Error processing metadata entry", e)
+            }
+        }
     }
+
+    private fun parseAndSetReplayGain(entry: Metadata.Entry, normalizer: LoudnessNormalizer) {
+        try {
+            // Retrieve value from entry
+            // This depends on the exact class, but usually it's in a 'value' or 'values' field
+            // For now, let's try to parse the string representation which usually contains the value
+            // Example: "TXXX: description=REPLAYGAIN_TRACK_GAIN, value=-5.20 dB"
+            
+            val text = entry.toString()
+            val valueMatch = Regex("value=([\\-\\+\\d\\.]+)\\s*dB?", RegexOption.IGNORE_CASE).find(text)
+            
+            if (valueMatch != null) {
+                val dbString = valueMatch.groupValues[1]
+                val db = dbString.toFloatOrNull()
+                if (db != null) {
+                    android.util.Log.i("AudioPlayerService", "Found ReplayGain: ${db}dB")
+                    normalizer.setReplayGain(db)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("AudioPlayerService", "Failed to parse ReplayGain: ${e.message}")
+        }
+    }
+
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         // This is also handled in onEvents, but kept for explicit handling

@@ -19,6 +19,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
+import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -43,6 +44,12 @@ internal class PlayerConfigurator(
      * Custom ExoPlayer instance with AudioProcessors.
      */
     var customExoPlayer: ExoPlayer? = null
+        private set
+
+    /**
+     * Active LoudnessNormalizer instance (if available).
+     */
+    var loudnessNormalizer: LoudnessNormalizer? = null
         private set
 
     /**
@@ -174,7 +181,9 @@ internal class PlayerConfigurator(
             audioProcessingSettings = settings
 
             // Create processor chain
-            val processors = AudioProcessorFactory.createProcessorChain(settings)
+            val chainResult = AudioProcessorFactory.createProcessorChain(settings)
+            val processors = chainResult.processors
+            loudnessNormalizer = chainResult.loudnessNormalizer
 
             android.util.Log.d(
                 "AudioPlayerService",
@@ -184,7 +193,8 @@ internal class PlayerConfigurator(
                     "drc=${settings.drcLevel}, " +
                     "speechEnhancer=${settings.speechEnhancer}, " +
                     "autoLeveling=${settings.autoVolumeLeveling}, " +
-                    "processors=${processors.size}",
+                    "processors=${processors.size}, " +
+                    "hasNormalizer=${loudnessNormalizer != null}",
             )
 
             // Save current playback state before recreating player
@@ -229,7 +239,10 @@ internal class PlayerConfigurator(
                 customExoPlayer = MediaModule.createExoPlayerWithProcessors(service, settings)
 
                 // Copy listener from singleton player (using instance from this class)
-                playerListener?.let { customExoPlayer?.addListener(it) }
+                playerListener?.let { 
+                    it.loudnessNormalizer = loudnessNormalizer // Update listener with new normalizer
+                    customExoPlayer?.addListener(it) 
+                }
 
                 android.util.Log.i(
                     "AudioPlayerService",
