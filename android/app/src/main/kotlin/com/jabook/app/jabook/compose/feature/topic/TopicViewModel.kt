@@ -106,6 +106,7 @@ class TopicViewModel
 
         private val loadedComments = mutableListOf<com.jabook.app.jabook.compose.domain.model.RutrackerComment>()
         private var currentLoadedPage = 1
+        private var nextPageToLoad: Int? = null // For reverse pagination: tracks next page to load (descending)
 
         init {
             loadTopicDetails()
@@ -117,68 +118,112 @@ class TopicViewModel
                 // Reset pagination state on initial load
                 loadedComments.clear()
                 currentLoadedPage = 1
+                nextPageToLoad = null
 
+                // Fetch page 1 to get metadata (title, torrent info, total pages)
                 val result = rutrackerRepository.getTopicDetails(topicId)
 
-                _uiState.value =
-                    when (result) {
-                        is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
-                            // Preload avatars for comments (offline support)
-                            avatarPreloader.preloadAvatars(context, result.data.comments)
+                when (result) {
+                    is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                        val details = result.data
+                        val totalPages = details.totalPages
 
-                            // Initialize all comments with reversed order (newest first)
-                            val reversedComments = result.data.comments.reversed()
+                        // If multiple pages, fetch the LAST page first (newest comments)
+                        if (totalPages > 1) {
+                            val lastPageResult = rutrackerRepository.getTopicDetailsPage(topicId, totalPages)
+                            when (lastPageResult) {
+                                is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                                    // Preload avatars for last page comments
+                                    avatarPreloader.preloadAvatars(context, lastPageResult.data.comments)
+
+                                    // Add comments from last page (already newest to oldest on that page)
+                                    loadedComments.addAll(lastPageResult.data.comments)
+                                    currentLoadedPage = totalPages
+                                    nextPageToLoad = totalPages - 1 // Next page to load is N-1
+
+                                    _uiState.value =
+                                        TopicUiState.Success(
+                                            details.copy(
+                                                comments = loadedComments.toList(),
+                                                currentPage = totalPages,
+                                            ),
+                                        )
+                                }
+                                is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
+                                    // Fallback to page 1 if last page fails
+                                    avatarPreloader.preloadAvatars(context, details.comments)
+                                    val reversedComments = details.comments.reversed()
+                                    loadedComments.addAll(reversedComments)
+                                    _uiState.value =
+                                        TopicUiState.Success(
+                                            details.copy(comments = reversedComments),
+                                        )
+                                }
+                                is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
+                                    // Should not happen
+                                }
+                            }
+                        } else {
+                            // Single page: just reverse and show
+                            avatarPreloader.preloadAvatars(context, details.comments)
+                            val reversedComments = details.comments.reversed()
                             loadedComments.addAll(reversedComments)
+                            currentLoadedPage = 1
+                            nextPageToLoad = null
 
-                            TopicUiState.Success(
-                                result.data.copy(
-                                    comments = reversedComments,
-                                ),
-                            )
-                        }
-                        is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
-                            TopicUiState.Error(result.message ?: context.getString(R.string.unknownError))
-                        }
-                        is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
-                            TopicUiState.Loading
+                            _uiState.value =
+                                TopicUiState.Success(
+                                    details.copy(comments = reversedComments),
+                                )
                         }
                     }
+                    is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
+                        _uiState.value = TopicUiState.Error(result.message ?: context.getString(R.string.unknownError))
+                    }
+                    is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
+                        _uiState.value = TopicUiState.Loading
+                    }
+                }
             }
         }
 
         /**
-         * Load more comments from the next page.
+         * Load more comments from the next page (reverse pagination: N-1, N-2, ..., 1).
          */
         fun loadMoreComments() {
             val currentState = _uiState.value
             if (currentState !is TopicUiState.Success) return
 
             val details = currentState.details
-            if (currentLoadedPage >= details.totalPages) return // No more pages
+            val pageToLoad = nextPageToLoad ?: return // No more pages to load
+            if (pageToLoad < 1) return // Already loaded all pages
             if (_isLoadingMoreComments.value) return // Already loading
 
             viewModelScope.launch {
                 _isLoadingMoreComments.value = true
-                val nextPage = currentLoadedPage + 1
 
-                val result = rutrackerRepository.getTopicDetailsPage(topicId, nextPage)
+                val result = rutrackerRepository.getTopicDetailsPage(topicId, pageToLoad)
 
                 when (result) {
                     is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
                         // Preload avatars for new comments
                         avatarPreloader.preloadAvatars(context, result.data.comments)
 
-                        // Add new comments to the list (no reverse - these are older comments)
-                        // Page 1 has newest comments (reversed), page 2+ has progressively older comments
-                        loadedComments.addAll(result.data.comments)
-                        currentLoadedPage = nextPage
+                        // Add older comments to the end of the list
+                        // Comments on each page are oldest-to-newest naturally, so we reverse them
+                        // to maintain newest-to-oldest order in the combined list
+                        val reversedPageComments = result.data.comments.reversed()
+                        loadedComments.addAll(reversedPageComments)
+
+                        // Update pagination state
+                        nextPageToLoad = if (pageToLoad > 1) pageToLoad - 1 else null
 
                         // Update UI state with all comments
                         _uiState.value =
                             TopicUiState.Success(
                                 details.copy(
                                     comments = loadedComments.toList(),
-                                    currentPage = nextPage,
+                                    currentPage = currentLoadedPage, // Keep original page (last page)
                                 ),
                             )
                     }

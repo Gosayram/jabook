@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -114,6 +115,7 @@ fun TopicScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    var commentsExpanded by remember { mutableStateOf(false) }
 
     // Show messages
     LaunchedEffect(message) {
@@ -167,6 +169,20 @@ fun TopicScreen(
             )
         },
         modifier = modifier,
+        floatingActionButton = {
+            // Show FAB only when comments are expanded
+            if (commentsExpanded && uiState is TopicUiState.Success) {
+                androidx.compose.material3.SmallFloatingActionButton(
+                    onClick = { commentsExpanded = false },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowUpward,
+                        contentDescription = stringResource(R.string.collapse),
+                    )
+                }
+            }
+        },
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { snackbarData ->
                 Snackbar(snackbarData = snackbarData)
@@ -190,6 +206,8 @@ fun TopicScreen(
                     isRefreshing = isRefreshing,
                     onRefresh = { viewModel.refreshTopicDetails(silent = true) },
                     onNavigateToTopic = onNavigateToTopic,
+                    commentsExpanded = commentsExpanded,
+                    onCommentsExpandedChange = { commentsExpanded = it },
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -219,6 +237,8 @@ private fun TopicDetailsContent(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onNavigateToTopic: (String) -> Unit,
+    commentsExpanded: Boolean,
+    onCommentsExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -495,6 +515,8 @@ private fun TopicDetailsContent(
                     isLoadingMore = viewModel.isLoadingMoreComments.collectAsStateWithLifecycle().value,
                     onLoadMore = { viewModel.loadMoreComments() },
                     onNavigateToTopic = onNavigateToTopic,
+                    commentsExpanded = commentsExpanded,
+                    onCommentsExpandedChange = onCommentsExpandedChange,
                 )
             }
         }
@@ -658,6 +680,8 @@ private fun DescriptionAndCommentsSection(
     isLoadingMore: Boolean = false,
     onLoadMore: (() -> Unit)? = null,
     onNavigateToTopic: (String) -> Unit = {},
+    commentsExpanded: Boolean,
+    onCommentsExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -695,6 +719,8 @@ private fun DescriptionAndCommentsSection(
                     totalPages = totalPages,
                     isLoadingMore = isLoadingMore,
                     onLoadMore = onLoadMore,
+                    expanded = commentsExpanded,
+                    onExpandedChange = onCommentsExpandedChange,
                 )
             }
         }
@@ -726,6 +752,8 @@ private fun DescriptionAndCommentsSection(
                     totalPages = totalPages,
                     isLoadingMore = isLoadingMore,
                     onLoadMore = onLoadMore,
+                    expanded = commentsExpanded,
+                    onExpandedChange = onCommentsExpandedChange,
                 )
             }
         }
@@ -850,7 +878,7 @@ private fun FileListItem(
 }
 
 /**
- * Expandable comments section.
+ * Expandable comments section with infinite scroll.
  */
 @Composable
 private fun ExpandableComments(
@@ -862,14 +890,24 @@ private fun ExpandableComments(
     totalPages: Int = 1,
     isLoadingMore: Boolean = false,
     onLoadMore: (() -> Unit)? = null,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
     // Refresh when expanded
     LaunchedEffect(expanded) {
         if (expanded) {
             onRefresh()
+        }
+    }
+
+    // LazyListState for tracking scroll position
+    val listState = rememberLazyListState()
+
+    // Auto-load more when scrolled near bottom
+    LaunchedEffect(listState.canScrollForward, listState.isScrollInProgress) {
+        if (!listState.canScrollForward && !listState.isScrollInProgress && !isLoadingMore && currentPage < totalPages) {
+            onLoadMore?.invoke()
         }
     }
 
@@ -901,7 +939,7 @@ private fun ExpandableComments(
             }
 
             TextButton(
-                onClick = { expanded = !expanded },
+                onClick = { onExpandedChange(!expanded) },
                 modifier = Modifier.padding(0.dp),
             ) {
                 Text(
@@ -913,58 +951,40 @@ private fun ExpandableComments(
 
         if (expanded) {
             Spacer(Modifier.height(8.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Show comments from newest to oldest (fresh comments first)
-                // Sorting is now handled in ViewModel
-                comments.forEach { comment ->
+            // Use LazyColumn for better performance with many comments
+            LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                // Comments (newest to oldest)
+                items(
+                    count = comments.size,
+                    key = { index -> comments[index].author + comments[index].date },
+                ) { index ->
                     CommentItem(
-                        comment = comment,
+                        comment = comments[index],
                         onNavigateToTopic = onNavigateToTopic,
                     )
                 }
 
-                // Load More button
-                if (currentPage < totalPages && onLoadMore != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = onLoadMore,
-                        enabled = !isLoadingMore,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        if (isLoadingMore) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.height(20.dp).width(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
-                            Spacer(Modifier.width(8.dp))
+                // Loading indicator at bottom
+                if (isLoadingMore || currentPage < totalPages) {
+                    item {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (isLoadingMore) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.height(24.dp).width(24.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            }
                         }
-                        Text(
-                            text = stringResource(R.string.loadMoreComments, totalPages - currentPage),
-                        )
-                    }
-                }
-
-                // Collapse button at the bottom for easy navigation
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    FilledTonalButton(
-                        onClick = { expanded = false },
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowUpward,
-                            contentDescription = null,
-                            modifier = Modifier.height(18.dp).width(18.dp),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.collapse),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
                     }
                 }
             }

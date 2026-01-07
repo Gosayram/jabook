@@ -34,6 +34,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -124,5 +126,164 @@ class TopicViewModelTest {
             verify(avatarPreloader).preloadAvatars(any(), any())
             // Verify specifically with the comments list
             verify(avatarPreloader).preloadAvatars(context, comments)
+        }
+
+    @Test
+    fun `loadTopicDetails with multiple pages loads last page first`() =
+        runTest {
+            // Given
+            val lastPageComments =
+                listOf(
+                    RutrackerComment("5", "user5", "2024-01-05", "newest comment", null, null),
+                    RutrackerComment("6", "user6", "2024-01-06", "newest comment 2", null, null),
+                )
+            val detailsLastPage =
+                RutrackerTopicDetails(
+                    topicId = "12345",
+                    title = "Test Topic",
+                    author = "Author",
+                    performer = null,
+                    category = "Audiobook",
+                    size = "100 MB",
+                    seeders = 10,
+                    leechers = 2,
+                    magnetUrl = "magnet:?xt=urn:btih:123",
+                    torrentUrl = "http://torrent",
+                    coverUrl = null,
+                    genres = emptyList(),
+                    addedDate = "2023-01-01",
+                    duration = null,
+                    bitrate = null,
+                    audioCodec = null,
+                    description = null,
+                    relatedBooks = emptyList(),
+                    comments = lastPageComments,
+                    currentPage = 3,
+                    totalPages = 3,
+                )
+            whenever(rutrackerRepository.getTopicDetailsPage("12345", 3)).thenReturn(Result.Success(detailsLastPage))
+
+            // When
+            viewModel =
+                TopicViewModel(
+                    rutrackerRepository,
+                    authRepository,
+                    torrentManager,
+                    rutrackerApi,
+                    mirrorManager,
+                    withAuthorisedCheckUseCase,
+                    avatarPreloader,
+                    context,
+                    savedStateHandle,
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            val state = viewModel.uiState.value as? TopicUiState.Success
+            assertTrue(state != null)
+
+            // Comments should be in reverse order (newest first)
+            assertEquals(2, state!!.details.comments.size)
+            assertEquals("6", state.details.comments[0].id) // newest first
+            assertEquals("5", state.details.comments[1].id)
+        }
+
+    @Test
+    fun `loadMoreComments loads previous page in reverse order`() =
+        runTest {
+            // Given
+            val page3Comments =
+                listOf(
+                    RutrackerComment("5", "user5", "2024-01-05", "page3 comment1", null, null),
+                    RutrackerComment("6", "user6", "2024-01-06", "page3 comment2", null, null),
+                )
+            val page2Comments =
+                listOf(
+                    RutrackerComment("3", "user3", "2024-01-03", "page2 comment1", null, null),
+                    RutrackerComment("4", "user4", "2024-01-04", "page2 comment2", null, null),
+                )
+
+            val detailsPage3 =
+                RutrackerTopicDetails(
+                    topicId = "12345",
+                    title = "Test Topic",
+                    author = "Author",
+                    performer = null,
+                    category = "Audiobook",
+                    size = "100 MB",
+                    seeders = 10,
+                    leechers = 2,
+                    magnetUrl = "magnet:?xt=urn:btih:123",
+                    torrentUrl = "http://torrent",
+                    coverUrl = null,
+                    genres = emptyList(),
+                    addedDate = "2023-01-01",
+                    duration = null,
+                    bitrate = null,
+                    audioCodec = null,
+                    description = null,
+                    relatedBooks = emptyList(),
+                    comments = page3Comments,
+                    currentPage = 3,
+                    totalPages = 3,
+                )
+
+            val detailsPage2 =
+                RutrackerTopicDetails(
+                    topicId = "12345",
+                    title = "Test Topic",
+                    author = "Author",
+                    performer = null,
+                    category = "Audiobook",
+                    size = "100 MB",
+                    seeders = 10,
+                    leechers = 2,
+                    magnetUrl = "magnet:?xt=urn:btih:123",
+                    torrentUrl = "http://torrent",
+                    coverUrl = null,
+                    genres = emptyList(),
+                    addedDate = "2023-01-01",
+                    duration = null,
+                    bitrate = null,
+                    audioCodec = null,
+                    description = null,
+                    relatedBooks = emptyList(),
+                    comments = page2Comments,
+                    currentPage = 2,
+                    totalPages = 3,
+                )
+
+            whenever(rutrackerRepository.getTopicDetailsPage("12345", 3)).thenReturn(Result.Success(detailsPage3))
+            whenever(rutrackerRepository.getTopicDetailsPage("12345", 2)).thenReturn(Result.Success(detailsPage2))
+
+            // When
+            viewModel =
+                TopicViewModel(
+                    rutrackerRepository,
+                    authRepository,
+                    torrentManager,
+                    rutrackerApi,
+                    mirrorManager,
+                    withAuthorisedCheckUseCase,
+                    avatarPreloader,
+                    context,
+                    savedStateHandle,
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Load more (should fetch page 2)
+            viewModel.loadMoreComments()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            val state = viewModel.uiState.value as? TopicUiState.Success
+            assertTrue(state != null)
+
+            // Should have 4 comments total, ordered newest to oldest
+            assertEquals(4, state!!.details.comments.size)
+            assertEquals("6", state.details.comments[0].id) // newest (from page 3)
+            assertEquals("5", state.details.comments[1].id) // from page 3
+            assertEquals("4", state.details.comments[2].id) // from page 2
+            assertEquals("3", state.details.comments[3].id) // oldest (from page 2)
         }
 }
