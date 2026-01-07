@@ -125,6 +125,9 @@ class AudioPlayerService : MediaLibraryService() {
     // Sleep timer manager
     internal var sleepTimerManager: SleepTimerManager? = null
 
+    // Audio visualizer manager
+    internal var audioVisualizerManager: AudioVisualizerManager? = null
+
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null
 
@@ -447,6 +450,12 @@ class AudioPlayerService : MediaLibraryService() {
             }
             // Initialize CrossfadeHandler (requires playlistManager which is set in initializer)
             // Deferred initialization of handler to setListener/Initializer completion
+
+            // Initialize AudioVisualizerManager
+            android.util.Log.e("JABOOK_SERVICE", "Initializing AudioVisualizerManager...")
+            audioVisualizerManager = AudioVisualizerManager(this)
+            // Visualizer will be enabled when playback starts (requires audio session)
+            android.util.Log.e("JABOOK_SERVICE", "[OK] AudioVisualizerManager initialized")
 
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
@@ -806,6 +815,35 @@ class AudioPlayerService : MediaLibraryService() {
      * Checks if sleep timer is set to end of chapter.
      */
     fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
+
+    /**
+     * Gets the audio session ID from ExoPlayer.
+     * Required for audio visualizer to capture audio data.
+     */
+    fun getAudioSessionId(): Int = exoPlayer.audioSessionId
+
+    /**
+     * Gets the audio visualizer waveform data as a StateFlow.
+     */
+    fun getVisualizerWaveformData(): kotlinx.coroutines.flow.StateFlow<FloatArray>? = audioVisualizerManager?.waveformData
+
+    /**
+     * Initializes the audio visualizer with the current audio session.
+     * Should be called when playback starts.
+     */
+    fun initializeVisualizer() {
+        val sessionId = exoPlayer.audioSessionId
+        if (sessionId != 0) {
+            audioVisualizerManager?.initialize(sessionId)
+        }
+    }
+
+    /**
+     * Enables or disables the audio visualizer.
+     */
+    fun setVisualizerEnabled(enabled: Boolean) {
+        audioVisualizerManager?.setEnabled(enabled)
+    }
 
     fun next() {
         // Reset book completion flag on manual track switch
@@ -1371,6 +1409,10 @@ class AudioPlayerService : MediaLibraryService() {
 
         // Release PlaybackEnhancerService resources
         playbackEnhancerService.release()
+
+        // Release audio visualizer
+        audioVisualizerManager?.release()
+        audioVisualizerManager = null
 
         // Stop listening for phone calls
         phoneCallListener?.stopListening()
