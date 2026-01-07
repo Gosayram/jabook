@@ -1178,7 +1178,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsSection(
+internal fun SettingsSection(
     title: String,
     contentPadding: androidx.compose.ui.unit.Dp,
     itemSpacing: androidx.compose.ui.unit.Dp,
@@ -1196,7 +1196,7 @@ private fun SettingsSection(
 }
 
 @Composable
-private fun SettingsItem(
+internal fun SettingsItem(
     title: String,
     subtitle: String? = null,
     modifier: Modifier = Modifier,
@@ -1235,7 +1235,7 @@ private fun SettingsItem(
 }
 
 @Composable
-private fun SettingsSwitchItem(
+internal fun SettingsSwitchItem(
     title: String,
     subtitle: String? = null,
     checked: Boolean,
@@ -1280,7 +1280,7 @@ private fun SettingsSwitchItem(
 }
 
 @Composable
-private fun SettingsSliderItem(
+internal fun SettingsSliderItem(
     title: String,
     subtitle: String? = null,
     sliderValue: Float,

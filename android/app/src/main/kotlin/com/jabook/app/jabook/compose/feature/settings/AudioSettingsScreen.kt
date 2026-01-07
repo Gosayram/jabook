@@ -163,8 +163,8 @@ fun AudioSettingsScreen(
 
             // Volume Normalization
             SettingsSwitchItem(
-                title = stringResource(R.string.normalize_volume_title),
-                subtitle = stringResource(R.string.normalize_volume_desc),
+                title = stringResource(R.string.normalizeVolumeTitle),
+                subtitle = stringResource(R.string.normalizeVolumeDescription),
                 checked = protoSettings.normalizeVolume,
                 onCheckedChange = { viewModel.updateAudioSettings(normalizeVolume = it) },
                 contentPadding = contentPadding,
@@ -174,7 +174,7 @@ fun AudioSettingsScreen(
 
             HorizontalDivider()
             SettingsSection(
-                title = stringResource(R.string.audio_enhancement_title),
+                title = stringResource(R.string.audioEnhancementTitle),
                 contentPadding = contentPadding,
                 itemSpacing = itemSpacing,
             )
