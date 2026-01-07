@@ -19,7 +19,9 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,8 +34,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -41,7 +43,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,10 +55,12 @@ import com.jabook.app.jabook.R
 @Composable
 fun PermissionScreen(
     onPermissionsGranted: () -> Unit,
+    onSkip: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
     viewModel: PermissionViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Refresh permissions on resume (e.g. returning from Settings)
@@ -80,18 +83,27 @@ fun PermissionScreen(
         }
     }
 
-    // We only block for Storage permission. Notification is optional (but good to ask).
-    // If we have storage, we proceed. Notification can be asked inside the app or here non-blockingly?
-    // For now, let's treat Storage as the blocker.
+    val manageStorageLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult(),
+        ) {
+            viewModel.checkPermissions()
+        }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-    ) { padding ->
+    val requestLegacyStorageLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestMultiplePermissions(),
+        ) {
+            viewModel.checkPermissions()
+        }
+
+    Box(
+        modifier = modifier.fillMaxSize(),
+    ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -99,7 +111,7 @@ fun PermissionScreen(
             Icon(
                 imageVector = Icons.Default.Folder,
                 contentDescription = null,
-                modifier = Modifier.size(64.dp),
+                modifier = Modifier.size(80.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
 
@@ -107,7 +119,8 @@ fun PermissionScreen(
 
             Text(
                 text = stringResource(R.string.storageAccessRequired),
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                 textAlign = TextAlign.Center,
             )
 
@@ -117,23 +130,10 @@ fun PermissionScreen(
                 text = stringResource(R.string.jabookNeedsAccessToYourFilesToDownloadBooksManageT),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            val manageStorageLauncher =
-                rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.StartActivityForResult(),
-                ) {
-                    viewModel.checkPermissions()
-                }
-
-            val requestLegacyStorageLauncher =
-                rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.RequestMultiplePermissions(),
-                ) {
-                    viewModel.checkPermissions()
-                }
+            Spacer(modifier = Modifier.height(48.dp))
 
             // Button to grant storage
             Button(
@@ -149,7 +149,10 @@ fun PermissionScreen(
                         )
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
             ) {
                 Text(stringResource(R.string.grantStorageAccess))
             }
@@ -161,9 +164,45 @@ fun PermissionScreen(
                     // Fallback to app settings
                     manageStorageLauncher.launch(viewModel.getAppSettingsIntent())
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
             ) {
                 Text(stringResource(R.string.openSettingsButton))
+            }
+        }
+
+        // Top/Bottom Navigation Buttons (Back & Skip)
+        if (onBack != null || onSkip != null) {
+            Row(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (onBack != null) {
+                    TextButton(onClick = onBack) {
+                        Text(
+                            text = stringResource(R.string.onboardingBack),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.size(1.dp))
+                }
+
+                if (onSkip != null) {
+                    TextButton(onClick = onSkip) {
+                        Text(
+                            text = stringResource(R.string.onboardingSkip),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
             }
         }
     }

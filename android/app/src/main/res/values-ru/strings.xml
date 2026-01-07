@@ -2566,4 +2566,22 @@
     <string name="login_description_placeholder">Войдите, чтобы получить доступ к библиотеке</string>
     <!-- Разделительный текст 'или' -->
     <string name="or">Или</string>
+
+    <!-- Onboarding -->
+    <string name="onboardingWelcomeTitle">Добро пожаловать в JaBook</string>
+    <string name="onboardingWelcomeSubtitle">Ваше премиальное убежище для аудиокниг с RuTracker. Наслаждайтесь качественным контентом с современными функциями.</string>
+    <string name="onboardingGetStarted">Начать</string>
+    <string name="onboardingNext">Далее</string>
+    <string name="onboardingBack">Назад</string>
+    <string name="onboardingSkip">Пропустить</string>
+    <string name="onboardingFinish">Готово</string>
+    <string name="onboardingFeatureDiscoveryTitle">Бесконечные открытия</string>
+    <string name="onboardingFeatureDiscoveryDesc">Доступ к тысячам аудиокниг напрямую с RuTracker. Ищите, открывайте и скачивайте с легкостью.</string>
+    <string name="onboardingFeatureThemesTitle">Динамические темы</string>
+    <string name="onboardingFeatureThemesDesc">Плеер адаптирует свои цвета под обложку текущей книги для полного погружения.</string>
+    <string name="onboardingFeatureAdvancedTitle">Продвинутые функции</string>
+    <string name="onboardingFeatureAdvancedDesc">Наслаждайтесь бесшовным воспроизведением, пропуском тишины и точным контролем скорости.</string>
+    <string name="onboardingPermissionsTitle">Будьте на связи и сохраняйте</string>
+    <string name="onboardingPermissionsDesc">Нам нужен доступ к хранилищу для сохранения книг и к уведомлениям для управления плеером.</string>
+    <string name="onboardingGrantAccess">Предоставить доступ</string>
 </resources>

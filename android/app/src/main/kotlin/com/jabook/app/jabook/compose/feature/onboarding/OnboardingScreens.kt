@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.onboarding
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -25,29 +25,40 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.feature.permissions.PermissionScreen
+import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
 
 /**
  * Main entry point for the onboarding flow.
@@ -56,9 +67,7 @@ import com.jabook.app.jabook.compose.feature.permissions.PermissionScreen
 fun OnboardingScreen(
     onFinish: () -> Unit,
     isBeta: Boolean = false,
-    viewModel: OnboardingViewModel =
-        androidx.hilt.lifecycle.viewmodel.compose
-            .hiltViewModel(),
+    viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -68,11 +77,15 @@ fun OnboardingScreen(
         }
     }
 
-    Surface(
-        color = MaterialTheme.colorScheme.background,
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        Crossfade(targetState = uiState.currentStep, label = "OnboardingTransition") { step ->
+    androidx.compose.animation.Crossfade(
+        targetState = uiState.currentStep,
+        label = "OnboardingStepTransition",
+        animationSpec = tween(700),
+    ) { step ->
+        Surface(
+            color = MaterialTheme.colorScheme.background,
+            modifier = Modifier.fillMaxSize(),
+        ) {
             when (step) {
                 OnboardingStep.WELCOME ->
                     WelcomeStep(
@@ -100,54 +113,83 @@ private fun WelcomeStep(
     isBeta: Boolean,
     onNext: () -> Unit,
 ) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        val imageRes = if (isBeta) R.drawable.onboarding_welcome_beta else R.drawable.onboarding_welcome_prod
+    val imageRes = if (isBeta) R.drawable.onboarding_welcome_beta else R.drawable.onboarding_welcome_prod
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Background Image
         Image(
             painter = painterResource(id = imageRes),
             contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
+
+        // Gradient Overlay for readability
+        Box(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .height(300.dp),
-            contentScale = ContentScale.Fit,
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.5f),
+                                    Color.Black.copy(alpha = 0.8f),
+                                ),
+                        ),
+                    ),
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Text(
-            text = stringResource(R.string.onboardingWelcomeTitle),
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = stringResource(R.string.onboardingWelcomeSubtitle),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(modifier = Modifier.height(64.dp))
-
-        Button(
-            onClick = onNext,
+        // Content
+        Column(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .navigationBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(stringResource(R.string.onboardingGetStarted))
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text(
+                text = stringResource(R.string.onboardingWelcomeTitle),
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = stringResource(R.string.onboardingWelcomeSubtitle),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            Button(
+                onClick = onNext,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+            ) {
+                Text(
+                    text = stringResource(R.string.onboardingGetStarted),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -160,57 +202,85 @@ private fun FeaturesStep(
 ) {
     val pagerState = rememberPagerState(pageCount = { 3 })
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(
             state = pagerState,
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+            modifier = Modifier.fillMaxSize(),
         ) { page ->
-            FeaturePage(page, isBeta)
+            FeaturePage(page, isBeta, pagerState.currentPageOffsetFraction, page == pagerState.currentPage)
         }
 
-        Row(
+        // Navigation and Indicators overlay
+        Column(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .navigationBarsPadding(),
+            verticalArrangement = Arrangement.Bottom,
         ) {
-            TextButton(onClick = onBack) {
-                Text(stringResource(R.string.onboardingBack))
-            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = onBack,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                ) {
+                    Text(stringResource(R.string.onboardingBack))
+                }
 
-            // Page indicators
-            Row {
-                repeat(3) { index ->
-                    val color =
-                        if (pagerState.currentPage == index) {
-                            MaterialTheme.colorScheme.primary
+                // Page indicators
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    repeat(3) { index ->
+                        val isSelected = pagerState.currentPage == index
+                        val width by animateDpAsState(
+                            targetValue = if (isSelected) 24.dp else 8.dp,
+                            label = "IndicatorWidth",
+                        )
+                        Box(
+                            modifier =
+                                Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .height(8.dp)
+                                    .width(width)
+                                    .background(
+                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                                        shape = CircleShape,
+                                    ),
+                        )
+                    }
+                }
+
+                val scope = rememberCoroutineScope()
+                Button(
+                    onClick = {
+                        if (pagerState.currentPage < 2) {
+                            scope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            }
                         } else {
-                            MaterialTheme.colorScheme.primaryContainer
+                            onNext()
                         }
-                    Box(
-                        modifier =
-                            Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(if (pagerState.currentPage == index) 12.dp else 8.dp)
-                                .padding(2.dp)
-                                .size(8.dp)
-                                .background(
-                                    color = color,
-                                    shape = androidx.compose.foundation.shape.CircleShape,
-                                ),
+                    },
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black,
+                        ),
+                ) {
+                    Text(
+                        if (pagerState.currentPage < 2) {
+                            stringResource(R.string.onboardingNext)
+                        } else {
+                            stringResource(R.string.onboardingFinish)
+                        },
                     )
                 }
-            }
-
-            Button(onClick = onNext) {
-                Text(stringResource(R.string.onboardingNext))
             }
         }
     }
@@ -220,63 +290,104 @@ private fun FeaturesStep(
 private fun FeaturePage(
     page: Int,
     isBeta: Boolean,
+    offset: Float,
+    isSelected: Boolean,
 ) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        val imageRes =
-            when (page) {
-                0 -> if (isBeta) R.drawable.onboarding_features_beta else R.drawable.onboarding_features_prod
-                1 -> if (isBeta) R.drawable.onboarding_welcome_beta else R.drawable.onboarding_welcome_prod
-                else -> if (isBeta) R.drawable.onboarding_features_beta else R.drawable.onboarding_features_prod
-            }
+    val imageRes =
+        when (page) {
+            0 -> if (isBeta) R.drawable.onboarding_features_beta else R.drawable.onboarding_features_prod
+            1 -> if (isBeta) R.drawable.onboarding_themes_beta else R.drawable.onboarding_themes_prod
+            else -> if (isBeta) R.drawable.onboarding_advanced_beta else R.drawable.onboarding_advanced_prod
+        }
 
-        val titleRes =
-            when (page) {
-                0 -> R.string.onboardingFeatureDiscoveryTitle
-                1 -> R.string.onboardingFeatureThemesTitle
-                else -> R.string.onboardingFeatureAdvancedTitle
-            }
+    val titleRes =
+        when (page) {
+            0 -> R.string.onboardingFeatureDiscoveryTitle
+            1 -> R.string.onboardingFeatureThemesTitle
+            else -> R.string.onboardingFeatureAdvancedTitle
+        }
 
-        val descRes =
-            when (page) {
-                0 -> R.string.onboardingFeatureDiscoveryDesc
-                1 -> R.string.onboardingFeatureThemesDesc
-                else -> R.string.onboardingFeatureAdvancedDesc
-            }
+    val descRes =
+        when (page) {
+            0 -> R.string.onboardingFeatureDiscoveryDesc
+            1 -> R.string.onboardingFeatureThemesDesc
+            else -> R.string.onboardingFeatureAdvancedDesc
+        }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Background with 3D-like parallax and tilt
         Image(
             painter = painterResource(id = imageRes),
             contentDescription = null,
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .height(250.dp),
-            contentScale = ContentScale.Fit,
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        // Parallax effect: shift background slightly
+                        translationX = -offset * size.width * 0.2f
+                        // 3D Tilt effect
+                        rotationY = offset * 10f
+                        scaleX = 1.1f
+                        scaleY = 1.1f
+                    },
+            contentScale = ContentScale.Crop,
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text(
-            text = stringResource(titleRes),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
+        // Gradient for readability
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.6f),
+                                    Color.Black.copy(alpha = 0.9f),
+                                ),
+                        ),
+                    ),
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Content
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
 
-        Text(
-            text = stringResource(descRes),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+            Text(
+                text = stringResource(titleRes),
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                modifier =
+                    Modifier.graphicsLayer {
+                        alpha = 1f - offset.absoluteValue.coerceIn(0f, 1f)
+                    },
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = stringResource(descRes),
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+                modifier =
+                    Modifier.graphicsLayer {
+                        alpha = 1f - offset.absoluteValue.coerceIn(0f, 1f)
+                        translationY = offset.absoluteValue * 50f
+                    },
+            )
+
+            Spacer(modifier = Modifier.height(120.dp))
+        }
     }
 }
 
@@ -285,28 +396,23 @@ private fun OnboardingPermissionStep(
     onNext: () -> Unit,
     onBack: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        Box(modifier = Modifier.weight(1f)) {
-            PermissionScreen(onPermissionsGranted = onNext)
-        }
-
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onBack) {
-                Text(stringResource(R.string.onboardingBack))
-            }
-
-            TextButton(onClick = onNext) {
-                Text(stringResource(R.string.onboardingSkip))
-            }
-        }
+    Box(modifier = Modifier.fillMaxSize()) {
+        PermissionScreen(
+            onPermissionsGranted = onNext,
+            onSkip = onNext,
+            onBack = onBack,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
+
+@Composable
+fun animateDpAsState(
+    targetValue: androidx.compose.ui.unit.Dp,
+    label: String,
+): State<androidx.compose.ui.unit.Dp> =
+    androidx.compose.animation.core.animateDpAsState(
+        targetValue = targetValue,
+        animationSpec = tween(300),
+        label = label,
+    )

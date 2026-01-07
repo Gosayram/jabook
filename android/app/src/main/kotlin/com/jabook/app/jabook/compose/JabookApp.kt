@@ -86,7 +86,7 @@ fun JabookApp(
     val onboardingCompleted =
         when (uiState) {
             is MainActivityUiState.Success -> (uiState as MainActivityUiState.Success).userData.onboardingCompleted
-            else -> true // Default to true while loading to avoid flickering
+            else -> false // Default to false during loading to avoid flickering
         }
 
     // If onboarding is not completed, we show it.
