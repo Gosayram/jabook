@@ -711,19 +711,39 @@ private fun PlayerContent(
                             .fillMaxWidth()
                             .padding(horizontal = if (isCompact) 4.dp else 0.dp),
                 ) {
-                    // Progress bar
-                    val progress =
-                        state.currentChapter?.let {
-                            val durationMs = it.duration.inWholeMilliseconds
-                            if (durationMs > 0) state.currentPosition.toFloat() / durationMs.toFloat() else 0f
-                        } ?: 0f
+                    // Progress bar with local state to prevent conflicts during dragging
+                    val durationMs = state.currentChapter?.duration?.inWholeMilliseconds ?: 0L
+                    val playerProgress =
+                        if (durationMs > 0) {
+                            state.currentPosition.toFloat() / durationMs.toFloat()
+                        } else {
+                            0f
+                        }
+
+                    // Local state for smooth slider interaction
+                    var isDragging by remember { mutableStateOf(false) }
+                    var sliderPosition by remember { mutableStateOf(playerProgress) }
+
+                    // Update slider position from player when not dragging
+                    LaunchedEffect(playerProgress) {
+                        if (!isDragging) {
+                            sliderPosition = playerProgress
+                        }
+                    }
 
                     SquigglySlider(
-                        value = progress,
+                        value = sliderPosition,
                         onValueChange = { newProgress ->
+                            isDragging = true
+                            sliderPosition = newProgress
+                        },
+                        onValueChangeFinished = {
+                            // Seek only when user finishes dragging
                             state.currentChapter?.let { chapter ->
-                                onSeek((newProgress * chapter.duration.inWholeMilliseconds.toFloat()).toLong())
+                                val seekPosition = (sliderPosition * chapter.duration.inWholeMilliseconds.toFloat()).toLong()
+                                onSeek(seekPosition)
                             }
+                            isDragging = false
                         },
                         isPlaying = state.isPlaying,
                         activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
@@ -1014,17 +1034,22 @@ private fun PlayerContent(
                                     modifier = Modifier.size(controlButtonIconSize).padding(end = 4.dp),
                                 )
                                 Text(
-                                    text = run {
-                                        val formattedSpeed = if (playbackSpeed % 1.0f == 0.0f) {
-                                            playbackSpeed.toInt().toString()
-                                        } else {
-                                            val locale = java.util.Locale.getDefault()
-                                            val isRussian = locale.language == "ru"
-                                            val symbols = java.text.DecimalFormatSymbols(if (isRussian) locale else java.util.Locale.US)
-                                            java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
-                                        }
-                                        "${formattedSpeed}x"
-                                    },
+                                    text =
+                                        run {
+                                            val formattedSpeed =
+                                                if (playbackSpeed % 1.0f == 0.0f) {
+                                                    playbackSpeed.toInt().toString()
+                                                } else {
+                                                    val locale = java.util.Locale.getDefault()
+                                                    val isRussian = locale.language == "ru"
+                                                    val symbols =
+                                                        java.text.DecimalFormatSymbols(
+                                                            if (isRussian) locale else java.util.Locale.US,
+                                                        )
+                                                    java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
+                                                }
+                                            "${formattedSpeed}x"
+                                        },
                                     fontSize = controlButtonTextSize,
                                 )
                             }
@@ -1033,18 +1058,37 @@ private fun PlayerContent(
                             FilledTonalButton(
                                 onClick = onChapterRepeatClick,
                                 modifier = Modifier.weight(1f).height(controlButtonHeight),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = when (chapterRepeatMode) {
-                                        ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
-                                        ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
-                                        ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
-                                    },
-                                ),
+                                colors =
+                                    ButtonDefaults.filledTonalButtonColors(
+                                        containerColor =
+                                            when (chapterRepeatMode) {
+                                                ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
+                                                ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
+                                                ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
+                                            },
+                                    ),
                             ) {
                                 when (chapterRepeatMode) {
-                                    ChapterRepeatMode.INFINITE -> Text("∞", fontSize = controlButtonTextSize, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                    ChapterRepeatMode.OFF -> Icon(Icons.Outlined.Repeat, stringResource(R.string.noRepeat), Modifier.size(controlButtonIconSize), MaterialTheme.colorScheme.onSurfaceVariant)
-                                    ChapterRepeatMode.ONCE -> Icon(Icons.Filled.RepeatOne, stringResource(R.string.repeatTrack), Modifier.size(controlButtonIconSize), MaterialTheme.colorScheme.onPrimaryContainer)
+                                    ChapterRepeatMode.INFINITE ->
+                                        Text(
+                                            "∞",
+                                            fontSize = controlButtonTextSize,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        )
+                                    ChapterRepeatMode.OFF ->
+                                        Icon(
+                                            Icons.Outlined.Repeat,
+                                            stringResource(R.string.noRepeat),
+                                            Modifier.size(controlButtonIconSize),
+                                            MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    ChapterRepeatMode.ONCE ->
+                                        Icon(
+                                            Icons.Filled.RepeatOne,
+                                            stringResource(R.string.repeatTrack),
+                                            Modifier.size(controlButtonIconSize),
+                                            MaterialTheme.colorScheme.onPrimaryContainer,
+                                        )
                                 }
                             }
                         }
@@ -1059,9 +1103,19 @@ private fun PlayerContent(
                                 onClick = onSleepTimerClick,
                                 modifier = Modifier.weight(1f).height(controlButtonHeight),
                             ) {
-                                Icon(Icons.Filled.Timer, stringResource(R.string.sleepTimer), Modifier.size(controlButtonIconSize))
+                                Icon(
+                                    Icons.Filled.Timer,
+                                    stringResource(R.string.sleepTimer),
+                                    Modifier.size(controlButtonIconSize),
+                                )
                                 if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
-                                    Text((sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime, fontSize = controlButtonTextSize)
+                                    val activeState =
+                                        sleepTimerState
+                                            as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active
+                                    Text(
+                                        activeState.formattedTime,
+                                        fontSize = controlButtonTextSize,
+                                    )
                                 }
                             }
 
@@ -1070,12 +1124,27 @@ private fun PlayerContent(
                                 FilledTonalButton(
                                     onClick = { showLyrics = !showLyrics },
                                     modifier = Modifier.weight(1f).height(controlButtonHeight),
-                                    colors = ButtonDefaults.filledTonalButtonColors(
-                                        containerColor = if (showLyrics) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                        contentColor = if (showLyrics) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    ),
+                                    colors =
+                                        ButtonDefaults.filledTonalButtonColors(
+                                            containerColor =
+                                                if (showLyrics) {
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.surfaceVariant
+                                                },
+                                            contentColor =
+                                                if (showLyrics) {
+                                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                        ),
                                 ) {
-                                    Icon(androidx.compose.material.icons.Icons.Filled.Description, stringResource(R.string.lyrics), Modifier.size(controlButtonIconSize))
+                                    Icon(
+                                        androidx.compose.material.icons.Icons.Filled.Description,
+                                        stringResource(R.string.lyrics),
+                                        Modifier.size(controlButtonIconSize),
+                                    )
                                 }
                             } else {
                                 // Empty spacer to balance the row when no lyrics
@@ -1100,17 +1169,19 @@ private fun PlayerContent(
                                 modifier = Modifier.size(controlButtonIconSize).padding(end = 8.dp),
                             )
                             Text(
-                                text = run {
-                                    val formattedSpeed = if (playbackSpeed % 1.0f == 0.0f) {
-                                        playbackSpeed.toInt().toString()
-                                    } else {
-                                        val locale = java.util.Locale.getDefault()
-                                        val isRussian = locale.language == "ru"
-                                        val symbols = java.text.DecimalFormatSymbols(if (isRussian) locale else java.util.Locale.US)
-                                        java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
-                                    }
-                                    "${formattedSpeed}x"
-                                },
+                                text =
+                                    run {
+                                        val formattedSpeed =
+                                            if (playbackSpeed % 1.0f == 0.0f) {
+                                                playbackSpeed.toInt().toString()
+                                            } else {
+                                                val locale = java.util.Locale.getDefault()
+                                                val isRussian = locale.language == "ru"
+                                                val symbols = java.text.DecimalFormatSymbols(if (isRussian) locale else java.util.Locale.US)
+                                                java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
+                                            }
+                                        "${formattedSpeed}x"
+                                    },
                                 fontSize = controlButtonTextSize,
                             )
                         }
@@ -1119,18 +1190,37 @@ private fun PlayerContent(
                         FilledTonalButton(
                             onClick = onChapterRepeatClick,
                             modifier = Modifier.weight(1f).height(controlButtonHeight),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = when (chapterRepeatMode) {
-                                    ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
-                                    ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
-                                    ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
-                                },
-                            ),
+                            colors =
+                                ButtonDefaults.filledTonalButtonColors(
+                                    containerColor =
+                                        when (chapterRepeatMode) {
+                                            ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
+                                            ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
+                                            ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
+                                        },
+                                ),
                         ) {
                             when (chapterRepeatMode) {
-                                ChapterRepeatMode.INFINITE -> Text("∞", fontSize = controlButtonTextSize, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                ChapterRepeatMode.OFF -> Icon(Icons.Outlined.Repeat, stringResource(R.string.noRepeat), Modifier.size(controlButtonIconSize), MaterialTheme.colorScheme.onSurfaceVariant)
-                                ChapterRepeatMode.ONCE -> Icon(Icons.Filled.RepeatOne, stringResource(R.string.repeatTrack), Modifier.size(controlButtonIconSize), MaterialTheme.colorScheme.onPrimaryContainer)
+                                ChapterRepeatMode.INFINITE ->
+                                    Text(
+                                        "∞",
+                                        fontSize = controlButtonTextSize,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                ChapterRepeatMode.OFF ->
+                                    Icon(
+                                        Icons.Outlined.Repeat,
+                                        stringResource(R.string.noRepeat),
+                                        Modifier.size(controlButtonIconSize),
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                ChapterRepeatMode.ONCE ->
+                                    Icon(
+                                        Icons.Filled.RepeatOne,
+                                        stringResource(R.string.repeatTrack),
+                                        Modifier.size(controlButtonIconSize),
+                                        MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
                             }
                         }
 
@@ -1139,9 +1229,19 @@ private fun PlayerContent(
                             onClick = onSleepTimerClick,
                             modifier = Modifier.weight(1f).height(controlButtonHeight),
                         ) {
-                            Icon(Icons.Filled.Timer, stringResource(R.string.sleepTimer), Modifier.size(controlButtonIconSize))
+                            Icon(
+                                Icons.Filled.Timer,
+                                stringResource(R.string.sleepTimer),
+                                Modifier.size(controlButtonIconSize),
+                            )
                             if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
-                                Text((sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime, fontSize = controlButtonTextSize)
+                                val activeState =
+                                    sleepTimerState
+                                        as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active
+                                Text(
+                                    activeState.formattedTime,
+                                    fontSize = controlButtonTextSize,
+                                )
                             }
                         }
 
@@ -1150,12 +1250,27 @@ private fun PlayerContent(
                             FilledTonalButton(
                                 onClick = { showLyrics = !showLyrics },
                                 modifier = Modifier.weight(1f).height(controlButtonHeight),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = if (showLyrics) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (showLyrics) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                ),
+                                colors =
+                                    ButtonDefaults.filledTonalButtonColors(
+                                        containerColor =
+                                            if (showLyrics) {
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.surfaceVariant
+                                            },
+                                        contentColor =
+                                            if (showLyrics) {
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
+                                    ),
                             ) {
-                                Icon(androidx.compose.material.icons.Icons.Filled.Description, stringResource(R.string.lyrics), Modifier.size(controlButtonIconSize))
+                                Icon(
+                                    androidx.compose.material.icons.Icons.Filled.Description,
+                                    stringResource(R.string.lyrics),
+                                    Modifier.size(controlButtonIconSize),
+                                )
                             }
                         }
                     }

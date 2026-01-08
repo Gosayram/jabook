@@ -191,10 +191,6 @@ class AudioPlayerController
                 startPositionUpdater()
             }
 
-            if (exoPlayer.isPlaying) {
-                startPositionUpdater()
-            }
-
             // Observe playback speed and pitch correction
             scope.launch {
                 kotlinx.coroutines.flow
@@ -263,9 +259,20 @@ class AudioPlayerController
             val service = AudioPlayerService.getInstance()
             if (service != null) {
                 // Check if we are already playing this book to avoid restarting
+                // CRITICAL: Use bookId (groupPath) as primary check since file paths may differ after sorting
+                val currentGroupPath = service.currentGroupPath
                 val currentPaths = service.currentFilePaths
-                if (currentPaths == filePaths && !isBookChanged) {
-                    android.util.Log.i("AudioPlayerController", "Book already loaded. Skipping setPlaylist to prevent restart.")
+                val isSameBook = bookId != null && bookId == currentGroupPath
+                val isSamePlaylist =
+                    currentPaths != null &&
+                        currentPaths.size == filePaths.size &&
+                        currentPaths == filePaths
+
+                if ((isSameBook || isSamePlaylist) && !isBookChanged) {
+                    android.util.Log.i(
+                        "AudioPlayerController",
+                        "Book already loaded (groupPath match: $isSameBook, paths match: $isSamePlaylist). Skipping setPlaylist.",
+                    )
 
                     // Handle seeking if needed (e.g. user clicked a specific chapter)
                     // Only seek if significantly different to allow resume logic to work
