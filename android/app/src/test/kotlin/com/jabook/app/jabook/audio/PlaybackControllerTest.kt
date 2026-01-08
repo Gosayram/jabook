@@ -68,7 +68,7 @@ class PlaybackControllerTest {
     fun setup() {
         // Set test dispatcher as Main dispatcher for coroutines
         Dispatchers.setMain(testDispatcher)
-        
+
         exoPlayer = mock()
         testScope = TestScope(testDispatcher)
 
