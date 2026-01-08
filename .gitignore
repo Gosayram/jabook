@@ -262,3 +262,6 @@ android/app/schemas/
 
 # Virtual environment
 scripts/.venv/
+
+# Base log
+space.log
