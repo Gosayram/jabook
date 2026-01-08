@@ -499,8 +499,8 @@ private fun PlayerContent(
                 .TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp)
         }
     val controlButtonSpacing = if (isCompact) 8.dp else 12.dp
-    // Increased cover size: 88% for compact, 92% for larger screens
-    val coverWidth = if (isCompact) 0.88f else 0.92f
+    // Optimized cover size: 70% for compact (phone optimization), 88% for larger screens
+    val coverWidth = if (isCompact) 0.70f else 0.88f
     val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
     // Increased spacing for better ergonomics
     val itemSpacing = if (isCompact) 16.dp else AdaptiveUtils.getItemSpacing(windowSizeClass)
@@ -552,17 +552,17 @@ private fun PlayerContent(
                         start = contentPadding,
                         end = contentPadding,
                         top = if (isCompact) 0.dp else 8.dp,
-                        bottom = if (isCompact) 80.dp else 112.dp,
+                        bottom = if (isCompact) 56.dp else 96.dp,
                     ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
-            // Author from metadata (above cover)
-            if (displayAuthor != null) {
+            // Author from metadata (above cover) - hidden on compact to save space
+            if (displayAuthor != null && !isCompact) {
                 item {
                     Text(
                         text = displayAuthor,
-                        style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier =
@@ -798,37 +798,38 @@ private fun PlayerContent(
                 }
             }
 
-            // Audio Visualizer
-            item {
-                val service =
-                    com.jabook.app.jabook.audio.AudioPlayerService
-                        .getInstance()
-                val waveformData by service
-                    ?.getVisualizerWaveformData()
-                    ?.collectAsStateWithLifecycle()
-                    ?: remember { androidx.compose.runtime.mutableStateOf(FloatArray(256)) }
+            // Audio Visualizer - hidden on compact screens to save space
+            if (!isCompact) {
+                item {
+                    val service =
+                        com.jabook.app.jabook.audio.AudioPlayerService
+                            .getInstance()
+                    val waveformData by service
+                        ?.getVisualizerWaveformData()
+                        ?.collectAsStateWithLifecycle()
+                        ?: remember { androidx.compose.runtime.mutableStateOf(FloatArray(256)) }
 
-                // Initialize visualizer when playing
-                LaunchedEffect(state.isPlaying) {
-                    if (state.isPlaying) {
-                        service?.initializeVisualizer()
+                    // Initialize visualizer when playing
+                    LaunchedEffect(state.isPlaying) {
+                        if (state.isPlaying) {
+                            service?.initializeVisualizer()
+                        }
                     }
-                }
 
-                AudioVisualizer(
-                    waveformData = waveformData,
-                    isPlaying = state.isPlaying,
-                    style = VisualizerStyle.CIRCULAR, // Upgraded to Circular Visualizer
-                    height = if (isCompact) 40.dp else 48.dp,
-                    primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                    secondaryColor =
-                        state.themeColors?.primaryColor?.copy(alpha = 0.5f)
-                            ?: MaterialTheme.colorScheme.secondary,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (isCompact) 8.dp else 0.dp),
-                )
+                    AudioVisualizer(
+                        waveformData = waveformData,
+                        isPlaying = state.isPlaying,
+                        style = VisualizerStyle.CIRCULAR, // Upgraded to Circular Visualizer
+                        height = 48.dp,
+                        primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                        secondaryColor =
+                            state.themeColors?.primaryColor?.copy(alpha = 0.5f)
+                                ?: MaterialTheme.colorScheme.secondary,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(),
+                    )
+                }
             }
 
             // Spacer before chapter button
@@ -989,151 +990,173 @@ private fun PlayerContent(
                 Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
             }
 
-            // Control Buttons Row (Speed, Repeat & Sleep Timer)
+            // Control Buttons - Split into 2 rows for compact screens
             item {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (isCompact) 4.dp else 0.dp),
-                    horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
-                ) {
-                    // Playback Speed Button
-                    FilledTonalButton(
-                        onClick = onSpeedClick,
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(controlButtonHeight),
+                if (isCompact) {
+                    // Compact: Two rows for better ergonomics
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Speed,
-                            contentDescription = stringResource(R.string.playbackSpeedTitle),
-                            modifier =
-                                Modifier
-                                    .size(controlButtonIconSize)
-                                    .padding(end = if (isCompact) 6.dp else 8.dp),
-                        )
-                        Text(
-                            text =
-                                run {
-                                    val formattedSpeed =
-                                        if (playbackSpeed % 1.0f == 0.0f) {
-                                            // Whole number - show without decimal
+                        // First row: Speed & Repeat
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
+                        ) {
+                            // Playback Speed Button
+                            FilledTonalButton(
+                                onClick = onSpeedClick,
+                                modifier = Modifier.weight(1f).height(controlButtonHeight),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Speed,
+                                    contentDescription = stringResource(R.string.playbackSpeedTitle),
+                                    modifier = Modifier.size(controlButtonIconSize).padding(end = 4.dp),
+                                )
+                                Text(
+                                    text = run {
+                                        val formattedSpeed = if (playbackSpeed % 1.0f == 0.0f) {
                                             playbackSpeed.toInt().toString()
                                         } else {
-                                            // Decimal - format with locale
                                             val locale = java.util.Locale.getDefault()
-                                            // skip-migration
                                             val isRussian = locale.language == "ru"
-                                            val symbols =
-                                                java.text.DecimalFormatSymbols(
-                                                    if (isRussian) locale else java.util.Locale.US,
-                                                )
-                                            val formatter = java.text.DecimalFormat("#.##", symbols)
-                                            formatter.format(playbackSpeed)
+                                            val symbols = java.text.DecimalFormatSymbols(if (isRussian) locale else java.util.Locale.US)
+                                            java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
                                         }
-                                    "${formattedSpeed}x"
-                                },
-                            fontSize = controlButtonTextSize,
-                        )
-                    }
+                                        "${formattedSpeed}x"
+                                    },
+                                    fontSize = controlButtonTextSize,
+                                )
+                            }
 
-                    // Chapter Repeat Button
-                    FilledTonalButton(
-                        onClick = onChapterRepeatClick,
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(controlButtonHeight),
-                        colors =
-                            ButtonDefaults.filledTonalButtonColors(
-                                containerColor =
-                                    when (chapterRepeatMode) {
+                            // Chapter Repeat Button
+                            FilledTonalButton(
+                                onClick = onChapterRepeatClick,
+                                modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = when (chapterRepeatMode) {
                                         ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
                                         ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
                                         ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
                                     },
-                            ),
-                    ) {
-                        when (chapterRepeatMode) {
-                            ChapterRepeatMode.INFINITE -> {
-                                // Show infinity symbol (∞) for infinite repeat mode
-                                Text(
-                                    text = "∞",
-                                    fontSize = controlButtonTextSize,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                )
+                                ),
+                            ) {
+                                when (chapterRepeatMode) {
+                                    ChapterRepeatMode.INFINITE -> Text("∞", fontSize = controlButtonTextSize, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    ChapterRepeatMode.OFF -> Icon(Icons.Outlined.Repeat, stringResource(R.string.noRepeat), Modifier.size(controlButtonIconSize), MaterialTheme.colorScheme.onSurfaceVariant)
+                                    ChapterRepeatMode.ONCE -> Icon(Icons.Filled.RepeatOne, stringResource(R.string.repeatTrack), Modifier.size(controlButtonIconSize), MaterialTheme.colorScheme.onPrimaryContainer)
+                                }
                             }
-                            ChapterRepeatMode.OFF -> {
-                                Icon(
-                                    imageVector = Icons.Outlined.Repeat,
-                                    contentDescription = stringResource(R.string.noRepeat),
-                                    modifier = Modifier.size(controlButtonIconSize),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                        }
+
+                        // Second row: Timer & Lyrics (if available)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
+                        ) {
+                            // Sleep Timer Button
+                            FilledTonalButton(
+                                onClick = onSleepTimerClick,
+                                modifier = Modifier.weight(1f).height(controlButtonHeight),
+                            ) {
+                                Icon(Icons.Filled.Timer, stringResource(R.string.sleepTimer), Modifier.size(controlButtonIconSize))
+                                if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
+                                    Text((sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime, fontSize = controlButtonTextSize)
+                                }
                             }
-                            ChapterRepeatMode.ONCE -> {
-                                Icon(
-                                    imageVector = Icons.Filled.RepeatOne,
-                                    contentDescription = stringResource(R.string.repeatTrack),
-                                    modifier = Modifier.size(controlButtonIconSize),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                )
+
+                            // Lyrics Toggle Button
+                            if (!state.lyrics.isNullOrEmpty()) {
+                                FilledTonalButton(
+                                    onClick = { showLyrics = !showLyrics },
+                                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = if (showLyrics) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                        contentColor = if (showLyrics) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    ),
+                                ) {
+                                    Icon(androidx.compose.material.icons.Icons.Filled.Description, stringResource(R.string.lyrics), Modifier.size(controlButtonIconSize))
+                                }
+                            } else {
+                                // Empty spacer to balance the row when no lyrics
+                                Spacer(modifier = Modifier.weight(1f))
                             }
                         }
                     }
-
-                    // Sleep Timer Button
-                    FilledTonalButton(
-                        onClick = onSleepTimerClick,
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .height(controlButtonHeight),
+                } else {
+                    // Larger screens: Single row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Timer,
-                            contentDescription = stringResource(R.string.sleepTimer),
-                            modifier = Modifier.size(controlButtonIconSize),
-                        )
-                        if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
+                        // Playback Speed Button
+                        FilledTonalButton(
+                            onClick = onSpeedClick,
+                            modifier = Modifier.weight(1f).height(controlButtonHeight),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Speed,
+                                contentDescription = stringResource(R.string.playbackSpeedTitle),
+                                modifier = Modifier.size(controlButtonIconSize).padding(end = 8.dp),
+                            )
                             Text(
-                                text = (sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime,
+                                text = run {
+                                    val formattedSpeed = if (playbackSpeed % 1.0f == 0.0f) {
+                                        playbackSpeed.toInt().toString()
+                                    } else {
+                                        val locale = java.util.Locale.getDefault()
+                                        val isRussian = locale.language == "ru"
+                                        val symbols = java.text.DecimalFormatSymbols(if (isRussian) locale else java.util.Locale.US)
+                                        java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
+                                    }
+                                    "${formattedSpeed}x"
+                                },
                                 fontSize = controlButtonTextSize,
                             )
                         }
-                    }
 
-                    // Lyrics Toggle Button (Show only if lyrics available)
-                    if (!state.lyrics.isNullOrEmpty()) {
+                        // Chapter Repeat Button
                         FilledTonalButton(
-                            onClick = { showLyrics = !showLyrics },
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .height(controlButtonHeight),
-                            colors =
-                                ButtonDefaults.filledTonalButtonColors(
-                                    containerColor =
-                                        if (showLyrics) {
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceVariant
-                                        },
-                                    contentColor =
-                                        if (showLyrics) {
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                ),
+                            onClick = onChapterRepeatClick,
+                            modifier = Modifier.weight(1f).height(controlButtonHeight),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = when (chapterRepeatMode) {
+                                    ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
+                                    ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
+                                    ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
+                                },
+                            ),
                         ) {
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Filled.Description,
-                                contentDescription = stringResource(R.string.lyrics),
-                                modifier = Modifier.size(controlButtonIconSize),
-                            )
+                            when (chapterRepeatMode) {
+                                ChapterRepeatMode.INFINITE -> Text("∞", fontSize = controlButtonTextSize, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                ChapterRepeatMode.OFF -> Icon(Icons.Outlined.Repeat, stringResource(R.string.noRepeat), Modifier.size(controlButtonIconSize), MaterialTheme.colorScheme.onSurfaceVariant)
+                                ChapterRepeatMode.ONCE -> Icon(Icons.Filled.RepeatOne, stringResource(R.string.repeatTrack), Modifier.size(controlButtonIconSize), MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                        }
+
+                        // Sleep Timer Button
+                        FilledTonalButton(
+                            onClick = onSleepTimerClick,
+                            modifier = Modifier.weight(1f).height(controlButtonHeight),
+                        ) {
+                            Icon(Icons.Filled.Timer, stringResource(R.string.sleepTimer), Modifier.size(controlButtonIconSize))
+                            if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
+                                Text((sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime, fontSize = controlButtonTextSize)
+                            }
+                        }
+
+                        // Lyrics Toggle Button
+                        if (!state.lyrics.isNullOrEmpty()) {
+                            FilledTonalButton(
+                                onClick = { showLyrics = !showLyrics },
+                                modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (showLyrics) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (showLyrics) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                            ) {
+                                Icon(androidx.compose.material.icons.Icons.Filled.Description, stringResource(R.string.lyrics), Modifier.size(controlButtonIconSize))
+                            }
                         }
                     }
                 }
