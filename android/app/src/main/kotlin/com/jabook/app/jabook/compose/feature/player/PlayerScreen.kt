@@ -61,7 +61,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
@@ -103,6 +102,7 @@ import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import com.jabook.app.jabook.compose.feature.player.SquigglySlider
 import com.jabook.app.jabook.compose.feature.player.lyrics.LyricsView
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
 import dagger.hilt.EntryPoint
@@ -719,13 +719,16 @@ private fun PlayerContent(
                             if (durationMs > 0) state.currentPosition.toFloat() / durationMs.toFloat() else 0f
                         } ?: 0f
 
-                    Slider(
+                    SquigglySlider(
                         value = progress,
                         onValueChange = { newProgress ->
                             state.currentChapter?.let { chapter ->
                                 onSeek((newProgress * chapter.duration.inWholeMilliseconds.toFloat()).toLong())
                             }
                         },
+                        isPlaying = state.isPlaying,
+                        activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -735,12 +738,6 @@ private fun PlayerContent(
                                     val total = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0)
                                     stateDescription = "$current of $total"
                                 },
-                        colors =
-                            SliderDefaults.colors(
-                                thumbColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                                activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
-                            ),
                     )
 
                     // Time labels
