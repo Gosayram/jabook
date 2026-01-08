@@ -283,6 +283,9 @@
     <string name="themeDescription">Select app theme</string>
     <!-- Label for dark mode -->
     <string name="darkMode">Dark mode</string>
+    <string name="themeAmoled">AMOLED / Pure Black</string>
+    <string name="vinylMode">Vinyl Mode</string>
+    <string name="lyrics">Lyrics</string>
     <!-- Label for high contrast -->
     <string name="highContrast">High contrast</string>
     <!-- Title for audio settings -->

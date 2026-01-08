@@ -113,9 +113,35 @@ private val ProdDarkColorScheme =
  * @param selectedFont The selected font preference (DEFAULT, SYSTEM, or Google Font)
  * @param content The composable content to be themed.
  */
+// AMOLED Dark Color Scheme (True Black)
+private val AmoledDarkColorScheme =
+    ProdDarkColorScheme.copy(
+        background = androidx.compose.ui.graphics.Color.Black,
+        surface = androidx.compose.ui.graphics.Color.Black,
+        surfaceVariant =
+            androidx.compose.ui.graphics
+                .Color(0xFF000000),
+        // Also black for OLED savings? Or slightly lighter? Let's use Black for maximum effect
+        // surfaceContainer could be slightly lighter if needed, but for now stick to core black
+    )
+
+/**
+ * Jabook application theme with flavor-specific branding.
+ *
+ * Beta flavor: Cyber-Premium Tech (Deep Navy + Neon Green)
+ * Prod flavor: Royal Premium (Deep Purple + Luxury Gold)
+ * Dev/Stage flavors: Use beta theme
+ *
+ * @param darkTheme Whether to use dark theme. Defaults to system setting.
+ * @param amoledMode Whether to use pure black background (AMOLED mode). Only applies if darkTheme is true.
+ * @param isBetaFlavor Whether this is beta/dev/stage flavor (true) or prod (false). Defaults to true.
+ * @param selectedFont The selected font preference (DEFAULT, SYSTEM, or Google Font)
+ * @param content The composable content to be themed.
+ */
 @Composable
 fun JabookTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    amoledMode: Boolean = false,
     // Dynamic color is available on Android 12+
     // Disabled by default to enforce Premium Branding identity
     dynamicColor: Boolean = false,
@@ -135,6 +161,8 @@ fun JabookTheme(
                     androidx.compose.material3.dynamicLightColorScheme(context)
                 }
             }
+            // AMOLED Mode (always dark, overrides flavor specific dark theme background)
+            darkTheme && amoledMode -> AmoledDarkColorScheme
             isBetaFlavor && darkTheme -> BetaDarkColorScheme
             isBetaFlavor && !darkTheme -> BetaLightColorScheme
             !isBetaFlavor && darkTheme -> ProdDarkColorScheme

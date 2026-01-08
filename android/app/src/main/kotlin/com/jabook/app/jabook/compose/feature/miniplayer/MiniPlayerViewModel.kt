@@ -106,4 +106,18 @@ class MiniPlayerViewModel
                 play()
             }
         }
+
+        /**
+         * Skip to next track.
+         */
+        fun skipToNext() {
+            audioPlayerController.skipToNext()
+        }
+
+        /**
+         * Skip to previous track.
+         */
+        fun skipToPrevious() {
+            audioPlayerController.skipToPrevious()
+        }
     }

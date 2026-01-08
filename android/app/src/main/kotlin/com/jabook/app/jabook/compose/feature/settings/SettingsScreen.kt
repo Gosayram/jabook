@@ -1389,6 +1389,13 @@ private fun ThemeSelector(
         )
 
         ThemeOption(
+            theme = AppTheme.AMOLED,
+            label = stringResource(R.string.themeAmoled),
+            selected = selectedTheme == AppTheme.AMOLED,
+            onSelected = { onThemeSelected(AppTheme.AMOLED) },
+        )
+
+        ThemeOption(
             theme = AppTheme.SYSTEM,
             label = stringResource(R.string.systemDefault),
             selected = selectedTheme == AppTheme.SYSTEM,

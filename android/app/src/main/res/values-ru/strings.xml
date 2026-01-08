@@ -264,6 +264,9 @@
     <string name="darkMode">Темный режим</string>
     <!-- Метка для высокой контрастности -->
     <string name="highContrast">Высокая контрастность</string>
+    <string name="themeAmoled">AMOLED / Чистый черный</string>
+    <string name="vinylMode">Режим винила</string>
+    <string name="lyrics">Текст песни</string>
     <!-- Заголовок настройки аудио -->
     <string name="audioTitle">Аудио</string>
     <!-- Описание настройки аудио -->

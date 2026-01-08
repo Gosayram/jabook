@@ -1132,7 +1132,7 @@ private fun PlayerContent(
                         ) {
                             Icon(
                                 imageVector = androidx.compose.material.icons.Icons.Filled.Description,
-                                contentDescription = "Lyrics",
+                                contentDescription = stringResource(R.string.lyrics),
                                 modifier = Modifier.size(controlButtonIconSize),
                             )
                         }
@@ -1269,7 +1269,7 @@ fun PlayerSettingsSheet(
                         .padding(vertical = 12.dp),
             ) {
                 Text(
-                    text = "Vinyl Mode", // TODO: Localize
+                    text = stringResource(R.string.vinylMode),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )

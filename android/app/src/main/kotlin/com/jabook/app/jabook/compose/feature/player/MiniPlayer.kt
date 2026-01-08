@@ -21,7 +21,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -92,11 +92,14 @@ fun MiniPlayer(
     progress: Float,
     onPlayPauseClick: () -> Unit,
     onMiniPlayerClick: () -> Unit,
+    onNextClick: () -> Unit = {},
+    onPreviousClick: () -> Unit = {},
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
     var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
 
     // Smooth spring animation for drag
     val animatedOffsetX by animateFloatAsState(
@@ -104,10 +107,18 @@ fun MiniPlayer(
         animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
         label = "miniPlayerOffset",
     )
+    val animatedOffsetY by animateFloatAsState(
+        targetValue = offsetY,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+        label = "miniPlayerOffsetY",
+    )
 
-    // Calculate alpha based on drag distance
-    val dismissThreshold = with(density) { 200.dp.toPx() }
-    val dragProgress = (abs(animatedOffsetX) / dismissThreshold).coerceIn(0f, 1f)
+    // Calculate alpha based on vertical drag distance (dismiss)
+    val dismissThreshold = with(density) { 100.dp.toPx() }
+    val horizontalThreshold = with(density) { 100.dp.toPx() }
+
+    // Alpha fades primarily on vertical dismiss
+    val dragProgress = (animatedOffsetY.coerceAtLeast(0f) / dismissThreshold).coerceIn(0f, 1f)
     val alpha by animateFloatAsState(
         targetValue = 1f - (dragProgress * 0.5f),
         animationSpec = tween(100),
@@ -129,6 +140,7 @@ fun MiniPlayer(
                 .fillMaxWidth()
                 .graphicsLayer {
                     translationX = animatedOffsetX
+                    translationY = animatedOffsetY
                     scaleX = scale
                     scaleY = scale
                 }.alpha(alpha)
@@ -137,32 +149,58 @@ fun MiniPlayer(
                     indication = null,
                     onClick = {
                         // Only handle click if not dragging
-                        if (abs(offsetX) < 10f) {
+                        if (abs(offsetX) < 10f && abs(offsetY) < 10f) {
                             onMiniPlayerClick()
                         }
                     },
                 ).pointerInput(Unit) {
-                    detectHorizontalDragGestures(
+                    detectDragGestures(
                         onDragEnd = {
-                            // If dragged beyond threshold, dismiss
-                            if (abs(offsetX) > dismissThreshold) {
-                                onDismiss()
+                            val absX = abs(offsetX)
+                            val absY = abs(offsetY)
+
+                            // Determine dominant axis
+                            if (absX > absY) {
+                                // Horizontal Swipe
+                                if (absX > horizontalThreshold) {
+                                    if (offsetX > 0) {
+                                        // Swiped Right -> Previous
+                                        onPreviousClick()
+                                    } else {
+                                        // Swiped Left -> Next
+                                        onNextClick()
+                                    }
+                                    // Snap back after trigger (or maybe animate out? For now snap back like Spotify)
+                                    offsetX = 0f
+                                } else {
+                                    offsetX = 0f
+                                }
+                                offsetY = 0f
                             } else {
-                                // Otherwise, snap back with spring
+                                // Vertical Swipe
+                                if (offsetY > dismissThreshold) {
+                                    // Swiped Down -> Dismiss
+                                    onDismiss()
+                                } else if (offsetY < -dismissThreshold) {
+                                    // Swiped Up -> Open
+                                    onMiniPlayerClick()
+                                    offsetY = 0f
+                                } else {
+                                    offsetY = 0f
+                                }
                                 offsetX = 0f
                             }
                         },
                         onDragCancel = {
-                            // Snap back on cancel
                             offsetX = 0f
+                            offsetY = 0f
                         },
-                    ) { change, dragAmount ->
+                    ) { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
                         change.consume()
-                        // Accumulate drag amount with resistance at edges
-                        val resistance = if (abs(offsetX) > dismissThreshold) 0.3f else 1f
-                        offsetX =
-                            (offsetX + dragAmount * resistance)
-                                .coerceIn(-dismissThreshold * 1.5f, dismissThreshold * 1.5f)
+
+                        // Update offsets
+                        offsetX += dragAmount.x
+                        offsetY += dragAmount.y
                     }
                 },
         shape = RoundedCornerShape(12.dp),
@@ -266,6 +304,8 @@ fun AnimatedMiniPlayer(
     progress: Float,
     onPlayPauseClick: () -> Unit,
     onMiniPlayerClick: () -> Unit,
+    onNextClick: () -> Unit = {},
+    onPreviousClick: () -> Unit = {},
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -291,6 +331,8 @@ fun AnimatedMiniPlayer(
             progress = progress,
             onPlayPauseClick = onPlayPauseClick,
             onMiniPlayerClick = onMiniPlayerClick,
+            onNextClick = onNextClick,
+            onPreviousClick = onPreviousClick,
             onDismiss = onDismiss,
         )
     }

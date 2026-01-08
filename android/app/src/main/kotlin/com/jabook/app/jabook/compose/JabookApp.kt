@@ -155,9 +155,19 @@ fun JabookApp(
                 when (theme) {
                     com.jabook.app.jabook.compose.data.model.AppTheme.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
                     com.jabook.app.jabook.compose.data.model.AppTheme.LIGHT -> false
-                    com.jabook.app.jabook.compose.data.model.AppTheme.DARK -> true
+                    com.jabook.app.jabook.compose.data.model.AppTheme.DARK,
+                    com.jabook.app.jabook.compose.data.model.AppTheme.AMOLED,
+                    -> true
                 }
             }
+        }
+
+    val isAmoledMode =
+        when (uiState) {
+            is MainActivityUiState.Success ->
+                (uiState as MainActivityUiState.Success).userData.theme ==
+                    com.jabook.app.jabook.compose.data.model.AppTheme.AMOLED
+            else -> false
         }
 
     val selectedFont =
@@ -171,6 +181,7 @@ fun JabookApp(
     // Setup Lyricist for type-safe localization - REMOVED, using standard Android resources
     JabookTheme(
         darkTheme = darkTheme,
+        amoledMode = isAmoledMode,
         isBetaFlavor = isBetaFlavor,
         selectedFont = selectedFont,
     ) {
@@ -262,6 +273,8 @@ fun JabookApp(
                             isPlaying = isPlaying,
                             progress = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                             onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
+                            onNextClick = { miniPlayerViewModel.skipToNext() },
+                            onPreviousClick = { miniPlayerViewModel.skipToPrevious() },
                             onMiniPlayerClick = {
                                 // Navigate to player screen
                                 appState.navController.navigate(PlayerRoute(bookId = book.id))
