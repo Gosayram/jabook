@@ -24,9 +24,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
+import com.mikepenz.hypnoticcanvas.shaderBackground
 import com.mikepenz.hypnoticcanvas.shaders.BlackCherryCosmos
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeSource
 
 /**
  * Premium animated background component using Shaders (Android 13+) or Gradient fallback.
@@ -35,71 +36,55 @@ import dev.chrisbanes.haze.haze
 fun PremiumPlayerBackground(
     themeColors: PlayerThemeColors?,
     hazeState: HazeState? = null,
+    isPowerSaveMode: Boolean = false,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val backgroundModifier =
+    val useShader = !isPowerSaveMode && themeColors != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+    val fallbackBackgroundModifier =
         if (themeColors != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                Modifier
-            } else {
-                // Fallback for older Android versions
-                Modifier.background(
-                    brush =
-                        Brush.verticalGradient(
-                            colors =
-                                themeColors.gradientColors.ifEmpty {
-                                    listOf(themeColors.containerColor, themeColors.surfaceColor)
-                                },
-                        ),
-                )
-            }
+            Modifier.background(
+                brush =
+                    Brush.verticalGradient(
+                        colors =
+                            themeColors.gradientColors.ifEmpty {
+                                listOf(themeColors.containerColor, themeColors.surfaceColor)
+                            },
+                    ),
+            )
         } else {
             Modifier.background(MaterialTheme.colorScheme.background)
         }
 
-    // Apply Haze if state is provided
+    // Apply Haze if state is provided AND not in power save mode
     val finalModifier =
         modifier
             .fillMaxSize()
-            .then(if (hazeState != null) Modifier.haze(state = hazeState) else Modifier)
+            .then(if (hazeState != null && !isPowerSaveMode) Modifier.hazeSource(state = hazeState) else Modifier)
 
-    // ShaderBackground wrapper
-    val contentWithOverlay = @Composable {
-        Box(modifier = Modifier.fillMaxSize()) {
-            content()
-            // Optional darkening overlay can be handled here or inside content,
-            // but usually shader background implies we want to see it.
-            // If we want contrast, we can add a subtle gradient overlay here.
-        }
-    }
-
-    if (themeColors != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        ShaderBackground(
-            shader = BlackCherryCosmos,
-            modifier = finalModifier,
-        ) {
-            // Darkening overlay for text legibility
+    Box(modifier = finalModifier) {
+        if (useShader) {
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f)),
+                        .shaderBackground(BlackCherryCosmos),
             )
-            content()
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize().then(fallbackBackgroundModifier),
+            )
         }
-    } else {
+
+        // Darkening overlay for text legibility
         Box(
-            modifier = finalModifier.then(backgroundModifier),
-        ) {
-            // Darkening overlay for text legibility (fallback)
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f)),
-            )
-            content()
-        }
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+        )
+
+        content()
     }
 }

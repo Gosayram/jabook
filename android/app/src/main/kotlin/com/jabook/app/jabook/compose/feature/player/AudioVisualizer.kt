@@ -219,24 +219,25 @@ private fun CircularVisualizer(
 ) {
     // Reduce data points for cleaner radial bars
     val barCount = 40 // Amount of bars around the circle
-    val reducedData = remember(waveformData) {
-        if (waveformData.isEmpty()) {
-            FloatArray(barCount) { 0f }
-        } else {
-             // Simple downsampling
-            val step = waveformData.size / barCount
-            FloatArray(barCount) { i ->
-                val startIdx = i * step
-                // Average amplitude for this chunk
-                var sum = 0f
-                val end = minOf((i + 1) * step, waveformData.size)
-                for (k in startIdx until end) {
-                    sum += abs(waveformData[k])
+    val reducedData =
+        remember(waveformData) {
+            if (waveformData.isEmpty()) {
+                FloatArray(barCount) { 0f }
+            } else {
+                // Simple downsampling
+                val step = waveformData.size / barCount
+                FloatArray(barCount) { i ->
+                    val startIdx = i * step
+                    // Average amplitude for this chunk
+                    var sum = 0f
+                    val end = minOf((i + 1) * step, waveformData.size)
+                    for (k in startIdx until end) {
+                        sum += abs(waveformData[k])
+                    }
+                    if (end > startIdx) sum / (end - startIdx) else 0f
                 }
-                if (end > startIdx) sum / (end - startIdx) else 0f
             }
         }
-    }
 
     Canvas(modifier = modifier) {
         val centerX = size.width / 2
@@ -251,21 +252,25 @@ private fun CircularVisualizer(
         reducedData.forEachIndexed { index, amplitude ->
             // Mirrored visualization (two sides or full circle)
             // Here we map 0..barCount to 0..360 degrees
-            
+
             // Smooth amplitude (scaling)
             val barHeight = (amplitude * maxBarHeight).coerceAtLeast(4f)
-            
+
             val angle = index * angleStep
-            
+
             // Rotate canvas to draw bar at correct angle
             rotate(degrees = angle, pivot = Offset(centerX, centerY)) {
                 drawRoundRect(
                     color = color.copy(alpha = 0.8f),
                     topLeft = Offset(centerX - barWidth / 2, centerY - innerRadius - barHeight),
-                    size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2)
+                    size =
+                        androidx.compose.ui.geometry
+                            .Size(barWidth, barHeight),
+                    cornerRadius =
+                        androidx.compose.ui.geometry
+                            .CornerRadius(barWidth / 2),
                 )
-                
+
                 // Reflection (inner bar or opacity variation)
                /* drawRoundRect(
                     color = color.copy(alpha = 0.3f),

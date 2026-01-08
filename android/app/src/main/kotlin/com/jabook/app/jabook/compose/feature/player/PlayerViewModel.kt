@@ -131,6 +131,9 @@ class PlayerViewModel
             }
         }
 
+        // Store lyrics in a separate flow to avoid re-parsing on every seeking
+        private val lyricsState = MutableStateFlow<List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
+
         /**
          * Combined UI state from book data, playback state, and settings.
          */
@@ -196,7 +199,7 @@ class PlayerViewModel
                 } else {
                     state
                 }
-            }.combine(_lyrics) { state, lyrics ->
+            }.combine(lyricsState) { state, lyrics ->
                 if (state is PlayerUiState.Success) {
                     state.copy(lyrics = lyrics)
                 } else {
@@ -204,11 +207,9 @@ class PlayerViewModel
                 }
             }.stateIn(
                 scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
                 initialValue = PlayerUiState.Loading,
             )
-
-        // Store lyrics in a separate flow to avoid re-parsing on every seek
-        private val _lyrics = MutableStateFlow<List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
 
         // Load lyrics when chapter changes
         init {
@@ -223,7 +224,7 @@ class PlayerViewModel
                     if (chapter?.fileUrl != null) {
                         loadLyrics(chapter.fileUrl!!)
                     } else {
-                        _lyrics.value = null
+                        lyricsState.value = null
                     }
                 }
             }
@@ -241,14 +242,14 @@ class PlayerViewModel
                             com.jabook.app.jabook.compose.feature.player.lyrics.LrcParser
                                 .parse(content)
                         if (parsed.isNotEmpty()) {
-                            _lyrics.value = parsed
+                            lyricsState.value = parsed
                             return@withContext
                         }
                     }
-                    _lyrics.value = null
+                    lyricsState.value = null
                 } catch (e: Exception) {
                     android.util.Log.e("PlayerViewModel", "Failed to load lyrics", e)
-                    _lyrics.value = null
+                    lyricsState.value = null
                 }
             }
         }

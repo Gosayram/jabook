@@ -14,9 +14,11 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.os.PowerManager
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,9 +62,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
@@ -91,6 +92,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.getSystemService
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -103,7 +105,6 @@ import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomShe
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 import com.jabook.app.jabook.compose.feature.player.lyrics.LyricsView
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
-import com.jabook.app.jabook.ui.component.StatsOverlay
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -176,6 +177,12 @@ fun PlayerScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Check for Power Save Mode to disable expensive visual effects
+    val isPowerSaveMode by remember(context) {
+        val powerManager = context.getSystemService<PowerManager>()
+        mutableStateOf(powerManager?.isPowerSaveMode == true)
+    }
 
     // Request notification permission on Android 13+
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -339,6 +346,7 @@ fun PlayerScreen(
                                 PremiumPlayerBackground(
                                     themeColors = state.themeColors,
                                     hazeState = hazeState,
+                                    isPowerSaveMode = isPowerSaveMode,
                                 ) {
                                     PlayerContent(
                                         state = state,
@@ -629,20 +637,18 @@ private fun PlayerContent(
                             onSeek = onSeek,
                         )
                     }
-                        )
-                    }
                 } else if (isVinylMode) {
                     VinylCover(
                         imageRequest = imageRequest,
                         isPlaying = state.isPlaying,
-                         modifier =
+                        modifier =
                             imageModifier
                                 .fillMaxWidth(coverWidth)
                                 .clickable {
                                     if (!state.lyrics.isNullOrEmpty()) {
                                         showLyrics = !showLyrics
                                     }
-                                }
+                                },
                     )
                 } else {
                     AsyncImage(
@@ -1113,8 +1119,18 @@ private fun PlayerContent(
                                     .height(controlButtonHeight),
                             colors =
                                 ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = if (showLyrics) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor = if (showLyrics) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    containerColor =
+                                        if (showLyrics) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        },
+                                    contentColor =
+                                        if (showLyrics) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
                                 ),
                         ) {
                             Icon(
@@ -1244,24 +1260,25 @@ fun PlayerSettingsSheet(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             HorizontalDivider()
-            
+
             // Vinyl Mode Toggle
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
             ) {
                 Text(
                     text = "Vinyl Mode", // TODO: Localize
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 Switch(
                     checked = isVinylMode,
-                    onCheckedChange = onVinylModeChange
+                    onCheckedChange = onVinylModeChange,
                 )
             }
         }
