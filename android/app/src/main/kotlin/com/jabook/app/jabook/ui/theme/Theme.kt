@@ -56,12 +56,23 @@ private val BetaDarkColorScheme =
     darkColorScheme(
         primary = beta_dark_primary,
         onPrimary = beta_dark_onPrimary,
+        primaryContainer = beta_dark_primaryContainer,
+        onPrimaryContainer = beta_dark_onPrimaryContainer,
         secondary = beta_dark_secondary,
         onSecondary = beta_dark_onSecondary,
+        secondaryContainer = beta_dark_secondaryContainer,
+        onSecondaryContainer = beta_dark_onSecondaryContainer,
+        tertiary = beta_dark_tertiary,
+        onTertiary = beta_dark_onTertiary,
+        error = beta_dark_error,
+        onError = beta_dark_onError,
         background = beta_dark_background,
         onBackground = beta_dark_onBackground,
         surface = beta_dark_surface,
         onSurface = beta_dark_onSurface,
+        surfaceVariant = beta_dark_surfaceVariant,
+        onSurfaceVariant = beta_dark_onSurfaceVariant,
+        outline = beta_dark_outline,
     )
 
 // Prod Light Color Scheme (Royal Premium)
@@ -93,12 +104,23 @@ private val ProdDarkColorScheme =
     darkColorScheme(
         primary = prod_dark_primary,
         onPrimary = prod_dark_onPrimary,
+        primaryContainer = prod_dark_primaryContainer,
+        onPrimaryContainer = prod_dark_onPrimaryContainer,
         secondary = prod_dark_secondary,
         onSecondary = prod_dark_onSecondary,
+        secondaryContainer = prod_dark_secondaryContainer,
+        onSecondaryContainer = prod_dark_onSecondaryContainer,
+        tertiary = prod_dark_tertiary,
+        onTertiary = prod_dark_onTertiary,
+        error = prod_dark_error,
+        onError = prod_dark_onError,
         background = prod_dark_background,
         onBackground = prod_dark_onBackground,
         surface = prod_dark_surface,
         onSurface = prod_dark_onSurface,
+        surfaceVariant = prod_dark_surfaceVariant,
+        onSurfaceVariant = prod_dark_onSurfaceVariant,
+        outline = prod_dark_outline,
     )
 
 /**

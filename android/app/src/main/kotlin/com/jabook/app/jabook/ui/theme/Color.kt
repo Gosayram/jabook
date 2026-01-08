@@ -17,98 +17,117 @@ package com.jabook.app.jabook.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // ====================
-// BETA THEME COLORS (Cyber-Premium Tech)
-// Concept: Deep Midnight Navy + Neon Electric Green
+// NEUTRAL COLORS (Based on Material 3 Guidelines)
+// Used for backgrounds & surfaces across all themes
 // ====================
 
-// Background: Deep Midnight Navy - Almost black, void-like
-val beta_light_background = Color(0xFF050B14)
-val beta_light_onBackground = Color(0xFFE0E6ED) // Crisp white-blue text
+object NeutralColors {
+    // Light theme neutrals
+    val Neutral50 = Color(0xFFFAFAFA) // Nearly white - light background
+    val Neutral100 = Color(0xFFF5F5F5) // Light gray - light surface
+    val Neutral200 = Color(0xFFE5E5E5) // Light gray - light surfaceVariant
 
-// Primary: Electric Lime / Neon Green - High energy accent
-val beta_light_primary = Color(0xFF39FF14)
-val beta_light_onPrimary = Color(0xFF030810) // Dark text on bright neon
+    // Dark theme neutrals
+    val Neutral800 = Color(0xFF262626) // Dark gray - dark surfaceVariant
+    val Neutral900 = Color(0xFF171717) // Nearly black - dark background/surface
+}
 
-// Surface: Deep Ocean - Slightly lighter than background, glass-like
-val beta_light_surface = Color(0xFF0F1C2E)
-val beta_light_onSurface = Color(0xFFE0E6ED)
+// ====================
+// BETA THEME COLORS (Cyber-Premium Tech)
+// Concept: Neon Electric Green primary
+// ====================
 
-// Secondary: Electric Blue - Secondary accent for active states
-val beta_light_secondary = Color(0xFF00F0FF)
-val beta_light_onSecondary = Color(0xFF030810)
+// Primary accent color for Beta
+val BetaPrimaryColor = Color(0xFF39FF14) // Electric Lime / Neon Green
 
-// Container colors
-val beta_light_primaryContainer = Color(0xFF132F18) // Dark green tint
-val beta_light_onPrimaryContainer = Color(0xFF39FF14)
-val beta_light_secondaryContainer = Color(0xFF0F2633)
-val beta_light_onSecondaryContainer = Color(0xFF00F0FF)
-
-// Other colors
-val beta_light_tertiary = Color(0xFF00F0FF)
-val beta_light_onTertiary = Color(0xFF030810)
-val beta_light_error = Color(0xFFFF0055) // Neon Red
+// Beta Light Theme
+val beta_light_background = NeutralColors.Neutral50
+val beta_light_onBackground = Color(0xFF1A1C1E)
+val beta_light_surface = NeutralColors.Neutral100
+val beta_light_onSurface = Color(0xFF1A1C1E)
+val beta_light_surfaceVariant = NeutralColors.Neutral200
+val beta_light_onSurfaceVariant = Color(0xFF44474E)
+val beta_light_primary = BetaPrimaryColor
+val beta_light_onPrimary = Color(0xFF003300) // Dark green text on neon
+val beta_light_primaryContainer = Color(0xFFB8F5A2)
+val beta_light_onPrimaryContainer = Color(0xFF002200)
+val beta_light_secondary = Color(0xFF00B4D8) // Electric Blue
+val beta_light_onSecondary = Color(0xFFFFFFFF)
+val beta_light_secondaryContainer = Color(0xFFCAE6FF)
+val beta_light_onSecondaryContainer = Color(0xFF001E30)
+val beta_light_tertiary = Color(0xFF00F0FF) // Cyan accent
+val beta_light_onTertiary = Color(0xFF003333)
+val beta_light_error = Color(0xFFBA1A1A)
 val beta_light_onError = Color(0xFFFFFFFF)
-val beta_light_outline = Color(0xFF2C3E50)
-val beta_light_surfaceVariant = Color(0xFF162438)
-val beta_light_onSurfaceVariant = Color(0xFF8A9AB0)
+val beta_light_outline = Color(0xFF74777F)
 
-// Dark theme for beta (Reuse same Cyber palette as it is inherently dark)
-val beta_dark_background = beta_light_background
-val beta_dark_onBackground = beta_light_onBackground
-val beta_dark_primary = beta_light_primary
-val beta_dark_onPrimary = beta_light_onPrimary
-val beta_dark_surface = beta_light_surface
-val beta_dark_onSurface = beta_light_onSurface
-val beta_dark_secondary = beta_light_secondary
-val beta_dark_onSecondary = beta_light_onSecondary
+// Beta Dark Theme
+val beta_dark_background = NeutralColors.Neutral900
+val beta_dark_onBackground = Color(0xFFE2E2E6)
+val beta_dark_surface = NeutralColors.Neutral900
+val beta_dark_onSurface = Color(0xFFE2E2E6)
+val beta_dark_surfaceVariant = NeutralColors.Neutral800
+val beta_dark_onSurfaceVariant = Color(0xFFC4C6CF)
+val beta_dark_primary = BetaPrimaryColor
+val beta_dark_onPrimary = Color(0xFF003300)
+val beta_dark_primaryContainer = Color(0xFF004D00)
+val beta_dark_onPrimaryContainer = Color(0xFFB8F5A2)
+val beta_dark_secondary = Color(0xFF00B4D8)
+val beta_dark_onSecondary = Color(0xFF00344D)
+val beta_dark_secondaryContainer = Color(0xFF004D6E)
+val beta_dark_onSecondaryContainer = Color(0xFFCAE6FF)
+val beta_dark_tertiary = Color(0xFF00F0FF)
+val beta_dark_onTertiary = Color(0xFF003333)
+val beta_dark_error = Color(0xFFFFB4AB)
+val beta_dark_onError = Color(0xFF690005)
+val beta_dark_outline = Color(0xFF8E9099)
 
 // ====================
 // PROD THEME COLORS (Royal Premium)
-// Concept: Deep Void Purple + Luxury Gold
+// Concept: Deep Purple + Luxury Gold
 // ====================
 
-// Background: Deep Aubergine / Void Purple
-val prod_light_background = Color(0xFF1A0B2E)
-val prod_light_onBackground = Color(0xFFFBF5E9) // Luxury cream text
+// Primary accent color for Prod
+val ProdPrimaryColor = Color(0xFFFFD700) // Luxury Gold / Amber
 
-// Primary: Luxury Gold / Amber
-val prod_light_primary = Color(0xFFFFD700)
-val prod_light_onPrimary = Color(0xFF1A0B2E)
-
-// Surface: Darkened Glass / Deep Grape
-val prod_light_surface = Color(0xFF2A1B3D)
-val prod_light_onSurface = Color(0xFFFBF5E9)
-
-// Secondary: Royal Lavender
-val prod_light_secondary = Color(0xFF9D65C9)
+// Prod Light Theme
+val prod_light_background = NeutralColors.Neutral50
+val prod_light_onBackground = Color(0xFF1C1B1F)
+val prod_light_surface = NeutralColors.Neutral100
+val prod_light_onSurface = Color(0xFF1C1B1F)
+val prod_light_surfaceVariant = NeutralColors.Neutral200
+val prod_light_onSurfaceVariant = Color(0xFF49454E)
+val prod_light_primary = Color(0xFF7B5800) // Darker gold for light theme
+val prod_light_onPrimary = Color(0xFFFFFFFF)
+val prod_light_primaryContainer = Color(0xFFFFDEA6)
+val prod_light_onPrimaryContainer = Color(0xFF271900)
+val prod_light_secondary = Color(0xFF6750A4) // Royal Purple
 val prod_light_onSecondary = Color(0xFFFFFFFF)
+val prod_light_secondaryContainer = Color(0xFFE9DDFF)
+val prod_light_onSecondaryContainer = Color(0xFF22005D)
+val prod_light_tertiary = Color(0xFF7B5800)
+val prod_light_onTertiary = Color(0xFFFFFFFF)
+val prod_light_error = Color(0xFFBA1A1A)
+val prod_light_onError = Color(0xFFFFFFFF)
+val prod_light_outline = Color(0xFF7A757F)
 
-// Container colors
-val prod_light_primaryContainer = Color(0xFF4A3418)
-val prod_light_onPrimaryContainer = Color(0xFFFFD700)
-val prod_light_secondaryContainer = Color(0xFF3F2755)
-val prod_light_onSecondaryContainer = Color(0xFFE6D6F5)
-
-// Other colors
-val prod_light_tertiary = Color(0xFFFFD700)
-val prod_light_onTertiary = Color(0xFF1A0B2E)
-val prod_light_error = Color(0xFFCF6679)
-val prod_light_onError = Color(0xFF1A0B2E)
-val prod_light_outline = Color(0xFF4D3B63)
-val prod_light_surfaceVariant = Color(0xFF35244A)
-val prod_light_onSurfaceVariant = Color(0xFFCEC0DE)
-
-// Dark theme for prod (Reuse same Royal palette)
-val prod_dark_background = prod_light_background
-val prod_dark_onBackground = prod_light_onBackground
-val prod_dark_primary = prod_light_primary
-val prod_dark_onPrimary = prod_light_onPrimary
-val prod_dark_surface = prod_light_surface
-val prod_dark_onSurface = prod_light_onSurface
-val prod_dark_secondary = prod_light_secondary
-val prod_dark_onSecondary = prod_light_onSecondary
-
-// ====================
-// DEV/STAGE THEME (Fallback to Beta)
-// ====================
-// For dev and stage, we reuse the Beta (Cyber) theme
+// Prod Dark Theme
+val prod_dark_background = NeutralColors.Neutral900
+val prod_dark_onBackground = Color(0xFFE6E1E6)
+val prod_dark_surface = NeutralColors.Neutral900
+val prod_dark_onSurface = Color(0xFFE6E1E6)
+val prod_dark_surfaceVariant = NeutralColors.Neutral800
+val prod_dark_onSurfaceVariant = Color(0xFFCAC4CF)
+val prod_dark_primary = ProdPrimaryColor
+val prod_dark_onPrimary = Color(0xFF402D00)
+val prod_dark_primaryContainer = Color(0xFF5C4200)
+val prod_dark_onPrimaryContainer = Color(0xFFFFDEA6)
+val prod_dark_secondary = Color(0xFFCFBCFF) // Light Purple
+val prod_dark_onSecondary = Color(0xFF381E72)
+val prod_dark_secondaryContainer = Color(0xFF4F378A)
+val prod_dark_onSecondaryContainer = Color(0xFFE9DDFF)
+val prod_dark_tertiary = ProdPrimaryColor
+val prod_dark_onTertiary = Color(0xFF402D00)
+val prod_dark_error = Color(0xFFFFB4AB)
+val prod_dark_onError = Color(0xFF690005)
+val prod_dark_outline = Color(0xFF948F99)

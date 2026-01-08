@@ -81,7 +81,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -848,11 +847,11 @@ private fun PlayerContent(
                                 .wrapContentWidth(Alignment.CenterHorizontally)
                                 .height(if (isCompact) 44.dp else 52.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
                         colors =
                             ButtonDefaults.filledTonalButtonColors(
-                                containerColor = Color.White.copy(alpha = 0.08f),
-                                contentColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                contentColor = MaterialTheme.colorScheme.onSurface,
                             ),
                     ) {
                         Icon(
@@ -924,7 +923,7 @@ private fun PlayerContent(
                             imageVector = Icons.Filled.Replay,
                             contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
                             modifier = Modifier.size(seekIconSize),
-                            tint = Color.White.copy(alpha = 0.8f),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                         )
                     }
 
@@ -966,7 +965,7 @@ private fun PlayerContent(
                             imageVector = Icons.Filled.FastForward,
                             contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
                             modifier = Modifier.size(seekIconSize),
-                            tint = Color.White.copy(alpha = 0.8f),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                         )
                     }
 
@@ -979,7 +978,7 @@ private fun PlayerContent(
                             imageVector = Icons.Filled.SkipNext,
                             contentDescription = stringResource(R.string.nextChapter),
                             modifier = Modifier.size(skipIconSize),
-                            tint = Color.White.copy(alpha = 0.8f),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                         )
                     }
                 }
