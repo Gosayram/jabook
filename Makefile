@@ -49,6 +49,7 @@ help:
 	@echo "  make update-version NEW_VERSION=x.y.z - Update version in .release-version"
 	@echo ""
 	@echo "Git Commands:"
+	@echo "  make commit                        - Generate AI commit message and copy to clipboard"
 	@echo "  make tag                           - Create git tag from current version"
 	@echo "  make push-tag                      - Create tag and push to remote"
 	@echo ""
@@ -355,6 +356,12 @@ push-tag: tag
 	echo "Pushing tag $$TAG_VERSION to $$REMOTE..."; \
 	git push $$REMOTE "$$TAG_VERSION"; \
 	echo "✅ Tag $$TAG_VERSION pushed to $$REMOTE"
+
+# Generate commit message with AI and copy to clipboard (silent mode)
+.PHONY: commit
+commit:
+	@aicommit2 -acs 2>&1 | tail -n 2 | head -n 1
+	@echo "📋 Commit message copied to clipboard"
 
 # ========================================
 # Device Commands
