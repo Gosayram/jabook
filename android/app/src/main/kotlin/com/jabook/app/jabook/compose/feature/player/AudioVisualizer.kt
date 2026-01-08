@@ -63,11 +63,10 @@ fun AudioVisualizer(
     isPlaying: Boolean,
     style: VisualizerStyle = VisualizerStyle.BARS,
     height: Dp = 48.dp,
+    primaryColor: Color = MaterialTheme.colorScheme.primary,
+    secondaryColor: Color = MaterialTheme.colorScheme.secondary,
     modifier: Modifier = Modifier,
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
-
     // Animate visibility based on playback state
     val alpha by animateFloatAsState(
         targetValue = if (isPlaying) 1f else 0.3f,

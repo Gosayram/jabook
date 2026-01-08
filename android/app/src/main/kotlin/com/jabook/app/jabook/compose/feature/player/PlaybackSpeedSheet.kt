@@ -59,7 +59,9 @@ import kotlin.math.roundToInt
 @Composable
 fun PlaybackSpeedSheet(
     currentSpeed: Float,
+    pitchCorrectionEnabled: Boolean,
     onSpeedSelected: (Float) -> Unit,
+    onPitchCorrectionChanged: (Boolean) -> Unit,
     onDismiss: () -> Unit,
     sheetState: SheetState,
 ) {
@@ -129,6 +131,34 @@ fun PlaybackSpeedSheet(
                     text = "${PlaybackSpeedConstants.MAX_SPEED}x",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Pitch Correction Toggle
+            androidx.compose.foundation.layout.Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.pitchCorrection),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = stringResource(R.string.pitchCorrectionDesc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                androidx.compose.material3.Switch(
+                    checked = pitchCorrectionEnabled,
+                    onCheckedChange = onPitchCorrectionChanged,
                 )
             }
 

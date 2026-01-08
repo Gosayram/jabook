@@ -78,6 +78,9 @@ class PlayerViewModel
         // Track if book has been loaded into player
         private var isBookLoaded = false
 
+        // Player Stats for Nerds
+        val playerStats: StateFlow<PlayerStats> = playerController.playerStats
+
         // Saved position from database (restored on init)
         private var savedPosition: Long = 0L
         private var savedChapterIndex: Int = 0
@@ -138,6 +141,7 @@ class PlayerViewModel
                 playerController.currentPosition,
                 playerController.currentChapterIndex,
                 settingsRepository.userPreferences,
+                userPreferencesRepository.userData.map { it.playbackSpeed },
             ) { args ->
                 val book = args[0] as? Book
 
@@ -147,6 +151,7 @@ class PlayerViewModel
                 val controllerPosition = args[3] as Long
                 val controllerChapterIndex = args[4] as Int
                 val preferences = args[5] as com.jabook.app.jabook.compose.data.preferences.UserPreferences
+                val playbackSpeed = args[6] as Float
 
                 if (book == null) {
                     PlayerUiState.Error("Book not found")
@@ -181,6 +186,7 @@ class PlayerViewModel
                         currentChapter = chapters.getOrNull(chapterIndex),
                         rewindInterval = rewindInterval,
                         forwardInterval = forwardInterval,
+                        playbackSpeed = playbackSpeed,
                     )
                 }
             }.combine(_themeColors) { state, themeColors ->
@@ -255,6 +261,11 @@ class PlayerViewModel
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = false,
                 )
+
+        /**
+         * Pitch correction state.
+         */
+        val pitchCorrectionEnabled: StateFlow<Boolean> = playerController.pitchCorrectionEnabled
 
         /**
          * Current sleep timer state.
@@ -345,6 +356,13 @@ class PlayerViewModel
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
             }
+            viewModelScope.launch {
+                playerController.setPlaybackSpeed(speed)
+            }
+        }
+
+        fun setPitchCorrectionEnabled(enabled: Boolean) {
+            playerController.setPitchCorrectionEnabled(enabled)
         }
 
         fun startSleepTimer(minutes: Int) {
@@ -507,6 +525,7 @@ sealed interface PlayerUiState {
         val currentChapter: Chapter?,
         val rewindInterval: Int,
         val forwardInterval: Int,
+        val playbackSpeed: Float,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
     ) : PlayerUiState
 

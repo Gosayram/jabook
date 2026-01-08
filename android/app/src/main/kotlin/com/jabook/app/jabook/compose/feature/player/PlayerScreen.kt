@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,8 +77,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -137,6 +142,7 @@ fun PlayerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
+    val pitchCorrectionEnabled by viewModel.pitchCorrectionEnabled.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
 
@@ -249,7 +255,9 @@ fun PlayerScreen(
         val speedSheetState = rememberModalBottomSheetState()
         PlaybackSpeedSheet(
             currentSpeed = playbackSpeed,
+            pitchCorrectionEnabled = pitchCorrectionEnabled,
             onSpeedSelected = viewModel::setPlaybackSpeed,
+            onPitchCorrectionChanged = viewModel::setPitchCorrectionEnabled,
             onDismiss = { showSpeedSheet = false },
             sheetState = speedSheetState,
         )
@@ -279,6 +287,16 @@ fun PlayerScreen(
         )
     }
 
+    // Stats for Nerds Overlay
+    var showStatsOverlay by remember { mutableStateOf(false) }
+    if (showStatsOverlay) {
+        val stats by viewModel.playerStats.collectAsStateWithLifecycle()
+        StatsOverlay(
+            stats = stats,
+            onDismiss = { showStatsOverlay = false },
+        )
+    }
+
     // SupportingPaneScaffold for adaptive chapter display
     SupportingPaneScaffold(
         directive = scaffoldNavigator.scaffoldDirective,
@@ -304,69 +322,57 @@ fun PlayerScreen(
                                 // Click debouncer for preventing double clicks (inspired by Easybook)
                                 val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300L)
 
-                                com.jabook.app.jabook.compose.feature.player.gestures.GestureOverlay(
-                                    onSeek = { delta ->
-                                        val totalDuration =
-                                            state.currentChapter?.duration?.inWholeMilliseconds
-                                                ?: 0L
-                                        val newPos =
-                                            (state.currentPosition + delta).coerceIn(
-                                                0L,
-                                                totalDuration,
-                                            )
-                                        viewModel.seekTo(newPos)
+                                // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
+                                PlayerContent(
+                                    state = state,
+                                    playbackSpeed = playbackSpeed,
+                                    sleepTimerState = sleepTimerState,
+                                    normalizeEnabled = normalizeEnabled,
+                                    chapterRepeatMode = chapterRepeatMode,
+                                    onPlayPause = {
+                                        clickDebouncer.debounce {
+                                            if (state.isPlaying) viewModel.pause() else viewModel.play()
+                                        }
                                     },
-                                ) {
-                                    PlayerContent(
-                                        state = state,
-                                        playbackSpeed = playbackSpeed,
-                                        sleepTimerState = sleepTimerState,
-                                        normalizeEnabled = normalizeEnabled,
-                                        chapterRepeatMode = chapterRepeatMode,
-                                        onPlayPause = {
-                                            clickDebouncer.debounce {
-                                                if (state.isPlaying) viewModel.pause() else viewModel.play()
-                                            }
-                                        },
-                                        onSkipNext = {
-                                            clickDebouncer.debounce { viewModel.skipToNext() }
-                                        },
-                                        onSkipPrevious = {
-                                            clickDebouncer.debounce { viewModel.skipToPrevious() }
-                                        },
-                                        onSeek = viewModel::seekTo,
-                                        onSeekForward = {
-                                            clickDebouncer.debounce { viewModel.seekForward() }
-                                        },
-                                        onSeekBackward = {
-                                            clickDebouncer.debounce { viewModel.seekBackward() }
-                                        },
-                                        onSelectChapter = viewModel::skipToChapter,
-                                        onChapterClick = {
-                                            // Toggle chapters pane on medium/expanded screens
-                                            clickDebouncer.debounce {
-                                                scope.launch {
-                                                    if (scaffoldNavigator.canNavigateBack()) {
-                                                        scaffoldNavigator.navigateBack()
-                                                    } else {
-                                                        scaffoldNavigator.navigateTo(
-                                                            SupportingPaneScaffoldRole.Supporting,
-                                                        )
-                                                    }
+                                    onSkipNext = {
+                                        clickDebouncer.debounce { viewModel.skipToNext() }
+                                    },
+                                    onSkipPrevious = {
+                                        clickDebouncer.debounce { viewModel.skipToPrevious() }
+                                    },
+                                    onSeek = viewModel::seekTo,
+                                    onSeekForward = {
+                                        clickDebouncer.debounce { viewModel.seekForward() }
+                                    },
+                                    onSeekBackward = {
+                                        clickDebouncer.debounce { viewModel.seekBackward() }
+                                    },
+                                    onSelectChapter = viewModel::skipToChapter,
+                                    onChapterClick = {
+                                        // Toggle chapters pane on medium/expanded screens
+                                        clickDebouncer.debounce {
+                                            scope.launch {
+                                                if (scaffoldNavigator.canNavigateBack()) {
+                                                    scaffoldNavigator.navigateBack()
+                                                } else {
+                                                    scaffoldNavigator.navigateTo(
+                                                        SupportingPaneScaffoldRole.Supporting,
+                                                    )
                                                 }
                                             }
-                                        },
-                                        onSpeedClick = { showSpeedSheet = true },
-                                        onSleepTimerClick = { showSleepTimerSheet = true },
-                                        onChapterRepeatClick = {
-                                            clickDebouncer.debounce {
-                                                viewModel.toggleChapterRepeat()
-                                            }
-                                        },
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope,
-                                    )
-                                }
+                                        }
+                                    },
+                                    onSpeedClick = { showSpeedSheet = true },
+                                    onSleepTimerClick = { showSleepTimerSheet = true },
+                                    onChapterRepeatClick = {
+                                        clickDebouncer.debounce {
+                                            viewModel.toggleChapterRepeat()
+                                        }
+                                    },
+                                    onStatsClick = { showStatsOverlay = true },
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                )
                             }
 
                             is PlayerUiState.Error -> {
@@ -428,6 +434,7 @@ private fun PlayerContent(
     onSpeedClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onChapterRepeatClick: () -> Unit,
+    onStatsClick: () -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
@@ -498,482 +505,571 @@ private fun PlayerContent(
 
     val displayAuthor = authorFromMetadata
 
-    // Dynamic Theme Background
+    // Dynamic Theme Background with Glassmorphism Effect
     val themeColors = state.themeColors
     val backgroundModifier =
         if (themeColors != null) {
-            Modifier.background(
-                brush =
-                    Brush.verticalGradient(
-                        colors =
-                            listOf(
-                                themeColors.containerColor.copy(alpha = 0.5f),
-                                themeColors.surfaceColor,
-                            ),
-                    ),
-            )
+            Modifier.background(themeColors.surfaceColor)
         } else {
             Modifier
         }
 
-    androidx.compose.foundation.lazy.LazyColumn(
-        modifier = modifier.fillMaxSize().then(backgroundModifier),
-        contentPadding =
-            androidx.compose.foundation.layout
-                .PaddingValues(
-                    start = contentPadding,
-                    end = contentPadding,
-                    top = if (isCompact) 0.dp else 8.dp,
-                    bottom = if (isCompact) 80.dp else 112.dp,
-                ),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(itemSpacing),
-    ) {
-        // Author from metadata (above cover)
-        if (displayAuthor != null) {
-            item {
-                Text(
-                    text = displayAuthor,
-                    style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = smallItemSpacing),
-                )
-            }
-        }
-
-        // Spacer before cover
-        item {
-            Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-        }
-
-        // Book cover
-        item {
-            val imageModifier =
-                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                    with(sharedTransitionScope) {
-                        Modifier.sharedElement(
-                            sharedContentState = rememberSharedContentState(key = "cover_${state.book.id}"),
-                            animatedVisibilityScope = animatedVisibilityScope,
-                        )
-                    }
-                } else {
-                    Modifier
-                }
-
-            val context = LocalContext.current
-            val imageRequest =
-                CoverUtils
-                    .createCoverImageRequest(
-                        book = state.book,
-                        context = context,
-                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                        errorColor = MaterialTheme.colorScheme.error,
-                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        cornerRadius = 16f, // 16dp rounded corners for player
-                    ).build()
-
+    Box(modifier = modifier.fillMaxSize().then(backgroundModifier)) {
+        // Blurred Background Layer for Glassmorphism
+        if (state.book.coverUrl != null) {
             AsyncImage(
-                model = imageRequest,
-                contentDescription = state.book.title,
+                model = state.book.coverUrl,
+                contentDescription = null,
                 modifier =
-                    imageModifier
-                        .fillMaxWidth(coverWidth)
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    Modifier
+                        .fillMaxSize()
+                        .blur(60.dp)
+                        .graphicsLayer { alpha = 0.4f },
                 contentScale = ContentScale.Crop,
             )
         }
 
-        // Spacer after cover
-        item {
-            Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
-        }
+        // Darkening layer for contrast
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    Color.Black.copy(alpha = 0.4f),
+                                    Color.Black.copy(alpha = 0.7f),
+                                ),
+                        ),
+                    ),
+        )
 
-        // Book info
-        item {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = if (isCompact) 8.dp else 0.dp),
-            ) {
-                Text(
-                    text = state.book.title,
-                    style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+        androidx.compose.foundation.lazy.LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding =
+                androidx.compose.foundation.layout
+                    .PaddingValues(
+                        start = contentPadding,
+                        end = contentPadding,
+                        top = if (isCompact) 0.dp else 8.dp,
+                        bottom = if (isCompact) 80.dp else 112.dp,
+                    ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(itemSpacing),
+        ) {
+            // Author from metadata (above cover)
+            if (displayAuthor != null) {
+                item {
+                    Text(
+                        text = displayAuthor,
+                        style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = smallItemSpacing),
+                    )
+                }
+            }
+
+            // Spacer before cover
+            item {
+                Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+            }
+
+            // Book cover
+            item {
+                val imageModifier =
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            Modifier.sharedElement(
+                                sharedContentState = rememberSharedContentState(key = "cover_${state.book.id}"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+
+                val context = LocalContext.current
+                val imageRequest =
+                    CoverUtils
+                        .createCoverImageRequest(
+                            book = state.book,
+                            context = context,
+                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                            errorColor = MaterialTheme.colorScheme.error,
+                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            cornerRadius = 16f, // 16dp rounded corners for player
+                        ).build()
+
+                // Animated "breathing" effect for the cover
+                val infiniteTransition =
+                    androidx.compose.animation.core
+                        .rememberInfiniteTransition(label = "coverScale")
+                val scale by infiniteTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 1.03f,
+                    animationSpec =
+                        androidx.compose.animation.core.infiniteRepeatable(
+                            animation =
+                                androidx.compose.animation.core
+                                    .tween(3000, easing = androidx.compose.animation.core.LinearOutSlowInEasing),
+                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
+                        ),
+                    label = "scale",
+                )
+
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = state.book.title,
+                    modifier =
+                        imageModifier
+                            .fillMaxWidth(coverWidth)
+                            .aspectRatio(1f)
+                            .graphicsLayer {
+                                scaleX = if (state.isPlaying) scale else 1f
+                                scaleY = if (state.isPlaying) scale else 1f
+                            }.clip(RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                    contentScale = ContentScale.Crop,
                 )
             }
-        }
 
-        // Spacer after book title
-        item {
-            Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-        }
+            // Spacer after cover
+            item {
+                Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+            }
 
-        // Progress section
-        item {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = if (isCompact) 4.dp else 0.dp),
-            ) {
-                // Progress bar
-                val progress =
-                    state.currentChapter?.let {
-                        val durationMs = it.duration.inWholeMilliseconds
-                        if (durationMs > 0) state.currentPosition.toFloat() / durationMs.toFloat() else 0f
-                    } ?: 0f
-
-                Slider(
-                    value = progress,
-                    onValueChange = { newProgress ->
-                        state.currentChapter?.let { chapter ->
-                            onSeek((newProgress * chapter.duration.inWholeMilliseconds.toFloat()).toLong())
-                        }
-                    },
+            // Book info
+            item {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .semantics {
-                                val current = formatDuration(state.currentPosition)
-                                val total = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0)
-                                stateDescription = "$current of $total"
-                            },
-                    colors =
-                        SliderDefaults.colors(
-                            thumbColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                            activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
-                        ),
-                )
-
-                // Time labels
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                            .padding(horizontal = if (isCompact) 8.dp else 0.dp),
                 ) {
                     Text(
-                        text = formatDuration(state.currentPosition),
-                        style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-
-                    Text(
-                        text = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0),
-                        style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-
-        // Audio Visualizer
-        item {
-            val service =
-                com.jabook.app.jabook.audio.AudioPlayerService
-                    .getInstance()
-            val waveformData by service
-                ?.getVisualizerWaveformData()
-                ?.collectAsStateWithLifecycle()
-                ?: remember { androidx.compose.runtime.mutableStateOf(FloatArray(256)) }
-
-            // Initialize visualizer when playing
-            LaunchedEffect(state.isPlaying) {
-                if (state.isPlaying) {
-                    service?.initializeVisualizer()
-                }
-            }
-
-            AudioVisualizer(
-                waveformData = waveformData,
-                isPlaying = state.isPlaying,
-                style = VisualizerStyle.BARS,
-                height = if (isCompact) 40.dp else 48.dp,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = if (isCompact) 8.dp else 0.dp),
-            )
-        }
-
-        // Spacer before chapter button
-        item {
-            Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-        }
-
-        // Current Chapter Button
-        item {
-            state.currentChapter?.let { chapter ->
-                FilledTonalButton(
-                    onClick = onChapterClick,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(if (isCompact) 0.98f else 0.95f)
-                            .wrapContentWidth(Alignment.CenterHorizontally)
-                            .height(if (isCompact) 40.dp else 48.dp),
-                    colors =
-                        ButtonDefaults.filledTonalButtonColors(
-                            containerColor =
-                                themeColors?.secondaryColor?.copy(
-                                    alpha = 0.4f,
-                                ) ?: MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = themeColors?.onSurfaceColor ?: MaterialTheme.colorScheme.onSecondaryContainer,
-                        ),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.SkipNext,
-                        contentDescription = null,
-                        modifier =
-                            Modifier
-                                .size(if (isCompact) 18.dp else 20.dp)
-                                .padding(end = if (isCompact) 6.dp else 8.dp),
-                    )
-                    Text(
-                        text =
-                            com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
-                                chapter,
-                                state.currentChapterIndex,
-                                stringResource(R.string.chapter_prefix),
-                                normalizeEnabled,
-                            ),
+                        text = state.book.title,
+                        style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        fontSize =
-                            if (isCompact) {
-                                androidx.compose.ui.unit.TextUnit(
-                                    13f,
-                                    androidx.compose.ui.unit.TextUnitType.Sp,
-                                )
-                            } else {
-                                androidx.compose.ui.unit
-                                    .TextUnit(14f, androidx.compose.ui.unit.TextUnitType.Sp)
-                            },
                     )
                 }
             }
-        }
 
-        // Spacer before playback controls
-        item {
-            Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
-        }
-
-        // Playback controls
-        item {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = if (isCompact) smallItemSpacing else 0.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // Skip previous
-                IconButton(
-                    onClick = onSkipPrevious,
-                    modifier = Modifier.size(skipButtonSize),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.SkipPrevious,
-                        contentDescription = stringResource(R.string.previousChapter),
-                        modifier = Modifier.size(skipIconSize),
-                    )
-                }
-
-                // Seek backward (10s)
-                IconButton(
-                    onClick = onSeekBackward,
-                    modifier = Modifier.size(seekButtonSize),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Replay,
-                        contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
-                        modifier = Modifier.size(seekIconSize),
-                    )
-                }
-
-                // Play/Pause
-                FilledIconButton(
-                    onClick = onPlayPause,
-                    modifier = Modifier.size(playPauseButtonSize),
-                    colors =
-                        IconButtonDefaults.filledIconButtonColors(
-                            containerColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                            contentColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
-                        ),
-                ) {
-                    Icon(
-                        imageVector =
-                            if (state.isPlaying) {
-                                Icons.Filled.Pause
-                            } else {
-                                Icons.Filled.PlayArrow
-                            },
-                        contentDescription =
-                            if (state.isPlaying) {
-                                stringResource(
-                                    R.string.pauseButton,
-                                )
-                            } else {
-                                stringResource(R.string.playButton)
-                            },
-                        modifier = Modifier.size(playPauseIconSize),
-                    )
-                }
-
-                // Seek forward (30s)
-                IconButton(
-                    onClick = onSeekForward,
-                    modifier = Modifier.size(seekButtonSize),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.FastForward,
-                        contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
-                        modifier = Modifier.size(seekIconSize),
-                    )
-                }
-
-                // Skip next
-                IconButton(
-                    onClick = onSkipNext,
-                    modifier = Modifier.size(skipButtonSize),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.SkipNext,
-                        contentDescription = stringResource(R.string.nextChapter),
-                        modifier = Modifier.size(skipIconSize),
-                    )
-                }
+            // Spacer after book title
+            item {
+                Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
             }
-        }
 
-        // Spacer before control buttons
-        item {
-            Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
-        }
-
-        // Control Buttons Row (Speed, Repeat & Sleep Timer)
-        item {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = if (isCompact) 4.dp else 0.dp),
-                horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
-            ) {
-                // Playback Speed Button
-                FilledTonalButton(
-                    onClick = onSpeedClick,
+            // Progress section
+            item {
+                Column(
                     modifier =
                         Modifier
-                            .weight(1f)
-                            .height(controlButtonHeight),
+                            .fillMaxWidth()
+                            .padding(horizontal = if (isCompact) 4.dp else 0.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Speed,
-                        contentDescription = stringResource(R.string.playbackSpeedTitle),
+                    // Progress bar
+                    val progress =
+                        state.currentChapter?.let {
+                            val durationMs = it.duration.inWholeMilliseconds
+                            if (durationMs > 0) state.currentPosition.toFloat() / durationMs.toFloat() else 0f
+                        } ?: 0f
+
+                    Slider(
+                        value = progress,
+                        onValueChange = { newProgress ->
+                            state.currentChapter?.let { chapter ->
+                                onSeek((newProgress * chapter.duration.inWholeMilliseconds.toFloat()).toLong())
+                            }
+                        },
                         modifier =
                             Modifier
-                                .size(controlButtonIconSize)
-                                .padding(end = if (isCompact) 6.dp else 8.dp),
-                    )
-                    Text(
-                        text =
-                            run {
-                                val formattedSpeed =
-                                    if (playbackSpeed % 1.0f == 0.0f) {
-                                        // Whole number - show without decimal
-                                        playbackSpeed.toInt().toString()
-                                    } else {
-                                        // Decimal - format with locale
-                                        val locale = java.util.Locale.getDefault()
-                                        // skip-migration
-                                        val isRussian = locale.language == "ru"
-                                        val symbols =
-                                            java.text.DecimalFormatSymbols(
-                                                if (isRussian) locale else java.util.Locale.US,
-                                            )
-                                        val formatter = java.text.DecimalFormat("#.##", symbols)
-                                        formatter.format(playbackSpeed)
-                                    }
-                                "${formattedSpeed}x"
-                            },
-                        fontSize = controlButtonTextSize,
-                    )
-                }
-
-                // Chapter Repeat Button
-                FilledTonalButton(
-                    onClick = onChapterRepeatClick,
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .height(controlButtonHeight),
-                    colors =
-                        ButtonDefaults.filledTonalButtonColors(
-                            containerColor =
-                                when (chapterRepeatMode) {
-                                    ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
-                                    ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
-                                    ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .semantics {
+                                    val current = formatDuration(state.currentPosition)
+                                    val total = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0)
+                                    stateDescription = "$current of $total"
                                 },
-                        ),
-                ) {
-                    when (chapterRepeatMode) {
-                        ChapterRepeatMode.INFINITE -> {
-                            // Show infinity symbol (∞) for infinite repeat mode
-                            Text(
-                                text = "∞",
-                                fontSize = controlButtonTextSize,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        colors =
+                            SliderDefaults.colors(
+                                thumbColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                                activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
+                            ),
+                    )
+
+                    // Time labels
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = formatDuration(state.currentPosition),
+                            style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        Text(
+                            text = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0),
+                            style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    // Smart Info (Chapter index & Finish time)
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        val chapterText =
+                            stringResource(
+                                R.string.chapterOf,
+                                state.currentChapterIndex + 1,
+                                state.chapters.size,
                             )
-                        }
-                        ChapterRepeatMode.OFF -> {
-                            Icon(
-                                imageVector = Icons.Outlined.Repeat,
-                                contentDescription = stringResource(R.string.noRepeat),
-                                modifier = Modifier.size(controlButtonIconSize),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        ChapterRepeatMode.ONCE -> {
-                            Icon(
-                                imageVector = Icons.Filled.RepeatOne,
-                                contentDescription = stringResource(R.string.repeatTrack),
-                                modifier = Modifier.size(controlButtonIconSize),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
+
+                        // Calculate finish time
+                        val remainingMs =
+                            state.currentChapter
+                                ?.duration
+                                ?.inWholeMilliseconds
+                                ?.minus(state.currentPosition) ?: 0
+                        val speed = state.playbackSpeed
+                        // Avoid division by zero
+                        val realRemainingMs = if (speed > 0) (remainingMs / speed).toLong() else remainingMs
+
+                        val finishTime =
+                            java.util.Calendar.getInstance().apply {
+                                add(java.util.Calendar.MILLISECOND, realRemainingMs.toInt())
+                            }
+                        val formattedTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(finishTime.time)
+                        val finishText = stringResource(R.string.finishAt, formattedTime)
+
+                        Text(
+                            text = "$chapterText • $finishText",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        )
+                    }
+                }
+            }
+
+            // Audio Visualizer
+            item {
+                val service =
+                    com.jabook.app.jabook.audio.AudioPlayerService
+                        .getInstance()
+                val waveformData by service
+                    ?.getVisualizerWaveformData()
+                    ?.collectAsStateWithLifecycle()
+                    ?: remember { androidx.compose.runtime.mutableStateOf(FloatArray(256)) }
+
+                // Initialize visualizer when playing
+                LaunchedEffect(state.isPlaying) {
+                    if (state.isPlaying) {
+                        service?.initializeVisualizer()
                     }
                 }
 
-                // Sleep Timer Button
-                FilledTonalButton(
-                    onClick = onSleepTimerClick,
+                AudioVisualizer(
+                    waveformData = waveformData,
+                    isPlaying = state.isPlaying,
+                    style = VisualizerStyle.BARS,
+                    height = if (isCompact) 40.dp else 48.dp,
+                    primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                    secondaryColor =
+                        state.themeColors?.primaryColor?.copy(alpha = 0.5f)
+                            ?: MaterialTheme.colorScheme.secondary,
                     modifier =
                         Modifier
-                            .weight(1f)
-                            .height(controlButtonHeight),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Timer,
-                        contentDescription = stringResource(R.string.sleepTimer),
-                        modifier = Modifier.size(controlButtonIconSize),
-                    )
-                    if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
+                            .fillMaxWidth()
+                            .padding(horizontal = if (isCompact) 8.dp else 0.dp),
+                )
+            }
+
+            // Spacer before chapter button
+            item {
+                Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+            }
+
+            // Current Chapter Button
+            item {
+                state.currentChapter?.let { chapter ->
+                    FilledTonalButton(
+                        onClick = onChapterClick,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth(if (isCompact) 0.98f else 0.95f)
+                                .wrapContentWidth(Alignment.CenterHorizontally)
+                                .height(if (isCompact) 44.dp else 52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                        colors =
+                            ButtonDefaults.filledTonalButtonColors(
+                                containerColor = Color.White.copy(alpha = 0.08f),
+                                contentColor = Color.White,
+                            ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SkipNext,
+                            contentDescription = null,
+                            modifier =
+                                Modifier
+                                    .size(if (isCompact) 18.dp else 20.dp)
+                                    .padding(end = if (isCompact) 6.dp else 8.dp),
+                        )
                         Text(
-                            text = (sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime,
+                            text =
+                                com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                                    chapter,
+                                    state.currentChapterIndex,
+                                    stringResource(R.string.chapter_prefix),
+                                    normalizeEnabled,
+                                ),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            fontSize =
+                                if (isCompact) {
+                                    androidx.compose.ui.unit.TextUnit(
+                                        13f,
+                                        androidx.compose.ui.unit.TextUnitType.Sp,
+                                    )
+                                } else {
+                                    androidx.compose.ui.unit
+                                        .TextUnit(14f, androidx.compose.ui.unit.TextUnitType.Sp)
+                                },
+                        )
+                    }
+                }
+            }
+
+            // Spacer before playback controls
+            item {
+                Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+            }
+
+            // Playback controls
+            item {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = if (isCompact) smallItemSpacing else 0.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Skip previous
+                    IconButton(
+                        onClick = onSkipPrevious,
+                        modifier = Modifier.size(skipButtonSize),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SkipPrevious,
+                            contentDescription = stringResource(R.string.previousChapter),
+                            modifier = Modifier.size(skipIconSize),
+                        )
+                    }
+
+                    // Seek backward (10s)
+                    IconButton(
+                        onClick = onSeekBackward,
+                        modifier = Modifier.size(seekButtonSize),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Replay,
+                            contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
+                            modifier = Modifier.size(seekIconSize),
+                            tint = Color.White.copy(alpha = 0.8f),
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // Play/Pause - Larger and more prominent
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier =
+                            Modifier
+                                .size(playPauseButtonSize * 1.2f),
+                    ) {
+                        FilledIconButton(
+                            onClick = onPlayPause,
+                            modifier = Modifier.fillMaxSize(),
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            colors =
+                                IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                                    contentColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
+                                ),
+                        ) {
+                            Icon(
+                                imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = if (state.isPlaying) "Pause" else "Play",
+                                modifier = Modifier.size(playPauseIconSize * 1.2f),
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // Seek forward (30s)
+                    IconButton(
+                        onClick = onSeekForward,
+                        modifier = Modifier.size(seekButtonSize),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.FastForward,
+                            contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
+                            modifier = Modifier.size(seekIconSize),
+                            tint = Color.White.copy(alpha = 0.8f),
+                        )
+                    }
+
+                    // Skip next
+                    IconButton(
+                        onClick = onSkipNext,
+                        modifier = Modifier.size(skipButtonSize),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SkipNext,
+                            contentDescription = stringResource(R.string.nextChapter),
+                            modifier = Modifier.size(skipIconSize),
+                            tint = Color.White.copy(alpha = 0.8f),
+                        )
+                    }
+                }
+            }
+
+            // Spacer before control buttons
+            item {
+                Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+            }
+
+            // Control Buttons Row (Speed, Repeat & Sleep Timer)
+            item {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = if (isCompact) 4.dp else 0.dp),
+                    horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
+                ) {
+                    // Playback Speed Button
+                    FilledTonalButton(
+                        onClick = onSpeedClick,
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(controlButtonHeight),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Speed,
+                            contentDescription = stringResource(R.string.playbackSpeedTitle),
+                            modifier =
+                                Modifier
+                                    .size(controlButtonIconSize)
+                                    .padding(end = if (isCompact) 6.dp else 8.dp),
+                        )
+                        Text(
+                            text =
+                                run {
+                                    val formattedSpeed =
+                                        if (playbackSpeed % 1.0f == 0.0f) {
+                                            // Whole number - show without decimal
+                                            playbackSpeed.toInt().toString()
+                                        } else {
+                                            // Decimal - format with locale
+                                            val locale = java.util.Locale.getDefault()
+                                            // skip-migration
+                                            val isRussian = locale.language == "ru"
+                                            val symbols =
+                                                java.text.DecimalFormatSymbols(
+                                                    if (isRussian) locale else java.util.Locale.US,
+                                                )
+                                            val formatter = java.text.DecimalFormat("#.##", symbols)
+                                            formatter.format(playbackSpeed)
+                                        }
+                                    "${formattedSpeed}x"
+                                },
                             fontSize = controlButtonTextSize,
                         )
+                    }
+
+                    // Chapter Repeat Button
+                    FilledTonalButton(
+                        onClick = onChapterRepeatClick,
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(controlButtonHeight),
+                        colors =
+                            ButtonDefaults.filledTonalButtonColors(
+                                containerColor =
+                                    when (chapterRepeatMode) {
+                                        ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
+                                        ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
+                                        ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
+                                    },
+                            ),
+                    ) {
+                        when (chapterRepeatMode) {
+                            ChapterRepeatMode.INFINITE -> {
+                                // Show infinity symbol (∞) for infinite repeat mode
+                                Text(
+                                    text = "∞",
+                                    fontSize = controlButtonTextSize,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                            ChapterRepeatMode.OFF -> {
+                                Icon(
+                                    imageVector = Icons.Outlined.Repeat,
+                                    contentDescription = stringResource(R.string.noRepeat),
+                                    modifier = Modifier.size(controlButtonIconSize),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            ChapterRepeatMode.ONCE -> {
+                                Icon(
+                                    imageVector = Icons.Filled.RepeatOne,
+                                    contentDescription = stringResource(R.string.repeatTrack),
+                                    modifier = Modifier.size(controlButtonIconSize),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                        }
+                    }
+
+                    // Sleep Timer Button
+                    FilledTonalButton(
+                        onClick = onSleepTimerClick,
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .height(controlButtonHeight),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Timer,
+                            contentDescription = stringResource(R.string.sleepTimer),
+                            modifier = Modifier.size(controlButtonIconSize),
+                        )
+                        if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
+                            Text(
+                                text = (sleepTimerState as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active).formattedTime,
+                                fontSize = controlButtonTextSize,
+                            )
+                        }
                     }
                 }
             }

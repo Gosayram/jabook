@@ -149,7 +149,20 @@ private fun GridBookCard(
         )
     val isFavorite = actionsProvider.isFavorite(book.id)
 
+    // Glassmorphic Card Style
+    val glassColors =
+        androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+        )
+    val glassBorder =
+        androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+        )
+
     Card(
+        colors = glassColors,
+        border = glassBorder,
         modifier =
             modifier
                 .fillMaxWidth()
@@ -323,7 +336,20 @@ private fun ListBookCard(
             else -> displayMode.getListCoverSize()?.dp ?: 48.dp
         }
 
+    // Glassmorphic Card Style
+    val glassColors =
+        androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+        )
+    val glassBorder =
+        androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+        )
+
     Card(
+        colors = glassColors,
+        border = glassBorder,
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(

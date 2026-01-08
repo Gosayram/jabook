@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.player.controller
 
 import android.content.Context
 import android.content.Intent
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.AudioPlayerService
@@ -62,6 +63,18 @@ class AudioPlayerController
 
         private val _currentChapterIndex = MutableStateFlow(0)
         val currentChapterIndex: StateFlow<Int> = _currentChapterIndex.asStateFlow()
+
+        // Pitch Correction State
+        private val _pitchCorrectionEnabled = MutableStateFlow(true)
+        val pitchCorrectionEnabled: StateFlow<Boolean> = _pitchCorrectionEnabled.asStateFlow()
+
+        // Audio Stats for Nerds
+        private val _playerStats =
+            MutableStateFlow(
+                com.jabook.app.jabook.compose.feature.player
+                    .PlayerStats(),
+            )
+        val playerStats: StateFlow<com.jabook.app.jabook.compose.feature.player.PlayerStats> = _playerStats.asStateFlow()
 
         // Callback for chapter end handling (e.g., repeat logic)
         private var onChapterEndedCallback: (() -> Boolean)? = null
@@ -122,8 +135,44 @@ class AudioPlayerController
                 ) {
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
                     _duration.value = exoPlayer.duration.coerceAtLeast(0)
+                    updateStats()
+                }
+
+                override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                    updateStats()
+                }
+
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    updateStats()
                 }
             }
+
+        private fun updateStats() {
+            val format = exoPlayer.audioFormat
+            val audioFormat =
+                "${format?.sampleMimeType ?: "Unknown"} ${format?.bitrate?.let {
+                    if (it > 0) "${it / 1000}kbps" else ""
+                } ?: ""}"
+                    .trim()
+            val bufferMs = exoPlayer.bufferedPosition - exoPlayer.currentPosition
+
+            _playerStats.value =
+                com.jabook.app.jabook.compose.feature.player.PlayerStats(
+                    audioFormat = audioFormat.ifEmpty { "Unknown" },
+                    bitrate = format?.bitrate?.let { if (it > 0) "${it / 1000} kbps" else "Unknown" } ?: "Unknown",
+                    bufferHealth = "${bufferMs / 1000}s",
+                    audioSessionId =
+                        if (exoPlayer.audioSessionId !=
+                            C.AUDIO_SESSION_ID_UNSET
+                        ) {
+                            exoPlayer.audioSessionId.toString()
+                        } else {
+                            "None"
+                        },
+                    decoderName = "ExoPlayer Audio Decoder",
+                    droppedFrames = 0, // Audio usually doesn't drop frames like video
+                )
+        }
 
         init {
             // Attach listener to singleton ExoPlayer
@@ -138,12 +187,29 @@ class AudioPlayerController
                 startPositionUpdater()
             }
 
-            // Observe playback speed
-            scope.launch {
-                userPreferencesRepository.userData.collect { userData ->
-                    exoPlayer.setPlaybackSpeed(userData.playbackSpeed)
-                }
+            if (exoPlayer.isPlaying) {
+                startPositionUpdater()
             }
+
+            // Observe playback speed and pitch correction
+            scope.launch {
+                kotlinx.coroutines.flow
+                    .combine(
+                        userPreferencesRepository.userData,
+                        _pitchCorrectionEnabled,
+                    ) { userData, pitchCorrection ->
+                        Pair(userData.playbackSpeed, pitchCorrection)
+                    }.collect { (speed, pitchCorrection) ->
+                        val pitch = if (pitchCorrection) 1.0f else speed
+                        // Skip if no change to avoid interruptions (although setPlaybackParameters checks internally)
+                        val params = androidx.media3.common.PlaybackParameters(speed, pitch)
+                        exoPlayer.playbackParameters = params
+                    }
+            }
+        }
+
+        fun setPitchCorrectionEnabled(enabled: Boolean) {
+            _pitchCorrectionEnabled.value = enabled
         }
 
         private fun startPositionUpdater() {
@@ -242,6 +308,10 @@ class AudioPlayerController
 
         fun skipToChapter(index: Int) {
             AudioPlayerService.getInstance()?.seekToTrack(index)
+        }
+
+        fun setPlaybackSpeed(speed: Float) {
+            AudioPlayerService.getInstance()?.setSpeed(speed)
         }
 
         private fun startService() {

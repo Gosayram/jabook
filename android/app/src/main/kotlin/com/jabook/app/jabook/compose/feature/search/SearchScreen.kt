@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.search
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -138,166 +139,132 @@ fun SearchScreen(
 
     // Removed filter sheet - using adaptive pane instead
 
+    // Premium Background Gradient
+    val backgroundGradient =
+        androidx.compose.ui.graphics.Brush.verticalGradient(
+            colors =
+                listOf(
+                    MaterialTheme.colorScheme.background,
+                    MaterialTheme.colorScheme.surface,
+                ),
+        )
+
     // SupportingPaneScaffold for adaptive filter display
-    SupportingPaneScaffold(
-        directive = scaffoldNavigator.scaffoldDirective,
-        value = scaffoldNavigator.scaffoldValue,
-        mainPane = {
-            AnimatedPane(modifier = Modifier) {
-                Scaffold(
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                TextField(
-                                    value = searchQuery,
-                                    onValueChange = viewModel::onSearchQueryChanged,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
-                                    singleLine = true,
-                                    colors =
-                                        TextFieldDefaults.colors(
-                                            focusedContainerColor = Color.Transparent,
-                                            unfocusedContainerColor = Color.Transparent,
-                                            focusedIndicatorColor = Color.Transparent,
-                                            unfocusedIndicatorColor = Color.Transparent,
-                                        ),
-                                    trailingIcon = {
-                                        if (searchQuery.isNotBlank()) {
-                                            IconButton(onClick = viewModel::clearSearch) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.Clear,
-                                                    contentDescription = stringResource(R.string.clearSearch),
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(backgroundGradient),
+    ) {
+        SupportingPaneScaffold(
+            directive = scaffoldNavigator.scaffoldDirective,
+            value = scaffoldNavigator.scaffoldValue,
+            mainPane = {
+                AnimatedPane {
+                    Scaffold(
+                        containerColor = Color.Transparent, // Transparent to show gradient
+                        topBar = {
+                            TopAppBar(
+                                title = {
+                                    TextField(
+                                        value = searchQuery,
+                                        onValueChange = viewModel::onSearchQueryChanged,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
+                                        singleLine = true,
+                                        colors =
+                                            TextFieldDefaults.colors(
+                                                focusedContainerColor = Color.Transparent,
+                                                unfocusedContainerColor = Color.Transparent,
+                                                focusedIndicatorColor = Color.Transparent,
+                                                unfocusedIndicatorColor = Color.Transparent,
+                                            ),
+                                        trailingIcon = {
+                                            if (searchQuery.isNotBlank()) {
+                                                IconButton(onClick = viewModel::clearSearch) {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.Clear,
+                                                        contentDescription = stringResource(R.string.clearSearch),
+                                                    )
+                                                }
+                                            }
+                                        },
+                                    )
+                                },
+                                navigationIcon = {
+                                    IconButton(onClick = onNavigateBack) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = stringResource(R.string.back),
+                                        )
+                                    }
+                                },
+                                actions = {
+                                    // Sort Button
+                                    Box {
+                                        IconButton(onClick = { showSortMenu = true }) {
+                                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort))
+                                        }
+                                        DropdownMenu(
+                                            expanded = showSortMenu,
+                                            onDismissRequest = { showSortMenu = false },
+                                        ) {
+                                            SearchSortOrder.entries.forEach { order ->
+                                                DropdownMenuItem(
+                                                    text = { Text(order.name.replace("_", " ")) },
+                                                    onClick = {
+                                                        viewModel.updateSortOrder(order)
+                                                        showSortMenu = false
+                                                    },
+                                                    leadingIcon =
+                                                        if (order == sortOrder) {
+                                                            { Icon(Icons.Filled.Check, contentDescription = null) }
+                                                        } else {
+                                                            null
+                                                        },
                                                 )
                                             }
                                         }
-                                    },
-                                )
-                            },
-                            navigationIcon = {
-                                IconButton(onClick = onNavigateBack) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = stringResource(R.string.back),
-                                    )
-                                }
-                            },
-                            actions = {
-                                // Sort Button
-                                Box {
-                                    IconButton(onClick = { showSortMenu = true }) {
-                                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort))
                                     }
-                                    DropdownMenu(
-                                        expanded = showSortMenu,
-                                        onDismissRequest = { showSortMenu = false },
-                                    ) {
-                                        SearchSortOrder.entries.forEach { order ->
-                                            DropdownMenuItem(
-                                                text = { Text(order.name.replace("_", " ")) },
-                                                onClick = {
-                                                    viewModel.updateSortOrder(order)
-                                                    showSortMenu = false
-                                                },
-                                                leadingIcon =
-                                                    if (order == sortOrder) {
-                                                        { Icon(Icons.Filled.Check, contentDescription = null) }
-                                                    } else {
-                                                        null
-                                                    },
-                                            )
-                                        }
-                                    }
-                                }
 
-                                // Filter Button - toggles supporting pane
-                                IconButton(
-                                    onClick = {
-                                        scope.launch {
-                                            if (scaffoldNavigator.canNavigateBack()) {
-                                                scaffoldNavigator.navigateBack()
-                                            } else {
-                                                scaffoldNavigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
-                                            }
-                                        }
-                                    },
-                                ) {
-                                    Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filters))
-                                }
-                            },
-                        )
-                    },
-                ) { padding ->
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding)
-                                .padding(16.dp),
-                    ) {
-                        // Show indexing message if index is empty
-                        if (showIndexingMessage && indexSize == 0) {
-                            androidx.compose.material3.Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors =
-                                    androidx.compose.material3.CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    ),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text(
-                                        text = "Индекс не создан",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text =
-                                            "Для поиска аудиокниг необходимо создать индекс форумов. " +
-                                                "Индексация работает в фоне, вы можете продолжать использовать приложение.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Button(
+                                    // Filter Button - toggles supporting pane
+                                    IconButton(
                                         onClick = {
-                                            indexingViewModel.startIndexing(context)
+                                            scope.launch {
+                                                if (scaffoldNavigator.canNavigateBack()) {
+                                                    scaffoldNavigator.navigateBack()
+                                                } else {
+                                                    scaffoldNavigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
+                                                }
+                                            }
                                         },
                                     ) {
-                                        Text("Начать индексацию")
+                                        Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filters))
                                     }
-                                }
-                            }
-                            Spacer(Modifier.height(16.dp))
-                        }
-
-                        // Online search button - only show if index exists
-                        if (searchQuery.isNotEmpty()) {
-                            if (indexSize > 0) {
-                                Button(
-                                    onClick = viewModel::searchOnline,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Icon(Icons.Filled.Search, contentDescription = null)
-                                    Spacer(Modifier.padding(4.dp))
-                                    Text(stringResource(R.string.searchOnlineRutracker))
-                                }
-                                Spacer(Modifier.height(16.dp))
-                            } else {
-                                // Show message that indexing is needed for online search
-                                val isIndexingNow = indexingViewModel.isIndexing.collectAsStateWithLifecycle().value
+                                },
+                                colors =
+                                    androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                                        containerColor = Color.Transparent,
+                                        scrolledContainerColor = Color.Transparent,
+                                    ),
+                            )
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    ) { padding ->
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(padding)
+                                    .padding(16.dp),
+                        ) {
+                            // Show indexing message if index is empty
+                            if (showIndexingMessage && indexSize == 0) {
                                 androidx.compose.material3.Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors =
                                         androidx.compose.material3.CardDefaults.cardColors(
-                                            containerColor =
-                                                if (isIndexingNow) {
-                                                    MaterialTheme.colorScheme.primaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.secondaryContainer
-                                                },
+                                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         ),
                                 ) {
                                     Column(
@@ -305,113 +272,171 @@ fun SearchScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                     ) {
                                         Text(
-                                            text =
-                                                if (isIndexingNow) {
-                                                    "Индексация в процессе..."
-                                                } else {
-                                                    "Индекс не создан"
-                                                },
-                                            style = MaterialTheme.typography.titleSmall,
+                                            text = "Индекс не создан",
+                                            style = MaterialTheme.typography.titleMedium,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Spacer(modifier = Modifier.height(8.dp))
                                         Text(
                                             text =
-                                                if (isIndexingNow) {
-                                                    "Пожалуйста, подождите завершения индексации. " +
-                                                        "Прогресс можно увидеть в уведомлениях."
-                                                } else {
-                                                    "Для онлайн поиска необходимо создать индекс. " +
-                                                        "Локальный поиск работает всегда."
-                                                },
+                                                "Для поиска аудиокниг необходимо создать индекс форумов. " +
+                                                    "Индексация работает в фоне, вы можете продолжать использовать приложение.",
                                             style = MaterialTheme.typography.bodySmall,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Button(
+                                            onClick = {
+                                                indexingViewModel.startIndexing(context)
+                                            },
+                                        ) {
+                                            Text("Начать индексацию")
+                                        }
                                     }
                                 }
                                 Spacer(Modifier.height(16.dp))
                             }
-                        }
 
-                        // Content based on UI state
-                        when (val state = uiState) {
-                            is SearchUiState.Idle -> {
-                                // Show local results only
-                                LocalSearchResults(
-                                    query = searchQuery,
-                                    results = localResults,
-                                    searchHistory = searchHistory,
-                                    onBookClick = onBookClick,
-                                    onHistoryItemClick = { query ->
-                                        viewModel.onSearchQueryChanged(query)
-                                        // Optionally trigger online search automatically or just set query
-                                    },
-                                    onHistoryItemDelete = viewModel::deleteSearchHistoryItem,
-                                    onClearHistory = viewModel::clearSearchHistory,
-                                )
-                            }
-
-                            is SearchUiState.Loading -> {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CircularProgressIndicator()
+                            // Online search button - only show if index exists
+                            if (searchQuery.isNotEmpty()) {
+                                if (indexSize > 0) {
+                                    Button(
+                                        onClick = viewModel::searchOnline,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Icon(Icons.Filled.Search, contentDescription = null)
+                                        Spacer(Modifier.padding(4.dp))
+                                        Text(stringResource(R.string.searchOnlineRutracker))
+                                    }
+                                    Spacer(Modifier.height(16.dp))
+                                } else {
+                                    // Show message that indexing is needed for online search
+                                    val isIndexingNow = indexingViewModel.isIndexing.collectAsStateWithLifecycle().value
+                                    androidx.compose.material3.Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors =
+                                            androidx.compose.material3.CardDefaults.cardColors(
+                                                containerColor =
+                                                    if (isIndexingNow) {
+                                                        MaterialTheme.colorScheme.primaryContainer
+                                                    } else {
+                                                        MaterialTheme.colorScheme.secondaryContainer
+                                                    },
+                                            ),
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(16.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                        ) {
+                                            Text(
+                                                text =
+                                                    if (isIndexingNow) {
+                                                        "Индексация в процессе..."
+                                                    } else {
+                                                        "Индекс не создан"
+                                                    },
+                                                style = MaterialTheme.typography.titleSmall,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text =
+                                                    if (isIndexingNow) {
+                                                        "Пожалуйста, подождите завершения индексации. " +
+                                                            "Прогресс можно увидеть в уведомлениях."
+                                                    } else {
+                                                        "Для онлайн поиска необходимо создать индекс. " +
+                                                            "Локальный поиск работает всегда."
+                                                    },
+                                                style = MaterialTheme.typography.bodySmall,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(16.dp))
                                 }
                             }
 
-                            is SearchUiState.Success -> {
-                                OnlineSearchResults(
-                                    results = state.onlineResults,
-                                    favoriteIds = favoriteIds,
-                                    onBookClick = onOnlineBookClick,
-                                    onToggleFavorite = viewModel::toggleFavorite,
-                                )
-                            }
-
-                            is SearchUiState.Error -> {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center,
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.errorWithMessage, state.message),
-                                        color = MaterialTheme.colorScheme.error,
+                            // Content based on UI state
+                            when (val state = uiState) {
+                                is SearchUiState.Idle -> {
+                                    // Show local results only
+                                    LocalSearchResults(
+                                        query = searchQuery,
+                                        results = localResults,
+                                        searchHistory = searchHistory,
+                                        onBookClick = onBookClick,
+                                        onHistoryItemClick = { query ->
+                                            viewModel.onSearchQueryChanged(query)
+                                            // Optionally trigger online search automatically or just set query
+                                        },
+                                        onHistoryItemDelete = viewModel::deleteSearchHistoryItem,
+                                        onClearHistory = viewModel::clearSearchHistory,
                                     )
-                                    Spacer(Modifier.height(8.dp))
-                                    Button(onClick = viewModel::searchOnline) {
-                                        Text(stringResource(R.string.retry))
+                                }
+
+                                is SearchUiState.Loading -> {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+
+                                is SearchUiState.Success -> {
+                                    OnlineSearchResults(
+                                        results = state.onlineResults,
+                                        favoriteIds = favoriteIds,
+                                        onBookClick = onOnlineBookClick,
+                                        onToggleFavorite = viewModel::toggleFavorite,
+                                    )
+                                }
+
+                                is SearchUiState.Error -> {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.errorWithMessage, state.message),
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Button(onClick = viewModel::searchOnline) {
+                                            Text(stringResource(R.string.retry))
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
-        },
-        supportingPane = {
-            AnimatedPane(modifier = Modifier) {
-                // Show filters pane
-                SearchFiltersPane(
-                    filters = filters,
-                    onApplyFilters = { newFilters ->
-                        viewModel.updateFilters(newFilters)
-                        // On compact screens, navigate back after applying
-                        scope.launch {
-                            if (scaffoldNavigator.canNavigateBack()) {
-                                scaffoldNavigator.navigateBack()
+            },
+            supportingPane = {
+                AnimatedPane {
+                    // Show filters pane
+                    SearchFiltersPane(
+                        filters = filters,
+                        onApplyFilters = { newFilters ->
+                            viewModel.updateFilters(newFilters)
+                            // On compact screens, navigate back after applying
+                            scope.launch {
+                                if (scaffoldNavigator.canNavigateBack()) {
+                                    scaffoldNavigator.navigateBack()
+                                }
                             }
-                        }
-                    },
-                    onReset = {
-                        viewModel.updateFilters(SearchFilters())
-                    },
-                )
-            }
-        },
-        modifier = modifier,
-    )
+                        },
+                        onReset = {
+                            viewModel.updateFilters(SearchFilters())
+                        },
+                    )
+                }
+            },
+            modifier = Modifier, // The original modifier is now applied to the Box
+        )
+    }
 }
 
 /**

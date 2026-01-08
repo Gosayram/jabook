@@ -27,7 +27,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
-// Beta Light Color Scheme (Green theme)
+// Beta Light Color Scheme (Cyber-Premium Tech)
 private val BetaLightColorScheme =
     lightColorScheme(
         primary = beta_light_primary,
@@ -51,7 +51,7 @@ private val BetaLightColorScheme =
         outline = beta_light_outline,
     )
 
-// Beta Dark Color Scheme
+// Beta Dark Color Scheme (Cyber-Premium Tech)
 private val BetaDarkColorScheme =
     darkColorScheme(
         primary = beta_dark_primary,
@@ -64,7 +64,7 @@ private val BetaDarkColorScheme =
         onSurface = beta_dark_onSurface,
     )
 
-// Prod Light Color Scheme (Purple theme)
+// Prod Light Color Scheme (Royal Premium)
 private val ProdLightColorScheme =
     lightColorScheme(
         primary = prod_light_primary,
@@ -88,7 +88,7 @@ private val ProdLightColorScheme =
         outline = prod_light_outline,
     )
 
-// Prod Dark Color Scheme
+// Prod Dark Color Scheme (Royal Premium)
 private val ProdDarkColorScheme =
     darkColorScheme(
         primary = prod_dark_primary,
@@ -104,8 +104,8 @@ private val ProdDarkColorScheme =
 /**
  * Jabook application theme with flavor-specific branding.
  *
- * Beta flavor: Green theme with dark blue accents
- * Prod flavor: Purple theme with orange-yellow accents
+ * Beta flavor: Cyber-Premium Tech (Deep Navy + Neon Green)
+ * Prod flavor: Royal Premium (Deep Purple + Luxury Gold)
  * Dev/Stage flavors: Use beta theme
  *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
@@ -117,7 +117,8 @@ private val ProdDarkColorScheme =
 fun JabookTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Disabled by default to enforce Premium Branding identity
+    dynamicColor: Boolean = false,
     isBetaFlavor: Boolean = true,
     selectedFont: com.jabook.app.jabook.compose.data.model.AppFont = com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
     content: @Composable () -> Unit,

@@ -80,9 +80,22 @@
     <!-- Message explaining that login is required for search -->
     <string name="loginRequiredForSearch">Please login to RuTracker to access search functionality.</string>
     <!-- Cancel button text -->
+    <string name="finishAt">Finish %1$s</string>
+    <string name="chapterOf">Ch %1$d of %2$d</string>
     <string name="cancel">Cancel</string>
     <!-- Button label for reset action -->
     <string name="reset">Reset</string>
+    <string name="statsForNerds">Stats for Nerds</string>
+    <string name="audioFormat">Audio Format</string>
+    <string name="bitrate">Bitrate</string>
+    <string name="bufferHealth">Buffer Health</string>
+    <string name="audioSessionId">Audio Session ID</string>
+    <string name="decoder">Decoder</string>
+
+    <string name="sleepTimerExtended">Sleep timer extended by 5 minutes</string>
+    <string name="shakeToExtendEnabled">Shake to extend enabled</string>
+    <string name="pitchCorrection">Pitch correction</string>
+    <string name="pitchCorrectionDesc">Keep voices sounding natural</string>
     <!-- Menu item to reset book settings to global defaults -->
     <string name="resetToGlobalSettings">Reset to global settings</string>
     <!-- Button label to reset all individual book settings -->

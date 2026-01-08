@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.library
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -155,18 +156,39 @@ fun LibraryScreen(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    // Premium Background Gradient
+    val backgroundGradient =
+        androidx.compose.ui.graphics.Brush.verticalGradient(
+            colors =
+                listOf(
+                    androidx.compose.material3.MaterialTheme.colorScheme.background,
+                    androidx.compose.material3.MaterialTheme.colorScheme.surface,
+                ),
+        )
+
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(backgroundGradient),
+    ) {
         // 🎯 ListDetailPaneScaffold - Material 3 Adaptive component
         ListDetailPaneScaffold(
             directive = navigator.scaffoldDirective,
             value = navigator.scaffoldValue,
             listPane = {
-                AnimatedPane(modifier = Modifier) {
+                AnimatedPane {
                     // List pane content - book library
                     Scaffold(
+                        containerColor = androidx.compose.ui.graphics.Color.Transparent, // Transparent to show gradient
                         topBar = {
                             TopAppBar(
                                 title = { },
+                                colors =
+                                    androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                                        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                                        scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                                    ),
                                 actions = {
                                     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
@@ -288,7 +310,7 @@ fun LibraryScreen(
                 }
             },
             detailPane = {
-                AnimatedPane(modifier = Modifier) {
+                AnimatedPane {
                     // Detail pane content - use locally tracked selection
                     if (selectedBookId != null && uiState is LibraryUiState.Success) {
                         val books = (uiState as LibraryUiState.Success).books

@@ -80,6 +80,9 @@ class AudioPlayerService : MediaLibraryService() {
     lateinit var settingsRepository: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 
     @Inject
+    lateinit var playbackPositionRepository: com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+
+    @Inject
     lateinit var audioOutputManager: AudioOutputManager
 
     @Inject
@@ -255,6 +258,39 @@ class AudioPlayerService : MediaLibraryService() {
     internal var crossfadeHandler: CrossfadeHandler? = null
 
     internal val playerServiceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // Periodic position saving designated to PlaybackPositionRepository
+    private var positionSaveJob: kotlinx.coroutines.Job? = null
+
+    private fun startPeriodicPositionSaving() {
+        positionSaveJob?.cancel()
+        positionSaveJob =
+            playerServiceScope.launch {
+                while (coroutineContext[kotlinx.coroutines.Job]?.isActive == true) {
+                    kotlinx.coroutines.delay(10000) // Save every 10 seconds
+                    savePositionToRepository()
+                }
+            }
+    }
+
+    private fun stopPeriodicPositionSaving() {
+        positionSaveJob?.cancel()
+        positionSaveJob = null
+    }
+
+    internal fun savePositionToRepository() {
+        val player = getActivePlayer()
+        val bookId = currentGroupPath
+        if (player.mediaItemCount > 0 && !bookId.isNullOrBlank()) {
+            playerServiceScope.launch(Dispatchers.IO) {
+                playbackPositionRepository.savePosition(
+                    bookId = bookId,
+                    trackIndex = player.currentMediaItemIndex,
+                    position = player.currentPosition,
+                )
+            }
+        }
+    }
 
     // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
     // Increased parallelism for faster loading on modern devices with fast storage
@@ -682,7 +718,7 @@ class AudioPlayerService : MediaLibraryService() {
         // Start listening for phone calls when playback starts
         phoneCallListener?.startListening()
 
-        // playbackPositionSaver?.startPeriodicPositionSaving()
+        startPeriodicPositionSaving()
     }
 
     fun pause() {
@@ -691,9 +727,9 @@ class AudioPlayerService : MediaLibraryService() {
             return
         }
 
-        // playbackPositionSaver?.savePosition("pause")
+        savePositionToRepository()
         // storeCurrentMediaItem()
-        // playbackPositionSaver?.stopPeriodicPositionSaving()
+        stopPeriodicPositionSaving()
     }
 
     fun stop() {
@@ -705,9 +741,9 @@ class AudioPlayerService : MediaLibraryService() {
         // Stop listening for phone calls when playback stops
         phoneCallListener?.stopListening()
 
-        // playbackPositionSaver?.savePosition("stop")
+        savePositionToRepository()
         // storeCurrentMediaItem()
-        // playbackPositionSaver?.stopPeriodicPositionSaving()
+        stopPeriodicPositionSaving()
     }
 
     /**

@@ -80,9 +80,22 @@
     <!-- Сообщение о необходимости входа в поиск -->
     <string name="loginRequiredForSearch">Пожалуйста, войдите в RuTracker для доступа к функции поиска.</string>
     <!-- Текст кнопки отмены -->
+    <string name="finishAt">Финиш %1$s</string>
+    <string name="chapterOf">Гл %1$d из %2$d</string>
     <string name="cancel">Отмена</string>
     <!-- Подпись кнопки для действия сброса -->
     <string name="reset">Сбросить</string>
+    <string name="statsForNerds">Статистика для гиков</string>
+    <string name="audioFormat">Формат аудио</string>
+    <string name="bitrate">Битрейт</string>
+    <string name="bufferHealth">Здоровье буфера</string>
+    <string name="audioSessionId">ID аудиосессии</string>
+    <string name="decoder">Декодер</string>
+
+    <string name="sleepTimerExtended">Таймер сна продлен на 5 минут</string>
+    <string name="shakeToExtendEnabled">Встряхните чтобы продлить</string>
+    <string name="pitchCorrection">Коррекция тона</string>
+    <string name="pitchCorrectionDesc">Сохранять естественность голоса</string>
     <!-- Пункт меню для сброса настроек книги до глобальных -->
     <string name="resetToGlobalSettings">Сбросить до глобальных настроек</string>
     <!-- Подпись кнопки для сброса всех индивидуальных настроек книг -->

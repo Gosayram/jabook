@@ -16,9 +16,18 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.widget.Toast
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.R
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlin.math.sqrt
 
 /**
  * Manages sleep timer functionality.
@@ -43,6 +52,47 @@ internal class SleepTimerManager(
     // SuspendableCountDownTimer for pause/resume functionality (inspired by lissen-android)
     private var suspendableTimer: SuspendableCountDownTimer? = null
     private var timerOption: TimerOption = TimerOption.FIXED_DURATION
+
+    // Shake to Extend
+    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    private var lastShakeTime: Long = 0
+    private val shakeThreshold = 1.6f // g-force threshold
+    private val shakeDebounceMs = 2000L
+
+    private val shakeListener =
+        object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event == null) return
+
+                val x = event.values[0]
+                val y = event.values[1]
+                val z = event.values[2]
+
+                // Normalize by gravity
+                val gX = x / SensorManager.GRAVITY_EARTH
+                val gY = y / SensorManager.GRAVITY_EARTH
+                val gZ = z / SensorManager.GRAVITY_EARTH
+
+                // Calculate gForce
+                val gForce = sqrt(gX * gX + gY * gY + gZ * gZ)
+
+                if (gForce > shakeThreshold) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastShakeTime > shakeDebounceMs) {
+                        lastShakeTime = now
+                        extendTimer()
+                    }
+                }
+            }
+
+            override fun onAccuracyChanged(
+                sensor: Sensor?,
+                accuracy: Int,
+            ) {
+                // Not used
+            }
+        }
 
     /**
      * Timer option types.
@@ -106,6 +156,9 @@ internal class SleepTimerManager(
         // Add player listener for pause/resume
         setupPlayerListener()
 
+        // Register shake listener
+        setupShakeListener()
+
         saveTimerState()
     }
 
@@ -147,6 +200,7 @@ internal class SleepTimerManager(
         suspendableTimer?.cancel()
         suspendableTimer = null
         removePlayerListener()
+        removeShakeListener()
     }
 
     /**
@@ -237,6 +291,35 @@ internal class SleepTimerManager(
         }
     }
 
+    private fun setupShakeListener() {
+        if (accelerometer != null) {
+            sensorManager.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_UI)
+            android.util.Log.d("AudioPlayerService", "Shake listener registered")
+        }
+    }
+
+    private fun removeShakeListener() {
+        sensorManager.unregisterListener(shakeListener)
+        android.util.Log.d("AudioPlayerService", "Shake listener unregistered")
+    }
+
+    private fun extendTimer() {
+        if (!isSleepTimerActive() || timerOption != TimerOption.FIXED_DURATION) return
+
+        val remainingSeconds = getSleepTimerRemainingSeconds() ?: 0
+        // Extend by 5 minutes
+        val newDurationMinutes = (remainingSeconds / 60) + 5
+
+        android.util.Log.d("AudioPlayerService", "Shake detected! Extending timer to $newDurationMinutes minutes")
+
+        // Show toast on Main thread
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            Toast.makeText(context, R.string.sleepTimerExtended, Toast.LENGTH_SHORT).show()
+        }
+
+        setSleepTimerMinutes(newDurationMinutes)
+    }
+
     /**
      * Saves sleep timer state to SharedPreferences for restoration after app restart.
      */
@@ -315,6 +398,7 @@ internal class SleepTimerManager(
                         }
 
                         setupPlayerListener()
+                        setupShakeListener()
 
                         android.util.Log.d("AudioPlayerService", "Sleep timer restored: $remaining seconds remaining")
                     } else {
