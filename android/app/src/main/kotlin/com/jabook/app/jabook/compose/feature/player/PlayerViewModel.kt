@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -195,11 +196,62 @@ class PlayerViewModel
                 } else {
                     state
                 }
+            }.combine(_lyrics) { state, lyrics ->
+                if (state is PlayerUiState.Success) {
+                    state.copy(lyrics = lyrics)
+                } else {
+                    state
+                }
             }.stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.Eagerly, // Start immediately to avoid race conditions
                 initialValue = PlayerUiState.Loading,
             )
+
+        // Store lyrics in a separate flow to avoid re-parsing on every seek
+        private val _lyrics = MutableStateFlow<List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
+
+        // Load lyrics when chapter changes
+        init {
+            viewModelScope.launch {
+                // Monitor chapter changes
+                combine(
+                    getChaptersUseCase(bookId),
+                    playerController.currentChapterIndex,
+                ) { chapters, index ->
+                    chapters.getOrNull(index)
+                }.collect { chapter ->
+                    if (chapter?.fileUrl != null) {
+                        loadLyrics(chapter.fileUrl!!)
+                    } else {
+                        _lyrics.value = null
+                    }
+                }
+            }
+        }
+
+        private suspend fun loadLyrics(audioPath: String) {
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val audioFile = java.io.File(audioPath)
+                    val lrcFile = java.io.File(audioFile.parent, "${audioFile.nameWithoutExtension}.lrc")
+
+                    if (lrcFile.exists()) {
+                        val content = lrcFile.readText()
+                        val parsed =
+                            com.jabook.app.jabook.compose.feature.player.lyrics.LrcParser
+                                .parse(content)
+                        if (parsed.isNotEmpty()) {
+                            _lyrics.value = parsed
+                            return@withContext
+                        }
+                    }
+                    _lyrics.value = null
+                } catch (e: Exception) {
+                    android.util.Log.e("PlayerViewModel", "Failed to load lyrics", e)
+                    _lyrics.value = null
+                }
+            }
+        }
 
         // Load artwork and extract colors when book changes
         init {
@@ -527,6 +579,7 @@ sealed interface PlayerUiState {
         val forwardInterval: Int,
         val playbackSpeed: Float,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
+        val lyrics: List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
     ) : PlayerUiState
 
     /**

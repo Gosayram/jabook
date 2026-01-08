@@ -37,6 +37,7 @@ data class PlayerThemeColors(
     val surfaceColor: Color = Color(0xFF1C1B1F), // Default Dark Surface
     val onSurfaceColor: Color = Color(0xFFE6E1E5), // Default OnSurface
     val containerColor: Color = Color(0xFF21005D), // Default Primary Container
+    val gradientColors: List<Color> = listOf(Color(0xFF21005D), Color(0xFF6750A4), Color(0xFFEADDFF)),
 )
 
 /**
@@ -92,6 +93,16 @@ object DynamicThemeManager {
             val onPrimary = if (isDark(primary)) Color.White else Color.Black
             val onSurface = Color(0xFFE6E1E5)
 
+            // Extract rich colors for Mesh Gradient (3-4 colors)
+            // 1. Deep/Dark base (Container)
+            // 2. Main Vibrant accent (Primary)
+            // 3. Secondary/Different accent (Secondary or Light Vibrant)
+            val gradient1 = container
+            val gradient2 = primary
+            val gradient3 =
+                lightVibrant?.rgb?.let(::Color)
+                    ?: secondary
+
             PlayerThemeColors(
                 primaryColor = primary,
                 onPrimaryColor = onPrimary,
@@ -99,6 +110,7 @@ object DynamicThemeManager {
                 surfaceColor = surface,
                 onSurfaceColor = onSurface,
                 containerColor = container,
+                gradientColors = listOf(gradient1, gradient2, gradient3),
             )
         }
 

@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
@@ -216,39 +217,63 @@ private fun CircularVisualizer(
     color: Color,
     modifier: Modifier = Modifier,
 ) {
-    Canvas(modifier = modifier) {
-        if (waveformData.isEmpty()) return@Canvas
+    // Reduce data points for cleaner radial bars
+    val barCount = 40 // Amount of bars around the circle
+    val reducedData = remember(waveformData) {
+        if (waveformData.isEmpty()) {
+            FloatArray(barCount) { 0f }
+        } else {
+             // Simple downsampling
+            val step = waveformData.size / barCount
+            FloatArray(barCount) { i ->
+                val startIdx = i * step
+                // Average amplitude for this chunk
+                var sum = 0f
+                val end = minOf((i + 1) * step, waveformData.size)
+                for (k in startIdx until end) {
+                    sum += abs(waveformData[k])
+                }
+                if (end > startIdx) sum / (end - startIdx) else 0f
+            }
+        }
+    }
 
+    Canvas(modifier = modifier) {
         val centerX = size.width / 2
         val centerY = size.height / 2
-        val baseRadius = minOf(centerX, centerY) * 0.6f
+        // Radius for the inner empty circle
+        val innerRadius = minOf(centerX, centerY) * 0.4f
+        val maxBarHeight = minOf(centerX, centerY) * 0.5f
 
-        val path =
-            Path().apply {
-                val sampleCount = minOf(waveformData.size, 64)
-                val step = waveformData.size / sampleCount
+        val angleStep = 360f / barCount
+        val barWidth = (2 * Math.PI * innerRadius / barCount).toFloat() * 0.6f
 
-                for (i in 0 until sampleCount) {
-                    val amplitude = abs(waveformData[i * step])
-                    val angle = (i.toFloat() / sampleCount) * 2 * Math.PI.toFloat()
-                    val radius = baseRadius + (amplitude * baseRadius * 0.5f)
-
-                    val x = centerX + kotlin.math.cos(angle.toDouble()).toFloat() * radius
-                    val y = centerY + kotlin.math.sin(angle.toDouble()).toFloat() * radius
-
-                    if (i == 0) {
-                        moveTo(x, y)
-                    } else {
-                        lineTo(x, y)
-                    }
-                }
-                close()
+        reducedData.forEachIndexed { index, amplitude ->
+            // Mirrored visualization (two sides or full circle)
+            // Here we map 0..barCount to 0..360 degrees
+            
+            // Smooth amplitude (scaling)
+            val barHeight = (amplitude * maxBarHeight).coerceAtLeast(4f)
+            
+            val angle = index * angleStep
+            
+            // Rotate canvas to draw bar at correct angle
+            rotate(degrees = angle, pivot = Offset(centerX, centerY)) {
+                drawRoundRect(
+                    color = color.copy(alpha = 0.8f),
+                    topLeft = Offset(centerX - barWidth / 2, centerY - innerRadius - barHeight),
+                    size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2)
+                )
+                
+                // Reflection (inner bar or opacity variation)
+               /* drawRoundRect(
+                    color = color.copy(alpha = 0.3f),
+                    topLeft = Offset(centerX - barWidth / 2, centerY - innerRadius + 2f),
+                    size = androidx.compose.ui.geometry.Size(barWidth, barHeight * 0.3f), // Small reflection inside
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2)
+                ) */
             }
-
-        drawPath(
-            path = path,
-            color = color,
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
-        )
+        }
     }
 }

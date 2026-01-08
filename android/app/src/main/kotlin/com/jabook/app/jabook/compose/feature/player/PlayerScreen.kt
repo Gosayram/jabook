@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -60,6 +61,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
@@ -77,9 +80,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -100,11 +101,15 @@ import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import com.jabook.app.jabook.compose.feature.player.lyrics.LyricsView
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
+import com.jabook.app.jabook.ui.component.StatsOverlay
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
@@ -162,6 +167,9 @@ fun PlayerScreen(
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
     var showSettingsSheet by remember { mutableStateOf(false) }
+
+    // Vinyl Mode State
+    var isVinylMode by remember { mutableStateOf(false) }
 
     // Navigator for SupportingPaneScaffold
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
@@ -284,6 +292,8 @@ fun PlayerScreen(
             onUpdateSettings = viewModel::updateBookSeekSettings,
             onResetSettings = viewModel::resetBookSeekSettings,
             onDismiss = { showSettingsSheet = false },
+            isVinylMode = isVinylMode,
+            onVinylModeChange = { isVinylMode = it },
         )
     }
 
@@ -322,57 +332,67 @@ fun PlayerScreen(
                                 // Click debouncer for preventing double clicks (inspired by Easybook)
                                 val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300L)
 
+                                // Haze State for Glassmorphism
+                                val hazeState = rememberHazeState()
+
                                 // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
-                                PlayerContent(
-                                    state = state,
-                                    playbackSpeed = playbackSpeed,
-                                    sleepTimerState = sleepTimerState,
-                                    normalizeEnabled = normalizeEnabled,
-                                    chapterRepeatMode = chapterRepeatMode,
-                                    onPlayPause = {
-                                        clickDebouncer.debounce {
-                                            if (state.isPlaying) viewModel.pause() else viewModel.play()
-                                        }
-                                    },
-                                    onSkipNext = {
-                                        clickDebouncer.debounce { viewModel.skipToNext() }
-                                    },
-                                    onSkipPrevious = {
-                                        clickDebouncer.debounce { viewModel.skipToPrevious() }
-                                    },
-                                    onSeek = viewModel::seekTo,
-                                    onSeekForward = {
-                                        clickDebouncer.debounce { viewModel.seekForward() }
-                                    },
-                                    onSeekBackward = {
-                                        clickDebouncer.debounce { viewModel.seekBackward() }
-                                    },
-                                    onSelectChapter = viewModel::skipToChapter,
-                                    onChapterClick = {
-                                        // Toggle chapters pane on medium/expanded screens
-                                        clickDebouncer.debounce {
-                                            scope.launch {
-                                                if (scaffoldNavigator.canNavigateBack()) {
-                                                    scaffoldNavigator.navigateBack()
-                                                } else {
-                                                    scaffoldNavigator.navigateTo(
-                                                        SupportingPaneScaffoldRole.Supporting,
-                                                    )
+                                PremiumPlayerBackground(
+                                    themeColors = state.themeColors,
+                                    hazeState = hazeState,
+                                ) {
+                                    PlayerContent(
+                                        state = state,
+                                        playbackSpeed = playbackSpeed,
+                                        hazeState = hazeState,
+                                        isVinylMode = isVinylMode,
+                                        sleepTimerState = sleepTimerState,
+                                        normalizeEnabled = normalizeEnabled,
+                                        chapterRepeatMode = chapterRepeatMode,
+                                        onPlayPause = {
+                                            clickDebouncer.debounce {
+                                                if (state.isPlaying) viewModel.pause() else viewModel.play()
+                                            }
+                                        },
+                                        onSkipNext = {
+                                            clickDebouncer.debounce { viewModel.skipToNext() }
+                                        },
+                                        onSkipPrevious = {
+                                            clickDebouncer.debounce { viewModel.skipToPrevious() }
+                                        },
+                                        onSeek = viewModel::seekTo,
+                                        onSeekForward = {
+                                            clickDebouncer.debounce { viewModel.seekForward() }
+                                        },
+                                        onSeekBackward = {
+                                            clickDebouncer.debounce { viewModel.seekBackward() }
+                                        },
+                                        onSelectChapter = viewModel::skipToChapter,
+                                        onChapterClick = {
+                                            // Toggle chapters pane on medium/expanded screens
+                                            clickDebouncer.debounce {
+                                                scope.launch {
+                                                    if (scaffoldNavigator.canNavigateBack()) {
+                                                        scaffoldNavigator.navigateBack()
+                                                    } else {
+                                                        scaffoldNavigator.navigateTo(
+                                                            SupportingPaneScaffoldRole.Supporting,
+                                                        )
+                                                    }
                                                 }
                                             }
-                                        }
-                                    },
-                                    onSpeedClick = { showSpeedSheet = true },
-                                    onSleepTimerClick = { showSleepTimerSheet = true },
-                                    onChapterRepeatClick = {
-                                        clickDebouncer.debounce {
-                                            viewModel.toggleChapterRepeat()
-                                        }
-                                    },
-                                    onStatsClick = { showStatsOverlay = true },
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                )
+                                        },
+                                        onSpeedClick = { showSpeedSheet = true },
+                                        onSleepTimerClick = { showSleepTimerSheet = true },
+                                        onChapterRepeatClick = {
+                                            clickDebouncer.debounce {
+                                                viewModel.toggleChapterRepeat()
+                                            }
+                                        },
+                                        onStatsClick = { showStatsOverlay = true },
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                    )
+                                }
                             }
 
                             is PlayerUiState.Error -> {
@@ -420,6 +440,8 @@ fun PlayerScreen(
 private fun PlayerContent(
     state: PlayerUiState.Success,
     playbackSpeed: Float,
+    hazeState: HazeState?,
+    isVinylMode: Boolean,
     sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
     normalizeEnabled: Boolean,
     chapterRepeatMode: ChapterRepeatMode,
@@ -505,46 +527,16 @@ private fun PlayerContent(
 
     val displayAuthor = authorFromMetadata
 
+    // Lyrics visibility state
+    var showLyrics by remember { mutableStateOf(false) }
+
     // Dynamic Theme Background with Glassmorphism Effect
+    // Background is now handled by PremiumPlayerBackground wrapping this content
     val themeColors = state.themeColors
-    val backgroundModifier =
-        if (themeColors != null) {
-            Modifier.background(themeColors.surfaceColor)
-        } else {
-            Modifier
-        }
 
-    Box(modifier = modifier.fillMaxSize().then(backgroundModifier)) {
-        // Blurred Background Layer for Glassmorphism
-        if (state.book.coverUrl != null) {
-            AsyncImage(
-                model = state.book.coverUrl,
-                contentDescription = null,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .blur(60.dp)
-                        .graphicsLayer { alpha = 0.4f },
-                contentScale = ContentScale.Crop,
-            )
-        }
-
-        // Darkening layer for contrast
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors =
-                                listOf(
-                                    Color.Black.copy(alpha = 0.4f),
-                                    Color.Black.copy(alpha = 0.7f),
-                                ),
-                        ),
-                    ),
-        )
-
+    // Main Content
+    // We use a Box to contain the LazyColumn (and potential overlays like visualizer if moved, but visualizer is inside list)
+    Box(modifier = modifier.fillMaxSize()) {
         androidx.compose.foundation.lazy.LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding =
@@ -616,26 +608,65 @@ private fun PlayerContent(
                         androidx.compose.animation.core.infiniteRepeatable(
                             animation =
                                 androidx.compose.animation.core
-                                    .tween(3000, easing = androidx.compose.animation.core.LinearOutSlowInEasing),
+                                    .tween(4000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
                             repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
                         ),
                     label = "scale",
                 )
 
-                AsyncImage(
-                    model = imageRequest,
-                    contentDescription = state.book.title,
-                    modifier =
-                        imageModifier
-                            .fillMaxWidth(coverWidth)
-                            .aspectRatio(1f)
-                            .graphicsLayer {
-                                scaleX = if (state.isPlaying) scale else 1f
-                                scaleY = if (state.isPlaying) scale else 1f
-                            }.clip(RoundedCornerShape(24.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
-                    contentScale = ContentScale.Crop,
-                )
+                if (showLyrics && !state.lyrics.isNullOrEmpty()) {
+                    Box(
+                        modifier =
+                            imageModifier
+                                .fillMaxWidth(coverWidth)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                    ) {
+                        LyricsView(
+                            lyrics = state.lyrics!!,
+                            currentPosition = state.currentPosition,
+                            onSeek = onSeek,
+                        )
+                    }
+                        )
+                    }
+                } else if (isVinylMode) {
+                    VinylCover(
+                        imageRequest = imageRequest,
+                        isPlaying = state.isPlaying,
+                         modifier =
+                            imageModifier
+                                .fillMaxWidth(coverWidth)
+                                .clickable {
+                                    if (!state.lyrics.isNullOrEmpty()) {
+                                        showLyrics = !showLyrics
+                                    }
+                                }
+                    )
+                } else {
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = state.book.title,
+                        modifier =
+                            imageModifier
+                                .fillMaxWidth(coverWidth)
+                                .aspectRatio(1f)
+                                .graphicsLayer {
+                                    scaleX = if (state.isPlaying) scale else 1f
+                                    scaleY = if (state.isPlaying) scale else 1f
+                                }.clip(RoundedCornerShape(24.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                                .clickable {
+                                    // Make cover clickable to toggle lyrics if available
+                                    if (!state.lyrics.isNullOrEmpty()) {
+                                        showLyrics = !showLyrics
+                                    }
+                                    // Or if no lyrics, maybe handle as "show controls" or just do nothing (existing behavior)
+                                },
+                        contentScale = ContentScale.Crop,
+                    )
+                }
             }
 
             // Spacer after cover
@@ -785,7 +816,7 @@ private fun PlayerContent(
                 AudioVisualizer(
                     waveformData = waveformData,
                     isPlaying = state.isPlaying,
-                    style = VisualizerStyle.BARS,
+                    style = VisualizerStyle.CIRCULAR, // Upgraded to Circular Visualizer
                     height = if (isCompact) 40.dp else 48.dp,
                     primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
                     secondaryColor =
@@ -1071,6 +1102,28 @@ private fun PlayerContent(
                             )
                         }
                     }
+
+                    // Lyrics Toggle Button (Show only if lyrics available)
+                    if (!state.lyrics.isNullOrEmpty()) {
+                        FilledTonalButton(
+                            onClick = { showLyrics = !showLyrics },
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .height(controlButtonHeight),
+                            colors =
+                                ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (showLyrics) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (showLyrics) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Filled.Description,
+                                contentDescription = "Lyrics",
+                                modifier = Modifier.size(controlButtonIconSize),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1084,6 +1137,8 @@ fun PlayerSettingsSheet(
     onUpdateSettings: (Int?, Int?) -> Unit,
     onResetSettings: () -> Unit,
     onDismiss: () -> Unit,
+    isVinylMode: Boolean,
+    onVinylModeChange: (Boolean) -> Unit,
 ) {
     JabookModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -1189,6 +1244,26 @@ fun PlayerSettingsSheet(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+            
+            HorizontalDivider()
+            
+            // Vinyl Mode Toggle
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            ) {
+                Text(
+                    text = "Vinyl Mode", // TODO: Localize
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = isVinylMode,
+                    onCheckedChange = onVinylModeChange
+                )
+            }
         }
     }
 }

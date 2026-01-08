@@ -301,6 +301,13 @@ dependencies {
     // Activity Compose
     implementation("androidx.activity:activity-compose:1.12.1")
 
+    // Premium UI Dependencies
+    // Haze for Glassmorphism (blur effects)
+    implementation("dev.chrisbanes.haze:haze:1.7.1")
+    // HypnoticCanvas for Procedural Animated Backgrounds (Shaders)
+    implementation("com.mikepenz.hypnoticcanvas:hypnoticcanvas:0.4.1")
+    implementation("com.mikepenz.hypnoticcanvas:hypnoticcanvas-shaders:0.4.1")
+
     // Coil3 for async image loading in Compose
     val coilVersion = "3.3.0"
     implementation("io.coil-kt.coil3:coil-compose:$coilVersion")
