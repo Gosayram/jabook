@@ -76,6 +76,10 @@ class AudioPlayerController
             )
         val playerStats: StateFlow<com.jabook.app.jabook.compose.feature.player.PlayerStats> = _playerStats.asStateFlow()
 
+        // Current Book ID for isolation - ensures we don't mix data between books
+        private val _currentBookId = MutableStateFlow<String?>(null)
+        val currentBookId: StateFlow<String?> = _currentBookId.asStateFlow()
+
         // Callback for chapter end handling (e.g., repeat logic)
         private var onChapterEndedCallback: (() -> Boolean)? = null
 
@@ -241,15 +245,26 @@ class AudioPlayerController
         ) {
             startService()
 
-            // Wait slightly for service to be ready if needed, or rely on getInstance()
-            // Since we started service, it might take a moment to set its instance.
-            // However, usually we are in the same process.
+            // CRITICAL: Check if we're switching to a different book
+            val previousBookId = _currentBookId.value
+            val isBookChanged = bookId != null && bookId != previousBookId
+
+            if (isBookChanged) {
+                android.util.Log.i("AudioPlayerController", "Book changed: $previousBookId -> $bookId. Resetting state.")
+                // Reset state to avoid showing old book's data
+                _currentPosition.value = initialPosition
+                _currentChapterIndex.value = initialChapterIndex
+                _isPlaying.value = false
+            }
+
+            // Update current book ID
+            _currentBookId.value = bookId
 
             val service = AudioPlayerService.getInstance()
             if (service != null) {
                 // Check if we are already playing this book to avoid restarting
                 val currentPaths = service.currentFilePaths
-                if (currentPaths == filePaths) {
+                if (currentPaths == filePaths && !isBookChanged) {
                     android.util.Log.i("AudioPlayerController", "Book already loaded. Skipping setPlaylist to prevent restart.")
 
                     // Handle seeking if needed (e.g. user clicked a specific chapter)
