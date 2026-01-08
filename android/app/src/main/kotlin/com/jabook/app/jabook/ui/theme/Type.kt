@@ -30,11 +30,11 @@ import com.jabook.app.jabook.R
  */
 fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
     Typography(
-        // Display styles
+        // Display styles (Premium: SemiBold for impact)
         displayLarge =
             TextStyle(
                 fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 57.sp,
                 lineHeight = 64.sp,
                 letterSpacing = (-0.25).sp,
@@ -42,7 +42,7 @@ fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
         displayMedium =
             TextStyle(
                 fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 45.sp,
                 lineHeight = 52.sp,
                 letterSpacing = 0.sp,
@@ -50,16 +50,16 @@ fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
         displaySmall =
             TextStyle(
                 fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.Medium,
                 fontSize = 36.sp,
                 lineHeight = 44.sp,
                 letterSpacing = 0.sp,
             ),
-        // Headline styles
+        // Headline styles (Premium: Medium/SemiBold for better contrast)
         headlineLarge =
             TextStyle(
                 fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 32.sp,
                 lineHeight = 40.sp,
                 letterSpacing = 0.sp,
@@ -67,7 +67,7 @@ fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
         headlineMedium =
             TextStyle(
                 fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.Medium,
                 fontSize = 28.sp,
                 lineHeight = 36.sp,
                 letterSpacing = 0.sp,
@@ -75,7 +75,7 @@ fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
         headlineSmall =
             TextStyle(
                 fontFamily = fontFamily,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.Medium,
                 fontSize = 24.sp,
                 lineHeight = 32.sp,
                 letterSpacing = 0.sp,
