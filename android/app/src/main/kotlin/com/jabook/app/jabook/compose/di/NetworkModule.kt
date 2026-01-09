@@ -17,9 +17,11 @@ package com.jabook.app.jabook.compose.di
 import com.jabook.app.jabook.compose.data.network.AuthInterceptor
 import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
 import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -181,10 +183,20 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRutrackerApi(retrofit: Retrofit): RutrackerApi = retrofit.create(RutrackerApi::class.java)
+}
 
-    @Provides
+/**
+ * Hilt module for network interface bindings (following Flow pattern).
+ * Uses @Binds for better performance when binding interfaces.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class NetworkBindingModule {
+    /**
+     * Binds NetworkMonitor implementation to interface (following Flow pattern).
+     * Using @Binds is more efficient than @Provides for interface bindings.
+     */
+    @Binds
     @Singleton
-    fun provideNetworkMonitor(
-        impl: com.jabook.app.jabook.compose.data.network.ConnectivityManagerNetworkMonitor,
-    ): com.jabook.app.jabook.compose.data.network.NetworkMonitor = impl
+    abstract fun bindNetworkMonitor(impl: com.jabook.app.jabook.compose.data.network.ConnectivityManagerNetworkMonitor): NetworkMonitor
 }
