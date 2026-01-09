@@ -80,8 +80,7 @@ fun String.formatFlavorSuffix(): String = takeIf { isNotEmpty() }?.let { " - $it
  * val fullName = baseName.appendFlavorSuffix(flavor) // "jabook - dev"
  * ```
  */
-fun String.appendFlavorSuffix(flavorSuffix: String): String =
-    if (flavorSuffix.isEmpty()) this else "$this - $flavorSuffix"
+fun String.appendFlavorSuffix(flavorSuffix: String): String = if (flavorSuffix.isEmpty()) this else "$this - $flavorSuffix"
 
 /**
  * Capitalizes the first letter of the string if not null/empty.

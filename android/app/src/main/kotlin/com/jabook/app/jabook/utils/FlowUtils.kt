@@ -42,8 +42,7 @@ import kotlinx.coroutines.flow.onStart
  *     .onStartWithCurrent { getSettings() }
  * ```
  */
-fun <T> SharedFlow<T>.onStartWithCurrent(getCurrentValue: suspend () -> T): Flow<T> =
-    onStart { emit(getCurrentValue()) }
+fun <T> SharedFlow<T>.onStartWithCurrent(getCurrentValue: suspend () -> T): Flow<T> = onStart { emit(getCurrentValue()) }
 
 /**
  * Creates a Flow that emits the current value on start and then continues from source.
@@ -59,8 +58,7 @@ fun <T> SharedFlow<T>.onStartWithCurrent(getCurrentValue: suspend () -> T): Flow
  *     .onStartWithCurrent { settingsRepository.getSettings() }
  * ```
  */
-fun <T> Flow<T>.onStartWithCurrent(getCurrentValue: suspend () -> T): Flow<T> =
-    onStart { emit(getCurrentValue()) }
+fun <T> Flow<T>.onStartWithCurrent(getCurrentValue: suspend () -> T): Flow<T> = onStart { emit(getCurrentValue()) }
 
 /**
  * Catches exceptions and emits a default value instead of failing.
@@ -77,5 +75,4 @@ fun <T> Flow<T>.onStartWithCurrent(getCurrentValue: suspend () -> T): Flow<T> =
  *     .catchWithDefault(emptyList())
  * ```
  */
-fun <T> Flow<T>.catchWithDefault(defaultValue: T): Flow<T> =
-    catch { emit(defaultValue) }
+fun <T> Flow<T>.catchWithDefault(defaultValue: T): Flow<T> = catch { emit(defaultValue) }
