@@ -17,6 +17,8 @@ package com.jabook.app.jabook.utils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -59,3 +61,32 @@ fun CoroutineScope.relaunch(block: suspend CoroutineScope.() -> Unit) {
     coroutineContext.cancelChildren()
     launch(block = block)
 }
+
+/**
+ * Creates a MutableSharedFlow that keeps only the latest value (inspired by Flow pattern).
+ *
+ * Useful for state that should only retain the most recent value, such as:
+ * - Current settings
+ * - Latest error message
+ * - Current user preference
+ *
+ * When a new value is emitted and the buffer is full, the oldest value is dropped.
+ * This ensures subscribers always get the latest state without missing updates.
+ *
+ * @return A MutableSharedFlow with buffer capacity of 1 and DROP_OLDEST strategy
+ *
+ * Example:
+ * ```kotlin
+ * private val mutableSettings = SingleItemMutableSharedFlow<Settings>()
+ * val settings: SharedFlow<Settings> = mutableSettings.asSharedFlow()
+ *
+ * // Later:
+ * mutableSettings.emit(newSettings) // Old value is automatically dropped
+ * ```
+ */
+@Suppress("FunctionName")
+fun <T : Any> SingleItemMutableSharedFlow(): MutableSharedFlow<T> =
+    MutableSharedFlow(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
