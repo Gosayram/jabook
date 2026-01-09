@@ -46,6 +46,7 @@ import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
+import com.jabook.app.jabook.utils.formatFlavorSuffix
 
 /**
  * Manages playlist preparation and MediaSource creation.
@@ -1124,11 +1125,11 @@ internal class PlaylistManager(
 
         // Get flavor suffix for title
         val flavorSuffix = getFlavorSuffix()
-        val flavorText = if (flavorSuffix.isEmpty()) "" else " - $flavorSuffix"
+        val flavorText = flavorSuffix.takeIf { it.isNotEmpty() }?.let { " - $it" }.orEmpty()
 
         // Always add flavor suffix to title for quick settings player
         val baseTitle = providedTitle ?: fileName.ifEmpty { "Track ${index + 1}" }
-        val titleWithFlavor = if (flavorText.isEmpty()) baseTitle else "$baseTitle$flavorText"
+        val titleWithFlavor = baseTitle + flavorText
 
         val metadataBuilder =
             androidx.media3.common.MediaMetadata

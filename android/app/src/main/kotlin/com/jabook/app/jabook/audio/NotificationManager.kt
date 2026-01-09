@@ -28,7 +28,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.utils.appendFlavorSuffix
 import com.jabook.app.jabook.utils.capitalizeFirst
+import com.jabook.app.jabook.utils.formatFlavorSuffix
 import android.app.NotificationManager as AndroidNotificationManager
 
 /**
@@ -83,7 +85,7 @@ class NotificationManager(
         private fun getChannelName(context: Context): String {
             val baseName = "JaBook Audio Playback"
             val flavor = getFlavorSuffix(context)
-            return if (flavor.isEmpty()) baseName else "$baseName - $flavor"
+            return baseName.appendFlavorSuffix(flavor)
         }
 
         /**
@@ -210,14 +212,14 @@ class NotificationManager(
 
         // Get flavor suffix for notification title
         val flavorSuffix = Companion.getFlavorSuffix(context)
-        val flavorText = if (flavorSuffix.isEmpty()) "" else " - $flavorSuffix"
+        val flavorText = flavorSuffix.formatFlavorSuffix()
 
         val title = metadata?.get("title") ?: "jabook Audio"
         val artist = metadata?.get("artist") ?: "Playing audio"
         val currentMediaItem = player.currentMediaItem
         val baseTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: title
         // Always add flavor suffix to title, even if metadata has title
-        val displayTitle = if (flavorText.isEmpty()) baseTitle else "$baseTitle$flavorText"
+        val displayTitle = baseTitle + flavorText
         val displayArtist = currentMediaItem?.mediaMetadata?.artist?.toString() ?: artist
 
         // Load cover image from embedded artwork in audio file
@@ -926,12 +928,12 @@ class NotificationManager(
 
         // Get metadata
         val flavorSuffix = Companion.getFlavorSuffix(context)
-        val flavorText = if (flavorSuffix.isEmpty()) "" else " - $flavorSuffix"
+        val flavorText = flavorSuffix.formatFlavorSuffix()
         val title = metadata?.get("title") ?: "jabook Audio"
         val artist = metadata?.get("artist") ?: "Playing audio"
         val currentMediaItem = player.currentMediaItem
         val baseTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: title
-        val displayTitle = if (flavorText.isEmpty()) baseTitle else "$baseTitle$flavorText"
+        val displayTitle = baseTitle + flavorText
         val displayArtist = currentMediaItem?.mediaMetadata?.artist?.toString() ?: artist
 
         // Load cover image for small icon (same logic as full notification)

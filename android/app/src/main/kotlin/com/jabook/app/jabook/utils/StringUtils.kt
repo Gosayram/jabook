@@ -52,6 +52,38 @@ fun String?.orIfBlank(default: String): String = if (this.isNullOrBlank()) defau
 fun String?.orIfEmpty(default: String): String = if (this.isNullOrEmpty()) default else this
 
 /**
+ * Formats a flavor suffix for display in titles.
+ *
+ * If the suffix is empty, returns empty string.
+ * Otherwise, returns the suffix prefixed with " - ".
+ *
+ * @return Formatted flavor suffix (e.g., " - Dev" or "")
+ *
+ * Example:
+ * ```kotlin
+ * val flavor = "dev"
+ * val title = "My App${flavor.formatFlavorSuffix()}" // "My App - Dev"
+ * ```
+ */
+fun String.formatFlavorSuffix(): String = takeIf { isNotEmpty() }?.let { " - $it" }.orEmpty()
+
+/**
+ * Appends a flavor suffix to a base name if the suffix is not empty.
+ *
+ * @param flavorSuffix The flavor suffix to append
+ * @return Base name with flavor suffix if suffix is not empty, otherwise just base name
+ *
+ * Example:
+ * ```kotlin
+ * val baseName = "jabook"
+ * val flavor = "dev"
+ * val fullName = baseName.appendFlavorSuffix(flavor) // "jabook - dev"
+ * ```
+ */
+fun String.appendFlavorSuffix(flavorSuffix: String): String =
+    if (flavorSuffix.isEmpty()) this else "$this - $flavorSuffix"
+
+/**
  * Capitalizes the first letter of the string if not null/empty.
  *
  * Returns empty string if the string is null or empty.
