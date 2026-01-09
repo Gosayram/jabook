@@ -34,8 +34,11 @@ class AudioPlayerServiceInitializer(
     fun initialize() {
         android.util.Log.i("AudioPlayerService", "Initializing service components...")
 
-        // Initialize helper classes
-        service.notificationHelper = NotificationHelper(service)
+        // NOTE: NotificationHelper is already initialized in onCreate() for immediate startForeground()
+        // Only initialize if not already set (for safety)
+        if (service.notificationHelper == null) {
+            service.notificationHelper = NotificationHelper(service)
+        }
 
         // Note: Order matters due to dependencies
 
@@ -311,6 +314,10 @@ class AudioPlayerServiceInitializer(
                         // CRITICAL: Set initialization flag only after MediaController is ready
                         // This ensures components don't try to use service before it's fully ready
                         service.isFullyInitializedFlag = true
+
+                        // Set initial CustomLayout after MediaController is ready (following Rhythm pattern)
+                        // This avoids MediaSessionLegacyStub conversion issues during onConnect
+                        service.setInitialCustomLayout()
 
                         android.util.Log.i(
                             "AudioPlayerService",

@@ -70,17 +70,17 @@ class AudioPlayerLibrarySessionCallback(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
-        // Following Media3 official pattern: only set media button preferences for system controllers
+        // Following Media3 official pattern: only add custom commands for system controllers
         // (notification, automotive, auto companion). Regular app controllers get default commands.
         //
-        // CRITICAL FIX: Removed .setMediaButtonPreferences(customCommands) call
+        // CRITICAL FIX: Removed setCustomLayout() from onConnect() (following Rhythm pattern)
         // Reason: Media3's MediaSessionLegacyStub cannot properly convert CommandButton to
-        // PlaybackStateCompat.CustomAction, causing "You must specify an icon resource id" crash.
-        // The legacy stub tries to create CustomAction without icon resource, even though our
-        // CommandButton has icons specified. This is a Media3 internal conversion issue.
+        // PlaybackStateCompat.CustomAction during controller connection, causing crashes.
+        // CustomLayout is now set separately after MediaController initialization to avoid
+        // timing issues with MediaSessionLegacyStub conversion.
         //
         // Custom commands (rewind/forward) are still available via SessionCommands,
-        // but won't appear as notification buttons to avoid legacy conversion crash.
+        // and CustomLayout will be set after initialization completes.
         if (
             session.isMediaNotificationController(controller) ||
             session.isAutomotiveController(controller) ||
@@ -105,28 +105,11 @@ class AudioPlayerLibrarySessionCallback(
                     .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS, Bundle.EMPTY))
                     .build()
 
-            // Create CommandButtons for custom layout (inspired by lissen-android)
-            // Use built-in Media3 icons to avoid CustomAction conversion crash
-            val rewindButton =
-                CommandButton
-                    .Builder(CommandButton.ICON_SKIP_BACK)
-                    .setSessionCommand(rewindCommand)
-                    .setDisplayName(service.getString(com.jabook.app.jabook.R.string.rewind))
-                    .setEnabled(true)
-                    .build()
-
-            val forwardButton =
-                CommandButton
-                    .Builder(CommandButton.ICON_SKIP_FORWARD)
-                    .setSessionCommand(forwardCommand)
-                    .setDisplayName(service.getString(com.jabook.app.jabook.R.string.forward))
-                    .setEnabled(true)
-                    .build()
-
+            // NOTE: CustomLayout is NOT set here - it will be set separately after initialization
+            // This follows Rhythm pattern to avoid MediaSessionLegacyStub conversion issues
             return MediaSession.ConnectionResult
                 .AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(availableCommands)
-                .setCustomLayout(listOf(rewindButton, forwardButton))
                 .build()
         }
 

@@ -459,6 +459,30 @@ class AudioPlayerService : MediaLibraryService() {
 
             PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
 
+            // CRITICAL: Start foreground immediately to avoid ANR and timeout issues (following Rhythm pattern)
+            // MediaLibraryService will automatically manage notifications later, but we need to start foreground
+            // immediately to prevent ForegroundServiceDidNotStartInTimeException
+            try {
+                // Initialize NotificationHelper first (needed for channel creation)
+                notificationHelper = NotificationHelper(this)
+                val initialNotification =
+                    notificationHelper?.createMinimalNotification()
+                        ?: NotificationHelper(this).createFallbackNotification()
+                startForeground(NotificationHelper.NOTIFICATION_ID, initialNotification)
+                android.util.Log.e("JABOOK_SERVICE", "[OK] startForeground() called immediately")
+            } catch (e: Exception) {
+                android.util.Log.e("JABOOK_SERVICE", "[ERROR] Failed to start foreground immediately", e)
+                // Try fallback notification
+                try {
+                    val fallbackNotification = NotificationHelper(this).createFallbackNotification()
+                    startForeground(NotificationHelper.NOTIFICATION_ID, fallbackNotification)
+                    android.util.Log.e("JABOOK_SERVICE", "[OK] startForeground() called with fallback notification")
+                } catch (e2: Exception) {
+                    android.util.Log.e("JABOOK_SERVICE", "[CRITICAL] Failed to start foreground even with fallback", e2)
+                    // Continue anyway - MediaLibraryService might handle it
+                }
+            }
+
             // Set MediaSessionService.Listener for handling foreground service start exceptions
             // This is required for Android 12+ when system doesn't allow foreground service start
             setListener(MediaSessionServiceListener(this))
@@ -512,10 +536,24 @@ class AudioPlayerService : MediaLibraryService() {
                     ExoPlayer.Builder(context).build()
                 }
             crossFadePlayer?.onPlayerChanged = { newPlayer ->
-                // Update MediaSession player when crossfade swaps logic
-                mediaLibrarySession?.player = newPlayer
-                // Update notification if needed
-                notificationManager?.updateNotification()
+                // CRITICAL: Update MediaSession player when crossfade swaps players (following Rhythm pattern)
+                // This ensures MediaSessionLegacyStub always has the correct player reference
+                try {
+                    mediaLibrarySession?.let { session ->
+                        session.player = newPlayer
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
+                        )
+                    } ?: android.util.Log.w(
+                        "AudioPlayerService",
+                        "MediaLibrarySession is null, cannot update player after crossfade",
+                    )
+                    // Update notification if needed (MediaLibrarySession should handle this automatically)
+                    notificationManager?.updateNotification()
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
+                }
             }
             // Initialize CrossfadeHandler (requires playlistManager which is set in initializer)
             // Deferred initialization of handler to setListener/Initializer completion
@@ -1123,6 +1161,63 @@ class AudioPlayerService : MediaLibraryService() {
     ) {
         playerServiceScope.launch {
             updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
+        }
+    }
+
+    /**
+     * Sets initial CustomLayout for MediaSession (following Rhythm pattern).
+     * Called after MediaController initialization to avoid MediaSessionLegacyStub conversion issues.
+     * This method sets the initial layout with default rewind/forward durations.
+     */
+    @OptIn(UnstableApi::class)
+    internal fun setInitialCustomLayout() {
+        mediaLibrarySession?.let { session ->
+            try {
+                // Use default durations for initial layout (will be updated when user changes settings)
+                val defaultRewindSeconds = 15
+                val defaultForwardSeconds = 30
+
+                val rewindCommand =
+                    androidx.media3.session.SessionCommand(
+                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
+                        android.os.Bundle.EMPTY,
+                    )
+                val forwardCommand =
+                    androidx.media3.session.SessionCommand(
+                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
+                        android.os.Bundle.EMPTY,
+                    )
+
+                // Create CommandButtons with built-in Media3 icons
+                val rewindButton =
+                    CommandButton
+                        .Builder(CommandButton.ICON_SKIP_BACK)
+                        .setSessionCommand(rewindCommand)
+                        .setDisplayName("-$defaultRewindSeconds")
+                        .setEnabled(true)
+                        .build()
+
+                val forwardButton =
+                    CommandButton
+                        .Builder(CommandButton.ICON_SKIP_FORWARD)
+                        .setSessionCommand(forwardCommand)
+                        .setDisplayName("+$defaultForwardSeconds")
+                        .setEnabled(true)
+                        .build()
+
+                session.setCustomLayout(listOf(rewindButton, forwardButton))
+
+                // Initialize state tracking
+                lastRewindSeconds = defaultRewindSeconds
+                lastForwardSeconds = defaultForwardSeconds
+
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Initial CustomLayout set - Rewind: ${defaultRewindSeconds}s, Forward: ${defaultForwardSeconds}s",
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerService", "Error setting initial CustomLayout", e)
+            }
         }
     }
 

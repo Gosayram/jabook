@@ -61,6 +61,7 @@ internal class PlayerListener(
     private val getAutoRewindSeconds: (() -> Int)? = null, // Get auto rewind seconds setting
     private val preloadNextTrack: ((Int) -> Unit)? = null, // Callback to preload next track (inspired by Easybook)
     private val optimizeMemoryUsage: ((Int) -> Unit)? = null, // Callback to optimize memory usage (inspired by Easybook)
+    private val updateAudioVisualizer: ((Int) -> Unit)? = null, // Callback to update audio visualizer (following Rhythm pattern)
 ) : Player.Listener {
     private var retryCount = 0
     private val maxRetries = 3
@@ -1614,6 +1615,22 @@ internal class PlayerListener(
                 "AudioPlayerService",
                 "Auto rewind on pause: ${rewindSeconds}s (from ${currentPosition}ms to ${newPosition}ms)",
             )
+        }
+    }
+
+    /**
+     * Handles audio session ID changes (following Rhythm pattern).
+     * Reinitializes audio visualizer when audio session changes.
+     */
+    override fun onAudioSessionIdChanged(audioSessionId: Int) {
+        android.util.Log.d("AudioPlayerService", "Audio session ID changed: $audioSessionId")
+
+        // Update audio visualizer with new session ID (following Rhythm pattern)
+        if (audioSessionId != 0) {
+            updateAudioVisualizer?.invoke(audioSessionId)
+            android.util.Log.d("AudioPlayerService", "AudioVisualizerManager updated with new session ID: $audioSessionId")
+        } else {
+            android.util.Log.w("AudioPlayerService", "Invalid audio session ID (0), skipping visualizer update")
         }
     }
 }

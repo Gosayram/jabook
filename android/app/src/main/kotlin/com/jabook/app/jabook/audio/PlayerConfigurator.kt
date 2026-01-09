@@ -148,6 +148,10 @@ internal class PlayerConfigurator(
                         // Optimize memory usage for large playlists (inspired by Easybook)
                         service.playlistManager?.optimizeMemoryUsage(currentIndex)
                     },
+                    updateAudioVisualizer = { audioSessionId ->
+                        // Update audio visualizer when session ID changes (following Rhythm pattern)
+                        service.audioVisualizerManager?.initialize(audioSessionId)
+                    },
                 )
 
             activePlayer.addListener(playerListener!!)
