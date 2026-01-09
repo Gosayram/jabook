@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.utils
 
 import kotlinx.coroutines.delay
+import kotlin.math.pow
 
 /**
  * Retry utilities (inspired by Flow pattern).
@@ -45,7 +46,7 @@ data class RetryConfig(
      * @return Delay in milliseconds
      */
     fun calculateDelay(attempt: Int): Long {
-        val delay = (initialDelayMs * kotlin.math.pow(backoffMultiplier, attempt.toDouble())).toLong()
+        val delay = (initialDelayMs * backoffMultiplier.pow(attempt.toDouble())).toLong()
         return delay.coerceAtMost(maxDelayMs)
     }
 }
