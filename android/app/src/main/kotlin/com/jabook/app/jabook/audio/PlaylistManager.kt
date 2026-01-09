@@ -253,15 +253,15 @@ internal class PlaylistManager(
     }
 
     /**
-     * Prepares playback asynchronously with optimized lazy loading.
+     * Prepares playback with optimized loading strategy.
      *
-     * CRITICAL OPTIMIZATION: Only creates the first MediaItem (or saved position track) synchronously.
-     * Remaining items are added asynchronously in background to avoid blocking startup.
-     * This dramatically speeds up player initialization, especially for large playlists.
+     * For small playlists (<50 tracks): Uses synchronous loading like Rhythm for simplicity and reliability.
+     * For large playlists (>=50 tracks): Uses async lazy loading to avoid blocking startup.
      *
      * @param filePaths List of file paths or URLs
      * @param metadata Optional metadata
      * @param initialTrackIndex Optional track index to load first (for saved position). If null, loads first track (index 0).
+     * @param initialPosition Optional position in milliseconds to seek to after loading
      */
     suspend fun preparePlaybackOptimized(
         filePaths: List<String>,
@@ -270,11 +270,100 @@ internal class PlaylistManager(
         initialPosition: Long? = null,
     ) = withContext(Dispatchers.IO) {
         val playlistLoadStartTime = System.currentTimeMillis()
+        val playlistSize = filePaths.size
+        val isSmallPlaylist = playlistSize < 50
+
+        android.util.Log.i(
+            "AudioPlayerService",
+            "📥 Starting playlist load: totalTracks=$playlistSize, targetTrack=$initialTrackIndex, " +
+                "targetPosition=${initialPosition}ms, strategy=${if (isSmallPlaylist) "SYNC" else "ASYNC"}",
+        )
+
         try {
+            if (isSmallPlaylist) {
+                // Use simplified synchronous loading for small playlists (like Rhythm)
+                preparePlaybackSynchronous(filePaths, metadata, initialTrackIndex, initialPosition, playlistLoadStartTime)
+            } else {
+                // Use optimized async loading for large playlists
+                preparePlaybackAsync(filePaths, metadata, initialTrackIndex, initialPosition, playlistLoadStartTime)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to prepare playback", e)
+            throw e
+        }
+    }
+
+    /**
+     * Simplified synchronous playlist loading for small playlists (<50 tracks).
+     * Inspired by Rhythm's simple approach: create all MediaItems and set them at once.
+     *
+     * This approach is simpler and more reliable for small playlists, avoiding
+     * complex async coordination and race conditions.
+     */
+    private suspend fun preparePlaybackSynchronous(
+        filePaths: List<String>,
+        metadata: Map<String, String>?,
+        initialTrackIndex: Int?,
+        initialPosition: Long?,
+        loadStartTime: Long,
+    ) = withContext(Dispatchers.IO) {
+        android.util.Log.d("AudioPlayerService", "Using synchronous loading for small playlist (${filePaths.size} tracks)")
+        val dataSourceFactory = SimpleMediaDataSourceFactory()
+
+        // Create all MediaItems synchronously (fast for small playlists)
+        val mediaItems =
+            filePaths.mapIndexed { index, path ->
+                createMediaItemForPath(path, index, metadata, dataSourceFactory)
+            }
+
+        // Apply to player on main thread
+        withContext(Dispatchers.Main) {
+            val activePlayer = getActivePlayer()
+            activePlayer.playWhenReady = false
+
+            // Clear any existing items
+            activePlayer.clearMediaItems()
+
+            // Use setMediaItems with startIndex and startPosition (like Rhythm)
+            // This is simpler and more reliable than async loading
+            val startIndex = (initialTrackIndex ?: 0).coerceIn(0, mediaItems.size - 1)
+            val startPosition = (initialPosition ?: 0).coerceAtLeast(0)
+
+            android.util.Log.d(
+                "AudioPlayerService",
+                "Setting ${mediaItems.size} MediaItems synchronously: startIndex=$startIndex, startPosition=${startPosition}ms",
+            )
+
+            activePlayer.setMediaItems(mediaItems, startIndex, startPosition)
+            activePlayer.prepare()
+
+            getNotificationManager()?.updateNotification()
+
+            val loadDuration = System.currentTimeMillis() - loadStartTime
             android.util.Log.i(
                 "AudioPlayerService",
-                "📥 Starting playlist load: totalTracks=${filePaths.size}, targetTrack=$initialTrackIndex, targetPosition=${initialPosition}ms",
+                "✅ Synchronous playlist loaded: ${mediaItems.size} tracks in ${loadDuration}ms " +
+                    "(startIndex=$startIndex, startPosition=${startPosition}ms)",
             )
+        }
+    }
+
+    /**
+     * Optimized asynchronous playlist loading for large playlists (>=50 tracks).
+     *
+     * CRITICAL OPTIMIZATION: Only creates the first MediaItem synchronously.
+     * Remaining items are added asynchronously in background to avoid blocking startup.
+     * This dramatically speeds up player initialization, especially for large playlists.
+     */
+    private suspend fun preparePlaybackAsync(
+        filePaths: List<String>,
+        metadata: Map<String, String>?,
+        initialTrackIndex: Int?,
+        initialPosition: Long?,
+        loadStartTime: Long,
+    ) = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("AudioPlayerService", "Using async loading for large playlist (${filePaths.size} tracks)")
             val dataSourceFactory = SimpleMediaDataSourceFactory()
 
             // Determine which track to load first
@@ -540,7 +629,7 @@ internal class PlaylistManager(
                                     initialTrackIndex,
                                     initialPosition,
                                     filePaths.size,
-                                    playlistLoadStartTime,
+                                    loadStartTime,
                                 )
                             }
                         }
@@ -852,39 +941,52 @@ internal class PlaylistManager(
     }
 
     /**
-     * Creates a MediaSource for a specific file index.
-     * Helper method to avoid code duplication.
+     * Creates a MediaItem for a specific file path.
+     * Helper method for synchronous loading.
      */
-    private fun createMediaSourceForIndex(
-        filePaths: List<String>,
+    private fun createMediaItemForPath(
+        path: String,
         index: Int,
         metadata: Map<String, String>?,
         dataSourceFactory: SimpleMediaDataSourceFactory,
-    ): MediaSource {
-        val path = filePaths[index]
+    ): MediaItem {
+        val uri = createUriForPath(path)
+        val mediaMetadata = createMediaMetadata(path, index, metadata)
 
-        // Determine if path is a URL or file path
+        return MediaItem
+            .Builder()
+            .setUri(uri)
+            .setMediaMetadata(mediaMetadata)
+            .build()
+    }
+
+    /**
+     * Creates URI for a file path or URL.
+     * Helper method to avoid code duplication.
+     */
+    private fun createUriForPath(path: String): Uri {
         val isUrl = path.startsWith("http://") || path.startsWith("https://")
-        val uri: Uri
-
-        if (isUrl) {
-            // Handle HTTP(S) URL
-            uri = Uri.parse(path)
-            android.util.Log.d("AudioPlayerService", "Creating MediaItem $index from URL: $path")
+        return if (isUrl) {
+            Uri.parse(path)
         } else {
-            // Handle local file path
             val file = File(path)
             if (!file.exists()) {
                 android.util.Log.w("AudioPlayerService", "File does not exist: $path")
             }
-            uri = Uri.fromFile(file)
-            android.util.Log.d("AudioPlayerService", "Creating MediaItem $index from file: $path")
+            Uri.fromFile(file)
         }
+    }
 
-        val metadataBuilder =
-            androidx.media3.common.MediaMetadata
-                .Builder()
-
+    /**
+     * Creates MediaMetadata for a file path.
+     * Helper method to avoid code duplication.
+     */
+    private fun createMediaMetadata(
+        path: String,
+        index: Int,
+        metadata: Map<String, String>?,
+    ): androidx.media3.common.MediaMetadata {
+        val isUrl = path.startsWith("http://") || path.startsWith("https://")
         val fileName =
             if (isUrl) {
                 val urlPath = Uri.parse(path).lastPathSegment ?: "Track ${index + 1}"
@@ -892,6 +994,7 @@ internal class PlaylistManager(
             } else {
                 File(path).nameWithoutExtension
             }
+
         val providedTitle = metadata?.get("title") ?: metadata?.get("trackTitle")
         val providedArtist = metadata?.get("artist") ?: metadata?.get("author")
         val providedAlbum = metadata?.get("album") ?: metadata?.get("bookTitle")
@@ -903,7 +1006,11 @@ internal class PlaylistManager(
         // Always add flavor suffix to title for quick settings player
         val baseTitle = providedTitle ?: fileName.ifEmpty { "Track ${index + 1}" }
         val titleWithFlavor = if (flavorText.isEmpty()) baseTitle else "$baseTitle$flavorText"
-        metadataBuilder.setTitle(titleWithFlavor)
+
+        val metadataBuilder =
+            androidx.media3.common.MediaMetadata
+                .Builder()
+                .setTitle(titleWithFlavor)
 
         if (providedArtist != null) {
             metadataBuilder.setArtist(providedArtist)
@@ -923,11 +1030,33 @@ internal class PlaylistManager(
             }
         }
 
+        return metadataBuilder.build()
+    }
+
+    /**
+     * Creates a MediaSource for a specific file index.
+     * Helper method to avoid code duplication.
+     */
+    private fun createMediaSourceForIndex(
+        filePaths: List<String>,
+        index: Int,
+        metadata: Map<String, String>?,
+        dataSourceFactory: SimpleMediaDataSourceFactory,
+    ): MediaSource {
+        val path = filePaths[index]
+        val uri = createUriForPath(path)
+        val mediaMetadata = createMediaMetadata(path, index, metadata)
+
+        android.util.Log.d(
+            "AudioPlayerService",
+            "Creating MediaSource $index from ${if (path.startsWith("http")) "URL" else "file"}: ${path.substringAfterLast('/')}",
+        )
+
         val mediaItem =
             MediaItem
                 .Builder()
                 .setUri(uri)
-                .setMediaMetadata(metadataBuilder.build())
+                .setMediaMetadata(mediaMetadata)
                 .build()
 
         val sourceFactory = dataSourceFactory.createDataSourceFactoryForUri(uri)
