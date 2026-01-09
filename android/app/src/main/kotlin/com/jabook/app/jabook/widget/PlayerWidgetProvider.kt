@@ -53,6 +53,10 @@ import java.util.concurrent.TimeUnit
 class PlayerWidgetProvider : AppWidgetProvider() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    // Debounce updates to prevent excessive widget refreshes
+    private val updateJobs = mutableMapOf<Int, kotlinx.coroutines.Job>()
+    private val debounceDelayMs = 300L
+
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -89,8 +93,28 @@ class PlayerWidgetProvider : AppWidgetProvider() {
     /**
      * Updates a single widget instance.
      * Uses MediaSession to get player state, which is more reliable than singleton instance.
+     * Includes debouncing to prevent excessive updates.
      */
     private fun updateAppWidget(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+    ) {
+        // Cancel any pending update for this widget
+        updateJobs[appWidgetId]?.cancel()
+
+        // Schedule debounced update
+        updateJobs[appWidgetId] =
+            scope.launch(Dispatchers.IO) {
+                kotlinx.coroutines.delay(debounceDelayMs)
+                updateAppWidgetInternal(context, appWidgetManager, appWidgetId)
+            }
+    }
+
+    /**
+     * Internal method that performs the actual widget update.
+     */
+    private fun updateAppWidgetInternal(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
@@ -117,8 +141,12 @@ class PlayerWidgetProvider : AppWidgetProvider() {
                             .Builder(context, sessionToken)
                             .buildAsync()
 
-                    // Wait for controller with timeout
-                    controller = controllerFuture?.get(1, TimeUnit.SECONDS)
+                    // Wait for controller with timeout (faster for widget UX)
+                    controller =
+                        controllerFuture?.get(
+                            com.jabook.app.jabook.audio.MediaControllerConstants.WIDGET_TIMEOUT_SECONDS,
+                            TimeUnit.SECONDS,
+                        )
 
                     if (controller != null) {
                         updateWidgetFromController(context, views, controller, widgetSize, appWidgetManager, appWidgetId)
@@ -140,11 +168,8 @@ class PlayerWidgetProvider : AppWidgetProvider() {
                 // Update widget immediately (Glide will update cover asynchronously)
                 appWidgetManager.updateAppWidget(appWidgetId, views)
 
-                // Request another update after a short delay to ensure Glide-loaded cover is displayed
-                scope.launch(Dispatchers.IO) {
-                    kotlinx.coroutines.delay(500) // Wait for Glide to load
-                    updateAppWidget(context, appWidgetManager, appWidgetId)
-                }
+                // Note: Glide will update cover asynchronously via AppWidgetTarget
+                // No need for second update - Glide handles it automatically
             } catch (e: Exception) {
                 android.util.Log.e("PlayerWidget", "Failed to update widget", e)
                 // Show default state on error
@@ -288,10 +313,18 @@ class PlayerWidgetProvider : AppWidgetProvider() {
 
         // Get book ID from metadata or service
         // currentGroupPath requires direct service access (not available via MediaController)
-        @Suppress("DEPRECATION")
+        // Use safer access with initialization check
         val currentBookId =
             mediaMetadata?.extras?.getString("bookId")
-                ?: AudioPlayerService.getInstance()?.currentGroupPath
+                ?: run {
+                    @Suppress("DEPRECATION")
+                    val service = AudioPlayerService.getInstance()
+                    if (service != null && service.isFullyInitialized()) {
+                        service.currentGroupPath
+                    } else {
+                        null
+                    }
+                }
 
         // Set up click intents
         setupClickIntents(context, views, currentBookId, playbackSpeed, repeatMode, widgetSize)
@@ -310,9 +343,10 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetId: Int,
     ) {
         // getPlayerState() requires direct service access (not available via MediaController)
+        // Use safer access with initialization check
         @Suppress("DEPRECATION")
         val service = AudioPlayerService.getInstance()
-        if (service != null) {
+        if (service != null && service.isFullyInitialized()) {
             // Get player state
             val playerState = service.getPlayerState()
             val isPlaying = playerState["isPlaying"] as? Boolean ?: false
@@ -415,11 +449,8 @@ class PlayerWidgetProvider : AppWidgetProvider() {
             // Update widget immediately (Glide will update cover asynchronously)
             appWidgetManager.updateAppWidget(appWidgetId, views)
 
-            // Request another update after a short delay to ensure Glide-loaded cover is displayed
-            scope.launch(Dispatchers.IO) {
-                kotlinx.coroutines.delay(500) // Wait for Glide to load
-                updateAppWidget(context, appWidgetManager, appWidgetId)
-            }
+            // Note: Glide will update cover asynchronously via AppWidgetTarget
+            // No need for second update - Glide handles it automatically
 
             android.util.Log.d("PlayerWidget", "Widget updated via service: book=$bookTitle, playing=$isPlaying")
         } else {

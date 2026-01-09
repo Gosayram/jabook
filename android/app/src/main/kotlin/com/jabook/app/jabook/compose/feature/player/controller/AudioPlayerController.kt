@@ -26,6 +26,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
+import com.jabook.app.jabook.audio.MediaControllerConstants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -257,7 +258,11 @@ class AudioPlayerController
                     {
                         try {
                             // Wait for controller with timeout
-                            val controller = mediaControllerFuture?.get(2, TimeUnit.SECONDS)
+                            val controller =
+                                mediaControllerFuture?.get(
+                                    MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                    TimeUnit.SECONDS,
+                                )
                             mediaController = controller
                             controller?.addListener(mediaControllerListener)
 
@@ -366,11 +371,22 @@ class AudioPlayerController
             val controller = mediaController
 
             // setPlaylist requires direct service access (not available via MediaController)
+            // Use helper method with retry logic for safer access
+            // Try to get service synchronously first (fast path)
             @Suppress("DEPRECATION")
-            val service = AudioPlayerService.getInstance()
-
-            if (service == null) {
-                android.util.Log.e("AudioPlayerController", "Service instance not found after startService")
+            var service = AudioPlayerService.getInstance()
+            if (service == null || !service.isFullyInitialized()) {
+                // Service not ready, retry asynchronously
+                android.util.Log.d("AudioPlayerController", "Service not ready, retrying asynchronously...")
+                scope.launch {
+                    val retryService = waitForServiceReady()
+                    if (retryService != null) {
+                        // Retry loadBook with ready service
+                        loadBook(filePaths, initialChapterIndex, initialPosition, autoPlay, metadata, bookId)
+                    } else {
+                        android.util.Log.e("AudioPlayerController", "Service instance not found after retries")
+                    }
+                }
                 return
             }
 
@@ -379,10 +395,11 @@ class AudioPlayerController
             val currentGroupPath = service.currentGroupPath
             val currentPaths = service.currentFilePaths
             val isSameBook = bookId != null && bookId == currentGroupPath
+            // Compare playlists by content, not by reference, to handle sorted paths
             val isSamePlaylist =
                 currentPaths != null &&
                     currentPaths.size == filePaths.size &&
-                    currentPaths == filePaths
+                    currentPaths.sorted() == filePaths.sorted()
 
             if ((isSameBook || isSamePlaylist) && !isBookChanged) {
                 android.util.Log.i(
@@ -497,13 +514,6 @@ class AudioPlayerController
                     return
                 }
 
-                // Fallback: check service instance via MediaController
-                // If MediaController is connected, service is running
-                if (mediaController != null) {
-                    android.util.Log.d("AudioPlayerController", "MediaController connected, service already running")
-                    return
-                }
-
                 android.util.Log.i("AudioPlayerController", "Starting AudioPlayerService...")
                 val intent = Intent(context, AudioPlayerService::class.java)
                 // Use startService instead of startForegroundService.
@@ -523,6 +533,27 @@ class AudioPlayerController
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerController", "Failed to start service", e)
             }
+        }
+
+        /**
+         * Helper method to safely get service instance with retry logic.
+         * This is a temporary solution until we can fully migrate to MediaController.
+         */
+        private suspend fun waitForServiceReady(
+            maxRetries: Int = 5,
+            delayMs: Long = 200,
+        ): AudioPlayerService? {
+            repeat(maxRetries) { attempt ->
+                @Suppress("DEPRECATION")
+                val service = AudioPlayerService.getInstance()
+                if (service != null && service.isFullyInitialized()) {
+                    return service
+                }
+                if (attempt < maxRetries - 1) {
+                    kotlinx.coroutines.delay(delayMs * (attempt + 1)) // Exponential backoff
+                }
+            }
+            return null
         }
 
         /**

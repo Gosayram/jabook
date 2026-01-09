@@ -94,7 +94,10 @@ class MediaSessionActionReceiver : BroadcastReceiver() {
 
             // Wait for controller to be ready (with shorter timeout for faster fallback)
             val controller =
-                controllerFuture.get(500L, TimeUnit.MILLISECONDS)
+                controllerFuture.get(
+                    com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS,
+                    TimeUnit.MILLISECONDS,
+                )
 
             android.util.Log.d(
                 TAG,
@@ -157,7 +160,10 @@ class MediaSessionActionReceiver : BroadcastReceiver() {
 
             // Wait for controller to be ready (with shorter timeout for faster fallback)
             val controller =
-                controllerFuture.get(500L, TimeUnit.MILLISECONDS)
+                controllerFuture.get(
+                    com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS,
+                    TimeUnit.MILLISECONDS,
+                )
 
             android.util.Log.d(
                 TAG,

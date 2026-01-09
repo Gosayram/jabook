@@ -448,6 +448,10 @@ class AudioPlayerService : MediaLibraryService() {
             PlayerPerformanceLogger.start("service_onCreate")
             PlayerPerformanceLogger.log("Service", "onCreate() started")
 
+            // CRITICAL: Clean up existing components if onCreate() is called multiple times
+            // Android can call onCreate() multiple times without onDestroy(), causing resource leaks
+            cleanupExistingComponents()
+
             super.onCreate()
             instance = this
             android.util.Log.e("JABOOK_SERVICE", "[OK] super.onCreate() completed")
@@ -1532,6 +1536,67 @@ class AudioPlayerService : MediaLibraryService() {
                 }
             },
         )
+    }
+
+    /**
+     * Cleans up existing components before reinitialization.
+     * Called at the start of onCreate() to prevent resource leaks when Android
+     * calls onCreate() multiple times without onDestroy().
+     */
+    private fun cleanupExistingComponents() {
+        // Only cleanup if components already exist (onCreate called multiple times)
+        if (mediaLibrarySession != null || serviceMediaController != null || crossFadePlayer != null) {
+            android.util.Log.w(
+                "AudioPlayerService",
+                "onCreate() called multiple times, cleaning up existing components",
+            )
+
+            // Release MediaController
+            serviceMediaController?.release()
+            serviceMediaController = null
+
+            // Release MediaLibrarySession
+            mediaLibrarySession?.release()
+            mediaLibrarySession = null
+            mediaSession = null
+
+            // Release CrossFadePlayer
+            crossFadePlayer?.release()
+            crossFadePlayer = null
+
+            // Release MediaSessionManager
+            mediaSessionManager?.release()
+            mediaSessionManager = null
+
+            // Stop and release other components
+            playerNotificationManager?.setPlayer(null)
+            playerNotificationManager = null
+
+            audioOutputManager.stopMonitoring()
+
+            playbackEnhancerService.release()
+
+            audioVisualizerManager?.release()
+            audioVisualizerManager = null
+
+            phoneCallListener?.stopListening()
+            phoneCallListener = null
+
+            headsetAutoplayHandler?.stopListening()
+            headsetAutoplayHandler = null
+
+            // Cancel jobs
+            updateLayoutJob?.cancel()
+            updateLayoutJob = null
+
+            positionSaveJob?.cancel()
+            positionSaveJob = null
+
+            // Reset initialization flag
+            isFullyInitializedFlag = false
+
+            android.util.Log.i("AudioPlayerService", "Existing components cleaned up")
+        }
     }
 
     override fun onDestroy() {

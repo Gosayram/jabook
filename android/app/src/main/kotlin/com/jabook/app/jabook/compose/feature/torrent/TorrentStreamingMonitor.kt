@@ -14,8 +14,15 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.content.ComponentName
+import android.content.Context
+import androidx.core.content.ContextCompat
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,6 +44,7 @@ import javax.inject.Singleton
 class TorrentStreamingMonitor
     @Inject
     constructor(
+        @param:ApplicationContext private val context: Context,
         private val torrentManager: TorrentManager,
     ) {
         private val _isBuffering = kotlinx.coroutines.flow.MutableStateFlow(false)
@@ -47,6 +56,11 @@ class TorrentStreamingMonitor
         private var currentHash: String? = null
         private var currentFileIndex: Int = -1
 
+        private var mediaController: MediaController? = null
+        private var mediaControllerFuture: ListenableFuture<MediaController>? = null
+
+        // Track who paused playback: user or monitor
+        private var pausedByUser = false
         private var isPausedForBuffering = false
             set(value) {
                 field = value
@@ -68,6 +82,10 @@ class TorrentStreamingMonitor
             currentHash = hash
             currentFileIndex = fileIndex
             isPausedForBuffering = false
+            pausedByUser = false
+
+            // Initialize MediaController for service access
+            initMediaController()
 
             monitoringJob =
                 scope.launch {
@@ -84,6 +102,69 @@ class TorrentStreamingMonitor
             currentHash = null
             currentFileIndex = -1
             isPausedForBuffering = false
+            pausedByUser = false
+            releaseMediaController()
+        }
+
+        /**
+         * Call this when user manually pauses playback.
+         * Prevents monitor from auto-resuming.
+         */
+        fun onUserPaused() {
+            pausedByUser = true
+            isPausedForBuffering = false
+        }
+
+        /**
+         * Call this when user manually resumes playback.
+         * Allows monitor to resume control.
+         */
+        fun onUserResumed() {
+            pausedByUser = false
+        }
+
+        private fun initMediaController() {
+            try {
+                val sessionToken =
+                    SessionToken(
+                        context,
+                        ComponentName(context, AudioPlayerService::class.java),
+                    )
+
+                mediaControllerFuture =
+                    MediaController
+                        .Builder(context, sessionToken)
+                        .setApplicationLooper(context.mainLooper)
+                        .buildAsync()
+
+                mediaControllerFuture?.addListener(
+                    {
+                        try {
+                            val controller =
+                                mediaControllerFuture?.get(
+                                    com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                    TimeUnit.SECONDS,
+                                )
+                            mediaController = controller
+                            android.util.Log.d("TorrentMonitor", "MediaController initialized")
+                        } catch (e: Exception) {
+                            android.util.Log.w("TorrentMonitor", "Failed to initialize MediaController", e)
+                        }
+                    },
+                    ContextCompat.getMainExecutor(context),
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("TorrentMonitor", "Failed to create MediaController", e)
+            }
+        }
+
+        private fun releaseMediaController() {
+            mediaController?.release()
+            mediaController = null
+            mediaControllerFuture?.let {
+                MediaController.releaseFuture(it)
+            }
+            mediaControllerFuture = null
         }
 
         private fun checkBufferState() {
@@ -91,14 +172,18 @@ class TorrentStreamingMonitor
             val fileIndex = currentFileIndex
             if (fileIndex < 0) return
 
-            // isFullyInitialized() requires direct service access (not available via MediaController)
-            @Suppress("DEPRECATION")
-            val service = AudioPlayerService.getInstance() ?: return
-            if (!service.isFullyInitialized()) return
+            // Use MediaController instead of getInstance()
+            val controller =
+                mediaController ?: run {
+                    // Try to reinitialize if not available
+                    if (mediaControllerFuture == null) {
+                        initMediaController()
+                    }
+                    return
+                }
 
-            val player = service.mediaSession?.player ?: return
-            val currentDuration = player.duration
-            val currentPosition = player.currentPosition
+            val currentDuration = controller.duration
+            val currentPosition = controller.currentPosition
 
             // Only if we are playing the file we think we are monitoring?
             // Ideally check metadata or path, but simplified for now:
@@ -117,25 +202,27 @@ class TorrentStreamingMonitor
 
             val availableBytesAhead = downloadedBytes - playedBytes
 
-            val isPlaying = player.isPlaying
+            val isPlaying = controller.isPlaying
 
             if (isPlaying) {
                 // If we are playing, and buffer gets low, pause and mark as buffering
                 if (availableBytesAhead < BUFFER_LOW_THRESHOLD_BYTES && downloadedBytes < totalBytes) {
                     android.util.Log.i("TorrentMonitor", "Buffering... Available: $availableBytesAhead")
-                    service.pause()
+                    controller.pause()
                     isPausedForBuffering = true
-                    // Buffering state is tracked via isPausedForBuffering
+                    pausedByUser = false // Monitor paused, not user
                 }
-            } else if (isPausedForBuffering) {
-                // If we are paused due to buffering, check if we have enough to resume
+            } else if (isPausedForBuffering && !pausedByUser) {
+                // If we are paused due to buffering (and not by user), check if we have enough to resume
                 if (availableBytesAhead > BUFFER_RESUME_THRESHOLD_BYTES || downloadedBytes >= totalBytes) {
                     android.util.Log.i("TorrentMonitor", "Buffering clear. Resuming. Available: $availableBytesAhead")
-                    service.play()
+                    controller.play()
                     isPausedForBuffering = false
                 }
-            } else {
+            } else if (pausedByUser) {
                 // User paused manually, do not auto resume
+                // Reset buffering flag if user manually paused
+                isPausedForBuffering = false
             }
         }
     }

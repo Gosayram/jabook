@@ -47,63 +47,111 @@ class SleepTimerRepositoryImpl
         override val timerState: StateFlow<SleepTimerState> = _timerState.asStateFlow()
 
         init {
-            // Poll service for timer state
+            // Poll service for timer state with adaptive polling interval
+            // Poll more frequently when timer is active, less when idle
             scope.launch {
+                var lastState: SleepTimerState = SleepTimerState.Idle
                 while (isActive) {
-                    updateTimerState()
-                    delay(1000)
+                    val newState = updateTimerState()
+                    // Adaptive polling: faster when active, slower when idle
+                    val delayMs =
+                        when {
+                            newState is SleepTimerState.Active -> 1000L // 1 second when active
+                            newState is SleepTimerState.EndOfChapter -> 1000L // 1 second for end of chapter
+                            // Immediate check when transitioning to idle
+                            lastState !is SleepTimerState.Idle && newState is SleepTimerState.Idle -> 1000L
+                            else -> 5000L // 5 seconds when idle
+                        }
+                    lastState = newState
+                    delay(delayMs)
                 }
             }
         }
 
-        private fun updateTimerState() {
+        /**
+         * Updates timer state from service.
+         * Returns the new state for adaptive polling.
+         */
+        private fun updateTimerState(): SleepTimerState {
             // Sleep timer methods require direct service access (not available via MediaController)
+            // Use safer access with initialization check
             @Suppress("DEPRECATION")
             val service = AudioPlayerService.getInstance()
-            if (service == null) {
+            if (service == null || !service.isFullyInitialized()) {
                 if (_timerState.value !is SleepTimerState.Idle) {
                     _timerState.value = SleepTimerState.Idle
                 }
-                return
+                return SleepTimerState.Idle
             }
 
             // Sync state with service
-            if (service.isSleepTimerEndOfChapter()) {
-                if (_timerState.value !is SleepTimerState.EndOfChapter) {
-                    _timerState.value = SleepTimerState.EndOfChapter
-                }
-            } else {
-                val remaining = service.getSleepTimerRemainingSeconds()
-                if (remaining != null && remaining > 0) {
-                    _timerState.value = SleepTimerState.Active(remaining)
+            val newState =
+                if (service.isSleepTimerEndOfChapter()) {
+                    SleepTimerState.EndOfChapter
                 } else {
-                    if (_timerState.value !is SleepTimerState.Idle) {
-                        _timerState.value = SleepTimerState.Idle
+                    val remaining = service.getSleepTimerRemainingSeconds()
+                    if (remaining != null && remaining > 0) {
+                        SleepTimerState.Active(remaining)
+                    } else {
+                        SleepTimerState.Idle
                     }
                 }
+
+            // Only update if state actually changed to avoid unnecessary recompositions
+            if (_timerState.value != newState) {
+                _timerState.value = newState
             }
+
+            return newState
         }
 
         override fun startTimer(durationMinutes: Int) {
             // Sleep timer methods require direct service access (not available via MediaController)
-            @Suppress("DEPRECATION")
-            AudioPlayerService.getInstance()?.setSleepTimerMinutes(durationMinutes)
-            // State will be updated by polling
-            // But we can eagerly update to feel responsive
-            _timerState.value = SleepTimerState.Active(durationMinutes * 60)
+            // Use safer access with retry logic
+            scope.launch {
+                val service = waitForServiceReady()
+                service?.setSleepTimerMinutes(durationMinutes)
+                // State will be updated by polling, but eagerly update for responsiveness
+                _timerState.value = SleepTimerState.Active(durationMinutes * 60)
+            }
         }
 
         override fun startTimerEndOfChapter() {
             // Sleep timer methods require direct service access (not available via MediaController)
-            @Suppress("DEPRECATION")
-            AudioPlayerService.getInstance()?.setSleepTimerEndOfChapter()
-            _timerState.value = SleepTimerState.EndOfChapter
+            scope.launch {
+                val service = waitForServiceReady()
+                service?.setSleepTimerEndOfChapter()
+                _timerState.value = SleepTimerState.EndOfChapter
+            }
         }
 
         override fun cancelTimer() {
             // Sleep timer methods require direct service access (not available via MediaController)
-            @Suppress("DEPRECATION")
-            AudioPlayerService.getInstance()?.cancelSleepTimer()
-            _timerState.value = SleepTimerState.Idle
+            scope.launch {
+                val service = waitForServiceReady()
+                service?.cancelSleepTimer()
+                _timerState.value = SleepTimerState.Idle
+            }
+        }
+
+        /**
+         * Helper method to safely get service instance with retry logic.
+         * This is a temporary solution until we can fully migrate to MediaController.
+         */
+        private suspend fun waitForServiceReady(
+            maxRetries: Int = 3,
+            delayMs: Long = 200,
+        ): AudioPlayerService? {
+            repeat(maxRetries) { attempt ->
+                @Suppress("DEPRECATION")
+                val service = AudioPlayerService.getInstance()
+                if (service != null && service.isFullyInitialized()) {
+                    return service
+                }
+                if (attempt < maxRetries - 1) {
+                    delay(delayMs * (attempt + 1)) // Exponential backoff
+                }
+            }
+            return null
         }
     }

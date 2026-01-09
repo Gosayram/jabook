@@ -184,7 +184,8 @@ class AudioPlayerServiceInitializer(
         // Initialize MediaSession (Media3)
         initializeMediaSession()
 
-        service.isFullyInitializedFlag = true
+        // Note: isFullyInitializedFlag will be set after MediaController is created
+        // This ensures service is truly ready before components try to use it
 
         // Start settings synchronization to MediaSession
         // This ensures system media controls always reflect current app settings
@@ -299,20 +300,31 @@ class AudioPlayerServiceInitializer(
             controllerFuture.addListener(
                 {
                     try {
-                        // Wait for controller with reasonable timeout (5 seconds for service initialization)
-                        val controller = controllerFuture.get(5, java.util.concurrent.TimeUnit.SECONDS)
+                        // Wait for controller with reasonable timeout for service initialization
+                        val controller =
+                            controllerFuture.get(
+                                com.jabook.app.jabook.audio.MediaControllerConstants.SERVICE_INIT_TIMEOUT_SECONDS,
+                                java.util.concurrent.TimeUnit.SECONDS,
+                            )
                         service.serviceMediaController = controller
+
+                        // CRITICAL: Set initialization flag only after MediaController is ready
+                        // This ensures components don't try to use service before it's fully ready
+                        service.isFullyInitializedFlag = true
+
                         android.util.Log.i(
                             "AudioPlayerService",
-                            "Service MediaController initialized successfully",
+                            "Service MediaController initialized successfully, service is now fully ready",
                         )
                     } catch (e: java.util.concurrent.TimeoutException) {
                         android.util.Log.e("AudioPlayerService", "Service MediaController initialization timeout", e)
-                        // Don't retry in service - service will continue without MediaController
-                        // External controllers can still connect via SessionToken
+                        // Set flag anyway - MediaSession is ready, external controllers can connect
+                        // Service can function without internal MediaController
+                        service.isFullyInitializedFlag = true
                     } catch (e: Exception) {
                         android.util.Log.e("AudioPlayerService", "Error initializing Service MediaController", e)
-                        // Don't retry in service - service will continue without MediaController
+                        // Set flag anyway - MediaSession is ready, external controllers can connect
+                        service.isFullyInitializedFlag = true
                     }
                 },
                 ContextCompat.getMainExecutor(service),
