@@ -287,6 +287,8 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         // Get book ID from metadata or service
+        // currentGroupPath requires direct service access (not available via MediaController)
+        @Suppress("DEPRECATION")
         val currentBookId =
             mediaMetadata?.extras?.getString("bookId")
                 ?: AudioPlayerService.getInstance()?.currentGroupPath
@@ -307,6 +309,8 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
     ) {
+        // getPlayerState() requires direct service access (not available via MediaController)
+        @Suppress("DEPRECATION")
         val service = AudioPlayerService.getInstance()
         if (service != null) {
             // Get player state

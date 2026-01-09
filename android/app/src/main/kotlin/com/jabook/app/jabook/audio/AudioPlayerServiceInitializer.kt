@@ -15,8 +15,13 @@
 package com.jabook.app.jabook.audio
 
 import androidx.annotation.OptIn
+import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import com.google.common.util.concurrent.ListenableFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Handles initialization logic for AudioPlayerService.
@@ -249,6 +254,10 @@ class AudioPlayerServiceInitializer(
                 "MediaLibrarySession created successfully: ${service.mediaLibrarySession?.token}",
             )
 
+            // Create MediaController inside Service (as in Rhythm pattern)
+            // This replaces getInstance() pattern and provides proper Media3 integration
+            createServiceMediaController()
+
             // Create MediaSessionManager (wraps MediaSequencer)
             service.mediaSessionManager =
                 MediaSessionManager(
@@ -264,6 +273,52 @@ class AudioPlayerServiceInitializer(
             // as it's a protected method in MediaSessionService
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
+        }
+    }
+
+    /**
+     * Creates MediaController inside Service for internal use (as in Rhythm pattern).
+     * This replaces getInstance() pattern and provides proper Media3 integration.
+     */
+    @OptIn(UnstableApi::class)
+    private fun createServiceMediaController() {
+        val session = service.mediaLibrarySession
+        if (session == null) {
+            android.util.Log.w("AudioPlayerService", "Cannot create MediaController: MediaLibrarySession is null")
+            return
+        }
+
+        try {
+            // Build the controller asynchronously to avoid blocking the main thread
+            val controllerFuture: ListenableFuture<MediaController> =
+                MediaController
+                    .Builder(service, session.token)
+                    .setApplicationLooper(service.mainLooper)
+                    .buildAsync()
+
+            controllerFuture.addListener(
+                {
+                    try {
+                        // Wait for controller with reasonable timeout (5 seconds for service initialization)
+                        val controller = controllerFuture.get(5, java.util.concurrent.TimeUnit.SECONDS)
+                        service.serviceMediaController = controller
+                        android.util.Log.i(
+                            "AudioPlayerService",
+                            "Service MediaController initialized successfully",
+                        )
+                    } catch (e: java.util.concurrent.TimeoutException) {
+                        android.util.Log.e("AudioPlayerService", "Service MediaController initialization timeout", e)
+                        // Don't retry in service - service will continue without MediaController
+                        // External controllers can still connect via SessionToken
+                    } catch (e: Exception) {
+                        android.util.Log.e("AudioPlayerService", "Error initializing Service MediaController", e)
+                        // Don't retry in service - service will continue without MediaController
+                    }
+                },
+                ContextCompat.getMainExecutor(service),
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to create Service MediaController", e)
         }
     }
 

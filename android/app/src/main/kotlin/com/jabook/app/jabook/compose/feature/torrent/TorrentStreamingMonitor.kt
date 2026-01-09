@@ -91,6 +91,8 @@ class TorrentStreamingMonitor
             val fileIndex = currentFileIndex
             if (fileIndex < 0) return
 
+            // isFullyInitialized() requires direct service access (not available via MediaController)
+            @Suppress("DEPRECATION")
             val service = AudioPlayerService.getInstance() ?: return
             if (!service.isFullyInitialized()) return
 

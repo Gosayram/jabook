@@ -821,6 +821,8 @@ private fun PlayerContent(
             // Audio Visualizer - hidden on compact screens to save space
             if (!isCompact) {
                 item {
+                    // getVisualizerWaveformData() requires direct service access (not available via MediaController)
+                    @Suppress("DEPRECATION")
                     val service =
                         com.jabook.app.jabook.audio.AudioPlayerService
                             .getInstance()

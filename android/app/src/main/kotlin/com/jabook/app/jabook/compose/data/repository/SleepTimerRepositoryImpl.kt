@@ -57,6 +57,8 @@ class SleepTimerRepositoryImpl
         }
 
         private fun updateTimerState() {
+            // Sleep timer methods require direct service access (not available via MediaController)
+            @Suppress("DEPRECATION")
             val service = AudioPlayerService.getInstance()
             if (service == null) {
                 if (_timerState.value !is SleepTimerState.Idle) {
@@ -83,6 +85,8 @@ class SleepTimerRepositoryImpl
         }
 
         override fun startTimer(durationMinutes: Int) {
+            // Sleep timer methods require direct service access (not available via MediaController)
+            @Suppress("DEPRECATION")
             AudioPlayerService.getInstance()?.setSleepTimerMinutes(durationMinutes)
             // State will be updated by polling
             // But we can eagerly update to feel responsive
@@ -90,11 +94,15 @@ class SleepTimerRepositoryImpl
         }
 
         override fun startTimerEndOfChapter() {
+            // Sleep timer methods require direct service access (not available via MediaController)
+            @Suppress("DEPRECATION")
             AudioPlayerService.getInstance()?.setSleepTimerEndOfChapter()
             _timerState.value = SleepTimerState.EndOfChapter
         }
 
         override fun cancelTimer() {
+            // Sleep timer methods require direct service access (not available via MediaController)
+            @Suppress("DEPRECATION")
             AudioPlayerService.getInstance()?.cancelSleepTimer()
             _timerState.value = SleepTimerState.Idle
         }

@@ -24,6 +24,7 @@ import androidx.core.app.TaskStackBuilder
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
@@ -92,6 +93,25 @@ class AudioPlayerService : MediaLibraryService() {
 
     // Keep mediaSession for backward compatibility during migration
     internal var mediaSession: MediaSession? = null
+
+    // MediaController for internal service use (as in Rhythm)
+    // This replaces getInstance() pattern and provides proper Media3 integration
+    internal var serviceMediaController: MediaController? = null
+
+    /**
+     * Gets the service MediaController for internal use.
+     * Returns null if not yet initialized.
+     * This replaces getInstance() pattern and provides proper Media3 integration.
+     */
+    fun getServiceMediaController(): MediaController? = serviceMediaController
+
+    // Debounced custom layout updates (from Rhythm pattern)
+    // Track current custom layout state to avoid unnecessary updates
+    private var lastRewindSeconds: Int? = null
+    private var lastForwardSeconds: Int? = null
+
+    // Debounce custom layout updates to prevent flickering
+    private var updateLayoutJob: kotlinx.coroutines.Job? = null
 
     // PlayerNotificationManager for direct notification control (androidx.media3.ui)
     // Replaces MediaNotification.Provider which doesn't work with background service warmup
@@ -304,6 +324,14 @@ class AudioPlayerService : MediaLibraryService() {
         @Volatile
         private var instance: AudioPlayerService? = null
 
+        /**
+         * @deprecated Use MediaController or getServiceMediaController() instead.
+         * This method is kept for backward compatibility during migration.
+         */
+        @Deprecated(
+            "Use MediaController or getServiceMediaController() for proper Media3 integration",
+            ReplaceWith("getServiceMediaController()"),
+        )
         fun getInstance(): AudioPlayerService? = instance
 
         /**
@@ -991,34 +1019,105 @@ class AudioPlayerService : MediaLibraryService() {
 
     /**
      * Updates MediaSession custom layout commands with new durations.
+     * Uses debounced updates to prevent flickering (from Rhythm pattern).
      */
     fun updateMediaSessionCommands(
         rewindSeconds: Int,
         forwardSeconds: Int,
     ) {
-        val rewindCommandButton =
-            androidx.media3.session.CommandButton
-                .Builder(com.jabook.app.jabook.R.drawable.ic_rewind)
-                .setDisplayName("-$rewindSeconds")
-                .setSessionCommand(
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
-                        android.os.Bundle.EMPTY,
-                    ),
-                ).build()
+        // Use smart update to check if layout actually needs to change
+        updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
+    }
 
-        val forwardCommandButton =
-            androidx.media3.session.CommandButton
-                .Builder(com.jabook.app.jabook.R.drawable.ic_forward)
-                .setDisplayName("+$forwardSeconds")
-                .setSessionCommand(
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
-                        android.os.Bundle.EMPTY,
-                    ),
-                ).build()
+    /**
+     * Smart update that only updates if layout actually changed (from Rhythm pattern).
+     * Prevents unnecessary recreations and flickering.
+     */
+    private fun updateMediaSessionCommandsSmart(
+        rewindSeconds: Int,
+        forwardSeconds: Int,
+    ) {
+        mediaSession?.let { session ->
+            try {
+                // Check if anything actually changed
+                if (rewindSeconds == lastRewindSeconds &&
+                    forwardSeconds == lastForwardSeconds
+                ) {
+                    android.util.Log.d("AudioPlayerService", "Custom layout state unchanged, skipping update")
+                    return
+                }
 
-        mediaSession?.setCustomLayout(listOf(rewindCommandButton, forwardCommandButton))
+                // Update state tracking
+                lastRewindSeconds = rewindSeconds
+                lastForwardSeconds = forwardSeconds
+
+                val rewindCommandButton =
+                    androidx.media3.session.CommandButton
+                        .Builder(com.jabook.app.jabook.R.drawable.ic_rewind)
+                        .setDisplayName("-$rewindSeconds")
+                        .setSessionCommand(
+                            androidx.media3.session.SessionCommand(
+                                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
+                                android.os.Bundle.EMPTY,
+                            ),
+                        ).build()
+
+                val forwardCommandButton =
+                    androidx.media3.session.CommandButton
+                        .Builder(com.jabook.app.jabook.R.drawable.ic_forward)
+                        .setDisplayName("+$forwardSeconds")
+                        .setSessionCommand(
+                            androidx.media3.session.SessionCommand(
+                                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
+                                android.os.Bundle.EMPTY,
+                            ),
+                        ).build()
+
+                session.setCustomLayout(listOf(rewindCommandButton, forwardCommandButton))
+
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Smart updated custom layout - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s",
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerService", "Error in smart custom layout update", e)
+            }
+        }
+    }
+
+    /**
+     * Schedules a debounced custom layout update (from Rhythm pattern).
+     * Prevents flickering when multiple updates happen quickly.
+     *
+     * @param delayMs Delay in milliseconds before update (default 150ms)
+     */
+    private fun scheduleCustomLayoutUpdate(
+        rewindSeconds: Int,
+        forwardSeconds: Int,
+        delayMs: Long = 150,
+    ) {
+        // Cancel any pending update
+        updateLayoutJob?.cancel()
+
+        // Schedule a new update with debouncing
+        updateLayoutJob =
+            playerServiceScope.launch {
+                kotlinx.coroutines.delay(delayMs)
+                updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
+            }
+    }
+
+    /**
+     * Forces an immediate custom layout update without debouncing (from Rhythm pattern).
+     * Used for initial setup.
+     */
+    private fun forceCustomLayoutUpdate(
+        rewindSeconds: Int,
+        forwardSeconds: Int,
+    ) {
+        playerServiceScope.launch {
+            updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
+        }
     }
 
     fun getCurrentPosition(): Long = playerStateHelper?.getCurrentPosition() ?: 0L
@@ -1453,6 +1552,14 @@ class AudioPlayerService : MediaLibraryService() {
         // Stop listening for phone calls
         phoneCallListener?.stopListening()
         phoneCallListener = null
+
+        // Release service MediaController
+        serviceMediaController?.release()
+        serviceMediaController = null
+
+        // Cancel debounced layout updates
+        updateLayoutJob?.cancel()
+        updateLayoutJob = null
 
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()

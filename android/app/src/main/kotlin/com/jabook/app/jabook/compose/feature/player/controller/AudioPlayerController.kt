@@ -14,50 +14,56 @@
 
 package com.jabook.app.jabook.compose.feature.player.controller
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import androidx.core.content.ContextCompat
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Controller to bridge Compose UI with AudioPlayerService and ExoPlayer.
+ * Controller to bridge Compose UI with AudioPlayerService via MediaController.
  *
  * Architecture Note:
- * This controller maintains its own Player.Listener for UI state management (StateFlow).
- * The AudioPlayerService also has a PlayerListener for business logic (saving position, notifications, widgets).
- * Both listen to the same ExoPlayer singleton, which serves as the single source of truth.
- * This separation of concerns allows:
- * - UI layer to reactively observe state changes via StateFlow
- * - Service layer to handle persistence, notifications, and other business logic
+ * This controller uses MediaController to communicate with AudioPlayerService,
+ * replacing the getInstance() anti-pattern. MediaController provides proper Media3 integration
+ * and ensures state synchronization through MediaSession.
  *
  * Uses:
- * - Hilt-injected ExoPlayer singleton for reactive state observation
- * - AudioPlayerService.getInstance() for commands (preserving existing logic)
+ * - MediaController for all player operations (replaces getInstance())
+ * - MediaController.Listener for UI state management (StateFlow)
+ * - Service layer handles business logic (persistence, notifications, widgets)
+ *
+ * Inspired by Material-3-Music-Player and Rhythm implementations.
  */
 @Singleton
 class AudioPlayerController
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
-        private val exoPlayer: ExoPlayer,
+        private val exoPlayer: ExoPlayer, // Keep for backward compatibility during migration
         private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
     ) {
         private val scope = CoroutineScope(Dispatchers.Main)
-        private var positionUpdaterJob: Job? = null
+        private var mediaController: MediaController? = null
+        private var mediaControllerFuture: ListenableFuture<MediaController>? = null
 
         // Playback State
         private val _isPlaying = MutableStateFlow(false)
@@ -100,40 +106,35 @@ class AudioPlayerController
         }
 
         /**
-         * Player listener for UI state management.
-         * Note: This is separate from PlayerListener in AudioPlayerService, which handles
-         * business logic (persistence, notifications, widgets). Both listen to the same ExoPlayer
-         * singleton, ensuring state consistency. ExoPlayer is the single source of truth.
+         * MediaController listener for UI state management.
+         * Note: This replaces direct ExoPlayer listener. MediaController provides proper
+         * state synchronization through MediaSession. Service layer handles business logic.
          */
-        private val playerListener =
+        private val mediaControllerListener =
             object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    // Update UI state from ExoPlayer (single source of truth)
+                    // Update UI state from MediaController (single source of truth)
                     _isPlaying.value = isPlaying
-                    if (isPlaying) {
-                        startPositionUpdater()
-                    } else {
-                        stopPositionUpdater()
-                    }
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    // Update duration from ExoPlayer (single source of truth)
-                    _duration.value = exoPlayer.duration.coerceAtLeast(0)
+                    val controller = mediaController ?: return
+                    // Update duration from MediaController (single source of truth)
+                    _duration.value = controller.duration.coerceAtLeast(0)
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
-                        // Initial position update from ExoPlayer
-                        _currentPosition.value = exoPlayer.currentPosition
+                        // Initial position update from MediaController
+                        _currentPosition.value = controller.currentPosition
 
                         // Handle chapter end for repeat logic (UI-level concern)
                         if (playbackState == Player.STATE_ENDED) {
                             val shouldRepeat = onChapterEndedCallback?.invoke() ?: false
                             if (shouldRepeat) {
                                 // Repeat current chapter by seeking to start
-                                val currentIndex = exoPlayer.currentMediaItemIndex
-                                exoPlayer.seekTo(currentIndex, 0)
+                                val currentIndex = controller.currentMediaItemIndex
+                                controller.seekTo(currentIndex, 0)
                                 // Resume playback if it was playing
-                                if (exoPlayer.playWhenReady) {
-                                    exoPlayer.play()
+                                if (controller.playWhenReady) {
+                                    controller.play()
                                 }
                             }
                         }
@@ -145,38 +146,46 @@ class AudioPlayerController
                     newPosition: Player.PositionInfo,
                     reason: Int,
                 ) {
-                    // Update position and chapter index from ExoPlayer (single source of truth)
-                    _currentPosition.value = exoPlayer.currentPosition
-                    _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
+                    val controller = mediaController ?: return
+                    // Update position and chapter index from MediaController (single source of truth)
+                    _currentPosition.value = controller.currentPosition
+                    _currentChapterIndex.value = controller.currentMediaItemIndex
                 }
 
                 override fun onMediaItemTransition(
-                    mediaItem: androidx.media3.common.MediaItem?,
+                    mediaItem: MediaItem?,
                     reason: Int,
                 ) {
-                    // Update chapter index and duration from ExoPlayer (single source of truth)
-                    _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
-                    _duration.value = exoPlayer.duration.coerceAtLeast(0)
-                    updateStats()
+                    val controller = mediaController ?: return
+                    // Update chapter index and duration from MediaController (single source of truth)
+                    _currentChapterIndex.value = controller.currentMediaItemIndex
+                    _duration.value = controller.duration.coerceAtLeast(0)
+                    updateStats(controller)
                 }
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
-                    updateStats()
+                    val controller = mediaController ?: return
+                    updateStats(controller)
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
-                    updateStats()
+                    val controller = mediaController ?: return
+                    updateStats(controller)
                 }
             }
 
-        private fun updateStats() {
-            val format = exoPlayer.audioFormat
+        private fun updateStats(controller: Player = mediaController ?: exoPlayer) {
+            // audioFormat and audioSessionId are only available in ExoPlayer, not in Player interface
+            // Use exoPlayer as fallback for stats when using MediaController
+            val exoPlayerForStats = if (controller is ExoPlayer) controller else exoPlayer
+
+            val format = exoPlayerForStats.audioFormat
             val audioFormat =
                 "${format?.sampleMimeType ?: "Unknown"} ${format?.bitrate?.let {
                     if (it > 0) "${it / 1000}kbps" else ""
                 } ?: ""}"
                     .trim()
-            val bufferMs = exoPlayer.bufferedPosition - exoPlayer.currentPosition
+            val bufferMs = controller.bufferedPosition - controller.currentPosition
 
             _playerStats.value =
                 com.jabook.app.jabook.compose.feature.player.PlayerStats(
@@ -184,10 +193,10 @@ class AudioPlayerController
                     bitrate = format?.bitrate?.let { if (it > 0) "${it / 1000} kbps" else "Unknown" } ?: "Unknown",
                     bufferHealth = "${bufferMs / 1000}s",
                     audioSessionId =
-                        if (exoPlayer.audioSessionId !=
+                        if (exoPlayerForStats.audioSessionId !=
                             C.AUDIO_SESSION_ID_UNSET
                         ) {
-                            exoPlayer.audioSessionId.toString()
+                            exoPlayerForStats.audioSessionId.toString()
                         } else {
                             "None"
                         },
@@ -197,17 +206,8 @@ class AudioPlayerController
         }
 
         init {
-            // Attach listener to singleton ExoPlayer
-            exoPlayer.addListener(playerListener)
-            // Initialize state
-            _isPlaying.value = exoPlayer.isPlaying
-            _currentPosition.value = exoPlayer.currentPosition
-            _duration.value = exoPlayer.duration.coerceAtLeast(0)
-            _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
-
-            if (exoPlayer.isPlaying) {
-                startPositionUpdater()
-            }
+            // Initialize MediaController for proper Media3 integration
+            initMediaController()
 
             // Observe playback speed and pitch correction
             scope.launch {
@@ -221,29 +221,116 @@ class AudioPlayerController
                         val pitch = if (pitchCorrection) 1.0f else speed
                         // Skip if no change to avoid interruptions (although setPlaybackParameters checks internally)
                         val params = androidx.media3.common.PlaybackParameters(speed, pitch)
-                        exoPlayer.playbackParameters = params
+                        mediaController?.playbackParameters = params
+                        // Fallback to exoPlayer during migration
+                        if (mediaController == null) {
+                            exoPlayer.playbackParameters = params
+                        }
                     }
             }
         }
 
+        /**
+         * Initializes MediaController for communication with AudioPlayerService.
+         * Replaces getInstance() pattern with proper Media3 integration.
+         *
+         * Uses retry logic to handle cases when service is not yet ready.
+         */
+        private fun initMediaController(retryCount: Int = 0) {
+            val maxRetries = 3
+            val retryDelayMs = 500L
+
+            try {
+                val sessionToken =
+                    SessionToken(
+                        context,
+                        ComponentName(context, AudioPlayerService::class.java),
+                    )
+
+                mediaControllerFuture =
+                    MediaController
+                        .Builder(context, sessionToken)
+                        .setApplicationLooper(context.mainLooper)
+                        .buildAsync()
+
+                mediaControllerFuture?.addListener(
+                    {
+                        try {
+                            // Wait for controller with timeout
+                            val controller = mediaControllerFuture?.get(2, TimeUnit.SECONDS)
+                            mediaController = controller
+                            controller?.addListener(mediaControllerListener)
+
+                            // Initialize state from MediaController
+                            controller?.let { ctrl ->
+                                _isPlaying.value = ctrl.isPlaying
+                                _currentPosition.value = ctrl.currentPosition
+                                _duration.value = ctrl.duration.coerceAtLeast(0)
+                                _currentChapterIndex.value = ctrl.currentMediaItemIndex
+                                updateStats(ctrl)
+                                android.util.Log.i("AudioPlayerController", "MediaController initialized successfully")
+                            } ?: run {
+                                throw IllegalStateException("MediaController is null after get()")
+                            }
+                        } catch (e: java.util.concurrent.TimeoutException) {
+                            android.util.Log.w(
+                                "AudioPlayerController",
+                                "MediaController initialization timeout, retrying... (attempt $retryCount/$maxRetries)",
+                            )
+                            if (retryCount < maxRetries) {
+                                // Retry after delay
+                                scope.launch {
+                                    kotlinx.coroutines.delay(retryDelayMs)
+                                    initMediaController(retryCount + 1)
+                                }
+                            } else {
+                                android.util.Log.e(
+                                    "AudioPlayerController",
+                                    "MediaController initialization failed after $maxRetries retries, using fallback",
+                                )
+                                initializeFromExoPlayer()
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("AudioPlayerController", "Error initializing MediaController", e)
+                            // Fallback: initialize from exoPlayer
+                            initializeFromExoPlayer()
+                        }
+                    },
+                    ContextCompat.getMainExecutor(context),
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerController", "Failed to create MediaController", e)
+                if (retryCount < maxRetries) {
+                    // Retry after delay
+                    scope.launch {
+                        kotlinx.coroutines.delay(retryDelayMs)
+                        initMediaController(retryCount + 1)
+                    }
+                } else {
+                    android.util.Log.e("AudioPlayerController", "MediaController creation failed after $maxRetries retries, using fallback")
+                    // Fallback: initialize from exoPlayer
+                    initializeFromExoPlayer()
+                }
+            }
+        }
+
+        /**
+         * Fallback initialization from ExoPlayer during migration period.
+         */
+        private fun initializeFromExoPlayer() {
+            android.util.Log.w("AudioPlayerController", "Using ExoPlayer fallback during MediaController initialization")
+            // Attach listener to singleton ExoPlayer as fallback
+            exoPlayer.addListener(mediaControllerListener)
+            // Initialize state
+            _isPlaying.value = exoPlayer.isPlaying
+            _currentPosition.value = exoPlayer.currentPosition
+            _duration.value = exoPlayer.duration.coerceAtLeast(0)
+            _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
+            updateStats(exoPlayer)
+        }
+
         fun setPitchCorrectionEnabled(enabled: Boolean) {
             _pitchCorrectionEnabled.value = enabled
-        }
-
-        private fun startPositionUpdater() {
-            positionUpdaterJob?.cancel()
-            positionUpdaterJob =
-                scope.launch {
-                    while (isActive) {
-                        _currentPosition.value = exoPlayer.currentPosition
-                        delay(200) // Update every 200ms
-                    }
-                }
-        }
-
-        private fun stopPositionUpdater() {
-            positionUpdaterJob?.cancel()
-            positionUpdaterJob = null
         }
 
         /**
@@ -274,92 +361,146 @@ class AudioPlayerController
             // Update current book ID
             _currentBookId.value = bookId
 
+            // Use MediaController for state checks, but setPlaylist still requires service
+            // (setPlaylist has complex logic with PlaylistManager that can't be done via MediaController)
+            val controller = mediaController
+
+            // setPlaylist requires direct service access (not available via MediaController)
+            @Suppress("DEPRECATION")
             val service = AudioPlayerService.getInstance()
-            if (service != null) {
-                // Check if we are already playing this book to avoid restarting
-                // CRITICAL: Use bookId (groupPath) as primary check since file paths may differ after sorting
-                val currentGroupPath = service.currentGroupPath
-                val currentPaths = service.currentFilePaths
-                val isSameBook = bookId != null && bookId == currentGroupPath
-                val isSamePlaylist =
-                    currentPaths != null &&
-                        currentPaths.size == filePaths.size &&
-                        currentPaths == filePaths
 
-                if ((isSameBook || isSamePlaylist) && !isBookChanged) {
-                    android.util.Log.i(
-                        "AudioPlayerController",
-                        "Book already loaded (groupPath match: $isSameBook, paths match: $isSamePlaylist). Skipping setPlaylist.",
-                    )
+            if (service == null) {
+                android.util.Log.e("AudioPlayerController", "Service instance not found after startService")
+                return
+            }
 
+            // Check if we are already playing this book to avoid restarting
+            // CRITICAL: Use bookId (groupPath) as primary check since file paths may differ after sorting
+            val currentGroupPath = service.currentGroupPath
+            val currentPaths = service.currentFilePaths
+            val isSameBook = bookId != null && bookId == currentGroupPath
+            val isSamePlaylist =
+                currentPaths != null &&
+                    currentPaths.size == filePaths.size &&
+                    currentPaths == filePaths
+
+            if ((isSameBook || isSamePlaylist) && !isBookChanged) {
+                android.util.Log.i(
+                    "AudioPlayerController",
+                    "Book already loaded (groupPath match: $isSameBook, paths match: $isSamePlaylist). Skipping setPlaylist.",
+                )
+
+                // Use MediaController for seeking if available, otherwise use service
+                if (controller != null) {
                     // Handle seeking if needed (e.g. user clicked a specific chapter)
                     // Only seek if significantly different to allow resume logic to work
-                    if (initialChapterIndex != exoPlayer.currentMediaItemIndex) {
+                    if (initialChapterIndex != controller.currentMediaItemIndex) {
+                        controller.seekTo(initialChapterIndex, 0)
+                    }
+                    if (initialPosition > 0 && Math.abs(controller.currentPosition - initialPosition) > 1000) {
+                        controller.seekTo(initialPosition)
+                    }
+
+                    if (autoPlay && !controller.isPlaying) {
+                        controller.play()
+                    }
+                } else {
+                    // Fallback to service methods
+                    if (initialChapterIndex != service.actualTrackIndex) {
                         service.seekToTrack(initialChapterIndex)
                     }
-                    if (initialPosition > 0 && Math.abs(exoPlayer.currentPosition - initialPosition) > 1000) {
-                        service.seekTo(initialPosition)
-                    }
-
-                    if (autoPlay && !exoPlayer.isPlaying) {
-                        play()
-                    }
-                    return
-                }
-
-                service.setPlaylist(
-                    filePaths = filePaths,
-                    metadata = metadata,
-                    initialTrackIndex = initialChapterIndex,
-                    initialPosition = initialPosition,
-                    groupPath = bookId,
-                    callback = { success, _ ->
-                        if (success && autoPlay) {
-                            play()
+                    if (initialPosition > 0) {
+                        val currentPos = service.getCurrentPosition()
+                        if (Math.abs(currentPos - initialPosition) > 1000) {
+                            service.seekTo(initialPosition)
                         }
-                    },
-                )
-            } else {
-                // Should potentially queue command or retry
-                android.util.Log.e("AudioPlayerController", "Service instance not found after startService")
+                    }
+                    if (autoPlay && !service.isPlaying) {
+                        service.play()
+                    }
+                }
+                return
             }
+
+            // setPlaylist requires service-specific logic (PlaylistManager, etc.)
+            // This cannot be done via MediaController, so we use service directly
+            service.setPlaylist(
+                filePaths = filePaths,
+                metadata = metadata,
+                initialTrackIndex = initialChapterIndex,
+                initialPosition = initialPosition,
+                groupPath = bookId,
+                callback = { success, _ ->
+                    if (success && autoPlay) {
+                        // Use MediaController if available for play command
+                        if (controller != null) {
+                            controller.play()
+                        } else {
+                            service.play()
+                        }
+                    }
+                },
+            )
         }
 
         fun play() {
             startService()
-            AudioPlayerService.getInstance()?.play()
+            mediaController?.play() ?: run {
+                android.util.Log.w("AudioPlayerController", "MediaController not available for play(), service may not be ready")
+            }
         }
 
         fun pause() {
-            AudioPlayerService.getInstance()?.pause()
+            mediaController?.pause() ?: run {
+                android.util.Log.w("AudioPlayerController", "MediaController not available for pause(), service may not be ready")
+            }
         }
 
         fun seekTo(positionMs: Long) {
-            AudioPlayerService.getInstance()?.seekTo(positionMs)
+            mediaController?.seekTo(positionMs) ?: run {
+                android.util.Log.w("AudioPlayerController", "MediaController not available for seekTo(), service may not be ready")
+            }
         }
 
         fun skipToNext() {
-            AudioPlayerService.getInstance()?.next()
+            mediaController?.seekToNext() ?: run {
+                android.util.Log.w("AudioPlayerController", "MediaController not available for skipToNext(), service may not be ready")
+            }
         }
 
         fun skipToPrevious() {
-            AudioPlayerService.getInstance()?.previous()
+            mediaController?.seekToPrevious() ?: run {
+                android.util.Log.w("AudioPlayerController", "MediaController not available for skipToPrevious(), service may not be ready")
+            }
         }
 
         fun skipToChapter(index: Int) {
-            AudioPlayerService.getInstance()?.seekToTrack(index)
+            mediaController?.seekTo(index, 0) ?: run {
+                android.util.Log.w("AudioPlayerController", "MediaController not available for skipToChapter(), service may not be ready")
+            }
         }
 
         fun setPlaybackSpeed(speed: Float) {
-            AudioPlayerService.getInstance()?.setSpeed(speed)
+            mediaController?.setPlaybackSpeed(speed) ?: run {
+                android.util.Log.w(
+                    "AudioPlayerController",
+                    "MediaController not available for setPlaybackSpeed(), service may not be ready",
+                )
+            }
         }
 
         private fun startService() {
             try {
-                // CRITICAL FIX: Only start service if it's not already running
-                // Calling startService() when service is already running can trigger onCreate() again
-                if (AudioPlayerService.getInstance() != null) {
-                    android.util.Log.d("AudioPlayerController", "Service already running, skipping startService()")
+                // Check if MediaController is already connected (service is running)
+                if (mediaController != null) {
+                    android.util.Log.d("AudioPlayerController", "MediaController connected, service already running")
+                    return
+                }
+
+                // Fallback: check service instance via MediaController
+                // If MediaController is connected, service is running
+                if (mediaController != null) {
+                    android.util.Log.d("AudioPlayerController", "MediaController connected, service already running")
                     return
                 }
 
@@ -370,8 +511,31 @@ class AudioPlayerController
                 // MediaLibraryService will internally handle promoting it to foreground
                 // when playback starts and notification is posted.
                 context.startService(intent)
+
+                // Retry MediaController initialization after service start
+                scope.launch {
+                    kotlinx.coroutines.delay(500) // Wait for service to initialize
+                    if (mediaController == null) {
+                        android.util.Log.d("AudioPlayerController", "Retrying MediaController initialization after service start")
+                        initMediaController()
+                    }
+                }
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerController", "Failed to start service", e)
             }
+        }
+
+        /**
+         * Releases MediaController resources.
+         * Should be called when controller is no longer needed.
+         */
+        fun release() {
+            mediaController?.removeListener(mediaControllerListener)
+            mediaController?.release()
+            mediaController = null
+            mediaControllerFuture?.let {
+                MediaController.releaseFuture(it)
+            }
+            mediaControllerFuture = null
         }
     }
