@@ -24,6 +24,7 @@ import androidx.core.app.TaskStackBuilder
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
@@ -1055,9 +1056,10 @@ class AudioPlayerService : MediaLibraryService() {
                 lastRewindSeconds = rewindSeconds
                 lastForwardSeconds = forwardSeconds
 
+                // Use built-in Media3 icons to avoid CustomAction conversion crash
                 val rewindCommandButton =
-                    androidx.media3.session.CommandButton
-                        .Builder(com.jabook.app.jabook.R.drawable.ic_rewind)
+                    CommandButton
+                        .Builder(CommandButton.ICON_SKIP_BACK)
                         .setDisplayName("-$rewindSeconds")
                         .setSessionCommand(
                             androidx.media3.session.SessionCommand(
@@ -1067,8 +1069,8 @@ class AudioPlayerService : MediaLibraryService() {
                         ).build()
 
                 val forwardCommandButton =
-                    androidx.media3.session.CommandButton
-                        .Builder(com.jabook.app.jabook.R.drawable.ic_forward)
+                    CommandButton
+                        .Builder(CommandButton.ICON_SKIP_FORWARD)
                         .setDisplayName("+$forwardSeconds")
                         .setSessionCommand(
                             androidx.media3.session.SessionCommand(

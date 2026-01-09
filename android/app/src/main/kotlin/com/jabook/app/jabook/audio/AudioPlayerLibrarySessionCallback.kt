@@ -51,14 +51,14 @@ class AudioPlayerLibrarySessionCallback(
 ) : MediaLibraryService.MediaLibrarySession.Callback {
     val customCommands =
         listOf(
-            androidx.media3.session.CommandButton
-                .Builder(com.jabook.app.jabook.R.drawable.ic_rewind)
+            CommandButton
+                .Builder(CommandButton.ICON_SKIP_BACK)
                 .setDisplayName(service.getString(com.jabook.app.jabook.R.string.rewind))
                 .setSessionCommand(
                     androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY),
                 ).build(),
-            androidx.media3.session.CommandButton
-                .Builder(com.jabook.app.jabook.R.drawable.ic_forward)
+            CommandButton
+                .Builder(CommandButton.ICON_SKIP_FORWARD)
                 .setDisplayName(service.getString(com.jabook.app.jabook.R.string.forward))
                 .setSessionCommand(
                     androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY),
@@ -106,9 +106,10 @@ class AudioPlayerLibrarySessionCallback(
                     .build()
 
             // Create CommandButtons for custom layout (inspired by lissen-android)
+            // Use built-in Media3 icons to avoid CustomAction conversion crash
             val rewindButton =
                 CommandButton
-                    .Builder(com.jabook.app.jabook.R.drawable.ic_rewind)
+                    .Builder(CommandButton.ICON_SKIP_BACK)
                     .setSessionCommand(rewindCommand)
                     .setDisplayName(service.getString(com.jabook.app.jabook.R.string.rewind))
                     .setEnabled(true)
@@ -116,7 +117,7 @@ class AudioPlayerLibrarySessionCallback(
 
             val forwardButton =
                 CommandButton
-                    .Builder(com.jabook.app.jabook.R.drawable.ic_forward)
+                    .Builder(CommandButton.ICON_SKIP_FORWARD)
                     .setSessionCommand(forwardCommand)
                     .setDisplayName(service.getString(com.jabook.app.jabook.R.string.forward))
                     .setEnabled(true)
