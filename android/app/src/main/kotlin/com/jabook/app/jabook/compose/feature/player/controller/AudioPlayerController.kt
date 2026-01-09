@@ -36,6 +36,14 @@ import javax.inject.Singleton
 /**
  * Controller to bridge Compose UI with AudioPlayerService and ExoPlayer.
  *
+ * Architecture Note:
+ * This controller maintains its own Player.Listener for UI state management (StateFlow).
+ * The AudioPlayerService also has a PlayerListener for business logic (saving position, notifications, widgets).
+ * Both listen to the same ExoPlayer singleton, which serves as the single source of truth.
+ * This separation of concerns allows:
+ * - UI layer to reactively observe state changes via StateFlow
+ * - Service layer to handle persistence, notifications, and other business logic
+ *
  * Uses:
  * - Hilt-injected ExoPlayer singleton for reactive state observation
  * - AudioPlayerService.getInstance() for commands (preserving existing logic)
@@ -91,9 +99,16 @@ class AudioPlayerController
             onChapterEndedCallback = callback
         }
 
+        /**
+         * Player listener for UI state management.
+         * Note: This is separate from PlayerListener in AudioPlayerService, which handles
+         * business logic (persistence, notifications, widgets). Both listen to the same ExoPlayer
+         * singleton, ensuring state consistency. ExoPlayer is the single source of truth.
+         */
         private val playerListener =
             object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    // Update UI state from ExoPlayer (single source of truth)
                     _isPlaying.value = isPlaying
                     if (isPlaying) {
                         startPositionUpdater()
@@ -103,12 +118,13 @@ class AudioPlayerController
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    // Update duration from ExoPlayer (single source of truth)
                     _duration.value = exoPlayer.duration.coerceAtLeast(0)
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
-                        // Initial position update
+                        // Initial position update from ExoPlayer
                         _currentPosition.value = exoPlayer.currentPosition
 
-                        // Handle chapter end for repeat logic
+                        // Handle chapter end for repeat logic (UI-level concern)
                         if (playbackState == Player.STATE_ENDED) {
                             val shouldRepeat = onChapterEndedCallback?.invoke() ?: false
                             if (shouldRepeat) {
@@ -129,6 +145,7 @@ class AudioPlayerController
                     newPosition: Player.PositionInfo,
                     reason: Int,
                 ) {
+                    // Update position and chapter index from ExoPlayer (single source of truth)
                     _currentPosition.value = exoPlayer.currentPosition
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
                 }
@@ -137,6 +154,7 @@ class AudioPlayerController
                     mediaItem: androidx.media3.common.MediaItem?,
                     reason: Int,
                 ) {
+                    // Update chapter index and duration from ExoPlayer (single source of truth)
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
                     _duration.value = exoPlayer.duration.coerceAtLeast(0)
                     updateStats()
