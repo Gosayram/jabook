@@ -312,28 +312,36 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         // Get book ID from metadata or service
-        // currentGroupPath requires direct service access (not available via MediaController)
-        // Use safer access with initialization check
-        val currentBookId =
-            mediaMetadata?.extras?.getString("bookId")
-                ?: run {
-                    @Suppress("DEPRECATION")
-                    val service = AudioPlayerService.getInstance()
-                    if (service != null && service.isFullyInitialized()) {
-                        service.currentGroupPath
-                    } else {
-                        null
-                    }
+        // For widget updates, we use async approach to avoid blocking
+        val currentBookId = mediaMetadata?.extras?.getString("bookId")
+
+        // If not in metadata, we'll get it asynchronously via custom command
+        // For now, use fallback to getInstance() for widget (widget updates are time-sensitive)
+        // TODO: Implement async custom command call for widget updates
+        val currentBookIdFromService =
+            if (currentBookId == null) {
+                @Suppress("DEPRECATION")
+                val service = AudioPlayerService.getInstance()
+                if (service != null && service.isFullyInitialized()) {
+                    service.currentGroupPath
+                } else {
+                    null
                 }
+            } else {
+                null
+            }
+
+        val finalBookId = currentBookId ?: currentBookIdFromService
 
         // Set up click intents
-        setupClickIntents(context, views, currentBookId, playbackSpeed, repeatMode, widgetSize)
+        setupClickIntents(context, views, finalBookId, playbackSpeed, repeatMode, widgetSize)
 
         android.util.Log.d("PlayerWidget", "Widget updated via MediaController: book=$bookTitle, playing=$isPlaying")
     }
 
     /**
      * Fallback method to update widget from service instance.
+     * This is used when MediaController is not available.
      */
     private fun updateWidgetFromService(
         context: Context,
@@ -342,8 +350,8 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
     ) {
-        // getPlayerState() requires direct service access (not available via MediaController)
-        // Use safer access with initialization check
+        // Fallback: try to get service instance only if MediaController failed
+        // This should rarely be needed now that we use custom commands
         @Suppress("DEPRECATION")
         val service = AudioPlayerService.getInstance()
         if (service != null && service.isFullyInitialized()) {

@@ -23,10 +23,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
+import com.jabook.app.jabook.audio.MediaControllerExtensions
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -366,98 +368,83 @@ class AudioPlayerController
             // Update current book ID
             _currentBookId.value = bookId
 
-            // Use MediaController for state checks, but setPlaylist still requires service
-            // (setPlaylist has complex logic with PlaylistManager that can't be done via MediaController)
+            // Use MediaController for all operations including setPlaylist
             val controller = mediaController
-
-            // setPlaylist requires direct service access (not available via MediaController)
-            // Use helper method with retry logic for safer access
-            // Try to get service synchronously first (fast path)
-            @Suppress("DEPRECATION")
-            var service = AudioPlayerService.getInstance()
-            if (service == null || !service.isFullyInitialized()) {
-                // Service not ready, retry asynchronously
-                android.util.Log.d("AudioPlayerController", "Service not ready, retrying asynchronously...")
+            if (controller == null) {
+                // MediaController not ready, retry asynchronously
+                android.util.Log.d("AudioPlayerController", "MediaController not ready, retrying asynchronously...")
                 scope.launch {
-                    val retryService = waitForServiceReady()
-                    if (retryService != null) {
-                        // Retry loadBook with ready service
+                    kotlinx.coroutines.delay(500)
+                    if (mediaController != null) {
+                        // Retry loadBook with ready MediaController
                         loadBook(filePaths, initialChapterIndex, initialPosition, autoPlay, metadata, bookId)
                     } else {
-                        android.util.Log.e("AudioPlayerController", "Service instance not found after retries")
+                        android.util.Log.e("AudioPlayerController", "MediaController not available after retry")
                     }
                 }
                 return
             }
 
             // Check if we are already playing this book to avoid restarting
-            // CRITICAL: Use bookId (groupPath) as primary check since file paths may differ after sorting
-            val currentGroupPath = service.currentGroupPath
-            val currentPaths = service.currentFilePaths
-            val isSameBook = bookId != null && bookId == currentGroupPath
-            // Compare playlists by content, not by reference, to handle sorted paths
-            val isSamePlaylist =
-                currentPaths != null &&
-                    currentPaths.size == filePaths.size &&
-                    currentPaths.sorted() == filePaths.sorted()
+            // Use MediaController custom commands to get current state
+            scope.launch {
+                try {
+                    val currentGroupPath = MediaControllerExtensions.getCurrentGroupPath(controller)
+                    val currentPaths = MediaControllerExtensions.getCurrentFilePaths(controller)
 
-            if ((isSameBook || isSamePlaylist) && !isBookChanged) {
-                android.util.Log.i(
-                    "AudioPlayerController",
-                    "Book already loaded (groupPath match: $isSameBook, paths match: $isSamePlaylist). Skipping setPlaylist.",
-                )
+                    val isSameBook = bookId != null && bookId == currentGroupPath
+                    // Compare playlists by content, not by reference, to handle sorted paths
+                    val isSamePlaylist =
+                        currentPaths != null &&
+                            currentPaths.size == filePaths.size &&
+                            currentPaths.sorted() == filePaths.sorted()
 
-                // Use MediaController for seeking if available, otherwise use service
-                if (controller != null) {
-                    // Handle seeking if needed (e.g. user clicked a specific chapter)
-                    // Only seek if significantly different to allow resume logic to work
-                    if (initialChapterIndex != controller.currentMediaItemIndex) {
-                        controller.seekTo(initialChapterIndex, 0)
-                    }
-                    if (initialPosition > 0 && Math.abs(controller.currentPosition - initialPosition) > 1000) {
-                        controller.seekTo(initialPosition)
-                    }
+                    if ((isSameBook || isSamePlaylist) && !isBookChanged) {
+                        android.util.Log.i(
+                            "AudioPlayerController",
+                            "Book already loaded (groupPath match: $isSameBook, paths match: $isSamePlaylist). Skipping setPlaylist.",
+                        )
 
-                    if (autoPlay && !controller.isPlaying) {
-                        controller.play()
-                    }
-                } else {
-                    // Fallback to service methods
-                    if (initialChapterIndex != service.actualTrackIndex) {
-                        service.seekToTrack(initialChapterIndex)
-                    }
-                    if (initialPosition > 0) {
-                        val currentPos = service.getCurrentPosition()
-                        if (Math.abs(currentPos - initialPosition) > 1000) {
-                            service.seekTo(initialPosition)
+                        // Handle seeking if needed (e.g. user clicked a specific chapter)
+                        // Only seek if significantly different to allow resume logic to work
+                        if (initialChapterIndex != controller.currentMediaItemIndex) {
+                            controller.seekTo(initialChapterIndex, 0)
                         }
-                    }
-                    if (autoPlay && !service.isPlaying) {
-                        service.play()
-                    }
-                }
-                return
-            }
+                        if (initialPosition > 0 && Math.abs(controller.currentPosition - initialPosition) > 1000) {
+                            controller.seekTo(initialPosition)
+                        }
 
-            // setPlaylist requires service-specific logic (PlaylistManager, etc.)
-            // This cannot be done via MediaController, so we use service directly
-            service.setPlaylist(
-                filePaths = filePaths,
-                metadata = metadata,
-                initialTrackIndex = initialChapterIndex,
-                initialPosition = initialPosition,
-                groupPath = bookId,
-                callback = { success, _ ->
-                    if (success && autoPlay) {
-                        // Use MediaController if available for play command
-                        if (controller != null) {
+                        if (autoPlay && !controller.isPlaying) {
                             controller.play()
-                        } else {
-                            service.play()
                         }
+                        return@launch
                     }
-                },
-            )
+
+                    // Use MediaController custom command for setPlaylist
+                    val future =
+                        MediaControllerExtensions.setPlaylist(
+                            controller = controller,
+                            filePaths = filePaths,
+                            metadata = metadata,
+                            initialTrackIndex = initialChapterIndex,
+                            initialPosition = initialPosition,
+                            groupPath = bookId,
+                        )
+
+                    // Wait for result
+                    val result = future.get(30, TimeUnit.SECONDS)
+                    if (result.resultCode == SessionResult.RESULT_SUCCESS && autoPlay) {
+                        controller.play()
+                    } else if (result.resultCode != SessionResult.RESULT_SUCCESS) {
+                        android.util.Log.e(
+                            "AudioPlayerController",
+                            "setPlaylist failed with code: ${result.resultCode}",
+                        )
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioPlayerController", "Error in loadBook", e)
+                }
+            }
         }
 
         fun play() {
@@ -533,27 +520,6 @@ class AudioPlayerController
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerController", "Failed to start service", e)
             }
-        }
-
-        /**
-         * Helper method to safely get service instance with retry logic.
-         * This is a temporary solution until we can fully migrate to MediaController.
-         */
-        private suspend fun waitForServiceReady(
-            maxRetries: Int = 5,
-            delayMs: Long = 200,
-        ): AudioPlayerService? {
-            repeat(maxRetries) { attempt ->
-                @Suppress("DEPRECATION")
-                val service = AudioPlayerService.getInstance()
-                if (service != null && service.isFullyInitialized()) {
-                    return service
-                }
-                if (attempt < maxRetries - 1) {
-                    kotlinx.coroutines.delay(delayMs * (attempt + 1)) // Exponential backoff
-                }
-            }
-            return null
         }
 
         /**

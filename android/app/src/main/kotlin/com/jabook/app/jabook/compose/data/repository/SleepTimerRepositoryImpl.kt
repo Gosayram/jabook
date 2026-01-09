@@ -14,8 +14,14 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import android.content.ComponentName
 import android.content.Context
+import androidx.core.content.ContextCompat
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
+import com.jabook.app.jabook.audio.MediaControllerExtensions
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -27,6 +33,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -46,13 +53,20 @@ class SleepTimerRepositoryImpl
         private val _timerState = MutableStateFlow<SleepTimerState>(SleepTimerState.Idle)
         override val timerState: StateFlow<SleepTimerState> = _timerState.asStateFlow()
 
+        // MediaController for accessing service through custom commands
+        private var mediaController: MediaController? = null
+        private var mediaControllerFuture: ListenableFuture<MediaController>? = null
+
         init {
+            // Initialize MediaController for service access
+            initMediaController()
+
             // Poll service for timer state with adaptive polling interval
             // Poll more frequently when timer is active, less when idle
             scope.launch {
                 var lastState: SleepTimerState = SleepTimerState.Idle
                 while (isActive) {
-                    val newState = updateTimerState()
+                    val newState = updateTimerState() // This is now suspend
                     // Adaptive polling: faster when active, slower when idle
                     val delayMs =
                         when {
@@ -68,33 +82,84 @@ class SleepTimerRepositoryImpl
             }
         }
 
+        private fun initMediaController() {
+            try {
+                val sessionToken =
+                    SessionToken(
+                        context,
+                        ComponentName(context, AudioPlayerService::class.java),
+                    )
+
+                mediaControllerFuture =
+                    MediaController
+                        .Builder(context, sessionToken)
+                        .setApplicationLooper(context.mainLooper)
+                        .buildAsync()
+
+                mediaControllerFuture?.addListener(
+                    {
+                        try {
+                            val controller =
+                                mediaControllerFuture?.get(
+                                    com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                    TimeUnit.SECONDS,
+                                )
+                            mediaController = controller
+                            android.util.Log.d("SleepTimerRepository", "MediaController initialized")
+                        } catch (e: Exception) {
+                            android.util.Log.w("SleepTimerRepository", "Failed to initialize MediaController", e)
+                        }
+                    },
+                    ContextCompat.getMainExecutor(context),
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("SleepTimerRepository", "Failed to create MediaController", e)
+            }
+        }
+
+        private fun releaseMediaController() {
+            mediaController?.release()
+            mediaController = null
+            mediaControllerFuture?.let {
+                MediaController.releaseFuture(it)
+            }
+            mediaControllerFuture = null
+        }
+
         /**
-         * Updates timer state from service.
+         * Updates timer state from service via MediaController.
          * Returns the new state for adaptive polling.
          */
-        private fun updateTimerState(): SleepTimerState {
-            // Sleep timer methods require direct service access (not available via MediaController)
-            // Use safer access with initialization check
-            @Suppress("DEPRECATION")
-            val service = AudioPlayerService.getInstance()
-            if (service == null || !service.isFullyInitialized()) {
+        private suspend fun updateTimerState(): SleepTimerState {
+            val controller = mediaController
+            if (controller == null) {
+                // Try to reinitialize if not available
+                if (mediaControllerFuture == null) {
+                    initMediaController()
+                }
                 if (_timerState.value !is SleepTimerState.Idle) {
                     _timerState.value = SleepTimerState.Idle
                 }
                 return SleepTimerState.Idle
             }
 
-            // Sync state with service
+            // Use MediaController custom commands to get timer state
             val newState =
-                if (service.isSleepTimerEndOfChapter()) {
-                    SleepTimerState.EndOfChapter
-                } else {
-                    val remaining = service.getSleepTimerRemainingSeconds()
-                    if (remaining != null && remaining > 0) {
-                        SleepTimerState.Active(remaining)
+                try {
+                    val isEndOfChapter = MediaControllerExtensions.isSleepTimerEndOfChapter(controller)
+                    if (isEndOfChapter) {
+                        SleepTimerState.EndOfChapter
                     } else {
-                        SleepTimerState.Idle
+                        val remaining = MediaControllerExtensions.getSleepTimerRemainingSeconds(controller)
+                        if (remaining != null && remaining > 0) {
+                            SleepTimerState.Active(remaining)
+                        } else {
+                            SleepTimerState.Idle
+                        }
                     }
+                } catch (e: Exception) {
+                    android.util.Log.w("SleepTimerRepository", "Failed to get timer state via MediaController", e)
+                    SleepTimerState.Idle
                 }
 
             // Only update if state actually changed to avoid unnecessary recompositions
@@ -106,52 +171,75 @@ class SleepTimerRepositoryImpl
         }
 
         override fun startTimer(durationMinutes: Int) {
-            // Sleep timer methods require direct service access (not available via MediaController)
-            // Use safer access with retry logic
+            // Use MediaController custom command for setSleepTimerMinutes
             scope.launch {
-                val service = waitForServiceReady()
-                service?.setSleepTimerMinutes(durationMinutes)
-                // State will be updated by polling, but eagerly update for responsiveness
-                _timerState.value = SleepTimerState.Active(durationMinutes * 60)
+                val controller = mediaController
+                if (controller != null) {
+                    try {
+                        val future = MediaControllerExtensions.setSleepTimerMinutes(controller, durationMinutes)
+                        val result =
+                            future.get(
+                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                TimeUnit.SECONDS,
+                            )
+                        if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
+                            // State will be updated by polling, but eagerly update for responsiveness
+                            _timerState.value = SleepTimerState.Active(durationMinutes * 60)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("SleepTimerRepository", "Failed to set sleep timer", e)
+                    }
+                } else {
+                    android.util.Log.w("SleepTimerRepository", "MediaController not available for startTimer")
+                }
             }
         }
 
         override fun startTimerEndOfChapter() {
-            // Sleep timer methods require direct service access (not available via MediaController)
+            // Use MediaController custom command for setSleepTimerEndOfChapter
             scope.launch {
-                val service = waitForServiceReady()
-                service?.setSleepTimerEndOfChapter()
-                _timerState.value = SleepTimerState.EndOfChapter
+                val controller = mediaController
+                if (controller != null) {
+                    try {
+                        val future = MediaControllerExtensions.setSleepTimerEndOfChapter(controller)
+                        val result =
+                            future.get(
+                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                TimeUnit.SECONDS,
+                            )
+                        if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
+                            _timerState.value = SleepTimerState.EndOfChapter
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("SleepTimerRepository", "Failed to set sleep timer end of chapter", e)
+                    }
+                } else {
+                    android.util.Log.w("SleepTimerRepository", "MediaController not available for startTimerEndOfChapter")
+                }
             }
         }
 
         override fun cancelTimer() {
-            // Sleep timer methods require direct service access (not available via MediaController)
+            // Use MediaController custom command for cancelSleepTimer
             scope.launch {
-                val service = waitForServiceReady()
-                service?.cancelSleepTimer()
-                _timerState.value = SleepTimerState.Idle
-            }
-        }
-
-        /**
-         * Helper method to safely get service instance with retry logic.
-         * This is a temporary solution until we can fully migrate to MediaController.
-         */
-        private suspend fun waitForServiceReady(
-            maxRetries: Int = 3,
-            delayMs: Long = 200,
-        ): AudioPlayerService? {
-            repeat(maxRetries) { attempt ->
-                @Suppress("DEPRECATION")
-                val service = AudioPlayerService.getInstance()
-                if (service != null && service.isFullyInitialized()) {
-                    return service
-                }
-                if (attempt < maxRetries - 1) {
-                    delay(delayMs * (attempt + 1)) // Exponential backoff
+                val controller = mediaController
+                if (controller != null) {
+                    try {
+                        val future = MediaControllerExtensions.cancelSleepTimer(controller)
+                        val result =
+                            future.get(
+                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                TimeUnit.SECONDS,
+                            )
+                        if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
+                            _timerState.value = SleepTimerState.Idle
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("SleepTimerRepository", "Failed to cancel sleep timer", e)
+                    }
+                } else {
+                    android.util.Log.w("SleepTimerRepository", "MediaController not available for cancelTimer")
                 }
             }
-            return null
         }
     }

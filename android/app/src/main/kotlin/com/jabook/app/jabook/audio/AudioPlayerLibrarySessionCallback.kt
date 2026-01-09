@@ -36,8 +36,10 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.withTimeout
 import java.io.File
 
 class AudioPlayerLibrarySessionCallback(
@@ -92,6 +94,15 @@ class AudioPlayerLibrarySessionCallback(
                     .buildUpon()
                     .add(rewindCommand)
                     .add(forwardCommand)
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY))
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY))
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_CANCEL_SLEEP_TIMER, Bundle.EMPTY))
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING, Bundle.EMPTY))
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE, Bundle.EMPTY))
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH, Bundle.EMPTY))
+                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS, Bundle.EMPTY))
                     .build()
 
             // Create CommandButtons for custom layout (inspired by lissen-android)
@@ -118,8 +129,27 @@ class AudioPlayerLibrarySessionCallback(
                 .build()
         }
 
-        // Default commands for regular app controllers (without custom buttons)
-        return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
+        // For regular app controllers, add custom commands but without custom buttons
+        val availableCommands =
+            MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                .buildUpon()
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_CANCEL_SLEEP_TIMER, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS, Bundle.EMPTY))
+                .build()
+
+        return MediaSession.ConnectionResult
+            .AcceptedResultBuilder(session)
+            .setAvailableSessionCommands(availableCommands)
+            .build()
     }
 
     /**
@@ -191,25 +221,197 @@ class AudioPlayerLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
         customCommand: androidx.media3.session.SessionCommand,
         args: Bundle,
-    ): ListenableFuture<SessionResult> {
+    ): ListenableFuture<SessionResult> =
         when (customCommand.customAction) {
             CUSTOM_COMMAND_REWIND -> {
                 val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 15
                 service.rewind(rewindSeconds)
-                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             CUSTOM_COMMAND_FORWARD -> {
                 val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
                 service.forward(forwardSeconds)
-                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            CUSTOM_COMMAND_SET_PLAYLIST -> {
+                handleSetPlaylistCommand(args)
+            }
+            CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES -> {
+                val minutes = args.getInt(ARG_MINUTES, 0)
+                if (minutes > 0) {
+                    service.setSleepTimerMinutes(minutes)
+                    Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                } else {
+                    Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
+                }
+            }
+            CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER -> {
+                service.setSleepTimerEndOfChapter()
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            CUSTOM_COMMAND_CANCEL_SLEEP_TIMER -> {
+                service.cancelSleepTimer()
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING -> {
+                val remaining = service.getSleepTimerRemainingSeconds()
+                val resultBundle =
+                    Bundle().apply {
+                        if (remaining != null) {
+                            putInt(ARG_RESULT_REMAINING, remaining)
+                        }
+                    }
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
+            }
+            CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE -> {
+                val isActive = service.isSleepTimerActive()
+                val resultBundle =
+                    Bundle().apply {
+                        putBoolean(ARG_RESULT_ACTIVE, isActive)
+                    }
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
+            }
+            CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER -> {
+                val isEndOfChapter = service.isSleepTimerEndOfChapter()
+                val resultBundle =
+                    Bundle().apply {
+                        putBoolean(ARG_RESULT_END_OF_CHAPTER, isEndOfChapter)
+                    }
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
+            }
+            CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH -> {
+                val groupPath = service.currentGroupPath
+                val resultBundle =
+                    Bundle().apply {
+                        if (groupPath != null) {
+                            putString(ARG_RESULT_GROUP_PATH, groupPath)
+                        }
+                    }
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
+            }
+            CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS -> {
+                val filePaths = service.currentFilePaths
+                val resultBundle =
+                    Bundle().apply {
+                        if (filePaths != null) {
+                            putStringArray(ARG_RESULT_FILE_PATHS, filePaths.toTypedArray())
+                        }
+                    }
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
+            }
+            else -> Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+        }
+
+    /**
+     * Handles setPlaylist command with complex parameters.
+     * Uses coroutines to handle async callback.
+     */
+    private fun handleSetPlaylistCommand(args: Bundle): ListenableFuture<SessionResult> =
+        CoroutineScope(Dispatchers.IO).future {
+            try {
+                val filePathsArray = args.getStringArray(ARG_FILE_PATHS)
+                if (filePathsArray == null) {
+                    return@future SessionResult(SessionError.ERROR_BAD_VALUE)
+                }
+                val filePaths = filePathsArray.toList()
+
+                // Extract metadata if present, converting Map<String!, String?>? to Map<String, String>?
+                val metadataMap: Map<String, String>? =
+                    args.getBundle(ARG_METADATA)?.let { metadataBundle ->
+                        metadataBundle
+                            .keySet()
+                            .associateWith { key ->
+                                metadataBundle.getString(key) ?: ""
+                            }.filterValues { it.isNotEmpty() }
+                    }
+
+                val initialTrackIndex =
+                    if (args.containsKey(ARG_INITIAL_TRACK_INDEX)) {
+                        args.getInt(ARG_INITIAL_TRACK_INDEX)
+                    } else {
+                        null
+                    }
+
+                val initialPosition =
+                    if (args.containsKey(ARG_INITIAL_POSITION)) {
+                        args.getLong(ARG_INITIAL_POSITION)
+                    } else {
+                        null
+                    }
+
+                val groupPath = args.getString(ARG_GROUP_PATH)
+
+                // Use CompletableDeferred to wait for callback
+                val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
+
+                service.setPlaylist(
+                    filePaths = filePaths,
+                    metadata = metadataMap,
+                    initialTrackIndex = initialTrackIndex,
+                    initialPosition = initialPosition,
+                    groupPath = groupPath,
+                    callback = { success, exception ->
+                        if (exception != null) {
+                            android.util.Log.e("AudioPlayerService", "setPlaylist failed", exception)
+                        }
+                        deferred.complete(success)
+                    },
+                )
+
+                // Wait for callback with timeout
+                val success =
+                    try {
+                        withTimeout(30000) {
+                            // 30 seconds timeout
+                            deferred.await()
+                        }
+                    } catch (e: TimeoutCancellationException) {
+                        android.util.Log.e("AudioPlayerService", "setPlaylist timeout", e)
+                        false
+                    }
+
+                if (success) {
+                    SessionResult(SessionResult.RESULT_SUCCESS)
+                } else {
+                    SessionResult(SessionError.ERROR_UNKNOWN)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AudioPlayerService", "Error in handleSetPlaylistCommand", e)
+                SessionResult(SessionError.ERROR_UNKNOWN)
             }
         }
-        return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
-    }
 
     companion object {
         const val CUSTOM_COMMAND_REWIND = "com.jabook.app.jabook.rewind"
         const val CUSTOM_COMMAND_FORWARD = "com.jabook.app.jabook.forward"
+
+        // Playlist management commands
+        const val CUSTOM_COMMAND_SET_PLAYLIST = "com.jabook.app.jabook.setPlaylist"
+
+        // Sleep timer commands
+        const val CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES = "com.jabook.app.jabook.setSleepTimerMinutes"
+        const val CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER = "com.jabook.app.jabook.setSleepTimerEndOfChapter"
+        const val CUSTOM_COMMAND_CANCEL_SLEEP_TIMER = "com.jabook.app.jabook.cancelSleepTimer"
+        const val CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING = "com.jabook.app.jabook.getSleepTimerRemaining"
+        const val CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE = "com.jabook.app.jabook.isSleepTimerActive"
+        const val CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER = "com.jabook.app.jabook.isSleepTimerEndOfChapter"
+
+        // Service state commands
+        const val CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH = "com.jabook.app.jabook.getCurrentGroupPath"
+        const val CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS = "com.jabook.app.jabook.getCurrentFilePaths"
+
+        // Bundle keys for command arguments
+        const val ARG_FILE_PATHS = "filePaths"
+        const val ARG_METADATA = "metadata"
+        const val ARG_INITIAL_TRACK_INDEX = "initialTrackIndex"
+        const val ARG_INITIAL_POSITION = "initialPosition"
+        const val ARG_GROUP_PATH = "groupPath"
+        const val ARG_MINUTES = "minutes"
+        const val ARG_RESULT_REMAINING = "remaining"
+        const val ARG_RESULT_ACTIVE = "active"
+        const val ARG_RESULT_END_OF_CHAPTER = "endOfChapter"
+        const val ARG_RESULT_GROUP_PATH = "groupPath"
+        const val ARG_RESULT_FILE_PATHS = "filePaths"
     }
 
     // Minimal implementation for library operations (required by MediaLibrarySession.Callback)
