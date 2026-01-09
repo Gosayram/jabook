@@ -18,10 +18,15 @@ import android.content.Context
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,10 +54,14 @@ class GaplessPlaybackTest {
 
     @Before
     fun setup() {
+        // Set test dispatcher as Main dispatcher for coroutines
+        Dispatchers.setMain(testDispatcher)
+
         context = ApplicationProvider.getApplicationContext()
         exoPlayer = mock()
         whenever(exoPlayer.playbackState).thenReturn(Player.STATE_IDLE)
         whenever(exoPlayer.mediaItemCount).thenReturn(0)
+        whenever(exoPlayer.playWhenReady).thenReturn(false)
 
         // Mock dependencies
         val durationManager = mock<DurationManager>()
@@ -75,22 +84,34 @@ class GaplessPlaybackTest {
             )
     }
 
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     @Test
     fun `preparePlaybackOptimized adds multiple items to player`() =
         testScope.runTest {
-            // Given a list of files
+            // Given a list of files (small playlist <50, will use synchronous loading)
             val files = listOf("/storage/book/1.mp3", "/storage/book/2.mp3", "/storage/book/3.mp3")
 
-            // Mock player behavior
-            whenever(exoPlayer.mediaItemCount).thenReturn(3)
+            // Mock player behavior for synchronous loading
+            // For small playlists, setMediaItems is used instead of addMediaSource
+            whenever(exoPlayer.mediaItemCount).thenReturn(0) // Start with 0, will be set by setMediaItems
 
             // When playlist is prepared
             playlistManager.preparePlaybackOptimized(files, null)
 
+            // Advance all coroutines to ensure completion
+            advanceUntilIdle()
+
             // Then items are added to the player
-            // 1. First item added synchronously
-            verify(exoPlayer).addMediaSource(any(), any()) // At least one addMediaSource call
-            // 2. Clear items called first
+            // For small playlists (<50), synchronous loading uses setMediaItems
+            // 1. Clear items called first
             verify(exoPlayer).clearMediaItems()
+            // 2. setMediaItems is called with all items at once (synchronous loading)
+            verify(exoPlayer).setMediaItems(any(), any(), any())
+            // 3. prepare is called
+            verify(exoPlayer).prepare()
         }
 }
