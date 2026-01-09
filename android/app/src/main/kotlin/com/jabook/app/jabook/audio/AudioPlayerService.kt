@@ -32,6 +32,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.utils.capitalizeFirst
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -348,8 +349,8 @@ class AudioPlayerService : MediaLibraryService() {
                     packageName.endsWith(".beta") -> "beta"
                     else -> "" // prod or unknown
                 }
-            // Capitalize first letter for display
-            return if (flavor.isEmpty()) "" else flavor.substring(0, 1).uppercase() + flavor.substring(1)
+            // Capitalize first letter for display (using utility function)
+            return flavor.capitalizeFirst()
         }
     }
 

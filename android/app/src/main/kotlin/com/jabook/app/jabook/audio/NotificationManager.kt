@@ -28,6 +28,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.utils.capitalizeFirst
 import android.app.NotificationManager as AndroidNotificationManager
 
 /**
@@ -99,7 +100,8 @@ class NotificationManager(
                     else -> "" // prod or unknown
                 }
             // Capitalize first letter for display
-            return if (flavor.isEmpty()) "" else flavor.substring(0, 1).uppercase() + flavor.substring(1)
+            // Capitalize first letter for display (using utility function)
+            return flavor.capitalizeFirst()
         }
 
         const val ACTION_PLAY = "com.jabook.app.jabook.audio.PLAY"
