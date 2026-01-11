@@ -32,7 +32,7 @@ val MIGRATION_14_15 =
         override fun migrate(db: SupportSQLiteDatabase) {
             try {
                 Log.i(TAG, "🔄 Starting migration 14→15 (RuTracker category fallback)")
-                val startTime = System.currentTimeMillis()
+                public val startTime = System.currentTimeMillis()
 
                 // Update all cached topics with blank category to use fallback
                 db.execSQL(
@@ -44,11 +44,11 @@ val MIGRATION_14_15 =
                 )
 
                 // Log progress to verify migration success
-                val cursor = db.query("SELECT COUNT(*) FROM cached_topics WHERE category = 'Аудиокниги'")
-                val updatedCount = if (cursor.moveToFirst()) cursor.getInt(0) else 0
+                public val cursor = db.query("SELECT COUNT(*) FROM cached_topics WHERE category = 'Аудиокниги'")
+                public val updatedCount = if (cursor.moveToFirst()) cursor.getInt(0) else 0
                 cursor.close()
 
-                val duration = System.currentTimeMillis() - startTime
+                public val duration = System.currentTimeMillis() - startTime
                 Log.i(TAG, "✅ Migration 14→15 completed: updated $updatedCount topics (${duration}ms)")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Migration 14→15 failed: ${e.message}", e)

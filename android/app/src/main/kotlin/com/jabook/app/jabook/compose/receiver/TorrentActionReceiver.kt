@@ -38,7 +38,7 @@ public class TorrentActionReceiver : BroadcastReceiver() {
         context: Context,
         intent: Intent,
     ) {
-        val hash = intent.getStringExtra(EXTRA_TORRENT_HASH)
+        public val hash = intent.getStringExtra(EXTRA_TORRENT_HASH)
 
         when (intent.action) {
             ACTION_PAUSE_TORRENT -> {

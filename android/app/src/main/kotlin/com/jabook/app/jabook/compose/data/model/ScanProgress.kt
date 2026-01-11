@@ -18,23 +18,23 @@ public sealed class ScanProgress {
     data object Idle : ScanProgress()
 
     public data class Discovery(
-        val fileCount: Int,
+        public val fileCount: Int,
     ) : ScanProgress()
 
     public data class Parsing(
-        val currentBook: String,
-        val progress: Int,
-        val total: Int,
+        public val currentBook: String,
+        public val progress: Int,
+        public val total: Int,
     ) : ScanProgress()
 
     data object Saving : ScanProgress()
 
     public data class Completed(
-        val booksAdded: Int,
-        val durationMs: Long,
+        public val booksAdded: Int,
+        public val durationMs: Long,
     ) : ScanProgress()
 
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : ScanProgress()
 }

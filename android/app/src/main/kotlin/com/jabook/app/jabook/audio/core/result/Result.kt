@@ -29,14 +29,14 @@ public sealed interface Result<out T> {
      * Represents a successful operation with data.
      */
     public data class Success<T>(
-        val data: T,
+        public val data: T,
     ) : Result<T>
 
     /**
      * Represents a failed operation with an exception.
      */
     public data class Error(
-        val exception: Throwable,
+        public val exception: Throwable,
     ) : Result<Nothing>
 
     /**

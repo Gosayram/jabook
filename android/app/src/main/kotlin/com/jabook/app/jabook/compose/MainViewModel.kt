@@ -32,7 +32,7 @@ public sealed interface MainActivityUiState {
     data object Loading : MainActivityUiState
 
     public data class Success(
-        val userData: UserData,
+        public val userData: UserData,
     ) : MainActivityUiState
 }
 
@@ -45,7 +45,7 @@ public class MainViewModel
     constructor(
         userPreferencesRepository: UserPreferencesRepository,
     ) : ViewModel() {
-        val uiState: StateFlow<MainActivityUiState> =
+        public val uiState: StateFlow<MainActivityUiState> =
             userPreferencesRepository.userData
                 .map { MainActivityUiState.Success(it) }
                 .stateIn(

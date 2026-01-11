@@ -160,7 +160,7 @@ public class IndexingForegroundService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Log.i(TAG, "Creating notification channel: $CHANNEL_ID")
-            val channel =
+            public val channel =
                 NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
@@ -172,11 +172,11 @@ public class IndexingForegroundService : Service() {
                     enableVibration(false)
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC // Make visible on lock screen
                 }
-            val notificationManager = getSystemService(NotificationManager::class.java)
+            public val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
 
             // Verify channel was created
-            val createdChannel = notificationManager.getNotificationChannel(CHANNEL_ID)
+            public val createdChannel = notificationManager.getNotificationChannel(CHANNEL_ID)
             if (createdChannel != null) {
                 Log.i(TAG, "✅ Notification channel created successfully: $CHANNEL_ID")
                 Log.i(TAG, "Channel importance: ${createdChannel.importance}")
@@ -195,7 +195,7 @@ public class IndexingForegroundService : Service() {
     private fun startForegroundWithNotification() {
         Log.i(TAG, "Starting foreground service with notification ID: $NOTIFICATION_ID")
         try {
-            val notification = createNotification(IndexingProgress.Idle)
+            public val notification = createNotification(IndexingProgress.Idle)
             startForeground(NOTIFICATION_ID, notification)
             Log.i(TAG, "✅ Foreground service started successfully")
         } catch (e: Exception) {
@@ -217,10 +217,10 @@ public class IndexingForegroundService : Service() {
             serviceScope.launch {
                 try {
                     // Check authentication
-                    val currentAuthStatus = authRepository.authStatus.first()
-                    val isAuthenticated = currentAuthStatus is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated
+                    public val currentAuthStatus = authRepository.authStatus.first()
+                    public val isAuthenticated = currentAuthStatus is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated
 
-                    val hasValidUsername =
+                    public val hasValidUsername =
                         when (currentAuthStatus) {
                             is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> {
                                 currentAuthStatus.username.isNotBlank() && currentAuthStatus.username != "User"
@@ -271,11 +271,11 @@ public class IndexingForegroundService : Service() {
      */
     private fun createNotification(progress: IndexingProgress): Notification {
         Log.d(TAG, "Creating notification for progress: ${progress::class.simpleName}")
-        val intent =
+        public val intent =
             Intent(this, ComposeMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
-        val pendingIntent =
+        public val pendingIntent =
             PendingIntent.getActivity(
                 this,
                 0,
@@ -284,7 +284,7 @@ public class IndexingForegroundService : Service() {
             )
         Log.d(TAG, "PendingIntent created for notification")
 
-        val builder =
+        public val builder =
             NotificationCompat
                 .Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification_logo)
@@ -308,7 +308,7 @@ public class IndexingForegroundService : Service() {
                     .setProgress(0, 0, true) // Indeterminate
             }
             is IndexingProgress.InProgress -> {
-                val progressPercent = (progress.progress * 100).toInt()
+                public val progressPercent = (progress.progress * 100).toInt()
                 builder
                     .setContentTitle("Индексация форумов")
                     .setContentText(
@@ -356,7 +356,7 @@ public class IndexingForegroundService : Service() {
             }
         }
 
-        val notification = builder.build()
+        public val notification = builder.build()
         Log.d(TAG, "Notification built successfully")
         return notification
     }
@@ -367,8 +367,8 @@ public class IndexingForegroundService : Service() {
     private fun updateNotification(progress: IndexingProgress) {
         try {
             Log.d(TAG, "Updating notification for: ${progress::class.simpleName}")
-            val notification = createNotification(progress)
-            val notificationManager = getSystemService(NotificationManager::class.java)
+            public val notification = createNotification(progress)
+            public val notificationManager = getSystemService(NotificationManager::class.java)
 
             // Check if notifications are enabled
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {

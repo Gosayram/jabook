@@ -57,31 +57,31 @@ public class PersistentCookieJar
             url: HttpUrl,
             cookies: List<Cookie>,
         ) {
-            val host = url.host
+            public val host = url.host
             cache[host] = cookies
 
             // Persist to DataStore
             runBlocking {
                 dataStore.edit { prefs ->
-                    val key = stringPreferencesKey(host)
-                    val serialized = cookies.joinToString(COOKIE_SEPARATOR) { serializeCookie(it) }
+                    public val key = stringPreferencesKey(host)
+                    public val serialized = cookies.joinToString(COOKIE_SEPARATOR) { serializeCookie(it) }
                     prefs[key] = serialized
                 }
             }
         }
 
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
-            val host = url.host
+            public val host = url.host
 
             // Try cache first
             cache[host]?.let { return it }
 
             // Load from DataStore
-            val cookies =
+            public val cookies =
                 runBlocking {
-                    val prefs = dataStore.data.first()
-                    val key = stringPreferencesKey(host)
-                    val serialized: String? = prefs[key]
+                    public val prefs = dataStore.data.first()
+                    public val key = stringPreferencesKey(host)
+                    public val serialized: String? = prefs[key]
                     if (serialized == null) return@runBlocking emptyList<Cookie>()
 
                     serialized
@@ -121,17 +121,22 @@ public class PersistentCookieJar
 
         private fun deserializeCookie(serialized: String): Cookie? {
             return try {
-                val parts = serialized.split(";")
-                val nameValue = parts[0].split("=", limit = 2)
+                public val parts = serialized.split(";")
+                public val nameValue = parts[0].split("=", limit = 2)
                 if (nameValue.size != 2) return null
 
-                val name = nameValue[0]
-                val value = nameValue[1]
+                public val name = nameValue[0]
+                public val value = nameValue[1]
 
-                var domain: String = ""                public var path: String = "/"                public var expiresAt = Long.MIN_VALUE
-                var secure: Boolean = false                public var httpOnly: Boolean = false
+                
+                var domain: String = ""
+                var path: String = "/"
+                var expiresAt = Long.MIN_VALUE
+                
+                var secure: Boolean = false
+                var httpOnly: Boolean = false
                 parts.drop(1).forEach { part ->
-                    val trimmed = part.trim()
+                    public val trimmed = part.trim()
                     when {
                         trimmed.startsWith("domain=") -> domain = trimmed.substringAfter("domain=")
                         trimmed.startsWith("path=") -> path = trimmed.substringAfter("path=")

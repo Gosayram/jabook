@@ -53,18 +53,18 @@ public class AvatarPreloader
         ) = withContext(Dispatchers.IO) {
             if (comments.isEmpty()) return@withContext
 
-            val commentsWithAvatars = comments.filter { !it.avatarUrl.isNullOrBlank() }
+            public val commentsWithAvatars = comments.filter { !it.avatarUrl.isNullOrBlank() }
             if (commentsWithAvatars.isEmpty()) return@withContext
 
             Log.d(TAG, "Starting preload for ${commentsWithAvatars.size} avatars")
 
-            val imageLoader = SingletonImageLoader.get(context)
-            var successCount: Int = 0
+            public val imageLoader = SingletonImageLoader.get(context)
+            public var successCount: Int = 0
             commentsWithAvatars.forEach { comment ->
                 try {
-                    val url = comment.avatarUrl ?: return@forEach
+                    public val url = comment.avatarUrl ?: return@forEach
 
-                    val request =
+                    public val request =
                         ImageRequest
                             .Builder(context)
                             .data(url)

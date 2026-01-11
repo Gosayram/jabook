@@ -70,7 +70,7 @@ suspend fun <T> retryWithBackoff(
     config: RetryConfig = RetryConfig(),
     block: suspend () -> T,
 ): T {
-    var lastException: Throwable? = null
+    public var lastException: Throwable? = null
 
     repeat(config.maxRetries + 1) { attempt ->
         try {
@@ -80,7 +80,7 @@ suspend fun <T> retryWithBackoff(
 
             // Check if we should retry
             if (attempt < config.maxRetries && config.shouldRetry(e)) {
-                val delay = config.calculateDelay(attempt)
+                public val delay = config.calculateDelay(attempt)
                 kotlinx.coroutines.delay(delay)
                 // Continue to next attempt
             } else {

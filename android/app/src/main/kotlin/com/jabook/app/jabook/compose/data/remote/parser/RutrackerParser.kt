@@ -106,7 +106,7 @@ public class RutrackerParser
             contentType: String? = null,
         ): ParsingResult<List<SearchResult>> {
             // Decode with simple decoder (matching Flutter implementation)
-            val decodedHtml = decoder.decode(bytes, contentType)
+            public val decodedHtml = decoder.decode(bytes, contentType)
 
             // Parse the decoded HTML
             return parseSearchResultsDefensive(decodedHtml, bytes)
@@ -125,22 +125,22 @@ public class RutrackerParser
             html: String,
             rawBytes: ByteArray,
         ): ParsingResult<List<SearchResult>> {
-            val errors = mutableListOf<ParsingError>()
-            val results = mutableListOf<SearchResult>()
+            public val errors = mutableListOf<ParsingError>()
+            public val results = mutableListOf<SearchResult>()
 
             try {
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
-                val document = Jsoup.parse(html, getBaseUrl())
+                public val document = Jsoup.parse(html, getBaseUrl())
 
                 // Check if it's a valid search page first (before strict validation)
                 // This allows empty results to pass through
-                val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
-                val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
+                public val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
+                public val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
 
                 // Only validate if it's NOT a search/index page (to avoid blocking valid empty results)
                 // For search pages, we'll validate after checking for rows
                 if (!isSearchPage && !isIndexPage) {
-                    val validationError = ParsingValidators.validateSearchResults(html)
+                    public val validationError = ParsingValidators.validateSearchResults(html)
                     if (validationError != null) {
                         errors.add(
                             ParsingError(
@@ -155,13 +155,13 @@ public class RutrackerParser
                 }
 
                 // Try to find rows using multiple selectors strategy
-                var rows = org.jsoup.select.Elements()
-                var successfulSelector: String = ""
+                public var rows = org.jsoup.select.Elements()
+                public var successfulSelector: String = ""
                 for (selector in ROW_SELECTORS) {
-                    val found = document.select(selector)
+                    public val found = document.select(selector)
                     if (found.isNotEmpty()) {
                         // Filter out header/ad rows if generic selector used
-                        val validRows =
+                        public val validRows =
                             found.filter { row ->
                                 // Basic validation: must have some content/structure
                                 // Use selectFirst() for better performance (returns null if not found)
@@ -182,8 +182,8 @@ public class RutrackerParser
 
                 if (rows.isEmpty()) {
                     // Enhanced Debug Logging
-                    val title = document.title()
-                    val bodySnippet = document.body().text().take(500)
+                    public val title = document.title()
+                    public val bodySnippet = document.body().text().take(500)
                     Log.w(TAG, "NO ROWS FOUND. Details:")
                     Log.w(TAG, "Title: '$title'")
                     Log.w(TAG, "IsSearchPage: $isSearchPage, IsIndexPage: $isIndexPage")
@@ -194,7 +194,7 @@ public class RutrackerParser
                         Log.i(TAG, "No rows found, but page looks like valid search/index page (empty results)")
                         // For valid search pages with no results, validate now to catch real errors
                         // but still return empty list if it's just empty results
-                        val validationError = ParsingValidators.validateSearchResults(html)
+                        public val validationError = ParsingValidators.validateSearchResults(html)
                         if (validationError != null && validationError !is RuTrackerError.NoData) {
                             // Only log warning if it's a real error (not just empty data)
                             Log.w(TAG, "Validation error detected on empty search page: ${validationError.message}")
@@ -204,7 +204,7 @@ public class RutrackerParser
                     }
 
                     // Not a search/index page and no rows - validate to check for errors
-                    val validationError = ParsingValidators.validateSearchResults(html)
+                    public val validationError = ParsingValidators.validateSearchResults(html)
                     if (validationError != null) {
                         errors.add(
                             ParsingError(
@@ -241,7 +241,7 @@ public class RutrackerParser
                             )
                         }
 
-                        val result = parseSearchResultRow(row)
+                        public val result = parseSearchResultRow(row)
                         if (result != null) {
                             results.add(result)
                             if (index < 3) {
@@ -251,14 +251,16 @@ public class RutrackerParser
                             // Only warn if we failed to parse a row that we thought was valid
                             // But skip clogging logs if it's just a spacer/ad row that slipped through
                             if (row.text().length > 50) {
-                                val rowTag = row.tagName()
-                                val rowClasses = row.className()
-                                val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null                                public val topicIdAttr = row.attr(TOPIC_ID_ATTR)
-                                val rowId = row.attr("id")
-                                val topicId = topicIdAttr.ifEmpty { rowId.removePrefix("tr-") }
+                                public val rowTag = row.tagName()
+                                public val rowClasses = row.className()
+                                
+                                val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null
+                                val topicIdAttr = row.attr(TOPIC_ID_ATTR)
+                                public val rowId = row.attr("id")
+                                public val topicId = topicIdAttr.ifEmpty { rowId.removePrefix("tr-") }
 
                                 // Try to extract topicId from title link as fallback
-                                val topicIdFromLink =
+                                public val topicIdFromLink =
                                     row
                                         .selectFirst(TITLE_SELECTOR)
                                         ?.absUrl("href")
@@ -266,12 +268,12 @@ public class RutrackerParser
                                         ?.substringBefore("&")
                                         ?: ""
 
-                                val finalTopicId = topicId.ifEmpty { topicIdFromLink }
+                                public val finalTopicId = topicId.ifEmpty { topicIdFromLink }
 
                                 // Get title element for detailed logging
-                                val titleElement = row.selectFirst(TITLE_SELECTOR)
-                                val titleText = titleElement?.text()?.take(50) ?: ""
-                                val titleHtml = titleElement?.html()?.take(100) ?: ""
+                                public val titleElement = row.selectFirst(TITLE_SELECTOR)
+                                public val titleText = titleElement?.text()?.take(50) ?: ""
+                                public val titleHtml = titleElement?.html()?.take(100) ?: ""
 
                                 Log.w(
                                     TAG,
@@ -292,7 +294,7 @@ public class RutrackerParser
                             }
                         }
                     } catch (e: Exception) {
-                        val errorDetails =
+                        public val errorDetails =
                             when {
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
@@ -316,7 +318,7 @@ public class RutrackerParser
                     else -> ParsingResult.Failure(errors, emptyList())
                 }
             } catch (e: Exception) {
-                val errorDetails =
+                public val errorDetails =
                     when {
                         e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                         else -> e.javaClass.simpleName
@@ -358,7 +360,7 @@ public class RutrackerParser
             body: okhttp3.ResponseBody,
             forumId: String,
         ): List<SearchResult> {
-            val result = parseForumPageWithPagination(body, forumId)
+            public val result = parseForumPageWithPagination(body, forumId)
             return result.topics
         }
 
@@ -375,7 +377,7 @@ public class RutrackerParser
             contentType: String? = null,
         ): ParsingResult<List<SearchResult>> {
             // Decode with simple decoder (matching Flutter implementation)
-            val decodedHtml = decoder.decode(bytes, contentType)
+            public val decodedHtml = decoder.decode(bytes, contentType)
 
             // Parse the decoded HTML with forum-specific validation
             return parseForumPageDefensive(decodedHtml, bytes)
@@ -392,12 +394,12 @@ public class RutrackerParser
             html: String,
             rawBytes: ByteArray,
         ): ParsingResult<List<SearchResult>> {
-            val errors = mutableListOf<ParsingError>()
-            val results = mutableListOf<SearchResult>()
+            public val errors = mutableListOf<ParsingError>()
+            public val results = mutableListOf<SearchResult>()
 
             try {
                 // Validate HTML content before parsing - use forum-specific validation
-                val validationError = ParsingValidators.validateForumPage(html)
+                public val validationError = ParsingValidators.validateForumPage(html)
                 if (validationError != null) {
                     errors.add(
                         ParsingError(
@@ -411,31 +413,31 @@ public class RutrackerParser
                 }
 
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
-                val document = Jsoup.parse(html, getBaseUrl())
+                public val document = Jsoup.parse(html, getBaseUrl())
 
                 // Check if it's a valid search/index page
-                val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
-                val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
+                public val isSearchPage = document.select("form#quick-search, input[name=nm]").isNotEmpty()
+                public val isIndexPage = document.select("#forums_list_wrap").isNotEmpty()
 
                 // Try to find rows using multiple selectors strategy
-                var rows = org.jsoup.select.Elements()
-                var successfulSelector: String = ""
+                public var rows = org.jsoup.select.Elements()
+                public var successfulSelector: String = ""
                 for (selector in ROW_SELECTORS) {
-                    val found = document.select(selector)
+                    public val found = document.select(selector)
                     Log.d(TAG, "Trying selector '$selector': found ${found.size} elements")
 
                     if (found.isNotEmpty()) {
                         // Check if we found tr elements or something else
-                        val firstElement = found.firstOrNull()
+                        public val firstElement = found.firstOrNull()
                         if (firstElement == null) {
                             Log.w(TAG, "  ⚠️ Found elements but first() returned null")
                             continue
                         }
-                        val elementTag = firstElement.tagName()
+                        public val elementTag = firstElement.tagName()
                         Log.d(TAG, "  First element tag: $elementTag, classes: '${firstElement.className()}'")
 
                         // If we found td instead of tr, we need to find parent tr
-                        val actualRows =
+                        public val actualRows =
                             if (elementTag == "td") {
                                 Log.w(TAG, "  ⚠️ Selector found <td> instead of <tr>, looking for parent <tr>")
                                 found
@@ -449,12 +451,14 @@ public class RutrackerParser
                         Log.d(TAG, "  After processing: ${actualRows.size} rows")
 
                         // Filter out header/ad rows if generic selector used
-                        val validRows =
+                        public val validRows =
                             actualRows.filter { row ->
                                 // Basic validation: must have some content/structure
                                 // Use selectFirst() for better performance (returns null if not found)
-                                val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null                                public val isHeader = row.hasClass("vf-col-header-row")
-                                val isValid = !isHeader && hasTitle
+                                
+                                val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null
+                                val isHeader = row.hasClass("vf-col-header-row")
+                                public val isValid = !isHeader && hasTitle
 
                                 if (!isValid && row.text().length > 50) {
                                     Log.d(
@@ -482,8 +486,8 @@ public class RutrackerParser
 
                 if (rows.isEmpty()) {
                     // Enhanced Debug Logging
-                    val title = document.title()
-                    val bodySnippet = document.body().text().take(500)
+                    public val title = document.title()
+                    public val bodySnippet = document.body().text().take(500)
                     Log.w(TAG, "NO ROWS FOUND. Details:")
                     Log.w(TAG, "Title: '$title'")
                     Log.w(TAG, "IsSearchPage: $isSearchPage, IsIndexPage: $isIndexPage")
@@ -494,7 +498,7 @@ public class RutrackerParser
                         Log.i(TAG, "No rows found, but page looks like valid search/index page (empty results)")
                         // For valid search pages with no results, validate now to catch real errors
                         // but still return empty list if it's just empty results
-                        val validationError = ParsingValidators.validateForumPage(html)
+                        public val validationError = ParsingValidators.validateForumPage(html)
                         if (validationError != null && validationError !is RuTrackerError.NoData) {
                             // Only log warning if it's a real error (not just empty data)
                             Log.w(TAG, "Validation error detected on empty forum page: ${validationError.message}")
@@ -504,7 +508,7 @@ public class RutrackerParser
                     }
 
                     // Not a search/index page and no rows - validate to check for errors
-                    val validationError = ParsingValidators.validateForumPage(html)
+                    public val validationError = ParsingValidators.validateForumPage(html)
                     if (validationError != null) {
                         errors.add(
                             ParsingError(
@@ -530,16 +534,18 @@ public class RutrackerParser
 
                 for ((index, row) in rows.withIndex()) {
                     try {
-                        val result = parseSearchResultRow(row)
+                        public val result = parseSearchResultRow(row)
                         if (result != null) {
                             results.add(result)
                         } else {
                             // Only warn if we failed to parse a row that we thought was valid
                             // But skip clogging logs if it's just a spacer/ad row that slipped through
                             if (row.text().length > 50) {
-                                val rowTag = row.tagName()
-                                val rowClasses = row.className()
-                                val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null                                public val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
+                                public val rowTag = row.tagName()
+                                public val rowClasses = row.className()
+                                
+                                val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null
+                                val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
 
                                 Log.w(
                                     TAG,
@@ -558,7 +564,7 @@ public class RutrackerParser
                             }
                         }
                     } catch (e: Exception) {
-                        val errorDetails =
+                        public val errorDetails =
                             when {
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
@@ -582,7 +588,7 @@ public class RutrackerParser
                     else -> ParsingResult.Failure(errors, emptyList())
                 }
             } catch (e: Exception) {
-                val errorDetails =
+                public val errorDetails =
                     when {
                         e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                         else -> e.javaClass.simpleName
@@ -613,12 +619,12 @@ public class RutrackerParser
             forumId: String,
         ): ForumPageResult {
             // Convert ResponseBody to ByteArray for encoding-aware parsing
-            val rawBytes = body.bytes()
-            val contentType = body.contentType()?.toString()
+            public val rawBytes = body.bytes()
+            public val contentType = body.contentType()?.toString()
             Log.d(TAG, "Parsing forum $forumId page: ${rawBytes.size} bytes, content-type: $contentType")
-            val result = parseForumPageWithEncoding(rawBytes, contentType)
+            public val result = parseForumPageWithEncoding(rawBytes, contentType)
 
-            val topics =
+            public val topics =
                 when (result) {
                     is ParsingResult.Success -> {
                         Log.d(TAG, "Forum $forumId: successfully parsed ${result.data.size} topics")
@@ -626,7 +632,7 @@ public class RutrackerParser
                     }
                     is ParsingResult.PartialSuccess -> {
                         // Log only critical errors, not warnings
-                        val criticalErrors = result.errors.filter { it.severity == ErrorSeverity.CRITICAL }
+                        public val criticalErrors = result.errors.filter { it.severity == ErrorSeverity.CRITICAL }
                         if (criticalErrors.isNotEmpty()) {
                             Log.w(
                                 TAG,
@@ -668,9 +674,9 @@ public class RutrackerParser
                 }
 
             // Extract forum name from HTML for category assignment
-            val forumName =
+            public val forumName =
                 try {
-                    val decodedHtml = decoder.decode(rawBytes, contentType)
+                    public val decodedHtml = decoder.decode(rawBytes, contentType)
                     extractForumNameFromHTML(decodedHtml)
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to extract forum name for forum $forumId", e)
@@ -680,7 +686,7 @@ public class RutrackerParser
             Log.d(TAG, "Forum $forumId: extracted forum name = '$forumName'")
 
             // Assign category to all topics if not already set
-            val topicsWithCategory =
+            public val topicsWithCategory =
                 topics.map { topic ->
                     if (topic.category.isBlank()) {
                         topic.copy(category = forumName)
@@ -691,16 +697,16 @@ public class RutrackerParser
 
             // Check pagination to determine if there are more pages
             // Use the same decoder as for parsing topics to ensure correct encoding (Windows-1251)
-            val hasMorePages =
+            public val hasMorePages =
                 try {
                     // Decode HTML with proper encoding (same as parseSearchResultsWithEncoding)
-                    val decodedHtml = decoder.decode(rawBytes, contentType)
-                    val document = org.jsoup.Jsoup.parse(decodedHtml, getBaseUrl())
+                    public val decodedHtml = decoder.decode(rawBytes, contentType)
+                    public val document = org.jsoup.Jsoup.parse(decodedHtml, getBaseUrl())
 
                     // Method 1: Check for "След." (Next) link with class "pg"
-                    val nextLink =
+                    public val nextLink =
                         document.select("a.pg").firstOrNull { link ->
-                            val text = link.toStr().trim()
+                            public val text = link.toStr().trim()
                             text.contains("След", ignoreCase = true) || text.contains("Next", ignoreCase = true)
                         }
 
@@ -709,23 +715,23 @@ public class RutrackerParser
                         true
                     } else {
                         // Method 2: Check pagination text "Страница X из Y"
-                        val paginationText = document.select("#pagination, .nav").toStr()
-                        val pageMatch = Regex("Страница\\s+\\d+\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE).find(paginationText)
+                        public val paginationText = document.select("#pagination, .nav").toStr()
+                        public val pageMatch = Regex("Страница\\s+\\d+\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE).find(paginationText)
                         if (pageMatch != null) {
-                            val currentPage =
+                            public val currentPage =
                                 Regex("Страница\\s+(\\d+)", RegexOption.IGNORE_CASE)
                                     .find(paginationText)
                                     ?.groupValues
                                     ?.get(1)
                                     ?.toIntOrNull()
                                     ?: 1
-                            val totalPages = pageMatch.groupValues[1].toIntOrNull() ?: 1
-                            val hasMore = currentPage < totalPages
+                            public val totalPages = pageMatch.groupValues[1].toIntOrNull() ?: 1
+                            public val hasMore = currentPage < totalPages
                             Log.d(TAG, "Forum $forumId: pagination shows page $currentPage of $totalPages, hasMore=$hasMore")
                             hasMore
                         } else {
                             // Method 3: If we got topics and count matches TOPICS_PER_PAGE, likely more pages
-                            val likelyHasMore = topics.size >= 50 // TOPICS_PER_PAGE
+                            public val likelyHasMore = topics.size >= 50 // TOPICS_PER_PAGE
                             Log.d(TAG, "Forum $forumId: no pagination found, assuming hasMore=$likelyHasMore (topics: ${topics.size})")
                             likelyHasMore
                         }
@@ -752,14 +758,14 @@ public class RutrackerParser
 
             try {
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
-                val document = Jsoup.parse(html, getBaseUrl())
+                public val document = Jsoup.parse(html, getBaseUrl())
 
-                var rows = org.jsoup.select.Elements()
+                public var rows = org.jsoup.select.Elements()
                 for (selector in ROW_SELECTORS) {
-                    val found = document.select(selector)
+                    public val found = document.select(selector)
                     if (found.isNotEmpty()) {
                         // Use selectFirst() for better performance (returns null if not found)
-                        val validRows = found.filter { it.selectFirst(TITLE_SELECTOR) != null }
+                        public val validRows = found.filter { it.selectFirst(TITLE_SELECTOR) != null }
                         if (validRows.isNotEmpty()) {
                             rows = org.jsoup.select.Elements(validRows)
                             Log.d(TAG, "Using selector '$selector': ${rows.size} rows")
@@ -774,15 +780,15 @@ public class RutrackerParser
                     // === DIAGNOSTIC LOGGING ===
 
                     // 1. Detect page type
-                    val isLoginPage =
+                    public val isLoginPage =
                         document.select("form[action*='login.php']").isNotEmpty() ||
                             document.select("input[name='login_username']").isNotEmpty() ||
                             document.select("input[name='login']").isNotEmpty()
-                    val isCaptchaPage =
+                    public val isCaptchaPage =
                         document.select("img[alt*='captcha']").isNotEmpty() ||
                             document.select("img[src*='captcha']").isNotEmpty() ||
                             document.select("form[action*='captcha']").isNotEmpty()
-                    val isErrorPage =
+                    public val isErrorPage =
                         document
                             .select(".message, .error, .warning")
                             .text()
@@ -793,48 +799,48 @@ public class RutrackerParser
                     if (isErrorPage) Log.w(TAG, "❌ ERROR PAGE DETECTED!")
 
                     // 2. Log HTML structure
-                    val tables = document.select("table")
+                    public val tables = document.select("table")
                     Log.w(TAG, "📊 Found ${tables.size} table(s)")
                     tables.take(5).forEachIndexed { i, table ->
                         Log.w(TAG, "  Table $i: class='${table.className()}' id='${table.id()}'")
                     }
 
-                    val allRows = document.select("tr")
+                    public val allRows = document.select("tr")
                     Log.w(TAG, "📋 Total tr elements: ${allRows.size}")
 
                     // Check each selector individually
                     ROW_SELECTORS.forEach { selector ->
-                        val found = document.select(selector)
+                        public val found = document.select(selector)
                         Log.w(TAG, "  Selector '$selector': ${found.size} matches")
                         if (found.isNotEmpty()) {
                             found.take(3).forEachIndexed { i, el ->
-                                val hasTitle = el.select(TITLE_SELECTOR).isNotEmpty()
+                                public val hasTitle = el.select(TITLE_SELECTOR).isNotEmpty()
                                 Log.w(TAG, "    Element $i: hasTitle=$hasTitle, class='${el.className()}'")
                             }
                         }
                     }
 
                     // 3. Page metadata
-                    val pageTitle = document.selectFirst("title")?.toStr() ?: "No title"
+                    public val pageTitle = document.selectFirst("title")?.toStr() ?: "No title"
                     Log.w(TAG, "📝 Page Title: $pageTitle")
 
                     // 4. HTML preview
-                    val htmlPreview = html.take(500).replace(Regex("\\s+"), " ")
+                    public val htmlPreview = html.take(500).replace(Regex("\\s+"), " ")
                     Log.w(TAG, "📄 HTML Preview: $htmlPreview...")
 
                     // 5. Check for common page elements
-                    val hasMainContent = document.select("#main_content, #page_content").isNotEmpty()
-                    val hasForumTable = document.select(".forumline, .vf-table").isNotEmpty()
+                    public val hasMainContent = document.select("#main_content, #page_content").isNotEmpty()
+                    public val hasForumTable = document.select(".forumline, .vf-table").isNotEmpty()
                     Log.w(TAG, "🔍 Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable")
 
                     return emptyList()
                 }
 
-                val results = mutableListOf<SearchResult>()
+                public val results = mutableListOf<SearchResult>()
 
                 rows.forEachIndexed { idx, row ->
                     try {
-                        val result = parseSearchResultRow(row)
+                        public val result = parseSearchResultRow(row)
                         if (result != null) {
                             results.add(result)
                             // Log first 3 successful results
@@ -857,7 +863,7 @@ public class RutrackerParser
 
         private fun parseSearchResultRow(row: Element): SearchResult? {
             // Extract topic ID from data attribute (preferred) or from link href
-            val topicId =
+            public val topicId =
                 row.attr(TOPIC_ID_ATTR).ifEmpty {
                     // Fallback: extract from row id attribute
                     row.attr("id").removePrefix("tr-").ifEmpty {
@@ -882,7 +888,7 @@ public class RutrackerParser
             }
 
             // Extract title - use updated selector
-            val titleElement = row.selectFirst(TITLE_SELECTOR)
+            public val titleElement = row.selectFirst(TITLE_SELECTOR)
             if (titleElement == null) {
                 Log.w(
                     TAG,
@@ -891,14 +897,14 @@ public class RutrackerParser
                 )
                 return null
             }
-            val title = titleElement.toStr()
+            public val title = titleElement.toStr()
             if (title.isEmpty()) {
                 // Try to get title from href or other attributes
-                val titleFromHref = titleElement.attr("title").takeIf { it.isNotBlank() }
-                val titleFromText = titleElement.text().takeIf { it.isNotBlank() }
-                val titleFromOwnText = titleElement.ownText().takeIf { it.isNotBlank() }
+                public val titleFromHref = titleElement.attr("title").takeIf { it.isNotBlank() }
+                public val titleFromText = titleElement.text().takeIf { it.isNotBlank() }
+                public val titleFromOwnText = titleElement.ownText().takeIf { it.isNotBlank() }
 
-                val finalTitle = titleFromHref ?: titleFromText ?: titleFromOwnText
+                public val finalTitle = titleFromHref ?: titleFromText ?: titleFromOwnText
                 if (finalTitle == null) {
                     Log.w(
                         TAG,
@@ -910,7 +916,7 @@ public class RutrackerParser
                     return null
                 }
                 // Use the found title
-                val cleanedTitle = cleanTitle(finalTitle)
+                public val cleanedTitle = cleanTitle(finalTitle)
                 // Continue with parsing using the found title
                 return createSearchResult(
                     topicId = topicId,
@@ -920,7 +926,7 @@ public class RutrackerParser
             }
 
             // Clean the title to remove technical details
-            val cleanedTitle = cleanTitle(title)
+            public val cleanedTitle = cleanTitle(title)
 
             return createSearchResult(
                 topicId = topicId,
@@ -941,30 +947,30 @@ public class RutrackerParser
             // Extract author
             // Priority 1: Extract from title (e.g. "Author - Book Name")
             // Priority 2: Use uploader/author column
-            val titleAuthor = extractAuthorFromTitle(title)
+            public val titleAuthor = extractAuthorFromTitle(title)
 
-            val authorElement = row.selectFirst(AUTHOR_SELECTOR)
-            val uploaderName = authorElement?.toStr()?.trim()?.ifEmpty { null }
+            public val authorElement = row.selectFirst(AUTHOR_SELECTOR)
+            public val uploaderName = authorElement?.toStr()?.trim()?.ifEmpty { null }
 
-            val author = titleAuthor ?: uploaderName ?: "Unknown"
+            public val author = titleAuthor ?: uploaderName ?: "Unknown"
 
             // Extract category (from data attribute or default)
-            val category = row.attr("data-forum_id").ifEmpty { "Audiobooks" }
+            public val category = row.attr("data-forum_id").ifEmpty { "Audiobooks" }
 
             // Use DefensiveFieldExtractor for robust extraction
-            val size = fieldExtractor.extractSize(row, topicId)
-            val seeders = fieldExtractor.extractSeeders(row, topicId)
-            val leechers = fieldExtractor.extractLeechers(row, topicId)
+            public val size = fieldExtractor.extractSize(row, topicId)
+            public val seeders = fieldExtractor.extractSeeders(row, topicId)
+            public val leechers = fieldExtractor.extractLeechers(row, topicId)
 
             // Extract magnet link
             // Use absUrl() for proper absolute URL resolution (magnet: links are already absolute)
-            val magnetElement = row.selectFirst(MAGNET_LINK_SELECTOR)
-            val magnetUrl = magnetElement?.absUrl("href") ?: magnetElement?.attr("href")
+            public val magnetElement = row.selectFirst(MAGNET_LINK_SELECTOR)
+            public val magnetUrl = magnetElement?.absUrl("href") ?: magnetElement?.attr("href")
 
             // Extract torrent download URL (using DOWNLOAD_HREF_SELECTOR)
             // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-            val torrentElement = row.selectFirst(DOWNLOAD_HREF_SELECTOR)
-            val torrentUrl =
+            public val torrentElement = row.selectFirst(DOWNLOAD_HREF_SELECTOR)
+            public val torrentUrl =
                 torrentElement?.absUrl("href") ?: run {
                     // Fallback: construct torrent URL from topicId if download link not found in row
                     // This is common on forum pages where download link is on topic details page
@@ -979,17 +985,17 @@ public class RutrackerParser
             // This uses the same logic as topic details page
             // Note: selectFirst() already searches recursively, but we add explicit search
             // in all cells to ensure we find var.postImg even if it's deeply nested
-            val coverUrl =
+            public val coverUrl =
                 run {
                     // First try: extract from entire row (selectFirst searches recursively)
-                    val fromRow = coverExtractor.extract(row)
+                    public val fromRow = coverExtractor.extract(row)
                     if (fromRow != null) {
                         Log.d(TAG, "Cover found in row for topic $topicId: $fromRow")
                         fromRow
                     } else {
                         // Second try: explicitly search in all table cells
                         // Sometimes var.postImg is in a specific cell
-                        val fromCells =
+                        public val fromCells =
                             row.select("td").firstNotNullOfOrNull { cell ->
                                 coverExtractor.extract(cell)
                             }
@@ -999,7 +1005,7 @@ public class RutrackerParser
                         } else {
                             // Third try: search in all nested elements (div, span, p)
                             // var.postImg might be in a nested container
-                            val fromNested =
+                            public val fromNested =
                                 row.select("div, span, p").firstNotNullOfOrNull { element ->
                                     coverExtractor.extract(element)
                                 }
@@ -1008,7 +1014,7 @@ public class RutrackerParser
                                 fromNested
                             } else {
                                 // Debug: check if var.postImg exists at all in the row
-                                val hasPostImg = row.select("var.postImg, var.postImgAligned, var[class*='postImg']").isNotEmpty()
+                                public val hasPostImg = row.select("var.postImg, var.postImgAligned, var[class*='postImg']").isNotEmpty()
                                 if (hasPostImg) {
                                     Log.w(
                                         TAG,
@@ -1020,9 +1026,9 @@ public class RutrackerParser
                                             "var.postImg[title], var.postImgAligned[title], var[class*='postImg'][title]",
                                         ).firstOrNull()
                                         ?.let { varElement ->
-                                            val url = varElement.attr("title")
+                                            public val url = varElement.attr("title")
                                             if (url.isNotBlank()) {
-                                                val normalized = coverExtractor.normalizeUrl(url)
+                                                public val normalized = coverExtractor.normalizeUrl(url)
                                                 Log.d(TAG, "Cover extracted directly from var.postImg for topic $topicId: $normalized")
                                                 normalized
                                             } else {
@@ -1060,13 +1066,13 @@ public class RutrackerParser
          */
         private fun extractAuthorFromTitle(title: String): String? {
             // Split by common separators
-            val separators = listOf(" - ", " / ", " – ", " — ") // including ndash, mdash
+            public val separators = listOf(" - ", " / ", " – ", " — ") // including ndash, mdash
 
             for (separator in separators) {
                 if (title.contains(separator)) {
-                    val parts = title.split(separator, limit = 2)
+                    public val parts = title.split(separator, limit = 2)
                     if (parts.isNotEmpty()) {
-                        val potentialAuthor = parts[0].trim()
+                        public val potentialAuthor = parts[0].trim()
                         // Basic validation: Author name shouldn't be too long or contain weird chars
                         // Allow letters, dots, spaces, hyphens
                         if (potentialAuthor.length in 2..60 &&
@@ -1092,38 +1098,38 @@ public class RutrackerParser
         ): TopicDetails? {
             try {
                 // Validate HTML content before parsing
-                val validationError = ParsingValidators.validateTopicDetails(html)
+                public val validationError = ParsingValidators.validateTopicDetails(html)
                 if (validationError != null) {
                     Log.w(TAG, "Topic $topicId validation failed: ${validationError.message}")
                     return null
                 }
 
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
-                val document = Jsoup.parse(html, getBaseUrl())
+                public val document = Jsoup.parse(html, getBaseUrl())
 
                 // Extract title
-                val titleElement = document.selectFirst(MAIN_TITLE_SELECTOR) ?: return null
-                val title = titleElement.toStr()
+                public val titleElement = document.selectFirst(MAIN_TITLE_SELECTOR) ?: return null
+                public val title = titleElement.toStr()
 
                 // Try to extract author from detailed title as well
-                val titleAuthor = extractAuthorFromTitle(cleanTitle(title))
+                public val titleAuthor = extractAuthorFromTitle(cleanTitle(title))
 
                 // Extract post body for metadata
-                val postBody = document.selectFirst(POST_BODY_SELECTOR)
+                public val postBody = document.selectFirst(POST_BODY_SELECTOR)
 
                 // Extract size
-                val sizeElement = document.selectFirst(TOR_SIZE_SELECTOR)
-                val size = sizeElement?.toStr() ?: "Unknown"
+                public val sizeElement = document.selectFirst(TOR_SIZE_SELECTOR)
+                public val size = sizeElement?.toStr() ?: "Unknown"
 
                 // Extract magnet link
                 // Use absUrl() for proper absolute URL resolution (magnet: links are already absolute)
-                val magnetElement = document.selectFirst(MAGNET_LINK_SELECTOR)
-                val magnetUrl = magnetElement?.absUrl("href") ?: magnetElement?.attr("href")
+                public val magnetElement = document.selectFirst(MAGNET_LINK_SELECTOR)
+                public val magnetUrl = magnetElement?.absUrl("href") ?: magnetElement?.attr("href")
 
                 // Extract torrent URL
                 // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-                val downloadElement = document.selectFirst(DOWNLOAD_HREF_SELECTOR)
-                val torrentUrl = downloadElement?.absUrl("href") ?: ""
+                public val downloadElement = document.selectFirst(DOWNLOAD_HREF_SELECTOR)
+                public val torrentUrl = downloadElement?.absUrl("href") ?: ""
 
                 // Extract seeders and leechers from document (not just post body)
                 public val seeders = extractSeeders(document)
@@ -1141,21 +1147,21 @@ public class RutrackerParser
                 public val descriptionHtml =
                     postBody?.html()?.let { html ->
                         // Clean HTML: using DOM manipulation
-                        val cleaned = cleanDescriptionHtml(html, metadata)
+                        public val cleaned = cleanDescriptionHtml(html, metadata)
                         // Ensure all links have absolute URLs (now handled in cleanDescriptionHtml)
                         cleaned
                     }
 
                 // Extract description - clean text from cleaned HTML
-                val rawDescriptionText = postBody?.text() ?: "" // fallback
-                val descriptionText = cleanDescription(rawDescriptionText, metadata, descriptionHtml)
-                val parsedMediaInfo = mediaInfoParser.parse(rawDescriptionText)
+                public val rawDescriptionText = postBody?.text() ?: "" // fallback
+                public val descriptionText = cleanDescription(rawDescriptionText, metadata, descriptionHtml)
+                public val parsedMediaInfo = mediaInfoParser.parse(rawDescriptionText)
 
                 // Extract series/cycle
-                val series = metadata["series"] ?: extractSeries(postBody)
+                public val series = metadata["series"] ?: extractSeries(postBody)
 
                 // Extract comments (skip first post_body which is the main post)
-                val comments = extractComments(document, topicId)
+                public val comments = extractComments(document, topicId)
 
                 val (currentPage, totalPages) = extractTopicPagination(document)
 
@@ -1197,18 +1203,18 @@ public class RutrackerParser
         private fun extractTopicStats(doc: org.jsoup.nodes.Document): Pair<String?, String?> {
             // Find the cell with "Зарегистрирован:" label
             // Usually in tr.row1 > td
-            val labelTd = doc.select("td").firstOrNull { it.text().contains("Зарегистрирован") }
+            public val labelTd = doc.select("td").firstOrNull { it.text().contains("Зарегистрирован") }
             if (labelTd == null) return null to null
 
-            val valueTd = labelTd.nextElementSibling() ?: return null to null
-            val lis = valueTd.select("ul li")
+            public val valueTd = labelTd.nextElementSibling() ?: return null to null
+            public val lis = valueTd.select("ul li")
 
             // First LI is usually the date: "21-Май-19 15:42"
-            val date = lis.getOrNull(0)?.text()?.trim()
+            public val date = lis.getOrNull(0)?.text()?.trim()
 
             // Second LI is the count: "Скачан: 11,783 раза"
-            val countRaw = lis.getOrNull(1)?.text()?.trim() ?: ""
-            val count =
+            public val countRaw = lis.getOrNull(1)?.text()?.trim() ?: ""
+            public val count =
                 if (countRaw.contains("Скачан", ignoreCase = true)) {
                     countRaw.substringAfter(":").replace("раза", "").trim()
                 } else {
@@ -1219,16 +1225,16 @@ public class RutrackerParser
         }
 
         private fun extractTopicPagination(doc: org.jsoup.nodes.Document): Pair<Int, Int> {
-            val paginationText = doc.select("#pagination, .nav").text()
+            public val paginationText = doc.select("#pagination, .nav").text()
             if (paginationText.isBlank()) return 1 to 1
 
             // Regex for "Страница X из Y" (Page X of Y)
-            val regex = Regex("Страница\\s+(\\d+)\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE)
-            val match = regex.find(paginationText)
+            public val regex = Regex("Страница\\s+(\\d+)\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE)
+            public val match = regex.find(paginationText)
 
             return if (match != null) {
-                val current = match.groupValues[1].toIntOrNull() ?: 1
-                val total = match.groupValues[2].toIntOrNull() ?: 1
+                public val current = match.groupValues[1].toIntOrNull() ?: 1
+                public val total = match.groupValues[2].toIntOrNull() ?: 1
                 current to total
             } else {
                 1 to 1
@@ -1241,7 +1247,7 @@ public class RutrackerParser
          */
         private fun extractSeeders(document: org.jsoup.nodes.Document): Int {
             // Try multiple selectors
-            val selectors =
+            public val selectors =
                 listOf(
                     "span.seed b",
                     "span.seedmed b",
@@ -1251,17 +1257,17 @@ public class RutrackerParser
                 )
 
             for (selector in selectors) {
-                val element = document.selectFirst(selector)
-                val text = element?.toStr()?.trim() ?: ""
-                val number = text.toIntOrNull()
+                public val element = document.selectFirst(selector)
+                public val text = element?.toStr()?.trim() ?: ""
+                public val number = text.toIntOrNull()
                 if (number != null && number >= 0) {
                     return number
                 }
             }
 
             // Fallback: try to extract from text
-            val seedText = document.select("span.seed, .seed").toStr()
-            val regex: String = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)            regex
+            public val seedText = document.select("span.seed, .seed").toStr()
+            public val regex: String = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)            regex
                 .find(seedText)
                 ?.groupValues
                 ?.get(1)
@@ -1277,7 +1283,7 @@ public class RutrackerParser
          */
         private fun extractLeechers(document: org.jsoup.nodes.Document): Int {
             // Try multiple selectors
-            val selectors =
+            public val selectors =
                 listOf(
                     "span.leech b",
                     "span.leechmed b",
@@ -1287,17 +1293,17 @@ public class RutrackerParser
                 )
 
             for (selector in selectors) {
-                val element = document.selectFirst(selector)
-                val text = element?.toStr()?.trim() ?: ""
-                val number = text.toIntOrNull()
+                public val element = document.selectFirst(selector)
+                public val text = element?.toStr()?.trim() ?: ""
+                public val number = text.toIntOrNull()
                 if (number != null && number >= 0) {
                     return number
                 }
             }
 
             // Fallback: try to extract from text
-            val leechText = document.selectFirst("span.leech, .leech")?.toStr() ?: ""
-            val regex: String = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)            regex
+            public val leechText = document.selectFirst("span.leech, .leech")?.toStr() ?: ""
+            public val regex: String = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)            regex
                 .find(leechText)
                 ?.groupValues
                 ?.get(1)
@@ -1308,14 +1314,14 @@ public class RutrackerParser
         }
 
         private fun extractMetadata(postBody: Element?): Map<String, String> {
-            val metadata = mutableMapOf<String, String>()
+            public val metadata = mutableMapOf<String, String>()
             if (postBody == null) return metadata
 
             // Parse using HTML structure: <span class="post-b">Label</span>: Value
             postBody.select("span.post-b").forEach { span ->
-                val label = span.text().trim().removeSuffix(":")
+                public val label = span.text().trim().removeSuffix(":")
                 // Get the text node immediately following the span
-                val value =
+                public val value =
                     span
                         .nextSibling()
                         ?.toString()
@@ -1332,7 +1338,7 @@ public class RutrackerParser
                     when {
                         // Author
                         label.contains("Автор", ignoreCase = true) || label.contains("Author", ignoreCase = true) -> {
-                            val current = metadata["author"] ?: ""
+                            public val current = metadata["author"] ?: ""
                             metadata["author"] = if (current.isEmpty()) value else "$current $value"
                         }
                         // Performer
@@ -1376,7 +1382,7 @@ public class RutrackerParser
                         // Poster Author (Авторский постер)
                         // Handle tricky cases like "Авторский постер: :"
                         label.contains("Авторский постер", ignoreCase = true) || label.contains("Poster", ignoreCase = true) -> {
-                            val cleanValue = value.removePrefix(":").trim()
+                            public val cleanValue = value.removePrefix(":").trim()
                             metadata["poster_author"] = cleanValue
                         }
                         // Book Type (Тип аудиокниги)
@@ -1392,7 +1398,7 @@ public class RutrackerParser
             }
 
             if (metadata.isEmpty()) {
-                val text = postBody?.wholeText() ?: ""
+                public val text = postBody?.wholeText() ?: ""
                 // Author (fallback)
                 "Автор[:\\s]+(.+?)(?=\\n|Исполнитель|Год|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["author"] = it
@@ -1419,7 +1425,7 @@ public class RutrackerParser
 
             // Look for first image in post
             // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-            val img = postBody.selectFirst("img[src]")
+            public val img = postBody.selectFirst("img[src]")
             return img?.absUrl("src")
         }
 
@@ -1427,13 +1433,13 @@ public class RutrackerParser
             if (postBody == null) return emptyList()
 
             // Strategy 1: Structural parsing (span.post-b)
-            val genreSpan =
+            public val genreSpan =
                 postBody.select("span.post-b").firstOrNull {
                     it.text().contains("Жанр", ignoreCase = true) ||
                         it.text().contains("Genre", ignoreCase = true)
                 }
 
-            var genreText: String? = null
+            public var genreText: String? = null
             if (genreSpan != null) {
                 genreText =
                     genreSpan
@@ -1446,8 +1452,8 @@ public class RutrackerParser
 
             // Strategy 2: Regex fallback (using wholeText to preserve newlines)
             if (genreText == null) {
-                val text = postBody.wholeText()
-                val genrePattern: String = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()                genreText = genrePattern.find(text)?.groupValues?.get(1)
+                public val text = postBody.wholeText()
+                public val genrePattern: String = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()                genreText = genrePattern.find(text)?.groupValues?.get(1)
             }
 
             return genreText
@@ -1464,9 +1470,9 @@ public class RutrackerParser
         private fun extractSeries(postBody: Element?): String? {
             if (postBody == null) return null
 
-            val text = postBody.toStr()
+            public val text = postBody.toStr()
             // Try multiple patterns
-            val patterns =
+            public val patterns =
                 listOf(
                     "Цикл/серия[:\\s]+(.+?)(?=\\n|Номер|Жанр|$)".toRegex(RegexOption.IGNORE_CASE),
                     "Цикл[:\\s]+[\"']?(.+?)[\"']?(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
@@ -1484,10 +1490,10 @@ public class RutrackerParser
 
             // Try HTML structure
             postBody.select("span.post-b").forEach { span ->
-                val label = span.toStr().trim()
+                public val label = span.toStr().trim()
                 if (label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true)) {
-                    val nextText = span.nextSibling()?.toString() ?: ""
-                    val match: String = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)                    match
+                    public val nextText = span.nextSibling()?.toString() ?: ""
+                    public val match: String = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)                    match
                         ?.groupValues
                         ?.get(1)
                         ?.trim()
@@ -1512,16 +1518,16 @@ public class RutrackerParser
          */
         private fun extractForumNameFromHTML(html: String): String {
             try {
-                val document = Jsoup.parse(html, getBaseUrl())
+                public val document = Jsoup.parse(html, getBaseUrl())
 
                 // Strategy 1: Breadcrumbs
                 // <td class="nav">Аудиокниги » Российская фантастика...</td>
-                val breadcrumbs = document.selectFirst("td.nav, td.nav-top")
+                public val breadcrumbs = document.selectFirst("td.nav, td.nav-top")
                 if (breadcrumbs != null) {
-                    val links = breadcrumbs.select("a")
+                    public val links = breadcrumbs.select("a")
                     if (links.size >= 2) {
                         // Second element is usually the forum name
-                        val forumName = links[1].text().trim()
+                        public val forumName = links[1].text().trim()
                         if (forumName.isNotBlank()) {
                             Log.d(TAG, "Extracted forum name from breadcrumbs: '$forumName'")
                             return forumName
@@ -1531,10 +1537,10 @@ public class RutrackerParser
 
                 // Strategy 2: Page title
                 // <title>Фантастика, фэнтези... :: Аудиокниги :: RuTracker.org</title>
-                val title = document.title()
-                val titleParts = title.split("::")
+                public val title = document.title()
+                public val titleParts = title.split("::")
                 if (titleParts.isNotEmpty()) {
-                    val forumName = titleParts[0].trim()
+                    public val forumName = titleParts[0].trim()
                     if (forumName.isNotBlank() && !forumName.contains("RuTracker", ignoreCase = true)) {
                         Log.d(TAG, "Extracted forum name from title: '$forumName'")
                         return forumName
@@ -1543,9 +1549,9 @@ public class RutrackerParser
 
                 // Strategy 3: H1 maintitle
                 // <h1 class="maintitle"><a href="...">Фантастика...</a></h1>
-                val h1 = document.selectFirst("h1.maintitle a, h1.maintitle")
+                public val h1 = document.selectFirst("h1.maintitle a, h1.maintitle")
                 if (h1 != null) {
-                    val forumName = h1.text().trim()
+                    public val forumName = h1.text().trim()
                     if (forumName.isNotBlank()) {
                         Log.d(TAG, "Extracted forum name from h1: '$forumName'")
                         return forumName
@@ -1595,12 +1601,12 @@ public class RutrackerParser
             rawHtml: String,
             metadata: Map<String, String>,
         ): String {
-            val doc = org.jsoup.Jsoup.parse(rawHtml, getBaseUrl())
-            val body = doc.body()
+            public val doc = org.jsoup.Jsoup.parse(rawHtml, getBaseUrl())
+            public val body = doc.body()
 
             // 1. Remove metadata blocks
             // Iterate over span.post-b to find metadata labels
-            val metadataLabels =
+            public val metadataLabels =
                 setOf(
                     "Год выпуска",
                     "Year",
@@ -1645,7 +1651,7 @@ public class RutrackerParser
             public val spans = body.select("span.post-b").toList()
 
             for (span in spans) {
-                val text =
+                public val text =
                     span
                         .text()
                         .trim()
@@ -1653,7 +1659,7 @@ public class RutrackerParser
                         .trim()
 
                 // Check if this span is a metadata label
-                val isMetadata =
+                public val isMetadata =
                     metadataLabels.any { label ->
                         text.equals(label, ignoreCase = true) || text.startsWith(label, ignoreCase = true)
                     }
@@ -1662,9 +1668,9 @@ public class RutrackerParser
                     // This is a metadata label. We need to remove it and its value.
                     // The value usually follows in a TextNode or another Element, up to the next <br>
 
-                    var next = span.nextSibling()
+                    public var next = span.nextSibling()
                     while (next != null) {
-                        val current = next
+                        public val current = next
                         next = next.nextSibling() // Advance before removing
 
                         // Stop if we hit a <br> (end of line)
@@ -1710,7 +1716,7 @@ public class RutrackerParser
             // 3. Process Links
             // Rewrite local links to absolute, and ensure forum/topic links are correct
             body.select("a[href]").forEach { link ->
-                val href = link.attr("href")
+                public val href = link.attr("href")
                 if (href.isNotEmpty()) {
                     if (href.startsWith("viewtopic.php") || href.startsWith("tracker.php")) {
                         // Make absolute using current mirror
@@ -1733,37 +1739,37 @@ public class RutrackerParser
             document: org.jsoup.nodes.Document,
             topicId: String,
         ): List<com.jabook.app.jabook.compose.data.remote.model.Comment> {
-            val comments = mutableListOf<com.jabook.app.jabook.compose.data.remote.model.Comment>()
+            public val comments = mutableListOf<com.jabook.app.jabook.compose.data.remote.model.Comment>()
 
             try {
                 // Find all tbody elements with post IDs (comments are in tbody with id="post_XXXXX")
-                val postRows = document.select("tbody[id^='post_']")
+                public val postRows = document.select("tbody[id^='post_']")
                 if (postRows.isEmpty()) {
                     // Fallback: try finding post_body elements directly
-                    val postBodies = document.select(".post_body")
+                    public val postBodies = document.select(".post_body")
                     if (postBodies.size <= 1) return emptyList()
 
                     // Skip first post (index 0) and process comments
                     for (i in 1 until postBodies.size) {
-                        val postBody = postBodies[i]
-                        val postId = postBody.attr("id")?.removePrefix("p-") ?: continue
+                        public val postBody = postBodies[i]
+                        public val postId = postBody.attr("id")?.removePrefix("p-") ?: continue
 
                         // Find parent row to get author and date
-                        val parentRow = postBody.parents().firstOrNull { it.tagName() == "tbody" }
+                        public val parentRow = postBody.parents().firstOrNull { it.tagName() == "tbody" }
                         if (parentRow == null) continue
 
                         // Extract author - try multiple selectors (same logic as main path)
-                        val authorElement =
+                        public val authorElement =
                             parentRow.selectFirst("p.nick a")
                                 ?: parentRow.selectFirst(".nick a")
                                 ?: parentRow.selectFirst("a[onclick*='bbcode.onclickPoster']")
 
-                        val author =
+                        public val author =
                             authorElement?.toStr()?.trim()?.takeIf { it.isNotEmpty() }
                                 ?: run {
                                     // Fallback 1: Try show-for-print span (for bots and special cases)
                                     parentRow.selectFirst("span.show-for-print.bold")?.let { span ->
-                                        val text = span.toStr()
+                                        public val text = span.toStr()
                                         // Extract name before &middot; or ·
                                         text
                                             .split("·", "&middot;", "&nbsp;")
@@ -1781,15 +1787,15 @@ public class RutrackerParser
                             } ?: "Unknown"
 
                         // Extract date - try multiple selectors
-                        val dateElement =
+                        public val dateElement =
                             parentRow.selectFirst("a.p-link.small")
                                 ?: parentRow.selectFirst(".post-time a")
                                 ?: parentRow.selectFirst(".p-link")
-                        val date = dateElement?.toStr()?.trim() ?: ""
+                        public val date = dateElement?.toStr()?.trim() ?: ""
 
                         // Extract avatar URL and normalize CDN domain
-                        val avatarElement = parentRow.selectFirst("p.avatar img")
-                        var avatarUrl =
+                        public val avatarElement = parentRow.selectFirst("p.avatar img")
+                        public var avatarUrl =
                             avatarElement
                                 ?.attr("src")
                                 ?.takeIf { it.isNotEmpty() }
@@ -1799,11 +1805,11 @@ public class RutrackerParser
                             avatarUrl = "https://rutracker.net$avatarUrl"
                         }
 
-                        val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
+                        public val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 
                         // Extract comment text and HTML (preserve links)
-                        val html = postBody.html()?.takeIf { it.isNotEmpty() }
-                        val text =
+                        public val html = postBody.html()?.takeIf { it.isNotEmpty() }
+                        public val text =
                             html?.let { htmlContent ->
                                 // Convert <br> tags to newlines, then extract text
                                 htmlContent
@@ -1817,7 +1823,7 @@ public class RutrackerParser
                             } ?: postBody.toStr().trim()
 
                         // Clean HTML: normalize <br> tags, quotes and preserve links
-                        val cleanedHtml = html?.let { processCommentHtml(it).body().html() }
+                        public val cleanedHtml = html?.let { processCommentHtml(it).body().html() }
 
                         if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                             comments.add(
@@ -1843,28 +1849,28 @@ public class RutrackerParser
 
                 // Skip first post (main post) and process comments
                 for (i in 1 until postRows.size) {
-                    val postRow = postRows[i]
-                    val postIdAttr = postRow.attr("id")
-                    val postId = postIdAttr.removePrefix("post_")
+                    public val postRow = postRows[i]
+                    public val postIdAttr = postRow.attr("id")
+                    public val postId = postIdAttr.removePrefix("post_")
 
                     // Extract post body
-                    val postBody = postRow.selectFirst(".post_body")
+                    public val postBody = postRow.selectFirst(".post_body")
                     if (postBody == null) continue
 
                     // Extract author - try multiple selectors
                     // For bots and special cases, also check show-for-print span
-                    val authorElement =
+                    public val authorElement =
                         postRow.selectFirst("p.nick a")
                             ?: postRow.selectFirst(".nick a")
                             ?: postRow.selectFirst("a[onclick*='bbcode.onclickPoster']")
 
-                    val author =
+                    public val author =
                         authorElement?.text()?.trim()?.takeIf { it.isNotEmpty() }
                             ?: run {
                                 // Fallback 1: Try show-for-print span (for bots and special cases)
                                 // Format: "Author &middot;" or "Author ·"
                                 postRow.selectFirst("span.show-for-print.bold")?.let { span ->
-                                    val text = span.text()
+                                    public val text = span.text()
                                     // Extract name before &middot; or ·
                                     text
                                         .split("·", "&middot;", "&nbsp;")
@@ -1882,15 +1888,15 @@ public class RutrackerParser
                         } ?: "Unknown"
 
                     // Extract date - try multiple selectors
-                    val dateElement =
+                    public val dateElement =
                         postRow.selectFirst("a.p-link.small")
                             ?: postRow.selectFirst(".post-time a")
                             ?: postRow.selectFirst(".p-link")
-                    val date = dateElement?.text()?.trim() ?: ""
+                    public val date = dateElement?.text()?.trim() ?: ""
 
                     // Extract avatar URL and normalize CDN domain
-                    val avatarElement = postRow.selectFirst("p.avatar img")
-                    var avatarUrl =
+                    public val avatarElement = postRow.selectFirst("p.avatar img")
+                    public var avatarUrl =
                         avatarElement
                             ?.attr("src")
                             ?.takeIf { it.isNotEmpty() }
@@ -1900,11 +1906,11 @@ public class RutrackerParser
                         avatarUrl = "https://rutracker.net$avatarUrl"
                     }
 
-                    val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
+                    public val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 
                     // Extract comment text and HTML (preserve links)
-                    val html = postBody.html()?.takeIf { it.isNotEmpty() }
-                    val text =
+                    public val html = postBody.html()?.takeIf { it.isNotEmpty() }
+                    public val text =
                         html?.let { htmlContent ->
                             // Convert <br> tags to newlines, then extract text
                             htmlContent
@@ -1918,15 +1924,15 @@ public class RutrackerParser
                         } ?: postBody.toStr().trim()
 
                     // Clean HTML: normalize <br> tags, quotes and preserve links
-                    val cleanedHtml =
+                    public val cleanedHtml =
                         html?.let {
-                            val doc = processCommentHtml(it)
+                            public val doc = processCommentHtml(it)
 
                             // Append signature if present
-                            val signature = postRow.selectFirst(".signature")
+                            public val signature = postRow.selectFirst(".signature")
                             if (signature != null) {
                                 // Process signature links similar to body
-                                val signatureDoc = processCommentHtml(signature.html())
+                                public val signatureDoc = processCommentHtml(signature.html())
                                 doc.body().append("<br><div class='signature'>${signatureDoc.body().html()}</div>")
                             }
 
@@ -1961,20 +1967,20 @@ public class RutrackerParser
 
         private fun processCommentHtml(rawHtml: String): org.jsoup.nodes.Document {
             // Normalize <br> and <span class="post-br">
-            val intermediate =
+            public val intermediate =
                 rawHtml
                     .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
                     .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
 
             // Parse with baseUri for proper absolute URL resolution
-            val doc = org.jsoup.Jsoup.parse(intermediate, getBaseUrl())
+            public val doc = org.jsoup.Jsoup.parse(intermediate, getBaseUrl())
 
             // Transform quotes
             transformQuotes(doc)
 
             // Convert relative links to absolute
             doc.select("a[href]").forEach { link ->
-                val href = link.attr("href")
+                public val href = link.attr("href")
                 if (href.isNotEmpty() &&
                     !href.startsWith("http://") &&
                     !href.startsWith("https://") &&
@@ -1987,14 +1993,14 @@ public class RutrackerParser
         }
 
         private fun transformQuotes(doc: org.jsoup.nodes.Document) {
-            val headers = doc.select("div.q-head")
+            public val headers = doc.select("div.q-head")
             for (header in headers) {
-                val quoteBody = header.nextElementSibling()
+                public val quoteBody = header.nextElementSibling()
                 if (quoteBody != null && quoteBody.hasClass("q")) {
-                    val blockquote = doc.createElement("blockquote")
+                    public val blockquote = doc.createElement("blockquote")
 
                     // Format header
-                    val authorRaw = header.text().replace("писал(а):", "").trim()
+                    public val authorRaw = header.text().replace("писал(а):", "").trim()
                     if (authorRaw.isNotEmpty()) {
                         blockquote.appendElement("b").text("$authorRaw wrote:")
                         blockquote.appendElement("br")
@@ -2018,16 +2024,16 @@ public class RutrackerParser
         private fun extractRelatedBooks(postBody: Element?): List<RelatedBook> {
             if (postBody == null) return emptyList()
 
-            val related = mutableListOf<RelatedBook>()
+            public val related = mutableListOf<RelatedBook>()
 
             // Look for links to other topics
             // Use selectStream() for lazy evaluation of large lists (jsoup 1.19.1+)
-            val links = postBody.select("a[href*=\"viewtopic.php?t=\"]")
+            public val links = postBody.select("a[href*=\"viewtopic.php?t=\"]")
             for (link in links) {
                 // Use absUrl() for proper absolute URL resolution
-                val href = link.absUrl("href")
-                val topicId = href.substringAfter("t=").substringBefore("&")
-                val title = link.text()
+                public val href = link.absUrl("href")
+                public val topicId = href.substringAfter("t=").substringBefore("&")
+                public val title = link.text()
 
                 if (topicId.isNotEmpty() && title.isNotEmpty()) {
                     related.add(RelatedBook(topicId, title))
@@ -2050,13 +2056,13 @@ public class RutrackerParser
          * @return Cleaned, human-readable title
          */
         private fun cleanTitle(rawTitle: String): String {
-            var cleaned = rawTitle
+            public var cleaned = rawTitle
 
             // Remove content in square brackets: [1962, СССР, рисованный мультфильм]
             cleaned = cleaned.replace(Regex("\\[.*?\\]"), "")
 
             // Remove quality indicators
-            val qualityPatterns =
+            public val qualityPatterns =
                 listOf(
                     "WEB-DL",
                     "WEBRip",
@@ -2077,7 +2083,7 @@ public class RutrackerParser
             cleaned = cleaned.replace(Regex("\\b\\d{3,4}[pi]\\b", RegexOption.IGNORE_CASE), "")
 
             // Remove file formats
-            val formatPatterns =
+            public val formatPatterns =
                 listOf(
                     "MKV",
                     "MP4",
@@ -2113,11 +2119,11 @@ public class RutrackerParser
             data object Success : LoginResult
 
             public data class Error(
-                val message: String,
+                public val message: String,
             ) : LoginResult
 
             public data class Captcha(
-                val data: com.jabook.app.jabook.compose.domain.model.CaptchaData,
+                public val data: com.jabook.app.jabook.compose.domain.model.CaptchaData,
             ) : LoginResult
         }
 
@@ -2144,7 +2150,7 @@ public class RutrackerParser
             // Russian: "введите код подтверждения" or "введите код с картинки"
             if (lowerHtml.contains("введите код") || lowerHtml.contains("cap_code")) {
                 android.util.Log.i(TAG, "Captcha required, extracting captcha data")
-                val captchaData = extractCaptcha(html)
+                public val captchaData = extractCaptcha(html)
                 if (captchaData != null) {
                     return LoginResult.Captcha(captchaData)
                 } else {
@@ -2158,8 +2164,8 @@ public class RutrackerParser
             // - No login form present
             // - Logout link present
             // - User profile links
-            val hasLoginForm = lowerHtml.contains("name=\\\"login_username\\\"")
-            val hasLogout =
+            public val hasLoginForm = lowerHtml.contains("name=\\\"login_username\\\"")
+            public val hasLogout =
                 lowerHtml.contains("login.php?logout=1") ||
                     lowerHtml.contains("mode=logout")
 
@@ -2176,16 +2182,16 @@ public class RutrackerParser
         private fun extractCaptcha(html: String): com.jabook.app.jabook.compose.domain.model.CaptchaData? {
             try {
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
-                val document = Jsoup.parse(html, getBaseUrl())
+                public val document = Jsoup.parse(html, getBaseUrl())
 
                 // <input type="hidden" name="cap_sid" value="12345">
-                val sidElement = document.selectFirst("input[name=cap_sid]")
-                val sid = sidElement?.attr("value") ?: return null
+                public val sidElement = document.selectFirst("input[name=cap_sid]")
+                public val sid = sidElement?.attr("value") ?: return null
 
                 // <img src="//static.t-ru.org/captcha/..." ...>
                 // Use absUrl() for proper absolute URL resolution
-                val imgElement = document.selectFirst("img[src*=\"captcha\"]")
-                var url = imgElement?.absUrl("src") ?: imgElement?.attr("src") ?: return null
+                public val imgElement = document.selectFirst("img[src*=\"captcha\"]")
+                public var url = imgElement?.absUrl("src") ?: imgElement?.attr("src") ?: return null
 
                 if (url.startsWith("//")) {
                     url = "https:$url"

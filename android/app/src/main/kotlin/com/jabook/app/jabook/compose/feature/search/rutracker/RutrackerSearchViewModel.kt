@@ -58,13 +58,13 @@ public class RutrackerSearchViewModel
         }
 
         private val _searchState = MutableStateFlow<SearchState>(SearchState.Empty)
-        val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
+        public val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
 
         private val _filters = MutableStateFlow(RutrackerSearchFilters())
-        val filters: StateFlow<RutrackerSearchFilters> = _filters.asStateFlow()
+        public val filters: StateFlow<RutrackerSearchFilters> = _filters.asStateFlow()
 
         private val _sortOrder = MutableStateFlow(RutrackerSortOrder.RELEVANCE)
-        val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
+        public val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
 
         // Store original results for client-side filtering/sorting
         private var originalResults: List<RutrackerSearchResult> = emptyList()
@@ -100,7 +100,7 @@ public class RutrackerSearchViewModel
             viewModelScope.launch {
                 _searchState.value = SearchState.Loading
 
-                var isFirstEmission: Boolean = true
+                public var isFirstEmission: Boolean = true
                 // Combine search results flow with library books flow
                 combine(
                     repository.searchAudiobooksFlow(query, forumIds),
@@ -108,7 +108,7 @@ public class RutrackerSearchViewModel
                 ) { result, libraryUrls ->
                     result to libraryUrls
                 }.collect { (result, libraryUrls) ->
-                    val isCachedEmission = isFirstEmission
+                    public val isCachedEmission = isFirstEmission
                     isFirstEmission = false
 
                     result
@@ -119,7 +119,7 @@ public class RutrackerSearchViewModel
                                     "(cached: $isCachedEmission, libraryUrls: ${libraryUrls.size})",
                             )
                             originalResults = results
-                            val filtered = applyFiltersAndSort(results)
+                            public val filtered = applyFiltersAndSort(results)
                             Log.d(
                                 TAG,
                                 "🔄 After filters/sort: ${filtered.size} results " +
@@ -127,9 +127,9 @@ public class RutrackerSearchViewModel
                             )
 
                             // Map to UI model
-                            val uiResults =
+                            public val uiResults =
                                 filtered.map {
-                                    val inLib =
+                                    public val inLib =
                                         libraryUrls.contains(it.topicId) ||
                                             libraryUrls.any { url -> url.contains(it.topicId) }
                                     SearchResultUi(
@@ -172,7 +172,7 @@ public class RutrackerSearchViewModel
                                 "❌ Search failed for query '$query': ${error.message}",
                                 error,
                             )
-                            val currentState = _searchState.value
+                            public val currentState = _searchState.value
                             if (currentState !is SearchState.Success) {
                                 _searchState.value =
                                     SearchState.Error(
@@ -216,14 +216,14 @@ public class RutrackerSearchViewModel
         private fun reapplyFiltersAndSort() {
             if (originalResults.isEmpty()) return
 
-            val filtered = applyFiltersAndSort(originalResults)
+            public val filtered = applyFiltersAndSort(originalResults)
             // Preserve isCached state
-            val currentIsCached = (_searchState.value as? SearchState.Success)?.isCached ?: false
-            val libraryUrls = librarySourceUrls.value
+            public val currentIsCached = (_searchState.value as? SearchState.Success)?.isCached ?: false
+            public val libraryUrls = librarySourceUrls.value
 
-            val uiResults =
+            public val uiResults =
                 filtered.map {
-                    val inLib = libraryUrls.any { url -> url.contains(it.topicId) }
+                    public val inLib = libraryUrls.any { url -> url.contains(it.topicId) }
                     SearchResultUi(
                         result = it,
                         isInLibrary = inLib,
@@ -242,23 +242,23 @@ public class RutrackerSearchViewModel
          * Apply filters and sorting to results.
          */
         private fun applyFiltersAndSort(results: List<RutrackerSearchResult>): List<RutrackerSearchResult> {
-            var filtered = results
+            public var filtered = results
 
             // Apply filters
-            val currentFilters = _filters.value
+            public val currentFilters = _filters.value
             if (currentFilters.isActive()) {
                 filtered =
                     filtered.filter { result ->
-                        val passesSeederFilter =
+                        public val passesSeederFilter =
                             currentFilters.minSeeders?.let { min ->
                                 result.seeders >= min
                             } ?: true
 
-                        val passesSizeFilter =
+                        public val passesSizeFilter =
                             if (currentFilters.minSizeMb != null || currentFilters.maxSizeMb != null) {
-                                val sizeMb = parseSizeToMb(result.size)
-                                val passesMin = currentFilters.minSizeMb?.let { sizeMb >= it } ?: true
-                                val passesMax = currentFilters.maxSizeMb?.let { sizeMb <= it } ?: true
+                                public val sizeMb = parseSizeToMb(result.size)
+                                public val passesMin = currentFilters.minSizeMb?.let { sizeMb >= it } ?: true
+                                public val passesMax = currentFilters.maxSizeMb?.let { sizeMb <= it } ?: true
                                 passesMin && passesMax
                             } else {
                                 true
@@ -269,7 +269,7 @@ public class RutrackerSearchViewModel
             }
 
             // Apply sorting
-            val sorted =
+            public val sorted =
                 when (_sortOrder.value) {
                     RutrackerSortOrder.RELEVANCE -> filtered // Keep original order
                     RutrackerSortOrder.SEEDERS_DESC ->
@@ -288,10 +288,12 @@ public class RutrackerSearchViewModel
          * Handles formats like "1.5 GB", "500 MB", etc.
          */
         private fun parseSizeToMb(sizeStr: String): Double {
-            val pattern: String = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)            public val match = pattern.find(sizeStr) ?: return 0.0
+            
+            val pattern: String = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)
+            val match = pattern.find(sizeStr) ?: return 0.0
 
-            val value = match.groupValues[1].toDoubleOrNull() ?: return 0.0
-            val unit = match.groupValues[2].uppercase()
+            public val value = match.groupValues[1].toDoubleOrNull() ?: return 0.0
+            public val unit = match.groupValues[2].uppercase()
 
             return when (unit) {
                 "GB" -> value * 1024
@@ -314,12 +316,12 @@ public sealed class SearchState {
 
     /** Search completed successfully */
     public data class Success(
-        val results: List<SearchResultUi>,
-        val isCached: Boolean = false,
+        public val results: List<SearchResultUi>,
+        public val isCached: Boolean = false,
     ) : SearchState()
 
     /** Search failed */
     public data class Error(
-        val message: String?, // Nullable - UI should use stringResource(R.string.unknownError) as fallback
+        public val message: String?, // Nullable - UI should use stringResource(R.string.unknownError) as fallback
     ) : SearchState()
 }

@@ -23,13 +23,13 @@ import androidx.compose.ui.graphics.Color
 
 public object NeutralColors {
     // Light theme neutrals
-    val Neutral50 = Color(0xFFFAFAFA) // Nearly white - light background
-    val Neutral100 = Color(0xFFF5F5F5) // Light gray - light surface
-    val Neutral200 = Color(0xFFE5E5E5) // Light gray - light surfaceVariant
+    public val Neutral50 = Color(0xFFFAFAFA) // Nearly white - light background
+    public val Neutral100 = Color(0xFFF5F5F5) // Light gray - light surface
+    public val Neutral200 = Color(0xFFE5E5E5) // Light gray - light surfaceVariant
 
     // Dark theme neutrals
-    val Neutral800 = Color(0xFF262626) // Dark gray - dark surfaceVariant
-    val Neutral900 = Color(0xFF171717) // Nearly black - dark background/surface
+    public val Neutral800 = Color(0xFF262626) // Dark gray - dark surfaceVariant
+    public val Neutral900 = Color(0xFF171717) // Nearly black - dark background/surface
 }
 
 // ====================

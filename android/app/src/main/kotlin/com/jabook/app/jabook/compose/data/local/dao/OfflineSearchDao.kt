@@ -61,7 +61,7 @@ public interface OfflineSearchDao {
         upsertTopics(topics)
         deleteMappingsForQuery(query)
 
-        val mappings =
+        public val mappings =
             topics.mapIndexed { index, topic ->
                 SearchQueryEntity(
                     query = query,

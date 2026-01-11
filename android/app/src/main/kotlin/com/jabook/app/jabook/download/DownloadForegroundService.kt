@@ -78,7 +78,7 @@ public class DownloadForegroundService : Service() {
             magnetUri: String,
             savePath: String,
         ) {
-            val intent =
+            public val intent =
                 Intent(context, DownloadForegroundService::class.java).apply {
                     action = ACTION_ADD_MAGNET
                     putExtra(EXTRA_MAGNET_URI, magnetUri)
@@ -139,7 +139,7 @@ public class DownloadForegroundService : Service() {
         // CRITICAL FIX: Start foreground immediately for Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
-                val notification = createDownloadNotification("Initializing downloads...", 0f)
+                public val notification = createDownloadNotification("Initializing downloads...", 0f)
                 startForeground(NOTIFICATION_ID, notification)
                 Log.d(TAG, "startForeground() called in onCreate()")
             } catch (e: Exception) {
@@ -156,7 +156,7 @@ public class DownloadForegroundService : Service() {
         // Ensure foreground for Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !isServiceRunning) {
             try {
-                val notification = createDownloadNotification("Downloads ready", 0f)
+                public val notification = createDownloadNotification("Downloads ready", 0f)
                 startForeground(NOTIFICATION_ID, notification)
                 Log.d(TAG, "startForeground() called in onStartCommand()")
             } catch (e: Exception) {
@@ -170,8 +170,8 @@ public class DownloadForegroundService : Service() {
                 Log.d(TAG, "Download service started")
             }
             ACTION_ADD_MAGNET -> {
-                val magnetUri = intent.getStringExtra(EXTRA_MAGNET_URI)
-                val savePath = intent.getStringExtra(EXTRA_SAVE_PATH)
+                public val magnetUri = intent.getStringExtra(EXTRA_MAGNET_URI)
+                public val savePath = intent.getStringExtra(EXTRA_SAVE_PATH)
 
                 if (magnetUri != null && savePath != null) {
                     addMagnetLink(magnetUri, savePath)
@@ -180,16 +180,16 @@ public class DownloadForegroundService : Service() {
                 }
             }
             ACTION_PAUSE -> {
-                val infoHash = intent.getStringExtra(EXTRA_INFO_HASH)
+                public val infoHash = intent.getStringExtra(EXTRA_INFO_HASH)
                 infoHash?.let { pauseDownload(it) }
             }
             ACTION_RESUME -> {
-                val infoHash = intent.getStringExtra(EXTRA_INFO_HASH)
+                public val infoHash = intent.getStringExtra(EXTRA_INFO_HASH)
                 infoHash?.let { resumeDownload(it) }
             }
             ACTION_REMOVE -> {
-                val infoHash = intent.getStringExtra(EXTRA_INFO_HASH)
-                val deleteFiles = intent.getBooleanExtra("delete_files", false)
+                public val infoHash = intent.getStringExtra(EXTRA_INFO_HASH)
+                public val deleteFiles = intent.getBooleanExtra("delete_files", false)
                 infoHash?.let { removeDownload(it, deleteFiles) }
             }
             ACTION_STOP -> {
@@ -226,7 +226,7 @@ public class DownloadForegroundService : Service() {
         serviceScope.launch {
             try {
                 Log.d(TAG, "Adding magnet link: $magnetUri")
-                val infoHash = torrentManager.addMagnetLink(magnetUri, savePath, sequential = true)
+                public val infoHash = torrentManager.addMagnetLink(magnetUri, savePath, sequential = true)
                 activeDownloads[infoHash] = magnetUri
                 Log.i(TAG, "Started download: $infoHash")
             } catch (e: Exception) {
@@ -294,8 +294,8 @@ public class DownloadForegroundService : Service() {
             .onEach { downloads ->
                 if (downloads.isNotEmpty()) {
                     // Update notification with first active download
-                    val firstDownload = downloads.values.first()
-                    val notification =
+                    public val firstDownload = downloads.values.first()
+                    public val notification =
                         when (firstDownload.state) {
                             TorrentState.DOWNLOADING -> {
                                 createDownloadNotification(
@@ -316,7 +316,7 @@ public class DownloadForegroundService : Service() {
                     notificationManager?.notify(NOTIFICATION_ID, notification)
                 } else {
                     // No active downloads, show idle notification
-                    val notification = createDownloadNotification("No active downloads", 0f)
+                    public val notification = createDownloadNotification("No active downloads", 0f)
                     notificationManager?.notify(NOTIFICATION_ID, notification)
                 }
             }.launchIn(serviceScope)
@@ -327,7 +327,7 @@ public class DownloadForegroundService : Service() {
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel =
+            public val channel =
                 NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
@@ -349,11 +349,11 @@ public class DownloadForegroundService : Service() {
         title: String,
         progress: Float,
     ): Notification {
-        val intent =
+        public val intent =
             Intent(this, ComposeMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
-        val pendingIntent =
+        public val pendingIntent =
             PendingIntent.getActivity(
                 this,
                 0,

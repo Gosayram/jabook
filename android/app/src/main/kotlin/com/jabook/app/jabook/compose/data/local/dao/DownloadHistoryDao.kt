@@ -77,7 +77,7 @@ public fun DownloadHistoryDao.getHistoryWithFilter(
     searchQuery: String = "",
     sortOrder: HistorySortOrder = HistorySortOrder.DATE_DESC,
 ): Flow<List<DownloadHistoryEntity>> {
-    val orderBy =
+    public val orderBy =
         when (sortOrder) {
             HistorySortOrder.DATE_DESC -> "completedAt DESC"
             HistorySortOrder.DATE_ASC -> "completedAt ASC"
@@ -87,14 +87,14 @@ public fun DownloadHistoryDao.getHistoryWithFilter(
             HistorySortOrder.SIZE_ASC -> "totalBytes ASC NULLS LAST"
         }
 
-    val sql =
+    public val sql =
         if (searchQuery.isBlank()) {
             "SELECT * FROM download_history ORDER BY $orderBy"
         } else {
             "SELECT * FROM download_history WHERE bookTitle LIKE ? ORDER BY $orderBy"
         }
 
-    val query =
+    public val query =
         if (searchQuery.isBlank()) {
             SimpleSQLiteQuery(sql)
         } else {

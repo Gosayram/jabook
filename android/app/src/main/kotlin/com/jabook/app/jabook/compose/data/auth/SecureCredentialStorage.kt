@@ -66,7 +66,7 @@ public class SecureCredentialStorage
         private val aead: Aead by lazy {
             AeadConfig.register()
 
-            val keysetHandle =
+            public val keysetHandle =
                 AndroidKeysetManager
                     .Builder()
                     .withSharedPref(context, KEYSET_NAME, PREFERENCE_FILE)
@@ -109,8 +109,8 @@ public class SecureCredentialStorage
             }
 
             return try {
-                val username = decrypt(encryptedUsername)
-                val password = decrypt(encryptedPassword)
+                public val username = decrypt(encryptedUsername)
+                public val password = decrypt(encryptedPassword)
 
                 if (username.isNotBlank() && password.isNotBlank()) {
                     UserCredentials(username, password)
@@ -137,7 +137,7 @@ public class SecureCredentialStorage
          * Encrypt string using Tink AEAD.
          */
         private fun encrypt(plaintext: String): String {
-            val encrypted = aead.encrypt(plaintext.toByteArray(), null)
+            public val encrypted = aead.encrypt(plaintext.toByteArray(), null)
             return android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)
         }
 
@@ -145,8 +145,8 @@ public class SecureCredentialStorage
          * Decrypt string using Tink AEAD.
          */
         private fun decrypt(ciphertext: String): String {
-            val encrypted = android.util.Base64.decode(ciphertext, android.util.Base64.NO_WRAP)
-            val decrypted = aead.decrypt(encrypted, null)
+            public val encrypted = android.util.Base64.decode(ciphertext, android.util.Base64.NO_WRAP)
+            public val decrypted = aead.decrypt(encrypted, null)
             return String(decrypted)
         }
     }

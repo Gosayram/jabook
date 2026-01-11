@@ -48,7 +48,7 @@ public class TorrentStreamingMonitor
         private val torrentManager: TorrentManager,
     ) {
         private val _isBuffering = kotlinx.coroutines.flow.MutableStateFlow(false)
-        val isBuffering = _isBuffering.asStateFlow()
+        public val isBuffering = _isBuffering.asStateFlow()
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var monitoringJob: Job? = null
@@ -125,7 +125,7 @@ public class TorrentStreamingMonitor
 
         private fun initMediaController() {
             try {
-                val sessionToken =
+                public val sessionToken =
                     SessionToken(
                         context,
                         ComponentName(context, AudioPlayerService::class.java),
@@ -140,7 +140,7 @@ public class TorrentStreamingMonitor
                 mediaControllerFuture?.addListener(
                     {
                         try {
-                            val controller =
+                            public val controller =
                                 mediaControllerFuture?.get(
                                     com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
                                     TimeUnit.SECONDS,
@@ -168,12 +168,12 @@ public class TorrentStreamingMonitor
         }
 
         private fun checkBufferState() {
-            val hash = currentHash ?: return
-            val fileIndex = currentFileIndex
+            public val hash = currentHash ?: return
+            public val fileIndex = currentFileIndex
             if (fileIndex < 0) return
 
             // Use MediaController instead of getInstance()
-            val controller =
+            public val controller =
                 mediaController ?: run {
                     // Try to reinitialize if not available
                     if (mediaControllerFuture == null) {
@@ -182,27 +182,27 @@ public class TorrentStreamingMonitor
                     return
                 }
 
-            val currentDuration = controller.duration
-            val currentPosition = controller.currentPosition
+            public val currentDuration = controller.duration
+            public val currentPosition = controller.currentPosition
 
             // Only if we are playing the file we think we are monitoring?
             // Ideally check metadata or path, but simplified for now:
             if (currentDuration <= 0) return // Not playing or unknown
 
-            val download = torrentManager.getDownload(hash) ?: return
-            val torrentFile = download.files.find { it.index == fileIndex } ?: return
+            public val download = torrentManager.getDownload(hash) ?: return
+            public val torrentFile = download.files.find { it.index == fileIndex } ?: return
 
-            val totalBytes = torrentFile.size
+            public val totalBytes = torrentFile.size
 
             // Precise bytes
-            val downloadedBytes = torrentManager.getDownloadedBytes(hash, fileIndex)
+            public val downloadedBytes = torrentManager.getDownloadedBytes(hash, fileIndex)
 
             // Calculate estimated byte position of player: (position / duration) * totalBytes
-            val playedBytes = (currentPosition.toDouble() / currentDuration.toDouble() * totalBytes).toLong()
+            public val playedBytes = (currentPosition.toDouble() / currentDuration.toDouble() * totalBytes).toLong()
 
-            val availableBytesAhead = downloadedBytes - playedBytes
+            public val availableBytesAhead = downloadedBytes - playedBytes
 
-            val isPlaying = controller.isPlaying
+            public val isPlaying = controller.isPlaying
 
             if (isPlaying) {
                 // If we are playing, and buffer gets low, pause and mark as buffering

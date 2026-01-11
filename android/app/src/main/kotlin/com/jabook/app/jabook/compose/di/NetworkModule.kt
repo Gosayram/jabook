@@ -83,7 +83,7 @@ public object NetworkModule {
         cookieJar: PersistentCookieJar,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
-        val healthCheckClient =
+        public val healthCheckClient =
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
@@ -163,7 +163,7 @@ public object NetworkModule {
         okHttpClient: OkHttpClient,
         json: Json,
     ): Retrofit {
-        val contentType: String = "application/json".toMediaType()
+        public val contentType: String = "application/json".toMediaType()
         return Retrofit
             .Builder()
             // Base URL is a placeholder - DynamicBaseUrlInterceptor replaces host with current mirror

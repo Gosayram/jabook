@@ -47,7 +47,7 @@ public class ServiceLifecycleManager
          * Called when service is created.
          * Prepares for playback restoration.
          */
-        public fun onServiceCreated() {
+        public fun onServiceCreated() : Unit {
             // Service is ready, position restoration will be handled by RestorePlaybackUseCase
         }
     }

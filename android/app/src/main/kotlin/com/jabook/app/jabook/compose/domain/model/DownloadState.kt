@@ -35,17 +35,17 @@ public sealed interface DownloadState {
      * @param speedBytesPerSecond Download speed in bytes per second
      */
     public data class Downloading(
-        val progress: Float,
-        val downloadedBytes: Long,
-        val totalBytes: Long?,
-        val speedBytesPerSecond: Long,
+        public val progress: Float,
+        public val downloadedBytes: Long,
+        public val totalBytes: Long?,
+        public val speedBytesPerSecond: Long,
     ) : DownloadState {
         /**
          * Formatted speed string (e.g., "1.5 MB/s").
          */
-        val formattedSpeed: String
+        public val formattedSpeed: String
             get() {
-                val mbps = speedBytesPerSecond / 1_000_000.0
+                public val mbps = speedBytesPerSecond / 1_000_000.0
                 return String.format("%.1f MB/s", mbps)
             }
     }
@@ -56,7 +56,7 @@ public sealed interface DownloadState {
      * @param localPath Path to downloaded file
      */
     public data class Completed(
-        val localPath: String,
+        public val localPath: String,
     ) : DownloadState
 
     /**
@@ -65,7 +65,7 @@ public sealed interface DownloadState {
      * @param progress Progress when paused (0.0 to 1.0)
      */
     public data class Paused(
-        val progress: Float,
+        public val progress: Float,
     ) : DownloadState
 
     /**
