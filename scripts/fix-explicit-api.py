@@ -127,19 +127,32 @@ def fix_file(file_path: Path):
             # Fix: Split multiple statements on the same line
             # Pattern: val x = y        when/return/val/etc or public var x = 0        public var y = 0
             # Also handle: var x = 0        logFiles.forEach or var x = 0        try {
+            # EXCEPTION: Don't split if it's a string continuation or method chaining
+            # Pattern to detect: val x = "value"            x.method() - this should be split
+            # But: val x = value.method() - this should NOT be split
             if re.search(r'[=:]\s+[^=:]*\s{4,}(when|return|val|var|if|for|while|public|try|catch|finally|[a-z]\w+\.)', new_line):
-                # Split by 4+ spaces followed by a keyword, public, try/catch, or method call
-                parts = re.split(r'(\s{4,})(?=(?:when|return|public\s+(?:val|var)|val|var|if|for|while|try|catch|finally)\s)', new_line)
-                # If that didn't work, try splitting by 4+ spaces before any word
-                if len(parts) == 1:
-                    parts = re.split(r'(\s{4,})(?=[a-zA-Z])', new_line)
+                # Check if it's a continuation pattern (variable name followed by method call)
+                # Pattern: val name = value            name.method()
+                continuation_match = re.search(r'(\w+)\s*[=:]\s+[^=:]*\s{4,}(\1\.)', new_line)
+                if continuation_match:
+                    # This is a continuation, split it
+                    var_name = continuation_match.group(1)
+                    # Split by 4+ spaces before the variable name followed by dot
+                    parts = re.split(rf'(\s{{4,}})(?={re.escape(var_name)}\.)', new_line)
+                else:
+                    # Split by 4+ spaces followed by a keyword, public, try/catch, or method call
+                    parts = re.split(r'(\s{4,})(?=(?:when|return|public\s+(?:val|var)|val|var|if|for|while|try|catch|finally)\s)', new_line)
+                    # If that didn't work, try splitting by 4+ spaces before any word (method calls, etc)
+                    if len(parts) == 1:
+                        parts = re.split(r'(\s{4,})(?=[a-zA-Z])', new_line)
+                
                 if len(parts) > 1:
                     indent = re.match(r'^(\s*)', new_line).group(1) if re.match(r'^\s*', new_line) else ''
                     new_statements = []
                     current_statement = parts[0].rstrip()
-                    for i in range(1, len(parts), 2):
-                        if i + 1 < len(parts):
-                            next_statement = parts[i + 1].strip()
+                    for idx in range(1, len(parts), 2):
+                        if idx + 1 < len(parts):
+                            next_statement = parts[idx + 1].strip()
                             if next_statement:
                                 # Remove public from local variables
                                 if is_inside_function_body and next_statement.startswith('public '):
@@ -179,6 +192,7 @@ def fix_file(file_path: Path):
             
             # Fix 4: Split multiple const val declarations on the same line
             # Pattern: public const val NAME1 = "value1"        public const val NAME2 = "value2"
+            # EXCEPTION: Only split if there are actually multiple const val on the same line
             if re.search(r'public\s+const\s+val.*public\s+const\s+val', line):
                 # Split by multiple spaces (4+) followed by "public const val"
                 indent = re.match(r'^(\s*)', line).group(1) if re.match(r'^\s*', line) else ''
@@ -248,26 +262,9 @@ def fix_file(file_path: Path):
                             fixed = True
             
             # Fix 5: Add public to var/val properties inside classes (indented, but not private/internal)
-            # Also handle properties that already have public but need return type
-            # BUT: Skip if it's inside a function body (check context)
-            is_inside_function = False
-            if i > 0:
-                # Check previous lines to see if we're inside a function
-                for j in range(max(0, i - 5), i):
-                    prev_line = lines[j].strip()
-                    if re.match(r'^(public\s+)?(suspend\s+)?fun\s+\w+', prev_line) and '{' in prev_line:
-                        is_inside_function = True
-                        break
-                    if re.match(r'^(public\s+)?(suspend\s+)?fun\s+\w+', prev_line):
-                        # Function declaration, check if next lines have {
-                        for k in range(j + 1, min(len(lines), j + 3)):
-                            if '{' in lines[k]:
-                                is_inside_function = True
-                                break
-                        if is_inside_function:
-                            break
-            
-            if re.match(r'^\s+(public\s+)?(var|val)\s+\w+', line) and not is_inside_function:
+            # BUT: Skip if it's inside a function body - use is_inside_function_body from above
+            # EXCEPTION: Never add public to local variables inside functions
+            if re.match(r'^\s+(public\s+)?(var|val)\s+\w+', line) and not is_inside_function_body:
                 # Remove public from local variables inside functions
                 if is_inside_function and re.search(r'\bpublic\s+(var|val)', line):
                     new_line = re.sub(r'\bpublic\s+(var|val)', r'\1', new_line)
