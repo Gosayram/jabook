@@ -31,29 +31,29 @@ public interface CookiesDao {
      * Replaces existing cookies if URL already exists.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun saveCookies(cookie: CookieEntity)
+    public suspend fun saveCookies(cookie: CookieEntity)
 
     /**
      * Get cookies for a specific URL.
      */
     @Query("SELECT * FROM cookies WHERE url = :url LIMIT 1")
-    suspend fun getCookies(url: String): CookieEntity?
+    public suspend fun getCookies(url: String): CookieEntity?
 
     /**
      * Get all cookies (for backup/debugging).
      */
     @Query("SELECT * FROM cookies")
-    suspend fun getAllCookies(): List<CookieEntity>
+    public suspend fun getAllCookies(): List<CookieEntity>
 
     /**
      * Clear all cookies.
      */
     @Query("DELETE FROM cookies")
-    suspend fun clearAllCookies()
+    public suspend fun clearAllCookies()
 
     /**
      * Clear cookies for a specific URL.
      */
     @Query("DELETE FROM cookies WHERE url = :url")
-    suspend fun clearCookies(url: String)
+    public suspend fun clearCookies(url: String)
 }

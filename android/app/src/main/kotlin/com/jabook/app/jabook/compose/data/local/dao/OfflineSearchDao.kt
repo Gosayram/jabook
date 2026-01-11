@@ -32,20 +32,20 @@ public interface OfflineSearchDao {
      * Uses OnConflictStrategy.REPLACE to update existing topics with fresh data.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertTopics(topics: List<CachedTopicEntity>)
+    public suspend fun upsertTopics(topics: List<CachedTopicEntity>)
 
     /**
      * Insert search query mappings.
      * Should be called inside a transaction after clearing old mappings for the query.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertQueryMappings(mappings: List<SearchQueryEntity>)
+    public suspend fun insertQueryMappings(mappings: List<SearchQueryEntity>)
 
     /**
      * Delete all mappings for a specific query.
      */
     @Query("DELETE FROM search_query_map WHERE `query` = :query")
-    suspend fun deleteMappingsForQuery(query: String)
+    public suspend fun deleteMappingsForQuery(query: String)
 
     /**
      * Transaction to save search results:
@@ -54,7 +54,7 @@ public interface OfflineSearchDao {
      * 3. Insert new mappings
      */
     @Transaction
-    suspend fun saveSearchResults(
+    public suspend fun saveSearchResults(
         query: String,
         topics: List<CachedTopicEntity>,
     ) {
@@ -92,31 +92,31 @@ public interface OfflineSearchDao {
      * Useful for quick lookup from other screens.
      */
     @Query("SELECT * FROM cached_topics WHERE topic_id = :topicId")
-    suspend fun getTopicById(topicId: String): CachedTopicEntity?
+    public suspend fun getTopicById(topicId: String): CachedTopicEntity?
 
     /**
      * Clear old cache entries (optional maintenance).
      */
     @Query("DELETE FROM cached_topics WHERE timestamp < :threshold")
-    suspend fun clearOldCache(threshold: Long)
+    public suspend fun clearOldCache(threshold: Long)
 
     /**
      * Delete all cached topics.
      */
     @Query("DELETE FROM cached_topics")
-    suspend fun deleteAllTopics()
+    public suspend fun deleteAllTopics()
 
     /**
      * Delete all search query mappings.
      */
     @Query("DELETE FROM search_query_map")
-    suspend fun deleteAllMappings()
+    public suspend fun deleteAllMappings()
 
     /**
      * Get count of cached topics.
      */
     @Query("SELECT COUNT(*) FROM cached_topics")
-    suspend fun getTopicCount(): Int
+    public suspend fun getTopicCount(): Int
 
     /**
      * Fast search in indexed topics by title and author.
@@ -154,7 +154,7 @@ public interface OfflineSearchDao {
      * Update cover URL for a specific topic.
      */
     @Query("UPDATE cached_topics SET cover_url = :coverUrl WHERE topic_id = :topicId")
-    suspend fun updateCoverUrl(
+    public suspend fun updateCoverUrl(
         topicId: String,
         coverUrl: String,
     )
@@ -163,13 +163,13 @@ public interface OfflineSearchDao {
      * Get count of topics with non-empty category (for diagnostics).
      */
     @Query("SELECT COUNT(*) FROM cached_topics WHERE category IS NOT NULL AND category != ''")
-    suspend fun getTopicsWithNonEmptyCategory(): Int
+    public suspend fun getTopicsWithNonEmptyCategory(): Int
 
     /**
      * Get a sample of topics for diagnostic logging.
      */
     @Query("SELECT * FROM cached_topics LIMIT :limit")
-    suspend fun getSampleTopics(limit: Int = 5): List<CachedTopicEntity>
+    public suspend fun getSampleTopics(limit: Int = 5): List<CachedTopicEntity>
 
     /**
      * Get all indexed topics (for browsing).

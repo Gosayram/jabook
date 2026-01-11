@@ -30,47 +30,47 @@ public object MediaControllerConstants {
      * Default timeout for MediaController operations (2 seconds).
      * Used for regular operations like initialization in controllers.
      */
-    public const val DEFAULT_TIMEOUT_SECONDS: Int = 0L
+    public const val DEFAULT_TIMEOUT_SECONDS: Int = 0
 
     /**
      * Timeout for service initialization (5 seconds).
      * Service initialization is critical and may take longer, especially on first start.
      */
-    public const val SERVICE_INIT_TIMEOUT_SECONDS: Int = 0L
+    public const val SERVICE_INIT_TIMEOUT_SECONDS: Int = 0
 
     /**
      * Timeout for widget updates (1 second).
      * Widgets need faster timeouts for better user experience.
      */
-    public const val WIDGET_TIMEOUT_SECONDS: Int = 0L
+    public const val WIDGET_TIMEOUT_SECONDS: Int = 0
 
     /**
      * Quick fallback timeout (500 milliseconds).
      * Used when we want to quickly fallback to alternative methods if MediaController is slow.
      */
-    public const val QUICK_FALLBACK_TIMEOUT_MS: Int = 0L
+    public const val QUICK_FALLBACK_TIMEOUT_MS: Int = 0
 
     /**
      * Gets default timeout in TimeUnit.SECONDS.
      */
     @JvmStatic
-    public fun getDefaultTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    public fun getDefaultTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
 
     /**
      * Gets service init timeout in TimeUnit.SECONDS.
      */
     @JvmStatic
-    public fun getServiceInitTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(SERVICE_INIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    public fun getServiceInitTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(SERVICE_INIT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
 
     /**
      * Gets widget timeout in TimeUnit.SECONDS.
      */
     @JvmStatic
-    public fun getWidgetTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(WIDGET_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    public fun getWidgetTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(WIDGET_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
 
     /**
      * Gets quick fallback timeout in TimeUnit.MILLISECONDS.
      */
     @JvmStatic
-    public fun getQuickFallbackTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(QUICK_FALLBACK_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    public fun getQuickFallbackTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(QUICK_FALLBACK_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
 }

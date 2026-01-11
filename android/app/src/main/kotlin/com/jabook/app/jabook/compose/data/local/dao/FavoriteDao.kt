@@ -42,41 +42,41 @@ public interface FavoriteDao {
      * Get a single favorite by topic ID.
      */
     @Query("SELECT * FROM favorites WHERE topic_id = :topicId LIMIT 1")
-    suspend fun getFavoriteById(topicId: String): FavoriteEntity?
+    public suspend fun getFavoriteById(topicId: String): FavoriteEntity?
 
     /**
      * Insert or replace a favorite.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertFavorite(favorite: FavoriteEntity)
+    public suspend fun insertFavorite(favorite: FavoriteEntity)
 
     /**
      * Delete a favorite by topic ID.
      */
     @Query("DELETE FROM favorites WHERE topic_id = :topicId")
-    suspend fun deleteFavorite(topicId: String)
+    public suspend fun deleteFavorite(topicId: String)
 
     /**
      * Delete multiple favorites by topic IDs.
      */
     @Query("DELETE FROM favorites WHERE topic_id IN (:topicIds)")
-    suspend fun deleteFavorites(topicIds: List<String>)
+    public suspend fun deleteFavorites(topicIds: List<String>)
 
     /**
      * Clear all favorites.
      */
     @Query("DELETE FROM favorites")
-    suspend fun clearAllFavorites()
+    public suspend fun clearAllFavorites()
 
     /**
      * Get total count of favorites.
      */
     @Query("SELECT COUNT(*) FROM favorites")
-    suspend fun getFavoritesCount(): Int
+    public suspend fun getFavoritesCount(): Int
 
     /**
      * Check if a topic is favorited.
      */
     @Query("SELECT EXISTS(SELECT 1 FROM favorites WHERE topic_id = :topicId LIMIT 1)")
-    suspend fun isFavorite(topicId: String): Boolean
+    public suspend fun isFavorite(topicId: String): Boolean
 }

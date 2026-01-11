@@ -31,14 +31,14 @@ public interface ScanPathDao {
     public fun getAllPaths(): Flow<List<ScanPathEntity>>
 
     @Query("SELECT * FROM scan_paths")
-    suspend fun getAllPathsList(): List<ScanPathEntity>
+    public suspend fun getAllPathsList(): List<ScanPathEntity>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertPath(path: ScanPathEntity)
+    public suspend fun insertPath(path: ScanPathEntity)
 
     @Delete
-    suspend fun deletePath(path: ScanPathEntity)
+    public suspend fun deletePath(path: ScanPathEntity)
 
     @Query("DELETE FROM scan_paths WHERE path = :path")
-    suspend fun deletePathByString(path: String)
+    public suspend fun deletePathByString(path: String)
 }

@@ -135,7 +135,7 @@ internal class PlaybackController(
      *
      * @param positionMs Position in milliseconds
      */
-    public fun seekTo() {
+    public fun seekTo(positionMs: Long) {
         val player = getActivePlayer()
 
         try {
@@ -183,7 +183,7 @@ internal class PlaybackController(
      *
      * @param speed Playback speed (0.5x to 2.0x)
      */
-    public fun setSpeed() {
+    public fun setSpeed(speed: Float) {
         getActivePlayer().setPlaybackSpeed(speed)
         // Reset inactivity timer (user action)
         resetInactivityTimer()
@@ -202,7 +202,7 @@ internal class PlaybackController(
      *   - REPEAT_MODE_ONE: Repeat current track
      *   - REPEAT_MODE_ALL: Repeat all tracks
      */
-    public fun setRepeatMode() {
+    public fun setRepeatMode(repeatMode: Int) {
         getActivePlayer().repeatMode = repeatMode
         android.util.Log.d("AudioPlayerService", "Repeat mode set to: $repeatMode")
         // Reset inactivity timer (user action)
@@ -221,7 +221,7 @@ internal class PlaybackController(
      *
      * @param shuffleModeEnabled true to enable shuffle, false to disable
      */
-    public fun setShuffleModeEnabled() {
+    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
         getActivePlayer().shuffleModeEnabled = shuffleModeEnabled
         android.util.Log.d("AudioPlayerService", "Shuffle mode set to: $shuffleModeEnabled")
         // Reset inactivity timer (user action)
@@ -306,7 +306,7 @@ internal class PlaybackController(
      *
      * @param index Track index in playlist
      */
-    public fun seekToTrack() {
+    public fun seekToTrack(index: Int) {
         val player = getActivePlayer()
         if (index >= 0 && index < player.mediaItemCount) {
             val playWhenReadyBeforeSeek = player.playWhenReady
@@ -384,7 +384,7 @@ internal class PlaybackController(
      *
      * @param seconds Number of seconds to rewind (default: 15)
      */
-    public fun rewind() {
+    public fun rewind(seconds: Int = 15) {
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val newPosition = (currentPosition - seconds * 1000L).coerceAtLeast(0L)
@@ -399,7 +399,7 @@ internal class PlaybackController(
      *
      * @param seconds Number of seconds to forward (default: 30)
      */
-    public fun forward() {
+    public fun forward(seconds: Int = 30) {
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val duration = player.duration

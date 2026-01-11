@@ -23,13 +23,13 @@ import androidx.compose.ui.graphics.Color
 
 public object NeutralColors {
     // Light theme neutrals
-    val Neutral50 = Color(0xFFFAFAFA) // Nearly white - light background
-    val Neutral100 = Color(0xFFF5F5F5) // Light gray - light surface
-    val Neutral200 = Color(0xFFE5E5E5) // Light gray - light surfaceVariant
+    public val Neutral50: Color = Color(0xFFFAFAFA) // Nearly white - light background
+    public val Neutral100: Color = Color(0xFFF5F5F5) // Light gray - light surface
+    public val Neutral200: Color = Color(0xFFE5E5E5) // Light gray - light surfaceVariant
 
     // Dark theme neutrals
-    val Neutral800 = Color(0xFF262626) // Dark gray - dark surfaceVariant
-    val Neutral900 = Color(0xFF171717) // Nearly black - dark background/surface
+    public val Neutral800: Color = Color(0xFF262626) // Dark gray - dark surfaceVariant
+    public val Neutral900: Color = Color(0xFF171717) // Nearly black - dark background/surface
 }
 
 // ====================
@@ -38,49 +38,49 @@ public object NeutralColors {
 // ====================
 
 // Primary accent color for Beta
-val BetaPrimaryColor = Color(0xFF39FF14) // Electric Lime / Neon Green
+public val BetaPrimaryColor: Color = Color(0xFF39FF14) // Electric Lime / Neon Green
 
 // Beta Light Theme
-val beta_light_background = NeutralColors.Neutral50
-val beta_light_onBackground = Color(0xFF1A1C1E)
-val beta_light_surface = NeutralColors.Neutral100
-val beta_light_onSurface = Color(0xFF1A1C1E)
-val beta_light_surfaceVariant = NeutralColors.Neutral200
-val beta_light_onSurfaceVariant = Color(0xFF44474E)
-val beta_light_primary = BetaPrimaryColor
-val beta_light_onPrimary = Color(0xFF003300) // Dark green text on neon
-val beta_light_primaryContainer = Color(0xFFB8F5A2)
-val beta_light_onPrimaryContainer = Color(0xFF002200)
-val beta_light_secondary = Color(0xFF00B4D8) // Electric Blue
-val beta_light_onSecondary = Color(0xFFFFFFFF)
-val beta_light_secondaryContainer = Color(0xFFCAE6FF)
-val beta_light_onSecondaryContainer = Color(0xFF001E30)
-val beta_light_tertiary = Color(0xFF00F0FF) // Cyan accent
-val beta_light_onTertiary = Color(0xFF003333)
-val beta_light_error = Color(0xFFBA1A1A)
-val beta_light_onError = Color(0xFFFFFFFF)
-val beta_light_outline = Color(0xFF74777F)
+public val beta_light_background: Color = NeutralColors.Neutral50
+public val beta_light_onBackground: Color = Color(0xFF1A1C1E)
+public val beta_light_surface: Color = NeutralColors.Neutral100
+public val beta_light_onSurface: Color = Color(0xFF1A1C1E)
+public val beta_light_surfaceVariant: Color = NeutralColors.Neutral200
+public val beta_light_onSurfaceVariant: Color = Color(0xFF44474E)
+public val beta_light_primary: Color = BetaPrimaryColor
+public val beta_light_onPrimary: Color = Color(0xFF003300) // Dark green text on neon
+public val beta_light_primaryContainer: Color = Color(0xFFB8F5A2)
+public val beta_light_onPrimaryContainer: Color = Color(0xFF002200)
+public val beta_light_secondary: Color = Color(0xFF00B4D8) // Electric Blue
+public val beta_light_onSecondary: Color = Color(0xFFFFFFFF)
+public val beta_light_secondaryContainer: Color = Color(0xFFCAE6FF)
+public val beta_light_onSecondaryContainer: Color = Color(0xFF001E30)
+public val beta_light_tertiary: Color = Color(0xFF00F0FF) // Cyan accent
+public val beta_light_onTertiary: Color = Color(0xFF003333)
+public val beta_light_error: Color = Color(0xFFBA1A1A)
+public val beta_light_onError: Color = Color(0xFFFFFFFF)
+public val beta_light_outline: Color = Color(0xFF74777F)
 
 // Beta Dark Theme
-val beta_dark_background = NeutralColors.Neutral900
-val beta_dark_onBackground = Color(0xFFE2E2E6)
-val beta_dark_surface = NeutralColors.Neutral900
-val beta_dark_onSurface = Color(0xFFE2E2E6)
-val beta_dark_surfaceVariant = NeutralColors.Neutral800
-val beta_dark_onSurfaceVariant = Color(0xFFC4C6CF)
-val beta_dark_primary = BetaPrimaryColor
-val beta_dark_onPrimary = Color(0xFF003300)
-val beta_dark_primaryContainer = Color(0xFF004D00)
-val beta_dark_onPrimaryContainer = Color(0xFFB8F5A2)
-val beta_dark_secondary = Color(0xFF00B4D8)
-val beta_dark_onSecondary = Color(0xFF00344D)
-val beta_dark_secondaryContainer = Color(0xFF004D6E)
-val beta_dark_onSecondaryContainer = Color(0xFFCAE6FF)
-val beta_dark_tertiary = Color(0xFF00F0FF)
-val beta_dark_onTertiary = Color(0xFF003333)
-val beta_dark_error = Color(0xFFFFB4AB)
-val beta_dark_onError = Color(0xFF690005)
-val beta_dark_outline = Color(0xFF8E9099)
+public val beta_dark_background: Color = NeutralColors.Neutral900
+public val beta_dark_onBackground: Color = Color(0xFFE2E2E6)
+public val beta_dark_surface: Color = NeutralColors.Neutral900
+public val beta_dark_onSurface: Color = Color(0xFFE2E2E6)
+public val beta_dark_surfaceVariant: Color = NeutralColors.Neutral800
+public val beta_dark_onSurfaceVariant: Color = Color(0xFFC4C6CF)
+public val beta_dark_primary: Color = BetaPrimaryColor
+public val beta_dark_onPrimary: Color = Color(0xFF003300)
+public val beta_dark_primaryContainer: Color = Color(0xFF004D00)
+public val beta_dark_onPrimaryContainer: Color = Color(0xFFB8F5A2)
+public val beta_dark_secondary: Color = Color(0xFF00B4D8)
+public val beta_dark_onSecondary: Color = Color(0xFF00344D)
+public val beta_dark_secondaryContainer: Color = Color(0xFF004D6E)
+public val beta_dark_onSecondaryContainer: Color = Color(0xFFCAE6FF)
+public val beta_dark_tertiary: Color = Color(0xFF00F0FF)
+public val beta_dark_onTertiary: Color = Color(0xFF003333)
+public val beta_dark_error: Color = Color(0xFFFFB4AB)
+public val beta_dark_onError: Color = Color(0xFF690005)
+public val beta_dark_outline: Color = Color(0xFF8E9099)
 
 // ====================
 // PROD THEME COLORS (Royal Premium)
@@ -88,46 +88,46 @@ val beta_dark_outline = Color(0xFF8E9099)
 // ====================
 
 // Primary accent color for Prod
-val ProdPrimaryColor = Color(0xFFFFD700) // Luxury Gold / Amber
+public val ProdPrimaryColor: Color = Color(0xFFFFD700) // Luxury Gold / Amber
 
 // Prod Light Theme
-val prod_light_background = NeutralColors.Neutral50
-val prod_light_onBackground = Color(0xFF1C1B1F)
-val prod_light_surface = NeutralColors.Neutral100
-val prod_light_onSurface = Color(0xFF1C1B1F)
-val prod_light_surfaceVariant = NeutralColors.Neutral200
-val prod_light_onSurfaceVariant = Color(0xFF49454E)
-val prod_light_primary = Color(0xFF7B5800) // Darker gold for light theme
-val prod_light_onPrimary = Color(0xFFFFFFFF)
-val prod_light_primaryContainer = Color(0xFFFFDEA6)
-val prod_light_onPrimaryContainer = Color(0xFF271900)
-val prod_light_secondary = Color(0xFF6750A4) // Royal Purple
-val prod_light_onSecondary = Color(0xFFFFFFFF)
-val prod_light_secondaryContainer = Color(0xFFE9DDFF)
-val prod_light_onSecondaryContainer = Color(0xFF22005D)
-val prod_light_tertiary = Color(0xFF7B5800)
-val prod_light_onTertiary = Color(0xFFFFFFFF)
-val prod_light_error = Color(0xFFBA1A1A)
-val prod_light_onError = Color(0xFFFFFFFF)
-val prod_light_outline = Color(0xFF7A757F)
+public val prod_light_background: Color = NeutralColors.Neutral50
+public val prod_light_onBackground: Color = Color(0xFF1C1B1F)
+public val prod_light_surface: Color = NeutralColors.Neutral100
+public val prod_light_onSurface: Color = Color(0xFF1C1B1F)
+public val prod_light_surfaceVariant: Color = NeutralColors.Neutral200
+public val prod_light_onSurfaceVariant: Color = Color(0xFF49454E)
+public val prod_light_primary: Color = Color(0xFF7B5800) // Darker gold for light theme
+public val prod_light_onPrimary: Color = Color(0xFFFFFFFF)
+public val prod_light_primaryContainer: Color = Color(0xFFFFDEA6)
+public val prod_light_onPrimaryContainer: Color = Color(0xFF271900)
+public val prod_light_secondary: Color = Color(0xFF6750A4) // Royal Purple
+public val prod_light_onSecondary: Color = Color(0xFFFFFFFF)
+public val prod_light_secondaryContainer: Color = Color(0xFFE9DDFF)
+public val prod_light_onSecondaryContainer: Color = Color(0xFF22005D)
+public val prod_light_tertiary: Color = Color(0xFF7B5800)
+public val prod_light_onTertiary: Color = Color(0xFFFFFFFF)
+public val prod_light_error: Color = Color(0xFFBA1A1A)
+public val prod_light_onError: Color = Color(0xFFFFFFFF)
+public val prod_light_outline: Color = Color(0xFF7A757F)
 
 // Prod Dark Theme
-val prod_dark_background = NeutralColors.Neutral900
-val prod_dark_onBackground = Color(0xFFE6E1E6)
-val prod_dark_surface = NeutralColors.Neutral900
-val prod_dark_onSurface = Color(0xFFE6E1E6)
-val prod_dark_surfaceVariant = NeutralColors.Neutral800
-val prod_dark_onSurfaceVariant = Color(0xFFCAC4CF)
-val prod_dark_primary = ProdPrimaryColor
-val prod_dark_onPrimary = Color(0xFF402D00)
-val prod_dark_primaryContainer = Color(0xFF5C4200)
-val prod_dark_onPrimaryContainer = Color(0xFFFFDEA6)
-val prod_dark_secondary = Color(0xFFCFBCFF) // Light Purple
-val prod_dark_onSecondary = Color(0xFF381E72)
-val prod_dark_secondaryContainer = Color(0xFF4F378A)
-val prod_dark_onSecondaryContainer = Color(0xFFE9DDFF)
-val prod_dark_tertiary = ProdPrimaryColor
-val prod_dark_onTertiary = Color(0xFF402D00)
-val prod_dark_error = Color(0xFFFFB4AB)
-val prod_dark_onError = Color(0xFF690005)
-val prod_dark_outline = Color(0xFF948F99)
+public val prod_dark_background: Color = NeutralColors.Neutral900
+public val prod_dark_onBackground: Color = Color(0xFFE6E1E6)
+public val prod_dark_surface: Color = NeutralColors.Neutral900
+public val prod_dark_onSurface: Color = Color(0xFFE6E1E6)
+public val prod_dark_surfaceVariant: Color = NeutralColors.Neutral800
+public val prod_dark_onSurfaceVariant: Color = Color(0xFFCAC4CF)
+public val prod_dark_primary: Color = ProdPrimaryColor
+public val prod_dark_onPrimary: Color = Color(0xFF402D00)
+public val prod_dark_primaryContainer: Color = Color(0xFF5C4200)
+public val prod_dark_onPrimaryContainer: Color = Color(0xFFFFDEA6)
+public val prod_dark_secondary: Color = Color(0xFFCFBCFF) // Light Purple
+public val prod_dark_onSecondary: Color = Color(0xFF381E72)
+public val prod_dark_secondaryContainer: Color = Color(0xFF4F378A)
+public val prod_dark_onSecondaryContainer: Color = Color(0xFFE9DDFF)
+public val prod_dark_tertiary: Color = ProdPrimaryColor
+public val prod_dark_onTertiary: Color = Color(0xFF402D00)
+public val prod_dark_error: Color = Color(0xFFFFB4AB)
+public val prod_dark_onError: Color = Color(0xFF690005)
+public val prod_dark_outline: Color = Color(0xFF948F99)

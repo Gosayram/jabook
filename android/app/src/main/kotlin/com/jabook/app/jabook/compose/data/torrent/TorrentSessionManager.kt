@@ -60,7 +60,7 @@ public class TorrentSessionManager
         private val topicIds = mutableMapOf<String, String>()
 
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
-        public val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
+        val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
 
         private val alertListener =
             object : AlertListener {
@@ -84,7 +84,7 @@ public class TorrentSessionManager
 
                 override fun alert(alert: Alert<*>) {
                     try {
-                        public val alertType = alert.type()
+                        val alertType = alert.type()
 
                         // Handle specific alert types
                         when (alert) {
@@ -152,13 +152,13 @@ public class TorrentSessionManager
 
                 // Log libtorrent version for debugging (as shown in examples)
                 try {
-                    public val version = LibTorrent.version()
+                    val version = LibTorrent.version()
                     Log.i(TAG, "Using libtorrent version: $version")
                 } catch (e: Exception) {
                     Log.w(TAG, "Could not get libtorrent version", e)
                 }
 
-                public val settings =
+                val settings =
                     SettingsPack().apply {
                         // Connection settings
                         connectionsLimit(200)
@@ -174,7 +174,7 @@ public class TorrentSessionManager
                         activeLimit(8)
                     }
 
-                public val params = SessionParams(settings)
+                val params = SessionParams(settings)
                 // Use SessionManager(false) like libretorrent - this prevents automatic alert listener
                 // which can cause NoSuchMethodError with some libtorrent4j versions
                 session =
@@ -188,7 +188,7 @@ public class TorrentSessionManager
                 // Verify session is running before proceeding
                 // Note: isRunning() may not be available in all libtorrent4j versions
                 try {
-                    public val isRunning = session?.isRunning() ?: false
+                    val isRunning = session?.isRunning() ?: false
                     if (!isRunning) {
                         Log.e(TAG, "Session failed to start - isRunning() returned false")
                         throw IllegalStateException("Session failed to start")
@@ -234,7 +234,7 @@ public class TorrentSessionManager
             selectedFileIndices: List<Int>? = null,
             topicId: String? = null,
         ): Result<String> {
-            public val session =
+            val session =
                 this.session ?: run {
                     // Try to initialize if not already done
                     try {
@@ -257,7 +257,7 @@ public class TorrentSessionManager
                 }
 
                 // Parse magnet URI to get info hash
-                public val hash =
+                val hash =
                     parseMagnetHash(magnetUri)
                         ?: return Result.failure(IllegalArgumentException("Invalid magnet URI: cannot parse info hash"))
 
@@ -275,9 +275,9 @@ public class TorrentSessionManager
                 }
 
                 // Create save directory
-                public val saveDir = File(savePath)
+                val saveDir = File(savePath)
                 if (!saveDir.exists()) {
-                    public val created = saveDir.mkdirs()
+                    val created = saveDir.mkdirs()
                     if (!created && !saveDir.exists()) {
                         Log.e(TAG, "Failed to create save directory: $savePath")
                         return Result.failure(IllegalStateException("Failed to create save directory: $savePath"))
@@ -293,7 +293,7 @@ public class TorrentSessionManager
                 // Verify session is running before adding torrent
                 // Note: isRunning() may not be available in all libtorrent4j versions
                 try {
-                    public val isRunning = session.isRunning()
+                    val isRunning = session.isRunning()
                     if (!isRunning) {
                         Log.e(TAG, "Cannot add torrent: session is not running")
                         return Result.failure(IllegalStateException("Session is not running"))
@@ -317,7 +317,7 @@ public class TorrentSessionManager
                     Log.d(TAG, "Calling session.download() for hash=$hash, savePath=$savePath")
 
                     // Create flags - this may fail if libtorrent4j classes are not available
-                    public val flags =
+                    val flags =
                         try {
                             org.libtorrent4j.swig.torrent_flags_t()
                         } catch (e: NoClassDefFoundError) {
@@ -375,14 +375,14 @@ public class TorrentSessionManager
             hash: String,
             deleteFiles: Boolean = false,
         ) {
-            public val handle = torrents.remove(hash) ?: return
+            val handle = torrents.remove(hash) ?: return
             topicIds.remove(hash)
 
             try {
                 session?.remove(handle)
 
                 if (deleteFiles) {
-                    public val savePath = handle.savePath()
+                    val savePath = handle.savePath()
                     File(savePath).deleteRecursively()
                 }
 
@@ -396,8 +396,8 @@ public class TorrentSessionManager
         /**
          * Pause torrent
          */
-        public fun pauseTorrent() {
-            public val handle = torrents[hash] ?: return
+        public fun pauseTorrent(hash: String) {
+            val handle = torrents[hash] ?: return
 
             try {
                 handle.pause()
@@ -411,8 +411,8 @@ public class TorrentSessionManager
         /**
          * Resume torrent
          */
-        public fun resumeTorrent() {
-            public val handle = torrents[hash] ?: return
+        public fun resumeTorrent(hash: String) {
+            val handle = torrents[hash] ?: return
 
             try {
                 handle.resume()
@@ -430,8 +430,8 @@ public class TorrentSessionManager
             hash: String,
             newPath: String,
         ) {
-            public val handle = torrents[hash] ?: return
-            public val newDir = File(newPath)
+            val handle = torrents[hash] ?: return
+            val newDir = File(newPath)
             if (!newDir.exists()) {
                 newDir.mkdirs()
             }
@@ -451,18 +451,18 @@ public class TorrentSessionManager
             hash: String,
             enabled: Boolean,
         ) {
-            public val handle = torrents[hash] ?: return
+            val handle = torrents[hash] ?: return
 
             try {
                 // setFlags(flags, mask) - use TorrentFlags
-                public val flags =
+                val flags =
                     if (enabled) {
                         org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
                     } else {
                         org.libtorrent4j.swig
                             .torrent_flags_t()
                     }
-                public val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
+                val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
                 handle.setFlags(flags, mask)
                 Log.i(TAG, "Set sequential download for $hash: $enabled")
             } catch (e: Exception) {
@@ -509,15 +509,15 @@ public class TorrentSessionManager
 
         private fun handleAddTorrent(alert: AddTorrentAlert) {
             try {
-                public val handle = alert.handle()
+                val handle = alert.handle()
                 if (!handle.isValid) {
                     Log.e(TAG, "Invalid torrent handle in ADD_TORRENT alert")
                     return
                 }
 
-                public val hash = handle.infoHash().toHex()
-                public val status = handle.status()
-                public val torrentInfo = handle.torrentFile()
+                val hash = handle.infoHash().toHex()
+                val status = handle.status()
+                val torrentInfo = handle.torrentFile()
 
                 Log.i(
                     TAG,
@@ -537,7 +537,7 @@ public class TorrentSessionManager
                     // Double-check handle is still valid before resuming
                     if (handle.isValid) {
                         // Check if session is running (if method available)
-                        public val sessionRunning =
+                        val sessionRunning =
                             try {
                                 session?.isRunning() ?: true
                             } catch (e: NoSuchMethodError) {
@@ -571,12 +571,12 @@ public class TorrentSessionManager
 
         private fun handleStateChanged(alert: StateChangedAlert) {
             try {
-                public val handle = alert.handle()
+                val handle = alert.handle()
                 if (handle.isValid) {
-                    public val hash = handle.infoHash().toHex()
-                    public val status = handle.status()
-                    public val oldState = alert.prevState
-                    public val newState = status.state()
+                    val hash = handle.infoHash().toHex()
+                    val status = handle.status()
+                    val oldState = alert.prevState
+                    val newState = status.state()
 
                     if (oldState != newState) {
                         Log.d(
@@ -595,10 +595,10 @@ public class TorrentSessionManager
 
         private fun handleTorrentFinished(alert: TorrentFinishedAlert) {
             try {
-                public val handle = alert.handle()
+                val handle = alert.handle()
                 if (handle.isValid) {
-                    public val hash = handle.infoHash().toHex()
-                    public val status = handle.status()
+                    val hash = handle.infoHash().toHex()
+                    val status = handle.status()
                     Log.i(
                         TAG,
                         "Torrent finished: hash=$hash, " +
@@ -615,15 +615,15 @@ public class TorrentSessionManager
 
         private fun handleTorrentError(alert: TorrentErrorAlert) {
             try {
-                public val handle = alert.handle()
+                val handle = alert.handle()
                 if (!handle.isValid) {
                     Log.e(TAG, "Torrent error alert with invalid handle")
                     return
                 }
 
-                public val hash = handle.infoHash().toHex()
-                public val error = alert.error()
-                public val status = handle.status()
+                val hash = handle.infoHash().toHex()
+                val error = alert.error()
+                val status = handle.status()
 
                 Log.e(
                     TAG,
@@ -644,10 +644,10 @@ public class TorrentSessionManager
 
         private fun handleMetadataReceived(alert: MetadataReceivedAlert) {
             try {
-                public val handle = alert.handle()
+                val handle = alert.handle()
                 if (handle.isValid) {
-                    public val hash = handle.infoHash().toHex()
-                    public val torrentInfo = handle.torrentFile()
+                    val hash = handle.infoHash().toHex()
+                    val torrentInfo = handle.torrentFile()
                     if (torrentInfo != null) {
                         Log.i(
                             TAG,
@@ -672,11 +672,11 @@ public class TorrentSessionManager
 
         private fun handlePieceFinished(alert: PieceFinishedAlert) {
             try {
-                public val handle = alert.handle()
+                val handle = alert.handle()
                 if (handle.isValid) {
-                    public val hash = handle.infoHash().toHex()
-                    public val progress = (handle.status().progress() * 100).toInt()
-                    public val pieceIndex = alert.pieceIndex()
+                    val hash = handle.infoHash().toHex()
+                    val progress = (handle.status().progress() * 100).toInt()
+                    val pieceIndex = alert.pieceIndex()
                     Log.d(TAG, "Piece finished: hash=$hash, piece=$pieceIndex, progress=$progress%")
                 }
                 // Update downloads less frequently for performance
@@ -689,14 +689,14 @@ public class TorrentSessionManager
         }
 
         private fun handleDhtError(alert: DhtErrorAlert) {
-            public val error = alert.error()
+            val error = alert.error()
             Log.w(TAG, "DHT error: ${error.message}")
             // DHT errors are usually non-critical, just log them
         }
 
         private fun handleStateUpdate(alert: StateUpdateAlert) {
             try {
-                public val message = alert.message()
+                val message = alert.message()
                 Log.d(TAG, "State update: $message")
                 // State updates can be frequent, so we don't update downloads on every one
                 // The state changed alert will handle that
@@ -709,7 +709,7 @@ public class TorrentSessionManager
 
         private fun updateDownloads() {
             try {
-                public val downloads =
+                val downloads =
                     torrents
                         .mapNotNull { (hash, handle) ->
                             try {
@@ -737,13 +737,13 @@ public class TorrentSessionManager
             handle: TorrentHandle,
         ): TorrentDownload {
             try {
-                public val status = handle.status()
-                public val torrentInfo = handle.torrentFile()
+                val status = handle.status()
+                val torrentInfo = handle.torrentFile()
 
                 // Get name with fallback: try status.name(), then torrentInfo.name(), then hash
-                public val name =
+                val name =
                     try {
-                        public val statusName = status.name()
+                        val statusName = status.name()
                         if (statusName.isNotBlank()) {
                             statusName
                         } else {
@@ -755,7 +755,7 @@ public class TorrentSessionManager
                     }
 
                 // Get save path with error handling
-                public val savePath =
+                val savePath =
                     try {
                         handle.savePath()
                     } catch (e: Exception) {
@@ -764,10 +764,10 @@ public class TorrentSessionManager
                     }
 
                 // Get progress with bounds checking
-                public val progress = status.progress().coerceIn(0f, 1f)
+                val progress = status.progress().coerceIn(0f, 1f)
 
                 // Get speeds with error handling
-                public val downloadSpeed =
+                val downloadSpeed =
                     try {
                         status.downloadRate().toLong().coerceAtLeast(0L)
                     } catch (e: Exception) {
@@ -775,7 +775,7 @@ public class TorrentSessionManager
                         0L
                     }
 
-                public val uploadSpeed =
+                val uploadSpeed =
                     try {
                         status.uploadRate().toLong().coerceAtLeast(0L)
                     } catch (e: Exception) {
@@ -784,7 +784,7 @@ public class TorrentSessionManager
                     }
 
                 // Get sizes with error handling
-                public val totalSize =
+                val totalSize =
                     try {
                         status.totalWanted().coerceAtLeast(0L)
                     } catch (e: Exception) {
@@ -792,7 +792,7 @@ public class TorrentSessionManager
                         0L
                     }
 
-                public val downloadedSize =
+                val downloadedSize =
                     try {
                         status.totalWantedDone().coerceAtLeast(0L)
                     } catch (e: Exception) {
@@ -800,7 +800,7 @@ public class TorrentSessionManager
                         0L
                     }
 
-                public val uploadedSize =
+                val uploadedSize =
                     try {
                         status.allTimeUpload().coerceAtLeast(0L)
                     } catch (e: Exception) {
@@ -809,7 +809,7 @@ public class TorrentSessionManager
                     }
 
                 // Get peer counts with error handling
-                public val numPeers =
+                val numPeers =
                     try {
                         status.numPeers().coerceAtLeast(0)
                     } catch (e: Exception) {
@@ -817,7 +817,7 @@ public class TorrentSessionManager
                         0
                     }
 
-                public val numSeeds =
+                val numSeeds =
                     try {
                         status.numSeeds().coerceAtLeast(0)
                     } catch (e: Exception) {
@@ -826,7 +826,7 @@ public class TorrentSessionManager
                     }
 
                 // Calculate ETA with error handling
-                public val eta =
+                val eta =
                     try {
                         calculateEta(status)
                     } catch (e: Exception) {
@@ -835,7 +835,7 @@ public class TorrentSessionManager
                     }
 
                 // Get files with error handling
-                public val files =
+                val files =
                     try {
                         if (torrentInfo != null) {
                             mapFiles(torrentInfo, handle)
@@ -852,11 +852,11 @@ public class TorrentSessionManager
                     name = name,
                     state = mapState(status.state()),
                     progress = progress,
-                    downloadSpeed = downloadSpeed,
-                    uploadSpeed = uploadSpeed,
-                    totalSize = totalSize,
-                    downloadedSize = downloadedSize,
-                    uploadedSize = uploadedSize,
+                    downloadSpeed = downloadSpeed.toInt(),
+                    uploadSpeed = uploadSpeed.toInt(),
+                    totalSize = totalSize.toInt(),
+                    downloadedSize = downloadedSize.toInt(),
+                    uploadedSize = uploadedSize.toInt(),
                     numPeers = numPeers,
                     numSeeds = numSeeds,
                     eta = eta,
@@ -873,11 +873,11 @@ public class TorrentSessionManager
                     name = hash, // Fallback to hash
                     state = TorrentState.ERROR,
                     progress = 0f,
-                    downloadSpeed = 0L,
-                    uploadSpeed = 0L,
-                    totalSize = 0L,
-                    downloadedSize = 0L,
-                    uploadedSize = 0L,
+                    downloadSpeed = 0,
+                    uploadSpeed = 0,
+                    totalSize = 0,
+                    downloadedSize = 0,
+                    uploadedSize = 0,
                     numPeers = 0,
                     numSeeds = 0,
                     eta = -1L,
@@ -907,7 +907,7 @@ public class TorrentSessionManager
             fileIndex: Int,
             priority: Int,
         ) {
-            public val handle = torrents[hash] ?: return
+            val handle = torrents[hash] ?: return
             try {
                 handle.filePriority(fileIndex, org.libtorrent4j.Priority.fromSwig(priority))
                 updateDownloads()
@@ -923,9 +923,9 @@ public class TorrentSessionManager
             hash: String,
             priorities: List<Int>,
         ) {
-            public val handle = torrents[hash] ?: return
-            public val torrentInfo = handle.torrentFile() ?: return
-            public val numFiles = torrentInfo.numFiles()
+            val handle = torrents[hash] ?: return
+            val torrentInfo = handle.torrentFile() ?: return
+            val numFiles = torrentInfo.numFiles()
 
             if (priorities.size != numFiles) {
                 Log.w(TAG, "Priority list size mismatch: ${priorities.size} != $numFiles")
@@ -934,7 +934,7 @@ public class TorrentSessionManager
 
             try {
                 // Priority.fromSwig expects int
-                public val priorityArray = priorities.map { org.libtorrent4j.Priority.fromSwig(it) }.toTypedArray()
+                val priorityArray = priorities.map { org.libtorrent4j.Priority.fromSwig(it) }.toTypedArray()
                 handle.prioritizeFiles(priorityArray)
                 updateDownloads()
             } catch (e: Exception) {
@@ -947,8 +947,8 @@ public class TorrentSessionManager
             handle: TorrentHandle,
         ): List<TorrentFile> {
             return try {
-                public val fileStorage = torrentInfo.files() ?: return emptyList()
-                public val numFiles = fileStorage.numFiles()
+                val fileStorage = torrentInfo.files() ?: return emptyList()
+                val numFiles = fileStorage.numFiles()
 
                 if (numFiles <= 0) {
                     Log.w(TAG, "Torrent has no files")
@@ -956,7 +956,7 @@ public class TorrentSessionManager
                 }
 
                 // Get priorities with error handling
-                public val priorities =
+                val priorities =
                     try {
                         handle.filePriorities() // Returns Priority[]
                     } catch (e: Exception) {
@@ -965,7 +965,7 @@ public class TorrentSessionManager
                     }
 
                 // Get progress with error handling
-                public val progress =
+                val progress =
                     try {
                         // Use empty flags to get progress in bytes, not pieces
                         handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
@@ -976,7 +976,7 @@ public class TorrentSessionManager
 
                 (0 until numFiles).mapNotNull { index ->
                     try {
-                        public val priority =
+                        val priority =
                             if (index < priorities.size) {
                                 try {
                                     priorities[index].swig().toInt().coerceIn(0, 7)
@@ -988,7 +988,7 @@ public class TorrentSessionManager
                                 4 // Default priority
                             }
 
-                        public val size =
+                        val size =
                             try {
                                 fileStorage.fileSize(index).coerceAtLeast(0L)
                             } catch (e: Exception) {
@@ -996,7 +996,7 @@ public class TorrentSessionManager
                                 0L
                             }
 
-                        public val downloaded =
+                        val downloaded =
                             if (index < progress.size) {
                                 try {
                                     progress[index].coerceAtLeast(0L)
@@ -1008,9 +1008,9 @@ public class TorrentSessionManager
                                 0L
                             }
 
-                        public val fileProgress = if (size > 0) (downloaded.toFloat() / size).coerceIn(0f, 1f) else 0f
+                        val fileProgress = if (size > 0) (downloaded.toFloat() / size).coerceIn(0f, 1f) else 0f
 
-                        public val path =
+                        val path =
                             try {
                                 fileStorage.filePath(index) ?: "file_$index"
                             } catch (e: Exception) {
@@ -1046,28 +1046,28 @@ public class TorrentSessionManager
             fileIndex: Int,
             bufferSize: Int = 10 * 1024 * 1024, // 10MB
         ): Boolean {
-            public val handle = torrents[hash] ?: return false
-            public val torrentInfo = handle.torrentFile() ?: return false
-            public val fileStorage = torrentInfo.files() ?: return false
+            val handle = torrents[hash] ?: return false
+            val torrentInfo = handle.torrentFile() ?: return false
+            val fileStorage = torrentInfo.files() ?: return false
 
             if (fileIndex < 0 || fileIndex >= fileStorage.numFiles()) return false
 
-            public val fileSize = fileStorage.fileSize(fileIndex)
-            public val checkSize = minOf(fileSize, bufferSize)
+            val fileSize = fileStorage.fileSize(fileIndex)
+            val checkSize = minOf(fileSize, bufferSize)
 
             // If file is very small or fully downloaded, it's ready
-            public val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
-            public val downloadedBytes = if (fileIndex < progress.size) progress[fileIndex] else 0L
+            val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
+            val downloadedBytes = if (fileIndex < progress.size) progress[fileIndex] else 0L
 
             if (downloadedBytes >= fileSize) return true
 
             // Check specific pieces
             // We need to map file offset to pieces
-            public val fileOffset = fileStorage.fileOffset(fileIndex)
-            public val startPiece = torrentInfo.mapFile(fileIndex, 0, 0).piece()
+            val fileOffset = fileStorage.fileOffset(fileIndex)
+            val startPiece = torrentInfo.mapFile(fileIndex, 0, 0).piece()
             // We only check the beginning of the file for "start" capability
-            public val endOffsetInFile = minOf(fileSize, bufferSize)
-            public val endPiece = torrentInfo.mapFile(fileIndex, endOffsetInFile, 0).piece()
+            val endOffsetInFile = minOf(fileSize, bufferSize)
+            val endPiece = torrentInfo.mapFile(fileIndex, endOffsetInFile, 0).piece()
 
             // Check if all pieces in range are having pieces
             for (piece in startPiece..endPiece) {
@@ -1086,14 +1086,14 @@ public class TorrentSessionManager
             hash: String,
             fileIndex: Int,
         ): Long {
-            public val handle = torrents[hash] ?: return 0L
-            public val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
+            val handle = torrents[hash] ?: return 0L
+            val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
             return if (fileIndex < progress.size) progress[fileIndex] else 0L
         }
 
         private fun calculateEta(status: TorrentStatus): Long {
-            public val remaining = status.totalWanted() - status.totalWantedDone()
-            public val speed = status.downloadRate()
+            val remaining = status.totalWanted() - status.totalWantedDone()
+            val speed = status.downloadRate()
 
             return if (speed > 0 && remaining > 0) {
                 remaining / speed
@@ -1107,8 +1107,8 @@ public class TorrentSessionManager
                 // Try to parse as magnet URI
                 if (magnetUri.startsWith("magnet:", ignoreCase = true)) {
                     // Support both 40-char hex and 32-char base32 hashes
-                    public val hexRegex = "urn:btih:([a-fA-F0-9]{40})".toRegex()
-                    public val base32Regex = "urn:btih:([a-zA-Z2-7]{32})".toRegex()
+                    val hexRegex = "urn:btih:([a-fA-F0-9]{40})".toRegex()
+                    val base32Regex = "urn:btih:([a-zA-Z2-7]{32})".toRegex()
 
                     hexRegex
                         .find(magnetUri)
@@ -1125,7 +1125,7 @@ public class TorrentSessionManager
                     magnetUri.lowercase()
                 } else {
                     // Try to extract from any URI format
-                    public val anyHashRegex = "(?:urn:btih:|btih:)?([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})".toRegex(RegexOption.IGNORE_CASE)
+                    val anyHashRegex = "(?:urn:btih:|btih:)?([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})".toRegex(RegexOption.IGNORE_CASE)
                     anyHashRegex
                         .find(magnetUri)
                         ?.groupValues

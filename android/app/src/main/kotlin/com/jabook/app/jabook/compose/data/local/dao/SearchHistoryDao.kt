@@ -38,19 +38,19 @@ public interface SearchHistoryDao {
      * Insert a search query into history.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSearch(search: SearchHistoryEntity)
+    public suspend fun insertSearch(search: SearchHistoryEntity)
 
     /**
      * Delete a specific search from history.
      */
     @Query("DELETE FROM search_history WHERE id = :id")
-    suspend fun deleteSearch(id: Long)
+    public suspend fun deleteSearch(id: Long)
 
     /**
      * Clear all search history.
      */
     @Query("DELETE FROM search_history")
-    suspend fun clearHistory()
+    public suspend fun clearHistory()
 
     /**
      * Delete old searches, keeping only the most recent.

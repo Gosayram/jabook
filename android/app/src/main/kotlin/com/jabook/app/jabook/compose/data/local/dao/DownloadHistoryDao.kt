@@ -47,7 +47,7 @@ public interface DownloadHistoryDao {
      * Insert a history entry.
      */
     @Insert
-    suspend fun insert(entry: DownloadHistoryEntity)
+    public suspend fun insert(entry: DownloadHistoryEntity)
 
     /**
      * Delete history entries older than cutoff time.
@@ -55,19 +55,19 @@ public interface DownloadHistoryDao {
      * @param cutoffTime Timestamp - entries with completedAt < this will be deleted
      */
     @Query("DELETE FROM download_history WHERE completedAt < :cutoffTime")
-    suspend fun deleteOlderThan(cutoffTime: Long)
+    public suspend fun deleteOlderThan(cutoffTime: Long)
 
     /**
      * Clear all history.
      */
     @Query("DELETE FROM download_history")
-    suspend fun clearAll()
+    public suspend fun clearAll()
 
     /**
      * Get count of history entries.
      */
     @Query("SELECT COUNT(*) FROM download_history")
-    suspend fun getCount(): Int
+    public suspend fun getCount(): Int
 }
 
 /**

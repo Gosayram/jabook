@@ -49,19 +49,19 @@ public interface DownloadQueueDao {
      * Get queue entry by book ID.
      */
     @Query("SELECT * FROM download_queue WHERE bookId = :bookId")
-    suspend fun getByBookId(bookId: String): DownloadQueueEntity?
+    public suspend fun getByBookId(bookId: String): DownloadQueueEntity?
 
     /**
      * Insert or update queue entry.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(entity: DownloadQueueEntity)
+    public suspend fun insert(entity: DownloadQueueEntity)
 
     /**
      * Update priority for a download.
      */
     @Query("UPDATE download_queue SET priority = :priority, updatedAt = :updatedAt WHERE bookId = :bookId")
-    suspend fun updatePriority(
+    public suspend fun updatePriority(
         bookId: String,
         priority: Int,
         updatedAt: Long = System.currentTimeMillis(),
@@ -71,7 +71,7 @@ public interface DownloadQueueDao {
      * Update queue position.
      */
     @Query("UPDATE download_queue SET queuePosition = :position, updatedAt = :updatedAt WHERE bookId = :bookId")
-    suspend fun updatePosition(
+    public suspend fun updatePosition(
         bookId: String,
         position: Int,
         updatedAt: Long = System.currentTimeMillis(),
@@ -81,7 +81,7 @@ public interface DownloadQueueDao {
      * Update status.
      */
     @Query("UPDATE download_queue SET status = :status, updatedAt = :updatedAt WHERE bookId = :bookId")
-    suspend fun updateStatus(
+    public suspend fun updateStatus(
         bookId: String,
         status: String,
         updatedAt: Long = System.currentTimeMillis(),
@@ -91,17 +91,17 @@ public interface DownloadQueueDao {
      * Delete queue entry.
      */
     @Delete
-    suspend fun delete(entity: DownloadQueueEntity)
+    public suspend fun delete(entity: DownloadQueueEntity)
 
     /**
      * Delete by book ID.
      */
     @Query("DELETE FROM download_queue WHERE bookId = :bookId")
-    suspend fun deleteByBookId(bookId: String)
+    public suspend fun deleteByBookId(bookId: String)
 
     /**
      * Clear completed/cancelled downloads.
      */
     @Query("DELETE FROM download_queue WHERE status IN ('completed', 'cancelled')")
-    suspend fun clearInactive()
+    public suspend fun clearInactive()
 }

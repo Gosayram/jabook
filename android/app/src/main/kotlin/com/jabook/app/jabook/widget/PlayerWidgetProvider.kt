@@ -80,9 +80,9 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             intent.action == "com.jabook.app.jabook.PLAYBACK_STATE_CHANGED" ||
             intent.action == "com.jabook.app.jabook.MEDIA_ITEM_CHANGED"
         ) {
-            public val appWidgetManager = AppWidgetManager.getInstance(context)
-            public val componentName = ComponentName(context, PlayerWidgetProvider::class.java)
-            public val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val componentName = ComponentName(context, PlayerWidgetProvider::class.java)
+            val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
 
             for (appWidgetId in appWidgetIds) {
                 updateAppWidget(context, appWidgetManager, appWidgetId)
@@ -120,17 +120,17 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetId: Int,
     ) {
         scope.launch(Dispatchers.IO) {
-            public var controller: MediaController? = null
-            public var controllerFuture: ListenableFuture<MediaController>? = null
+            var controller: MediaController? = null
+            var controllerFuture: ListenableFuture<MediaController>? = null
             try {
                 // Determine widget size and select appropriate layout
-                public val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
-                public val layoutResId = getLayoutForSize(widgetSize)
-                public val views = RemoteViews(context.packageName, layoutResId)
+                val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
+                val layoutResId = getLayoutForSize(widgetSize)
+                val views = RemoteViews(context.packageName, layoutResId)
 
                 // Try to get MediaController for AudioPlayerService
                 try {
-                    public val sessionToken =
+                    val sessionToken =
                         SessionToken(
                             context,
                             ComponentName(context, AudioPlayerService::class.java),
@@ -174,9 +174,9 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 android.util.Log.e("PlayerWidget", "Failed to update widget", e)
                 // Show default state on error
                 try {
-                    public val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
-                    public val layoutResId = getLayoutForSize(widgetSize)
-                    public val views = RemoteViews(context.packageName, layoutResId)
+                    val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
+                    val layoutResId = getLayoutForSize(widgetSize)
+                    val views = RemoteViews(context.packageName, layoutResId)
                     setDefaultWidgetState(context, views, widgetSize)
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                 } catch (e2: Exception) {
@@ -194,14 +194,14 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
     ): WidgetSize {
-        public val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-        public val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
-        public val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+        val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+        val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
+        val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
 
         // Convert from dp to approximate size
         // 1 cell = ~70dp on most devices
-        public val widthCells = (minWidth + 30) / 70
-        public val heightCells = (minHeight + 30) / 70
+        val widthCells = (minWidth + 30) / 70
+        val heightCells = (minHeight + 30) / 70
 
         return when {
             widthCells <= 2 && heightCells <= 1 -> WidgetSize.MINIMAL
@@ -233,16 +233,16 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
     ) {
-        public val isPlaying = controller.isPlaying
-        public val currentMediaItem = controller.currentMediaItem
-        public val mediaMetadata = currentMediaItem?.mediaMetadata
+        val isPlaying = controller.isPlaying
+        val currentMediaItem = controller.currentMediaItem
+        val mediaMetadata = currentMediaItem?.mediaMetadata
 
         // Get book information from metadata
-        public var bookTitle =
+        var bookTitle =
             mediaMetadata?.albumTitle?.toString()
                 ?: mediaMetadata?.title?.toString()
                 ?: context.getString(R.string.no_book_playing)
-        public val bookAuthor = mediaMetadata?.artist?.toString()
+        val bookAuthor = mediaMetadata?.artist?.toString()
 
         // Update book title and author
         views.setTextViewText(R.id.widget_book_title, bookTitle)
@@ -256,12 +256,12 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         // Update cover image (if present in layout) - load with Glide for better compatibility
-        public val artworkUri = mediaMetadata?.artworkUri
+        val artworkUri = mediaMetadata?.artworkUri
         safeUpdateView(views, R.id.widget_cover) {
             if (artworkUri != null) {
                 try {
                     // Use Glide to load bitmap for widget (more reliable than setImageViewUri)
-                    public val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
+                    val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
 
                     Glide
                         .with(context.applicationContext)
@@ -286,14 +286,14 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         // Update progress (if present in layout)
-        public val currentPosition = controller.currentPosition
-        public val duration = controller.duration
+        val currentPosition = controller.currentPosition
+        val duration = controller.duration
         safeUpdateView(views, R.id.widget_progress) {
             updateProgress(views, currentPosition, duration, widgetSize)
         }
 
         // Update play/pause button
-        public val playPauseIcon =
+        val playPauseIcon =
             if (isPlaying) {
                 R.drawable.ic_pause
             } else {
@@ -302,26 +302,26 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         views.setImageViewResource(R.id.widget_play_pause, playPauseIcon)
 
         // Get repeat mode and playback speed
-        public val repeatMode = controller.repeatMode
-        public val playbackSpeed = controller.playbackParameters.speed
+        val repeatMode = controller.repeatMode
+        val playbackSpeed = controller.playbackParameters.speed
 
         // Update repeat button state (if present in layout)
         safeUpdateView(views, R.id.widget_repeat) {
-            public val repeatIcon = getRepeatIcon(context, repeatMode)
+            val repeatIcon = getRepeatIcon(context, repeatMode)
             views.setImageViewResource(R.id.widget_repeat, repeatIcon)
         }
 
         // Get book ID from metadata or service
         // For widget updates, we use async approach to avoid blocking
-        public val currentBookId = mediaMetadata?.extras?.getString("bookId")
+        val currentBookId = mediaMetadata?.extras?.getString("bookId")
 
         // If not in metadata, we'll get it asynchronously via custom command
         // For now, use fallback to getInstance() for widget (widget updates are time-sensitive)
         // TODO: Implement async custom command call for widget updates
-        public val currentBookIdFromService =
+        val currentBookIdFromService =
             if (currentBookId == null) {
                 @Suppress("DEPRECATION")
-                public val service = AudioPlayerService.getInstance()
+                val service = AudioPlayerService.getInstance()
                 if (service != null && service.isFullyInitialized()) {
                     service.currentGroupPath
                 } else {
@@ -331,7 +331,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 null
             }
 
-        public val finalBookId = currentBookId ?: currentBookIdFromService
+        val finalBookId = currentBookId ?: currentBookIdFromService
 
         // Set up click intents
         setupClickIntents(context, views, finalBookId, playbackSpeed, repeatMode, widgetSize)
@@ -353,24 +353,24 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         // Fallback: try to get service instance only if MediaController failed
         // This should rarely be needed now that we use custom commands
         @Suppress("DEPRECATION")
-        public val service = AudioPlayerService.getInstance()
+        val service = AudioPlayerService.getInstance()
         if (service != null && service.isFullyInitialized()) {
             // Get player state
-            public val playerState = service.getPlayerState()
-            public val isPlaying = playerState["isPlaying"] as? Boolean ?: false
-            public val currentPosition = playerState["currentPosition"] as? Long ?: 0L
-            public val duration = playerState["duration"] as? Long ?: 0L
-            public val currentBookId = service.currentGroupPath
+            val playerState = service.getPlayerState()
+            val isPlaying = playerState["isPlaying"] as? Boolean ?: false
+            val currentPosition = playerState["currentPosition"] as? Long ?: 0L
+            val duration = playerState["duration"] as? Long ?: 0L
+            val currentBookId = service.currentGroupPath
 
             // Get book information if available
-            public var bookTitle = context.getString(R.string.no_book_playing)
-            public var bookAuthor: String? = null
-            public var coverUri: Uri? = null
+            var bookTitle = context.getString(R.string.no_book_playing)
+            var bookAuthor: String? = null
+            var coverUri: Uri? = null
 
             if (currentBookId != null) {
                 // Try to get book info from metadata
                 try {
-                    public val mediaInfo = service.getCurrentMediaItemInfo()
+                    val mediaInfo = service.getCurrentMediaItemInfo()
                     bookTitle = mediaInfo["title"] as? String
                         ?: mediaInfo["albumTitle"] as? String
                         ?: currentBookId.substringAfterLast("/").takeIf { it.isNotBlank() }
@@ -378,7 +378,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     bookAuthor = mediaInfo["artist"] as? String
 
                     // Try to get cover URI
-                    public val artworkUri = mediaInfo["artworkUri"] as? Uri
+                    val artworkUri = mediaInfo["artworkUri"] as? Uri
                     if (artworkUri != null) {
                         coverUri = artworkUri
                     }
@@ -403,7 +403,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 if (coverUri != null) {
                     try {
                         // Use Glide to load bitmap for widget
-                        public val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
+                        val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
 
                         Glide
                             .with(context.applicationContext)
@@ -433,7 +433,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             }
 
             // Update play/pause button
-            public val playPauseIcon =
+            val playPauseIcon =
                 if (isPlaying) {
                     R.drawable.ic_pause
                 } else {
@@ -442,12 +442,12 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             views.setImageViewResource(R.id.widget_play_pause, playPauseIcon)
 
             // Get repeat mode and speed from service
-            public val repeatMode = service.getRepeatMode()
-            public val playbackSpeed = service.getPlaybackSpeed()
+            val repeatMode = service.getRepeatMode()
+            val playbackSpeed = service.getPlaybackSpeed()
 
             // Update repeat button state (if present in layout)
             safeUpdateView(views, R.id.widget_repeat) {
-                public val repeatIcon = getRepeatIcon(context, repeatMode)
+                val repeatIcon = getRepeatIcon(context, repeatMode)
                 views.setImageViewResource(R.id.widget_repeat, repeatIcon)
             }
 
@@ -534,7 +534,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         widgetSize: WidgetSize,
     ) {
         if (duration > 0) {
-            public val progress = ((currentPosition * 1000) / duration).toInt().coerceIn(0, 1000)
+            val progress = ((currentPosition * 1000) / duration).toInt().coerceIn(0, 1000)
             views.setProgressBar(R.id.widget_progress, 1000, progress, false)
         } else {
             views.setProgressBar(R.id.widget_progress, 1000, 0, false)
@@ -554,9 +554,9 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
      */
     private fun formatTime(timeMs: Long): String {
         if (timeMs <= 0) return "0:00"
-        public val totalSeconds = (timeMs / 1000).toInt()
-        public val minutes = totalSeconds / 60
-        public val seconds = totalSeconds % 60
+        val totalSeconds = (timeMs / 1000).toInt()
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
         return String.format("%d:%02d", minutes, seconds)
     }
 
@@ -571,7 +571,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             Player.REPEAT_MODE_ONE -> {
                 // Try ic_repeat_one, fallback to ic_repeat if not available
                 try {
-                    public val resId = context.resources.getIdentifier("ic_repeat_one", "drawable", context.packageName)
+                    val resId = context.resources.getIdentifier("ic_repeat_one", "drawable", context.packageName)
                     if (resId != 0) resId else R.drawable.ic_repeat
                 } catch (e: Exception) {
                     R.drawable.ic_repeat
@@ -581,7 +581,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             else -> {
                 // Try ic_repeat_off, fallback to ic_repeat if not available
                 try {
-                    public val resId = context.resources.getIdentifier("ic_repeat_off", "drawable", context.packageName)
+                    val resId = context.resources.getIdentifier("ic_repeat_off", "drawable", context.packageName)
                     if (resId != 0) resId else R.drawable.ic_repeat
                 } catch (e: Exception) {
                     R.drawable.ic_repeat
@@ -600,7 +600,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         repeatMode: Int,
         widgetSize: WidgetSize,
     ) {
-        public val pendingIntentFlags =
+        val pendingIntentFlags =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 PendingIntent.FLAG_IMMUTABLE
             } else {
@@ -608,7 +608,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             }
 
         // Play/Pause button (always present)
-        public val playPauseIntent =
+        val playPauseIntent =
             Intent(context, AudioPlayerService::class.java).apply {
                 action = ACTION_PLAY_PAUSE
             }
@@ -619,7 +619,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
         // Speed button - cycle through speeds - if present
         safeUpdateView(views, R.id.widget_speed) {
-            public val speedIntent =
+            val speedIntent =
                 Intent(context, AudioPlayerService::class.java).apply {
                     action = ACTION_SPEED
                 }
@@ -631,7 +631,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
         // Repeat button - cycle through repeat modes - if present
         safeUpdateView(views, R.id.widget_repeat) {
-            public val repeatIntent =
+            val repeatIntent =
                 Intent(context, AudioPlayerService::class.java).apply {
                     action = ACTION_REPEAT
                 }
@@ -643,7 +643,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
         // Timer button - cycle through timer options - if present
         safeUpdateView(views, R.id.widget_timer) {
-            public val timerIntent =
+            val timerIntent =
                 Intent(context, AudioPlayerService::class.java).apply {
                     action = ACTION_TIMER
                 }
@@ -657,7 +657,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         safeUpdateView(views, R.id.widget_progress) {
             // Note: ProgressBar clicks are handled via setOnClickPendingIntent on the progress bar itself
             // We'll use a custom action that opens player for now, as seeking requires position calculation
-            public val seekIntent =
+            val seekIntent =
                 Intent(context, ComposeMainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     data = android.net.Uri.parse("jabook://player${if (currentBookId != null) "?bookId=$currentBookId" else ""}")
@@ -670,7 +670,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
         // Previous and Next buttons - if present
         safeUpdateView(views, R.id.widget_previous) {
-            public val previousIntent =
+            val previousIntent =
                 Intent(context, AudioPlayerService::class.java).apply {
                     action = ACTION_PREVIOUS
                 }
@@ -681,7 +681,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         safeUpdateView(views, R.id.widget_next) {
-            public val nextIntent =
+            val nextIntent =
                 Intent(context, AudioPlayerService::class.java).apply {
                     action = ACTION_NEXT
                 }
@@ -692,7 +692,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         // Widget click - open player screen
-        public val openPlayerIntent =
+        val openPlayerIntent =
             Intent(context, ComposeMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 data = android.net.Uri.parse("jabook://player${if (currentBookId != null) "?bookId=$currentBookId" else ""}")

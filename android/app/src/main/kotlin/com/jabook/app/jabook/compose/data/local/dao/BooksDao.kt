@@ -59,13 +59,13 @@ public interface BooksDao {
      * Gets a book by ID (one-shot, not Flow).
      */
     @Query("SELECT * FROM books WHERE id = :bookId")
-    suspend fun getBookById(bookId: String): BookEntity?
+    public suspend fun getBookById(bookId: String): BookEntity?
 
     /**
      * Gets all books (one-shot).
      */
     @Query("SELECT * FROM books ORDER BY title ASC")
-    suspend fun getAllBooks(): List<BookEntity>
+    public suspend fun getAllBooks(): List<BookEntity>
 
     /**
      * Get all chapters for a book, ordered by chapter index.
@@ -121,7 +121,7 @@ public interface BooksDao {
      * The Flow returned by getAllBooksFlow() will be invalidated and re-emit.
      */
     @Query("UPDATE books SET is_favorite = :isFavorite WHERE id = :bookId")
-    suspend fun updateFavoriteStatus(
+    public suspend fun updateFavoriteStatus(
         bookId: String,
         isFavorite: Boolean,
     )
@@ -130,7 +130,7 @@ public interface BooksDao {
      * Updates the author of a book.
      */
     @Query("UPDATE books SET author = :author WHERE id = :bookId")
-    suspend fun updateAuthor(
+    public suspend fun updateAuthor(
         bookId: String,
         author: String,
     )
@@ -139,7 +139,7 @@ public interface BooksDao {
      * Updates the description of a book.
      */
     @Query("UPDATE books SET description = :description WHERE id = :bookId")
-    suspend fun updateDescription(
+    public suspend fun updateDescription(
         bookId: String,
         description: String,
     )
@@ -148,32 +148,32 @@ public interface BooksDao {
      * Insert or replace a book.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBook(book: BookEntity)
+    public suspend fun insertBook(book: BookEntity)
 
     /**
      * Insert or replace multiple books.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBooks(books: List<BookEntity>)
+    public suspend fun insertBooks(books: List<BookEntity>)
 
     /**
      * Insert or replace a chapter.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertChapter(chapter: ChapterEntity)
+    public suspend fun insertChapter(chapter: ChapterEntity)
 
     /**
      * Insert or replace multiple chapters.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertChapters(chapters: List<ChapterEntity>)
+    public suspend fun insertChapters(chapters: List<ChapterEntity>)
 
     /**
      * Insert books and chapters in a single transaction.
      * efficient for batch updates.
      */
     @Transaction
-    suspend fun insertBooksWithChapters(
+    public suspend fun insertBooksWithChapters(
         books: List<BookEntity>,
         chapters: List<ChapterEntity>,
     ) {
@@ -186,21 +186,21 @@ public interface BooksDao {
      * Faster than INSERT OR REPLACE, avoids conflicts on re-scans.
      */
     @Upsert
-    suspend fun upsertBooks(books: List<BookEntity>)
+    public suspend fun upsertBooks(books: List<BookEntity>)
 
     /**
      * Upsert (insert or update) chapters.
      * Faster than INSERT OR REPLACE, avoids conflicts on re-scans.
      */
     @Upsert
-    suspend fun upsertChapters(chapters: List<ChapterEntity>)
+    public suspend fun upsertChapters(chapters: List<ChapterEntity>)
 
     /**
      * Upsert books and chapters in a single transaction.
      * Preferred for re-scans to avoid conflicts and improve performance.
      */
     @Transaction
-    suspend fun upsertBooksWithChapters(
+    public suspend fun upsertBooksWithChapters(
         books: List<BookEntity>,
         chapters: List<ChapterEntity>,
     ) {
@@ -212,7 +212,7 @@ public interface BooksDao {
      * Update a book.
      */
     @Update
-    suspend fun updateBook(book: BookEntity)
+    public suspend fun updateBook(book: BookEntity)
 
     /**
      * Update current playback position for a book.
@@ -227,7 +227,7 @@ public interface BooksDao {
         WHERE id = :bookId
         """,
     )
-    suspend fun updatePlaybackProgress(
+    public suspend fun updatePlaybackProgress(
         bookId: String,
         position: Long,
         progress: Float,
@@ -247,7 +247,7 @@ public interface BooksDao {
         WHERE id = :bookId
         """,
     )
-    suspend fun updateDownloadStatus(
+    public suspend fun updateDownloadStatus(
         bookId: String,
         status: String,
         progress: Float,
@@ -258,7 +258,7 @@ public interface BooksDao {
      * Sets the local path where book files are stored.
      */
     @Query("UPDATE books SET local_path = :path WHERE id = :bookId")
-    suspend fun updateLocalPath(
+    public suspend fun updateLocalPath(
         bookId: String,
         path: String,
     )
@@ -267,7 +267,7 @@ public interface BooksDao {
      * Counts total number of books.
      */
     @Query("SELECT COUNT(*) FROM books")
-    suspend fun getBookCount(): Int
+    public suspend fun getBookCount(): Int
 
     /**
      * Searches books by title or author.
@@ -286,7 +286,7 @@ public interface BooksDao {
      * Updates per-book playback settings.
      */
     @Query("UPDATE books SET rewind_duration = :rewindDuration, forward_duration = :forwardDuration WHERE id = :bookId")
-    suspend fun updateBookSettings(
+    public suspend fun updateBookSettings(
         bookId: String,
         rewindDuration: Int?,
         forwardDuration: Int?,
@@ -296,21 +296,21 @@ public interface BooksDao {
      * Resets all per-book playback settings to global defaults (NULL).
      */
     @Query("UPDATE books SET rewind_duration = NULL, forward_duration = NULL")
-    suspend fun resetAllBookSettings()
+    public suspend fun resetAllBookSettings()
 
     /**
      * Gets all book IDs and local paths for validation.
      * Used to check which books still exist on filesystem during scan.
      */
     @Query("SELECT id, local_path FROM books")
-    suspend fun getAllBookPaths(): List<BookPathInfo>
+    public suspend fun getAllBookPaths(): List<BookPathInfo>
 
     /**
      * Deletes a book by ID.
      * Chapters will be cascade deleted due to foreign key constraint.
      */
     @Query("DELETE FROM books WHERE id = :bookId")
-    suspend fun deleteById(bookId: String)
+    public suspend fun deleteById(bookId: String)
 
     /**
      * Finds a book by its source URL (e.g. RuTracker topic link).
@@ -322,13 +322,13 @@ public interface BooksDao {
      * Finds a book by its source URL (one-shot).
      */
     @Query("SELECT * FROM books WHERE source_url = :sourceUrl LIMIT 1")
-    suspend fun getBookBySourceUrl(sourceUrl: String): BookEntity?
+    public suspend fun getBookBySourceUrl(sourceUrl: String): BookEntity?
 
     /**
      * Updates cover URL.
      */
     @Query("UPDATE books SET cover_url = :url WHERE id = :bookId")
-    suspend fun updateCoverUrl(
+    public suspend fun updateCoverUrl(
         bookId: String,
         url: String,
     )
@@ -337,7 +337,7 @@ public interface BooksDao {
      * Updates cover local path.
      */
     @Query("UPDATE books SET cover_path = :path WHERE id = :bookId")
-    suspend fun updateCoverPath(
+    public suspend fun updateCoverPath(
         bookId: String,
         path: String,
     )

@@ -39,8 +39,8 @@ public class ScanSettingsViewModel
                     initialValue = emptyList(),
                 )
 
-        public fun addScanPath() {
-            public val path = resolvePathFromUri(uriString)
+        public fun addScanPath(uriString: String) {
+            val path = resolvePathFromUri(uriString)
             viewModelScope.launch {
                 booksRepository.addScanPath(path)
                 // Trigger rescan? The scanner runs on startup or manual refresh.
@@ -48,7 +48,7 @@ public class ScanSettingsViewModel
             }
         }
 
-        public fun removeScanPath() {
+        public fun removeScanPath(path: String) {
             viewModelScope.launch {
                 booksRepository.removeScanPath(path)
                 booksRepository.refresh()

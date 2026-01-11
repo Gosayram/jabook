@@ -446,7 +446,7 @@ public class AudioPlayerService : MediaLibraryService() {
         android.util.Log.e("JABOOK_SERVICE", "============================================")
 
         try {
-            PlayerPerformanceLogger.start("service_onCreate")
+            PlayerPerformanceLogger.start()
             PlayerPerformanceLogger.log("Service", "onCreate() started")
 
             // CRITICAL: Clean up existing components if onCreate() is called multiple times
@@ -647,7 +647,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     @OptIn(UnstableApi::class)
     public fun configureExoPlayer() {
-        playerConfigurator?.configureExoPlayer(settings) ?: run {
+        playerConfigurator?.configureExoPlayer() ?: run {
             android.util.Log.e("AudioPlayerService", "PlayerConfigurator not initialized")
         }
     }
@@ -678,7 +678,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
             if (nextSource != null) {
                 withContext(Dispatchers.Main) {
-                    crossFadePlayer?.setNextMediaSource(nextSource)
+                    crossFadePlayer?.setNextMediaSource()
                     crossFadePlayer?.startCrossFade()
                 }
             }
@@ -761,8 +761,8 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    public fun updateMetadata(metadata: Map<String, String>): Unit =
-        metadataManager?.updateMetadata(metadata) ?: run {
+    public fun updateMetadata(): Unit =
+        metadataManager?.updateMetadata() ?: run {
             android.util.Log.e("AudioPlayerService", "MetadataManager not initialized")
         }
 
@@ -775,7 +775,7 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun setNotificationType() {
         // MediaLibraryService automatically manages notifications based on Player state
         // If we need custom notification types, we should configure MediaButtonPreferences instead
-        notificationManager?.setNotificationType(isMinimal)
+        notificationManager?.setNotificationType()
         // MediaLibraryService automatically updates notification when Player state changes
     }
 
@@ -887,7 +887,7 @@ public class AudioPlayerService : MediaLibraryService() {
      * @param minutes Timer duration in minutes
      */
     public fun setSleepTimerMinutes() {
-        sleepTimerManager?.setSleepTimerMinutes(minutes)
+        sleepTimerManager?.setSleepTimerMinutes()
     }
 
     /**
@@ -943,7 +943,7 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun initializeVisualizer() {
         val sessionId = exoPlayer.audioSessionId
         if (sessionId != 0) {
-            audioVisualizerManager?.initialize(sessionId)
+            audioVisualizerManager?.initialize()
         }
     }
 
@@ -951,7 +951,7 @@ public class AudioPlayerService : MediaLibraryService() {
      * Enables or disables the audio visualizer.
      */
     public fun setVisualizerEnabled() {
-        audioVisualizerManager?.setEnabled(enabled)
+        audioVisualizerManager?.setEnabled()
     }
 
     public fun next() {
@@ -984,7 +984,7 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    public fun seekToTrack() {
+    public fun seekToTrack(index: Int) {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
             android.util.Log.i(
@@ -1234,10 +1234,10 @@ public class AudioPlayerService : MediaLibraryService() {
      * @param minutes Timeout in minutes (10-180)
      */
     public fun setInactivityTimeoutMinutes() {
-        inactivityTimer?.setInactivityTimeoutMinutes(minutes)
+        inactivityTimer?.setInactivityTimeoutMinutes()
         android.util.Log.d(
             "AudioPlayerService",
-            "Inactivity timeout set to $minutes minutes",
+            "Inactivity timeout set",
         )
     }
 
@@ -1257,7 +1257,7 @@ public class AudioPlayerService : MediaLibraryService() {
     // Periodic position saving methods removed (delegated to PlaybackPositionSaver)
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        lifecycleManager?.onTaskRemoved(rootIntent) ?: super.onTaskRemoved(rootIntent)
+        lifecycleManager?.onTaskRemoved() ?: super.onTaskRemoved(rootIntent)
     }
 
     @OptIn(UnstableApi::class)

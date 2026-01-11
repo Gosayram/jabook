@@ -157,37 +157,37 @@ public class SettingsViewModel
 
         // ===== Old preferences API (kept for compatibility) =====
 
-        public fun updateTheme() {
+        public fun updateTheme(theme: String) {
             viewModelScope.launch {
                 userPreferencesRepository.setTheme(theme)
             }
         }
 
-        public fun updateSortOrder() {
+        public fun updateSortOrder(sortOrder: String) {
             viewModelScope.launch {
                 userPreferencesRepository.setSortOrder(sortOrder)
             }
         }
 
-        public fun updateAutoPlayNext() {
+        public fun updateAutoPlayNext(enabled: Boolean) {
             viewModelScope.launch {
                 userPreferencesRepository.setAutoPlayNext(enabled)
             }
         }
 
-        public fun updateFont() {
+        public fun updateFont(font: String) {
             viewModelScope.launch {
                 userPreferencesRepository.setFont(font)
             }
         }
 
-        public fun updateNormalizeChapterTitles() {
+        public fun updateNormalizeChapterTitles(enabled: Boolean) {
             viewModelScope.launch {
                 userPreferencesRepository.setNormalizeChapterTitles(enabled)
             }
         }
 
-        public fun updatePlaybackSpeed() {
+        public fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
                 // Also update in Proto DataStore
@@ -197,13 +197,13 @@ public class SettingsViewModel
 
         // ===== New Proto DataStore API =====
 
-        public fun updateProtoTheme() {
+        public fun updateProtoTheme(themeMode: Int) {
             viewModelScope.launch {
                 settingsRepository.updateThemeMode(themeMode)
             }
         }
 
-        public fun updateDynamicColors() {
+        public fun updateDynamicColors(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateDynamicColors(enabled)
             }
@@ -237,7 +237,7 @@ public class SettingsViewModel
             }
         }
 
-        public fun updateLanguage() {
+        public fun updateLanguage(languageCode: String) {
             viewModelScope.launch {
                 settingsRepository.updateLanguage(languageCode)
             }
@@ -278,7 +278,7 @@ public class SettingsViewModel
         /**
          * Update the selected mirror.
          */
-        public fun updateMirror() {
+        public fun updateMirror(domain: String) {
             viewModelScope.launch {
                 mirrorManager.setMirror(domain)
             }
@@ -300,7 +300,7 @@ public class SettingsViewModel
         /**
          * Add a custom mirror domain.
          */
-        public fun addCustomMirror() {
+        public fun addCustomMirror(domain: String) {
             viewModelScope.launch {
                 mirrorManager.addCustomMirror(domain)
             }
@@ -309,7 +309,7 @@ public class SettingsViewModel
         /**
          * Remove a custom mirror domain.
          */
-        public fun removeCustomMirror() {
+        public fun removeCustomMirror(domain: String) {
             viewModelScope.launch {
                 mirrorManager.removeCustomMirror(domain)
             }
@@ -318,7 +318,7 @@ public class SettingsViewModel
         /**
          * Update auto-switch mirror setting.
          */
-        public fun updateAutoSwitch() {
+        public fun updateAutoSwitch(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateAutoSwitchMirror(enabled)
             }
@@ -326,7 +326,7 @@ public class SettingsViewModel
 
         // ===== Download Settings =====
 
-        public fun updateDownloadPath() {
+        public fun updateDownloadPath(uriString: String) {
             val path = resolvePathFromUri(uriString)
             viewModelScope.launch {
                 settingsRepository.updateDownloadPath(path)
@@ -372,7 +372,7 @@ public class SettingsViewModel
             }
         }
 
-        public fun deleteAllTorrentData() {
+        public fun deleteAllTorrentData(deleteFiles: Boolean) {
             viewModelScope.launch {
                 torrentManager.deleteAllTorrents(deleteFiles)
                 // Refresh size after a short delay to allow file system ops
@@ -450,7 +450,7 @@ public class SettingsViewModel
         /**
          * Clear cache (all or specific type).
          */
-        public fun clearCache() {
+        public fun clearCache(type: String? = null) {
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Clearing
@@ -483,7 +483,7 @@ public class SettingsViewModel
         /**
          * Toggle download speed limiting.
          */
-        public fun updateLimitDownloadSpeed() {
+        public fun updateLimitDownloadSpeed(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateLimitDownloadSpeed(enabled)
             }
