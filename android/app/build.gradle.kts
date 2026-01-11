@@ -246,7 +246,7 @@ dependencies {
     implementation(libs.bundles.compose)
     // Google Fonts support for Compose
     implementation(libs.androidx.compose.ui.text.google.fonts)
-    implementation(libs.androidx.compose.material3.window.size.class)
+    implementation(libs.androidx.compose.material3.window.size)
     debugImplementation(libs.bundles.compose.debug)
 
     // Palette for extracting colors from images (Dynamic Theme)
