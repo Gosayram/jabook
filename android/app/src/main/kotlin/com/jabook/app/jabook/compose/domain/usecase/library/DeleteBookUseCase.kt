@@ -15,7 +15,9 @@
 package com.jabook.app.jabook.compose.domain.usecase.library
 
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.Result
+import com.jabook.app.jabook.compose.domain.model.toAppError
 import javax.inject.Inject
 
 /**
@@ -34,11 +36,11 @@ public class DeleteBookUseCase
          * @param bookId ID of the book to delete
          * @return Result indicating success or failure
          */
-        public suspend operator fun invoke(bookId: String): Result<Unit> =
+        public suspend operator fun invoke(bookId: String): Result<Unit, AppError> =
             try {
                 booksRepository.deleteBook(bookId)
                 Result.Success(Unit)
             } catch (e: Exception) {
-                Result.Error(e)
+                Result.Error(e.toAppError())
             }
     }

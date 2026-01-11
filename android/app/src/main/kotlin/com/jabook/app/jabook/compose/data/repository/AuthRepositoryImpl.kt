@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.auth.CookiePersistenceManager
 import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
 import com.jabook.app.jabook.compose.data.auth.SecureCredentialStorage
@@ -46,7 +47,9 @@ public class AuthRepositoryImpl
         private val cookieJar: PersistentCookieJar,
         private val mirrorManager: MirrorManager,
         private val cookiePersistence: CookiePersistenceManager,
+        private val loggerFactory: LoggerFactory,
     ) : AuthRepository {
+        private val logger = loggerFactory.get("AuthRepository")
         private val _authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Unauthenticated)
         override val authStatus: StateFlow<AuthStatus> = _authStatus.asStateFlow()
 
@@ -80,10 +83,10 @@ public class AuthRepositoryImpl
                     try {
                         authService.validateAuth()
                     } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                        android.util.Log.w("AuthRepository", "Auth validation timeout - provider may be blocking", e)
+                        logger.w(e) { "Auth validation timeout - provider may be blocking" }
                         false
                     } catch (e: Exception) {
-                        android.util.Log.w("AuthRepository", "Auth validation error", e)
+                        logger.w(e) { "Auth validation error" }
                         false
                     }
 
@@ -96,13 +99,13 @@ public class AuthRepositoryImpl
                         syncCookiesToWebView()
                     } else {
                         // Session cookie exists but no stored credentials - invalid state
-                        android.util.Log.w("AuthRepository", "Session cookie exists but no stored credentials - clearing session")
+                        logger.w { "Session cookie exists but no stored credentials - clearing session" }
                         cookieJar.clear()
                         _authStatus.value = AuthStatus.Unauthenticated
                     }
                 } else {
                     // Cookies present but invalid (expired or guest mode)
-                    android.util.Log.d("AuthRepository", "Session expired or invalid, attempting re-login if credentials exist")
+                    logger.d { "Session expired or invalid, attempting re-login if credentials exist" }
 
                     // Clear invalid cookies but DO NOT clear stored credentials (logout)
                     cookieJar.clear()
@@ -111,11 +114,11 @@ public class AuthRepositoryImpl
                     // Attempt automatic re-login if we have credentials
                     val stored = secureStorage.getCredentials()
                     if (stored != null) {
-                        android.util.Log.d("AuthRepository", "Found stored credentials, attempting auto-relogin")
+                        logger.d { "Found stored credentials, attempting auto-relogin" }
                         try {
                             login(stored)
                         } catch (e: Exception) {
-                            android.util.Log.w("AuthRepository", "Auto-relogin failed", e)
+                            logger.w(e) { "Auto-relogin failed" }
                         }
                     }
                 }
@@ -123,11 +126,11 @@ public class AuthRepositoryImpl
                 // No session cookie, check if we should auto-login
                 val stored = secureStorage.getCredentials()
                 if (stored != null && _authStatus.value !is AuthStatus.Authenticated) {
-                    android.util.Log.d("AuthRepository", "No session but found credentials, attempting auto-login")
+                    logger.d { "No session but found credentials, attempting auto-login" }
                     try {
                         login(stored)
                     } catch (e: Exception) {
-                        android.util.Log.w("AuthRepository", "Auto-login failed", e)
+                        logger.w(e) { "Auto-login failed" }
                         _authStatus.value = AuthStatus.Unauthenticated
                     }
                 } else {
@@ -139,14 +142,14 @@ public class AuthRepositoryImpl
         override suspend fun login(credentials: UserCredentials): Result<Boolean> {
             // Check if login is already in progress
             if (loginMutex.isLocked) {
-                android.util.Log.w("AuthRepository", "Login already in progress, ignoring duplicate request")
+                logger.w { "Login already in progress, ignoring duplicate request" }
                 return Result.failure(IllegalStateException("Login already in progress"))
             }
 
             return loginMutex.withLock {
                 try {
                     val operationId: String = "login_${System.currentTimeMillis()}"
-                    android.util.Log.d("AuthRepository", "[$operationId] Login attempt started")
+                    logger.d { "[$operationId] Login attempt started" }
 
                     when (val result = authService.login(credentials)) {
                         is RutrackerAuthService.AuthResult.Success -> {
@@ -155,12 +158,12 @@ public class AuthRepositoryImpl
                                 try {
                                     authService.validateAuth(operationId)
                                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                                    android.util.Log.w("AuthRepository", "[$operationId] Validation timeout - provider may be blocking", e)
+                                    logger.w(e) { "[$operationId] Validation timeout - provider may be blocking" }
                                     _authStatus.value =
                                         AuthStatus.Error("Таймаут при проверке авторизации. Возможно, провайдер блокирует соединение.")
                                     return@withLock Result.failure(Exception("Authentication validation timeout"))
                                 } catch (e: Exception) {
-                                    android.util.Log.w("AuthRepository", "[$operationId] Validation error", e)
+                                    logger.w(e) { "[$operationId] Validation error" }
                                     false
                                 }
 
@@ -168,35 +171,35 @@ public class AuthRepositoryImpl
                                 // Persist cookies to all layers (Database, WebView, SecureStorage)
                                 try {
                                     cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
-                                    android.util.Log.d("AuthRepository", "[$operationId] Cookies persisted to all layers")
+                                    logger.d { "[$operationId] Cookies persisted to all layers" }
                                 } catch (e: Exception) {
-                                    android.util.Log.w("AuthRepository", "[$operationId] Cookie persistence failed", e)
+                                    logger.w(e) { "[$operationId] Cookie persistence failed" }
                                 }
 
                                 _authStatus.value = AuthStatus.Authenticated(credentials.username)
-                                android.util.Log.i("AuthRepository", "[$operationId] Login successful and validated")
+                                logger.i { "[$operationId] Login successful and validated" }
                                 Result.success(true)
                             } else {
                                 // Login appeared to succeed but validation failed
-                                android.util.Log.w("AuthRepository", "[$operationId] Login succeeded but validation failed")
+                                logger.w { "[$operationId] Login succeeded but validation failed" }
                                 _authStatus.value = AuthStatus.Error("Проверка авторизации не прошла. Попробуйте еще раз.")
                                 Result.failure(Exception("Authentication validation failed"))
                             }
                         }
                         is RutrackerAuthService.AuthResult.Error -> {
-                            android.util.Log.w("AuthRepository", "[$operationId] Login failed: ${result.message}")
+                            logger.w { "[$operationId] Login failed: ${result.message}" }
                             _authStatus.value = AuthStatus.Error(result.message)
                             Result.failure(Exception(result.message))
                         }
                         is RutrackerAuthService.AuthResult.Captcha -> {
-                            android.util.Log.d("AuthRepository", "[$operationId] Captcha required")
+                            logger.d { "[$operationId] Captcha required" }
                             // This login method doesn't support captcha return
                             // In a real app we might want a specific error type or flow
                             Result.failure(CaptchaRequiredException(result.data))
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("AuthRepository", "Login exception", e)
+                    logger.e(e) { "Login exception" }
                     _authStatus.value = AuthStatus.Error(e.message ?: "Unknown error")
                     Result.failure(e)
                 }
@@ -210,14 +213,14 @@ public class AuthRepositoryImpl
         ): Result<Boolean> {
             // Check if login is already in progress
             if (loginMutex.isLocked) {
-                android.util.Log.w("AuthRepository", "Captcha login already in progress, ignoring duplicate request")
+                logger.w { "Captcha login already in progress, ignoring duplicate request" }
                 return Result.failure(IllegalStateException("Login already in progress"))
             }
 
             return loginMutex.withLock {
                 try {
                     val operationId: String = "login_captcha_${System.currentTimeMillis()}"
-                    android.util.Log.d("AuthRepository", "[$operationId] Captcha login attempt started")
+                    logger.d { "[$operationId] Captcha login attempt started" }
 
                     when (val result = authService.login(credentials, captchaCode, captchaData)) {
                         is RutrackerAuthService.AuthResult.Success -> {
@@ -228,33 +231,33 @@ public class AuthRepositoryImpl
                                 // Persist cookies to all layers
                                 try {
                                     cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
-                                    android.util.Log.d("AuthRepository", "[$operationId] Cookies persisted to all layers")
+                                    logger.d { "[$operationId] Cookies persisted to all layers" }
                                 } catch (e: Exception) {
-                                    android.util.Log.w("AuthRepository", "[$operationId] Cookie persistence failed", e)
+                                    logger.w(e) { "[$operationId] Cookie persistence failed" }
                                 }
 
                                 _authStatus.value = AuthStatus.Authenticated(credentials.username)
-                                android.util.Log.i("AuthRepository", "[$operationId] Captcha login successful and validated")
+                                logger.i { "[$operationId] Captcha login successful and validated" }
                                 Result.success(true)
                             } else {
-                                android.util.Log.w("AuthRepository", "[$operationId] Captcha login succeeded but validation failed")
+                                logger.w { "[$operationId] Captcha login succeeded but validation failed" }
                                 _authStatus.value = AuthStatus.Error("Login validation failed")
                                 Result.failure(Exception("Authentication validation failed"))
                             }
                         }
                         is RutrackerAuthService.AuthResult.Error -> {
-                            android.util.Log.w("AuthRepository", "[$operationId] Captcha login failed: ${result.message}")
+                            logger.w { "[$operationId] Captcha login failed: ${result.message}" }
                             _authStatus.value = AuthStatus.Error(result.message)
                             Result.failure(Exception(result.message))
                         }
                         is RutrackerAuthService.AuthResult.Captcha -> {
-                            android.util.Log.d("AuthRepository", "[$operationId] Captcha required again")
+                            logger.d { "[$operationId] Captcha required again" }
                             // Captcha failed or required again
                             Result.failure(CaptchaRequiredException(result.data))
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("AuthRepository", "Captcha login exception", e)
+                    logger.e(e) { "Captcha login exception" }
                     Result.failure(e)
                 }
             }

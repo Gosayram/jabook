@@ -15,7 +15,9 @@
 package com.jabook.app.jabook.compose.domain.usecase.player
 
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.Result
+import com.jabook.app.jabook.compose.domain.model.toAppError
 import javax.inject.Inject
 
 /**
@@ -41,7 +43,7 @@ public class UpdatePlaybackProgressUseCase
             bookId: String,
             position: Long,
             chapterIndex: Int,
-        ): Result<Unit> =
+        ): Result<Unit, AppError> =
             try {
                 booksRepository.updatePlaybackPosition(
                     bookId = bookId,
@@ -50,6 +52,6 @@ public class UpdatePlaybackProgressUseCase
                 )
                 Result.Success(Unit)
             } catch (e: Exception) {
-                Result.Error(e)
+                Result.Error(e.toAppError())
             }
     }
