@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.model.RelatedBook
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
@@ -47,9 +47,10 @@ public class RutrackerParser
         private val fieldExtractor: DefensiveFieldExtractor,
         private val coverExtractor: CoverUrlExtractor,
         private val mirrorManager: com.jabook.app.jabook.compose.data.network.MirrorManager,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("RutrackerParser")
         public companion object {
-            private const val TAG = "RutrackerParser"
 
             // CSS Selectors for search results - UPDATED for 2025 based on robust Dart implementation
             // Primary and fallback selectors for rows
@@ -172,7 +173,7 @@ public class RutrackerParser
                         if (validRows.isNotEmpty()) {
                             rows = org.jsoup.select.Elements(validRows)
                             successfulSelector = selector
-                            Log.d(TAG, "Found ${rows.size} rows using validation-checked selector: $selector")
+                            logger.d { "Found ${rows.size} rows using validation-checked selector: $selector" }
                             break
                         }
 
@@ -184,20 +185,20 @@ public class RutrackerParser
                     // Enhanced Debug Logging
                     val title = document.title()
                     val bodySnippet = document.body().text().take(500)
-                    Log.w(TAG, "NO ROWS FOUND. Details:")
-                    Log.w(TAG, "Title: '$title'")
-                    Log.w(TAG, "IsSearchPage: $isSearchPage, IsIndexPage: $isIndexPage")
-                    Log.w(TAG, "Body Text (first 500): $bodySnippet")
-                    Log.w(TAG, "HTML (first 2000): ${document.outerHtml().take(2000)}")
+                    logger.w { "NO ROWS FOUND. Details:" }
+                    logger.w { "Title: '$title'" }
+                    logger.w { "IsSearchPage: $isSearchPage, IsIndexPage: $isIndexPage" }
+                    logger.w { "Body Text (first 500): $bodySnippet" }
+                    logger.w { "HTML (first 2000): ${document.outerHtml().take(2000)}" }
 
                     if (isSearchPage || isIndexPage) {
-                        Log.i(TAG, "No rows found, but page looks like valid search/index page (empty results)")
+                        logger.i { "No rows found, but page looks like valid search/index page (empty results)" }
                         // For valid search pages with no results, validate now to catch real errors
                         // but still return empty list if it's just empty results
                         val validationError = ParsingValidators.validateSearchResults(html)
                         if (validationError != null && validationError !is RuTrackerError.NoData) {
                             // Only log warning if it's a real error (not just empty data)
-                            Log.w(TAG, "Validation error detected on empty search page: ${validationError.message}")
+                            logger.w { "Validation error detected on empty search page: ${validationError.message}" }
                             // Still return empty list to avoid blocking valid empty results
                         }
                         return ParsingResult.Success(emptyList())
@@ -232,20 +233,19 @@ public class RutrackerParser
                     try {
                         // Log row structure for debugging
                         if (index < 3) {
-                            Log.d(
-                                TAG,
+                            logger.d {
                                 "Parsing row $index: tag=${row.tagName()}, " +
                                     "classes='${row.className()}', " +
                                     "hasTitle=${row.selectFirst(TITLE_SELECTOR) != null}, " +
-                                    "textLength=${row.text().length}",
-                            )
+                                    "textLength=${row.text().length}"
+                            }
                         }
 
                         val result = parseSearchResultRow(row)
                         if (result != null) {
                             results.add(result)
                             if (index < 3) {
-                                Log.d(TAG, "✅ Row $index parsed: topicId=${result.topicId}, title='${result.title.take(40)}'")
+                                logger.d { "✅ Row $index parsed: topicId=${result.topicId}, title='${result.title.take(40)}'" }
                             }
                         } else {
                             // Only warn if we failed to parse a row that we thought was valid
@@ -275,13 +275,12 @@ public class RutrackerParser
                                 val titleText = titleElement?.text()?.take(50) ?: ""
                                 val titleHtml = titleElement?.html()?.take(100) ?: ""
 
-                                Log.w(
-                                    TAG,
+                                logger.w {
                                     "⚠️ Row $index failed to parse: tag=$rowTag, " +
                                         "classes='$rowClasses', hasTitle=$hasTitle, " +
                                         "topicId='$finalTopicId', titleText='$titleText', " +
-                                        "titleHtml='$titleHtml'",
-                                )
+                                        "titleHtml='$titleHtml'"
+                                }
 
                                 errors.add(
                                     ParsingError(
@@ -299,7 +298,7 @@ public class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
-                        Log.e(TAG, "❌ Error parsing row $index: $errorDetails", e)
+                        logger.e(e) { "❌ Error parsing row $index: $errorDetails" }
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -424,22 +423,22 @@ public class RutrackerParser
                 var successfulSelector: String = ""
                 for (selector in ROW_SELECTORS) {
                     val found = document.select(selector)
-                    Log.d(TAG, "Trying selector '$selector': found ${found.size} elements")
+                    logger.d { "Trying selector '$selector': found ${found.size} elements" }
 
                     if (found.isNotEmpty()) {
                         // Check if we found tr elements or something else
                         val firstElement = found.firstOrNull()
                         if (firstElement == null) {
-                            Log.w(TAG, "  ⚠️ Found elements but first() returned null")
+                            logger.w { "  ⚠️ Found elements but first() returned null" }
                             continue
                         }
                         val elementTag = firstElement.tagName()
-                        Log.d(TAG, "  First element tag: $elementTag, classes: '${firstElement.className()}'")
+                        logger.d { "  First element tag: $elementTag, classes: '${firstElement.className()}'" }
 
                         // If we found td instead of tr, we need to find parent tr
                         val actualRows =
                             if (elementTag == "td") {
-                                Log.w(TAG, "  ⚠️ Selector found <td> instead of <tr>, looking for parent <tr>")
+                                logger.w { "  ⚠️ Selector found <td> instead of <tr>, looking for parent <tr>" }
                                 found
                                     .mapNotNull { td ->
                                         td.parent()?.takeIf { parent -> parent.tagName() == "tr" }
@@ -448,7 +447,7 @@ public class RutrackerParser
                                 found
                             }
 
-                        Log.d(TAG, "  After processing: ${actualRows.size} rows")
+                        logger.d { "  After processing: ${actualRows.size} rows" }
 
                         // Filter out header/ad rows if generic selector used
                         val validRows =
@@ -461,11 +460,10 @@ public class RutrackerParser
                                 val isValid = !isHeader && hasTitle
 
                                 if (!isValid && row.text().length > 50) {
-                                    Log.d(
-                                        TAG,
+                                    logger.d {
                                         "  Row filtered out: isHeader=$isHeader, hasTitle=$hasTitle, " +
-                                            "tag=${row.tagName()}, classes='${row.className()}'",
-                                    )
+                                            "tag=${row.tagName()}, classes='${row.className()}'"
+                                    }
                                 }
 
                                 isValid
@@ -474,10 +472,10 @@ public class RutrackerParser
                         if (validRows.isNotEmpty()) {
                             rows = org.jsoup.select.Elements(validRows)
                             successfulSelector = selector
-                            Log.d(TAG, "✅ Found ${rows.size} valid rows using selector: $selector")
+                            logger.d { "✅ Found ${rows.size} valid rows using selector: $selector" }
                             break
                         } else {
-                            Log.w(TAG, "  ⚠️ Selector '$selector' found ${actualRows.size} rows but none are valid")
+                            logger.w { "  ⚠️ Selector '$selector' found ${actualRows.size} rows but none are valid" }
                         }
 
                         // If selected rows were all invalid, try next selector
@@ -488,20 +486,20 @@ public class RutrackerParser
                     // Enhanced Debug Logging
                     val title = document.title()
                     val bodySnippet = document.body().text().take(500)
-                    Log.w(TAG, "NO ROWS FOUND. Details:")
-                    Log.w(TAG, "Title: '$title'")
-                    Log.w(TAG, "IsSearchPage: $isSearchPage, IsIndexPage: $isIndexPage")
-                    Log.w(TAG, "Body Text (first 500): $bodySnippet")
-                    Log.w(TAG, "HTML (first 2000): ${document.outerHtml().take(2000)}")
+                    logger.w { "NO ROWS FOUND. Details:" }
+                    logger.w { "Title: '$title'" }
+                    logger.w { "IsSearchPage: $isSearchPage, IsIndexPage: $isIndexPage" }
+                    logger.w { "Body Text (first 500): $bodySnippet" }
+                    logger.w { "HTML (first 2000): ${document.outerHtml().take(2000)}" }
 
                     if (isSearchPage || isIndexPage) {
-                        Log.i(TAG, "No rows found, but page looks like valid search/index page (empty results)")
+                        logger.i { "No rows found, but page looks like valid search/index page (empty results)" }
                         // For valid search pages with no results, validate now to catch real errors
                         // but still return empty list if it's just empty results
                         val validationError = ParsingValidators.validateForumPage(html)
                         if (validationError != null && validationError !is RuTrackerError.NoData) {
                             // Only log warning if it's a real error (not just empty data)
-                            Log.w(TAG, "Validation error detected on empty forum page: ${validationError.message}")
+                            logger.w { "Validation error detected on empty forum page: ${validationError.message}" }
                             // Still return empty list to avoid blocking valid empty results
                         }
                         return ParsingResult.Success(emptyList())
@@ -569,7 +567,7 @@ public class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
-                        Log.e(TAG, "❌ Error parsing row $index: $errorDetails", e)
+                        logger.e(e) { "❌ Error parsing row $index: $errorDetails" }
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -593,11 +591,9 @@ public class RutrackerParser
                         e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                         else -> e.javaClass.simpleName
                     }
-                Log.e(
-                    TAG,
-                    "❌ Failed to parse forum page: $errorDetails (HTML size: ${rawBytes.size} bytes)",
-                    e,
-                )
+                logger.e(e) {
+                    "❌ Failed to parse forum page: $errorDetails (HTML size: ${rawBytes.size} bytes)"
+                }
                 errors.add(
                     ParsingError(
                         field = "document",
@@ -621,53 +617,50 @@ public class RutrackerParser
             // Convert ResponseBody to ByteArray for encoding-aware parsing
             val rawBytes = body.bytes()
             val contentType = body.contentType()?.toString()
-            Log.d(TAG, "Parsing forum $forumId page: ${rawBytes.size} bytes, content-type: $contentType")
+            logger.d { "Parsing forum $forumId page: ${rawBytes.size} bytes, content-type: $contentType" }
             val result = parseForumPageWithEncoding(rawBytes, contentType)
 
             val topics =
                 when (result) {
                     is ParsingResult.Success -> {
-                        Log.d(TAG, "Forum $forumId: successfully parsed ${result.data.size} topics")
+                        logger.d { "Forum $forumId: successfully parsed ${result.data.size} topics" }
                         result.data
                     }
                     is ParsingResult.PartialSuccess -> {
                         // Log only critical errors, not warnings
                         val criticalErrors = result.errors.filter { it.severity == ErrorSeverity.CRITICAL }
                         if (criticalErrors.isNotEmpty()) {
-                            Log.w(
-                                TAG,
+                            logger.w {
                                 "Forum $forumId: partial parse - ${result.data.size} topics, " +
-                                    "${criticalErrors.size} critical errors (${result.errors.size} total)",
-                            )
+                                    "${criticalErrors.size} critical errors (${result.errors.size} total)"
+                            }
                             criticalErrors.take(5).forEach { error ->
-                                Log.w(TAG, "  - ${error.field}: ${error.reason}")
+                                logger.w { "  - ${error.field}: ${error.reason}" }
                             }
                         } else {
-                            Log.d(
-                                TAG,
+                            logger.d {
                                 "Forum $forumId: partial parse - ${result.data.size} topics, " +
-                                    "${result.errors.size} non-critical warnings",
-                            )
+                                    "${result.errors.size} non-critical warnings"
+                            }
                         }
                         result.data
                     }
                     is ParsingResult.Failure -> {
-                        Log.e(TAG, "❌ Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)")
+                        logger.e { "❌ Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)" }
                         result.errors.take(10).forEach { error ->
                             // Limit to first 10 errors to avoid log spam
-                            Log.e(
-                                TAG,
+                            logger.e {
                                 "  - ${error.field}: ${error.reason}${if (error.htmlSnippet != null) {
                                     " [HTML: ${error.htmlSnippet.take(
                                         100,
                                     )}...]"
                                 } else {
                                     ""
-                                }}",
-                            )
+                                }}"
+                            }
                         }
                         if (result.errors.size > 10) {
-                            Log.e(TAG, "  ... and ${result.errors.size - 10} more errors")
+                            logger.e { "  ... and ${result.errors.size - 10} more errors" }
                         }
                         emptyList()
                     }
@@ -679,11 +672,11 @@ public class RutrackerParser
                     val decodedHtml = decoder.decode(rawBytes, contentType)
                     extractForumNameFromHTML(decodedHtml)
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to extract forum name for forum $forumId", e)
+                    logger.w(e) { "Failed to extract forum name for forum $forumId" }
                     "Аудиокниги" // Fallback
                 }
 
-            Log.d(TAG, "Forum $forumId: extracted forum name = '$forumName'")
+            logger.d { "Forum $forumId: extracted forum name = '$forumName'" }
 
             // Assign category to all topics if not already set
             val topicsWithCategory =
@@ -711,7 +704,7 @@ public class RutrackerParser
                         }
 
                     if (nextLink != null) {
-                        Log.d(TAG, "Forum $forumId: found 'След.' link, has more pages")
+                        logger.d { "Forum $forumId: found 'След.' link, has more pages" }
                         true
                     } else {
                         // Method 2: Check pagination text "Страница X из Y"
@@ -727,17 +720,17 @@ public class RutrackerParser
                                     ?: 1
                             val totalPages = pageMatch.groupValues[1].toIntOrNull() ?: 1
                             val hasMore = currentPage < totalPages
-                            Log.d(TAG, "Forum $forumId: pagination shows page $currentPage of $totalPages, hasMore=$hasMore")
+                            logger.d { "Forum $forumId: pagination shows page $currentPage of $totalPages, hasMore=$hasMore" }
                             hasMore
                         } else {
                             // Method 3: If we got topics and count matches TOPICS_PER_PAGE, likely more pages
                             val likelyHasMore = topics.size >= 50 // TOPICS_PER_PAGE
-                            Log.d(TAG, "Forum $forumId: no pagination found, assuming hasMore=$likelyHasMore (topics: ${topics.size})")
+                            logger.d { "Forum $forumId: no pagination found, assuming hasMore=$likelyHasMore (topics: ${topics.size})" }
                             likelyHasMore
                         }
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to check pagination for forum $forumId", e)
+                    logger.w(e) { "Failed to check pagination for forum $forumId" }
                     // Fallback: if we got topics and count matches TOPICS_PER_PAGE, likely more pages
                     topics.size >= 50
                 }
@@ -752,7 +745,7 @@ public class RutrackerParser
          * @return List of search results
          */
         public fun parseSearchResults(html: String): List<SearchResult> {
-            Log.d(TAG, "=== PARSING SEARCH RESULTS ===")
+            logger.d { "=== PARSING SEARCH RESULTS ===" }
             // internal implementation delegates to parseSearchResultsDefensive logic equivalent
             // For backward compatibility / simple calls
 
@@ -768,14 +761,14 @@ public class RutrackerParser
                         val validRows = found.filter { it.selectFirst(TITLE_SELECTOR) != null }
                         if (validRows.isNotEmpty()) {
                             rows = org.jsoup.select.Elements(validRows)
-                            Log.d(TAG, "Using selector '$selector': ${rows.size} rows")
+                            logger.d { "Using selector '$selector': ${rows.size} rows" }
                             break
                         }
                     }
                 }
 
                 if (rows.isEmpty()) {
-                    Log.w(TAG, "⚠️ NO ROWS FOUND with any selector! Running diagnostics...")
+                    logger.w { "⚠️ NO ROWS FOUND with any selector! Running diagnostics..." }
 
                     // === DIAGNOSTIC LOGGING ===
 
@@ -794,44 +787,44 @@ public class RutrackerParser
                             .text()
                             .contains("ошибка", ignoreCase = true)
 
-                    if (isLoginPage) Log.w(TAG, "❌ LOGIN PAGE DETECTED!")
-                    if (isCaptchaPage) Log.w(TAG, "❌ CAPTCHA PAGE DETECTED!")
-                    if (isErrorPage) Log.w(TAG, "❌ ERROR PAGE DETECTED!")
+                    if (isLoginPage) logger.w { "❌ LOGIN PAGE DETECTED!" }
+                    if (isCaptchaPage) logger.w { "❌ CAPTCHA PAGE DETECTED!" }
+                    if (isErrorPage) logger.w { "❌ ERROR PAGE DETECTED!" }
 
                     // 2. Log HTML structure
                     val tables = document.select("table")
-                    Log.w(TAG, "📊 Found ${tables.size} table(s)")
+                    logger.w { "📊 Found ${tables.size} table(s)" }
                     tables.take(5).forEachIndexed { i, table ->
-                        Log.w(TAG, "  Table $i: class='${table.className()}' id='${table.id()}'")
+                        logger.w { "  Table $i: class='${table.className()}' id='${table.id()}'" }
                     }
 
                     val allRows = document.select("tr")
-                    Log.w(TAG, "📋 Total tr elements: ${allRows.size}")
+                    logger.w { "📋 Total tr elements: ${allRows.size}" }
 
                     // Check each selector individually
                     ROW_SELECTORS.forEach { selector ->
                         val found = document.select(selector)
-                        Log.w(TAG, "  Selector '$selector': ${found.size} matches")
+                        logger.w { "  Selector '$selector': ${found.size} matches" }
                         if (found.isNotEmpty()) {
                             found.take(3).forEachIndexed { i, el ->
                                 val hasTitle = el.select(TITLE_SELECTOR).isNotEmpty()
-                                Log.w(TAG, "    Element $i: hasTitle=$hasTitle, class='${el.className()}'")
+                                logger.w { "    Element $i: hasTitle=$hasTitle, class='${el.className()}'" }
                             }
                         }
                     }
 
                     // 3. Page metadata
                     val pageTitle = document.selectFirst("title")?.toStr() ?: "No title"
-                    Log.w(TAG, "📝 Page Title: $pageTitle")
+                    logger.w { "📝 Page Title: $pageTitle" }
 
                     // 4. HTML preview
                     val htmlPreview = html.take(500).replace(Regex("\\s+"), " ")
-                    Log.w(TAG, "📄 HTML Preview: $htmlPreview...")
+                    logger.w { "📄 HTML Preview: $htmlPreview..." }
 
                     // 5. Check for common page elements
                     val hasMainContent = document.select("#main_content, #page_content").isNotEmpty()
                     val hasForumTable = document.select(".forumline, .vf-table").isNotEmpty()
-                    Log.w(TAG, "🔍 Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable")
+                    logger.w { "🔍 Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable" }
 
                     return emptyList()
                 }
@@ -845,18 +838,18 @@ public class RutrackerParser
                             results.add(result)
                             // Log first 3 successful results
                             if (idx < 3) {
-                                Log.d(TAG, "✓ Result $idx: ${result.title} by ${result.author}")
+                                logger.d { "✓ Result $idx: ${result.title} by ${result.author}" }
                             }
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "✗ Failed to parse row $idx", e)
+                        logger.w(e) { "✗ Failed to parse row $idx" }
                     }
                 }
 
-                Log.d(TAG, "✅ Successfully parsed ${results.size}/${rows.size} results")
+                logger.d { "✅ Successfully parsed ${results.size}/${rows.size} results" }
                 return results
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to parse search results", e)
+                logger.e(e) { "❌ Failed to parse search results" }
                 return emptyList()
             }
         }
@@ -875,7 +868,7 @@ public class RutrackerParser
                             ?.substringAfter("t=")
                             ?.substringBefore("&")
                             ?: run {
-                                Log.d(TAG, "⚠️ No topicId found in row")
+                                logger.d { "⚠️ No topicId found in row" }
                                 return null
                             }
                     }
@@ -883,7 +876,7 @@ public class RutrackerParser
 
             if (topicId.isEmpty()) {
                 // Common for header rows or ads, detailed logging usually not needed unless debugging structure
-                Log.d(TAG, "⚠️ Empty topicId in row")
+                logger.d { "⚠️ Empty topicId in row" }
                 return null
             }
 
@@ -990,7 +983,7 @@ public class RutrackerParser
                     // First try: extract from entire row (selectFirst searches recursively)
                     val fromRow = coverExtractor.extract(row)
                     if (fromRow != null) {
-                        Log.d(TAG, "Cover found in row for topic $topicId: $fromRow")
+                        logger.d { "Cover found in row for topic $topicId: $fromRow" }
                         fromRow
                     } else {
                         // Second try: explicitly search in all table cells
@@ -1000,7 +993,7 @@ public class RutrackerParser
                                 coverExtractor.extract(cell)
                             }
                         if (fromCells != null) {
-                            Log.d(TAG, "Cover found in table cell for topic $topicId: $fromCells")
+                            logger.d { "Cover found in table cell for topic $topicId: $fromCells" }
                             fromCells
                         } else {
                             // Third try: search in all nested elements (div, span, p)
@@ -1010,16 +1003,15 @@ public class RutrackerParser
                                     coverExtractor.extract(element)
                                 }
                             if (fromNested != null) {
-                                Log.d(TAG, "Cover found in nested element for topic $topicId: $fromNested")
+                                logger.d { "Cover found in nested element for topic $topicId: $fromNested" }
                                 fromNested
                             } else {
                                 // Debug: check if var.postImg exists at all in the row
                                 val hasPostImg = row.select("var.postImg, var.postImgAligned, var[class*='postImg']").isNotEmpty()
                                 if (hasPostImg) {
-                                    Log.w(
-                                        TAG,
-                                        "var.postImg found in row for topic $topicId but extract() returned null - checking attributes...",
-                                    )
+                                    logger.w {
+                                        "var.postImg found in row for topic $topicId but extract() returned null - checking attributes..."
+                                    }
                                     // Try to extract directly from var.postImg if it exists
                                     row
                                         .select(
@@ -1029,15 +1021,15 @@ public class RutrackerParser
                                             val url = varElement.attr("title")
                                             if (url.isNotBlank()) {
                                                 val normalized = coverExtractor.normalizeUrl(url)
-                                                Log.d(TAG, "Cover extracted directly from var.postImg for topic $topicId: $normalized")
+                                                logger.d { "Cover extracted directly from var.postImg for topic $topicId: $normalized" }
                                                 normalized
                                             } else {
-                                                Log.w(TAG, "var.postImg found but title attribute is blank for topic $topicId")
+                                                logger.w { "var.postImg found but title attribute is blank for topic $topicId" }
                                                 null
                                             }
                                         }
                                 } else {
-                                    Log.d(TAG, "No var.postImg found in row for topic $topicId")
+                                    logger.d { "No var.postImg found in row for topic $topicId" }
                                     null
                                 }
                             }
@@ -1100,7 +1092,7 @@ public class RutrackerParser
                 // Validate HTML content before parsing
                 val validationError = ParsingValidators.validateTopicDetails(html)
                 if (validationError != null) {
-                    Log.w(TAG, "Topic $topicId validation failed: ${validationError.message}")
+                    logger.w { "Topic $topicId validation failed: ${validationError.message}" }
                     return null
                 }
 
@@ -1195,7 +1187,7 @@ public class RutrackerParser
                     allMetadata = metadata,
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse topic details", e)
+                logger.e(e) { "Failed to parse topic details" }
                 return null
             }
         }
@@ -1533,7 +1525,7 @@ public class RutrackerParser
                         // Second element is usually the forum name
                         val forumName = links[1].text().trim()
                         if (forumName.isNotBlank()) {
-                            Log.d(TAG, "Extracted forum name from breadcrumbs: '$forumName'")
+                            logger.d { "Extracted forum name from breadcrumbs: '$forumName'" }
                             return forumName
                         }
                     }
@@ -1546,7 +1538,7 @@ public class RutrackerParser
                 if (titleParts.isNotEmpty()) {
                     val forumName = titleParts[0].trim()
                     if (forumName.isNotBlank() && !forumName.contains("RuTracker", ignoreCase = true)) {
-                        Log.d(TAG, "Extracted forum name from title: '$forumName'")
+                        logger.d { "Extracted forum name from title: '$forumName'" }
                         return forumName
                     }
                 }
@@ -1557,16 +1549,16 @@ public class RutrackerParser
                 if (h1 != null) {
                     val forumName = h1.text().trim()
                     if (forumName.isNotBlank()) {
-                        Log.d(TAG, "Extracted forum name from h1: '$forumName'")
+                        logger.d { "Extracted forum name from h1: '$forumName'" }
                         return forumName
                     }
                 }
 
                 // Fallback
-                Log.d(TAG, "No forum name found, using fallback: 'Аудиокниги'")
+                logger.d { "No forum name found, using fallback: 'Аудиокниги'" }
                 return "Аудиокниги"
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to extract forum name from HTML", e)
+                logger.w(e) { "Failed to extract forum name from HTML" }
                 return "Аудиокниги"
             }
         }
@@ -1957,7 +1949,7 @@ public class RutrackerParser
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to extract comments", e)
+                logger.e(e) { "Failed to extract comments" }
             }
 
             // Return last 50 comments (most recent)
@@ -2138,7 +2130,7 @@ public class RutrackerParser
          * @return LoginResult
          */
         public fun parseLoginResponse(html: String): LoginResult {
-            android.util.Log.d(TAG, "Parsing login response, html length: ${html.length}")
+            logger.d { "Parsing login response, html length: ${html.length}" }
 
             val document = Jsoup.parse(html)
             val lowerHtml = html.lowercase()
@@ -2146,19 +2138,19 @@ public class RutrackerParser
             // Check for ERROR: wrong username/password (PRIORITY!)
             // Russian: "неверный пароль" or "неверное имя пользователя"
             if (lowerHtml.contains("неверн")) {
-                android.util.Log.w(TAG, "Login failed: Invalid credentials detected in response")
+                logger.w { "Login failed: Invalid credentials detected in response" }
                 return LoginResult.Error("Invalid username or password")
             }
 
             // Check for CAPTCHA requirement
             // Russian: "введите код подтверждения" or "введите код с картинки"
             if (lowerHtml.contains("введите код") || lowerHtml.contains("cap_code")) {
-                android.util.Log.i(TAG, "Captcha required, extracting captcha data")
+                logger.i { "Captcha required, extracting captcha data" }
                 val captchaData = extractCaptcha(html)
                 if (captchaData != null) {
                     return LoginResult.Captcha(captchaData)
                 } else {
-                    android.util.Log.w(TAG, "Captcha detected but extraction failed")
+                    logger.w { "Captcha detected but extraction failed" }
                     return LoginResult.Error("Captcha required but couldn't extract data")
                 }
             }
@@ -2174,12 +2166,12 @@ public class RutrackerParser
                     lowerHtml.contains("mode=logout")
 
             if (!hasLoginForm || hasLogout) {
-                android.util.Log.i(TAG, "Login successful (hasLoginForm=$hasLoginForm, hasLogout=$hasLogout)")
+                logger.i { "Login successful (hasLoginForm=$hasLoginForm, hasLogout=$hasLogout)" }
                 return LoginResult.Success
             }
 
             // Unknown error
-            android.util.Log.w(TAG, "Login failed: Unknown error (no specific markers found)")
+            logger.w { "Login failed: Unknown error (no specific markers found)" }
             return LoginResult.Error("Authentication failed. Please try again.")
         }
 
@@ -2204,7 +2196,7 @@ public class RutrackerParser
                 return com.jabook.app.jabook.compose.domain.model
                     .CaptchaData(url, sid)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse captcha", e)
+                logger.e(e) { "Failed to parse captcha" }
                 return null
             }
         }
