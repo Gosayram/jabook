@@ -104,10 +104,10 @@ def fix_file(file_path: Path):
                 fixed = True
             
             # Fix: Split multiple statements on the same line
-            # Pattern: val x = y        when/return/val/etc
-            if re.search(r'[=:]\s+[^=:]*\s{4,}(when|return|val|var|if|for|while)', new_line):
-                # Split by 4+ spaces followed by a keyword
-                parts = re.split(r'(\s{4,})(?=(?:when|return|val|var|if|for|while)\s)', new_line)
+            # Pattern: val x = y        when/return/val/etc or public var x = 0        public var y = 0
+            if re.search(r'[=:]\s+[^=:]*\s{4,}(when|return|val|var|if|for|while|public)', new_line):
+                # Split by 4+ spaces followed by a keyword or public
+                parts = re.split(r'(\s{4,})(?=(?:when|return|public\s+(?:val|var)|val|var|if|for|while)\s)', new_line)
                 if len(parts) > 1:
                     indent = re.match(r'^(\s*)', new_line).group(1) if re.match(r'^\s*', new_line) else ''
                     new_statements = []
@@ -116,9 +116,15 @@ def fix_file(file_path: Path):
                         if i + 1 < len(parts):
                             next_statement = parts[i + 1].strip()
                             if next_statement:
+                                # Remove public from local variables
+                                if is_inside_function_body and next_statement.startswith('public '):
+                                    next_statement = next_statement.replace('public ', '', 1)
                                 new_statements.append(f"{indent}{current_statement}")
                                 current_statement = next_statement
                     if current_statement:
+                        # Remove public from local variables
+                        if is_inside_function_body and current_statement.startswith('public '):
+                            current_statement = current_statement.replace('public ', '', 1)
                         new_statements.append(f"{indent}{current_statement}")
                     if len(new_statements) > 1:
                         new_line = '\n'.join(new_statements) + '\n'
