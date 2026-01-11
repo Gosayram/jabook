@@ -83,7 +83,10 @@ public class NotificationManager(
          * Gets the notification channel name with flavor suffix.
          */
         private fun getChannelName(context: Context): String {
-            public val baseName: String = "JaBook Audio Playback"            public val flavor = getFlavorSuffix(context)
+            public val baseName: String =
+                "JaBook Audio Playback" public
+
+                    val flavor = getFlavorSuffix(context)
             return baseName.appendFlavorSuffix(flavor)
         }
 
@@ -105,7 +108,14 @@ public class NotificationManager(
             return flavor.capitalizeFirst()
         }
 
-        public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.PLAY"        public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.PAUSE"        public const val ACTION_NEXT: String = "com.jabook.app.jabook.audio.NEXT"        public const val ACTION_PREVIOUS: String = "com.jabook.app.jabook.audio.PREVIOUS"        public const val ACTION_REWIND: String = "com.jabook.app.jabook.audio.REWIND"        public const val ACTION_FORWARD: String = "com.jabook.app.jabook.audio.FORWARD"        public const val ACTION_STOP: String = "com.jabook.app.jabook.audio.STOP"    }
+        public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.PLAY"
+        public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.PAUSE"
+        public const val ACTION_NEXT: String = "com.jabook.app.jabook.audio.NEXT"
+        public const val ACTION_PREVIOUS: String = "com.jabook.app.jabook.audio.PREVIOUS"
+        public const val ACTION_REWIND: String = "com.jabook.app.jabook.audio.REWIND"
+        public const val ACTION_FORWARD: String = "com.jabook.app.jabook.audio.FORWARD"
+        public const val ACTION_STOP: String = "com.jabook.app.jabook.audio.STOP"
+    }
 
     init {
         createNotificationChannel()
@@ -116,8 +126,8 @@ public class NotificationManager(
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            public val channelName = Companion.getChannelName(context)
-            public val channel =
+            val channelName = Companion.getChannelName(context)
+            val channel =
                 NotificationChannel(
                     CHANNEL_ID,
                     channelName,
@@ -1122,7 +1132,7 @@ public class NotificationManager(
      * This method includes rate limiting and proper error handling to prevent
      * notification-related crashes on Android 14+.
      */
-    public fun updateNotification() : Unit {
+    public fun updateNotification() {
         try {
             public val notification = createNotification()
             notificationManager.notify(NOTIFICATION_ID, notification)

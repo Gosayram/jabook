@@ -40,7 +40,9 @@ import java.util.concurrent.TimeoutException
 public class MediaSessionActionReceiver : BroadcastReceiver() {
     public companion object {
         private const val TAG = "MediaSessionActionReceiver"
-        public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY"        public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE"        private const val CONTROLLER_TIMEOUT_MS = 2000L
+        public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY"
+        public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE"
+        private const val CONTROLLER_TIMEOUT_MS: Long = 2000L
     }
 
     override fun onReceive(

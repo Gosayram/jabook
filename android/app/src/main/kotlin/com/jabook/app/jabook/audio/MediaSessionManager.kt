@@ -229,12 +229,12 @@ public class MediaSessionManager(
     /**
      * Updates media metadata.
      */
-    public fun updateMetadata() : Unit {
+    public fun updateMetadata() {
         // Metadata is automatically updated from ExoPlayer
         // This method can be used for custom metadata updates if needed
     }
 
-    public fun release() : Unit {
+    public fun release() {
         try {
             // mediaSession?.release()
             // mediaSession = null

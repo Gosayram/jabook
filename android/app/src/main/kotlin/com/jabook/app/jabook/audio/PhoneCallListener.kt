@@ -85,7 +85,7 @@ public class PhoneCallListener(
      * Starts listening for phone call state changes.
      * Should be called when playback starts or service is created.
      */
-    public fun startListening() : Unit {
+    public fun startListening() {
         if (isRegistered) {
             android.util.Log.w("PhoneCallListener", "Already listening for phone calls")
             return
@@ -140,7 +140,7 @@ public class PhoneCallListener(
      * Stops listening for phone call state changes.
      * Should be called when playback stops or service is destroyed.
      */
-    public fun stopListening() : Unit {
+    public fun stopListening() {
         if (!isRegistered) {
             return
         }

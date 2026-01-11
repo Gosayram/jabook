@@ -47,7 +47,7 @@ public class ChapterMetadataRepository
         /**
          * Saves chapter metadata.
          */
-        suspend fun saveChapter(
+        public suspend fun saveChapter(
             bookId: String,
             fileIndex: Int,
             title: String,
@@ -57,21 +57,21 @@ public class ChapterMetadataRepository
             duration: Long? = null,
         ): Result<Unit> =
             try {
-                public val id: String =
-                    "${bookId}_$fileIndex" public
+                val id: String =
+                    "${bookId}_$fileIndex"
 
-                        val entity =
-                            ChapterMetadataEntity(
-                                id = id,
-                                bookId = bookId,
-                                fileIndex = fileIndex,
-                                title = title,
-                                filePath = filePath,
-                                startTime = startTime,
-                                endTime = endTime,
-                                duration = duration,
-                                lastUpdated = System.currentTimeMillis(),
-                            )
+                val entity =
+                    ChapterMetadataEntity(
+                        id = id,
+                        bookId = bookId,
+                        fileIndex = fileIndex,
+                        title = title,
+                        filePath = filePath,
+                        startTime = startTime,
+                        endTime = endTime,
+                        duration = duration,
+                        lastUpdated = System.currentTimeMillis(),
+                    )
                 chapterDao.upsertChapter(entity)
                 Result.Success(Unit)
             } catch (e: Exception) {
@@ -81,7 +81,7 @@ public class ChapterMetadataRepository
         /**
          * Saves multiple chapters.
          */
-        suspend fun saveChapters(chapters: List<ChapterMetadataEntity>): Result<Unit> =
+        public suspend fun saveChapters(chapters: List<ChapterMetadataEntity>): Result<Unit> =
             try {
                 chapterDao.upsertChapters(chapters)
                 Result.Success(Unit)
@@ -92,7 +92,7 @@ public class ChapterMetadataRepository
         /**
          * Deletes all chapters for a book.
          */
-        suspend fun deleteChapters(bookId: String): Result<Unit> =
+        public suspend fun deleteChapters(bookId: String): Result<Unit> =
             try {
                 chapterDao.deleteChapters(bookId)
                 Result.Success(Unit)
@@ -103,7 +103,7 @@ public class ChapterMetadataRepository
         /**
          * Deletes a specific chapter.
          */
-        suspend fun deleteChapter(id: String): Result<Unit> =
+        public suspend fun deleteChapter(id: String): Result<Unit> =
             try {
                 chapterDao.deleteChapter(id)
                 Result.Success(Unit)
