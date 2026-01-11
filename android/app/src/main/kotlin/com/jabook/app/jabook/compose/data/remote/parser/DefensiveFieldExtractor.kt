@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import org.jsoup.nodes.Element
 import javax.inject.Inject
 
@@ -28,10 +28,10 @@ import javax.inject.Inject
  */
 public class DefensiveFieldExtractor
     @Inject
-    constructor() {
-        public companion object {
-            private const val TAG = "DefensiveFieldExtractor"
-        }
+    constructor(
+        private val loggerFactory: LoggerFactory,
+    ) {
+        private val logger = loggerFactory.get("DefensiveFieldExtractor")
 
         /**
          * Extract seeders count with 6 fallback strategies.
@@ -60,7 +60,7 @@ public class DefensiveFieldExtractor
                         torCol.selectFirst("span.seed b, span.seedmed b"),
                     )
                 if (value != null) {
-                    Log.d(TAG, "Seeders for $topicId: $value (strategy: vf-col-tor > seedmed > b)")
+                    logger.d { "Seeders for $topicId: $value (strategy: vf-col-tor > seedmed > b)" }
                     return value
                 }
             }
@@ -71,13 +71,13 @@ public class DefensiveFieldExtractor
                 // Try b tag first
                 val bValue = extractNumberFromElement(seedElement.selectFirst("b"))
                 if (bValue != null) {
-                    Log.d(TAG, "Seeders for $topicId: $bValue (strategy: span.seed > b)")
+                    logger.d { "Seeders for $topicId: $bValue (strategy: span.seed > b)" }
                     return bValue
                 }
                 // Try direct text
                 val directValue = seedElement.text().trim().toIntOrNull()
                 if (directValue != null) {
-                    Log.d(TAG, "Seeders for $topicId: $directValue (strategy: span.seed text)")
+                    logger.d { "Seeders for $topicId: $directValue (strategy: span.seed text)" }
                     return directValue
                 }
             }
@@ -87,7 +87,7 @@ public class DefensiveFieldExtractor
             if (seedTd != null) {
                 val value = seedTd.text().trim().toIntOrNull()
                 if (value != null) {
-                    Log.d(TAG, "Seeders for $topicId: $value (strategy: td.seed)")
+                    logger.d { "Seeders for $topicId: $value (strategy: td.seed)" }
                     return value
                 }
             }
@@ -97,7 +97,7 @@ public class DefensiveFieldExtractor
             if (dataSeeds.isNotEmpty()) {
                 val value = dataSeeds.toIntOrNull()
                 if (value != null) {
-                    Log.d(TAG, "Seeders for $topicId: $value (strategy: data-seeds)")
+                    logger.d { "Seeders for $topicId: $value (strategy: data-seeds)" }
                     return value
                 }
             }
@@ -111,7 +111,7 @@ public class DefensiveFieldExtractor
                     ?.trim()
                     ?.toIntOrNull()
             if (colValue != null) {
-                Log.d(TAG, "Seeders for $topicId: $colValue (strategy: column position)")
+                logger.d { "Seeders for $topicId: $colValue (strategy: column position)" }
                 return colValue
             }
 
@@ -123,13 +123,13 @@ public class DefensiveFieldExtractor
                         .drop(1)
                         .firstNotNullOfOrNull { it.toIntOrNull() }
                 if (value != null) {
-                    Log.d(TAG, "Seeders for $topicId: $value (strategy: regex)")
+                    logger.d { "Seeders for $topicId: $value (strategy: regex)" }
                     return value
                 }
             }
 
             // All strategies failed
-            Log.w(TAG, "Failed to extract seeders for topic $topicId")
+            logger.w { "Failed to extract seeders for topic $topicId" }
             return 0
         }
 

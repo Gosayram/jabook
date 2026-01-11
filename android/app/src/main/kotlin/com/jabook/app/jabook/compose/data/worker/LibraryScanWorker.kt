@@ -25,6 +25,7 @@ import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import dagger.assisted.Assisted
@@ -49,7 +50,9 @@ public class LibraryScanWorker
         private val bookScanner: LocalBookScanner,
         private val booksDao: BooksDao,
         private val chaptersDao: ChaptersDao,
+        private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
+        private val logger = loggerFactory.get("LibraryScanWorker")
         override suspend fun doWork(): ListenableWorker.Result =
             withContext(Dispatchers.IO) {
                 try {
@@ -99,7 +102,7 @@ public class LibraryScanWorker
                                         if (currentProgress is ScanProgress.Parsing ||
                                             currentProgress is ScanProgress.Discovery
                                         ) {
-                                            android.util.Log.e("LibraryScanWorker", "Watchdog triggered: Scan stuck for 3 minutes")
+                                            logger.e { "Watchdog triggered: Scan stuck for 3 minutes" }
                                             scannerJob.cancel(
                                                 kotlinx.coroutines.CancellationException(
                                                     "Scan timeout: watchdog detected hang",
@@ -121,7 +124,7 @@ public class LibraryScanWorker
 
                             // CRITICAL FIX: Clean up books whose directories were deleted
                             // This ensures DB reflects actual filesystem state
-                            android.util.Log.d("LibraryScanWorker", "Checking for deleted books...")
+                            logger.d { "Checking for deleted books..." }
                             val existingBooks = booksDao.getAllBookPaths()
                             var deletedCount = 0
 
@@ -129,10 +132,9 @@ public class LibraryScanWorker
                                 if (book.localPath != null) {
                                     val bookDir = java.io.File(book.localPath)
                                     if (!bookDir.exists() || !bookDir.isDirectory) {
-                                        android.util.Log.i(
-                                            "LibraryScanWorker",
-                                            "Deleting book with non-existent path: ${book.localPath}",
-                                        )
+                                        logger.i {
+                                            "Deleting book with non-existent path: ${book.localPath}"
+                                        }
                                         booksDao.deleteById(book.id)
                                         deletedCount++
                                     }
@@ -140,10 +142,9 @@ public class LibraryScanWorker
                             }
 
                             if (deletedCount > 0) {
-                                android.util.Log.i(
-                                    "LibraryScanWorker",
-                                    "Cleaned up $deletedCount deleted books from database",
-                                )
+                                logger.i {
+                                    "Cleaned up $deletedCount deleted books from database"
+                                }
                             }
 
                             // Chunk processing to avoid UI hangs and memory spikes
@@ -194,23 +195,19 @@ public class LibraryScanWorker
                                                         // Minimum size check (at least 1KB to avoid corrupted/invalid images)
                                                         if (coverData.size >= 1024) {
                                                             coverFile.writeBytes(coverData)
-                                                            android.util.Log.d(
-                                                                "LibraryScanWorker",
-                                                                "Extracted embedded cover from ID3 tags: ${book.title} (${coverData.size} bytes)",
-                                                            )
+                                                            logger.d {
+                                                                "Extracted embedded cover from ID3 tags: ${book.title} (${coverData.size} bytes)"
+                                                            }
                                                         } else {
-                                                            android.util.Log.d(
-                                                                "LibraryScanWorker",
-                                                                "Skipped small/invalid cover data for ${book.title} (${coverData.size} bytes)",
-                                                            )
+                                                            logger.d {
+                                                                "Skipped small/invalid cover data for ${book.title} (${coverData.size} bytes)"
+                                                            }
                                                         }
                                                     }
                                                 } catch (e: Exception) {
-                                                    android.util.Log.w(
-                                                        "LibraryScanWorker",
-                                                        "Failed to extract embedded cover for ${book.title}",
-                                                        e,
-                                                    )
+                                                    logger.w(e) {
+                                                        "Failed to extract embedded cover for ${book.title}"
+                                                    }
                                                 } finally {
                                                     retriever.release()
                                                 }
@@ -248,7 +245,7 @@ public class LibraryScanWorker
                                             },
                                         )
                                     } catch (e: Exception) {
-                                        android.util.Log.e("LibraryScanWorker", "Error processing book ${book.title}", e)
+                                        logger.e(e) { "Error processing book ${book.title}" }
                                     }
                                 }
 
@@ -284,11 +281,11 @@ public class LibraryScanWorker
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) {
-                        android.util.Log.w("LibraryScanWorker", "Scan cancelled (Watchdog or User)")
+                        logger.w { "Scan cancelled (Watchdog or User)" }
                         // Return failure so it doesn't retry automatically if cancelled by user/watchdog
                         return@withContext ListenableWorker.Result.failure()
                     }
-                    android.util.Log.e("LibraryScanWorker", "Scan failed", e)
+                    logger.e(e) { "Scan failed" }
                     ListenableWorker.Result.failure(
                         workDataOf("error" to (e.message ?: applicationContext.getString(R.string.libraryUnknownError))),
                     )

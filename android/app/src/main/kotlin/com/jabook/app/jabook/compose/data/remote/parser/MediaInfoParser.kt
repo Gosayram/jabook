@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.model.AudioTrack
 import com.jabook.app.jabook.compose.data.remote.model.GeneralInfo
 import com.jabook.app.jabook.compose.data.remote.model.MediaInfo
@@ -31,10 +31,10 @@ import javax.inject.Singleton
 @Singleton
 public class MediaInfoParser
     @Inject
-    constructor() {
-        public companion object {
-            private const val TAG = "MediaInfoParser"
-        }
+    constructor(
+        private val loggerFactory: LoggerFactory,
+    ) {
+        private val logger = loggerFactory.get("MediaInfoParser")
 
         /**
          * Parse MediaInfo text into structured data.
@@ -63,7 +63,7 @@ public class MediaInfoParser
                     text = text,
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse MediaInfo", e)
+                logger.e(e) { "Failed to parse MediaInfo" }
                 return null
             }
         }

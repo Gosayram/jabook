@@ -15,8 +15,8 @@
 package com.jabook.app.jabook.compose.data.sync
 
 import android.content.Context
-import android.util.Log
 import androidx.work.Constraints
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
@@ -36,9 +36,10 @@ public class SyncManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("SyncManager")
         public companion object {
-            private const val TAG = "SyncManager"
             private const val SYNC_INTERVAL_HOURS = 6L
         }
 
@@ -50,7 +51,7 @@ public class SyncManager
          * - Not in low battery mode
          */
         public fun schedulePeriodicSync() {
-            Log.d(TAG, "Scheduling periodic sync")
+            logger.d { "Scheduling periodic sync" }
 
             val constraints =
                 Constraints
@@ -74,7 +75,7 @@ public class SyncManager
                     syncRequest,
                 )
 
-            Log.d(TAG, "Periodic sync scheduled (every $SYNC_INTERVAL_HOURS hours)")
+            logger.d { "Periodic sync scheduled (every $SYNC_INTERVAL_HOURS hours)" }
         }
 
         /**

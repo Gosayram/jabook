@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
@@ -43,9 +43,11 @@ import javax.inject.Singleton
 @Singleton
 public class RetryInterceptor
     @Inject
-    constructor() : Interceptor {
+    constructor(
+        private val loggerFactory: LoggerFactory,
+    ) : Interceptor {
+        private val logger = loggerFactory.get("RetryInterceptor")
         public companion object {
-            private const val TAG = "RetryInterceptor"
             private const val MAX_RETRIES = 3
             private const val INITIAL_DELAY_MS = 500L
             private const val MAX_DELAY_MS = 10_000L
@@ -74,10 +76,9 @@ public class RetryInterceptor
                     // Check if we should retry based on status code
                     if (shouldRetryStatusCode(response.code)) {
                         val delay = calculateDelay(attempt)
-                        Log.w(
-                            TAG,
-                            "Request failed with status ${response.code}, retrying in ${delay}ms (attempt ${attempt + 1}/$MAX_RETRIES): ${request.url}",
-                        )
+                        logger.w {
+                            "Request failed with status ${response.code}, retrying in ${delay}ms (attempt ${attempt + 1}/$MAX_RETRIES): ${request.url}"
+                        }
                         Thread.sleep(delay)
                         attempt++
                         continue
@@ -91,10 +92,9 @@ public class RetryInterceptor
                     // Check if we should retry based on exception type
                     if (shouldRetryException(e) && attempt < MAX_RETRIES) {
                         val delay = calculateDelay(attempt)
-                        Log.w(
-                            TAG,
-                            "Request failed with ${e.javaClass.simpleName}: ${e.message}, retrying in ${delay}ms (attempt ${attempt + 1}/$MAX_RETRIES): ${request.url}",
-                        )
+                        logger.w {
+                            "Request failed with ${e.javaClass.simpleName}: ${e.message}, retrying in ${delay}ms (attempt ${attempt + 1}/$MAX_RETRIES): ${request.url}"
+                        }
                         Thread.sleep(delay)
                         attempt++
                         continue

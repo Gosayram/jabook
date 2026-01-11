@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import org.jsoup.nodes.Element
 import javax.inject.Inject
@@ -32,9 +32,10 @@ public class CoverUrlExtractor
     @Inject
     constructor(
         private val mirrorManager: MirrorManager,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("CoverUrlExtractor")
         public companion object {
-            private const val TAG = "CoverUrlExtractor"
 
             // Icon/smiley blacklist patterns
             private val ICON_PATTERNS =
@@ -85,10 +86,10 @@ public class CoverUrlExtractor
                         ?: element.absUrl("src") // Use absUrl() for proper absolute URL resolution
 
                 if (isValidImageUrl(url)) {
-                    Log.d(TAG, "Cover found via img.postImg.postImgAligned.img-right: $url")
+                    logger.d { "Cover found via img.postImg.postImgAligned.img-right: $url" }
                     return normalizeUrl(url)
                 } else {
-                    Log.d(TAG, "Cover URL from img.postImg is invalid or blank: '$url'")
+                    logger.d { "Cover URL from img.postImg is invalid or blank: '$url'" }
                 }
             }
 
@@ -103,10 +104,10 @@ public class CoverUrlExtractor
             varElement?.let { element ->
                 val url = element.attr("title")
                 if (url.isNotBlank() && isValidImageUrl(url)) {
-                    Log.d(TAG, "Cover found via var.postImg (fallback): $url")
+                    logger.d { "Cover found via var.postImg (fallback): $url" }
                     return normalizeUrl(url)
                 } else {
-                    Log.d(TAG, "Cover URL from var.postImg is invalid or blank: '$url'")
+                    logger.d { "Cover URL from var.postImg is invalid or blank: '$url'" }
                 }
             }
 
@@ -117,7 +118,7 @@ public class CoverUrlExtractor
                 ?.let { imgElement ->
                     val url = imgElement.absUrl("src")
                     if (isValidImageUrl(url) && !isIconOrSmile(url)) {
-                        Log.d(TAG, "Cover found via static.rutracker/fastpic: $url")
+                        logger.d { "Cover found via static.rutracker/fastpic: $url" }
                         return normalizeUrl(url)
                     }
                 }
@@ -127,7 +128,7 @@ public class CoverUrlExtractor
                 // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
                 val url = imgElement.absUrl("data-src")
                 if (isValidImageUrl(url) && !isIconOrSmile(url)) {
-                    Log.d(TAG, "Cover found via data-src: $url")
+                    logger.d { "Cover found via data-src: $url" }
                     return normalizeUrl(url)
                 }
             }
@@ -143,7 +144,7 @@ public class CoverUrlExtractor
                         ?.split(" ")
                         ?.firstOrNull()
                 if (firstUrl != null && isValidImageUrl(firstUrl) && !isIconOrSmile(firstUrl)) {
-                    Log.d(TAG, "Cover found via srcset: $firstUrl")
+                    logger.d { "Cover found via srcset: $firstUrl" }
                     return normalizeUrl(firstUrl)
                 }
             }
@@ -159,7 +160,7 @@ public class CoverUrlExtractor
 
                     // Assume cover images are at least 100x100 (unless size unknown)
                     if ((width == 0 && height == 0) || (width >= 100 && height >= 100)) {
-                        Log.d(TAG, "Cover found via fallback img: $url")
+                        logger.d { "Cover found via fallback img: $url" }
                         return normalizeUrl(url)
                     }
                 }

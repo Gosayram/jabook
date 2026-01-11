@@ -15,8 +15,8 @@
 package com.jabook.app.jabook.compose.data.network
 
 import android.content.Context
-import android.util.Log
 import android.webkit.WebSettings
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -47,9 +47,10 @@ public class RutrackerHeadersInterceptor
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
+        private val loggerFactory: LoggerFactory,
     ) : Interceptor {
+        private val logger = loggerFactory.get("RutrackerHeaders")
         public companion object {
-            private const val TAG = "RutrackerHeaders"
 
             private const val ACCEPT =
                 "text/html,application/xhtml+xml,application/xml;q=0.9," +
@@ -72,10 +73,10 @@ public class RutrackerHeadersInterceptor
                 // Use static method WebSettings.getDefaultUserAgent() - most efficient way
                 // This doesn't require creating a WebView instance
                 val ua = WebSettings.getDefaultUserAgent(context)
-                Log.d(TAG, "Device User-Agent: $ua")
+                logger.d { "Device User-Agent: $ua" }
                 ua
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to get device User-Agent, using fallback", e)
+                logger.e(e) { "Failed to get device User-Agent, using fallback" }
                 // Fallback to a generic Android User-Agent if WebView is not available
                 val androidVersion = android.os.Build.VERSION.RELEASE
                 val model = android.os.Build.MODEL
@@ -93,7 +94,7 @@ public class RutrackerHeadersInterceptor
             // Uses device's default User-Agent which is unique per device and well-supported.
             val existingUserAgent = originalRequest.header("User-Agent")
             if (existingUserAgent != null && existingUserAgent != deviceUserAgent) {
-                Log.d(TAG, "Replacing User-Agent: '$existingUserAgent' -> '$deviceUserAgent'")
+                logger.d { "Replacing User-Agent: '$existingUserAgent' -> '$deviceUserAgent'" }
             }
             requestBuilder.removeHeader("User-Agent") // Remove any existing User-Agent
             requestBuilder.header("User-Agent", deviceUserAgent) // Set device's User-Agent
@@ -118,7 +119,7 @@ public class RutrackerHeadersInterceptor
             if (modifiedRequest.url.encodedPath.contains("login.php") ||
                 modifiedRequest.url.encodedPath.contains("profile.php")
             ) {
-                Log.d(TAG, "Auth request User-Agent: ${modifiedRequest.header("User-Agent")}")
+                logger.d { "Auth request User-Agent: ${modifiedRequest.header("User-Agent")}" }
             }
 
             return chain.proceed(modifiedRequest)
