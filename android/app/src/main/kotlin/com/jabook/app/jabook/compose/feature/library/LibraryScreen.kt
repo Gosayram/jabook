@@ -483,7 +483,7 @@ private fun ViewModeToggle(
 /**
  * Helper extension to check if view mode is a grid variant.
  */
-private fun LibraryViewMode.isGrid() = this == LibraryViewMode.GRID_COMPACT || this == LibraryViewMode.GRID_COMFORTABLE
+private fun LibraryViewMode.isGrid(): Boolean = this == LibraryViewMode.GRID_COMPACT || this == LibraryViewMode.GRID_COMFORTABLE
 
 /**
  * Sort order menu.

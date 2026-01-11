@@ -55,9 +55,9 @@ public class PermissionViewModel
             }
         }
 
-        public fun getManageExternalStorageIntent() = permissionManager.getManageExternalStorageIntent()
+        public fun getManageExternalStorageIntent(): android.content.Intent = permissionManager.getManageExternalStorageIntent()
 
-        public fun getAppSettingsIntent() = permissionManager.getAppSettingsIntent()
+        public fun getAppSettingsIntent(): android.content.Intent = permissionManager.getAppSettingsIntent()
 
         // Notification permission is requested via registerForActivityResult contract directly in UI
     }

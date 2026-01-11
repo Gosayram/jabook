@@ -71,13 +71,13 @@ public class MediaSessionManager(
          * Provides rewind command icon.
          * Inspired by lissen-android implementation.
          */
-        private fun provideRewindCommand() = CommandButton.ICON_SKIP_BACK
+        private fun provideRewindCommand(): Int = CommandButton.ICON_SKIP_BACK
 
         /**
          * Provides forward command icon.
          * Inspired by lissen-android implementation.
          */
-        private fun provideForwardCommand() = CommandButton.ICON_SKIP_FORWARD
+        private fun provideForwardCommand(): Int = CommandButton.ICON_SKIP_FORWARD
     }
 
     init {

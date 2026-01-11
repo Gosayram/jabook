@@ -19,6 +19,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
+import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
@@ -142,7 +143,7 @@ public class IndexingViewModel
         /**
          * Get index metadata (statistics).
          */
-        suspend fun getIndexMetadata() = forumIndexer.getIndexMetadata()
+        suspend fun getIndexMetadata(): IndexMetadata? = forumIndexer.getIndexMetadata()
 
         /**
          * Start indexing in foreground service (for background operation).
