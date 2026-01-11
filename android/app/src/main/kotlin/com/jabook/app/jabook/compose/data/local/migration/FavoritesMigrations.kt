@@ -14,11 +14,11 @@
 
 package com.jabook.app.jabook.compose.data.local.migration
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 
-private const val TAG = "Room"
+private val logger = LoggerFactoryImpl().get("Room")
 
 /**
  * Migration from database version 6 to 7.
@@ -28,7 +28,7 @@ public val MIGRATION_6_7: Migration =
     object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
             try {
-                Log.i(TAG, "🔄 Starting migration 6→7")
+                logger.i { "🔄 Starting migration 6→7" }
                 val startTime = System.currentTimeMillis()
                 // Create favorites table
                 db.execSQL(
@@ -60,9 +60,9 @@ public val MIGRATION_6_7: Migration =
                         "ON favorites (added_to_favorites)",
                 )
                 val duration = System.currentTimeMillis() - startTime
-                Log.i(TAG, "✅ Migration 6→7 completed successfully (${duration}ms)")
+                logger.i { "✅ Migration 6→7 completed successfully (${duration}ms)" }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Migration 6→7 failed: ${e.message}", e)
+                logger.e(e) { "❌ Migration 6→7 failed: ${e.message}" }
                 throw e
             }
         }

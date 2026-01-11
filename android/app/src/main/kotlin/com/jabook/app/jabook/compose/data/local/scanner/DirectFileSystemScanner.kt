@@ -504,10 +504,9 @@ public class DirectFileSystemScanner
                         val fixedTitle =
                             if (hasMojibake) {
                                 val (fixed, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
-                                android.util.Log.w(
-                                    "DirectFileScanner",
-                                    "� MOJIBAKE FIXED: '$rawTitle' -> '$fixed' ($detectedEncoding)",
-                                )
+                                logger.w {
+                                    "MOJIBAKE FIXED: '$rawTitle' -> '$fixed' ($detectedEncoding)"
+                                }
                                 fixed
                             } else {
                                 rawTitle // UTF-16 is already correct!

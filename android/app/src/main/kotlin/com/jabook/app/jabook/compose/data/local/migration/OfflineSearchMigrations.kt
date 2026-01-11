@@ -14,11 +14,11 @@
 
 package com.jabook.app.jabook.compose.data.local.migration
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 
-private const val TAG = "Room"
+private val logger = LoggerFactoryImpl().get("Room")
 
 /**
  * Migration from database version 14 to 15.
@@ -31,7 +31,7 @@ public val MIGRATION_14_15: Migration =
     object : Migration(14, 15) {
         override fun migrate(db: SupportSQLiteDatabase) {
             try {
-                Log.i(TAG, "🔄 Starting migration 14→15 (RuTracker category fallback)")
+                logger.i { "🔄 Starting migration 14→15 (RuTracker category fallback)" }
                 val startTime = System.currentTimeMillis()
 
                 // Update all cached topics with blank category to use fallback
@@ -49,9 +49,9 @@ public val MIGRATION_14_15: Migration =
                 cursor.close()
 
                 val duration = System.currentTimeMillis() - startTime
-                Log.i(TAG, "✅ Migration 14→15 completed: updated $updatedCount topics (${duration}ms)")
+                logger.i { "✅ Migration 14→15 completed: updated $updatedCount topics (${duration}ms)" }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Migration 14→15 failed: ${e.message}", e)
+                logger.e(e) { "❌ Migration 14→15 failed: ${e.message}" }
                 throw e
             }
         }
