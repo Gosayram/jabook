@@ -36,7 +36,7 @@ import java.io.File
  *
  * The activity shows storage information and allows clearing cache.
  */
-class DataManagementActivity : AppCompatActivity() {
+public class DataManagementActivity : AppCompatActivity() {
     private lateinit var cacheSizeText: TextView
     private lateinit var dataSizeText: TextView
     private lateinit var totalSizeText: TextView

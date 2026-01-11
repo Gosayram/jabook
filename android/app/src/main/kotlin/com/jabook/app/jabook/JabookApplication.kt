@@ -45,21 +45,21 @@ import javax.inject.Inject
  */
 @EntryPoint
 @InstallIn(SingletonComponent::class)
-interface OkHttpClientEntryPoint {
-    fun okHttpClient(): OkHttpClient
+public interface OkHttpClientEntryPoint {
+    public fun okHttpClient(): OkHttpClient
 }
 
 @HiltAndroidApp
-class JabookApplication :
+public class JabookApplication :
     Application(),
     androidx.work.Configuration.Provider {
     @Inject
-    lateinit var workerFactory: androidx.hilt.work.HiltWorkerFactory
+    public lateinit var workerFactory: androidx.hilt.work.HiltWorkerFactory
 
     @Inject
-    lateinit var syncManager: SyncManager
+    public lateinit var syncManager: SyncManager
 
-    override val workManagerConfiguration: androidx.work.Configuration
+    public override val workManagerConfiguration: androidx.work.Configuration
         get() =
             androidx.work.Configuration
                 .Builder()
