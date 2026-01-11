@@ -173,11 +173,12 @@ public class CacheManager
         private suspend fun clearLogFiles(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
-                    public val logFiles =
+                    val logFiles =
                         context.cacheDir.listFiles { file ->
                             file.name.startsWith("jabook_logs_")
                         }
-                    public var cleared: Int = 0                    logFiles?.forEach { file ->
+                    var cleared: Int = 0
+                    logFiles?.forEach { file ->
                         if (file.delete()) cleared++
                     }
                     Log.d(TAG, "Log files cleared: $cleared")
