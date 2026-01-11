@@ -77,8 +77,10 @@ public class IndexingForegroundService : Service() {
 
         /**
          * Start the indexing service.
+         *
+         * @param context Context needed to start the service
          */
-        public fun start() {
+        public fun start(context: android.content.Context) {
             val intent =
                 Intent(context, IndexingForegroundService::class.java).apply {
                     action = ACTION_START
@@ -93,8 +95,10 @@ public class IndexingForegroundService : Service() {
 
         /**
          * Stop the indexing service.
+         *
+         * @param context Context needed to stop the service
          */
-        public fun stop() {
+        public fun stop(context: android.content.Context) {
             val intent =
                 Intent(context, IndexingForegroundService::class.java).apply {
                     action = ACTION_STOP

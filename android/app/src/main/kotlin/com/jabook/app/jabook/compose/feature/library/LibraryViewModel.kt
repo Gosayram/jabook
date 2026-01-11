@@ -140,14 +140,14 @@ public class LibraryViewModel
         /**
          * Update search query.
          */
-        public fun onSearchQueryChanged() {
+        public fun onSearchQueryChanged(query: String) {
             _searchQuery.value = query
         }
 
         /**
          * Update sort order.
          */
-        public fun onSortOrderChanged() {
+        public fun onSortOrderChanged(order: BookSortOrder) {
             _sortOrder.value = order
             viewModelScope.launch {
                 userPreferencesRepository.setSortOrder(order)
@@ -157,7 +157,7 @@ public class LibraryViewModel
         /**
          * Update view mode.
          */
-        public fun onViewModeChanged() {
+        public fun onViewModeChanged(mode: LibraryViewMode) {
             viewModelScope.launch {
                 _viewMode.value = mode
                 userPreferencesRepository.setViewMode(mode)
@@ -241,7 +241,7 @@ public class LibraryViewModel
         /**
          * Delete a book.
          */
-        public fun deleteBook() {
+        public fun deleteBook(bookId: String) {
             viewModelScope.launch {
                 deleteBookUseCase(bookId)
                 // Result handling can be added if needed for user feedback
@@ -251,7 +251,7 @@ public class LibraryViewModel
         /**
          * Show book properties dialog.
          */
-        public fun showBookProperties() {
+        public fun showBookProperties(bookId: String) {
             viewModelScope.launch {
                 // Find book from current UI state
                 val book =

@@ -67,7 +67,7 @@ public class IndexingViewModel
          *
          * @param context Context needed to start foreground service
          */
-        public fun startIndexing() {
+        public fun startIndexing(context: android.content.Context?) {
             if (_isIndexing.value) {
                 Log.w(TAG, "Indexing already in progress")
                 return
@@ -149,8 +149,10 @@ public class IndexingViewModel
          * Start indexing in foreground service (for background operation).
          * This allows indexing to continue even when dialog is closed.
          * Stops current indexing in ViewModel (if running) and transfers control to service.
+         *
+         * @param context Context needed to start foreground service
          */
-        public fun startIndexingInBackground() {
+        public fun startIndexingInBackground(context: android.content.Context) {
             Log.d(TAG, "Transferring indexing to foreground service")
 
             // Stop current indexing in ViewModel if running

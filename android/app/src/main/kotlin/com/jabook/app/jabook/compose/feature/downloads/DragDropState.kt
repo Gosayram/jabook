@@ -31,11 +31,11 @@ public class DragDropState {
     public var draggedIndex: Int? by mutableStateOf<Int?>(null)
     public var dragOffset: Offset by mutableStateOf(Offset.Zero)
 
-    public fun onDragStart() {
+    public fun onDragStart(index: Int): Unit {
         draggedIndex = index
     }
 
-    public fun onDrag() {
+    public fun onDrag(offset: Offset): Unit {
         dragOffset += offset
     }
 
