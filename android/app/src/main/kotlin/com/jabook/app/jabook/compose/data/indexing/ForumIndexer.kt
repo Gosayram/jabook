@@ -454,11 +454,12 @@ public class ForumIndexer
                             hasMorePages = false
                         } else {
                             // Try switching mirror and retry once
-                            public var retrySucceeded: Boolean = false                            try {
+                            var retrySucceeded: Boolean = false
+                            try {
                                 Log.i(TAG, "Auto-switch enabled, attempting to switch mirror...")
-                                public val switched = mirrorManager.switchToNextMirror()
+                                val switched = mirrorManager.switchToNextMirror()
                                 if (switched) {
-                                    public val newMirror = mirrorManager.currentMirror.value
+                                    val newMirror = mirrorManager.currentMirror.value
                                     Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
                                     delay(500) // Brief delay before retry
                                     // Retry the request

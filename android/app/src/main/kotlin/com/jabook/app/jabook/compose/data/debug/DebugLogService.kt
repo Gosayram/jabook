@@ -327,9 +327,10 @@ public class DebugLogService
                             file.name.startsWith(LOG_FILE_PREFIX)
                         } ?: emptyArray()
 
-                    public val now = System.currentTimeMillis()
-                    public val maxAge: Int = 7 * 24 * 60 * 60 * 1000L // 7 days
-                    public var deletedCount: Int = 0                    logFiles.forEach { file ->
+                    val now = System.currentTimeMillis()
+                    val maxAge: Int = 7 * 24 * 60 * 60 * 1000L // 7 days
+                    var deletedCount: Int = 0
+                    logFiles.forEach { file ->
                         if (now - file.lastModified() > maxAge) {
                             if (file.delete()) {
                                 deletedCount++
