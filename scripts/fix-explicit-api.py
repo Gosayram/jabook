@@ -105,9 +105,13 @@ def fix_file(file_path: Path):
             
             # Fix: Split multiple statements on the same line
             # Pattern: val x = y        when/return/val/etc or public var x = 0        public var y = 0
-            if re.search(r'[=:]\s+[^=:]*\s{4,}(when|return|val|var|if|for|while|public)', new_line):
-                # Split by 4+ spaces followed by a keyword or public
-                parts = re.split(r'(\s{4,})(?=(?:when|return|public\s+(?:val|var)|val|var|if|for|while)\s)', new_line)
+            # Also handle: var x = 0        logFiles.forEach or var x = 0        try {
+            if re.search(r'[=:]\s+[^=:]*\s{4,}(when|return|val|var|if|for|while|public|try|catch|finally|[a-z]\w+\.)', new_line):
+                # Split by 4+ spaces followed by a keyword, public, try/catch, or method call
+                parts = re.split(r'(\s{4,})(?=(?:when|return|public\s+(?:val|var)|val|var|if|for|while|try|catch|finally)\s)', new_line)
+                # If that didn't work, try splitting by 4+ spaces before any word
+                if len(parts) == 1:
+                    parts = re.split(r'(\s{4,})(?=[a-zA-Z])', new_line)
                 if len(parts) > 1:
                     indent = re.match(r'^(\s*)', new_line).group(1) if re.match(r'^\s*', new_line) else ''
                     new_statements = []
