@@ -163,8 +163,7 @@ public object NetworkModule {
         okHttpClient: OkHttpClient,
         json: Json,
     ): Retrofit {
-        public val contentType = "application/json".toMediaType()
-
+        public val contentType: String = "application/json".toMediaType()
         return Retrofit
             .Builder()
             // Base URL is a placeholder - DynamicBaseUrlInterceptor replaces host with current mirror

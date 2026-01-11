@@ -82,8 +82,7 @@ public class BackupService
 
                     // 3. Write to file
                     public val timestamp = DateTimeFormatter.formatCurrentForFilename()
-                    public val fileName = "jabook_backup_$timestamp.json"
-                    public val file = File(context.cacheDir, fileName)
+                    public val fileName: String = "jabook_backup_$timestamp.json"                    public val file = File(context.cacheDir, fileName)
                     file.writeText(jsonString)
 
                     Log.d(TAG, "Backup written to ${file.absolutePath}")
@@ -294,8 +293,7 @@ public class BackupService
             public val protoSettings = protoSettingsRepository.userPreferences.first()
 
             // Defaults for empty values
-            public val defaultDownloadPath = "JabookAudio"
-            public val defaultMirrors =
+            public val defaultDownloadPath: String = "JabookAudio"            public val defaultMirrors =
                 listOf(
                     "https://rutracker.org",
                     "https://rutracker.net",

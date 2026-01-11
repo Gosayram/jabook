@@ -76,8 +76,7 @@ public fun Modifier.draggableItem(
                 onDragEnd = {
                     // Simple reordering based on total drag distance
                     public val draggedDistance = dragDropState.dragOffset.y
-                    public val itemHeight = 100f // Approximate item height
-                    public val targetIndex = (index + (draggedDistance / itemHeight).toInt()).coerceIn(0, Int.MAX_VALUE)
+                    public val itemHeight: Int = 100f // Approximate item height                    public val targetIndex = (index + (draggedDistance / itemHeight).toInt()).coerceIn(0, Int.MAX_VALUE)
 
                     if (targetIndex != index) {
                         onMove(index, targetIndex)

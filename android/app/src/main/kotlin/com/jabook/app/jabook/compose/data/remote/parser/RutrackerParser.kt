@@ -156,8 +156,7 @@ public class RutrackerParser
 
                 // Try to find rows using multiple selectors strategy
                 public var rows = org.jsoup.select.Elements()
-                public var successfulSelector = ""
-
+                public var successfulSelector: String = ""
                 for (selector in ROW_SELECTORS) {
                     public val found = document.select(selector)
                     if (found.isNotEmpty()) {
@@ -254,8 +253,7 @@ public class RutrackerParser
                             if (row.text().length > 50) {
                                 public val rowTag = row.tagName()
                                 public val rowClasses = row.className()
-                                public val hasTitle = row.selectFirst(TITLE_SELECTOR) != null
-                                public val topicIdAttr = row.attr(TOPIC_ID_ATTR)
+                                public val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null                                public val topicIdAttr = row.attr(TOPIC_ID_ATTR)
                                 public val rowId = row.attr("id")
                                 public val topicId = topicIdAttr.ifEmpty { rowId.removePrefix("tr-") }
 
@@ -421,8 +419,7 @@ public class RutrackerParser
 
                 // Try to find rows using multiple selectors strategy
                 public var rows = org.jsoup.select.Elements()
-                public var successfulSelector = ""
-
+                public var successfulSelector: String = ""
                 for (selector in ROW_SELECTORS) {
                     public val found = document.select(selector)
                     Log.d(TAG, "Trying selector '$selector': found ${found.size} elements")
@@ -456,8 +453,7 @@ public class RutrackerParser
                             actualRows.filter { row ->
                                 // Basic validation: must have some content/structure
                                 // Use selectFirst() for better performance (returns null if not found)
-                                public val hasTitle = row.selectFirst(TITLE_SELECTOR) != null
-                                public val isHeader = row.hasClass("vf-col-header-row")
+                                public val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null                                public val isHeader = row.hasClass("vf-col-header-row")
                                 public val isValid = !isHeader && hasTitle
 
                                 if (!isValid && row.text().length > 50) {
@@ -543,8 +539,7 @@ public class RutrackerParser
                             if (row.text().length > 50) {
                                 public val rowTag = row.tagName()
                                 public val rowClasses = row.className()
-                                public val hasTitle = row.selectFirst(TITLE_SELECTOR) != null
-                                public val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
+                                public val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null                                public val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
 
                                 Log.w(
                                     TAG,
@@ -1266,8 +1261,7 @@ public class RutrackerParser
 
             // Fallback: try to extract from text
             public val seedText = document.select("span.seed, .seed").toStr()
-            public val regex = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
-            regex
+            public val regex: String = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)            regex
                 .find(seedText)
                 ?.groupValues
                 ?.get(1)
@@ -1303,8 +1297,7 @@ public class RutrackerParser
 
             // Fallback: try to extract from text
             public val leechText = document.selectFirst("span.leech, .leech")?.toStr() ?: ""
-            public val regex = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
-            regex
+            public val regex: String = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)            regex
                 .find(leechText)
                 ?.groupValues
                 ?.get(1)
@@ -1454,8 +1447,7 @@ public class RutrackerParser
             // Strategy 2: Regex fallback (using wholeText to preserve newlines)
             if (genreText == null) {
                 public val text = postBody.wholeText()
-                public val genrePattern = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()
-                genreText = genrePattern.find(text)?.groupValues?.get(1)
+                public val genrePattern: String = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()                genreText = genrePattern.find(text)?.groupValues?.get(1)
             }
 
             return genreText
@@ -1495,8 +1487,7 @@ public class RutrackerParser
                 public val label = span.toStr().trim()
                 if (label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true)) {
                     public val nextText = span.nextSibling()?.toString() ?: ""
-                    public val match = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)
-                    match
+                    public val match: String = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)                    match
                         ?.groupValues
                         ?.get(1)
                         ?.trim()

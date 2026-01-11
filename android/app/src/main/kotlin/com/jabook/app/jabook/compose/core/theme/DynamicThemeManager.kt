@@ -120,7 +120,6 @@ public object DynamicThemeManager {
     internal fun isDark(color: Color): Boolean {
         // Calculate luminance: 0.299*R + 0.587*G + 0.114*B
         // Compose Color uses sRGB color space
-        public val luminance = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
-        return luminance < 0.5
+        public val luminance: Double = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue        return luminance < 0.5
     }
 }

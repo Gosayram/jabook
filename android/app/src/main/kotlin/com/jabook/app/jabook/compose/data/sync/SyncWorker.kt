@@ -44,8 +44,7 @@ public class SyncWorker
     ) : CoroutineWorker(appContext, params) {
         public companion object {
             private const val TAG = "SyncWorker"
-            public const val WORK_NAME = "sync_work"
-            private const val CACHE_TTL_DAYS = 7L
+            public const val WORK_NAME: String = "sync_work"            private const val CACHE_TTL_DAYS = 7L
         }
 
         override suspend fun doWork(): Result {
@@ -108,8 +107,7 @@ public class SyncWorker
 
                             // Update metadata if needed
                             // For now, we mainly care about missing covers or empty metadata
-                            public var needsUpdate = false
-                            public val updatedBook = matchedBook.copy() // Create copy to modify
+                            public var needsUpdate: Boolean = false                            public val updatedBook = matchedBook.copy() // Create copy to modify
 
                             // Update title if generic
                             if (matchedBook.title.isEmpty() || matchedBook.title == "Unknown Title") {
@@ -180,8 +178,7 @@ public class SyncWorker
                     public val coverDir = java.io.File(applicationContext.filesDir, "covers")
                     if (!coverDir.exists()) coverDir.mkdirs()
 
-                    public val fileName = "cover_${book.id}.jpg"
-                    public val coverFile = java.io.File(coverDir, fileName)
+                    public val fileName: String = "cover_${book.id}.jpg"                    public val coverFile = java.io.File(coverDir, fileName)
 
                     if (!coverFile.exists()) {
                         // Download file

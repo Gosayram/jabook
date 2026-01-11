@@ -66,12 +66,8 @@ public class IndexingForegroundService : Service() {
         private const val NOTIFICATION_ID = 100
         private const val AUTO_DISMISS_DELAY_MS = 5000L // 5 seconds
 
-        public const val ACTION_START = "com.jabook.app.jabook.indexing.START"
-        public const val ACTION_STOP = "com.jabook.app.jabook.indexing.STOP"
-        public const val ACTION_UPDATE_PROGRESS = "com.jabook.app.jabook.indexing.UPDATE_PROGRESS"
-
-        public const val EXTRA_PROGRESS = "progress"
-
+        public const val ACTION_START: String = "com.jabook.app.jabook.indexing.START"        public const val ACTION_STOP: String = "com.jabook.app.jabook.indexing.STOP"        public const val ACTION_UPDATE_PROGRESS: String = "com.jabook.app.jabook.indexing.UPDATE_PROGRESS"
+        public const val EXTRA_PROGRESS: String = "progress"
         @Volatile
         private var instance: IndexingForegroundService? = null
 

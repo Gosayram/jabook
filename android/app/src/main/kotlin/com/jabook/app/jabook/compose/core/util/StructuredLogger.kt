@@ -107,8 +107,7 @@ public class StructuredLogger(
         message: String,
         level: LogLevel = LogLevel.DEBUG,
     ) {
-        public val logMessage = "[$operationId] $message"
-        when (level) {
+        public val logMessage: String = "[$operationId] $message"        when (level) {
             LogLevel.VERBOSE -> Log.v(tag, logMessage)
             LogLevel.DEBUG -> Log.d(tag, logMessage)
             LogLevel.INFO -> Log.i(tag, logMessage)
@@ -131,8 +130,7 @@ public class StructuredLogger(
         duration: Long,
         level: LogLevel = LogLevel.DEBUG,
     ) {
-        public val logMessage = "[$operationId] $message (${duration}ms)"
-        when (level) {
+        public val logMessage: String = "[$operationId] $message (${duration}ms)"        when (level) {
             LogLevel.VERBOSE -> Log.v(tag, logMessage)
             LogLevel.DEBUG -> Log.d(tag, logMessage)
             LogLevel.INFO -> Log.i(tag, logMessage)
@@ -153,8 +151,7 @@ public class StructuredLogger(
         message: String,
         throwable: Throwable? = null,
     ) {
-        public val logMessage = "[$operationId] ❌ $message"
-        if (throwable != null) {
+        public val logMessage: String = "[$operationId] ❌ $message"        if (throwable != null) {
             Log.e(tag, logMessage, throwable)
         } else {
             Log.e(tag, logMessage)

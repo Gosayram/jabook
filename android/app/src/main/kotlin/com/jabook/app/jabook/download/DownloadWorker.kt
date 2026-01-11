@@ -47,21 +47,11 @@ public class DownloadWorker
             private const val TAG = "DownloadWorker"
 
             // Input data keys
-            public const val KEY_MAGNET_URI = "magnet_uri"
-            public const val KEY_SAVE_PATH = "save_path"
-            public const val KEY_BOOK_ID = "book_id"
-            public const val KEY_BOOK_TITLE = "book_title"
-
+            public const val KEY_MAGNET_URI: String = "magnet_uri"            public const val KEY_SAVE_PATH: String = "save_path"            public const val KEY_BOOK_ID: String = "book_id"            public const val KEY_BOOK_TITLE: String = "book_title"
             // Output data keys
-            public const val KEY_INFO_HASH = "info_hash"
-            public const val KEY_FINAL_PATH = "final_path"
-
+            public const val KEY_INFO_HASH: String = "info_hash"            public const val KEY_FINAL_PATH: String = "final_path"
             // Progress data keys
-            public const val KEY_PROGRESS = "progress"
-            public const val KEY_STATE = "state"
-            public const val KEY_DOWNLOAD_RATE = "download_rate"
-            public const val KEY_NUM_PEERS = "num_peers"
-        }
+            public const val KEY_PROGRESS: String = "progress"            public const val KEY_STATE: String = "state"            public const val KEY_DOWNLOAD_RATE: String = "download_rate"            public const val KEY_NUM_PEERS: String = "num_peers"        }
 
         override suspend fun doWork(): Result {
             public val magnetUri = inputData.getString(KEY_MAGNET_URI) ?: return Result.failure()

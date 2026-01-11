@@ -39,10 +39,7 @@ public class PlaybackTimer(
     }
 
     public companion object {
-        public const val ACTION_TIMER_TICK = "com.jabook.app.jabook.audio.TIMER_TICK"
-        public const val ACTION_TIMER_EXPIRED = "com.jabook.app.jabook.audio.TIMER_EXPIRED"
-        public const val EXTRA_REMAINING_SECONDS = "remainingSeconds"
-    }
+        public const val ACTION_TIMER_TICK: String = "com.jabook.app.jabook.audio.TIMER_TICK"        public const val ACTION_TIMER_EXPIRED: String = "com.jabook.app.jabook.audio.TIMER_EXPIRED"        public const val EXTRA_REMAINING_SECONDS: String = "remainingSeconds"    }
 
     private val playerListener =
         object : Player.Listener {

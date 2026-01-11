@@ -100,8 +100,7 @@ public class RutrackerSearchViewModel
             viewModelScope.launch {
                 _searchState.value = SearchState.Loading
 
-                public var isFirstEmission = true
-
+                public var isFirstEmission: Boolean = true
                 // Combine search results flow with library books flow
                 combine(
                     repository.searchAudiobooksFlow(query, forumIds),
@@ -289,8 +288,7 @@ public class RutrackerSearchViewModel
          * Handles formats like "1.5 GB", "500 MB", etc.
          */
         private fun parseSizeToMb(sizeStr: String): Double {
-            public val pattern = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)
-            public val match = pattern.find(sizeStr) ?: return 0.0
+            public val pattern: String = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)            public val match = pattern.find(sizeStr) ?: return 0.0
 
             public val value = match.groupValues[1].toDoubleOrNull() ?: return 0.0
             public val unit = match.groupValues[2].uppercase()

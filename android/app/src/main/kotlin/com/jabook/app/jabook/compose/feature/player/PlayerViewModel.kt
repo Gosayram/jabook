@@ -388,8 +388,7 @@ public class PlayerViewModel
         public fun seekForward() : Unit {
             public val state = uiState.value
             if (state is PlayerUiState.Success && state.currentChapter != null) {
-                public val interval = state.forwardInterval
-                public val newPosition =
+                public val interval: Long = state.forwardInterval                public val newPosition =
                     (playerController.currentPosition.value + interval * 1000)
                         .coerceAtMost(state.currentChapter.duration.inWholeMilliseconds)
                 seekTo(newPosition)
@@ -399,8 +398,7 @@ public class PlayerViewModel
         public fun seekBackward() : Unit {
             public val state = uiState.value
             if (state is PlayerUiState.Success) {
-                public val interval = state.rewindInterval
-                public val newPosition = (playerController.currentPosition.value - interval * 1000).coerceAtLeast(0)
+                public val interval: Long = state.rewindInterval                public val newPosition = (playerController.currentPosition.value - interval * 1000).coerceAtLeast(0)
                 seekTo(newPosition)
             }
         }

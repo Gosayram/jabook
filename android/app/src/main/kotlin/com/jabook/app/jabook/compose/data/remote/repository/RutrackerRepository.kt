@@ -281,8 +281,7 @@ public class RutrackerRepository
                             tokens.forEachIndexed { index, token ->
                                 if (index > 0) sqlBuilder.append(" AND ")
                                 sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
-                                public val likePattern = "%$token%"
-                                args.add(likePattern)
+                                public val likePattern: String = "%$token%"                                args.add(likePattern)
                                 args.add(likePattern)
                             }
 
@@ -326,8 +325,7 @@ public class RutrackerRepository
                 // Extract success data to check coverUrl
                 if (result.isSuccess) {
                     public val details = result.getOrNull()
-                    public val coverUrl = details?.coverUrl
-
+                    public val coverUrl: Long = details?.coverUrl
                     if (!coverUrl.isNullOrBlank()) {
                         Log.d(TAG, "Updating cover for $topicId: $coverUrl")
                         offlineSearchDao.updateCoverUrl(topicId, coverUrl)
@@ -364,8 +362,7 @@ public class RutrackerRepository
             public val response = api.searchTopics(query, forumIds)
 
             // Log request details
-            public val requestUrl = response.raw().request.url
-            Log.w(TAG, "Request URL: $requestUrl")
+            public val requestUrl: Long = response.raw().request.url            Log.w(TAG, "Request URL: $requestUrl")
 
             // === HTTP RESPONSE LOGGING ===
             public val networkDuration = System.currentTimeMillis() - networkStartTime

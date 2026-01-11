@@ -31,9 +31,7 @@ public object NotificationHelper {
     /**
      * Notification channel IDs.
      */
-    public const val CHANNEL_DOWNLOADS = "downloads"
-    public const val CHANNEL_PLAYER = "player"
-
+    public const val CHANNEL_DOWNLOADS: String = "downloads"    public const val CHANNEL_PLAYER: String = "player"
     /**
      * Create notification channels.
      *

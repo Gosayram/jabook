@@ -30,26 +30,22 @@ public object MediaControllerConstants {
      * Default timeout for MediaController operations (2 seconds).
      * Used for regular operations like initialization in controllers.
      */
-    public const val DEFAULT_TIMEOUT_SECONDS = 2L
-
+    public const val DEFAULT_TIMEOUT_SECONDS: Long = 2L
     /**
      * Timeout for service initialization (5 seconds).
      * Service initialization is critical and may take longer, especially on first start.
      */
-    public const val SERVICE_INIT_TIMEOUT_SECONDS = 5L
-
+    public const val SERVICE_INIT_TIMEOUT_SECONDS: Long = 5L
     /**
      * Timeout for widget updates (1 second).
      * Widgets need faster timeouts for better user experience.
      */
-    public const val WIDGET_TIMEOUT_SECONDS = 1L
-
+    public const val WIDGET_TIMEOUT_SECONDS: Long = 1L
     /**
      * Quick fallback timeout (500 milliseconds).
      * Used when we want to quickly fallback to alternative methods if MediaController is slow.
      */
-    public const val QUICK_FALLBACK_TIMEOUT_MS = 500L
-
+    public const val QUICK_FALLBACK_TIMEOUT_MS: Long = 500L
     /**
      * Gets default timeout in TimeUnit.SECONDS.
      */

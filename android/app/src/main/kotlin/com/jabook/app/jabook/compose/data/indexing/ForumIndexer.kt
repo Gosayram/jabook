@@ -114,8 +114,7 @@ public class ForumIndexer
                 public val startTime = System.currentTimeMillis()
                 public val currentIndexVersion = getCurrentIndexVersion() + 1
                 public val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                public var totalIndexed = 0
-                public val coversToPreload = mutableListOf<String>()
+                public var totalIndexed: Int = 0                public val coversToPreload = mutableListOf<String>()
 
                 // Log current mirror at start of indexing
                 public val initialMirror = mirrorManager.getCurrentMirrorDomain()
@@ -168,8 +167,7 @@ public class ForumIndexer
                                 async(Dispatchers.IO) {
                                     try {
                                         public val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
-                                        public var forumTopicsCount = 0
-                                        val (indexed, covers) =
+                                        public var forumTopicsCount: Int = 0                                        val (indexed, covers) =
                                             indexForum(
                                                 forumId,
                                                 currentIndexVersion,
@@ -313,8 +311,7 @@ public class ForumIndexer
             withContext(Dispatchers.IO) {
                 public val currentIndexVersion = getCurrentIndexVersion()
                 public val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                public var totalUpdated = 0
-                public val coversToPreload = mutableListOf<String>()
+                public var totalUpdated: Int = 0                public val coversToPreload = mutableListOf<String>()
 
                 Log.i(TAG, "Starting incremental update (max age: ${maxAgeMs / (1000 * 60 * 60)} hours)")
 
@@ -348,10 +345,7 @@ public class ForumIndexer
             indexVersion: Int,
             onProgress: ((page: Int, topicsInForum: Int) -> Unit)? = null,
         ): Pair<Int, List<String>> {
-            public var totalTopics = 0
-            public var page = 0
-            public var hasMorePages = true
-            public val coversToPreload = mutableListOf<String>()
+            public var totalTopics: Int = 0            public var page: Int = 0            public var hasMorePages: Boolean = true            public val coversToPreload = mutableListOf<String>()
             public val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
 
             public val forumStartTime = System.currentTimeMillis()
@@ -451,8 +445,7 @@ public class ForumIndexer
                             hasMorePages = false
                         } else {
                             // Try switching mirror and retry once
-                            public var retrySucceeded = false
-                            try {
+                            public var retrySucceeded: Boolean = false                            try {
                                 Log.i(TAG, "Auto-switch enabled, attempting to switch mirror...")
                                 public val switched = mirrorManager.switchToNextMirror()
                                 if (switched) {
@@ -568,10 +561,7 @@ public class ForumIndexer
             currentIndexVersion: Int,
             onProgress: ((forumId: String, updated: Int, total: Int) -> Unit)?,
         ): Pair<Int, List<String>> {
-            public var totalUpdated = 0
-            public var page = 0
-            public var hasMorePages = true
-            public val coversToPreload = mutableListOf<String>()
+            public var totalUpdated: Int = 0            public var page: Int = 0            public var hasMorePages: Boolean = true            public val coversToPreload = mutableListOf<String>()
 
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {

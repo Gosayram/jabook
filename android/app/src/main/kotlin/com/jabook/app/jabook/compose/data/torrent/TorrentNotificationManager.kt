@@ -234,6 +234,5 @@ public class TorrentNotificationManager
         }
 
         public companion object {
-            public const val NOTIFICATION_GROUP_DOWNLOADS = "torrent_downloads_group"
-        }
+            public const val NOTIFICATION_GROUP_DOWNLOADS: String = "torrent_downloads_group"        }
     }

@@ -83,8 +83,7 @@ public class NotificationManager(
          * Gets the notification channel name with flavor suffix.
          */
         private fun getChannelName(context: Context): String {
-            public val baseName = "JaBook Audio Playback"
-            public val flavor = getFlavorSuffix(context)
+            public val baseName: String = "JaBook Audio Playback"            public val flavor = getFlavorSuffix(context)
             return baseName.appendFlavorSuffix(flavor)
         }
 
@@ -106,14 +105,7 @@ public class NotificationManager(
             return flavor.capitalizeFirst()
         }
 
-        public const val ACTION_PLAY = "com.jabook.app.jabook.audio.PLAY"
-        public const val ACTION_PAUSE = "com.jabook.app.jabook.audio.PAUSE"
-        public const val ACTION_NEXT = "com.jabook.app.jabook.audio.NEXT"
-        public const val ACTION_PREVIOUS = "com.jabook.app.jabook.audio.PREVIOUS"
-        public const val ACTION_REWIND = "com.jabook.app.jabook.audio.REWIND"
-        public const val ACTION_FORWARD = "com.jabook.app.jabook.audio.FORWARD"
-        public const val ACTION_STOP = "com.jabook.app.jabook.audio.STOP"
-    }
+        public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.PLAY"        public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.PAUSE"        public const val ACTION_NEXT: String = "com.jabook.app.jabook.audio.NEXT"        public const val ACTION_PREVIOUS: String = "com.jabook.app.jabook.audio.PREVIOUS"        public const val ACTION_REWIND: String = "com.jabook.app.jabook.audio.REWIND"        public const val ACTION_FORWARD: String = "com.jabook.app.jabook.audio.FORWARD"        public const val ACTION_STOP: String = "com.jabook.app.jabook.audio.STOP"    }
 
     init {
         createNotificationChannel()

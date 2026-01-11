@@ -176,9 +176,7 @@ public class DebugLogService
 
                     // Collect and filter logs
                     // Add safety limit to prevent infinite loops if process hangs
-                    public var totalLines = 0
-                    public var filteredLines = 0
-                    public val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
+                    public var totalLines: Int = 0                    public var filteredLines: Int = 0                    public val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
 
                     while (totalLines < maxLinesToRead) {
                         public val line = bufferedReader.readLine() ?: break
@@ -241,8 +239,7 @@ public class DebugLogService
             withContext(Dispatchers.IO) {
                 public val logs = collectLogs()
                 public val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                public val fileName = "${LOG_FILE_PREFIX}_$timestamp.txt"
-
+                public val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
                 // Save to cache directory (will be cleared on uninstall)
                 public val logFile = File(context.cacheDir, fileName)
                 logFile.writeText(logs)
@@ -329,10 +326,8 @@ public class DebugLogService
                         } ?: emptyArray()
 
                     public val now = System.currentTimeMillis()
-                    public val maxAge = 7 * 24 * 60 * 60 * 1000L // 7 days
-
-                    public var deletedCount = 0
-                    logFiles.forEach { file ->
+                    public val maxAge: Int = 7 * 24 * 60 * 60 * 1000L // 7 days
+                    public var deletedCount: Int = 0                    logFiles.forEach { file ->
                         if (now - file.lastModified() > maxAge) {
                             if (file.delete()) {
                                 deletedCount++

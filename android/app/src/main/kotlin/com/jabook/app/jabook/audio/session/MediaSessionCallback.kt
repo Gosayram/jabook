@@ -36,9 +36,7 @@ public class MediaSessionCallback(
     private val onForward: (() -> Unit)? = null,
 ) : MediaSession.Callback {
     public companion object {
-        public const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
-        public const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
-    }
+        public const val REWIND_COMMAND: String = "com.jabook.app.jabook.audio.REWIND"        public const val FORWARD_COMMAND: String = "com.jabook.app.jabook.audio.FORWARD"    }
 
     // Note: onPlay, onPause, onSkipToNextMediaItem, onSkipToPreviousMediaItem, and onSeekTo
     // are not available in MediaSession.Callback in Media3 1.8.0. MediaSession automatically

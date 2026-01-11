@@ -59,8 +59,7 @@ public class AvatarPreloader
             Log.d(TAG, "Starting preload for ${commentsWithAvatars.size} avatars")
 
             public val imageLoader = SingletonImageLoader.get(context)
-            public var successCount = 0
-
+            public var successCount: Int = 0
             commentsWithAvatars.forEach { comment ->
                 try {
                     public val url = comment.avatarUrl ?: return@forEach

@@ -128,12 +128,8 @@ public class PersistentCookieJar
                 public val name = nameValue[0]
                 public val value = nameValue[1]
 
-                public var domain = ""
-                public var path = "/"
-                public var expiresAt = Long.MIN_VALUE
-                public var secure = false
-                public var httpOnly = false
-
+                public var domain: String = ""                public var path: String = "/"                public var expiresAt = Long.MIN_VALUE
+                public var secure: Boolean = false                public var httpOnly: Boolean = false
                 parts.drop(1).forEach { part ->
                     public val trimmed = part.trim()
                     when {

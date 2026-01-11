@@ -145,8 +145,7 @@ public class AuthRepositoryImpl
 
             return loginMutex.withLock {
                 try {
-                    public val operationId = "login_${System.currentTimeMillis()}"
-                    android.util.Log.d("AuthRepository", "[$operationId] Login attempt started")
+                    public val operationId: String = "login_${System.currentTimeMillis()}"                    android.util.Log.d("AuthRepository", "[$operationId] Login attempt started")
 
                     when (val result = authService.login(credentials)) {
                         is RutrackerAuthService.AuthResult.Success -> {
@@ -216,8 +215,7 @@ public class AuthRepositoryImpl
 
             return loginMutex.withLock {
                 try {
-                    public val operationId = "login_captcha_${System.currentTimeMillis()}"
-                    android.util.Log.d("AuthRepository", "[$operationId] Captcha login attempt started")
+                    public val operationId: String = "login_captcha_${System.currentTimeMillis()}"                    android.util.Log.d("AuthRepository", "[$operationId] Captcha login attempt started")
 
                     when (val result = authService.login(credentials, captchaCode, captchaData)) {
                         is RutrackerAuthService.AuthResult.Success -> {

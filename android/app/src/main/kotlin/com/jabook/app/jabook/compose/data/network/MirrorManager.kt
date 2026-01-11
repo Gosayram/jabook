@@ -144,8 +144,7 @@ public class MirrorManager
                             .build()
 
                     public val response = healthCheckClient.newCall(request).execute()
-                    public val isHealthy = response.isSuccessful
-
+                    public val isHealthy: Long = response.isSuccessful
                     Log.d(TAG, "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})")
                     response.close()
 

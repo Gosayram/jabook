@@ -23,10 +23,7 @@ import androidx.media3.exoplayer.ExoPlayer
  * Constants for position saving broadcasts.
  */
 public object PositionConstants {
-    public const val ACTION_SAVE_POSITION_BEFORE_UNLOAD = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"
-    public const val EXTRA_TRACK_INDEX = "trackIndex"
-    public const val EXTRA_POSITION_MS = "positionMs"
-}
+    public const val ACTION_SAVE_POSITION_BEFORE_UNLOAD: String = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"    public const val EXTRA_TRACK_INDEX: String = "trackIndex"    public const val EXTRA_POSITION_MS: String = "positionMs"}
 
 /**
  * Manages playback position operations (save, restore, seek).

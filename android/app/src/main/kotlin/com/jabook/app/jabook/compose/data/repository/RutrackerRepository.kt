@@ -144,8 +144,7 @@ public class RutrackerRepositoryImpl
                             tokens.forEachIndexed { index, token ->
                                 if (index > 0) sqlBuilder.append(" AND ")
                                 sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
-                                public val likePattern = "%$token%"
-                                args.add(likePattern)
+                                public val likePattern: String = "%$token%"                                args.add(likePattern)
                                 args.add(likePattern)
                             }
 
@@ -185,8 +184,7 @@ public class RutrackerRepositoryImpl
 
                 when (result) {
                     is Result.Success -> {
-                        public val coverUrl = result.data.coverUrl
-                        if (!coverUrl.isNullOrBlank()) {
+                        public val coverUrl: Long = result.data.coverUrl                        if (!coverUrl.isNullOrBlank()) {
                             // android.util.Log.d("RutrackerRepositoryImpl", "Updating cover for $topicId: $coverUrl")
                             offlineSearchDao.updateCoverUrl(topicId, coverUrl)
                             Result.Success(Unit)
@@ -249,8 +247,7 @@ public class RutrackerRepositoryImpl
         ): Result<Unit> {
             return try {
                 // Create form-url-encoded request body with CP1251 encoding
-                public val formBody = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
-                public val requestBody =
+                public val formBody: String = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"                public val requestBody =
                     formBody
                         .toByteArray(charset("windows-1251"))
                         .toRequestBody("application/x-www-form-urlencoded; charset=windows-1251".toMediaType())
