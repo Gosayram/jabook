@@ -74,6 +74,26 @@ def fix_file(file_path: Path):
             original = line
             new_line = line
             
+            # Pre-fix: Remove public from local variables inside function bodies
+            # Check if we're inside a function body by looking for function declaration above
+            is_inside_function_body = False
+            brace_count = 0
+            for j in range(max(0, i - 20), i):
+                prev_line = lines[j]
+                # Count braces to track nesting
+                brace_count += prev_line.count('{') - prev_line.count('}')
+                # Check if we found a function declaration
+                if re.match(r'^\s*(public\s+)?(suspend\s+)?fun\s+\w+', prev_line.strip()):
+                    # Found function, check if we're inside its body
+                    if '{' in prev_line or any('{' in lines[k] for k in range(j + 1, min(len(lines), j + 5))):
+                        is_inside_function_body = True
+                        break
+            
+            # Remove public from local variables inside functions
+            if is_inside_function_body and re.match(r'^\s+public\s+(var|val)\s+\w+', line):
+                new_line = re.sub(r'^(\s+)public\s+(var|val)', r'\1\2', line)
+                fixed = True
+            
             # Fix 1: Add public to top-level functions
             if re.match(r'^\s*fun\s+\w+', line):
                 if not re.search(r'\b(public|private|internal|protected)\s+fun', line):
@@ -96,16 +116,35 @@ def fix_file(file_path: Path):
                     new_line = re.sub(r'^(\s*)companion', r'\1public companion', new_line)
                     fixed = True
             
-            # Fix 4: Add public to const val and return type
-            if re.match(r'^\s*(public\s+)?const\s+val', line):
+            # Fix 4: Split multiple const val declarations on the same line
+            # Pattern: public const val NAME1 = "value1"        public const val NAME2 = "value2"
+            if re.search(r'public\s+const\s+val.*public\s+const\s+val', line):
+                # Split the line into multiple const val declarations
+                parts = re.split(r'(\s+)(?=public\s+const\s+val)', line)
+                if len(parts) > 1:
+                    # Reconstruct: first part + newline + indent + each subsequent const val
+                    indent = re.match(r'^(\s*)', line).group(1) if re.match(r'^\s*', line) else ''
+                    first_part = parts[0]
+                    new_parts = [first_part]
+                    
+                    for i in range(1, len(parts), 2):
+                        if i + 1 < len(parts):
+                            const_val_part = parts[i + 1]
+                            new_parts.append(f"\n{indent}{const_val_part.strip()}")
+                    
+                    new_line = ''.join(new_parts) + '\n' if not new_line.endswith('\n') else ''.join(new_parts)
+                    fixed = True
+            
+            # Fix 4a: Add public to const val and return type (only if not already split)
+            if re.match(r'^\s*(public\s+)?const\s+val', new_line) and 'public const val' not in new_line.split('\n')[0]:
                 # Add public if missing
-                if not re.search(r'\b(public|private|internal|protected)\s+const', line):
+                if not re.search(r'\b(public|private|internal|protected)\s+const', new_line):
                     new_line = re.sub(r'^(\s*)const', r'\1public const', new_line)
                     fixed = True
                 
                 # Add return type if missing (e.g., const val NAME = "value" -> const val NAME: String = "value")
                 # Handle both "const val" and "public const val"
-                if ': ' not in line and '=' in line:
+                if ': ' not in new_line and '=' in new_line:
                     # Extract name and value - handle both with and without public
                     match = re.match(r'^(\s*(?:public\s+)?const\s+val\s+)(\w+)(\s*=\s*)(.+)$', new_line)
                     if match:
@@ -137,9 +176,31 @@ def fix_file(file_path: Path):
             
             # Fix 5: Add public to var/val properties inside classes (indented, but not private/internal)
             # Also handle properties that already have public but need return type
-            if re.match(r'^\s+(public\s+)?(var|val)\s+\w+', line):
-                # Add public if missing
-                if not re.search(r'\b(public|private|internal|protected)\s+(var|val)', line):
+            # BUT: Skip if it's inside a function body (check context)
+            is_inside_function = False
+            if i > 0:
+                # Check previous lines to see if we're inside a function
+                for j in range(max(0, i - 5), i):
+                    prev_line = lines[j].strip()
+                    if re.match(r'^(public\s+)?(suspend\s+)?fun\s+\w+', prev_line) and '{' in prev_line:
+                        is_inside_function = True
+                        break
+                    if re.match(r'^(public\s+)?(suspend\s+)?fun\s+\w+', prev_line):
+                        # Function declaration, check if next lines have {
+                        for k in range(j + 1, min(len(lines), j + 3)):
+                            if '{' in lines[k]:
+                                is_inside_function = True
+                                break
+                        if is_inside_function:
+                            break
+            
+            if re.match(r'^\s+(public\s+)?(var|val)\s+\w+', line) and not is_inside_function:
+                # Remove public from local variables inside functions
+                if is_inside_function and re.search(r'\bpublic\s+(var|val)', line):
+                    new_line = re.sub(r'\bpublic\s+(var|val)', r'\1', new_line)
+                    fixed = True
+                # Add public if missing (only for class members, not local variables)
+                elif not re.search(r'\b(public|private|internal|protected)\s+(var|val)', line):
                     # Only add public if it's not already private/internal
                     if not re.search(r'\b(private|internal)\s+(var|val)', line):
                         # Check if it's a class member (indented) or top-level
