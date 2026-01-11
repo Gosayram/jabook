@@ -17,8 +17,10 @@ package com.jabook.app.jabook.compose
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -44,9 +46,10 @@ import dagger.hilt.android.AndroidEntryPoint
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @AndroidEntryPoint
 public class ComposeMainActivity : ComponentActivity() {
-    public companion object {
-        private const val TAG = "ComposeMainActivity"
-    }
+    @Inject
+    lateinit var loggerFactory: LoggerFactory
+
+    private val logger by lazy { loggerFactory.get("ComposeMainActivity") }
 
     private var deepLinkIntent by androidx.compose.runtime.mutableStateOf<Intent?>(null)
 
@@ -97,7 +100,7 @@ public class ComposeMainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         val data: Uri = intent?.data ?: return
 
-        Log.d(TAG, "Handling intent with data: $data, scheme: ${data.scheme}")
+        logger.d { "Handling intent with data: $data, scheme: ${data.scheme}" }
 
         when (data.scheme) {
             "magnet" -> {
@@ -107,7 +110,7 @@ public class ComposeMainActivity : ComponentActivity() {
                 handleJabookDeepLink(data)
             }
             else -> {
-                Log.w(TAG, "Unknown scheme: ${data.scheme}")
+                logger.w { "Unknown scheme: ${data.scheme}" }
             }
         }
     }
@@ -115,7 +118,7 @@ public class ComposeMainActivity : ComponentActivity() {
     // Handle special intent extras that don't use a scheme
     private fun handleIntentExtras(intent: Intent?) {
         if (intent?.getBooleanExtra("navigate_to_player", false) == true) {
-            Log.d(TAG, "Handling navigate_to_player extra")
+            logger.d { "Handling navigate_to_player extra" }
             // Navigation provided by JabookApp.LaunchedEffect(intent) which handles
             // this specific extra and navigates to PlayerRoute.
             // deepLinkIntent is already updated in onNewIntent/onCreate.
@@ -129,7 +132,7 @@ public class ComposeMainActivity : ComponentActivity() {
      */
     private fun handleMagnetLink(uri: Uri) {
         val magnetUrl = uri.toString()
-        Log.d(TAG, "Handling magnet link: $magnetUrl")
+        logger.d { "Handling magnet link: $magnetUrl" }
 
         // Get default save path (app-specific storage)
         val savePath = "${getExternalFilesDir(null)}/JabookAudio/downloads"
@@ -141,7 +144,7 @@ public class ComposeMainActivity : ComponentActivity() {
             savePath = savePath,
         )
 
-        Log.i(TAG, "Started torrent download: $magnetUrl")
+        logger.i { "Started torrent download: $magnetUrl" }
 
         // Show feedback
         android.widget.Toast
@@ -171,7 +174,7 @@ public class ComposeMainActivity : ComponentActivity() {
     private fun handleJabookDeepLink(uri: Uri) {
         val host = uri.host
         val path = uri.path
-        Log.d(TAG, "Handling jabook deep link - host: $host, path: $path")
+        logger.d { "Handling jabook deep link - host: $host, path: $path" }
 
         // Navigation is handled by JabookApp's NavHost which observes deepLinkIntent.
         // This method serves as an interception point for logging or analytics.

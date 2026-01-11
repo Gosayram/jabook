@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentNotificationManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -34,6 +34,11 @@ public class TorrentActionReceiver : BroadcastReceiver() {
     @Inject
     public lateinit var notificationManager: TorrentNotificationManager
 
+    @Inject
+    public lateinit var loggerFactory: LoggerFactory
+
+    private val logger by lazy { loggerFactory.get("TorrentActionReceiver") }
+
     override fun onReceive(
         context: Context,
         intent: Intent,
@@ -45,7 +50,7 @@ public class TorrentActionReceiver : BroadcastReceiver() {
                 hash?.let {
                     torrentManager.pauseTorrent(it)
                     updateNotification(it)
-                    Log.i(TAG, "Paused torrent: $it")
+                    logger.i { "Paused torrent: $it" }
                 }
             }
 
@@ -53,7 +58,7 @@ public class TorrentActionReceiver : BroadcastReceiver() {
                 hash?.let {
                     torrentManager.resumeTorrent(it)
                     updateNotification(it)
-                    Log.i(TAG, "Resumed torrent: $it")
+                    logger.i { "Resumed torrent: $it" }
                 }
             }
 
@@ -61,7 +66,7 @@ public class TorrentActionReceiver : BroadcastReceiver() {
                 hash?.let {
                     torrentManager.stopTorrent(it, deleteFiles = false)
                     notificationManager.cancel(it.hashCode())
-                    Log.i(TAG, "Stopped torrent: $it")
+                    logger.i { "Stopped torrent: $it" }
                 }
             }
 
@@ -69,20 +74,20 @@ public class TorrentActionReceiver : BroadcastReceiver() {
                 hash?.let {
                     torrentManager.removeTorrent(it, deleteFiles = true)
                     notificationManager.cancel(it.hashCode())
-                    Log.i(TAG, "Cancelled torrent: $it")
+                    logger.i { "Cancelled torrent: $it" }
                 }
             }
 
             ACTION_PAUSE_ALL -> {
                 torrentManager.pauseAll()
                 notificationManager.updateAllNotifications()
-                Log.i(TAG, "Paused all torrents")
+                logger.i { "Paused all torrents" }
             }
 
             ACTION_RESUME_ALL -> {
                 torrentManager.resumeAll()
                 notificationManager.updateAllNotifications()
-                Log.i(TAG, "Resumed all torrents")
+                logger.i { "Resumed all torrents" }
             }
         }
     }
@@ -94,8 +99,6 @@ public class TorrentActionReceiver : BroadcastReceiver() {
     }
 
     public companion object {
-        private const val TAG = "TorrentActionReceiver"
-
         public const val ACTION_PAUSE_TORRENT: String = "org.jabook.ACTION_PAUSE_TORRENT"
         public const val ACTION_RESUME_TORRENT: String = "org.jabook.ACTION_RESUME_TORRENT"
         public const val ACTION_STOP_TORRENT: String = "org.jabook.ACTION_STOP_TORRENT"

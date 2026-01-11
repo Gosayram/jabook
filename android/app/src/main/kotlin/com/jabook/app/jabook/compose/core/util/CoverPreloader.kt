@@ -21,9 +21,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import coil3.SingletonImageLoader
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.domain.model.Book
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+/**
+ * Logger for CoverPreloader.
+ */
+private val coverPreloaderLogger = LoggerFactoryImpl().get("CoverPreloader")
 
 /**
  * Preloads cover images for books that are about to become visible in the list.
@@ -149,20 +155,16 @@ private class CoverPreloader(
                     // Mark as preloaded
                     preloadedIds.add(book.id)
 
-                    android.util.Log.v(
-                        "CoverPreloader",
-                        "Preloaded cover for: ${book.title}",
-                    )
+                    coverPreloaderLogger.v { "Preloaded cover for: ${book.title}" }
                 } catch (e: Exception) {
                     // Silently fail - covers will load on demand
-                    android.util.Log.d("CoverPreloader", "Failed to preload cover for ${book.title}", e)
+                    coverPreloaderLogger.d(e) { "Failed to preload cover for ${book.title}" }
                 }
             }
 
-            android.util.Log.d(
-                "CoverPreloader",
-                "Preloaded ${newBooks.size} covers (total preloaded: ${preloadedIds.size})",
-            )
+            coverPreloaderLogger.d {
+                "Preloaded ${newBooks.size} covers (total preloaded: ${preloadedIds.size})"
+            }
         }
 
     /**
@@ -171,6 +173,6 @@ private class CoverPreloader(
      */
     public fun clearCache() {
         preloadedIds.clear()
-        android.util.Log.d("CoverPreloader", "Cleared preload cache")
+        coverPreloaderLogger.d { "Cleared preload cache" }
     }
 }

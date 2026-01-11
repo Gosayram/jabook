@@ -23,8 +23,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.data.model.AppFont
 import com.jabook.app.jabook.ui.theme.InterFontFamily
+
+/**
+ * Logger for FontUtils.
+ */
+private val fontUtilsLogger = LoggerFactoryImpl().get("FontUtils")
 
 /**
  * Utility for creating FontFamily based on AppFont selection.
@@ -87,7 +93,7 @@ public object FontUtils {
                             )
                         } catch (e: Exception) {
                             // Fallback to Inter if font loading fails
-                            android.util.Log.w("FontUtils", "Failed to load font: $fontName", e)
+                            fontUtilsLogger.w(e) { "Failed to load font: $fontName" }
                             InterFontFamily
                         }
                     } ?: InterFontFamily
@@ -137,7 +143,7 @@ public object FontUtils {
                             ),
                         )
                     } catch (e: Exception) {
-                        android.util.Log.w("FontUtils", "Failed to load font: $fontName", e)
+                        fontUtilsLogger.w(e) { "Failed to load font: $fontName" }
                         InterFontFamily
                     }
                 } ?: InterFontFamily

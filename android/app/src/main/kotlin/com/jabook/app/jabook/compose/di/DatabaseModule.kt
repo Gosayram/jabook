@@ -15,8 +15,8 @@
 package com.jabook.app.jabook.compose.di
 
 import android.content.Context
-import android.util.Log
 import androidx.room.Room
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -39,7 +39,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 public object DatabaseModule {
-    private const val TAG = "Room"
+    /**
+     * Logger for DatabaseModule.
+     */
+    private val logger = LoggerFactoryImpl().get("Room")
 
     /**
      * Helper function to wrap migration with logging.
@@ -52,13 +55,13 @@ public object DatabaseModule {
         object : Migration(startVersion, endVersion) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 try {
-                    Log.i(TAG, "🔄 Starting migration $startVersion→$endVersion")
+                    logger.i { "🔄 Starting migration $startVersion→$endVersion" }
                     val startTime = System.currentTimeMillis()
                     migrationBlock(db)
                     val duration = System.currentTimeMillis() - startTime
-                    Log.i(TAG, "✅ Migration $startVersion→$endVersion completed successfully (${duration}ms)")
+                    logger.i { "✅ Migration $startVersion→$endVersion completed successfully (${duration}ms)" }
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Migration $startVersion→$endVersion failed: ${e.message}", e)
+                    logger.e(e) { "❌ Migration $startVersion→$endVersion failed: ${e.message}" }
                     throw e
                 }
             }
@@ -339,7 +342,7 @@ public object DatabaseModule {
             object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
-                    Log.i("Room", "JabookDatabase created")
+                    logger.i { "JabookDatabase created" }
                     // Enable foreign key constraints for referential integrity
                     db.execSQL("PRAGMA foreign_keys = ON")
                 }
@@ -354,10 +357,9 @@ public object DatabaseModule {
 
                 override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
                     super.onDestructiveMigration(db)
-                    Log.e(
-                        TAG,
-                        "❌ CRITICAL: Destructive migration occurred - all data was lost! This should never happen in production.",
-                    )
+                    logger.e {
+                        "❌ CRITICAL: Destructive migration occurred - all data was lost! This should never happen in production."
+                    }
                 }
             },
         )
@@ -374,16 +376,15 @@ public object DatabaseModule {
                 builder.setQueryCallback(
                     Dispatchers.Unconfined,
                     RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
-                        Log.d(
-                            "Room",
-                            "Query: $sqlQuery | Args: ${bindArgs.joinToString(", ")}",
-                        )
+                        logger.d {
+                            "Query: $sqlQuery | Args: ${bindArgs.joinToString(", ")}"
+                        }
                     },
                 )
             }
         } catch (e: Exception) {
             // BuildConfig not available, skip query callback
-            Log.d("Room", "BuildConfig not available, skipping query callback", e)
+            logger.d(e) { "BuildConfig not available, skipping query callback" }
         }
 
         return builder.build()

@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.navigation
 
-import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +34,12 @@ import com.jabook.app.jabook.compose.feature.search.SearchScreen
 import com.jabook.app.jabook.compose.feature.settings.SettingsScreen
 import com.jabook.app.jabook.compose.feature.topic.TopicScreen
 import com.jabook.app.jabook.compose.feature.webview.WebViewScreen
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 
-// Logging for navigation changes
-private const val TAG = "Navigation"
+/**
+ * Logger for Navigation.
+ */
+private val navigationLogger = LoggerFactoryImpl().get("Navigation")
 
 /**
  * Jabook app navigation graph.
@@ -61,7 +63,7 @@ public fun JabookNavHost(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(currentBackStackEntry?.destination?.route) {
         currentBackStackEntry?.destination?.route?.let { route ->
-            Log.d(TAG, "📍 Navigation: Current screen = $route")
+            navigationLogger.d { "📍 Navigation: Current screen = $route" }
         }
     }
 

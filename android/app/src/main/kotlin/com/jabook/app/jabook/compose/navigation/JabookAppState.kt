@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.navigation
 
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
@@ -24,8 +23,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 
-private const val TAG = "Navigation"
+/**
+ * Logger for Navigation.
+ */
+private val navigationLogger = LoggerFactoryImpl().get("Navigation")
 
 /**
  * Remembers and creates a [JabookAppState] instance.
@@ -79,7 +82,7 @@ public class JabookAppState(
      * @param topLevelDestination The destination to navigate to
      */
     public fun navigateToTopLevelDestination(topLevelDestination: TopLevelDestination) {
-        Log.d(TAG, "🧭 Navigating to top-level destination: ${topLevelDestination.name}")
+        navigationLogger.d { "🧭 Navigating to top-level destination: ${topLevelDestination.name}" }
         when (topLevelDestination) {
             TopLevelDestination.LIBRARY -> {
                 // For library, use dedicated function to ensure proper navigation
@@ -102,7 +105,7 @@ public class JabookAppState(
                         restoreState = true
                     }
                 navController.navigate(SettingsRoute, topLevelNavOptions)
-                Log.d(TAG, "✅ Navigated to Settings")
+                navigationLogger.d { "✅ Navigated to Settings" }
             }
         }
     }
@@ -114,7 +117,7 @@ public class JabookAppState(
      * Useful for returning to the main screen from anywhere in the app.
      */
     public fun navigateToLibrary() {
-        Log.d(TAG, "🧭 Navigating to Library (clearing back stack)")
+        navigationLogger.d { "🧭 Navigating to Library (clearing back stack)" }
         navController.navigate(LibraryRoute) {
             // Clear the entire back stack INCLUDING the current destination
             popUpTo(navController.graph.findStartDestination().id) {
@@ -126,6 +129,6 @@ public class JabookAppState(
             // Don't restore state - fresh start
             restoreState = false
         }
-        Log.d(TAG, "✅ Navigated to Library")
+        navigationLogger.d { "✅ Navigated to Library" }
     }
 }

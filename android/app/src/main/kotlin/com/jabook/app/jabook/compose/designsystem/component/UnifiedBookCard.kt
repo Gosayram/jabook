@@ -52,9 +52,15 @@ import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
+
+/**
+ * Logger for UnifiedBookCard Composable functions.
+ */
+private val unifiedBookCardLogger = LoggerFactoryImpl().get("UnifiedBookCard")
 
 /**
  * Unified book card component that adapts its layout based on display mode.
@@ -90,14 +96,13 @@ public fun UnifiedBookCard(
         val hasEmptyAuthor = book.author.isBlank()
         val hasEmptyId = book.id.isBlank()
         if (hasEmptyTitle || hasEmptyAuthor || hasEmptyId) {
-            android.util.Log.w(
-                "UnifiedBookCard",
+            unifiedBookCardLogger.w {
                 "⚠️ Book card with invalid data: " +
                     "id='${book.id.take(20)}', " +
                     "title=${if (hasEmptyTitle) "EMPTY" else "'${book.title.take(30)}'"}, " +
                     "author=${if (hasEmptyAuthor) "EMPTY" else "'${book.author.take(20)}'"}, " +
-                    "coverUrl=${if (book.coverUrl.isNullOrBlank()) "null/empty" else "present"}",
-            )
+                    "coverUrl=${if (book.coverUrl.isNullOrBlank()) "null/empty" else "present"}"
+            }
         }
     }
 
