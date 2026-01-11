@@ -100,24 +100,22 @@ def fix_file(file_path: Path):
                 fixed = True
             
             # Fix: Split multiple statements on the same line
-            # Pattern: val x = y        return z
-            if re.search(r'[=:]\s+[^=:]*\s{4,}[a-zA-Z]', new_line):
-                # Split by 4+ spaces followed by a word (likely a new statement)
-                parts = re.split(r'(\s{4,})(?=[a-zA-Z])', new_line)
+            # Pattern: val x = y        when/return/val/etc
+            if re.search(r'[=:]\s+[^=:]*\s{4,}(when|return|val|var|if|for|while)', new_line):
+                # Split by 4+ spaces followed by a keyword
+                parts = re.split(r'(\s{4,})(?=(?:when|return|val|var|if|for|while)\s)', new_line)
                 if len(parts) > 1:
                     indent = re.match(r'^(\s*)', new_line).group(1) if re.match(r'^\s*', new_line) else ''
                     new_statements = []
-                    current_statement = parts[0]
+                    current_statement = parts[0].rstrip()
                     for i in range(1, len(parts), 2):
                         if i + 1 < len(parts):
                             next_statement = parts[i + 1].strip()
-                            if next_statement and not next_statement.startswith('//'):
-                                new_statements.append(f"{indent}{current_statement.rstrip()}")
+                            if next_statement:
+                                new_statements.append(f"{indent}{current_statement}")
                                 current_statement = next_statement
-                            else:
-                                current_statement += parts[i] + parts[i + 1]
                     if current_statement:
-                        new_statements.append(f"{indent}{current_statement.rstrip()}")
+                        new_statements.append(f"{indent}{current_statement}")
                     if len(new_statements) > 1:
                         new_line = '\n'.join(new_statements) + '\n'
                         fixed = True
