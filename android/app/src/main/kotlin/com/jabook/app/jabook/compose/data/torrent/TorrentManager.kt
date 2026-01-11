@@ -16,7 +16,7 @@ package com.jabook.app.jabook.compose.data.torrent
 
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkType
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
@@ -44,7 +44,9 @@ public class TorrentManager
         private val repository: TorrentDownloadRepository,
         private val settingsRepository: SettingsRepository,
         private val networkMonitor: NetworkMonitor,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("TorrentManager")
         /** Current downloads */
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
             get() = sessionManager.downloadsFlow
@@ -57,14 +59,14 @@ public class TorrentManager
          */
         public fun initialize() {
             if (isInitialized) {
-                Log.w(TAG, "Already initialized")
+                logger.w { "Already initialized" }
                 return
             }
 
             try {
                 sessionManager.initSession()
                 isInitialized = true
-                Log.i(TAG, "TorrentManager initialized")
+                logger.i { "TorrentManager initialized" }
 
                 // Start observing downloads for DB sync
                 observeAndSyncToDatabase()
@@ -72,12 +74,12 @@ public class TorrentManager
                 // Start observing network constraints
                 observeNetworkConstraints()
             } catch (e: NoSuchMethodError) {
-                Log.e(TAG, "libtorrent4j version mismatch - native library incompatible", e)
+                logger.e(e) { "libtorrent4j version mismatch - native library incompatible" }
                 // Don't throw - allow app to continue without torrent functionality
                 // User will see error when trying to download
                 isInitialized = false
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to initialize", e)
+                logger.e(e) { "Failed to initialize" }
                 // Don't throw - allow app to continue
                 isInitialized = false
             }
@@ -235,9 +237,9 @@ public class TorrentManager
                 sessionManager.stopSession()
                 stopDownloadService()
                 isInitialized = false
-                Log.i(TAG, "TorrentManager shut down")
+                logger.i { "TorrentManager shut down" }
             } catch (e: Exception) {
-                Log.e(TAG, "Error during shutdown", e)
+                logger.e(e) { "Error during shutdown" }
             }
         }
 
@@ -250,7 +252,7 @@ public class TorrentManager
                         throw IllegalStateException("TorrentManager initialization failed - libtorrent4j may not be available")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to ensure initialization", e)
+                    logger.e(e) { "Failed to ensure initialization" }
                     throw IllegalStateException("TorrentManager not initialized: ${e.message}", e)
                 }
             }
@@ -271,9 +273,9 @@ public class TorrentManager
                 }
             } catch (e: IllegalStateException) {
                 // Service might already be running or context is invalid
-                Log.w(TAG, "Cannot start foreground service (may already be running): ${e.message}")
+                logger.w { "Cannot start foreground service (may already be running): ${e.message}" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to start download service", e)
+                logger.e(e) { "Failed to start download service" }
             }
         }
 
@@ -285,7 +287,7 @@ public class TorrentManager
                     }
                 context.startService(intent)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to stop download service", e)
+                logger.e(e) { "Failed to stop download service" }
             }
         }
 
@@ -341,7 +343,7 @@ public class TorrentManager
                         networkPausedTorrents.clear()
                         networkPausedTorrents.addAll(active)
 
-                        Log.i(TAG, "Pausing ${active.size} torrents due to WiFi-only restriction")
+                        logger.i { "Pausing ${active.size} torrents due to WiFi-only restriction" }
                         active.forEach { pauseTorrent(it) }
                         pausedByNetwork = true
 
@@ -357,7 +359,7 @@ public class TorrentManager
             } else {
                 // WiFi, Ethernet, or restriction disabled
                 if (pausedByNetwork) {
-                    Log.i(TAG, "Resuming ${networkPausedTorrents.size} torrents (Restored from Network pause)")
+                    logger.i { "Resuming ${networkPausedTorrents.size} torrents (Restored from Network pause)" }
                     networkPausedTorrents.forEach { resumeTorrent(it) }
                     networkPausedTorrents.clear()
                     pausedByNetwork = false
@@ -371,9 +373,5 @@ public class TorrentManager
                         ).show()
                 }
             }
-        }
-
-        public companion object {
-            private const val TAG = "TorrentManager"
         }
     }

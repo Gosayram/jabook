@@ -15,8 +15,8 @@
 package com.jabook.app.jabook.compose.data.auth
 
 import android.content.Context
-import android.util.Log
 import android.webkit.CookieManager
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
@@ -44,10 +44,9 @@ public class CookiePersistenceManager
         private val database: JabookDatabase,
         private val secureStorage: SecureCredentialStorage,
         private val cookieJar: PersistentCookieJar,
+        private val loggerFactory: LoggerFactory,
     ) {
-        public companion object {
-            private const val TAG = "CookiePersistence"
-        }
+        private val logger = loggerFactory.get("CookiePersistence")
 
         /**
          * Persist cookies using all 4 layers.
@@ -59,12 +58,12 @@ public class CookiePersistenceManager
                 val cookies = cookieJar.loadForRequest(httpUrl)
 
                 if (cookies.isEmpty()) {
-                    Log.d(TAG, "No cookies to persist for $url")
+                    logger.d { "No cookies to persist for $url" }
                     return@withContext
                 }
 
                 val cookieHeader = cookies.joinToString("; ") { "${it.name}=${it.value}" }
-                Log.d(TAG, "Persisting ${cookies.size} cookies for $url")
+                logger.d { "Persisting ${cookies.size} cookies for $url" }
 
                 // Layer 1: Database (most reliable)
                 try {
@@ -74,9 +73,9 @@ public class CookiePersistenceManager
                             cookieHeader = cookieHeader,
                         ),
                     )
-                    Log.d(TAG, "✓ Cookies saved to database")
+                    logger.d { "✓ Cookies saved to database" }
                 } catch (e: Exception) {
-                    Log.e(TAG, "✗ Failed to save to database", e)
+                    logger.e(e) { "✗ Failed to save to database" }
                 }
 
                 // Layer 2: Android WebView CookieManager
@@ -97,21 +96,21 @@ public class CookiePersistenceManager
                         cookieManager.setCookie(url, cookieString)
                     }
                     cookieManager.flush()
-                    Log.d(TAG, "✓ Cookies synced to WebView CookieManager")
+                    logger.d { "✓ Cookies synced to WebView CookieManager" }
                 } catch (e: Exception) {
-                    Log.e(TAG, "✗ Failed to sync to WebView", e)
+                    logger.e(e) { "✗ Failed to sync to WebView" }
                 }
 
                 // Layer 3: SecureStorage (encrypted)
                 try {
                     // Note: Assuming SecureCredentialStorage has saveCookies method
                     // If not, we'll skip this layer or add the method
-                    Log.d(TAG, "◎ SecureStorage layer skipped (method not available)")
+                    logger.d { "◎ SecureStorage layer skipped (method not available)" }
                 } catch (e: Exception) {
-                    Log.e(TAG, "✗ Failed to save to SecureStorage", e)
+                    logger.e(e) { "✗ Failed to save to SecureStorage" }
                 }
 
-                Log.i(TAG, "Multi-stage persist complete for $url")
+                logger.i { "Multi-stage persist complete for $url" }
             }
 
         /**
@@ -123,11 +122,11 @@ public class CookiePersistenceManager
                 // Layer 1: Try Database first (most reliable)
                 try {
                     database.cookiesDao().getCookies(url)?.let { entity ->
-                        Log.d(TAG, "✓ Cookies restored from database for $url")
+                        logger.d { "✓ Cookies restored from database for $url" }
                         return@withContext parseCookieHeader(url, entity.cookieHeader)
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to restore from database", e)
+                    logger.w(e) { "Failed to restore from database" }
                 }
 
                 // Layer 2: WebView CookieManager (skipped in favor of direct Database/CookieJar)
@@ -137,11 +136,11 @@ public class CookiePersistenceManager
                 val httpUrl = url.toHttpUrl()
                 val cookies = cookieJar.loadForRequest(httpUrl)
                 if (cookies.isNotEmpty()) {
-                    Log.d(TAG, "✓ Cookies restored from CookieJar for $url")
+                    logger.d { "✓ Cookies restored from CookieJar for $url" }
                     return@withContext cookies
                 }
 
-                Log.w(TAG, "No cookies found in any layer for $url")
+                logger.w { "No cookies found in any layer for $url" }
                 emptyList()
             }
 
@@ -165,12 +164,12 @@ public class CookiePersistenceManager
                         // Persist to all layers
                         persistCookiesMultiStage(url)
 
-                        Log.i(TAG, "Synced ${cookies.size} cookies from WebView for $url")
+                        logger.i { "Synced ${cookies.size} cookies from WebView for $url" }
                     } else {
-                        Log.d(TAG, "No cookies in WebView for $url")
+                        logger.d { "No cookies in WebView for $url" }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync from WebView", e)
+                    logger.e(e) { "Failed to sync from WebView" }
                 }
             }
 
@@ -182,24 +181,24 @@ public class CookiePersistenceManager
                 try {
                     // Clear database
                     database.cookiesDao().clearAllCookies()
-                    Log.d(TAG, "Cleared database cookies")
+                    logger.d { "Cleared database cookies" }
 
                     // Clear WebView
                     try {
                         CookieManager.getInstance().removeAllCookies(null)
                         CookieManager.getInstance().flush()
-                        Log.d(TAG, "Cleared WebView cookies")
+                        logger.d { "Cleared WebView cookies" }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to clear WebView cookies", e)
+                        logger.w(e) { "Failed to clear WebView cookies" }
                     }
 
                     // Clear CookieJar
                     cookieJar.clear()
-                    Log.d(TAG, "Cleared CookieJar")
+                    logger.d { "Cleared CookieJar" }
 
-                    Log.i(TAG, "All cookies cleared from all layers")
+                    logger.i { "All cookies cleared from all layers" }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to clear cookies", e)
+                    logger.e(e) { "Failed to clear cookies" }
                 }
             }
 
@@ -230,7 +229,7 @@ public class CookiePersistenceManager
                                 .build()
                         cookies.add(cookie)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to parse cookie: $name=$value", e)
+                        logger.w(e) { "Failed to parse cookie: $name=$value" }
                     }
                 }
             }
