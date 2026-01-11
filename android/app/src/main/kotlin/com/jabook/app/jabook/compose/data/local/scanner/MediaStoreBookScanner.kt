@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.local.scanner
 
 import android.content.Context
 import android.provider.MediaStore
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
@@ -40,7 +41,9 @@ public class MediaStoreBookScanner
         private val metadataParser: AudioMetadataParser,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val encodingDetector: com.jabook.app.jabook.compose.data.local.parser.EncodingDetector,
+        private val loggerFactory: LoggerFactory,
     ) : LocalBookScanner {
+        private val logger = loggerFactory.get("MediaStoreBookScanner")
         private val _scanProgress = kotlinx.coroutines.flow.MutableStateFlow<ScanProgress>(ScanProgress.Idle)
         override val scanProgress: kotlinx.coroutines.flow.StateFlow<ScanProgress> = _scanProgress.asStateFlow()
 
@@ -65,7 +68,7 @@ public class MediaStoreBookScanner
                     _scanProgress.value = ScanProgress.Saving
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {
-                    android.util.Log.e("BookScanner", "Scan failed", e)
+                    logger.e(e) { "Scan failed" }
                     _scanProgress.value = ScanProgress.Error(e.message ?: "Unknown error")
                     Result.Error(e)
                 }
@@ -146,7 +149,7 @@ public class MediaStoreBookScanner
                 // Actually IS_AUDIOBOOK was added in API 29.
                 // If running on older API, this might throw IllegalArgumentException "Invalid column IS_AUDIOBOOK".
                 // We should safeguard the selection string.
-                android.util.Log.e("BookScanner", "Error querying MediaStore", e)
+                logger.e(e) { "Error querying MediaStore" }
                 return emptyList()
             }
 
@@ -178,10 +181,9 @@ public class MediaStoreBookScanner
                         val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
 
                         if (detectedEncoding != null) {
-                            android.util.Log.d(
-                                "BookScanner",
-                                "📖 Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)",
-                            )
+                            logger.d {
+                                "📖 Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)"
+                            }
                         }
 
                         ScannedChapter(

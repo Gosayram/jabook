@@ -15,8 +15,8 @@
 package com.jabook.app.jabook.compose.data.sync
 
 import android.content.Context
-import android.util.Log
 import androidx.work.CoroutineWorker
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import androidx.work.WorkerParameters
 
 /**
@@ -41,15 +41,16 @@ public class SyncWorker
         private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
         private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
         private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
+        private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
+        private val logger = loggerFactory.get("SyncWorker")
         public companion object {
-            private const val TAG = "SyncWorker"
             public const val WORK_NAME: String = "sync_work"
             private const val CACHE_TTL_DAYS = 7L
         }
 
         override suspend fun doWork(): Result {
-            Log.d(TAG, "Starting sync work")
+            logger.d { "Starting sync work" }
 
             return try {
                 // Sync book metadata
@@ -61,10 +62,10 @@ public class SyncWorker
                 // Clean up old data
                 cleanupOldData()
 
-                Log.d(TAG, "Sync completed successfully")
+                logger.d { "Sync completed successfully" }
                 Result.success()
             } catch (e: Exception) {
-                Log.e(TAG, "Sync failed", e)
+                logger.e(e) { "Sync failed" }
                 if (runAttemptCount < 3) {
                     Result.retry()
                 } else {
@@ -74,11 +75,11 @@ public class SyncWorker
         }
 
         private suspend fun syncBookMetadata() {
-            Log.d(TAG, "Syncing book metadata")
+            logger.d { "Syncing book metadata" }
 
             // Get downloads with topicId
             val downloads = torrentDownloadRepository.getAll().filter { !it.topicId.isNullOrEmpty() }
-            Log.d(TAG, "Found ${downloads.size} downloads to sync")
+            logger.d { "Found ${downloads.size} downloads to sync" }
 
             for (download in downloads) {
                 val topicId = download.topicId ?: continue
@@ -104,7 +105,7 @@ public class SyncWorker
                             }
 
                         if (matchedBook != null) {
-                            Log.d(TAG, "Updating metadata for book: ${matchedBook.title}")
+                            logger.d { "Updating metadata for book: ${matchedBook.title}" }
 
                             // Update metadata if needed
                             // For now, we mainly care about missing covers or empty metadata
@@ -128,7 +129,7 @@ public class SyncWorker
                                 // We need to execute an update query
                                 details.coverUrl?.let { url ->
                                     booksDao.updateCoverUrl(matchedBook.id, url)
-                                    Log.i(TAG, "Updated cover URL for ${matchedBook.title}")
+                                    logger.i { "Updated cover URL for ${matchedBook.title}" }
                                 }
                             }
 
@@ -138,7 +139,7 @@ public class SyncWorker
                             ) {
                                 details.author?.let { author ->
                                     booksDao.updateAuthor(matchedBook.id, author)
-                                    Log.i(TAG, "Updated author for ${matchedBook.title}: $author")
+                                    logger.i { "Updated author for ${matchedBook.title}: $author" }
                                 }
                             }
 
@@ -146,19 +147,19 @@ public class SyncWorker
                             if (matchedBook.description.isNullOrEmpty() && !details.description.isNullOrEmpty()) {
                                 details.description?.let { description ->
                                     booksDao.updateDescription(matchedBook.id, description)
-                                    Log.i(TAG, "Updated description for ${matchedBook.title}")
+                                    logger.i { "Updated description for ${matchedBook.title}" }
                                 }
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync metadata for topic $topicId", e)
+                    logger.e(e) { "Failed to sync metadata for topic $topicId" }
                 }
             }
         }
 
         private suspend fun syncCoverImages() {
-            Log.d(TAG, "Syncing cover images")
+            logger.d { "Syncing cover images" }
 
             // Find books with coverUrl but no local coverPath
             val books = booksDao.getAllBooks()
@@ -168,7 +169,7 @@ public class SyncWorker
                         (it.coverPath.isNullOrEmpty() || !java.io.File(it.coverPath!!).exists())
                 }
 
-            Log.d(TAG, "Found ${booksNeedCover.size} books needing cover download")
+            logger.d { "Found ${booksNeedCover.size} books needing cover download" }
 
             for (book in booksNeedCover) {
                 try {
@@ -195,16 +196,16 @@ public class SyncWorker
 
                         // Update DB
                         booksDao.updateCoverPath(book.id, coverFile.absolutePath)
-                        Log.i(TAG, "Downloaded cover for ${book.title}")
+                        logger.i { "Downloaded cover for ${book.title}" }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to download cover for ${book.title}", e)
+                    logger.e(e) { "Failed to download cover for ${book.title}" }
                 }
             }
         }
 
         private suspend fun cleanupOldData() {
-            Log.d(TAG, "Cleaning up old search cache")
+            logger.d { "Cleaning up old search cache" }
             val threshold = System.currentTimeMillis() - (CACHE_TTL_DAYS * 24 * 60 * 60 * 1000) // 7 days ago
             offlineSearchDao.clearOldCache(threshold)
         }

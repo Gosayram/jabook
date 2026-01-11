@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.model.AudiobookCategory
 import org.jsoup.Jsoup
@@ -35,9 +35,10 @@ public class CategoryParser
     @Inject
     constructor(
         private val mirrorManager: MirrorManager,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("CategoryParser")
         public companion object {
-            private const val TAG = "CategoryParser"
 
             // RuTracker audiobooks category ID
             public const val AUDIOBOOKS_CATEGORY_ID: String = "33"
@@ -114,7 +115,7 @@ public class CategoryParser
 
                 // Extract forum rows
                 val forumRows = audiobooksCategoryElement.select(FORUM_ROW_SELECTOR)
-                Log.d(TAG, "Found ${forumRows.size} forum rows in audiobooks category")
+                logger.d { "Found ${forumRows.size} forum rows in audiobooks category" }
 
                 for (row in forumRows) {
                     try {
@@ -133,7 +134,7 @@ public class CategoryParser
                     }
                 }
 
-                Log.i(TAG, "Parsed ${categories.size} valid categories")
+                logger.i { "Parsed ${categories.size} valid categories" }
 
                 return when {
                     errors.isEmpty() -> ParsingResult.Success(categories)
@@ -141,7 +142,7 @@ public class CategoryParser
                     else -> ParsingResult.Failure(errors, emptyList())
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse categories", e)
+                logger.e(e) { "Failed to parse categories" }
                 errors.add(
                     ParsingError(
                         field = "document",
@@ -170,7 +171,7 @@ public class CategoryParser
 
             // Skip if blacklisted
             if (forumId.isEmpty() || shouldIgnoreForum(forumName)) {
-                Log.d(TAG, "Skipping forum: $forumName (blacklisted or empty ID)")
+                logger.d { "Skipping forum: $forumName (blacklisted or empty ID)" }
                 return null
             }
 
