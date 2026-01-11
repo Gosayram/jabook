@@ -59,37 +59,37 @@ import androidx.media.app.NotificationCompat as MediaNotificationCompat
  */
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
-class AudioPlayerService : MediaLibraryService() {
+public class AudioPlayerService : MediaLibraryService() {
     @Inject
-    lateinit var exoPlayer: ExoPlayer
+    public lateinit var exoPlayer: ExoPlayer
 
     @Inject
     @javax.inject.Named("okhttp")
-    lateinit var mediaCache: okhttp3.Cache
+    public lateinit var mediaCache: okhttp3.Cache
 
     // Repository for torrent downloads (library content)
     @Inject
-    lateinit var torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+    public lateinit var torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 
     // Media3 cache for streaming (different from network cache)
     @Inject
-    lateinit var media3Cache: androidx.media3.datasource.cache.Cache
+    public lateinit var media3Cache: androidx.media3.datasource.cache.Cache
 
     @Inject
-    lateinit var playerPersistenceManager: PlayerPersistenceManager
+    public lateinit var playerPersistenceManager: PlayerPersistenceManager
 
     // Settings repository for MediaSession synchronization
     @Inject
-    lateinit var settingsRepository: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
+    public lateinit var settingsRepository: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 
     @Inject
-    lateinit var playbackPositionRepository: com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+    public lateinit var playbackPositionRepository: com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 
     @Inject
-    lateinit var audioOutputManager: AudioOutputManager
+    public lateinit var audioOutputManager: AudioOutputManager
 
     @Inject
-    lateinit var playbackEnhancerService: PlaybackEnhancerService
+    public lateinit var playbackEnhancerService: PlaybackEnhancerService
 
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
@@ -105,7 +105,7 @@ class AudioPlayerService : MediaLibraryService() {
      * Returns null if not yet initialized.
      * This replaces getInstance() pattern and provides proper Media3 integration.
      */
-    fun getServiceMediaController(): MediaController? = serviceMediaController
+    public fun getServiceMediaController(): MediaController? = serviceMediaController
 
     // Debounced custom layout updates (from Rhythm pattern)
     // Track current custom layout state to avoid unnecessary updates
@@ -227,14 +227,14 @@ class AudioPlayerService : MediaLibraryService() {
     /**
      * Callback for database duration retrieval
      */
-    fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
+    public fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?): Unit {
         durationManager.setGetDurationFromDbCallback(callback)
     }
 
     /**
      * Deprecated: Flutter MethodChannel removed.
      */
-    fun setMethodChannel(channel: Any?) {
+    public fun setMethodChannel(channel: Any?): Unit {
         // No-op: Flutter bridge removed
     }
 
@@ -245,7 +245,7 @@ class AudioPlayerService : MediaLibraryService() {
      * @param filePath Absolute path to the audio file
      * @return Duration in milliseconds, or null if not found
      */
-    fun getDurationForFile(filePath: String): Long? = durationManager.getDurationForFile(filePath)
+    public fun getDurationForFile(filePath: String): Long? = durationManager.getDurationForFile(filePath)
 
     /**
      * Gets cached duration for file path.
@@ -253,7 +253,7 @@ class AudioPlayerService : MediaLibraryService() {
      * @param filePath Absolute path to the audio file
      * @return Cached duration in milliseconds, or null if not cached
      */
-    fun getCachedDuration(filePath: String): Long? = durationManager.getCachedDuration(filePath)
+    public fun getCachedDuration(filePath: String): Long? = durationManager.getCachedDuration(filePath)
 
     /**
      * Saves duration to cache.
@@ -261,10 +261,10 @@ class AudioPlayerService : MediaLibraryService() {
      * @param filePath Absolute path to the audio file
      * @param durationMs Duration in milliseconds
      */
-    fun saveDurationToCache(
+    public fun saveDurationToCache(
         filePath: String,
         durationMs: Long,
-    ) {
+    ): Unit {
         durationManager.saveDurationToCache(filePath, durationMs)
     }
 
@@ -320,8 +320,8 @@ class AudioPlayerService : MediaLibraryService() {
     @OptIn(ExperimentalCoroutinesApi::class)
     internal val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(16)
 
-    companion object {
-        const val ACTION_EXIT_APP = "com.jabook.app.jabook.audio.EXIT_APP"
+    public companion object {
+        public const val ACTION_EXIT_APP: String = "com.jabook.app.jabook.audio.EXIT_APP"
 
         @Volatile
         private var instance: AudioPlayerService? = null
@@ -334,7 +334,7 @@ class AudioPlayerService : MediaLibraryService() {
             "Use MediaController or getServiceMediaController() for proper Media3 integration",
             ReplaceWith("getServiceMediaController()"),
         )
-        fun getInstance(): AudioPlayerService? = instance
+        public fun getInstance(): AudioPlayerService? = instance
 
         /**
          * Gets flavor suffix for non-prod builds.
@@ -370,13 +370,13 @@ class AudioPlayerService : MediaLibraryService() {
      *
      * @return true if service is ready, false otherwise
      */
-    fun isFullyInitialized(): Boolean = isFullyInitializedFlag && (mediaLibrarySession != null || mediaSession != null)
+    public fun isFullyInitialized(): Boolean = isFullyInitializedFlag && (mediaLibrarySession != null || mediaSession != null)
 
     /**
      * Gets the MediaLibrarySession instance.
      * Used by AudioPlayerMethodHandler to check if service is fully ready.
      */
-    fun getMediaSession(): MediaSession? = mediaLibrarySession ?: mediaSession
+    public fun getMediaSession(): MediaSession? = mediaLibrarySession ?: mediaSession
 
     /**
      * Returns the single top activity. It is used by the notification when the app task is
@@ -596,10 +596,10 @@ class AudioPlayerService : MediaLibraryService() {
      * @param delayInSeconds Timer duration in seconds
      * @param option Timer option (FIXED_DURATION or CURRENT_TRACK)
      */
-    fun startTimer(
+    public fun startTimer(
         delayInSeconds: Double,
         option: Int = 0,
-    ) {
+    ): Unit {
         val timerOption =
             when (option) {
                 1 -> PlaybackTimer.TimerOption.CURRENT_TRACK
@@ -611,7 +611,7 @@ class AudioPlayerService : MediaLibraryService() {
     /**
      * Stops sleep timer.
      */
-    fun stopTimer() {
+    public fun stopTimer(): Unit {
         playbackTimer?.stopTimer()
     }
 
@@ -647,7 +647,7 @@ class AudioPlayerService : MediaLibraryService() {
      * @param settings Audio processing settings
      */
     @OptIn(UnstableApi::class)
-    fun configureExoPlayer(settings: AudioProcessingSettings) {
+    public fun configureExoPlayer(settings: AudioProcessingSettings): Unit {
         playerConfigurator?.configureExoPlayer(settings) ?: run {
             android.util.Log.e("AudioPlayerService", "PlayerConfigurator not initialized")
         }
@@ -670,7 +670,7 @@ class AudioPlayerService : MediaLibraryService() {
      * Triggers crossfade transition.
      * Called by CrossfadeHandler when condition is met.
      */
-    fun triggerCrossfadeTransition() {
+    public fun triggerCrossfadeTransition(): Unit {
         // Delegate to PlaylistManager to prepare next track on secondary player
         // Then start crossfade
         playerServiceScope.launch {
@@ -716,14 +716,14 @@ class AudioPlayerService : MediaLibraryService() {
      * @param groupPath Optional group path for saving playback position (used for fallback saving)
      * @param callback Optional callback to notify when playlist is ready (for Flutter)
      */
-    fun setPlaylist(
+    public fun setPlaylist(
         filePaths: List<String>,
         metadata: Map<String, String>? = null,
         initialTrackIndex: Int? = null,
         initialPosition: Long? = null,
         groupPath: String? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
-    ) {
+    ): Unit {
         playlistManager?.setPlaylist(
             filePaths,
             metadata,
@@ -744,7 +744,7 @@ class AudioPlayerService : MediaLibraryService() {
      * OPTIMIZATION: If the target track is already loaded as the first track (which is the case
      * when initialTrackIndex is provided), we can apply the position immediately without waiting.
      */
-    fun seekToTrackAndPosition(
+    public fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
     ) {
@@ -762,7 +762,7 @@ class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    fun updateMetadata(metadata: Map<String, String>) =
+    public fun updateMetadata(metadata: Map<String, String>): Unit =
         metadataManager?.updateMetadata(metadata) ?: run {
             android.util.Log.e("AudioPlayerService", "MetadataManager not initialized")
         }
@@ -773,17 +773,17 @@ class AudioPlayerService : MediaLibraryService() {
      * @param isMinimal true for minimal notification (Play/Pause only),
      * false for full notification (all controls)
      */
-    fun setNotificationType(isMinimal: Boolean) {
+    public fun setNotificationType(isMinimal: Boolean): Unit {
         // MediaLibraryService automatically manages notifications based on Player state
         // If we need custom notification types, we should configure MediaButtonPreferences instead
         notificationManager?.setNotificationType(isMinimal)
         // MediaLibraryService automatically updates notification when Player state changes
     }
 
-    val isPlaying: Boolean
+    public val isPlaying: Boolean
         get() = getActivePlayer().isPlaying
 
-    fun play() {
+    public fun play(): Unit {
         playbackController?.play() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
@@ -795,7 +795,7 @@ class AudioPlayerService : MediaLibraryService() {
         startPeriodicPositionSaving()
     }
 
-    fun pause() {
+    public fun pause(): Unit {
         playbackController?.pause() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
@@ -806,7 +806,7 @@ class AudioPlayerService : MediaLibraryService() {
         stopPeriodicPositionSaving()
     }
 
-    fun stop() {
+    public fun stop(): Unit {
         playbackController?.stop() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
@@ -827,7 +827,7 @@ class AudioPlayerService : MediaLibraryService() {
      * This is a complete cleanup method that should be called when
      * playback is permanently stopped (e.g., from Stop button in notification).
      */
-    fun stopAndCleanup() {
+    public fun stopAndCleanup(): Unit {
         lifecycleManager?.stopAndCleanup() ?: run {
             android.util.Log.e("AudioPlayerService", "ServiceLifecycleManager not initialized for stopAndCleanup")
             // Fallback manual cleanup if needed, or just log error
@@ -854,31 +854,31 @@ class AudioPlayerService : MediaLibraryService() {
     internal fun storeCurrentMediaItem() {
     }
 
-    fun seekTo(positionMs: Long) =
+    public fun seekTo(positionMs: Long): Unit =
         playbackController?.seekTo(positionMs) ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
-    fun setSpeed(speed: Float) =
+    public fun setSpeed(speed: Float): Unit =
         playbackController?.setSpeed(speed) ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
-    fun setRepeatMode(repeatMode: Int) =
+    public fun setRepeatMode(repeatMode: Int): Unit =
         playbackController?.setRepeatMode(repeatMode) ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
-    fun getRepeatMode(): Int = playbackController?.getRepeatMode() ?: Player.REPEAT_MODE_OFF
+    public fun getRepeatMode(): Int = playbackController?.getRepeatMode() ?: Player.REPEAT_MODE_OFF
 
-    fun getPlaybackSpeed(): Float = playbackController?.getSpeed() ?: 1.0f
+    public fun getPlaybackSpeed(): Float = playbackController?.getSpeed() ?: 1.0f
 
-    fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) =
+    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean): Unit =
         playbackController?.setShuffleModeEnabled(shuffleModeEnabled) ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
-    fun getShuffleModeEnabled(): Boolean = playbackController?.getShuffleModeEnabled() ?: false
+    public fun getShuffleModeEnabled(): Boolean = playbackController?.getShuffleModeEnabled() ?: false
 
     /**
      * Sets sleep timer with specified duration in minutes.
@@ -887,7 +887,7 @@ class AudioPlayerService : MediaLibraryService() {
      *
      * @param minutes Timer duration in minutes
      */
-    fun setSleepTimerMinutes(minutes: Int) {
+    public fun setSleepTimerMinutes(minutes: Int): Unit {
         sleepTimerManager?.setSleepTimerMinutes(minutes)
     }
 
@@ -896,14 +896,14 @@ class AudioPlayerService : MediaLibraryService() {
      *
      * Inspired by EasyBook implementation: uses boolean flag for "end of chapter" mode.
      */
-    fun setSleepTimerEndOfChapter() {
+    public fun setSleepTimerEndOfChapter(): Unit {
         sleepTimerManager?.setSleepTimerEndOfChapter()
     }
 
     /**
      * Cancels active sleep timer.
      */
-    fun cancelSleepTimer() {
+    public fun cancelSleepTimer(): Unit {
         sleepTimerManager?.cancelSleepTimer()
     }
 
@@ -912,36 +912,36 @@ class AudioPlayerService : MediaLibraryService() {
      *
      * @return Remaining seconds, or null if timer is not active or set to "end of chapter"
      */
-    fun getSleepTimerRemainingSeconds(): Int? = sleepTimerManager?.getSleepTimerRemainingSeconds()
+    public fun getSleepTimerRemainingSeconds(): Int? = sleepTimerManager?.getSleepTimerRemainingSeconds()
 
     /**
      * Checks if sleep timer is active.
      *
      * @return true if timer is active (either fixed duration or end of chapter)
      */
-    fun isSleepTimerActive(): Boolean = sleepTimerManager?.isSleepTimerActive() ?: false
+    public fun isSleepTimerActive(): Boolean = sleepTimerManager?.isSleepTimerActive() ?: false
 
     /**
      * Checks if sleep timer is set to end of chapter.
      */
-    fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
+    public fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
 
     /**
      * Gets the audio session ID from ExoPlayer.
      * Required for audio visualizer to capture audio data.
      */
-    fun getAudioSessionId(): Int = exoPlayer.audioSessionId
+    public fun getAudioSessionId(): Int = exoPlayer.audioSessionId
 
     /**
      * Gets the audio visualizer waveform data as a StateFlow.
      */
-    fun getVisualizerWaveformData(): kotlinx.coroutines.flow.StateFlow<FloatArray>? = audioVisualizerManager?.waveformData
+    public fun getVisualizerWaveformData(): kotlinx.coroutines.flow.StateFlow<FloatArray>? = audioVisualizerManager?.waveformData
 
     /**
      * Initializes the audio visualizer with the current audio session.
      * Should be called when playback starts.
      */
-    fun initializeVisualizer() {
+    public fun initializeVisualizer(): Unit {
         val sessionId = exoPlayer.audioSessionId
         if (sessionId != 0) {
             audioVisualizerManager?.initialize(sessionId)
@@ -951,11 +951,11 @@ class AudioPlayerService : MediaLibraryService() {
     /**
      * Enables or disables the audio visualizer.
      */
-    fun setVisualizerEnabled(enabled: Boolean) {
+    public fun setVisualizerEnabled(enabled: Boolean): Unit {
         audioVisualizerManager?.setEnabled(enabled)
     }
 
-    fun next() {
+    public fun next(): Unit {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
             android.util.Log.i(
@@ -970,7 +970,7 @@ class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    fun previous() {
+    public fun previous(): Unit {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
             android.util.Log.i(
@@ -985,7 +985,7 @@ class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    fun seekToTrack(index: Int) {
+    public fun seekToTrack(index: Int): Unit {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
             android.util.Log.i(
@@ -1000,19 +1000,19 @@ class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    fun setPlaybackProgress(
+    public fun setPlaybackProgress(
         filePaths: List<String>,
         progressSeconds: Double?,
-    ) = positionManager?.setPlaybackProgress(filePaths, progressSeconds) ?: run {
+    ): Unit = positionManager?.setPlaybackProgress(filePaths, progressSeconds) ?: run {
         android.util.Log.e("AudioPlayerService", "PositionManager not initialized")
     }
 
-    fun rewind(seconds: Int = 15) =
+    public fun rewind(seconds: Int = 15): Unit =
         playbackController?.rewind(seconds) ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
-    fun forward(seconds: Int = 30) =
+    public fun forward(seconds: Int = 30): Unit =
         playbackController?.forward(seconds) ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
         }
@@ -1021,7 +1021,7 @@ class AudioPlayerService : MediaLibraryService() {
      * Stops playback and releases resources.
      * Closes notification and stops service.
      */
-    fun stopAndRelease() {
+    public fun stopAndRelease(): Unit {
         val player = getActivePlayer()
         player.stop()
         player.clearMediaItems()
@@ -1044,10 +1044,10 @@ class AudioPlayerService : MediaLibraryService() {
      * @param rewindSeconds Duration in seconds for rewind action
      * @param forwardSeconds Duration in seconds for forward action
      */
-    fun updateSkipDurations(
+    public fun updateSkipDurations(
         rewindSeconds: Int,
         forwardSeconds: Int,
-    ) {
+    ): Unit {
         mediaSessionManager?.updateSkipDurations(
             rewindSeconds.toLong(),
             forwardSeconds.toLong(),
@@ -1067,10 +1067,10 @@ class AudioPlayerService : MediaLibraryService() {
      * Updates MediaSession custom layout commands with new durations.
      * Uses debounced updates to prevent flickering (from Rhythm pattern).
      */
-    fun updateMediaSessionCommands(
+    public fun updateMediaSessionCommands(
         rewindSeconds: Int,
         forwardSeconds: Int,
-    ) {
+    ): Unit {
         // Use smart update to check if layout actually needs to change
         updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
     }
@@ -1224,16 +1224,16 @@ class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    fun getCurrentPosition(): Long = playerStateHelper?.getCurrentPosition() ?: 0L
+    public fun getCurrentPosition(): Long = playerStateHelper?.getCurrentPosition() ?: 0L
 
-    fun getDuration(): Long = playerStateHelper?.getDuration() ?: 0L
+    public fun getDuration(): Long = playerStateHelper?.getDuration() ?: 0L
 
     /**
      * Sets the inactivity timeout in minutes.
      *
      * @param minutes Timeout in minutes (10-180)
      */
-    fun setInactivityTimeoutMinutes(minutes: Int) {
+    public fun setInactivityTimeoutMinutes(minutes: Int): Unit {
         inactivityTimer?.setInactivityTimeoutMinutes(minutes)
         android.util.Log.d(
             "AudioPlayerService",
@@ -1241,15 +1241,15 @@ class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    fun getPlayerState(): Map<String, Any> = playerStateHelper?.getPlayerState() ?: emptyMap()
+    public fun getPlayerState(): Map<String, Any> = playerStateHelper?.getPlayerState() ?: emptyMap()
 
-    fun getCurrentMediaItemInfo(): Map<String, Any?> = metadataManager?.getCurrentMediaItemInfo() ?: emptyMap()
+    public fun getCurrentMediaItemInfo(): Map<String, Any?> = metadataManager?.getCurrentMediaItemInfo() ?: emptyMap()
 
-    fun extractArtworkFromFile(filePath: String): String? = metadataManager?.extractArtworkFromFile(filePath)
+    public fun extractArtworkFromFile(filePath: String): String? = metadataManager?.extractArtworkFromFile(filePath)
 
-    fun getPlaylistInfo(): Map<String, Any> = playerStateHelper?.getPlaylistInfo() ?: emptyMap()
+    public fun getPlaylistInfo(): Map<String, Any> = playerStateHelper?.getPlaylistInfo() ?: emptyMap()
 
-    fun unloadPlayerDueToInactivity() =
+    public fun unloadPlayerDueToInactivity(): Unit =
         unloadManager?.unloadPlayerDueToInactivity() ?: run {
             android.util.Log.e("AudioPlayerService", "UnloadManager not initialized")
         }

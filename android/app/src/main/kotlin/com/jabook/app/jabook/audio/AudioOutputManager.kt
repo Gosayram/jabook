@@ -41,9 +41,9 @@ import javax.inject.Singleton
  * - Call [stopMonitoring] when playback pauses/stops or service is destroyed
  */
 @Singleton
-class AudioOutputManager
+public class AudioOutputManager
     @Inject
-    constructor(
+    public constructor(
         // Use @param: as required for value parameters that become fields
         @param:ApplicationContext private val context: Context,
     ) : SensorEventListener {
@@ -68,7 +68,7 @@ class AudioOutputManager
          * Starts monitoring the proximity sensor.
          * Should be called when playback starts.
          */
-        fun startMonitoring() {
+        public fun startMonitoring(): Unit {
             if (isMonitoring || proximitySensor == null) return
 
             sensorManager.registerListener(
@@ -84,7 +84,7 @@ class AudioOutputManager
          * Stops monitoring the proximity sensor and resets audio settings.
          * Should be called when playback stops/pauses.
          */
-        fun stopMonitoring() {
+        public fun stopMonitoring(): Unit {
             if (!isMonitoring) return
 
             sensorManager.unregisterListener(this)

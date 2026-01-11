@@ -42,26 +42,26 @@ import javax.inject.Singleton
  * ```
  */
 @Singleton
-class AudioFader
+public class AudioFader
     @Inject
-    constructor() {
-        companion object {
+    public constructor() {
+        public companion object {
             private const val TAG = "AudioFader"
 
             /** Default fade duration in milliseconds */
-            const val DEFAULT_FADE_DURATION_MS = 300L
+            public const val DEFAULT_FADE_DURATION_MS: Long = 300L
 
             /** Minimum fade duration (instant) */
-            const val MIN_FADE_DURATION_MS = 0L
+            public const val MIN_FADE_DURATION_MS: Long = 0L
 
             /** Maximum fade duration */
-            const val MAX_FADE_DURATION_MS = 2000L
+            public const val MAX_FADE_DURATION_MS: Long = 2000L
         }
 
         private var currentAnimator: ValueAnimator? = null
 
         /** Current fade duration in milliseconds. Can be configured via settings. */
-        var fadeDurationMs: Long = DEFAULT_FADE_DURATION_MS
+        public var fadeDurationMs: Long = DEFAULT_FADE_DURATION_MS
             set(value) {
                 field = value.coerceIn(MIN_FADE_DURATION_MS, MAX_FADE_DURATION_MS)
             }
@@ -74,10 +74,10 @@ class AudioFader
          * @param player The ExoPlayer instance
          * @param onComplete Optional callback when fade completes
          */
-        fun fadeIn(
+        public fun fadeIn(
             player: Player,
             onComplete: (() -> Unit)? = null,
-        ) {
+        ): Unit {
             cancelCurrentAnimation()
 
             if (fadeDurationMs == 0L) {
@@ -116,10 +116,10 @@ class AudioFader
          * @param player The ExoPlayer instance
          * @param onComplete Callback when fade completes (typically call player.pause() here)
          */
-        fun fadeOut(
+        public fun fadeOut(
             player: Player,
             onComplete: (() -> Unit)? = null,
-        ) {
+        ): Unit {
             cancelCurrentAnimation()
 
             if (fadeDurationMs == 0L) {
@@ -156,7 +156,7 @@ class AudioFader
          *
          * Use this when playback state changes abruptly (e.g., user skips track).
          */
-        fun cancelCurrentAnimation() {
+        public fun cancelCurrentAnimation(): Unit {
             currentAnimator?.let { animator ->
                 animator.cancel()
                 currentAnimator = null
@@ -167,12 +167,12 @@ class AudioFader
         /**
          * Checks if a fade animation is currently running.
          */
-        fun isAnimating(): Boolean = currentAnimator?.isRunning == true
+        public fun isAnimating(): Boolean = currentAnimator?.isRunning == true
 
         /**
          * Cleans up resources. Call when service is destroyed.
          */
-        fun release() {
+        public fun release(): Unit {
             cancelCurrentAnimation()
             Log.d(TAG, "AudioFader released")
         }

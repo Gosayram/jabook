@@ -57,14 +57,14 @@ import java.io.File
  * @param mediaButtonHandler Handler for media button events
  * @param getDurationForFile Function to get duration for a file path
  */
-class AudioPlayerLibrarySessionCallback(
+public class AudioPlayerLibrarySessionCallback(
     private val service: AudioPlayerService,
     private val playerPersistenceManager: PlayerPersistenceManager,
     private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
     private val mediaButtonHandler: MediaButtonHandler?,
     private val getDurationForFile: (String) -> Long?,
 ) : MediaLibraryService.MediaLibrarySession.Callback {
-    val customCommands =
+    public val customCommands: List<CommandButton> =
         listOf(
             CommandButton
                 .Builder(CommandButton.ICON_SKIP_BACK)
@@ -377,40 +377,40 @@ class AudioPlayerLibrarySessionCallback(
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerService", "Error in handleSetPlaylistCommand", e)
                 SessionResult(SessionError.ERROR_UNKNOWN)
-            }
         }
+    }
 
-    companion object {
-        const val CUSTOM_COMMAND_REWIND = "com.jabook.app.jabook.rewind"
-        const val CUSTOM_COMMAND_FORWARD = "com.jabook.app.jabook.forward"
+    public companion object {
+        public const val CUSTOM_COMMAND_REWIND: String = "com.jabook.app.jabook.rewind"
+        public const val CUSTOM_COMMAND_FORWARD: String = "com.jabook.app.jabook.forward"
 
         // Playlist management commands
-        const val CUSTOM_COMMAND_SET_PLAYLIST = "com.jabook.app.jabook.setPlaylist"
+        public const val CUSTOM_COMMAND_SET_PLAYLIST: String = "com.jabook.app.jabook.setPlaylist"
 
         // Sleep timer commands
-        const val CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES = "com.jabook.app.jabook.setSleepTimerMinutes"
-        const val CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER = "com.jabook.app.jabook.setSleepTimerEndOfChapter"
-        const val CUSTOM_COMMAND_CANCEL_SLEEP_TIMER = "com.jabook.app.jabook.cancelSleepTimer"
-        const val CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING = "com.jabook.app.jabook.getSleepTimerRemaining"
-        const val CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE = "com.jabook.app.jabook.isSleepTimerActive"
-        const val CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER = "com.jabook.app.jabook.isSleepTimerEndOfChapter"
+        public const val CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES: String = "com.jabook.app.jabook.setSleepTimerMinutes"
+        public const val CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER: String = "com.jabook.app.jabook.setSleepTimerEndOfChapter"
+        public const val CUSTOM_COMMAND_CANCEL_SLEEP_TIMER: String = "com.jabook.app.jabook.cancelSleepTimer"
+        public const val CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING: String = "com.jabook.app.jabook.getSleepTimerRemaining"
+        public const val CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE: String = "com.jabook.app.jabook.isSleepTimerActive"
+        public const val CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER: String = "com.jabook.app.jabook.isSleepTimerEndOfChapter"
 
         // Service state commands
-        const val CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH = "com.jabook.app.jabook.getCurrentGroupPath"
-        const val CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS = "com.jabook.app.jabook.getCurrentFilePaths"
+        public const val CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH: String = "com.jabook.app.jabook.getCurrentGroupPath"
+        public const val CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS: String = "com.jabook.app.jabook.getCurrentFilePaths"
 
         // Bundle keys for command arguments
-        const val ARG_FILE_PATHS = "filePaths"
-        const val ARG_METADATA = "metadata"
-        const val ARG_INITIAL_TRACK_INDEX = "initialTrackIndex"
-        const val ARG_INITIAL_POSITION = "initialPosition"
-        const val ARG_GROUP_PATH = "groupPath"
-        const val ARG_MINUTES = "minutes"
-        const val ARG_RESULT_REMAINING = "remaining"
-        const val ARG_RESULT_ACTIVE = "active"
-        const val ARG_RESULT_END_OF_CHAPTER = "endOfChapter"
-        const val ARG_RESULT_GROUP_PATH = "groupPath"
-        const val ARG_RESULT_FILE_PATHS = "filePaths"
+        public const val ARG_FILE_PATHS: String = "filePaths"
+        public const val ARG_METADATA: String = "metadata"
+        public const val ARG_INITIAL_TRACK_INDEX: String = "initialTrackIndex"
+        public const val ARG_INITIAL_POSITION: String = "initialPosition"
+        public const val ARG_GROUP_PATH: String = "groupPath"
+        public const val ARG_MINUTES: String = "minutes"
+        public const val ARG_RESULT_REMAINING: String = "remaining"
+        public const val ARG_RESULT_ACTIVE: String = "active"
+        public const val ARG_RESULT_END_OF_CHAPTER: String = "endOfChapter"
+        public const val ARG_RESULT_GROUP_PATH: String = "groupPath"
+        public const val ARG_RESULT_FILE_PATHS: String = "filePaths"
     }
 
     // Minimal implementation for library operations (required by MediaLibrarySession.Callback)

@@ -35,7 +35,7 @@ import com.google.common.util.concurrent.ListenableFuture
  * We use the DefaultMediaNotificationProvider but can intercept Bitmap loading.
  */
 @OptIn(UnstableApi::class)
-class AudioPlayerNotificationProvider(
+public class AudioPlayerNotificationProvider(
     private val service: AudioPlayerService,
 ) : MediaNotification.Provider {
     // Use GlideBitmapLoader for better performance and caching (inspired by Easybook)

@@ -66,7 +66,7 @@ public class JabookApplication :
                 .setWorkerFactory(workerFactory)
                 .build()
 
-    override fun onCreate() {
+    public override fun onCreate() {
         super.onCreate()
 
         // Create notification channels for downloads and player
