@@ -44,7 +44,8 @@ public class SyncWorker
     ) : CoroutineWorker(appContext, params) {
         public companion object {
             private const val TAG = "SyncWorker"
-            public const val WORK_NAME: String = "sync_work"            private const val CACHE_TTL_DAYS = 7L
+            public const val WORK_NAME: String = "sync_work"
+            private const val CACHE_TTL_DAYS = 7L
         }
 
         override suspend fun doWork(): Result {

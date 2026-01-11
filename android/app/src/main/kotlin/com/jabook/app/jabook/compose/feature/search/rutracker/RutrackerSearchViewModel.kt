@@ -289,7 +289,7 @@ public class RutrackerSearchViewModel
          */
         private fun parseSizeToMb(sizeStr: String): Double {
             
-            public val pattern: String = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)
+            public val pattern = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)
             public val match = pattern.find(sizeStr) ?: return 0.0
 
             val value = match.groupValues[1].toDoubleOrNull() ?: return 0.0

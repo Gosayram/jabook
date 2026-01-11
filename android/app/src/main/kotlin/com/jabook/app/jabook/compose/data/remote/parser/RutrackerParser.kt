@@ -254,7 +254,7 @@ public class RutrackerParser
                                 val rowTag = row.tagName()
                                 val rowClasses = row.className()
 
-                                public val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null
+                                public val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
                                 public val topicIdAttr = row.attr(TOPIC_ID_ATTR)
                                 val rowId = row.attr("id")
                                 val topicId = topicIdAttr.ifEmpty { rowId.removePrefix("tr-") }
@@ -456,7 +456,7 @@ public class RutrackerParser
                                 // Basic validation: must have some content/structure
                                 // Use selectFirst() for better performance (returns null if not found)
 
-                                public val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null
+                                public val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
                                 public val isHeader = row.hasClass("vf-col-header-row")
                                 val isValid = !isHeader && hasTitle
 
@@ -544,7 +544,7 @@ public class RutrackerParser
                                 val rowTag = row.tagName()
                                 val rowClasses = row.className()
 
-                                public val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null
+                                public val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
                                 public val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
 
                                 Log.w(
