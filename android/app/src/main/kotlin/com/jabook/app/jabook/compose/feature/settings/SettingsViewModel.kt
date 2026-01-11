@@ -159,13 +159,13 @@ public class SettingsViewModel
 
         public fun updateTheme(theme: com.jabook.app.jabook.compose.data.model.AppTheme) {
             viewModelScope.launch {
-                userPreferencesRepository.setTheme(theme.name)
+                userPreferencesRepository.setTheme(theme)
             }
         }
 
         public fun updateSortOrder(sortOrder: com.jabook.app.jabook.compose.data.model.BookSortOrder) {
             viewModelScope.launch {
-                userPreferencesRepository.setSortOrder(sortOrder.name)
+                userPreferencesRepository.setSortOrder(sortOrder)
             }
         }
 
@@ -177,7 +177,7 @@ public class SettingsViewModel
 
         public fun updateFont(font: com.jabook.app.jabook.compose.data.model.AppFont) {
             viewModelScope.launch {
-                userPreferencesRepository.setFont(font.name)
+                userPreferencesRepository.setFont(font)
             }
         }
 

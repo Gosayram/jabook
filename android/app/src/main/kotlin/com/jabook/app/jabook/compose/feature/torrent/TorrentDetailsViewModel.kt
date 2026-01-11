@@ -61,7 +61,7 @@ public class TorrentDetailsViewModel
         public val isBuffering: StateFlow<Boolean> = streamingMonitor.isBuffering
 
         private val _navigationEvent = MutableSharedFlow<String>()
-        public val navigationEvent = _navigationEvent.asSharedFlow()
+        public val navigationEvent: SharedFlow<String> = _navigationEvent.asSharedFlow()
 
         public fun playFile(file: com.jabook.app.jabook.compose.data.torrent.TorrentFile) {
             viewModelScope.launch {

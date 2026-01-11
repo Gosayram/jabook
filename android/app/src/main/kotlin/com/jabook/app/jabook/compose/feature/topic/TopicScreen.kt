@@ -451,7 +451,7 @@ private fun TopicDetailsContent(
                                     )
                                 },
                                 onClick = {
-                                    viewModel.downloadViaMagnet(details.magnetUrl)
+                                    viewModel.downloadViaMagnet()
                                     showDownloadMenu = false
                                 },
                             )
@@ -485,7 +485,7 @@ private fun TopicDetailsContent(
                                     )
                                 },
                                 onClick = {
-                                    viewModel.copyMagnetLink(details.magnetUrl)
+                                    viewModel.copyMagnetLink()
                                     showDownloadMenu = false
                                 },
                             )

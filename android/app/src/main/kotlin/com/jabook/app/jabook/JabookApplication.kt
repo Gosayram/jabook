@@ -70,7 +70,7 @@ public class JabookApplication :
         super.onCreate()
 
         // Create notification channels for downloads and player
-        NotificationHelper.createNotificationChannels()
+        NotificationHelper.createNotificationChannels(this)
 
         // Schedule periodic sync
         syncManager.schedulePeriodicSync()

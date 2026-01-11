@@ -185,7 +185,7 @@ public fun WebViewScreen(
                                     canGoBack = view?.canGoBack() ?: false
 
                                     // Sync cookies if on relevant domain
-                                    viewModel.onPageFinished(url)
+                                    url?.let { viewModel.onPageFinished(it) }
                                 }
 
                                 override fun shouldOverrideUrlLoading(

@@ -75,7 +75,7 @@ public class TorrentDownloadsViewModel
         // Init block moved below to use new prepareAddTorrent logic
 
         private val _snackbarEvent = Channel<String>()
-        public val snackbarEvent = _snackbarEvent.receiveAsFlow()
+        public val snackbarEvent: Flow<String> = _snackbarEvent.receiveAsFlow()
 
         // Selected download for details view
         private val _selectedDownload = MutableStateFlow<TorrentDownload?>(null)
@@ -179,7 +179,7 @@ public class TorrentDownloadsViewModel
         /**
          * Select download for details view
          */
-        public fun selectDownload() {
+        public fun selectDownload(download: TorrentDownload) {
             _selectedDownload.value = download
         }
 
@@ -244,10 +244,10 @@ public class TorrentDownloadsViewModel
          */
         // Pending torrent state for dialog
         private val _pendingMagnetLink = MutableStateFlow<String?>(null)
-        val pendingMagnetLink: StateFlow<String?> = _pendingMagnetLink.asStateFlow()
+        public val pendingMagnetLink: StateFlow<String?> = _pendingMagnetLink.asStateFlow()
 
         private val _pendingDownloadPath = MutableStateFlow("")
-        val pendingDownloadPath: StateFlow<String> = _pendingDownloadPath.asStateFlow()
+        public val pendingDownloadPath: StateFlow<String> = _pendingDownloadPath.asStateFlow()
 
         init {
             // Check for initial magnet link

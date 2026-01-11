@@ -19,8 +19,8 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.view.animation.LinearInterpolator
-import androidx.media3.common.MediaSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MediaSource
 
 /**
  * Manages crossfade transitions between two ExoPlayer instances.
