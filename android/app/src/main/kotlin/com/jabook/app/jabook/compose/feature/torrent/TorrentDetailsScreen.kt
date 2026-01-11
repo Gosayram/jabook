@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.torrent.TorrentFile
+import kotlinx.coroutines.flow.collect
 import java.io.File
 import java.util.Locale
 
@@ -87,7 +88,7 @@ public fun TorrentDetailsScreen(
     val download by viewModel.download.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.navigationEvent.collect { bookId ->
+        viewModel.navigationEvent.collect { bookId: String ->
             onPlayBook(bookId)
         }
     }
