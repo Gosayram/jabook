@@ -29,7 +29,13 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+
+/**
+ * Logger for UnifiedBooksView Composable functions.
+ */
+private val unifiedBooksViewLogger = LoggerFactoryImpl().get("UnifiedBooksView")
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloader
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloaderForGrid
 import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
@@ -66,25 +72,22 @@ public fun UnifiedBooksView(
 ) {
     // Log books for debugging
     androidx.compose.runtime.LaunchedEffect(books.size) {
-        android.util.Log.d(
-            "UnifiedBooksView",
-            "📚 Rendering ${books.size} books in $displayMode mode",
-        )
+        unifiedBooksViewLogger.d {
+            "📚 Rendering ${books.size} books in $displayMode mode"
+        }
         if (books.isNotEmpty()) {
             val invalidBooks = books.filter { it.title.isBlank() || it.author.isBlank() || it.id.isBlank() }
             if (invalidBooks.isNotEmpty()) {
-                android.util.Log.w(
-                    "UnifiedBooksView",
-                    "⚠️ Found ${invalidBooks.size} books with empty/invalid data out of ${books.size} total",
-                )
+                unifiedBooksViewLogger.w {
+                    "⚠️ Found ${invalidBooks.size} books with empty/invalid data out of ${books.size} total"
+                }
                 invalidBooks.take(3).forEachIndexed { index, book ->
-                    android.util.Log.w(
-                        "UnifiedBooksView",
+                    unifiedBooksViewLogger.w {
                         "  Invalid[$index]: id='${book.id.take(20)}', " +
                             "title='${book.title.take(30)}', " +
                             "author='${book.author.take(20)}', " +
-                            "coverUrl=${if (book.coverUrl.isNullOrBlank()) "null/empty" else "present"}",
-                    )
+                            "coverUrl=${if (book.coverUrl.isNullOrBlank()) "null/empty" else "present"}"
+                    }
                 }
             }
             // Log sample of valid books
@@ -92,16 +95,15 @@ public fun UnifiedBooksView(
             if (validBooks.isNotEmpty()) {
                 val sample = validBooks.take(2)
                 sample.forEachIndexed { index, book ->
-                    android.util.Log.d(
-                        "UnifiedBooksView",
+                    unifiedBooksViewLogger.d {
                         "  Valid[$index]: id='${book.id.take(20)}', " +
                             "title='${book.title.take(40)}', " +
-                            "author='${book.author.take(30)}'",
-                    )
+                            "author='${book.author.take(30)}'"
+                    }
                 }
             }
         } else {
-            android.util.Log.w("UnifiedBooksView", "⚠️ Empty books list provided")
+            unifiedBooksViewLogger.w { "⚠️ Empty books list provided" }
         }
     }
 

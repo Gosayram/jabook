@@ -21,6 +21,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -47,7 +48,9 @@ public class TorrentStreamingMonitor
     constructor(
         @param:ApplicationContext private val context: Context,
         private val torrentManager: TorrentManager,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("TorrentMonitor")
         private val _isBuffering = kotlinx.coroutines.flow.MutableStateFlow(false)
         public val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
 
@@ -148,15 +151,15 @@ public class TorrentStreamingMonitor
                                     TimeUnit.SECONDS,
                                 )
                             mediaController = controller
-                            android.util.Log.d("TorrentMonitor", "MediaController initialized")
+                            logger.d { "MediaController initialized" }
                         } catch (e: Exception) {
-                            android.util.Log.w("TorrentMonitor", "Failed to initialize MediaController", e)
+                            logger.w(e) { "Failed to initialize MediaController" }
                         }
                     },
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
-                android.util.Log.w("TorrentMonitor", "Failed to create MediaController", e)
+                logger.w(e) { "Failed to create MediaController" }
             }
         }
 
@@ -209,7 +212,7 @@ public class TorrentStreamingMonitor
             if (isPlaying) {
                 // If we are playing, and buffer gets low, pause and mark as buffering
                 if (availableBytesAhead < BUFFER_LOW_THRESHOLD_BYTES && downloadedBytes < totalBytes) {
-                    android.util.Log.i("TorrentMonitor", "Buffering... Available: $availableBytesAhead")
+                    logger.i { "Buffering... Available: $availableBytesAhead" }
                     controller.pause()
                     isPausedForBuffering = true
                     pausedByUser = false // Monitor paused, not user
@@ -217,7 +220,7 @@ public class TorrentStreamingMonitor
             } else if (isPausedForBuffering && !pausedByUser) {
                 // If we are paused due to buffering (and not by user), check if we have enough to resume
                 if (availableBytesAhead > BUFFER_RESUME_THRESHOLD_BYTES || downloadedBytes >= totalBytes) {
-                    android.util.Log.i("TorrentMonitor", "Buffering clear. Resuming. Available: $availableBytesAhead")
+                    logger.i { "Buffering clear. Resuming. Available: $availableBytesAhead" }
                     controller.play()
                     isPausedForBuffering = false
                 }

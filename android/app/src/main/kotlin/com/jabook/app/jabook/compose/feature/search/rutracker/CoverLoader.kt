@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.search.rutracker
 
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +39,9 @@ public class CoverLoader
     @Inject
     constructor(
         private val repository: RutrackerRepository,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("CoverLoader")
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private val loadQueue = Channel<String>(Channel.UNLIMITED)
         private val activeLoads = ConcurrentHashMap.newKeySet<String>()
@@ -95,7 +98,7 @@ public class CoverLoader
                 }
             } catch (e: Exception) {
                 // Log error
-                android.util.Log.e("CoverLoader", "Error loading cover for $topicId", e)
+                logger.e(e) { "Error loading cover for $topicId" }
             } finally {
                 activeLoads.remove(topicId)
             }

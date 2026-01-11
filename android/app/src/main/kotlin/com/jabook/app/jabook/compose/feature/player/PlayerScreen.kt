@@ -114,6 +114,12 @@ import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
+
+/**
+ * Logger for PlayerScreen Composable functions.
+ */
+private val playerScreenLogger = LoggerFactoryImpl().get("PlayerScreen")
 
 /**
  * EntryPoint to access AudioMetadataParser from Hilt in Composable.
@@ -194,7 +200,7 @@ public fun PlayerScreen(
                 onResult = { isGranted ->
                     if (!isGranted) {
                         // Show rationale explaining why notification permission is needed
-                        android.util.Log.w("PlayerScreen", "Notification permission denied")
+                        playerScreenLogger.w { "Notification permission denied" }
                         scope.launch {
                             val result =
                                 snackbarHostState.showSnackbar(
@@ -212,7 +218,7 @@ public fun PlayerScreen(
                                         }
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
-                                    android.util.Log.e("PlayerScreen", "Failed to open settings", e)
+                                    playerScreenLogger.e(e) { "Failed to open settings" }
                                 }
                             }
                         }
@@ -233,9 +239,9 @@ public fun PlayerScreen(
                     .RequestPermission(),
             onResult = { isGranted ->
                 if (isGranted) {
-                    android.util.Log.d("PlayerScreen", "RECORD_AUDIO permission granted, visualizer enabled")
+                    playerScreenLogger.d { "RECORD_AUDIO permission granted, visualizer enabled" }
                 } else {
-                    android.util.Log.w("PlayerScreen", "RECORD_AUDIO permission denied, visualizer disabled")
+                    playerScreenLogger.w { "RECORD_AUDIO permission denied, visualizer disabled" }
                 }
             },
         )

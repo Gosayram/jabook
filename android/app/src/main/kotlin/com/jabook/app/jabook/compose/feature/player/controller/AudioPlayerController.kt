@@ -26,6 +26,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
@@ -63,7 +64,9 @@ public class AudioPlayerController
         @param:ApplicationContext private val context: Context,
         private val exoPlayer: ExoPlayer, // Keep for backward compatibility during migration
         private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("AudioPlayerController")
         private val scope = CoroutineScope(Dispatchers.Main)
         private var mediaController: MediaController? = null
         private var mediaControllerFuture: ListenableFuture<MediaController>? = null
@@ -275,15 +278,14 @@ public class AudioPlayerController
                                 _duration.value = ctrl.duration.coerceAtLeast(0)
                                 _currentChapterIndex.value = ctrl.currentMediaItemIndex
                                 updateStats(ctrl)
-                                android.util.Log.i("AudioPlayerController", "MediaController initialized successfully")
+                                logger.i { "MediaController initialized successfully" }
                             } ?: run {
                                 throw IllegalStateException("MediaController is null after get()")
                             }
                         } catch (e: java.util.concurrent.TimeoutException) {
-                            android.util.Log.w(
-                                "AudioPlayerController",
-                                "MediaController initialization timeout, retrying... (attempt $retryCount/$maxRetries)",
-                            )
+                            logger.w {
+                                "MediaController initialization timeout, retrying... (attempt $retryCount/$maxRetries)"
+                            }
                             if (retryCount < maxRetries) {
                                 // Retry after delay
                                 scope.launch {
@@ -291,14 +293,13 @@ public class AudioPlayerController
                                     initMediaController(retryCount + 1)
                                 }
                             } else {
-                                android.util.Log.e(
-                                    "AudioPlayerController",
-                                    "MediaController initialization failed after $maxRetries retries, using fallback",
-                                )
+                                logger.e {
+                                    "MediaController initialization failed after $maxRetries retries, using fallback"
+                                }
                                 initializeFromExoPlayer()
                             }
                         } catch (e: Exception) {
-                            android.util.Log.e("AudioPlayerController", "Error initializing MediaController", e)
+                            logger.e(e) { "Error initializing MediaController" }
                             // Fallback: initialize from exoPlayer
                             initializeFromExoPlayer()
                         }
@@ -306,7 +307,7 @@ public class AudioPlayerController
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerController", "Failed to create MediaController", e)
+                logger.e(e) { "Failed to create MediaController" }
                 if (retryCount < maxRetries) {
                     // Retry after delay
                     scope.launch {
@@ -314,7 +315,7 @@ public class AudioPlayerController
                         initMediaController(retryCount + 1)
                     }
                 } else {
-                    android.util.Log.e("AudioPlayerController", "MediaController creation failed after $maxRetries retries, using fallback")
+                    logger.e { "MediaController creation failed after $maxRetries retries, using fallback" }
                     // Fallback: initialize from exoPlayer
                     initializeFromExoPlayer()
                 }
@@ -325,7 +326,7 @@ public class AudioPlayerController
          * Fallback initialization from ExoPlayer during migration period.
          */
         private fun initializeFromExoPlayer() {
-            android.util.Log.w("AudioPlayerController", "Using ExoPlayer fallback during MediaController initialization")
+            logger.w { "Using ExoPlayer fallback during MediaController initialization")
             // Attach listener to singleton ExoPlayer as fallback
             exoPlayer.addListener(mediaControllerListener)
             // Initialize state
@@ -358,7 +359,7 @@ public class AudioPlayerController
             val isBookChanged = bookId != null && bookId != previousBookId
 
             if (isBookChanged) {
-                android.util.Log.i("AudioPlayerController", "Book changed: $previousBookId -> $bookId. Resetting state.")
+                logger.i { "Book changed: $previousBookId -> $bookId. Resetting state." }
                 // Reset state to avoid showing old book's data
                 _currentPosition.value = initialPosition.toLong()
                 _currentChapterIndex.value = initialChapterIndex
@@ -372,14 +373,14 @@ public class AudioPlayerController
             val controller = mediaController
             if (controller == null) {
                 // MediaController not ready, retry asynchronously
-                android.util.Log.d("AudioPlayerController", "MediaController not ready, retrying asynchronously...")
+                logger.d { "MediaController not ready, retrying asynchronously..." }
                 scope.launch {
                     kotlinx.coroutines.delay(500L)
                     if (mediaController != null) {
                         // Retry loadBook with ready MediaController
                         loadBook(filePaths, initialChapterIndex, initialPosition, autoPlay, metadata, bookId)
                     } else {
-                        android.util.Log.e("AudioPlayerController", "MediaController not available after retry")
+                        logger.e { "MediaController not available after retry")
                     }
                 }
                 return
@@ -400,10 +401,9 @@ public class AudioPlayerController
                             currentPaths.sorted() == filePaths.sorted()
 
                     if ((isSameBook || isSamePlaylist) && !isBookChanged) {
-                        android.util.Log.i(
-                            "AudioPlayerController",
-                            "Book already loaded (groupPath match: $isSameBook, paths match: $isSamePlaylist). Skipping setPlaylist.",
-                        )
+                        logger.i {
+                            "Book already loaded (groupPath match: $isSameBook, paths match: $isSamePlaylist). Skipping setPlaylist."
+                        }
 
                         // Handle seeking if needed (e.g. user clicked a specific chapter)
                         // Only seek if significantly different to allow resume logic to work
@@ -436,13 +436,12 @@ public class AudioPlayerController
                     if (result.resultCode == SessionResult.RESULT_SUCCESS && autoPlay) {
                         controller.play()
                     } else if (result.resultCode != SessionResult.RESULT_SUCCESS) {
-                        android.util.Log.e(
-                            "AudioPlayerController",
-                            "setPlaylist failed with code: ${result.resultCode}",
-                        )
+                        logger.e {
+                            "setPlaylist failed with code: ${result.resultCode}"
+                        }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioPlayerController", "Error in loadBook", e)
+                    logger.e(e) { "Error in loadBook" }
                 }
             }
         }
@@ -450,46 +449,43 @@ public class AudioPlayerController
         public fun play() {
             startService()
             mediaController?.play() ?: run {
-                android.util.Log.w("AudioPlayerController", "MediaController not available for play(), service may not be ready")
+                logger.w { "MediaController not available for play(), service may not be ready" }
             }
         }
 
         public fun pause() {
             mediaController?.pause() ?: run {
-                android.util.Log.w("AudioPlayerController", "MediaController not available for pause(), service may not be ready")
+                logger.w { "MediaController not available for pause(), service may not be ready" }
             }
         }
 
         public fun seekTo(positionMs: Long) {
             mediaController?.seekTo(positionMs) ?: run {
-                android.util.Log.w("AudioPlayerController", "MediaController not available for seekTo(), service may not be ready")
+                logger.w { "MediaController not available for seekTo(), service may not be ready" }
             }
         }
 
         public fun skipToNext() {
             mediaController?.seekToNext() ?: run {
-                android.util.Log.w("AudioPlayerController", "MediaController not available for skipToNext(), service may not be ready")
+                logger.w { "MediaController not available for skipToNext(), service may not be ready" }
             }
         }
 
         public fun skipToPrevious() {
             mediaController?.seekToPrevious() ?: run {
-                android.util.Log.w("AudioPlayerController", "MediaController not available for skipToPrevious(), service may not be ready")
+                logger.w { "MediaController not available for skipToPrevious(), service may not be ready" }
             }
         }
 
         public fun skipToChapter(index: Int) {
             mediaController?.seekTo(index, 0L) ?: run {
-                android.util.Log.w("AudioPlayerController", "MediaController not available for skipToChapter(), service may not be ready")
+                logger.w { "MediaController not available for skipToChapter(), service may not be ready" }
             }
         }
 
         public fun setPlaybackSpeed(speed: Float) {
             mediaController?.setPlaybackSpeed(speed) ?: run {
-                android.util.Log.w(
-                    "AudioPlayerController",
-                    "MediaController not available for setPlaybackSpeed(), service may not be ready",
-                )
+                logger.w { "MediaController not available for setPlaybackSpeed(), service may not be ready" }
             }
         }
 
@@ -497,11 +493,11 @@ public class AudioPlayerController
             try {
                 // Check if MediaController is already connected (service is running)
                 if (mediaController != null) {
-                    android.util.Log.d("AudioPlayerController", "MediaController connected, service already running")
+                    logger.d { "MediaController connected, service already running")
                     return
                 }
 
-                android.util.Log.i("AudioPlayerController", "Starting AudioPlayerService...")
+                logger.i { "Starting AudioPlayerService...")
                 val intent = Intent(context, AudioPlayerService::class.java)
                 // Use startService instead of startForegroundService.
                 // Since the app is in the foreground, we are allowed to start the service.
@@ -513,12 +509,12 @@ public class AudioPlayerController
                 scope.launch {
                     kotlinx.coroutines.delay(500L) // Wait for service to initialize
                     if (mediaController == null) {
-                        android.util.Log.d("AudioPlayerController", "Retrying MediaController initialization after service start")
+                        logger.d { "Retrying MediaController initialization after service start")
                         initMediaController()
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerController", "Failed to start service", e)
+                logger.e { "Failed to start service", e)
             }
         }
 

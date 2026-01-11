@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.debug
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.util.StructuredLogger
 import com.jabook.app.jabook.compose.data.debug.DebugLogService
 import com.jabook.app.jabook.compose.data.network.MirrorManager
@@ -43,8 +44,10 @@ public class DebugViewModel
         private val mirrorManager: MirrorManager,
         private val authService: com.jabook.app.jabook.compose.data.auth.RutrackerAuthService,
         private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
+        private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
-        private val logger = StructuredLogger("DebugViewModel")
+        private val structuredLogger = StructuredLogger("DebugViewModel")
+        private val logger = loggerFactory.get("DebugViewModel")
         private val _uiState = MutableStateFlow<DebugUiState>(DebugUiState.Initial)
         public val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
 
@@ -66,13 +69,13 @@ public class DebugViewModel
                         loadCacheStats()
                         refreshAuthDebugInfo()
                     } catch (e: Exception) {
-                        android.util.Log.e("DebugViewModel", "Failed to initialize debug data", e)
+                        logger.e(e) { "Failed to initialize debug data" }
                         _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
                     }
                 }
             } catch (e: Exception) {
                 // Handle case when initialization fails
-                android.util.Log.e("DebugViewModel", "Failed to post initialization", e)
+                logger.e(e) { "Failed to post initialization" }
                 _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
             }
         }
@@ -81,26 +84,26 @@ public class DebugViewModel
             try {
                 viewModelScope.launch {
                     try {
-                        logger.withOperation("loadLogs") { operationId ->
+                        structuredLogger.withOperation("loadLogs") { operationId ->
                             try {
                                 _uiState.value = DebugUiState.Loading
                                 val logContent = debugLogService.collectLogs()
                                 _logs.value = logContent
                                 _uiState.value = DebugUiState.Success
                             } catch (e: Exception) {
-                                logger.logError(operationId, "Failed to load logs", e)
+                                structuredLogger.logError(operationId, "Failed to load logs", e)
                                 _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
                             }
                         }
                     } catch (e: Exception) {
                         // Handle case when logger.withOperation itself throws an exception
-                        android.util.Log.e("DebugViewModel", "Failed to initialize log loading operation", e)
+                        logger.e(e) { "Failed to initialize log loading operation" }
                         _uiState.value = DebugUiState.Error("Failed to initialize log loading: ${e.message}")
                     }
                 }
             } catch (e: Exception) {
                 // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
-                android.util.Log.e("DebugViewModel", "Failed to launch loadLogs coroutine", e)
+                logger.e(e) { "Failed to launch loadLogs coroutine" }
                 _uiState.value = DebugUiState.Error("Failed to start log loading: ${e.message}")
             }
         }
@@ -128,7 +131,7 @@ public class DebugViewModel
                 try {
                     debugLogService.clearOldLogFiles()
                 } catch (e: Exception) {
-                    android.util.Log.e("DebugViewModel", "Failed to clear old log files", e)
+                    logger.e(e) { "Failed to clear old log files" }
                 }
             }
         }
@@ -155,7 +158,7 @@ public class DebugViewModel
             try {
                 viewModelScope.launch {
                     try {
-                        logger.withOperation("refreshAuthDebugInfo") { operationId ->
+                        structuredLogger.withOperation("refreshAuthDebugInfo") { operationId ->
                             try {
                                 // Get fresh auth status by validating (with timeout protection)
                                 val isAuthenticated =
@@ -164,7 +167,7 @@ public class DebugViewModel
                                             authService.validateAuth(operationId)
                                         }
                                     } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                                        android.util.Log.w("DebugViewModel", "Auth validation timed out")
+                                        logger.w { "Auth validation timed out" }
                                         false
                                     }
 
@@ -190,12 +193,12 @@ public class DebugViewModel
                                             ),
                                     )
                                 _authDebugInfo.value = info
-                                logger.logSuccess(operationId, "Auth debug info refreshed")
+                                structuredLogger.logSuccess(operationId, "Auth debug info refreshed")
                             } catch (e: Exception) {
                                 // Handle errors gracefully - update authDebugInfo with error state
                                 // Use WARNING for individual failures, not ERROR
-                                android.util.Log.w("DebugViewModel", "Auth debug info refresh incomplete: ${e.message}")
-                                logger.logError(operationId, "Auth debug info refresh incomplete", e)
+                                logger.w { "Auth debug info refresh incomplete: ${e.message}" }
+                                structuredLogger.logError(operationId, "Auth debug info refresh incomplete", e)
                                 val errorInfo =
                                     com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                                         isAuthenticated = false,
@@ -209,7 +212,7 @@ public class DebugViewModel
                         }
                     } catch (e: Exception) {
                         // Handle case when logger.withOperation itself throws an exception
-                        android.util.Log.e("DebugViewModel", "Failed to initialize auth debug info operation", e)
+                        logger.e(e) { "Failed to initialize auth debug info operation" }
                         val errorInfo =
                             com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                                 isAuthenticated = false,
@@ -223,7 +226,7 @@ public class DebugViewModel
                 }
             } catch (e: Exception) {
                 // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
-                android.util.Log.e("DebugViewModel", "Failed to launch refreshAuthDebugInfo coroutine", e)
+                logger.e(e) { "Failed to launch refreshAuthDebugInfo coroutine" }
                 val errorInfo =
                     com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                         isAuthenticated = false,
@@ -248,12 +251,12 @@ public class DebugViewModel
                             // Re-throw cancellation to propagate timeout
                             throw e
                         } catch (e: Exception) {
-                            android.util.Log.w("DebugViewModel", "Failed to get available mirrors from Flow, using defaults", e)
+                            logger.w(e) { "Failed to get available mirrors from Flow, using defaults" }
                             com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS
                         }
 
                     if (mirrors.isEmpty()) {
-                        android.util.Log.w("DebugViewModel", "No mirrors configured for health check")
+                        logger.w { "No mirrors configured for health check" }
                         emptyMap()
                     } else {
                         // Check mirrors in parallel for better performance
@@ -270,10 +273,9 @@ public class DebugViewModel
                                                 throw e
                                             } catch (e: Exception) {
                                                 // Individual mirror check failed - this is normal, not an error
-                                                android.util.Log.i(
-                                                    "DebugViewModel",
-                                                    "Mirror $mirror unavailable (expected behavior): ${e.message}",
-                                                )
+                                                logger.i {
+                                                    "Mirror $mirror unavailable (expected behavior): ${e.message}"
+                                                }
                                                 mirror to false
                                             }
                                         }
@@ -285,22 +287,22 @@ public class DebugViewModel
                         val availableCount = results.values.count { it }
                         val totalCount = results.size
                         if (availableCount == 0) {
-                            android.util.Log.w("DebugViewModel", "All mirrors unavailable ($totalCount checked)")
+                            logger.w { "All mirrors unavailable ($totalCount checked)" }
                         } else {
-                            android.util.Log.i("DebugViewModel", "Mirror health check complete: $availableCount/$totalCount available")
+                            logger.i { "Mirror health check complete: $availableCount/$totalCount available" }
                         }
 
                         results
                     }
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                android.util.Log.i("DebugViewModel", "Mirror health check timed out after 20s (some mirrors slow to respond)")
+                logger.i { "Mirror health check timed out after 20s (some mirrors slow to respond)" }
                 emptyMap()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // Re-throw cancellation to allow proper cleanup
                 throw e
             } catch (e: Exception) {
-                android.util.Log.e("DebugViewModel", "Unexpected error during mirror check", e)
+                logger.e(e) { "Unexpected error during mirror check" }
                 emptyMap()
             }
 
@@ -316,20 +318,18 @@ public class DebugViewModel
                         val stats = rutrackerRepository.getCacheStatistics()
                         _cacheStats.value = stats
                     } catch (e: NullPointerException) {
-                        android.util.Log.e(
-                            "DebugViewModel",
-                            "NullPointerException while loading cache stats - repository or cache may not be initialized",
-                            e,
-                        )
+                        logger.e(e) {
+                            "NullPointerException while loading cache stats - repository or cache may not be initialized"
+                        }
                         _cacheStats.value = null
                     } catch (e: Exception) {
-                        android.util.Log.e("DebugViewModel", "Failed to load cache stats", e)
+                        logger.e(e) { "Failed to load cache stats" }
                         _cacheStats.value = null
                     }
                 }
             } catch (e: Exception) {
                 // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
-                android.util.Log.e("DebugViewModel", "Failed to launch loadCacheStats coroutine", e)
+                logger.e(e) { "Failed to launch loadCacheStats coroutine" }
                 _cacheStats.value = null
             }
         }
@@ -340,7 +340,7 @@ public class DebugViewModel
                     rutrackerRepository.clearSearchCache()
                     loadCacheStats()
                 } catch (e: Exception) {
-                    android.util.Log.e("DebugViewModel", "Failed to clear cache", e)
+                    logger.e(e) { "Failed to clear cache" }
                 }
             }
         }

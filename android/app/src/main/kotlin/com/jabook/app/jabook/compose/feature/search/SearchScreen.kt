@@ -61,6 +61,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
+
+/**
+ * Logger for SearchScreen Composable functions.
+ */
+private val searchScreenLogger = LoggerFactoryImpl().get("SearchScreen")
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -572,36 +578,32 @@ private fun OnlineSearchResults(
 ) {
     // Log results for debugging
     androidx.compose.runtime.LaunchedEffect(results.size) {
-        android.util.Log.d(
-            "SearchScreen",
-            "📊 OnlineSearchResults: ${results.size} results, ${favoriteIds.size} favorites",
-        )
+        searchScreenLogger.d {
+            "📊 OnlineSearchResults: ${results.size} results, ${favoriteIds.size} favorites"
+        }
         if (results.isNotEmpty()) {
             val sample = results.take(3)
             sample.forEachIndexed { index, result ->
-                android.util.Log.d(
-                    "SearchScreen",
+                searchScreenLogger.d {
                     "  Result[$index]: id='${result.topicId}', " +
                         "title='${result.title.take(40)}', " +
                         "author='${result.author.take(30)}', " +
                         "coverUrl=${if (result.coverUrl.isNullOrBlank()) "null/empty" else "present"}, " +
-                        "valid=${result.isValid()}",
-                )
+                        "valid=${result.isValid()}"
+                }
             }
             // Check for invalid results
             val invalidResults = results.filter { !it.isValid() }
             if (invalidResults.isNotEmpty()) {
-                android.util.Log.w(
-                    "SearchScreen",
-                    "⚠️ Found ${invalidResults.size} invalid results out of ${results.size}",
-                )
+                searchScreenLogger.w {
+                    "⚠️ Found ${invalidResults.size} invalid results out of ${results.size}"
+                }
                 invalidResults.take(3).forEachIndexed { index, result ->
-                    android.util.Log.w(
-                        "SearchScreen",
+                    searchScreenLogger.w {
                         "  Invalid[$index]: id='${result.topicId}', " +
                             "title='${result.title.take(30)}', " +
-                            "author='${result.author.take(20)}'",
-                    )
+                            "author='${result.author.take(20)}'"
+                    }
                 }
             }
         }
@@ -636,19 +638,17 @@ private fun OnlineSearchResults(
                     )
                 // Log if book has empty/invalid data
                 if (book.title.isBlank() || book.author.isBlank()) {
-                    android.util.Log.w(
-                        "SearchScreen",
+                    searchScreenLogger.w {
                         "⚠️ Book[$index] has empty data: id='${book.id}', " +
-                            "title='${book.title}', author='${book.author}'",
-                    )
+                            "title='${book.title}', author='${book.author}'"
+                    }
                 }
                 book
             }
 
-        android.util.Log.d(
-            "SearchScreen",
-            "✅ Converted ${results.size} results to ${booksFromResults.size} books",
-        )
+        searchScreenLogger.d {
+            "✅ Converted ${results.size} results to ${booksFromResults.size} books"
+        }
 
         com.jabook.app.jabook.compose.feature.library.UnifiedBooksView(
             books = booksFromResults,

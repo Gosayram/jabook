@@ -17,8 +17,8 @@ package com.jabook.app.jabook.compose.data.debug
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.core.content.FileProvider
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -40,9 +40,10 @@ public class DebugLogService
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("DebugLogService")
         public companion object {
-            private const val TAG = "DebugLogService"
             private const val LOG_FILE_PREFIX = "jabook_logs"
             private const val MAX_LOG_LINES = 5000
 
@@ -206,7 +207,7 @@ public class DebugLogService
                     }
 
                     if (totalLines >= maxLinesToRead) {
-                        Log.w(TAG, "Reached safety limit of $maxLinesToRead lines, stopping log collection")
+                        logger.w { "Reached safety limit of $maxLinesToRead lines, stopping log collection" }
                     }
 
                     // Add summary
@@ -223,13 +224,13 @@ public class DebugLogService
                     // Wait for process with timeout to prevent hanging
                     val processExited = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
                     if (!processExited) {
-                        Log.w(TAG, "Logcat process did not exit within timeout, destroying")
+                        logger.w { "Logcat process did not exit within timeout, destroying" }
                         process.destroyForcibly()
                     }
 
                     logs.toString()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to collect logs", e)
+                    logger.e(e) { "Failed to collect logs" }
                     "Error collecting logs: ${e.message}"
                 }
             }
@@ -246,7 +247,7 @@ public class DebugLogService
                 val logFile = File(context.cacheDir, fileName)
                 logFile.writeText(logs)
 
-                Log.d(TAG, "Logs exported to ${logFile.absolutePath} (${logFile.length()} bytes)")
+                logger.d { "Logs exported to ${logFile.absolutePath} (${logFile.length()} bytes)" }
 
                 // Return FileProvider URI for sharing
                 try {
@@ -256,7 +257,7 @@ public class DebugLogService
                         logFile,
                     )
                 } catch (e: IllegalArgumentException) {
-                    Log.e(TAG, "FileProvider not configured properly. Please check AndroidManifest.xml", e)
+                    logger.e(e) { "FileProvider not configured properly. Please check AndroidManifest.xml" }
                     throw Exception(
                         "FileProvider not configured. Please add FileProvider configuration to AndroidManifest.xml. " +
                             "See: https://developer.android.com/reference/androidx/core/content/FileProvider",
@@ -302,15 +303,15 @@ public class DebugLogService
                     // Use Activity context to start the intent
                     activity.startActivity(chooser)
 
-                    Log.i(TAG, "Share dialog opened for logs")
+                    logger.i { "Share dialog opened for logs" }
                 } catch (e: android.content.ActivityNotFoundException) {
-                    Log.e(TAG, "No app available to share logs", e)
+                    logger.e(e) { "No app available to share logs" }
                     throw Exception("No app available to share logs. Please install a file sharing app.")
                 } catch (e: SecurityException) {
-                    Log.e(TAG, "Security exception when sharing logs", e)
+                    logger.e(e) { "Security exception when sharing logs" }
                     throw Exception("Permission denied. Please check app permissions.")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to share logs", e)
+                    logger.e(e) { "Failed to share logs" }
                     throw Exception("Failed to share logs: ${e.message}")
                 }
             }
@@ -338,9 +339,9 @@ public class DebugLogService
                         }
                     }
 
-                    Log.d(TAG, "Cleared $deletedCount old log files")
+                    logger.d { "Cleared $deletedCount old log files" }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to clear old log files", e)
+                    logger.e(e) { "Failed to clear old log files" }
                 }
             }
 

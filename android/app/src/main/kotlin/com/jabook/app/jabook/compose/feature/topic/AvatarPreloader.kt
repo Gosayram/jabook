@@ -16,8 +16,8 @@ package com.jabook.app.jabook.compose.feature.topic
 
 import android.content.Context
 import android.graphics.drawable.ColorDrawable
-import android.util.Log
 import androidx.compose.ui.graphics.Color
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import androidx.compose.ui.graphics.toArgb
 import coil3.SingletonImageLoader
 import coil3.asImage
@@ -36,10 +36,10 @@ import javax.inject.Inject
  */
 public class AvatarPreloader
     @Inject
-    constructor() {
-        public companion object {
-            private const val TAG = "AvatarPreloader"
-        }
+    constructor(
+        private val loggerFactory: LoggerFactory,
+    ) {
+        private val logger = loggerFactory.get("AvatarPreloader")
 
         /**
          * Preloads avatars for the given list of comments.
@@ -57,7 +57,7 @@ public class AvatarPreloader
                 val commentsWithAvatars = comments.filter { !it.avatarUrl.isNullOrBlank() }
                 if (commentsWithAvatars.isEmpty()) return@withContext
 
-                Log.d(TAG, "Starting preload for ${commentsWithAvatars.size} avatars")
+                logger.d { "Starting preload for ${commentsWithAvatars.size} avatars" }
 
                 val imageLoader = SingletonImageLoader.get(context)
                 var successCount: Int = 0
@@ -76,10 +76,10 @@ public class AvatarPreloader
                         imageLoader.enqueue(request)
                         successCount++
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to preload avatar for ${comment.author}", e)
+                        logger.w(e) { "Failed to preload avatar for ${comment.author}" }
                     }
                 }
 
-                Log.d(TAG, "Enqueued $successCount avatar preload requests")
+                logger.d { "Enqueued $successCount avatar preload requests" }
             }
     }
