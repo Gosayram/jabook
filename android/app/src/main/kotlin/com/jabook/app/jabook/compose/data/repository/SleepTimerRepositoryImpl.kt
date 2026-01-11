@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerExtensions
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
@@ -47,7 +48,9 @@ public class SleepTimerRepositoryImpl
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
+        private val loggerFactory: LoggerFactory,
     ) : SleepTimerRepository {
+        private val logger = loggerFactory.get("SleepTimerRepository")
         private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
         private val _timerState = MutableStateFlow<SleepTimerState>(SleepTimerState.Idle)
@@ -106,15 +109,15 @@ public class SleepTimerRepositoryImpl
                                     TimeUnit.SECONDS,
                                 )
                             mediaController = controller
-                            android.util.Log.d("SleepTimerRepository", "MediaController initialized")
+                            logger.d { "MediaController initialized" }
                         } catch (e: Exception) {
-                            android.util.Log.w("SleepTimerRepository", "Failed to initialize MediaController", e)
+                            logger.w(e) { "Failed to initialize MediaController" }
                         }
                     },
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
-                android.util.Log.w("SleepTimerRepository", "Failed to create MediaController", e)
+                logger.w(e) { "Failed to create MediaController" }
             }
         }
 
@@ -159,7 +162,7 @@ public class SleepTimerRepositoryImpl
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("SleepTimerRepository", "Failed to get timer state via MediaController", e)
+                    logger.w(e) { "Failed to get timer state via MediaController" }
                     SleepTimerState.Idle
                 }
 
@@ -189,10 +192,10 @@ public class SleepTimerRepositoryImpl
                             _timerState.value = SleepTimerState.Active(durationMinutes * 60)
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("SleepTimerRepository", "Failed to set sleep timer", e)
+                        logger.e(e) { "Failed to set sleep timer" }
                     }
                 } else {
-                    android.util.Log.w("SleepTimerRepository", "MediaController not available for startTimer")
+                    logger.w { "MediaController not available for startTimer" }
                 }
             }
         }
@@ -214,10 +217,10 @@ public class SleepTimerRepositoryImpl
                             _timerState.value = SleepTimerState.EndOfChapter
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("SleepTimerRepository", "Failed to set sleep timer end of chapter", e)
+                        logger.e(e) { "Failed to set sleep timer end of chapter" }
                     }
                 } else {
-                    android.util.Log.w("SleepTimerRepository", "MediaController not available for startTimerEndOfChapter")
+                    logger.w { "MediaController not available for startTimerEndOfChapter" }
                 }
             }
         }
@@ -239,10 +242,10 @@ public class SleepTimerRepositoryImpl
                             _timerState.value = SleepTimerState.Idle
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("SleepTimerRepository", "Failed to cancel sleep timer", e)
+                        logger.e(e) { "Failed to cancel sleep timer" }
                     }
                 } else {
-                    android.util.Log.w("SleepTimerRepository", "MediaController not available for cancelTimer")
+                    logger.w { "MediaController not available for cancelTimer" }
                 }
             }
         }

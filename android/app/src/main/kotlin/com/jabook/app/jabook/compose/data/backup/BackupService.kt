@@ -16,8 +16,8 @@ package com.jabook.app.jabook.compose.data.backup
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.core.content.FileProvider
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
@@ -52,9 +52,10 @@ public class BackupService
         private val protoSettingsRepository: ProtoSettingsRepository,
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
         private val mirrorManager: com.jabook.app.jabook.compose.data.network.MirrorManager,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("BackupService")
         public companion object {
-            private const val TAG = "BackupService"
             private const val CURRENT_VERSION = "1.0.0"
         }
 
@@ -71,14 +72,14 @@ public class BackupService
         public suspend fun exportToFile(): Uri =
             withContext(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "Starting data export")
+                    logger.d { "Starting data export" }
 
                     // 1. Collect data
                     val backupData = collectData()
 
                     // 2. Serialize to JSON
                     val jsonString = json.encodeToString(backupData)
-                    Log.d(TAG, "Serialized backup: ${jsonString.length} bytes")
+                    logger.d { "Serialized backup: ${jsonString.length} bytes" }
 
                     // 3. Write to file
                     val timestamp = DateTimeFormatter.formatCurrentForFilename()
@@ -86,7 +87,7 @@ public class BackupService
                     val file = File(context.cacheDir, fileName)
                     file.writeText(jsonString)
 
-                    Log.d(TAG, "Backup written to ${file.absolutePath}")
+                    logger.d { "Backup written to ${file.absolutePath}" }
 
                     // 4. Return FileProvider URI
                     FileProvider.getUriForFile(
@@ -95,7 +96,7 @@ public class BackupService
                         file,
                     )
                 } catch (e: Exception) {
-                    Log.e(TAG, "Export failed", e)
+                    logger.e(e) { "Export failed" }
                     throw e
                 }
             }
@@ -107,7 +108,7 @@ public class BackupService
         public suspend fun importFromFile(uri: Uri): ImportStats =
             withContext(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "Starting data import from $uri")
+                    logger.d { "Starting data import from $uri" }
 
                     // 1. Read file
                     val jsonString =
@@ -115,11 +116,11 @@ public class BackupService
                             it.bufferedReader().readText()
                         } ?: throw IOException("Cannot read backup file")
 
-                    Log.d(TAG, "Read backup file: ${jsonString.length} bytes")
+                    logger.d { "Read backup file: ${jsonString.length} bytes" }
 
                     // 2. Parse JSON
                     val backupData = json.decodeFromString<BackupData>(jsonString)
-                    Log.d(TAG, "Parsed backup version ${backupData.version}")
+                    logger.d { "Parsed backup version ${backupData.version}" }
 
                     // 3. Validate schema version (support both 1.x and 2.x)
                     val schemaVersion = backupData.schemaVersion ?: backupData.version // Fallback for v1.0.0
@@ -136,7 +137,7 @@ public class BackupService
                     // Import settings
                     restoreSettings(backupData.settings)
                     stats.settingsRestored = true
-                    Log.d(TAG, "Settings restored")
+                    logger.d { "Settings restored" }
 
                     // Import book metadata
                     restoreBooks(backupData.bookMetadata)
@@ -153,10 +154,10 @@ public class BackupService
                     // Import scan paths
                     restoreScanPaths(backupData.scanPaths)
 
-                    Log.d(TAG, "Import complete: $stats")
+                    logger.d { "Import complete: $stats" }
                     stats
                 } catch (e: Exception) {
-                    Log.e(TAG, "Import failed", e)
+                    logger.e(e) { "Import failed" }
                     throw e
                 }
             }
@@ -166,7 +167,7 @@ public class BackupService
          */
         private suspend fun collectData(): BackupData =
             withContext(Dispatchers.IO) {
-                Log.d(TAG, "Collecting data for backup...")
+                logger.d { "Collecting data for backup..." }
 
                 val timestamp = DateTimeFormatter.formatCurrentISO8601()
 
@@ -179,13 +180,12 @@ public class BackupService
                 val scanPaths = collectScanPaths()
                 val statistics = collectStatistics(books, favorites, searchHistory, scanPaths)
 
-                Log.d(
-                    TAG,
+                logger.d {
                     "Collected: ${books.size} books, ${favorites.size} favorites, " +
-                        "${searchHistory.size} history items, ${scanPaths.size} scan paths",
-                )
-                Log.d(TAG, "App info: ${appInfo.versionName} (${appInfo.versionCode})")
-                Log.d(TAG, "Statistics: ${statistics.totalBooks} books, ${statistics.totalDuration}ms duration")
+                        "${searchHistory.size} history items, ${scanPaths.size} scan paths"
+                }
+                logger.d { "App info: ${appInfo.versionName} (${appInfo.versionCode})" }
+                logger.d { "Statistics: ${statistics.totalBooks} books, ${statistics.totalDuration}ms duration" }
 
                 BackupData(
                     version = appInfo.versionName, // App version
@@ -242,7 +242,7 @@ public class BackupService
                         }
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Could not get BuildConfig.APPLICATION_ID, using versionName fallback", e)
+                    logger.w(e) { "Could not get BuildConfig.APPLICATION_ID, using versionName fallback" }
                     // Fallback: determine from versionName suffix
                     when {
                         versionName.endsWith("-dev") -> "dev"
@@ -405,7 +405,7 @@ public class BackupService
                     )
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to collect favorites", e)
+                logger.w(e) { "Failed to collect favorites" }
                 return emptyList()
             }
         }
@@ -494,9 +494,9 @@ public class BackupService
                     protoSettingsRepository.addCustomMirror(it)
                 }
 
-                Log.d(TAG, "All settings restored successfully")
+                logger.d { "All settings restored successfully" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to restore some settings", e)
+                logger.e(e) { "Failed to restore some settings" }
                 // Don't throw, allow partial restore
             }
         }
@@ -537,7 +537,7 @@ public class BackupService
                             ),
                         )
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to restore timestamps for ${backup.id}", e)
+                        logger.w(e) { "Failed to restore timestamps for ${backup.id}" }
                     }
                 } else {
                     // Insert new book (stub for history)
@@ -572,7 +572,7 @@ public class BackupService
                             ),
                         )
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to restore timestamps for new book ${backup.id}", e)
+                        logger.w(e) { "Failed to restore timestamps for new book ${backup.id}" }
                     }
                 }
             }
