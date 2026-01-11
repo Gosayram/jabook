@@ -176,7 +176,9 @@ public class DebugLogService
 
                     // Collect and filter logs
                     // Add safety limit to prevent infinite loops if process hangs
-                    public var totalLines: Int = 0                    public var filteredLines: Int = 0                    public val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
+                    var totalLines: Int = 0
+                    var filteredLines: Int = 0
+                    val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
 
                     while (totalLines < maxLinesToRead) {
                         val line = bufferedReader.readLine() ?: break
