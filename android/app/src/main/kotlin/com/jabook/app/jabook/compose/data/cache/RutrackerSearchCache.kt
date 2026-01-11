@@ -110,7 +110,7 @@ public class RutrackerSearchCache
         /**
          * Clear all cached search results.
          */
-        public fun clear() : Unit {
+        public fun clear() {
             cache.clear()
             synchronized(accessOrder) {
                 accessOrder.clear()

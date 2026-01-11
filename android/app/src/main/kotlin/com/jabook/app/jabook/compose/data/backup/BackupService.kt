@@ -297,12 +297,12 @@ public class BackupService
             val defaultDownloadPath: String =
                 "JabookAudio"
 
-                    public val defaultMirrors =
-                        listOf(
-                            "https://rutracker.org",
-                            "https://rutracker.net",
-                            "https://rutracker.nl",
-                        )
+            public val defaultMirrors =
+                listOf(
+                    "https://rutracker.org",
+                    "https://rutracker.net",
+                    "https://rutracker.nl",
+                )
 
             // FIX: Get ACTUAL current mirror from MirrorManager instead of guessing
             val actualMirror = mirrorManager.currentMirror.value
