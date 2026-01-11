@@ -14,9 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.indexing
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
@@ -42,10 +42,9 @@ public class IndexingViewModel
         private val forumIndexer: ForumIndexer,
         private val authRepository: AuthRepository,
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
+        private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
-        public companion object {
-            private const val TAG = "IndexingViewModel"
-        }
+        private val logger = loggerFactory.get("IndexingViewModel")
 
         private val _indexingProgress = MutableStateFlow<IndexingProgress>(IndexingProgress.Idle)
         public val indexingProgress: StateFlow<IndexingProgress> = _indexingProgress.asStateFlow()
@@ -69,13 +68,13 @@ public class IndexingViewModel
          */
         public fun startIndexing(context: android.content.Context?) {
             if (_isIndexing.value) {
-                Log.w(TAG, "Indexing already in progress")
+                logger.w { "Indexing already in progress" }
                 return
             }
 
             // If context is provided, use foreground service for background indexing
             if (context != null) {
-                Log.d(TAG, "Starting indexing via Foreground Service (background mode)")
+                logger.d { "Starting indexing via Foreground Service (background mode)" }
                 _isIndexing.value = true
                 _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
@@ -86,7 +85,7 @@ public class IndexingViewModel
             }
 
             // Fallback: direct indexing (for testing or when context is not available)
-            Log.d(TAG, "Starting indexing directly (no context provided)")
+            logger.d { "Starting indexing directly (no context provided)" }
             viewModelScope.launch {
                 _isIndexing.value = true
                 _indexingStartTime.value = System.currentTimeMillis()
@@ -104,13 +103,13 @@ public class IndexingViewModel
                         }
                     }
                 } catch (e: RuTrackerError.Unauthorized) {
-                    Log.w(TAG, "Indexing requires authentication")
+                    logger.w { "Indexing requires authentication" }
                     _indexingProgress.value =
                         IndexingProgress.Error(
                             message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
                         )
                 } catch (e: Exception) {
-                    Log.e(TAG, "Indexing failed", e)
+                    logger.e(e) { "Indexing failed" }
                     _indexingProgress.value =
                         IndexingProgress.Error(
                             message = e.message ?: "Unknown error",
@@ -127,7 +126,7 @@ public class IndexingViewModel
         public fun cancelIndexing() {
             // Note: Current implementation doesn't support cancellation
             // This is a placeholder for future implementation
-            Log.d(TAG, "Cancel indexing requested (not yet implemented)")
+            logger.d { "Cancel indexing requested (not yet implemented)" }
         }
 
         /**
@@ -153,11 +152,11 @@ public class IndexingViewModel
          * @param context Context needed to start foreground service
          */
         public fun startIndexingInBackground(context: android.content.Context) {
-            Log.d(TAG, "Transferring indexing to foreground service")
+            logger.d { "Transferring indexing to foreground service" }
 
             // Stop current indexing in ViewModel if running
             if (_isIndexing.value) {
-                Log.d(TAG, "Stopping ViewModel indexing, transferring to service")
+                logger.d { "Stopping ViewModel indexing, transferring to service" }
                 _isIndexing.value = false
                 // Note: We can't actually cancel the indexing job, but we stop updating progress
                 // The service will start its own indexing
@@ -173,16 +172,16 @@ public class IndexingViewModel
          */
         public suspend fun clearIndex(): Boolean =
             try {
-                Log.i(TAG, "Clearing index...")
+                logger.i { "Clearing index..." }
                 _clearingInProgress.value = true
                 val startTime = System.currentTimeMillis()
                 forumIndexer.clearIndex()
                 val duration = System.currentTimeMillis() - startTime
-                Log.i(TAG, "Index cleared successfully in ${duration}ms (${duration / 1000}s)")
+                logger.i { "Index cleared successfully in ${duration}ms (${duration / 1000}s)" }
                 _clearingInProgress.value = false
                 true
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to clear index", e)
+                logger.e(e) { "Failed to clear index" }
                 _clearingInProgress.value = false
                 false
             }

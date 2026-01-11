@@ -180,7 +180,7 @@ public class TopicViewModel
                         }
                     }
                     is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
-                        _uiState.value = TopicUiState.Error(result.message ?: context.getString(R.string.unknownError))
+                        _uiState.value = TopicUiState.Error(result.error.message)
                     }
                     is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
                         _uiState.value = TopicUiState.Loading
@@ -230,7 +230,7 @@ public class TopicViewModel
                             )
                     }
                     is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
-                        _message.value = result.message ?: context.getString(R.string.unknownError)
+                        _message.value = result.error.message
                     }
                     is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
                         // Ignore
@@ -265,9 +265,9 @@ public class TopicViewModel
                     }
                     is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
                         if (!silent) {
-                            _uiState.value = TopicUiState.Error(result.message ?: context.getString(R.string.unknownError))
+                            _uiState.value = TopicUiState.Error(result.error.message)
                         } else {
-                            _message.value = result.message ?: context.getString(R.string.unknownError)
+                            _message.value = result.error.message
                         }
                     }
                     is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {

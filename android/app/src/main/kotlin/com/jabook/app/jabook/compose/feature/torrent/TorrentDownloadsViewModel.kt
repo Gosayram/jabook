@@ -23,6 +23,7 @@ import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.navigation.DownloadsRoute
@@ -71,8 +72,10 @@ public class TorrentDownloadsViewModel
         private val repository: TorrentDownloadRepository,
         private val settingsRepository: SettingsRepository,
         private val networkMonitor: NetworkMonitor,
+        private val loggerFactory: LoggerFactory,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
+        private val logger = loggerFactory.get("TorrentDownloadsViewModel")
         // Init block moved below to use new prepareAddTorrent logic
 
         private val _snackbarEvent = Channel<String>()
@@ -136,7 +139,7 @@ public class TorrentDownloadsViewModel
                         )
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("TorrentDownloadsViewModel", "Error processing downloads", e)
+                    logger.e(e) { "Error processing downloads" }
                     TorrentDownloadsUiState.Error(e.message ?: "Unknown error")
                 }
             }.stateIn(

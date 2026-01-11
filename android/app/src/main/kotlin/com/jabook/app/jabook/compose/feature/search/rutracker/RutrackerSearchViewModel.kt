@@ -14,9 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.search.rutracker
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
@@ -52,10 +52,9 @@ public class RutrackerSearchViewModel
         private val repository: RutrackerRepository,
         private val booksRepository: BooksRepository,
         private val coverLoader: CoverLoader,
+        private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
-        public companion object {
-            private const val TAG = "RutrackerSearchViewModel"
-        }
+        private val logger = loggerFactory.get("RutrackerSearchViewModel")
 
         private val _searchState = MutableStateFlow<SearchState>(SearchState.Empty)
         public val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
@@ -91,12 +90,12 @@ public class RutrackerSearchViewModel
             forumIds: String? = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
         ) {
             if (query.isBlank()) {
-                Log.d(TAG, "Empty query, clearing search state")
+                logger.d { "Empty query, clearing search state" }
                 _searchState.value = SearchState.Empty
                 return
             }
 
-            Log.d(TAG, "🔍 Starting search: query='$query', forumIds=$forumIds")
+            logger.d { "🔍 Starting search: query='$query', forumIds=$forumIds" }
             viewModelScope.launch {
                 _searchState.value = SearchState.Loading
 
@@ -113,18 +112,16 @@ public class RutrackerSearchViewModel
 
                     result
                         .onSuccess { results ->
-                            Log.d(
-                                TAG,
+                            logger.d {
                                 "✅ Search results received: ${results.size} results " +
-                                    "(cached: $isCachedEmission, libraryUrls: ${libraryUrls.size})",
-                            )
+                                    "(cached: $isCachedEmission, libraryUrls: ${libraryUrls.size})"
+                            }
                             originalResults = results
                             val filtered = applyFiltersAndSort(results)
-                            Log.d(
-                                TAG,
+                            logger.d {
                                 "🔄 After filters/sort: ${filtered.size} results " +
-                                    "(from ${results.size} original)",
-                            )
+                                    "(from ${results.size} original)"
+                            }
 
                             // Map to UI model
                             val uiResults =
@@ -138,23 +135,22 @@ public class RutrackerSearchViewModel
                                     )
                                 }
 
-                            Log.d(
-                                TAG,
+                            logger.d {
                                 "📊 UI results: ${uiResults.size} items, " +
-                                    "${uiResults.count { it.isInLibrary }} in library",
-                            )
+                                    "${uiResults.count { it.isInLibrary }} in library"
+                            }
 
                             _searchState.value =
                                 if (filtered.isEmpty()) {
                                     if (!isCachedEmission) {
-                                        Log.w(TAG, "⚠️ No results after filtering, setting Empty state")
+                                        logger.w { "⚠️ No results after filtering, setting Empty state" }
                                         SearchState.Empty
                                     } else {
-                                        Log.d(TAG, "⏭️ Keeping current state (cached empty)")
+                                        logger.d { "⏭️ Keeping current state (cached empty)" }
                                         _searchState.value
                                     }
                                 } else {
-                                    Log.d(TAG, "✅ Setting Success state with ${uiResults.size} results")
+                                    logger.d { "✅ Setting Success state with ${uiResults.size} results" }
                                     SearchState.Success(uiResults, isCached = isCachedEmission)
                                 }
 
@@ -167,11 +163,9 @@ public class RutrackerSearchViewModel
                                 }
                             }
                         }.onFailure { error ->
-                            Log.e(
-                                TAG,
-                                "❌ Search failed for query '$query': ${error.message}",
-                                error,
-                            )
+                            logger.e(error) {
+                                "❌ Search failed for query '$query': ${error.message}"
+                            }
                             val currentState = _searchState.value
                             if (currentState !is SearchState.Success) {
                                 _searchState.value =
@@ -179,7 +173,7 @@ public class RutrackerSearchViewModel
                                         error.message,
                                     )
                             } else {
-                                Log.d(TAG, "⏭️ Keeping current Success state despite error")
+                                logger.d { "⏭️ Keeping current Success state despite error" }
                             }
                         }
                 }
