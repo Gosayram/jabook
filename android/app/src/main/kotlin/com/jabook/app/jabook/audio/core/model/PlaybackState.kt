@@ -57,7 +57,7 @@ public data class PlaybackState(
                 currentTrackIndex = 0,
                 playbackSpeed = 1.0f,
                 bufferedPosition = 0L,
-                playbackState = Player.PLAYBACK_STATE_IDLE,
+                playbackState = Player.STATE_IDLE,
             )
     }
 }

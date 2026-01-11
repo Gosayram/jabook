@@ -27,7 +27,7 @@ private const val TAG = "Room"
  * This ensures existing indexed topics (~58,000) have valid categories
  * for improved search functionality.
  */
-public val MIGRATION_14_15: Migration
+public val MIGRATION_14_15: Migration =
     object : Migration(14, 15) {
         override fun migrate(db: SupportSQLiteDatabase) {
             try {

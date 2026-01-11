@@ -353,18 +353,18 @@ public class BackupService
                     id = entity.id,
                     title = entity.title,
                     author = entity.author,
-                    lastPosition = entity.currentPosition,
-                    duration = entity.totalDuration,
+                    lastPosition = entity.currentPosition.toInt(),
+                    duration = entity.totalDuration.toInt(),
                     coverPath = entity.coverUrl,
                     totalProgress = entity.totalProgress,
                     isCompleted = entity.currentPosition >= entity.totalDuration * 0.98,
                     downloadStatus = entity.downloadStatus,
-                    addedDate = entity.addedDate,
+                    addedDate = entity.addedDate.toInt(),
                     rewindDuration = entity.rewindDuration,
                     forwardDuration = entity.forwardDuration,
                     // Save activity timestamps
-                    lastPlayedTimestamp = playerState?.lastPlayedTimestamp ?: 0L,
-                    completedTimestamp = playerState?.completedTimestamp ?: 0L,
+                    lastPlayedTimestamp = (playerState?.lastPlayedTimestamp ?: 0L).toInt(),
+                    completedTimestamp = (playerState?.completedTimestamp ?: 0L).toInt(),
                     // NEW Phase 9B: Torrent metadata (not yet in entity, null for now)
                     torrentPath = null, // TODO: Add to BookEntity when torrent download is implemented
                     sourceUrl = null,
@@ -513,10 +513,10 @@ public class BackupService
                     // Update existing book
                     dao.updatePlaybackProgress(
                         bookId = backup.id,
-                        position = backup.lastPosition,
+                        position = backup.lastPosition.toLong(),
                         progress = backup.totalProgress,
                         chapterIndex = 0,
-                        timestamp = backup.lastPlayedTimestamp.takeIf { it > 0 } ?: System.currentTimeMillis(),
+                        timestamp = backup.lastPlayedTimestamp.takeIf { it > 0 }?.toLong() ?: System.currentTimeMillis(),
                     )
                     dao.updateBookSettings(
                         bookId = backup.id,
@@ -529,11 +529,11 @@ public class BackupService
                         playerPersistenceManager.savePlayerState(
                             com.jabook.app.jabook.audio.PlayerState(
                                 bookId = backup.id,
-                                positionMs = backup.lastPosition,
-                                durationMs = backup.duration,
+                                positionMs = backup.lastPosition.toLong(),
+                                durationMs = backup.duration.toLong(),
                                 filePaths = emptyList(),
-                                lastPlayedTimestamp = backup.lastPlayedTimestamp,
-                                completedTimestamp = backup.completedTimestamp,
+                                lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
+                                completedTimestamp = backup.completedTimestamp.toLong(),
                             ),
                         )
                     } catch (e: Exception) {
@@ -548,11 +548,11 @@ public class BackupService
                             author = backup.author,
                             coverUrl = backup.coverPath,
                             description = null,
-                            totalDuration = backup.duration,
-                            currentPosition = backup.lastPosition,
+                            totalDuration = backup.duration.toLong(),
+                            currentPosition = backup.lastPosition.toLong(),
                             totalProgress = backup.totalProgress,
                             downloadStatus = "NOT_DOWNLOADED",
-                            addedDate = backup.addedDate,
+                            addedDate = backup.addedDate.toLong(),
                             rewindDuration = backup.rewindDuration,
                             forwardDuration = backup.forwardDuration,
                             isFavorite = false,
@@ -564,11 +564,11 @@ public class BackupService
                         playerPersistenceManager.savePlayerState(
                             com.jabook.app.jabook.audio.PlayerState(
                                 bookId = backup.id,
-                                positionMs = backup.lastPosition,
-                                durationMs = backup.duration,
+                                positionMs = backup.lastPosition.toLong(),
+                                durationMs = backup.duration.toLong(),
                                 filePaths = emptyList(),
-                                lastPlayedTimestamp = backup.lastPlayedTimestamp,
-                                completedTimestamp = backup.completedTimestamp,
+                                lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
+                                completedTimestamp = backup.completedTimestamp.toLong(),
                             ),
                         )
                     } catch (e: Exception) {

@@ -19,6 +19,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.view.animation.LinearInterpolator
+import androidx.media3.common.MediaSource
 import androidx.media3.exoplayer.ExoPlayer
 
 /**
@@ -63,7 +64,7 @@ public class CrossFadePlayer(
     /**
      * Prepares the next player with the given media source.
      */
-    public fun setNextMediaSource(mediaSource: androidx.media3.common.MediaSource) {
+    public fun setNextMediaSource(mediaSource: MediaSource) {
         nextPlayer.setMediaSource(mediaSource)
         nextPlayer.prepare()
         android.util.Log.d("CrossFadePlayer", "Next media source prepared on $nextPlayer")

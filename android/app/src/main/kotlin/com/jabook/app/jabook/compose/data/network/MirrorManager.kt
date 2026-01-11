@@ -53,7 +53,7 @@ public class MirrorManager
             /**
              * Default list of RuTracker mirrors.
              */
-            public val DEFAULT_MIRRORS: List<String>
+            public val DEFAULT_MIRRORS: List<String> =
                 listOf(
                     "rutracker.org",
                     "rutracker.net",

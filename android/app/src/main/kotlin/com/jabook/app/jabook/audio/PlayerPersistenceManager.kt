@@ -69,27 +69,28 @@ public class PlayerPersistenceManager
             title: String,
             artist: String,
             groupPath: String,
-        ): Unit = withContext(Dispatchers.IO) {
-            try {
-                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                prefs
-                    .edit()
-                    .putString(KEY_RESUMPTION_FILE_PATH, mediaId)
-                    .putLong(KEY_RESUMPTION_POSITION_MS, positionMs)
-                    .putLong(KEY_RESUMPTION_DURATION_MS, durationMs)
-                    .putString(KEY_RESUMPTION_ARTWORK_PATH, artworkPath)
-                    .putString(KEY_RESUMPTION_TITLE, title)
-                    .putString(KEY_RESUMPTION_ARTIST, artist)
-                    .putString(KEY_RESUMPTION_GROUP_PATH, groupPath)
-                    .apply()
-                android.util.Log.v(
-                    "PlayerPersistence",
-                    "Stored current media item for resumption: $mediaId, position=${positionMs}ms",
-                )
-            } catch (e: Exception) {
-                android.util.Log.w("PlayerPersistence", "Failed to store current media item for resumption", e)
+        ): Unit =
+            withContext(Dispatchers.IO) {
+                try {
+                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    prefs
+                        .edit()
+                        .putString(KEY_RESUMPTION_FILE_PATH, mediaId)
+                        .putLong(KEY_RESUMPTION_POSITION_MS, positionMs)
+                        .putLong(KEY_RESUMPTION_DURATION_MS, durationMs)
+                        .putString(KEY_RESUMPTION_ARTWORK_PATH, artworkPath)
+                        .putString(KEY_RESUMPTION_TITLE, title)
+                        .putString(KEY_RESUMPTION_ARTIST, artist)
+                        .putString(KEY_RESUMPTION_GROUP_PATH, groupPath)
+                        .apply()
+                    android.util.Log.v(
+                        "PlayerPersistence",
+                        "Stored current media item for resumption: $mediaId, position=${positionMs}ms",
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.w("PlayerPersistence", "Failed to store current media item for resumption", e)
+                }
             }
-        }
 
         public suspend fun retrieveLastStoredMediaItem(): Map<String, Any?>? =
             withContext(Dispatchers.IO) {
@@ -277,7 +278,7 @@ public class PlayerPersistenceManager
          */
         public suspend fun getPlayCount(bookId: String): Int {
             val state = getPlayerState(bookId)
-            return state?.playCount ?: 0
+            return (state?.playCount ?: 0L).toInt()
         }
 
         private fun sanitizeGroupPath(path: String): String = path.replace(Regex("[^\\w\\-.]"), "_")

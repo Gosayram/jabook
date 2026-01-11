@@ -36,9 +36,9 @@ private val Context.audioPreferencesDataStore: DataStore<Preferences> by prefere
  * Keys for audio preferences.
  */
 public object AudioPreferencesKeys {
-    public val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
-    public val LAST_PLAYED_BOOK_ID = intPreferencesKey("last_played_book_id")
-    public val AUTO_PLAY_NEXT = booleanPreferencesKey("auto_play_next")
+    public val PLAYBACK_SPEED: Preferences.Key<Float> = floatPreferencesKey("playback_speed")
+    public val LAST_PLAYED_BOOK_ID: Preferences.Key<Int> = intPreferencesKey("last_played_book_id")
+    public val AUTO_PLAY_NEXT: Preferences.Key<Boolean> = booleanPreferencesKey("auto_play_next")
 }
 
 /**

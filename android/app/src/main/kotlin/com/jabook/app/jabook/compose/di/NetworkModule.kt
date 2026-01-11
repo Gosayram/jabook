@@ -27,7 +27,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
-import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.brotli.BrotliInterceptor
@@ -199,5 +198,7 @@ public abstract class NetworkBindingModule {
      */
     @Binds
     @Singleton
-    public abstract fun bindNetworkMonitor(impl: com.jabook.app.jabook.compose.data.network.ConnectivityManagerNetworkMonitor): NetworkMonitor
+    public abstract fun bindNetworkMonitor(
+        impl: com.jabook.app.jabook.compose.data.network.ConnectivityManagerNetworkMonitor,
+    ): NetworkMonitor
 }

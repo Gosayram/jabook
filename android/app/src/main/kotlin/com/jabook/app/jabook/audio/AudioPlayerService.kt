@@ -446,7 +446,7 @@ public class AudioPlayerService : MediaLibraryService() {
         android.util.Log.e("JABOOK_SERVICE", "============================================")
 
         try {
-            PlayerPerformanceLogger.start()
+            PlayerPerformanceLogger.start("service_onCreate")
             PlayerPerformanceLogger.log("Service", "onCreate() started")
 
             // CRITICAL: Clean up existing components if onCreate() is called multiple times
@@ -943,15 +943,15 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun initializeVisualizer() {
         val sessionId = exoPlayer.audioSessionId
         if (sessionId != 0) {
-            audioVisualizerManager?.initialize()
+            audioVisualizerManager?.initialize(sessionId)
         }
     }
 
     /**
      * Enables or disables the audio visualizer.
      */
-    public fun setVisualizerEnabled() {
-        audioVisualizerManager?.setEnabled()
+    public fun setVisualizerEnabled(enabled: Boolean) {
+        audioVisualizerManager?.setEnabled(enabled)
     }
 
     public fun next() {
@@ -1233,8 +1233,8 @@ public class AudioPlayerService : MediaLibraryService() {
      *
      * @param minutes Timeout in minutes (10-180)
      */
-    public fun setInactivityTimeoutMinutes() {
-        inactivityTimer?.setInactivityTimeoutMinutes()
+    public fun setInactivityTimeoutMinutes(minutes: Int) {
+        inactivityTimer?.setInactivityTimeoutMinutes(minutes)
         android.util.Log.d(
             "AudioPlayerService",
             "Inactivity timeout set",

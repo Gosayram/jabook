@@ -224,7 +224,7 @@ public class SearchViewModel
             }
         }
 
-        private fun recalculateUiState(): Unit {
+        private fun recalculateUiState() {
             val currentRaw = rawOnlineResults.value
             if (currentRaw.isEmpty() && _uiState.value !is SearchUiState.Success) {
                 android.util.Log.d("SearchViewModel", "⏭️ Skipping UI state recalculation: no raw results")

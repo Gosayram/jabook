@@ -136,7 +136,7 @@ public class SettingsViewModel
         /**
          * Old user preferences - for backward compatibility.
          */
-        public val userPreferences: StateFlow<UserPreferences?> =
+        public val userPreferences: StateFlow<com.jabook.app.jabook.compose.data.model.UserData?> =
             userPreferencesRepository.userData.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -456,7 +456,15 @@ public class SettingsViewModel
                     _cacheOperation.value = CacheOperationState.Clearing
                     val success =
                         if (type != null) {
-                            cacheManager.clearCacheType(type)
+                            try {
+                                val cacheType =
+                                    com.jabook.app.jabook.compose.data.cache.CacheType
+                                        .valueOf(type.uppercase())
+                                cacheManager.clearCacheType(cacheType)
+                            } catch (e: IllegalArgumentException) {
+                                android.util.Log.e("SettingsViewModel", "Invalid cache type: $type", e)
+                                false
+                            }
                         } else {
                             cacheManager.clearAllCache()
                         }
@@ -530,15 +538,15 @@ public class SettingsViewModel
  * UI state for backup/restore operations.
  */
 public sealed class BackupUiState {
-    data object Idle : BackupUiState()
+    public data object Idle : BackupUiState()
 
-    data object Exporting : BackupUiState()
+    public data object Exporting : BackupUiState()
 
     public data class ExportReady(
         val uri: Uri,
     ) : BackupUiState()
 
-    data object Importing : BackupUiState()
+    public data object Importing : BackupUiState()
 
     public data class ImportComplete(
         val stats: ImportStats,
@@ -553,13 +561,13 @@ public sealed class BackupUiState {
  * UI state for cache operations.
  */
 public sealed class CacheOperationState {
-    data object Idle : CacheOperationState()
+    public data object Idle : CacheOperationState()
 
-    data object Loading : CacheOperationState()
+    public data object Loading : CacheOperationState()
 
-    data object Clearing : CacheOperationState()
+    public data object Clearing : CacheOperationState()
 
-    data object Success : CacheOperationState()
+    public data object Success : CacheOperationState()
 
     public data class Error(
         val message: String,

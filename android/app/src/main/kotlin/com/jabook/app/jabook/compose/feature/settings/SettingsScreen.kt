@@ -619,7 +619,7 @@ public fun SettingsScreen(
                     title = stringResource(R.string.active_downloads),
                     subtitle =
                         if (downloadCount > 0) {
-                            stringResource(R.string.downloading_count_speed, downloadCount, formatBytes(totalSpeed) + "/s")
+                            stringResource(R.string.downloading_count_speed, downloadCount, formatBytes(totalSpeed.toLong()) + "/s")
                         } else {
                             stringResource(R.string.downloads_paused_or_queued, activeDownloads.size)
                         },
@@ -747,7 +747,7 @@ public fun SettingsScreen(
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                viewModel.deleteAllTorrentData(true)
+                                viewModel.deleteAllTorrents(true)
                                 showDeleteAllDialog = false
                             },
                         ) {

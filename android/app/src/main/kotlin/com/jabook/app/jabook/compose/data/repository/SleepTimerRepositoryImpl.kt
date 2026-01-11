@@ -101,7 +101,8 @@ public class SleepTimerRepositoryImpl
                         try {
                             val controller =
                                 mediaControllerFuture?.get(
-                                    com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                    com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
+                                        .toLong(),
                                     TimeUnit.SECONDS,
                                 )
                             mediaController = controller
@@ -179,7 +180,8 @@ public class SleepTimerRepositoryImpl
                         val future = MediaControllerExtensions.setSleepTimerMinutes(controller, durationMinutes)
                         val result =
                             future.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
+                                    .toLong(),
                                 TimeUnit.SECONDS,
                             )
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
@@ -204,7 +206,8 @@ public class SleepTimerRepositoryImpl
                         val future = MediaControllerExtensions.setSleepTimerEndOfChapter(controller)
                         val result =
                             future.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
+                                    .toLong(),
                                 TimeUnit.SECONDS,
                             )
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
@@ -228,7 +231,8 @@ public class SleepTimerRepositoryImpl
                         val future = MediaControllerExtensions.cancelSleepTimer(controller)
                         val result =
                             future.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
+                                    .toLong(),
                                 TimeUnit.SECONDS,
                             )
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {

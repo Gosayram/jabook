@@ -215,7 +215,7 @@ public class RutrackerAuthService
         ): String {
             val sb = StringBuilder()
 
-            public fun encode(s: String): String {
+            fun encode(s: String): String {
                 val bytes = s.toByteArray(CP1251)
                 // Manual percent encoding for CP1251 bytes
                 return bytes.joinToString("") { byte ->

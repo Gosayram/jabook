@@ -50,35 +50,36 @@ public class AvatarPreloader
         public suspend fun preloadAvatars(
             context: Context,
             comments: List<RutrackerComment>,
-        ): Unit = withContext(Dispatchers.IO) {
-            if (comments.isEmpty()) return@withContext
+        ): Unit =
+            withContext(Dispatchers.IO) {
+                if (comments.isEmpty()) return@withContext
 
-            val commentsWithAvatars = comments.filter { !it.avatarUrl.isNullOrBlank() }
-            if (commentsWithAvatars.isEmpty()) return@withContext
+                val commentsWithAvatars = comments.filter { !it.avatarUrl.isNullOrBlank() }
+                if (commentsWithAvatars.isEmpty()) return@withContext
 
-            Log.d(TAG, "Starting preload for ${commentsWithAvatars.size} avatars")
+                Log.d(TAG, "Starting preload for ${commentsWithAvatars.size} avatars")
 
-            val imageLoader = SingletonImageLoader.get(context)
-            var successCount: Int = 0
-            commentsWithAvatars.forEach { comment ->
-                try {
-                    val url = comment.avatarUrl ?: return@forEach
+                val imageLoader = SingletonImageLoader.get(context)
+                var successCount: Int = 0
+                commentsWithAvatars.forEach { comment ->
+                    try {
+                        val url = comment.avatarUrl ?: return@forEach
 
-                    val request =
-                        ImageRequest
-                            .Builder(context)
-                            .data(url)
-                            // Preload with same settings as RemoteImage to ensure cache hit
-                            .placeholder(ColorDrawable(Color.Gray.toArgb()).asImage())
-                            .build()
+                        val request =
+                            ImageRequest
+                                .Builder(context)
+                                .data(url)
+                                // Preload with same settings as RemoteImage to ensure cache hit
+                                .placeholder(ColorDrawable(Color.Gray.toArgb()).asImage())
+                                .build()
 
-                    imageLoader.enqueue(request)
-                    successCount++
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to preload avatar for ${comment.author}", e)
+                        imageLoader.enqueue(request)
+                        successCount++
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to preload avatar for ${comment.author}", e)
+                    }
                 }
-            }
 
-            Log.d(TAG, "Enqueued $successCount avatar preload requests")
-        }
+                Log.d(TAG, "Enqueued $successCount avatar preload requests")
+            }
     }
