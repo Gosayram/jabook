@@ -78,6 +78,19 @@ def fix_file(file_path: Path):
             # Check if we're inside a function body by looking for function declaration above
             is_inside_function_body = False
             brace_count = 0
+            in_class = False
+            class_indent = 0
+            
+            # First, check if we're inside a class
+            for j in range(max(0, i - 50), i):
+                prev_line = lines[j]
+                # Check for class declaration
+                if re.match(r'^(\s*)(class|object|interface|enum class|data class|sealed class)\s+\w+', prev_line):
+                    class_indent = len(re.match(r'^(\s*)', prev_line).group(1))
+                    in_class = True
+                    break
+            
+            # Then check if we're inside a function
             for j in range(max(0, i - 30), i):
                 prev_line = lines[j]
                 # Count braces to track nesting
@@ -92,10 +105,18 @@ def fix_file(file_path: Path):
                 if prev_line.strip().endswith('{') or prev_line.strip().endswith('->'):
                     is_inside_function_body = True
             
-            # Remove public from local variables inside functions
+            # Remove public from local variables inside functions (but keep for class properties)
+            current_indent = len(re.match(r'^(\s*)', line).group(1)) if re.match(r'^\s*', line) else 0
+            # If we're inside a function AND the indent is deeper than class level, it's a local variable
             if is_inside_function_body and re.match(r'^\s+public\s+(var|val)\s+\w+', line):
-                new_line = re.sub(r'^(\s+)public\s+(var|val)', r'\1\2', line)
-                fixed = True
+                # Only remove if it's clearly inside a function body (indented more than class)
+                if in_class and current_indent > class_indent + 4:
+                    new_line = re.sub(r'^(\s+)public\s+(var|val)', r'\1\2', line)
+                    fixed = True
+                elif not in_class:
+                    # Not in a class, definitely a local variable
+                    new_line = re.sub(r'^(\s+)public\s+(var|val)', r'\1\2', line)
+                    fixed = True
             
             # Also remove stray "public" at the end of lines (fix for broken formatting)
             # Pattern: "value" public or value public
