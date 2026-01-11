@@ -81,11 +81,9 @@ public class BackupService
                     Log.d(TAG, "Serialized backup: ${jsonString.length} bytes")
 
                     // 3. Write to file
-                    public val timestamp = DateTimeFormatter.formatCurrentForFilename()
-                    val fileName: String =
-                        "jabook_backup_$timestamp.json" public
-
-                            val file = File(context.cacheDir, fileName)
+                    val timestamp = DateTimeFormatter.formatCurrentForFilename()
+                    val fileName: String = "jabook_backup_$timestamp.json"
+                    val file = File(context.cacheDir, fileName)
                     file.writeText(jsonString)
 
                     Log.d(TAG, "Backup written to ${file.absolutePath}")
