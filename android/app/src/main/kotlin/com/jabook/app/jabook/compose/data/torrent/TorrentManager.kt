@@ -175,7 +175,7 @@ public class TorrentManager
         /**
          * Enable streaming mode for torrent
          */
-        public fun enableStreaming() {
+        public fun enableStreaming(hash: String) {
             sessionManager.setSequentialDownload(hash, true)
         }
 
@@ -219,7 +219,7 @@ public class TorrentManager
         /**
          * Delete all torrents
          */
-        public fun deleteAllTorrents() {
+        public fun deleteAllTorrents(deleteFiles: Boolean = false) {
             val hashes = downloadsFlow.value.keys.toList()
             hashes.forEach { hash ->
                 sessionManager.removeTorrent(hash, deleteFiles)

@@ -202,7 +202,7 @@ public class PlayerPersistenceManager
                         filePaths = emptyList(), // Not stored here
                         lastPlayedTimestamp = json.optLong("lastPlayedTimestamp", 0),
                         completedTimestamp = json.optLong("completedTimestamp", 0),
-                        playCount = json.optInt("playCount", 0),
+                        playCount = json.optLong("playCount", 0),
                     )
                 } catch (e: Exception) {
                     android.util.Log.e("PlayerPersistence", "Failed to get player state for $bookId", e)

@@ -327,7 +327,7 @@ public class RutrackerRepository
                 // Extract success data to check coverUrl
                 if (result.isSuccess) {
                     val details = result.getOrNull()
-                    val coverUrl: Long = details?.coverUrl
+                    val coverUrl: String? = details?.coverUrl
                     if (!coverUrl.isNullOrBlank()) {
                         Log.d(TAG, "Updating cover for $topicId: $coverUrl")
                         offlineSearchDao.updateCoverUrl(topicId, coverUrl)

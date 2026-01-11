@@ -45,7 +45,7 @@ public class CrossFadePlayer(
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
 
-    public var crossFadeDurationMs: Int = 0
+    public var crossFadeDurationMs: Long = 0L
     private var currentAnimator: ValueAnimator? = null
     private var isCrossFading = false
 

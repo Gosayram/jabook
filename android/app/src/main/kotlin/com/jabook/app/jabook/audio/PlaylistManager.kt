@@ -513,7 +513,7 @@ internal class PlaylistManager(
                         val addedIndices = mutableSetOf<Int>(firstTrackIndex)
 
                         // Helper function to load a single MediaItem in parallel
-                        public suspend fun loadMediaItem(
+                        suspend fun loadMediaItem(
                             index: Int,
                             priority: String,
                         ) {

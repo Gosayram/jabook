@@ -28,7 +28,7 @@ public data class ChapterMetadataEntity(
     val fileIndex: Int,
     val title: String,
     val filePath: String?,
-    val startTime: Int = L,
+    val startTime: Int = 0,
     val endTime: Long? = null,
     val duration: Long? = null,
     val lastUpdated: Long = System.currentTimeMillis(),

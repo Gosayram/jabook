@@ -24,5 +24,5 @@ internal data class AudioFileInfo(
     val album: String?,
     val artist: String?,
     val title: String?,
-    val id: Int = L, // Optional: only used by MediaStoreBookScanner
+    val id: Long = 0L, // Optional: only used by MediaStoreBookScanner
 )

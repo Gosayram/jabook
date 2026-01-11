@@ -517,7 +517,7 @@ public class RutrackerAuthService
         private suspend fun <T> retryWithBackoff(
             times: Int,
             initialDelay: Long,
-            maxDelay: Int = L,
+            maxDelay: Long = 60000L,
             factor: Double = 2.0,
             block: suspend () -> T,
         ): T {

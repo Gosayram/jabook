@@ -52,7 +52,7 @@ public class ChapterMetadataRepository
             fileIndex: Int,
             title: String,
             filePath: String?,
-            startTime: Int = L,
+            startTime: Int = 0,
             endTime: Long? = null,
             duration: Long? = null,
         ): Result<Unit> =

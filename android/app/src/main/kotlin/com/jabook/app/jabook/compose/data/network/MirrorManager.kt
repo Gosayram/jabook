@@ -53,7 +53,7 @@ public class MirrorManager
             /**
              * Default list of RuTracker mirrors.
              */
-            public val DEFAULT_MIRRORS: List<String> =
+            public val DEFAULT_MIRRORS: List<String>
                 listOf(
                     "rutracker.org",
                     "rutracker.net",
@@ -144,7 +144,7 @@ public class MirrorManager
                             .build()
 
                     val response = healthCheckClient.newCall(request).execute()
-                    val isHealthy: Long = response.isSuccessful
+                    val isHealthy: Boolean = response.isSuccessful
                     Log.d(TAG, "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})")
                     response.close()
 
