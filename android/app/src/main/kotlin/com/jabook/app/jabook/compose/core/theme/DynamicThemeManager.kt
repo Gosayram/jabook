@@ -58,29 +58,29 @@ public object DynamicThemeManager {
                     .generate()
 
             // Extract vibrant and muted swatches
-            public val vibrant = palette.vibrantSwatch
-            public val darkVibrant = palette.darkVibrantSwatch
-            public val lightVibrant = palette.lightVibrantSwatch
-            public val muted = palette.mutedSwatch
-            public val darkMuted = palette.darkMutedSwatch
-            public val dominant = palette.dominantSwatch
+            val vibrant = palette.vibrantSwatch
+            val darkVibrant = palette.darkVibrantSwatch
+            val lightVibrant = palette.lightVibrantSwatch
+            val muted = palette.mutedSwatch
+            val darkMuted = palette.darkMutedSwatch
+            val dominant = palette.dominantSwatch
 
             // Determines colors with fallbacks
             // Primary: Vibrant -> Light Vibrant -> Dominant -> Default
-            public val primary =
+            val primary =
                 vibrant?.rgb?.let(::Color)
                     ?: lightVibrant?.rgb?.let(::Color)
                     ?: dominant?.rgb?.let(::Color)
                     ?: Color(0xFF6750A4)
 
             // Secondary: Dark Vibrant -> Muted -> Default
-            public val secondary =
+            val secondary =
                 darkVibrant?.rgb?.let(::Color)
                     ?: muted?.rgb?.let(::Color)
                     ?: Color(0xFF625B71)
 
             // Container (Background Gradient Start): Dark Muted -> Dark Vibrant -> Dominant
-            public val container =
+            val container =
                 darkMuted?.rgb?.let(::Color)
                     ?: darkVibrant?.rgb?.let(::Color)
                     ?: dominant?.rgb?.let(::Color)
@@ -120,7 +120,7 @@ public object DynamicThemeManager {
     internal fun isDark(color: Color): Boolean {
         // Calculate luminance: 0.299*R + 0.587*G + 0.114*B
         // Compose Color uses sRGB color space
-        public val luminance: Double = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
+        val luminance: Double = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
         return luminance < 0.5
     }
 }

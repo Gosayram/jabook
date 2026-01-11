@@ -26,7 +26,7 @@ public interface AuthRepository {
     /**
      * Flow of current authentication status.
      */
-    public val authStatus: Flow<AuthStatus>
+    val authStatus: Flow<AuthStatus>
 
     /**
      * Attempt to log in with username and password.

@@ -46,13 +46,13 @@ public class DebugViewModel
     ) : ViewModel() {
         private val logger = StructuredLogger("DebugViewModel")
         private val _uiState = MutableStateFlow<DebugUiState>(DebugUiState.Initial)
-        public val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
+        val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
 
         private val _logs = MutableStateFlow<String>("")
-        public val logs: StateFlow<String> = _logs.asStateFlow()
+        val logs: StateFlow<String> = _logs.asStateFlow()
 
         private val _authDebugInfo = MutableStateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?>(null)
-        public val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
+        val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
 
         init {
             // Delay initialization until viewModelScope is fully ready
@@ -84,7 +84,7 @@ public class DebugViewModel
                         logger.withOperation("loadLogs") { operationId ->
                             try {
                                 _uiState.value = DebugUiState.Loading
-                                public val logContent = debugLogService.collectLogs()
+                                val logContent = debugLogService.collectLogs()
                                 _logs.value = logContent
                                 _uiState.value = DebugUiState.Success
                             } catch (e: Exception) {
@@ -158,7 +158,7 @@ public class DebugViewModel
                         logger.withOperation("refreshAuthDebugInfo") { operationId ->
                             try {
                                 // Get fresh auth status by validating (with timeout protection)
-                                public val isAuthenticated =
+                                val isAuthenticated =
                                     try {
                                         kotlinx.coroutines.withTimeout(20000L) {
                                             authService.validateAuth(operationId)
@@ -169,13 +169,13 @@ public class DebugViewModel
                                     }
 
                                 // Check mirrors (already has timeout protection)
-                                public val connectivity = checkAllMirrors()
+                                val connectivity = checkAllMirrors()
 
                                 // Get last auth error from service
-                                public val lastError = authService.lastAuthError
+                                val lastError = authService.lastAuthError
 
                                 // Create debug info with fresh validation results
-                                public val info =
+                                val info =
                                     com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                                         isAuthenticated = isAuthenticated,
                                         lastAuthAttempt = System.currentTimeMillis(),
@@ -196,7 +196,7 @@ public class DebugViewModel
                                 // Use WARNING for individual failures, not ERROR
                                 android.util.Log.w("DebugViewModel", "Auth debug info refresh incomplete: ${e.message}")
                                 logger.logError(operationId, "Auth debug info refresh incomplete", e)
-                                public val errorInfo =
+                                val errorInfo =
                                     com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                                         isAuthenticated = false,
                                         lastAuthAttempt = System.currentTimeMillis(),
@@ -210,7 +210,7 @@ public class DebugViewModel
                     } catch (e: Exception) {
                         // Handle case when logger.withOperation itself throws an exception
                         android.util.Log.e("DebugViewModel", "Failed to initialize auth debug info operation", e)
-                        public val errorInfo =
+                        val errorInfo =
                             com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                                 isAuthenticated = false,
                                 lastAuthAttempt = System.currentTimeMillis(),
@@ -224,7 +224,7 @@ public class DebugViewModel
             } catch (e: Exception) {
                 // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
                 android.util.Log.e("DebugViewModel", "Failed to launch refreshAuthDebugInfo coroutine", e)
-                public val errorInfo =
+                val errorInfo =
                     com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                         isAuthenticated = false,
                         lastAuthAttempt = System.currentTimeMillis(),
@@ -241,7 +241,7 @@ public class DebugViewModel
                 // Add overall timeout to prevent hanging (max 20 seconds for all mirrors)
                 kotlinx.coroutines.withTimeout(20000L) {
                     // Get mirrors safely - use first() to wait for Flow to emit value
-                    public val mirrors =
+                    val mirrors =
                         try {
                             mirrorManager.availableMirrors.first()
                         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -257,13 +257,13 @@ public class DebugViewModel
                         emptyMap()
                     } else {
                         // Check mirrors in parallel for better performance
-                        public val results =
+                        val results =
                             coroutineScope {
                                 mirrors
                                     .map { mirror ->
                                         async {
                                             try {
-                                                public val isHealthy = mirrorManager.checkMirrorHealth(mirror)
+                                                val isHealthy = mirrorManager.checkMirrorHealth(mirror)
                                                 mirror to isHealthy
                                             } catch (e: kotlinx.coroutines.CancellationException) {
                                                 // Re-throw cancellation to propagate timeout
@@ -282,8 +282,8 @@ public class DebugViewModel
                             }
 
                         // Log summary of mirror health check
-                        public val availableCount = results.values.count { it }
-                        public val totalCount = results.size
+                        val availableCount = results.values.count { it }
+                        val totalCount = results.size
                         if (availableCount == 0) {
                             android.util.Log.w("DebugViewModel", "All mirrors unavailable ($totalCount checked)")
                         } else {
@@ -305,7 +305,7 @@ public class DebugViewModel
             }
 
         private val _cacheStats = MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
-        public val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
+        val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
             _cacheStats
                 .asStateFlow()
 
@@ -357,6 +357,6 @@ public sealed class DebugUiState {
     data object Success : DebugUiState()
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : DebugUiState()
 }

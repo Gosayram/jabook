@@ -48,7 +48,7 @@ public class PlaybackPositionRepository
             position: Long,
         ): Result<Unit> =
             try {
-                public val entity =
+                val entity =
                     PlaybackPositionEntity(
                         bookId = bookId,
                         trackIndex = trackIndex,

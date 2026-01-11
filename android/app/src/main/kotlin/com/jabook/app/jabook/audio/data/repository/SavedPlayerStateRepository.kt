@@ -71,15 +71,15 @@ public class SavedPlayerStateRepository
             sleepTimerRemainingSeconds: Int? = null,
         ): Result<Unit> =
             try {
-                public val filePathsJson = JSONArray(filePaths).toString()
-                public val metadataJson =
+                val filePathsJson = JSONArray(filePaths).toString()
+                val metadataJson =
                     if (metadata != null && metadata.isNotEmpty()) {
                         JSONObject(metadata).toString()
                     } else {
                         null
                     }
 
-                public val entity =
+                val entity =
                     SavedPlayerStateEntity(
                         groupPath = groupPath,
                         filePaths = filePathsJson,
@@ -107,9 +107,9 @@ public class SavedPlayerStateRepository
             sleepTimerRemainingSeconds: Int? = null,
         ): Result<Unit> =
             try {
-                public val existingState = stateDao.getState(groupPath)
+                val existingState = stateDao.getState(groupPath)
                 if (existingState != null) {
-                    public val updatedEntity =
+                    val updatedEntity =
                         existingState.copy(
                             repeatMode = repeatMode ?: existingState.repeatMode,
                             sleepTimerRemainingSeconds =
@@ -145,10 +145,10 @@ public class SavedPlayerStateRepository
                     return null
                 }
                 val jsonObject = JSONObject(metadataJson)
-                public val map = mutableMapOf<String, String>()
-                public val keys = jsonObject.keys()
+                val map = mutableMapOf<String, String>()
+                val keys = jsonObject.keys()
                 while (keys.hasNext()) {
-                    public val key = keys.next()
+                    val key = keys.next()
                     map[key] = jsonObject.getString(key)
                 }
                 map

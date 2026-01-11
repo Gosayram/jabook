@@ -39,10 +39,10 @@ public class MetadataCache
          * Cached metadata with file validation info.
          */
         public data class CachedMetadata(
-            public val metadata: AudioMetadata,
-            public val fileSize: Long,
-            public val lastModified: Long,
-            public val cacheTime: Long = System.currentTimeMillis(),
+            val metadata: AudioMetadata,
+            val fileSize: Long,
+            val lastModified: Long,
+            val cacheTime: Long = System.currentTimeMillis(),
         )
 
         // Cache up to 500 files (reasonable for most libraries)
@@ -59,13 +59,13 @@ public class MetadataCache
             file: File,
             parser: AudioMetadataParser,
         ): AudioMetadata? {
-            public val key = file.absolutePath
-            public val cached = cache.get(key)
+            val key = file.absolutePath
+            val cached = cache.get(key)
 
             // Check cache validity
             if (cached != null) {
-                public val isSameSize = cached.fileSize == file.length()
-                public val isSameTime = cached.lastModified == file.lastModified()
+                val isSameSize = cached.fileSize == file.length()
+                val isSameTime = cached.lastModified == file.lastModified()
 
                 if (isSameSize && isSameTime) {
                     // Cache hit
@@ -84,7 +84,7 @@ public class MetadataCache
             }
 
             // Cache miss or invalid - parse metadata
-            public val metadata = parser.parseMetadata(file.absolutePath)
+            val metadata = parser.parseMetadata(file.absolutePath)
 
             if (metadata != null) {
                 // Store in cache
@@ -128,13 +128,13 @@ public class MetadataCache
             )
 
         public data class CacheStats(
-            public val size: Int,
-            public val maxSize: Int,
-            public val hitCount: Int,
-            public val missCount: Int,
-            public val evictionCount: Int,
+            val size: Int,
+            val maxSize: Int,
+            val hitCount: Int,
+            val missCount: Int,
+            val evictionCount: Int,
         ) {
-            public val hitRate: Float
+            val hitRate: Float
                 get() =
                     if (hitCount + missCount > 0) {
                         hitCount.toFloat() / (hitCount + missCount)

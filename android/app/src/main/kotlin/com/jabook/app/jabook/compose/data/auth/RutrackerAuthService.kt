@@ -50,7 +50,7 @@ public class RutrackerAuthService
         }
 
         private var _lastAuthError: String? = null
-        public val lastAuthError: String?
+        val lastAuthError: String?
             get() = _lastAuthError
 
         private val logger = StructuredLogger(TAG)
@@ -66,27 +66,27 @@ public class RutrackerAuthService
             captchaCode: String? = null,
             captchaData: CaptchaData? = null,
         ): AuthResult {
-            public val operationId = logger.startOperation("login", "auth_login_${System.currentTimeMillis()}")
-            public val startTime = System.currentTimeMillis()
+            val operationId = logger.startOperation("login", "auth_login_${System.currentTimeMillis()}")
+            val startTime = System.currentTimeMillis()
 
             return withContext(Dispatchers.IO) {
                 try {
                     logger.log(operationId, "Authentication started for user: ${credentials.username}")
 
                     // Step 1: Encode credentials to CP1251
-                    public val encodeStart = System.currentTimeMillis()
-                    public val postData = buildPostData(credentials, captchaCode, captchaData)
-                    public val encodeDuration = System.currentTimeMillis() - encodeStart
+                    val encodeStart = System.currentTimeMillis()
+                    val postData = buildPostData(credentials, captchaCode, captchaData)
+                    val encodeDuration = System.currentTimeMillis() - encodeStart
                     Log.d(TAG, "[$operationId] Credentials encoded to CP1251 (${encodeDuration}ms), data length: ${postData.length}")
 
                     // Step 2: Build request body
-                    public val body = postData.toRequestBody(MEDIA_TYPE_FORM)
+                    val body = postData.toRequestBody(MEDIA_TYPE_FORM)
                     Log.d(TAG, "[$operationId] Request body built, content-type: application/x-www-form-urlencoded")
 
                     // Step 3: Send login request
                     // Step 3: Send login request with retry
-                    public val requestStart = System.currentTimeMillis()
-                    public val response =
+                    val requestStart = System.currentTimeMillis()
+                    val response =
                         retryWithBackoff(
                             times = MAX_RETRIES,
                             initialDelay = INITIAL_BACKOFF_MS,
@@ -98,14 +98,14 @@ public class RutrackerAuthService
                                 }
                             }
                         }
-                    public val requestDuration = System.currentTimeMillis() - requestStart
+                    val requestDuration = System.currentTimeMillis() - requestStart
 
-                    public val statusCode = response.code()
-                    public val isRedirect = statusCode in 300..399
-                    public val rawBody = response.body()?.bytes() ?: ByteArray(0)
+                    val statusCode = response.code()
+                    val isRedirect = statusCode in 300..399
+                    val rawBody = response.body()?.bytes() ?: ByteArray(0)
 
                     // Log User-Agent used in the request for debugging auth issues
-                    public val userAgent = response.raw().request.header("User-Agent")
+                    val userAgent = response.raw().request.header("User-Agent")
                     Log.d(TAG, "[$operationId] Login request User-Agent: $userAgent")
 
                     Log.i(
@@ -115,10 +115,10 @@ public class RutrackerAuthService
                     )
 
                     // Step 4: Decode response body with simple decoder (matching Flutter implementation)
-                    public val decodeStart = System.currentTimeMillis()
-                    public val contentType = response.headers()["Content-Type"]
-                    public val bodyString = decoder.decode(rawBody, contentType)
-                    public val decodeDuration = System.currentTimeMillis() - decodeStart
+                    val decodeStart = System.currentTimeMillis()
+                    val contentType = response.headers()["Content-Type"]
+                    val bodyString = decoder.decode(rawBody, contentType)
+                    val decodeDuration = System.currentTimeMillis() - decodeStart
 
                     Log.d(
                         TAG,
@@ -127,7 +127,7 @@ public class RutrackerAuthService
 
                     // Step 5: Check HTTP status
                     if (!response.isSuccessful && statusCode !in 300..399) {
-                        public val rutrackerError =
+                        val rutrackerError =
                             when (statusCode) {
                                 401 -> RuTrackerError.Unauthorized
                                 403 -> RuTrackerError.Forbidden
@@ -135,18 +135,18 @@ public class RutrackerAuthService
                                 400 -> RuTrackerError.BadRequest
                                 else -> RuTrackerError.Unknown("HTTP Error: $statusCode")
                             }
-                        public val errorMsg = rutrackerError.message ?: "Unknown error"
+                        val errorMsg = rutrackerError.message ?: "Unknown error"
                         Log.w(TAG, "[$operationId] Authentication failed: $errorMsg")
                         _lastAuthError = errorMsg
                         return@withContext AuthResult.Error(errorMsg)
                     }
 
                     // Step 6: Parse login response
-                    public val parseStart = System.currentTimeMillis()
-                    public val result = parser.parseLoginResponse(bodyString)
-                    public val parseDuration = System.currentTimeMillis() - parseStart
+                    val parseStart = System.currentTimeMillis()
+                    val result = parser.parseLoginResponse(bodyString)
+                    val parseDuration = System.currentTimeMillis() - parseStart
 
-                    public val totalDuration = System.currentTimeMillis() - startTime
+                    val totalDuration = System.currentTimeMillis() - startTime
                     Log.d(
                         TAG,
                         "[$operationId] Response parsed (${parseDuration}ms), " +
@@ -172,32 +172,32 @@ public class RutrackerAuthService
                         }
                     }
                 } catch (e: java.net.SocketTimeoutException) {
-                    public val duration = System.currentTimeMillis() - startTime
+                    val duration = System.currentTimeMillis() - startTime
                     logger.logError(operationId, "Request timeout", e)
                     logger.logWithDuration(operationId, "Request timeout", duration)
                     _lastAuthError = RuTrackerError.NoConnection.message
                     return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: java.net.UnknownHostException) {
-                    public val duration = System.currentTimeMillis() - startTime
+                    val duration = System.currentTimeMillis() - startTime
                     logger.logError(operationId, "Network error - unknown host", e)
                     logger.logWithDuration(operationId, "Network error - unknown host", duration)
                     _lastAuthError = RuTrackerError.NoConnection.message
                     return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: java.io.IOException) {
-                    public val duration = System.currentTimeMillis() - startTime
+                    val duration = System.currentTimeMillis() - startTime
                     logger.logError(operationId, "Network I/O error", e)
                     logger.logWithDuration(operationId, "Network I/O error", duration)
                     _lastAuthError = RuTrackerError.NoConnection.message
                     return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                    public val duration = System.currentTimeMillis() - startTime
+                    val duration = System.currentTimeMillis() - startTime
                     logger.logError(operationId, "Coroutine timeout", e)
                     logger.logWithDuration(operationId, "Coroutine timeout", duration)
                     _lastAuthError = RuTrackerError.NoConnection.message
                     return@withContext AuthResult.Error(RuTrackerError.NoConnection.message)
                 } catch (e: Exception) {
-                    public val duration = System.currentTimeMillis() - startTime
-                    public val error = RuTrackerError.Unknown(e.message)
+                    val duration = System.currentTimeMillis() - startTime
+                    val error = RuTrackerError.Unknown(e.message)
                     logger.logError(operationId, "Unexpected error: ${error.message}", e)
                     logger.logWithDuration(operationId, "Unexpected error", duration)
                     _lastAuthError = error.message
@@ -213,7 +213,7 @@ public class RutrackerAuthService
             captchaCode: String?,
             captchaData: CaptchaData?,
         ): String {
-            public val sb = StringBuilder()
+            val sb = StringBuilder()
 
             public fun encode(s: String): String {
                 val bytes = s.toByteArray(CP1251)
@@ -243,11 +243,11 @@ public class RutrackerAuthService
             data object Success : AuthResult
 
             public data class Error(
-                public val message: String,
+                val message: String,
             ) : AuthResult
 
             public data class Captcha(
-                public val data: CaptchaData,
+                val data: CaptchaData,
             ) : AuthResult
         }
 
@@ -274,24 +274,24 @@ public class RutrackerAuthService
                     // Apply timeout to prevent hanging on provider blocks
                     kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
                         // Test 1: Profile page (most reliable indicator)
-                        public val profileResult = validateProfilePage(validationId)
+                        val profileResult = validateProfilePage(validationId)
                         if (profileResult) {
-                            public val duration = System.currentTimeMillis() - startTime
+                            val duration = System.currentTimeMillis() - startTime
                             logger.logSuccess(validationId, "Auth validated via profile", duration)
                             return@withTimeout true
                         }
 
                         // Test 2: Search page (fallback)
-                        public val searchResult = validateSearchPage(validationId)
+                        val searchResult = validateSearchPage(validationId)
                         if (searchResult) {
-                            public val duration = System.currentTimeMillis() - startTime
+                            val duration = System.currentTimeMillis() - startTime
                             logger.logSuccess(validationId, "Auth validated via search", duration)
                             return@withTimeout true
                         }
 
                         // Test 3: Index page (final fallback)
-                        public val indexResult = validateIndexPage(validationId)
-                        public val duration = System.currentTimeMillis() - startTime
+                        val indexResult = validateIndexPage(validationId)
+                        val duration = System.currentTimeMillis() - startTime
 
                         if (indexResult) {
                             logger.logSuccess(validationId, "Auth validated via index", duration)
@@ -303,12 +303,12 @@ public class RutrackerAuthService
                         return@withTimeout indexResult
                     }
                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                    public val duration = System.currentTimeMillis() - startTime
+                    val duration = System.currentTimeMillis() - startTime
                     logger.logError(validationId, "Validation timeout - provider may be blocking", e)
                     logger.logWithDuration(validationId, "Validation timeout", duration)
                     return@withContext false
                 } catch (e: Exception) {
-                    public val duration = System.currentTimeMillis() - startTime
+                    val duration = System.currentTimeMillis() - startTime
                     logger.logError(validationId, "Validation exception", e)
                     logger.logWithDuration(validationId, "Validation exception", duration)
                     return@withContext false
@@ -352,7 +352,7 @@ public class RutrackerAuthService
          */
         private suspend fun validateProfilePage(operationId: String): Boolean {
             return try {
-                public val response =
+                val response =
                     kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
                         api.getProfile()
                     }
@@ -362,13 +362,13 @@ public class RutrackerAuthService
                     return false
                 }
 
-                public val rawBody =
+                val rawBody =
                     response.body()?.bytes() ?: run {
                         logger.log(operationId, "Profile check: empty body", StructuredLogger.LogLevel.DEBUG)
                         return false
                     }
-                public val bodyString = String(rawBody, CP1251).lowercase()
-                public val finalUrl =
+                val bodyString = String(rawBody, CP1251).lowercase()
+                val finalUrl =
                     response
                         .raw()
                         .request.url
@@ -387,15 +387,15 @@ public class RutrackerAuthService
                 }
 
                 // Check for profile elements (authenticated user)
-                public val hasLogout =
+                val hasLogout =
                     bodyString.contains("login.php?logout=1") ||
                         bodyString.contains("mode=logout")
-                public val hasProfile =
+                val hasProfile =
                     bodyString.contains("личный кабинет") ||
                         bodyString.contains("profile") ||
                         bodyString.contains("личные данные")
 
-                public val isAuthenticated = hasLogout || hasProfile
+                val isAuthenticated = hasLogout || hasProfile
                 logger.log(operationId, "Profile check: logout=$hasLogout, profile=$hasProfile", StructuredLogger.LogLevel.DEBUG)
 
                 isAuthenticated
@@ -413,7 +413,7 @@ public class RutrackerAuthService
             return try {
                 // Perform a simple search to test authentication
                 // searchTopics only accepts query and forumIds (optional)
-                public val response =
+                val response =
                     kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
                         api.searchTopics(
                             query = "test",
@@ -427,15 +427,15 @@ public class RutrackerAuthService
                 }
 
                 // searchTopics now returns Response<ResponseBody>
-                public val rawBytes = response.body()?.bytes()
-                public val bodyString =
+                val rawBytes = response.body()?.bytes()
+                val bodyString =
                     if (rawBytes != null) {
                         String(rawBytes, charset("windows-1251")).lowercase()
                     } else {
                         logger.log(operationId, "Search check: empty body", StructuredLogger.LogLevel.DEBUG)
                         return false
                     }
-                public val finalUrl =
+                val finalUrl =
                     response
                         .raw()
                         .request.url
@@ -448,7 +448,7 @@ public class RutrackerAuthService
                 }
 
                 // Check for auth required messages
-                public val requiresAuth =
+                val requiresAuth =
                     bodyString.contains("profile.php?mode=register") ||
                         bodyString.contains("авторизация") ||
                         bodyString.contains("войдите в систему")
@@ -459,7 +459,7 @@ public class RutrackerAuthService
                 }
 
                 // Check for search page elements (authenticated)
-                public val hasSearchElements =
+                val hasSearchElements =
                     bodyString.contains("поиск") ||
                         bodyString.contains("search") ||
                         bodyString.contains("форум") ||
@@ -485,13 +485,13 @@ public class RutrackerAuthService
         private suspend fun validateIndexPage(operationId: String): Boolean {
             return try {
                 // Test 3: Index page (final fallback) using api.getIndex()
-                public val response =
+                val response =
                     kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
                         api.getIndex()
                     }
                 if (response.isSuccessful) {
-                    public val bodyString = response.body()?.string()?.lowercase() ?: ""
-                    public val isValidIndex = bodyString.contains("форум") || bodyString.contains("rutracker.org")
+                    val bodyString = response.body()?.string()?.lowercase() ?: ""
+                    val isValidIndex = bodyString.contains("форум") || bodyString.contains("rutracker.org")
                     logger.log(
                         operationId,
                         "Index check: HTTP ${response.code()}, validContent=$isValidIndex",
@@ -521,7 +521,7 @@ public class RutrackerAuthService
             factor: Double = 2.0,
             block: suspend () -> T,
         ): T {
-            public var currentDelay = initialDelay
+            var currentDelay = initialDelay
             repeat(times - 1) { attempt ->
                 try {
                     return block()

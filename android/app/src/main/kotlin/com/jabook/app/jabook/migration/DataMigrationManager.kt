@@ -56,7 +56,7 @@ public class DataMigrationManager
                 }
 
                 // Check if legacy state exists
-                public val hasLegacyState = prefs.contains(KEY_PLAYER_STATE)
+                val hasLegacyState = prefs.contains(KEY_PLAYER_STATE)
                 Log.d(TAG, "needsMigration: $hasLegacyState")
                 hasLegacyState
             }
@@ -70,19 +70,19 @@ public class DataMigrationManager
                         prefs.getString(KEY_PLAYER_STATE, null)
                             ?: return@withContext MigrationResult.Failure(Exception("No player state found"))
 
-                    public val json = org.json.JSONObject(jsonString)
-                    public val groupPath = json.getString("groupPath")
-                    public val currentPosition = json.optLong("currentPosition", 0L)
-                    public val currentIndex = json.optInt("currentIndex", 0)
+                    val json = org.json.JSONObject(jsonString)
+                    val groupPath = json.getString("groupPath")
+                    val currentPosition = json.optLong("currentPosition", 0L)
+                    val currentIndex = json.optInt("currentIndex", 0)
 
                     // Metadata
-                    public val metadataJson = json.optJSONObject("metadata")
-                    public val album = metadataJson?.optString("album")
-                    public val artist = metadataJson?.optString("artist") ?: metadataJson?.optString("albumArtist")
-                    public val title = metadataJson?.optString("title") ?: java.io.File(groupPath).name
+                    val metadataJson = json.optJSONObject("metadata")
+                    val album = metadataJson?.optString("album")
+                    val artist = metadataJson?.optString("artist") ?: metadataJson?.optString("albumArtist")
+                    val title = metadataJson?.optString("title") ?: java.io.File(groupPath).name
 
                     // Generate ID consistent with Scanner
-                    public val bookId =
+                    val bookId =
                         bookIdentifier.generateBookId(
                             directory = groupPath,
                             album = album,
@@ -94,7 +94,7 @@ public class DataMigrationManager
                     // Create BookEntity
                     // We treat it as "Partial" because we haven't scanned it fully yet
                     // But we populate enough for playback resumption
-                    public val bookEntity =
+                    val bookEntity =
                         com.jabook.app.jabook.compose.data.local.entity.BookEntity(
                             id = bookId,
                             title = title,
@@ -130,11 +130,11 @@ public class DataMigrationManager
  */
 public sealed class MigrationResult {
     public data class Success(
-        public val booksCount: Int,
-        public val chaptersCount: Int,
+        val booksCount: Int,
+        val chaptersCount: Int,
     ) : MigrationResult()
 
     public data class Failure(
-        public val error: Exception,
+        val error: Exception,
     ) : MigrationResult()
 }

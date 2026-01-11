@@ -36,7 +36,7 @@ public class PermissionViewModel
         private val permissionManager: PermissionManager,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(PermissionUiState())
-        public val uiState: StateFlow<PermissionUiState> = _uiState.asStateFlow()
+        val uiState: StateFlow<PermissionUiState> = _uiState.asStateFlow()
 
         init {
             checkPermissions()

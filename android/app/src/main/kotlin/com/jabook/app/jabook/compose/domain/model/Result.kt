@@ -29,7 +29,7 @@ public sealed interface Result<out T> {
      * @property data The successful result data
      */
     public data class Success<T>(
-        public val data: T,
+        val data: T,
     ) : Result<T>
 
     /**
@@ -39,8 +39,8 @@ public sealed interface Result<out T> {
      * @property message Optional user-friendly error message
      */
     public data class Error(
-        public val exception: Throwable,
-        public val message: String? = exception.message,
+        val exception: Throwable,
+        val message: String? = exception.message,
     ) : Result<Nothing>
 
     /**

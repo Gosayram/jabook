@@ -94,11 +94,11 @@ public class RutrackerRepository
                         logger.log(operationId, "Index-only search started: query='$query', forumIds=$forumIds")
 
                         // Use ONLY indexed search
-                        public val indexSize = offlineSearchDao.getTopicCount()
+                        val indexSize = offlineSearchDao.getTopicCount()
                         if (indexSize > 0) {
-                            public val indexSearchStartTime = System.currentTimeMillis()
-                            public val indexedResults = searchIndexedTopics(query, limit = 200)
-                            public val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
+                            val indexSearchStartTime = System.currentTimeMillis()
+                            val indexedResults = searchIndexedTopics(query, limit = 200)
+                            val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
 
                             logger.logSuccess(
                                 operationId,
@@ -136,14 +136,14 @@ public class RutrackerRepository
         ): List<RutrackerSearchResult> =
             withContext(Dispatchers.IO) {
                 try {
-                    public val searchStartTime = System.currentTimeMillis()
-                    public val currentMirror = mirrorManager.getCurrentMirrorDomain()
+                    val searchStartTime = System.currentTimeMillis()
+                    val currentMirror = mirrorManager.getCurrentMirrorDomain()
                     Log.i(TAG, "=== INDEXED SEARCH START ===")
                     Log.i(TAG, "Input query: '$query', limit: $limit")
                     Log.i(TAG, "Current mirror: $currentMirror")
 
                     // Log exact SQL that will be executed (reconstructed for visibility)
-                    public val sqlPattern =
+                    val sqlPattern =
                         "SELECT * FROM cached_topics " +
                             "WHERE (title LIKE '%$query%' OR author LIKE '%$query%') " +
                             "AND category IS NOT NULL AND category != '' " +
@@ -152,22 +152,22 @@ public class RutrackerRepository
                     Log.d(TAG, "SQL query pattern: $sqlPattern")
                     Log.d(TAG, "Query filters: title/author contains '$query', category NOT NULL/empty")
 
-                    public val entities = offlineSearchDao.searchIndexedTopics(query, limit)
-                    public val dbDuration = System.currentTimeMillis() - searchStartTime
+                    val entities = offlineSearchDao.searchIndexedTopics(query, limit)
+                    val dbDuration = System.currentTimeMillis() - searchStartTime
 
                     Log.i(TAG, "DB query completed: ${entities.size} entities returned in ${dbDuration}ms")
 
                     // Diagnostic: if no results, check why
                     if (entities.isEmpty()) {
                         Log.w(TAG, "⚠️ Zero results from DB - running diagnostics...")
-                        public val totalTopics = offlineSearchDao.getTopicCount()
-                        public val topicsWithCategory = offlineSearchDao.getTopicsWithNonEmptyCategory()
+                        val totalTopics = offlineSearchDao.getTopicCount()
+                        val topicsWithCategory = offlineSearchDao.getTopicsWithNonEmptyCategory()
                         Log.w(TAG, "Total topics in DB: $totalTopics")
                         Log.w(TAG, "Topics with non-empty category: $topicsWithCategory")
                         Log.w(TAG, "Topics filtered by category constraint: ${totalTopics - topicsWithCategory}")
 
                         // Sample a few topics to see what's in DB
-                        public val sampleTopics = offlineSearchDao.getSampleTopics(5)
+                        val sampleTopics = offlineSearchDao.getSampleTopics(5)
                         sampleTopics.forEachIndexed { i, topic ->
                             Log.d(TAG, "Sample[$i]: title='${topic.title.take(40)}', category='${topic.category}'")
                         }
@@ -185,18 +185,18 @@ public class RutrackerRepository
                         )
                     }
 
-                    public val mapStartTime = System.currentTimeMillis()
+                    val mapStartTime = System.currentTimeMillis()
                     Log.d(TAG, "Mapping ${entities.size} entities to DTO...")
-                    public val dtoResults = entities.map { it.toSearchResult() }
-                    public val dtoMapDuration = System.currentTimeMillis() - mapStartTime
+                    val dtoResults = entities.map { it.toSearchResult() }
+                    val dtoMapDuration = System.currentTimeMillis() - mapStartTime
                     Log.d(TAG, "DTO mapping: ${entities.size} → ${dtoResults.size} in ${dtoMapDuration}ms")
 
-                    public val domainMapStartTime = System.currentTimeMillis()
+                    val domainMapStartTime = System.currentTimeMillis()
                     // Use lenient validation for indexed results
-                    public val domainResults = dtoResults.toDomainFromIndex()
-                    public val domainMapDuration = System.currentTimeMillis() - domainMapStartTime
+                    val domainResults = dtoResults.toDomainFromIndex()
+                    val domainMapDuration = System.currentTimeMillis() - domainMapStartTime
 
-                    public val filteredCount = dtoResults.size - domainResults.size
+                    val filteredCount = dtoResults.size - domainResults.size
                     if (filteredCount > 0) {
                         Log.w(
                             TAG,
@@ -204,7 +204,7 @@ public class RutrackerRepository
                                 "(${dtoResults.size} DTO → ${domainResults.size} domain, ${domainMapDuration}ms)",
                         )
                         // Log why items were filtered
-                        public val filtered = dtoResults.toDomainFromIndex()
+                        val filtered = dtoResults.toDomainFromIndex()
                         if (filtered.isEmpty() && dtoResults.isNotEmpty()) {
                             Log.e(TAG, "❌ ALL results filtered out! First DTO: ${dtoResults.first()}")
                         }
@@ -212,7 +212,7 @@ public class RutrackerRepository
                         Log.d(TAG, "Domain mapping: ${dtoResults.size} → ${domainResults.size} in ${domainMapDuration}ms (no filtering)")
                     }
 
-                    public val totalDuration = System.currentTimeMillis() - searchStartTime
+                    val totalDuration = System.currentTimeMillis() - searchStartTime
                     Log.i(
                         TAG,
                         "=== SEARCH COMPLETE === Query: '$query' | Results: ${domainResults.size} | " +
@@ -243,13 +243,13 @@ public class RutrackerRepository
             forumIds: String? = null,
         ): Flow<Result<List<RutrackerSearchResult>>> =
             flow {
-                public val currentMirror = mirrorManager.getCurrentMirrorDomain()
+                val currentMirror = mirrorManager.getCurrentMirrorDomain()
                 Log.i(TAG, "🔍 Index-only search started: query='$query', forumIds=$forumIds")
                 Log.i(TAG, "Using mirror: $currentMirror")
 
                 try {
                     // Check if index exists and has data
-                    public val indexSize =
+                    val indexSize =
                         withContext(Dispatchers.IO) {
                             try {
                                 offlineSearchDao.getTopicCount()
@@ -262,40 +262,40 @@ public class RutrackerRepository
                     if (indexSize > 0) {
                         // Check for debug command
                         if (query.trim() == "!index" || query.trim() == ":debug") {
-                            public val sampleTopics = offlineSearchDao.getSampleTopics(10)
-                            public val domainResults = sampleTopics.map { it.toSearchResult() }.toDomainFromIndex()
+                            val sampleTopics = offlineSearchDao.getSampleTopics(10)
+                            val domainResults = sampleTopics.map { it.toSearchResult() }.toDomainFromIndex()
                             emit(Result.success(domainResults))
                             return@flow
                         }
 
                         // Tokenize query for fuzzy search
-                        public val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
 
                         if (tokens.isEmpty()) {
                             emit(Result.success(emptyList()))
                         } else {
                             // Build dynamic SQL query for token-based search
-                            public val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
-                            public val args = ArrayList<Any>()
+                            val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
+                            val args = ArrayList<Any>()
 
                             tokens.forEachIndexed { index, token ->
                                 if (index > 0) sqlBuilder.append(" AND ")
                                 sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
-                                public val likePattern: String = "%$token%"                                args.add(likePattern)
+                                val likePattern: String = "%$token%"                                args.add(likePattern)
                                 args.add(likePattern)
                             }
 
                             // Add ordering and limit
                             sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
 
-                            public val simpleQuery = androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray())
+                            val simpleQuery = androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray())
 
                             // Emit Flow from Room
                             offlineSearchDao
                                 .searchIndexedTopicsRaw(simpleQuery)
                                 .map { entities ->
-                                    public val dtoResults = entities.map { it.toSearchResult() }
-                                    public val domainResults = dtoResults.toDomainFromIndex()
+                                    val dtoResults = entities.map { it.toSearchResult() }
+                                    val domainResults = dtoResults.toDomainFromIndex()
                                     Result.success(domainResults)
                                 }.collect {
                                     emit(it)
@@ -324,8 +324,8 @@ public class RutrackerRepository
 
                 // Extract success data to check coverUrl
                 if (result.isSuccess) {
-                    public val details = result.getOrNull()
-                    public val coverUrl: Long = details?.coverUrl
+                    val details = result.getOrNull()
+                    val coverUrl: Long = details?.coverUrl
                     if (!coverUrl.isNullOrBlank()) {
                         Log.d(TAG, "Updating cover for $topicId: $coverUrl")
                         offlineSearchDao.updateCoverUrl(topicId, coverUrl)
@@ -346,9 +346,9 @@ public class RutrackerRepository
             forumIds: String?,
             operationId: String? = null,
         ): Result<List<RutrackerSearchResult>> {
-            public val opId = operationId ?: logger.startOperation("fetchFromNetwork")
-            public val networkStartTime = System.currentTimeMillis()
-            public val currentMirror = mirrorManager.getCurrentMirrorDomain()
+            val opId = operationId ?: logger.startOperation("fetchFromNetwork")
+            val networkStartTime = System.currentTimeMillis()
+            val currentMirror = mirrorManager.getCurrentMirrorDomain()
             logger.log(opId, "Fetching from network: query='$query', forumIds=$forumIds")
             logger.log(opId, "Current mirror: $currentMirror")
             // === HTTP REQUEST LOGGING ===
@@ -359,18 +359,18 @@ public class RutrackerRepository
                 Log.w(TAG, "Forum IDs: $forumIds")
             }
 
-            public val response = api.searchTopics(query, forumIds)
+            val response = api.searchTopics(query, forumIds)
 
             // Log request details
-            public val requestUrl: Long = response.raw().request.url            Log.w(TAG, "Request URL: $requestUrl")
+            val requestUrl: Long = response.raw().request.url            Log.w(TAG, "Request URL: $requestUrl")
 
             // === HTTP RESPONSE LOGGING ===
-            public val networkDuration = System.currentTimeMillis() - networkStartTime
+            val networkDuration = System.currentTimeMillis() - networkStartTime
             logger.logWithDuration(opId, "Response received: HTTP ${response.code()} ${response.message()}", networkDuration)
             logger.log(opId, "Final URL: ${response.raw().request.url}", StructuredLogger.LogLevel.DEBUG)
 
             if (!response.isSuccessful) {
-                public val error =
+                val error =
                     when (response.code()) {
                         401 -> RuTrackerError.Unauthorized
                         403 -> RuTrackerError.Forbidden
@@ -390,7 +390,7 @@ public class RutrackerRepository
             }
 
             // Log important headers
-            public val headers = response.headers()
+            val headers = response.headers()
             Log.w(TAG, "Headers:")
             listOf("content-type", "content-encoding", "content-length", "location", "set-cookie").forEach { name ->
                 headers[name]?.let { value ->
@@ -405,7 +405,7 @@ public class RutrackerRepository
             // CRITICAL: Check Content-Encoding to see if data was compressed
             // Note: BrotliInterceptor removes "Content-Encoding: br" header after decompression,
             // so if we see it here, BrotliInterceptor didn't process it (shouldn't happen)
-            public val contentEncoding = headers["Content-Encoding"]
+            val contentEncoding = headers["Content-Encoding"]
             Log.w(TAG, "🔍 Content-Encoding: $contentEncoding")
             if (contentEncoding != null && contentEncoding.contains("br", ignoreCase = true)) {
                 Log.w(TAG, "⚠️ WARNING: Content-Encoding still contains 'br' - BrotliInterceptor may not have processed it!")
@@ -415,19 +415,19 @@ public class RutrackerRepository
             // Store bytes immediately and reuse
             // Note: OkHttp BrotliInterceptor automatically decompresses Brotli responses
             // After decompression, we get raw bytes that need to be decoded with Windows-1251
-            public val rawBytes = response.body()?.bytes() ?: ByteArray(0)
+            val rawBytes = response.body()?.bytes() ?: ByteArray(0)
             Log.w(TAG, "📦 Response Size: ${rawBytes.size} bytes (should be decompressed if was Brotli)")
 
             // Check if bytes look like compressed data (Brotli magic bytes)
             if (rawBytes.isNotEmpty()) {
-                public val firstBytes = rawBytes.take(4).toByteArray()
-                public val hexPreview = firstBytes.joinToString(" ") { "%02x".format(it) }
+                val firstBytes = rawBytes.take(4).toByteArray()
+                val hexPreview = firstBytes.joinToString(" ") { "%02x".format(it) }
                 Log.w(TAG, "🔍 First 4 bytes (hex): $hexPreview")
 
                 // Brotli magic bytes: 0x81, 0x1B (or similar)
                 // Gzip magic bytes: 0x1F, 0x8B
-                public val looksLikeBrotli = rawBytes[0] == 0x81.toByte() && rawBytes[1] == 0x1B.toByte()
-                public val looksLikeGzip = rawBytes[0] == 0x1F.toByte() && rawBytes[1] == 0x8B.toByte()
+                val looksLikeBrotli = rawBytes[0] == 0x81.toByte() && rawBytes[1] == 0x1B.toByte()
+                val looksLikeGzip = rawBytes[0] == 0x1F.toByte() && rawBytes[1] == 0x8B.toByte()
                 Log.w(TAG, "🔍 Looks like Brotli: $looksLikeBrotli, Gzip: $looksLikeGzip")
 
                 if (looksLikeBrotli || looksLikeGzip) {
@@ -435,7 +435,7 @@ public class RutrackerRepository
                 }
 
                 // Check if bytes look like HTML (should start with < or whitespace before <)
-                public val startsWithHtml =
+                val startsWithHtml =
                     rawBytes.take(100).any {
                         it == '<'.code.toByte() ||
                             it == 0x20.toByte() ||
@@ -445,20 +445,20 @@ public class RutrackerRepository
                 Log.w(TAG, "🔍 Looks like HTML (contains '<' or whitespace): $startsWithHtml")
 
                 // Try to see if it's valid Windows-1251 (Cyrillic range)
-                public val sample = rawBytes.take(1000)
-                public val hasCyrillicBytes = sample.any { it.toInt() and 0xFF in 0xC0..0xFF } // Windows-1251 Cyrillic range
+                val sample = rawBytes.take(1000)
+                val hasCyrillicBytes = sample.any { it.toInt() and 0xFF in 0xC0..0xFF } // Windows-1251 Cyrillic range
                 Log.w(TAG, "🔍 Has potential Cyrillic bytes (0xC0-0xFF): $hasCyrillicBytes")
             }
 
             // HTML preview (first 300 chars) - try both UTF-8 and Windows-1251
-            public val htmlPreviewUtf8 =
+            val htmlPreviewUtf8 =
                 try {
                     String(rawBytes.take(300).toByteArray(), Charsets.UTF_8)
                         .replace(Regex("\\s+"), " ")
                 } catch (e: Exception) {
                     "ERROR: ${e.message}"
                 }
-            public val htmlPreviewCp1251 =
+            val htmlPreviewCp1251 =
                 try {
                     String(
                         rawBytes.take(300).toByteArray(),
@@ -473,16 +473,16 @@ public class RutrackerRepository
 
             // Get Content-Type for encoding detection
             // Note: After BrotliInterceptor decompression, bytes are ready for charset decoding
-            public val contentType = response.headers()["Content-Type"]
+            val contentType = response.headers()["Content-Type"]
             // Parse with encoding detection (RutrackerSimpleDecoder will decode bytes with Windows-1251)
-            public val parsingResult = parser.parseSearchResultsWithEncoding(rawBytes, contentType)
+            val parsingResult = parser.parseSearchResultsWithEncoding(rawBytes, contentType)
 
             return when (parsingResult) {
                 is ParsingResult.Success -> {
-                    public val dtoResults = parsingResult.data
+                    val dtoResults = parsingResult.data
                     Log.d(TAG, "📊 Parsing success: ${dtoResults.size} DTO results for query '$query'")
-                    public val domainResults = dtoResults.toDomain()
-                    public val filteredCount = dtoResults.size - domainResults.size
+                    val domainResults = dtoResults.toDomain()
+                    val filteredCount = dtoResults.size - domainResults.size
                     if (filteredCount > 0) {
                         Log.w(
                             TAG,
@@ -495,7 +495,7 @@ public class RutrackerRepository
                             "(${dtoResults.size} DTO → ${domainResults.size} domain)",
                     )
                     handleSuccess(query, forumIds, dtoResults) // Cache DTO models
-                    public val resultCount = domainResults.size
+                    val resultCount = domainResults.size
                     logger.logSuccess(
                         opId,
                         "Parsed $resultCount results (${dtoResults.size} DTO, $resultCount valid domain)",
@@ -505,13 +505,13 @@ public class RutrackerRepository
                     Result.success(domainResults)
                 }
                 is ParsingResult.PartialSuccess -> {
-                    public val dtoResults = parsingResult.data
+                    val dtoResults = parsingResult.data
                     Log.w(
                         TAG,
                         "📊 Partial parsing: ${dtoResults.size} DTO results, ${parsingResult.errors.size} errors for query '$query'",
                     )
-                    public val domainResults = dtoResults.toDomain()
-                    public val filteredCount = dtoResults.size - domainResults.size
+                    val domainResults = dtoResults.toDomain()
+                    val filteredCount = dtoResults.size - domainResults.size
                     if (filteredCount > 0) {
                         Log.w(
                             TAG,
@@ -524,7 +524,7 @@ public class RutrackerRepository
                             "(${dtoResults.size} DTO → ${domainResults.size} domain)",
                     )
                     handleSuccess(query, forumIds, dtoResults) // Cache DTO models
-                    public val resultCount = domainResults.size
+                    val resultCount = domainResults.size
                     logger.logWarning(
                         opId,
                         "Partial success: parsed $resultCount results with ${parsingResult.errors.size} errors (${dtoResults.size} DTO, $resultCount valid domain)",
@@ -533,7 +533,7 @@ public class RutrackerRepository
                     Result.success(domainResults)
                 }
                 is ParsingResult.Failure -> {
-                    public val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
+                    val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
                     Log.e(
                         TAG,
                         "❌ Parsing failed for query '$query': ${parsingResult.errors.size} errors",
@@ -550,7 +550,7 @@ public class RutrackerRepository
                     }
 
                     // Check if it's a bad request or validation error
-                    public val isBadRequest =
+                    val isBadRequest =
                         parsingResult.errors.any {
                             it.reason.contains("Bad request", ignoreCase = true) ||
                                 it.reason.contains("BadRequest", ignoreCase = true) ||
@@ -566,7 +566,7 @@ public class RutrackerRepository
                         if (operationId == null) logger.endOperation(opId, success = false, "Bad request - returning empty")
                         Result.success(emptyList())
                     } else {
-                        public val error = RuTrackerError.ParsingError(errorMessage)
+                        val error = RuTrackerError.ParsingError(errorMessage)
                         logger.logError(opId, "Parsing failed: $errorMessage", error)
                         if (operationId == null) logger.endOperation(opId, success = false, errorMessage)
                         Result.failure(error)
@@ -586,10 +586,10 @@ public class RutrackerRepository
             // DB Persistence (Only for generic searches without unexpected filters)
             if (forumIds == null) {
                 try {
-                    public val entities = results.map { it.toCachedTopicEntity() }
-                    public val dbSaveStartTime = System.currentTimeMillis()
+                    val entities = results.map { it.toCachedTopicEntity() }
+                    val dbSaveStartTime = System.currentTimeMillis()
                     offlineSearchDao.saveSearchResults(query, entities)
-                    public val dbSaveDuration = System.currentTimeMillis() - dbSaveStartTime
+                    val dbSaveDuration = System.currentTimeMillis() - dbSaveStartTime
                     Log.d(TAG, "💾 Saved ${entities.size} results to DB cache (query: '$query', ${dbSaveDuration}ms)")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to save to DB", e)
@@ -615,11 +615,11 @@ public class RutrackerRepository
 
                         logger.log(operationId, "Fetching topic details: $topicId")
 
-                        public val response = api.getTopicDetails(topicId)
+                        val response = api.getTopicDetails(topicId)
 
                         if (!response.isSuccessful) {
                             logger.logWarning(operationId, "Topic details failed: HTTP ${response.code()}")
-                            public val rutrackerError =
+                            val rutrackerError =
                                 when (response.code()) {
                                     401 -> RuTrackerError.Unauthorized
                                     403 -> RuTrackerError.Forbidden
@@ -631,18 +631,18 @@ public class RutrackerRepository
                             Result.failure(rutrackerError)
                         } else {
                             // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
-                            public val rawBytes = response.body()?.bytes() ?: byteArrayOf()
+                            val rawBytes = response.body()?.bytes() ?: byteArrayOf()
                             if (rawBytes.isEmpty()) {
                                 logger.logError(operationId, "Empty response body", IllegalArgumentException("Response body is empty"))
                                 return@withOperation Result.failure(IllegalArgumentException("Response body is empty"))
                             }
 
-                            public val html = String(rawBytes, charset("windows-1251"))
-                            public val dtoDetails = parser.parseTopicDetails(html, topicId)
+                            val html = String(rawBytes, charset("windows-1251"))
+                            val dtoDetails = parser.parseTopicDetails(html, topicId)
 
                             if (dtoDetails != null) {
                                 // Map DTO to domain model with validation
-                                public val domainDetails = dtoDetails.toDomain()
+                                val domainDetails = dtoDetails.toDomain()
                                 if (domainDetails.isValid()) {
                                     logger.logSuccess(operationId, "Topic details parsed and validated: ${domainDetails.title}")
                                     Result.success(domainDetails)
@@ -679,11 +679,11 @@ public class RutrackerRepository
                     try {
                         logger.log(operationId, "Fetching categories")
 
-                        public val response = api.getIndex()
+                        val response = api.getIndex()
 
                         if (!response.isSuccessful) {
                             logger.logWarning(operationId, "Categories failed: HTTP ${response.code()}")
-                            public val error =
+                            val error =
                                 when (response.code()) {
                                     401 -> RuTrackerError.Unauthorized
                                     403 -> RuTrackerError.Forbidden
@@ -695,11 +695,11 @@ public class RutrackerRepository
                             Result.failure(error)
                         } else {
                             // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
-                            public val rawBytes = response.body()?.bytes() ?: ByteArray(0)
+                            val rawBytes = response.body()?.bytes() ?: ByteArray(0)
                             // Decode HTML (CategoryParser expects decoded string)
-                            public val html = String(rawBytes, Charsets.UTF_8)
+                            val html = String(rawBytes, Charsets.UTF_8)
 
-                            public val parsingResult = categoryParser.parseCategories(html)
+                            val parsingResult = categoryParser.parseCategories(html)
 
                             when (parsingResult) {
                                 is ParsingResult.Success -> {
@@ -714,7 +714,7 @@ public class RutrackerRepository
                                     Result.success(parsingResult.data)
                                 }
                                 is ParsingResult.Failure -> {
-                                    public val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Failed to parse categories"
+                                    val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Failed to parse categories"
                                     logger.logError(
                                         operationId,
                                         "Categories parsing failed: $errorMessage",

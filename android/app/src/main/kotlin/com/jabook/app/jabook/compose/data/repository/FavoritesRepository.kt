@@ -35,12 +35,12 @@ public class FavoritesRepository
         /**
          * Flow of all favorites, sorted by date added (newest first).
          */
-        public val allFavorites: Flow<List<FavoriteEntity>> = favoriteDao.getAllFavorites()
+        val allFavorites: Flow<List<FavoriteEntity>> = favoriteDao.getAllFavorites()
 
         /**
          * Flow of all favorite topic IDs for quick membership checks.
          */
-        public val favoriteIds: Flow<List<String>> = favoriteDao.getAllFavoriteIds()
+        val favoriteIds: Flow<List<String>> = favoriteDao.getAllFavoriteIds()
 
         /**
          * Add an audiobook to favorites.

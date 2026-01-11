@@ -63,7 +63,7 @@ public data class AudioMetadata(
     }
 
     override fun hashCode(): Int {
-        public var result = title?.hashCode() ?: 0
+        var result = title?.hashCode() ?: 0
         result = 31 * result + (artist?.hashCode() ?: 0)
         result = 31 * result + (album?.hashCode() ?: 0)
         result = 31 * result + (albumArtist?.hashCode() ?: 0)

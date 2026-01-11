@@ -29,7 +29,7 @@ val MIGRATION_6_7 =
         override fun migrate(db: SupportSQLiteDatabase) {
             try {
                 Log.i(TAG, "🔄 Starting migration 6→7")
-                public val startTime = System.currentTimeMillis()
+                val startTime = System.currentTimeMillis()
                 // Create favorites table
                 db.execSQL(
                     """

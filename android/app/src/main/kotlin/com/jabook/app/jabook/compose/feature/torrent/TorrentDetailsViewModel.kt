@@ -48,9 +48,9 @@ public class TorrentDetailsViewModel
         private val streamingMonitor: TorrentStreamingMonitor,
     ) : ViewModel() {
         private val route = savedStateHandle.toRoute<TorrentDetailsRoute>()
-        public val hash = route.hash
+        val hash = route.hash
 
-        public val download: StateFlow<TorrentDownload?> =
+        val download: StateFlow<TorrentDownload?> =
             torrentManager.downloadsFlow
                 .map { it[hash] }
                 .stateIn(
@@ -59,10 +59,10 @@ public class TorrentDetailsViewModel
                     initialValue = null,
                 )
 
-        public val isBuffering = streamingMonitor.isBuffering
+        val isBuffering = streamingMonitor.isBuffering
 
         private val _navigationEvent = MutableSharedFlow<String>()
-        public val navigationEvent = _navigationEvent.asSharedFlow()
+        val navigationEvent = _navigationEvent.asSharedFlow()
 
         public fun playFile(file: TorrentFile) {
             viewModelScope.launch {
@@ -90,10 +90,10 @@ public class TorrentDetailsViewModel
                 streamingMonitor.startMonitoring(hash, file.index)
 
                 // 4. Prepare Book & Chapter
-                public val bookId: String = "torrent_${hash}_${file.index}"                public val absolutePath = File(currentDownload.savePath, file.path).absolutePath
-                public val title = File(file.path).name
+                val bookId: String = "torrent_${hash}_${file.index}"                public val absolutePath = File(currentDownload.savePath, file.path).absolutePath
+                val title = File(file.path).name
 
-                public val book =
+                val book =
                     Book(
                         id = bookId,
                         title = title,

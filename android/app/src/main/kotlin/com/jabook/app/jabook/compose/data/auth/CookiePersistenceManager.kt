@@ -63,7 +63,7 @@ public class CookiePersistenceManager
                     return@withContext
                 }
 
-                public val cookieHeader = cookies.joinToString("; ") { "${it.name}=${it.value}" }
+                val cookieHeader = cookies.joinToString("; ") { "${it.name}=${it.value}" }
                 Log.d(TAG, "Persisting ${cookies.size} cookies for $url")
 
                 // Layer 1: Database (most reliable)
@@ -81,12 +81,12 @@ public class CookiePersistenceManager
 
                 // Layer 2: Android WebView CookieManager
                 try {
-                    public val cookieManager = CookieManager.getInstance()
+                    val cookieManager = CookieManager.getInstance()
                     cookieManager.setAcceptCookie(true)
 
                     cookies.forEach { cookie ->
                         // Format: name=value; Domain=.domain; Path=/; Secure; HttpOnly
-                        public val cookieString =
+                        val cookieString =
                             buildString {
                                 append("${cookie.name}=${cookie.value}")
                                 append("; Domain=${cookie.domain}")
@@ -134,8 +134,8 @@ public class CookiePersistenceManager
                 // SecureCredentialStorage is for username/password only, not cookies
 
                 // Layer 3: Fallback to CookieJar (runtime cache)
-                public val httpUrl = url.toHttpUrl()
-                public val cookies = cookieJar.loadForRequest(httpUrl)
+                val httpUrl = url.toHttpUrl()
+                val cookies = cookieJar.loadForRequest(httpUrl)
                 if (cookies.isNotEmpty()) {
                     Log.d(TAG, "✓ Cookies restored from CookieJar for $url")
                     return@withContext cookies
@@ -156,10 +156,10 @@ public class CookiePersistenceManager
                     val cookieString = cookieManager.getCookie(url)
 
                     if (!cookieString.isNullOrBlank()) {
-                        public val cookies = parseCookieHeader(url, cookieString)
+                        val cookies = parseCookieHeader(url, cookieString)
 
                         // Save to CookieJar
-                        public val httpUrl = url.toHttpUrl()
+                        val httpUrl = url.toHttpUrl()
                         cookieJar.saveFromResponse(httpUrl, cookies)
 
                         // Persist to all layers
@@ -210,17 +210,17 @@ public class CookiePersistenceManager
             url: String,
             cookieHeader: String,
         ): List<Cookie> {
-            public val cookies = mutableListOf<Cookie>()
-            public val httpUrl = url.toHttpUrl()
+            val cookies = mutableListOf<Cookie>()
+            val httpUrl = url.toHttpUrl()
 
             cookieHeader.split(";").forEach { pair ->
-                public val parts = pair.trim().split("=", limit = 2)
+                val parts = pair.trim().split("=", limit = 2)
                 if (parts.size == 2) {
-                    public val name = parts[0].trim()
-                    public val value = parts[1].trim()
+                    val name = parts[0].trim()
+                    val value = parts[1].trim()
 
                     try {
-                        public val cookie =
+                        val cookie =
                             Cookie
                                 .Builder()
                                 .name(name)

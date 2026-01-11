@@ -48,17 +48,17 @@ public class IndexingViewModel
         }
 
         private val _indexingProgress = MutableStateFlow<IndexingProgress>(IndexingProgress.Idle)
-        public val indexingProgress: StateFlow<IndexingProgress> = _indexingProgress.asStateFlow()
+        val indexingProgress: StateFlow<IndexingProgress> = _indexingProgress.asStateFlow()
 
         // Timing state
         private val _indexingStartTime = MutableStateFlow<Long?>(null)
-        public val indexingStartTime: StateFlow<Long?> = _indexingStartTime.asStateFlow()
+        val indexingStartTime: StateFlow<Long?> = _indexingStartTime.asStateFlow()
 
         private val _clearingInProgress = MutableStateFlow(false)
-        public val clearingInProgress: StateFlow<Boolean> = _clearingInProgress.asStateFlow()
+        val clearingInProgress: StateFlow<Boolean> = _clearingInProgress.asStateFlow()
 
         private val _isIndexing = MutableStateFlow(false)
-        public val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
+        val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
 
         /**
          * Start full indexing of all audiobook forums using Foreground Service.
@@ -175,7 +175,7 @@ public class IndexingViewModel
                 _clearingInProgress.value = true
                 val startTime = System.currentTimeMillis()
                 forumIndexer.clearIndex()
-                public val duration = System.currentTimeMillis() - startTime
+                val duration = System.currentTimeMillis() - startTime
                 Log.i(TAG, "Index cleared successfully in ${duration}ms (${duration / 1000}s)")
                 _clearingInProgress.value = false
                 true

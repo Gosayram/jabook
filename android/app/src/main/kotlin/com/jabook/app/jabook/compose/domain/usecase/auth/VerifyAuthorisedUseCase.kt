@@ -45,7 +45,7 @@ public class VerifyAuthorisedUseCase
          * @return true if authenticated, false otherwise
          */
         suspend operator fun invoke(html: String): Boolean {
-            public val lowerHtml = html.lowercase()
+            val lowerHtml = html.lowercase()
 
             // Check for redirect to login page
             if (lowerHtml.contains("login.php") && lowerHtml.contains("name=\"login_username\"")) {
@@ -53,20 +53,20 @@ public class VerifyAuthorisedUseCase
             }
 
             // Check for logout link (strong indicator of authentication)
-            public val hasLogout =
+            val hasLogout =
                 lowerHtml.contains("login.php?logout=1") ||
                     lowerHtml.contains("mode=logout") ||
                     lowerHtml.contains("выход")
 
             // Check for profile elements
-            public val hasProfile =
+            val hasProfile =
                 lowerHtml.contains("личный кабинет") ||
                     lowerHtml.contains("profile") ||
                     lowerHtml.contains("личные данные") ||
                     lowerHtml.contains("username")
 
             // Check for absence of login form
-            public val hasLoginForm = lowerHtml.contains("name=\"login_username\"")
+            val hasLoginForm = lowerHtml.contains("name=\"login_username\"")
 
             return (hasLogout || hasProfile) && !hasLoginForm
         }

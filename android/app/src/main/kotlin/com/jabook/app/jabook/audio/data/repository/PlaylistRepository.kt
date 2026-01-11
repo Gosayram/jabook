@@ -51,8 +51,8 @@ public class PlaylistRepository
             currentIndex: Int = 0,
         ): Result<Unit> =
             try {
-                public val filePathsJson = JSONArray(filePaths).toString()
-                public val entity =
+                val filePathsJson = JSONArray(filePaths).toString()
+                val entity =
                     PlaylistEntity(
                         bookId = bookId,
                         bookTitle = bookTitle,
