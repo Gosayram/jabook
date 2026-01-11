@@ -27,6 +27,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.21" apply false
     // Compose Compiler (required for Kotlin 2.0+)
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.21" apply false
+    // Google services Gradle plugin for Firebase
+    id("com.google.gms.google-services") version "4.4.4" apply false
 }
 
 include(":app")

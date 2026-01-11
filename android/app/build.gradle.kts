@@ -18,6 +18,8 @@ plugins {
     id("com.google.protobuf") version "0.9.5"
     // JaCoCo for test coverage
     id("jacoco")
+    // Google services Gradle plugin for Firebase
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -353,6 +355,15 @@ dependencies {
 
     // Truth for fluent assertions (optional but recommended)
     testImplementation("com.google.truth:truth:1.4.5")
+
+    // Firebase - Import the Firebase BoM to manage library versions
+    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+
+    // Firebase Analytics (required for other Firebase services)
+    implementation("com.google.firebase:firebase-analytics")
+
+    // Add other Firebase dependencies as needed
+    // https://firebase.google.com/docs/android/setup#available-libraries
 }
 
 // ktlint configuration

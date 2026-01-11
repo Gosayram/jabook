@@ -98,6 +98,31 @@ jobs:
             printf 'keyAlias=%s\n' "${KEY_ALIAS}"
           } > android/key.properties
 
+      - name: Setup Firebase google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "${GOOGLE_SERVICES_JSON}" ]; then
+            echo "⚠️  Warning: GOOGLE_SERVICES_JSON secret is not set. Skipping Firebase setup."
+            exit 0
+          fi
+
+          mkdir -p android/app
+          echo "${GOOGLE_SERVICES_JSON}" > android/app/google-services.json
+
+          if [ ! -f "android/app/google-services.json" ]; then
+            echo "ERROR: google-services.json file was not created"
+            exit 1
+          fi
+
+          FILE_SIZE=$(stat -c%s "android/app/google-services.json" 2>/dev/null)
+          if [ "$FILE_SIZE" -lt 100 ]; then
+            echo "ERROR: google-services.json file too small (${FILE_SIZE} bytes)"
+            exit 1
+          fi
+
+          echo "✅ google-services.json created successfully (${FILE_SIZE} bytes)"
+
       - name: Lint Kotlin code
         run: make lint-kotlin
 
