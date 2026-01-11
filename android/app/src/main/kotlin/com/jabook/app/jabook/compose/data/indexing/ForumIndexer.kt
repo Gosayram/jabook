@@ -111,27 +111,27 @@ public class ForumIndexer
             onProgress: ((IndexingProgress) -> Unit)? = null,
         ): Int =
             withContext(Dispatchers.IO) {
-                public val startTime = System.currentTimeMillis()
-                public val currentIndexVersion = getCurrentIndexVersion() + 1
-                public val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                val startTime = System.currentTimeMillis()
+                val currentIndexVersion = getCurrentIndexVersion() + 1
+                val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                 
-                var totalIndexed: Int = 0
-                val coversToPreload = mutableListOf<String>()
+                public var totalIndexed: Int = 0
+                public val coversToPreload = mutableListOf<String>()
 
                 // Log current mirror at start of indexing
-                public val initialMirror = mirrorManager.getCurrentMirrorDomain()
+                val initialMirror = mirrorManager.getCurrentMirrorDomain()
                 Log.i(TAG, "=== FORUM INDEXING START ===")
                 Log.i(TAG, "Using mirror: $initialMirror")
                 Log.i(TAG, "Indexing version: $currentIndexVersion")
                 Log.i(TAG, "Forums to index: ${forumIdList.size}")
 
                 // Validate that only audiobook forums are being indexed
-                public val allowedForums =
+                val allowedForums =
                     RutrackerApi.AUDIOBOOKS_FORUM_IDS
                         .split(",")
                         .map { it.trim() }
                         .toSet()
-                public val invalidForums = forumIdList.filter { it !in allowedForums }
+                val invalidForums = forumIdList.filter { it !in allowedForums }
                 if (invalidForums.isNotEmpty()) {
                     Log.w(TAG, "WARNING: Attempting to index non-audiobook forums: $invalidForums")
                     Log.w(TAG, "Only audiobook forums will be indexed. Allowed forums: ${allowedForums.size}")
@@ -142,7 +142,7 @@ public class ForumIndexer
 
                 // Clear old indexed data before starting new index to ensure only audiobook forums are indexed
                 Log.i(TAG, "Clearing old indexed data before new index...")
-                public val oldCount = getIndexSize()
+                val oldCount = getIndexSize()
                 clearIndex()
                 Log.i(TAG, "Old indexed data cleared (was $oldCount topics)")
 
@@ -157,19 +157,19 @@ public class ForumIndexer
                 )
 
                 // Use AtomicInteger for thread-safe progress tracking
-                public val topicsIndexedAtomic =
+                val topicsIndexedAtomic =
                     java.util.concurrent.atomic
                         .AtomicInteger(0)
 
                 // Process forums in parallel batches for better performance
                 forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEachIndexed { batchIndex, batch ->
-                    public val batchResults =
+                    val batchResults =
                         batch
                             .mapIndexed { indexInBatch, forumId ->
                                 async(Dispatchers.IO) {
                                     try {
-                                        public val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
-                                                                                public var forumTopicsCount: Int = 0
+                                        val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
+                                                                                var forumTopicsCount: Int = 0
                                         val (indexed, covers) =
                                             indexForum(
                                                 forumId,
@@ -180,7 +180,7 @@ public class ForumIndexer
                                                 // Only update every 2 pages or on first/last page
                                                 if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
                                                     // Update progress with thread-safe counter
-                                                    public val currentTotal = topicsIndexedAtomic.get()
+                                                    val currentTotal = topicsIndexedAtomic.get()
                                                     onProgress?.invoke(
                                                         IndexingProgress.InProgress(
                                                             currentForum = forumId,
@@ -215,8 +215,8 @@ public class ForumIndexer
                     }
 
                     // Update progress after batch completion with accurate count
-                    public val currentTotal = topicsIndexedAtomic.get()
-                    public val nextBatchStartIndex = ((batchIndex + 1) * MAX_CONCURRENT_FORUMS).coerceAtMost(forumIdList.size)
+                    val currentTotal = topicsIndexedAtomic.get()
+                    val nextBatchStartIndex = ((batchIndex + 1) * MAX_CONCURRENT_FORUMS).coerceAtMost(forumIdList.size)
                     onProgress?.invoke(
                         IndexingProgress.InProgress(
                             currentForum = batch.lastOrNull() ?: "",
@@ -231,14 +231,14 @@ public class ForumIndexer
                 // Cover preloading is disabled (optimization: covers not stored in index)
                 // Covers will be loaded on-demand when topic is opened via getTopicDetails()
 
-                public val duration = System.currentTimeMillis() - startTime
-                public val runtime = Runtime.getRuntime()
-                public val finalMemory = runtime.totalMemory() - runtime.freeMemory()
-                public val memoryUsed = finalMemory / (1024 * 1024) // MB
-                public val topicsPerSecond = if (duration > 0) (totalIndexed * 1000) / duration else 0
+                val duration = System.currentTimeMillis() - startTime
+                val runtime = Runtime.getRuntime()
+                val finalMemory = runtime.totalMemory() - runtime.freeMemory()
+                val memoryUsed = finalMemory / (1024 * 1024) // MB
+                val topicsPerSecond = if (duration > 0) (totalIndexed * 1000) / duration else 0
 
                 // Verify mirror didn't change during indexing
-                public val finalMirror = mirrorManager.getCurrentMirrorDomain()
+                val finalMirror = mirrorManager.getCurrentMirrorDomain()
                 if (finalMirror != initialMirror) {
                     Log.w(
                         TAG,
@@ -250,7 +250,7 @@ public class ForumIndexer
                 }
 
                 // Verify actual count in database matches indexed count (single source of truth)
-                public val actualCountInDb = getIndexSize()
+                val actualCountInDb = getIndexSize()
                 if (actualCountInDb != totalIndexed) {
                     Log.w(
                         TAG,
@@ -269,7 +269,7 @@ public class ForumIndexer
 
                 // Log sample topics to verify index content (AUTOMATIC VERIFICATION)
                 try {
-                    public val sampleTopics = offlineSearchDao.getSampleTopics(5)
+                    val sampleTopics = offlineSearchDao.getSampleTopics(5)
                     Log.i(TAG, "🔍 === AUTOMATIC INDEX VERIFICATION: DATABASE CONTENT CHECK ===")
                     Log.i(TAG, "Found ${sampleTopics.size} sample topics in database:")
                     sampleTopics.forEachIndexed { index, topic ->
@@ -285,7 +285,7 @@ public class ForumIndexer
                 }
 
                 // Use database count as single source of truth for completion
-                public val finalCount = actualCountInDb
+                val finalCount = actualCountInDb
                 onProgress?.invoke(
                     IndexingProgress.Completed(
                         totalTopics = finalCount, // Use database count, not indexed count
@@ -312,11 +312,11 @@ public class ForumIndexer
             onProgress: ((forumId: String, updated: Int, total: Int) -> Unit)? = null,
         ): Int =
             withContext(Dispatchers.IO) {
-                public val currentIndexVersion = getCurrentIndexVersion()
-                public val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                val currentIndexVersion = getCurrentIndexVersion()
+                val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                 
-                var totalUpdated: Int = 0
-                val coversToPreload = mutableListOf<String>()
+                public var totalUpdated: Int = 0
+                public val coversToPreload = mutableListOf<String>()
 
                 Log.i(TAG, "Starting incremental update (max age: ${maxAgeMs / (1000 * 60 * 60)} hours)")
 
@@ -351,34 +351,34 @@ public class ForumIndexer
             onProgress: ((page: Int, topicsInForum: Int) -> Unit)? = null,
         ): Pair<Int, List<String>> {
             
-            var totalTopics: Int = 0
-            var page: Int = 0
-            var hasMorePages: Boolean = true
-            val coversToPreload = mutableListOf<String>()
-            public val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
+            public var totalTopics: Int = 0
+            public var page: Int = 0
+            public var hasMorePages: Boolean = true
+            public val coversToPreload = mutableListOf<String>()
+            val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
 
-            public val forumStartTime = System.currentTimeMillis()
-            public val initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
+            val forumStartTime = System.currentTimeMillis()
+            val initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
             Log.i(TAG, "Starting indexing forum $forumId (version $indexVersion)")
 
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {
-                    public val pageStartTime = System.currentTimeMillis()
-                    public val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
-                    public val fetchTime = System.currentTimeMillis() - pageStartTime
+                    val pageStartTime = System.currentTimeMillis()
+                    val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                    val fetchTime = System.currentTimeMillis() - pageStartTime
 
                     if (!response.isSuccessful) {
                         Log.w(TAG, "Failed to fetch forum $forumId page $page: HTTP ${response.code()} (took ${fetchTime}ms)")
                         break
                     }
 
-                    public val body = response.body() ?: break
-                    public val bodySize = body.contentLength()
-                    public val parseStartTime = System.currentTimeMillis()
+                    val body = response.body() ?: break
+                    val bodySize = body.contentLength()
+                    val parseStartTime = System.currentTimeMillis()
                     // Use parseForumPageWithPagination to get pagination info
-                    public val pageResult = parser.parseForumPageWithPagination(body, forumId)
-                    public val topics = pageResult.topics
-                    public val parseTime = System.currentTimeMillis() - parseStartTime
+                    val pageResult = parser.parseForumPageWithPagination(body, forumId)
+                    val topics = pageResult.topics
+                    val parseTime = System.currentTimeMillis() - parseStartTime
 
                     // Update hasMorePages based on actual pagination detection
                     hasMorePages = pageResult.hasMorePages
@@ -387,14 +387,14 @@ public class ForumIndexer
                         Log.d(TAG, "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)")
                         hasMorePages = false
                     } else {
-                        public val dbStartTime = System.currentTimeMillis()
+                        val dbStartTime = System.currentTimeMillis()
                         // Validate topics before adding to index - only count valid ones
-                        public val validTopics =
+                        val validTopics =
                             topics.filter { topic ->
-                                public val domain = topic.toDomain()
+                                val domain = topic.toDomain()
                                 domain.isValid()
                             }
-                        public val invalidCount = topics.size - validTopics.size
+                        val invalidCount = topics.size - validTopics.size
                         if (invalidCount > 0) {
                             Log.w(
                                 TAG,
@@ -410,7 +410,7 @@ public class ForumIndexer
                         )
                         // Add only valid topics to buffer with current index version
                         // Note: magnetUrl, torrentUrl, coverUrl are NOT saved (optimization)
-                        public val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
+                        val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
                         totalTopics += validTopics.size // Count only valid topics
 
@@ -419,10 +419,10 @@ public class ForumIndexer
 
                         // Flush to DB when buffer reaches batch size or at end
                         if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
-                            public val dbWriteStartTime = System.currentTimeMillis()
+                            val dbWriteStartTime = System.currentTimeMillis()
                             offlineSearchDao.upsertTopics(entitiesBuffer)
-                            public val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
-                            public val writtenCount = entitiesBuffer.size
+                            val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                            val writtenCount = entitiesBuffer.size
                             Log.d(TAG, "Forum $forumId: wrote $writtenCount topics to DB in ${dbWriteTime}ms")
                             entitiesBuffer.clear()
                         }
@@ -436,7 +436,7 @@ public class ForumIndexer
                     }
                 } catch (e: Exception) {
                     // Check if this is a network/DNS error that might be resolved by switching mirror
-                    public val isNetworkError =
+                    val isNetworkError =
                         e is java.net.UnknownHostException ||
                             e is java.net.ConnectException ||
                             e is java.net.SocketTimeoutException ||
@@ -447,35 +447,35 @@ public class ForumIndexer
                         Log.w(TAG, "Network error indexing forum $forumId page $page (${e.javaClass.simpleName}): ${e.message}")
 
                         // Check if auto-switch is enabled before attempting mirror switch
-                        public val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabled()
+                        val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabled()
 
                         if (!autoSwitchEnabled) {
                             Log.w(TAG, "Auto-switch is disabled, not attempting mirror switch. User must switch mirror manually.")
                             hasMorePages = false
                         } else {
                             // Try switching mirror and retry once
-                            var retrySucceeded: Boolean = false
+                            public var retrySucceeded: Boolean = false
                             try {
                                 Log.i(TAG, "Auto-switch enabled, attempting to switch mirror...")
-                                val switched = mirrorManager.switchToNextMirror()
+                                public val switched = mirrorManager.switchToNextMirror()
                                 if (switched) {
-                                    val newMirror = mirrorManager.currentMirror.value
+                                    public val newMirror = mirrorManager.currentMirror.value
                                     Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
                                     delay(500) // Brief delay before retry
                                     // Retry the request
-                                    public val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                                    val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
                                     if (retryResponse.isSuccessful) {
-                                        public val retryBody = retryResponse.body()
+                                        val retryBody = retryResponse.body()
                                         if (retryBody != null) {
-                                            public val retryParseStartTime = System.currentTimeMillis()
-                                            public val retryPageResult = parser.parseForumPageWithPagination(retryBody, forumId)
-                                            public val retryTopics = retryPageResult.topics
-                                            public val retryParseTime = System.currentTimeMillis() - retryParseStartTime
+                                            val retryParseStartTime = System.currentTimeMillis()
+                                            val retryPageResult = parser.parseForumPageWithPagination(retryBody, forumId)
+                                            val retryTopics = retryPageResult.topics
+                                            val retryParseTime = System.currentTimeMillis() - retryParseStartTime
 
                                             hasMorePages = retryPageResult.hasMorePages
 
                                             if (retryTopics.isNotEmpty()) {
-                                                public val newEntities = retryTopics.map { it.toCachedTopicEntity(indexVersion) }
+                                                val newEntities = retryTopics.map { it.toCachedTopicEntity(indexVersion) }
                                                 entitiesBuffer.addAll(newEntities)
                                                 totalTopics += retryTopics.size
 
@@ -489,9 +489,9 @@ public class ForumIndexer
 
                                                 // Flush if needed
                                                 if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
-                                                    public val dbWriteStartTime = System.currentTimeMillis()
+                                                    val dbWriteStartTime = System.currentTimeMillis()
                                                     offlineSearchDao.upsertTopics(entitiesBuffer)
-                                                    public val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                                                    val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
                                                     Log.d(
                                                         TAG,
                                                         "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms",
@@ -536,16 +536,16 @@ public class ForumIndexer
 
             // Flush remaining entities
             if (entitiesBuffer.isNotEmpty()) {
-                public val dbWriteStartTime = System.currentTimeMillis()
+                val dbWriteStartTime = System.currentTimeMillis()
                 offlineSearchDao.upsertTopics(entitiesBuffer)
-                public val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
                 Log.d(TAG, "Forum $forumId: flushed ${entitiesBuffer.size} remaining topics to DB in ${dbWriteTime}ms")
             }
 
-            public val forumDuration = System.currentTimeMillis() - forumStartTime
-            public val finalMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
-            public val memoryUsed = (finalMemory - initialMemory) / (1024 * 1024) // MB
-            public val avgTimePerTopic = if (totalTopics > 0) forumDuration / totalTopics else 0
+            val forumDuration = System.currentTimeMillis() - forumStartTime
+            val finalMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
+            val memoryUsed = (finalMemory - initialMemory) / (1024 * 1024) // MB
+            val avgTimePerTopic = if (totalTopics > 0) forumDuration / totalTopics else 0
 
             Log.i(
                 TAG,
@@ -572,22 +572,22 @@ public class ForumIndexer
             onProgress: ((forumId: String, updated: Int, total: Int) -> Unit)?,
         ): Pair<Int, List<String>> {
             
-            var totalUpdated: Int = 0
-            var page: Int = 0
-            var hasMorePages: Boolean = true
-            val coversToPreload = mutableListOf<String>()
+            public var totalUpdated: Int = 0
+            public var page: Int = 0
+            public var hasMorePages: Boolean = true
+            public val coversToPreload = mutableListOf<String>()
 
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {
-                    public val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                    val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
                     if (!response.isSuccessful) {
                         break
                     }
 
-                    public val body = response.body() ?: break
+                    val body = response.body() ?: break
                     // Use parseForumPageWithPagination to get pagination info
-                    public val pageResult = parser.parseForumPageWithPagination(body, forumId)
-                    public val topics = pageResult.topics
+                    val pageResult = parser.parseForumPageWithPagination(body, forumId)
+                    val topics = pageResult.topics
 
                     // Update hasMorePages based on actual pagination detection
                     hasMorePages = pageResult.hasMorePages
@@ -596,12 +596,12 @@ public class ForumIndexer
                         hasMorePages = false
                     } else {
                         // Validate topics before processing - only count valid ones
-                        public val validTopics =
+                        val validTopics =
                             topics.filter { topic ->
-                                public val domain = topic.toDomain()
+                                val domain = topic.toDomain()
                                 domain.isValid()
                             }
-                        public val invalidCount = topics.size - validTopics.size
+                        val invalidCount = topics.size - validTopics.size
                         if (invalidCount > 0) {
                             Log.w(
                                 TAG,
@@ -610,9 +610,9 @@ public class ForumIndexer
                             )
                         }
                         // Filter: only update new topics or topics that need updating
-                        public val topicsToUpdate =
+                        val topicsToUpdate =
                             validTopics.filter { topic ->
-                                public val existing = offlineSearchDao.getTopicById(topic.topicId)
+                                val existing = offlineSearchDao.getTopicById(topic.topicId)
                                 existing == null ||
                                     // New topic
                                     existing.lastUpdated < (System.currentTimeMillis() - maxAgeMs) ||
@@ -621,10 +621,10 @@ public class ForumIndexer
                             }
 
                         if (topicsToUpdate.isNotEmpty()) {
-                            public val entities = topicsToUpdate.map { it.toCachedTopicEntity(currentIndexVersion) }
-                            public val dbWriteStartTime = System.currentTimeMillis()
+                            val entities = topicsToUpdate.map { it.toCachedTopicEntity(currentIndexVersion) }
+                            val dbWriteStartTime = System.currentTimeMillis()
                             offlineSearchDao.upsertTopics(entities)
-                            public val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                            val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
                             Log.d(TAG, "Forum $forumId incremental: updated ${entities.size} topics in DB (${dbWriteTime}ms)")
                             totalUpdated += topicsToUpdate.size
 
@@ -639,7 +639,7 @@ public class ForumIndexer
                     }
                 } catch (e: Exception) {
                     // Check if this is a network/DNS error that might be resolved by switching mirror
-                    public val isNetworkError =
+                    val isNetworkError =
                         e is java.net.UnknownHostException ||
                             e is java.net.ConnectException ||
                             e is java.net.SocketTimeoutException ||
@@ -650,7 +650,7 @@ public class ForumIndexer
                         Log.w(TAG, "Network error updating forum $forumId page $page (${e.javaClass.simpleName}): ${e.message}")
 
                         // Check if auto-switch is enabled before attempting mirror switch
-                        public val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabled()
+                        val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabled()
 
                         if (!autoSwitchEnabled) {
                             Log.w(TAG, "Auto-switch is disabled, not attempting mirror switch. User must switch mirror manually.")
@@ -659,33 +659,33 @@ public class ForumIndexer
                             // Try switching mirror and retry once
                             try {
                                 Log.i(TAG, "Auto-switch enabled, attempting to switch mirror...")
-                                public val switched = mirrorManager.switchToNextMirror()
+                                val switched = mirrorManager.switchToNextMirror()
                                 if (switched) {
-                                    public val newMirror = mirrorManager.currentMirror.value
+                                    val newMirror = mirrorManager.currentMirror.value
                                     Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
                                     delay(500) // Brief delay before retry
                                     // Retry the request - will continue in next iteration if successful
-                                    public val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                                    val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
                                     if (retryResponse.isSuccessful) {
-                                        public val retryBody = retryResponse.body()
+                                        val retryBody = retryResponse.body()
                                         if (retryBody != null) {
-                                            public val retryPageResult = parser.parseForumPageWithPagination(retryBody, forumId)
-                                            public val retryTopics = retryPageResult.topics
+                                            val retryPageResult = parser.parseForumPageWithPagination(retryBody, forumId)
+                                            val retryTopics = retryPageResult.topics
 
                                             hasMorePages = retryPageResult.hasMorePages
 
                                             if (retryTopics.isNotEmpty()) {
                                                 // Filter topics to update
-                                                public val topicsToUpdate =
+                                                val topicsToUpdate =
                                                     retryTopics.filter { topic ->
-                                                        public val existing = offlineSearchDao.getTopicById(topic.topicId)
+                                                        val existing = offlineSearchDao.getTopicById(topic.topicId)
                                                         existing == null ||
                                                             existing.lastUpdated < (System.currentTimeMillis() - maxAgeMs) ||
                                                             existing.indexVersion != currentIndexVersion
                                                     }
 
                                                 if (topicsToUpdate.isNotEmpty()) {
-                                                    public val entities = topicsToUpdate.map { it.toCachedTopicEntity(currentIndexVersion) }
+                                                    val entities = topicsToUpdate.map { it.toCachedTopicEntity(currentIndexVersion) }
                                                     offlineSearchDao.upsertTopics(entities)
                                                     totalUpdated += topicsToUpdate.size
 
@@ -734,8 +734,8 @@ public class ForumIndexer
          */
         private suspend fun preloadCovers(coverUrls: List<String>) =
             withContext(Dispatchers.IO) {
-                public val imageLoader = SingletonImageLoader.get(context)
-                public val uniqueUrls = coverUrls.distinct().take(500) // Limit to 500 covers per batch
+                val imageLoader = SingletonImageLoader.get(context)
+                val uniqueUrls = coverUrls.distinct().take(500) // Limit to 500 covers per batch
 
                 Log.d(TAG, "Preloading ${uniqueUrls.size} cover images...")
 
@@ -745,7 +745,7 @@ public class ForumIndexer
                         .map { url ->
                             async(Dispatchers.IO) {
                                 try {
-                                    public val request =
+                                    val request =
                                         ImageRequest
                                             .Builder(context)
                                             .data(url)
@@ -790,7 +790,7 @@ public class ForumIndexer
          */
         private suspend fun getCurrentIndexVersion(): Int =
             withContext(Dispatchers.IO) {
-                public val metadata = offlineSearchDao.getIndexMetadata()
+                val metadata = offlineSearchDao.getIndexMetadata()
                 // For now, return 1. In future, can track version separately
                 1
             }
@@ -808,8 +808,8 @@ public class ForumIndexer
                     return@withContext true // No index, needs full index
                 }
 
-                public val oldestUpdated = metadata.oldestUpdated ?: return@withContext true
-                public val age = System.currentTimeMillis() - oldestUpdated
+                val oldestUpdated = metadata.oldestUpdated ?: return@withContext true
+                val age = System.currentTimeMillis() - oldestUpdated
                 age > maxAgeMs
             }
 

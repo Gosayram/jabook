@@ -46,16 +46,16 @@ public sealed interface TorrentDownloadsUiState {
     data object Loading : TorrentDownloadsUiState
 
     public data class Success(
-        public val activeDownloads: List<TorrentDownload>,
-        public val pausedDownloads: List<TorrentDownload>,
-        public val completedDownloads: List<TorrentDownload>,
-        public val errorDownloads: List<TorrentDownload>,
+        val activeDownloads: List<TorrentDownload>,
+        val pausedDownloads: List<TorrentDownload>,
+        val completedDownloads: List<TorrentDownload>,
+        val errorDownloads: List<TorrentDownload>,
     ) : TorrentDownloadsUiState
 
     data object Empty : TorrentDownloadsUiState
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : TorrentDownloadsUiState
 }
 
@@ -75,18 +75,18 @@ public class TorrentDownloadsViewModel
         // Init block moved below to use new prepareAddTorrent logic
 
         private val _snackbarEvent = Channel<String>()
-        public val snackbarEvent = _snackbarEvent.receiveAsFlow()
+        val snackbarEvent = _snackbarEvent.receiveAsFlow()
 
         // Selected download for details view
         private val _selectedDownload = MutableStateFlow<TorrentDownload?>(null)
-        public val selectedDownload: StateFlow<TorrentDownload?> = _selectedDownload.asStateFlow()
+        val selectedDownload: StateFlow<TorrentDownload?> = _selectedDownload.asStateFlow()
 
         // Filter state
         private val _showCompletedOnly = MutableStateFlow(false)
-        public val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
+        val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
 
         // UI state combining downloads from manager and repository
-        public val uiState: StateFlow<TorrentDownloadsUiState> =
+        val uiState: StateFlow<TorrentDownloadsUiState> =
             combine(
                 torrentManager.downloadsFlow,
                 repository.getAllFlow(),
@@ -95,11 +95,11 @@ public class TorrentDownloadsViewModel
                 try {
                     // Merge active downloads with persisted ones
                     // Active downloads take precedence (they have real-time data)
-                    public val activeMap = activeDownloads.values.associateBy { it.hash }
-                    public val persistedMap = persistedDownloads.associateBy { it.hash }
+                    val activeMap = activeDownloads.values.associateBy { it.hash }
+                    val persistedMap = persistedDownloads.associateBy { it.hash }
 
                     // Combine: active downloads override persisted ones with same hash
-                    public val allDownloads =
+                    val allDownloads =
                         (persistedMap + activeMap)
                             .values
                             .filter { download ->
@@ -111,7 +111,7 @@ public class TorrentDownloadsViewModel
                         TorrentDownloadsUiState.Empty
                     } else {
                         // Group by state
-                        public val active =
+                        val active =
                             allDownloads.filter { download ->
                                 download.state in
                                     listOf(
@@ -123,9 +123,9 @@ public class TorrentDownloadsViewModel
                                     )
                             }
 
-                        public val paused = allDownloads.filter { it.state == TorrentState.PAUSED }
-                        public val completed = allDownloads.filter { it.state == TorrentState.COMPLETED }
-                        public val errors = allDownloads.filter { it.state == TorrentState.ERROR }
+                        val paused = allDownloads.filter { it.state == TorrentState.PAUSED }
+                        val completed = allDownloads.filter { it.state == TorrentState.COMPLETED }
+                        val errors = allDownloads.filter { it.state == TorrentState.ERROR }
 
                         TorrentDownloadsUiState.Success(
                             activeDownloads = active,
@@ -244,15 +244,15 @@ public class TorrentDownloadsViewModel
          */
         // Pending torrent state for dialog
         private val _pendingMagnetLink = MutableStateFlow<String?>(null)
-        public val pendingMagnetLink: StateFlow<String?> = _pendingMagnetLink.asStateFlow()
+        val pendingMagnetLink: StateFlow<String?> = _pendingMagnetLink.asStateFlow()
 
         private val _pendingDownloadPath = MutableStateFlow("")
-        public val pendingDownloadPath: StateFlow<String> = _pendingDownloadPath.asStateFlow()
+        val pendingDownloadPath: StateFlow<String> = _pendingDownloadPath.asStateFlow()
 
         init {
             // Check for initial magnet link
             try {
-                public val route = savedStateHandle.toRoute<DownloadsRoute>()
+                val route = savedStateHandle.toRoute<DownloadsRoute>()
                 route.magnetLink?.let { magnetLink ->
                     prepareAddTorrent(magnetLink)
                 }
@@ -305,7 +305,7 @@ public class TorrentDownloadsViewModel
 
         private suspend fun checkNetworkAndWarn() {
             val prefs = settingsRepository.userPreferences.first()
-            public val networkType = networkMonitor.networkType.first()
+            val networkType = networkMonitor.networkType.first()
 
             if (prefs.wifiOnlyDownload && networkType != com.jabook.app.jabook.compose.data.network.NetworkType.WIFI) {
                 _snackbarEvent.send("Download queued: Waiting for WiFi connection")

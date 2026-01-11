@@ -48,12 +48,12 @@ public sealed interface SearchUiState {
     data object Loading : SearchUiState
 
     public data class Success(
-        public val localResults: List<Book>,
-        public val onlineResults: List<RutrackerSearchResult>,
+        val localResults: List<Book>,
+        val onlineResults: List<RutrackerSearchResult>,
     ) : SearchUiState
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : SearchUiState
 }
 
@@ -76,26 +76,26 @@ public class SearchViewModel
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        public val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+        val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
         // Filters and Sort state
         private val _filters = MutableStateFlow(SearchFilters())
-        public val filters: StateFlow<SearchFilters> = _filters.asStateFlow()
+        val filters: StateFlow<SearchFilters> = _filters.asStateFlow()
 
         private val _sortOrder = MutableStateFlow(SearchSortOrder.RELEVANCE)
-        public val sortOrder: StateFlow<SearchSortOrder> = _sortOrder.asStateFlow()
+        val sortOrder: StateFlow<SearchSortOrder> = _sortOrder.asStateFlow()
 
         // Raw results to support client-side filtering
         private val rawOnlineResults = MutableStateFlow<List<RutrackerSearchResult>>(emptyList())
 
         // UI state - derived from raw results and filters
         private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
-        public val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+        val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
         /**
          * Local search results with debouncing (300ms).
          */
-        public val localResults: StateFlow<List<Book>> =
+        val localResults: StateFlow<List<Book>> =
             _searchQuery
                 .debounce(300)
                 .flatMapLatest { query ->
@@ -113,7 +113,7 @@ public class SearchViewModel
         /**
          * Recent search history.
          */
-        public val searchHistory: StateFlow<List<com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity>> =
+        val searchHistory: StateFlow<List<com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity>> =
             searchHistoryRepository
                 .getRecentSearches(limit = 10)
                 .stateIn(
@@ -125,7 +125,7 @@ public class SearchViewModel
         /**
          * Favorite IDs for checking status.
          */
-        public val favoriteIds: StateFlow<Set<String>> =
+        val favoriteIds: StateFlow<Set<String>> =
             favoritesRepository.favoriteIds
                 .map { it.toSet() }
                 .stateIn(
@@ -186,7 +186,7 @@ public class SearchViewModel
                             )
                             // Log details about results
                             if (result.data.isNotEmpty()) {
-                                public val sample = result.data.take(3)
+                                val sample = result.data.take(3)
                                 sample.forEachIndexed { index, item ->
                                     android.util.Log.d(
                                         "SearchViewModel",
@@ -225,7 +225,7 @@ public class SearchViewModel
         }
 
         private fun recalculateUiState() {
-            public val currentRaw = rawOnlineResults.value
+            val currentRaw = rawOnlineResults.value
             if (currentRaw.isEmpty() && _uiState.value !is SearchUiState.Success) {
                 android.util.Log.d("SearchViewModel", "⏭️ Skipping UI state recalculation: no raw results")
                 return
@@ -236,7 +236,7 @@ public class SearchViewModel
                 "🔄 Recalculating UI state: ${currentRaw.size} raw results, " +
                     "filters=${_filters.value}, sortOrder=${_sortOrder.value}",
             )
-            public val filtered = applyFiltersAndSort(currentRaw)
+            val filtered = applyFiltersAndSort(currentRaw)
             android.util.Log.d(
                 "SearchViewModel",
                 "✅ UI state updated: ${filtered.size} filtered results (from ${currentRaw.size} raw)",
@@ -250,19 +250,19 @@ public class SearchViewModel
         }
 
         private fun applyFiltersAndSort(results: List<RutrackerSearchResult>): List<RutrackerSearchResult> {
-            public var processing = results
+            var processing = results
 
             // Apply filters
-            public val f = _filters.value
+            val f = _filters.value
             if (f.minSeeders != null) {
                 processing = processing.filter { it.seeders >= f.minSeeders }
             }
             if (f.minSize != null || f.maxSize != null) {
                 processing =
                     processing.filter { result ->
-                        public val sizeBytes = parseSize(result.size)
-                        public val minOk = f.minSize?.let { sizeBytes >= it } ?: true
-                        public val maxOk = f.maxSize?.let { sizeBytes <= it } ?: true
+                        val sizeBytes = parseSize(result.size)
+                        val minOk = f.minSize?.let { sizeBytes >= it } ?: true
+                        val maxOk = f.maxSize?.let { sizeBytes <= it } ?: true
                         minOk && maxOk
                     }
             }
@@ -284,10 +284,10 @@ public class SearchViewModel
 
         private fun parseSize(sizeStr: String): Long {
             // Expected format: "1.23 GB" or "500 MB"
-            public val parts = sizeStr.trim().split("\\s+".toRegex())
+            val parts = sizeStr.trim().split("\\s+".toRegex())
             if (parts.size < 2) return 0L
-            public val value = parts[0].toDoubleOrNull() ?: 0.0
-            public val unit = parts[1].uppercase()
+            val value = parts[0].toDoubleOrNull() ?: 0.0
+            val unit = parts[1].uppercase()
             return when {
                 unit.contains("GB") -> (value * 1024 * 1024 * 1024).toLong()
                 unit.contains("MB") -> (value * 1024 * 1024).toLong()
@@ -396,9 +396,9 @@ public fun SearchViewModel.createOnlineBookActionsProvider(
     ) -> RutrackerSearchResult?,
 > {
     // We need a way to map book ID back to RutrackerSearchResult for callbacks
-    public val currentResults = mutableMapOf<String, RutrackerSearchResult>()
+    val currentResults = mutableMapOf<String, RutrackerSearchResult>()
 
-    public val provider =
+    val provider =
         com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
             onBookClick = { bookId ->
                 currentResults[bookId]?.let(onBookClick)

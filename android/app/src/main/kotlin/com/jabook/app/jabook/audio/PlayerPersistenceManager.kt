@@ -45,20 +45,20 @@ public class PlayerPersistenceManager
 
         // NEW: StateFlow for last played book ID (for mini player)
         private val _lastPlayedBookId = MutableStateFlow<String?>(null)
-        public val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
+        val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
 
         init {
             // Load last played book ID on init
-            public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             _lastPlayedBookId.value = prefs.getString(KEY_LAST_PLAYED_BOOK_ID, null)
         }
 
         public data class PersistedPlayerState(
-            public val groupPath: String,
-            public val filePaths: List<String>,
-            public val currentIndex: Int,
-            public val currentPosition: Long,
-            public val metadata: Map<String, String>?,
+            val groupPath: String,
+            val filePaths: List<String>,
+            val currentIndex: Int,
+            val currentPosition: Long,
+            val metadata: Map<String, String>?,
         )
 
         suspend fun saveCurrentMediaItem(
@@ -71,7 +71,7 @@ public class PlayerPersistenceManager
             groupPath: String,
         ) = withContext(Dispatchers.IO) {
             try {
-                public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 prefs
                     .edit()
                     .putString(KEY_RESUMPTION_FILE_PATH, mediaId)
@@ -97,11 +97,11 @@ public class PlayerPersistenceManager
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     val filePath = prefs.getString(KEY_RESUMPTION_FILE_PATH, null) ?: return@withContext null
                     val positionMs = prefs.getLong(KEY_RESUMPTION_POSITION_MS, 0L)
-                    public val durationMs = prefs.getLong(KEY_RESUMPTION_DURATION_MS, 0L)
-                    public val artworkPath = prefs.getString(KEY_RESUMPTION_ARTWORK_PATH, "")
-                    public val title = prefs.getString(KEY_RESUMPTION_TITLE, "")
-                    public val artist = prefs.getString(KEY_RESUMPTION_ARTIST, "")
-                    public val groupPath = prefs.getString(KEY_RESUMPTION_GROUP_PATH, "")
+                    val durationMs = prefs.getLong(KEY_RESUMPTION_DURATION_MS, 0L)
+                    val artworkPath = prefs.getString(KEY_RESUMPTION_ARTWORK_PATH, "")
+                    val title = prefs.getString(KEY_RESUMPTION_TITLE, "")
+                    val artist = prefs.getString(KEY_RESUMPTION_ARTIST, "")
+                    val groupPath = prefs.getString(KEY_RESUMPTION_GROUP_PATH, "")
 
                     mapOf(
                         "filePath" to filePath,
@@ -124,24 +124,24 @@ public class PlayerPersistenceManager
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     val jsonString = prefs.getString("flutter.player_state", null) ?: return@withContext null
 
-                    public val json = JSONObject(jsonString)
-                    public val groupPath = json.getString("groupPath")
-                    public val currentIndex = json.optInt("currentIndex", 0)
-                    public val currentPosition = json.optLong("currentPosition", 0L)
+                    val json = JSONObject(jsonString)
+                    val groupPath = json.getString("groupPath")
+                    val currentIndex = json.optInt("currentIndex", 0)
+                    val currentPosition = json.optLong("currentPosition", 0L)
 
-                    public val filePathsJson = json.getJSONArray("filePaths")
-                    public val filePaths = mutableListOf<String>()
+                    val filePathsJson = json.getJSONArray("filePaths")
+                    val filePaths = mutableListOf<String>()
                     for (i in 0 until filePathsJson.length()) {
                         filePaths.add(filePathsJson.getString(i))
                     }
 
-                    public val metadataJson = json.optJSONObject("metadata")
-                    public val metadata =
+                    val metadataJson = json.optJSONObject("metadata")
+                    val metadata =
                         if (metadataJson != null) {
-                            public val map = mutableMapOf<String, String>()
-                            public val keys = metadataJson.keys()
+                            val map = mutableMapOf<String, String>()
+                            val keys = metadataJson.keys()
                             while (keys.hasNext()) {
-                                public val key = keys.next()
+                                val key = keys.next()
                                 map[key] = metadataJson.getString(key)
                             }
                             map
@@ -228,7 +228,7 @@ public class PlayerPersistenceManager
 
             // NEW: Update last played book ID for mini player
             _lastPlayedBookId.value = bookId
-            public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().putString(KEY_LAST_PLAYED_BOOK_ID, bookId).apply()
         }
 
@@ -287,11 +287,11 @@ public class PlayerPersistenceManager
  * Lightweight state for backup and sorting
  */
 public data class PlayerState(
-    public val bookId: String,
-    public val positionMs: Long,
-    public val durationMs: Long,
-    public val filePaths: List<String>,
-    public val lastPlayedTimestamp: Long = 0L,
-    public val completedTimestamp: Long = 0L,
-    public val playCount: Int = 0,
+    val bookId: String,
+    val positionMs: Long,
+    val durationMs: Long,
+    val filePaths: List<String>,
+    val lastPlayedTimestamp: Long = 0L,
+    val completedTimestamp: Long = 0L,
+    val playCount: Int = 0,
 )

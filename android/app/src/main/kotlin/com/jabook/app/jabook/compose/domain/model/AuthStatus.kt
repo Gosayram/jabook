@@ -27,13 +27,13 @@ public sealed interface AuthStatus {
      * User is successfully authenticated.
      */
     public data class Authenticated(
-        public val username: String,
+        val username: String,
     ) : AuthStatus
 
     /**
      * Authentication failed or error occurred.
      */
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : AuthStatus
 }

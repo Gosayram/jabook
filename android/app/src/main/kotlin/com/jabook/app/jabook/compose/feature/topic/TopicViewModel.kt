@@ -55,11 +55,11 @@ public sealed interface TopicUiState {
     data object Loading : TopicUiState
 
     public data class Success(
-        public val details: RutrackerTopicDetails,
+        val details: RutrackerTopicDetails,
     ) : TopicUiState
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : TopicUiState
 }
 
@@ -85,12 +85,12 @@ public class TopicViewModel
         private val topicId: String = savedStateHandle.toRoute<TopicRoute>().topicId
 
         private val _uiState = MutableStateFlow<TopicUiState>(TopicUiState.Loading)
-        public val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
+        val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
 
         private val _message = MutableStateFlow<String?>(null)
-        public val message: StateFlow<String?> = _message.asStateFlow()
+        val message: StateFlow<String?> = _message.asStateFlow()
 
-        public val authStatus: StateFlow<AuthStatus> =
+        val authStatus: StateFlow<AuthStatus> =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -98,11 +98,11 @@ public class TopicViewModel
             )
 
         private val _isRefreshing = MutableStateFlow(false)
-        public val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+        val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
         // Pagination state
         private val _isLoadingMoreComments = MutableStateFlow(false)
-        public val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
+        val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
 
         private val loadedComments = mutableListOf<com.jabook.app.jabook.compose.domain.model.RutrackerComment>()
         private var currentLoadedPage = 1
@@ -121,16 +121,16 @@ public class TopicViewModel
                 nextPageToLoad = null
 
                 // Fetch page 1 to get metadata (title, torrent info, total pages)
-                public val result = rutrackerRepository.getTopicDetails(topicId)
+                val result = rutrackerRepository.getTopicDetails(topicId)
 
                 when (result) {
                     is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
-                        public val details = result.data
-                        public val totalPages = details.totalPages
+                        val details = result.data
+                        val totalPages = details.totalPages
 
                         // If multiple pages, fetch the LAST page first (newest comments)
                         if (totalPages > 1) {
-                            public val lastPageResult = rutrackerRepository.getTopicDetailsPage(topicId, totalPages)
+                            val lastPageResult = rutrackerRepository.getTopicDetailsPage(topicId, totalPages)
                             when (lastPageResult) {
                                 is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
                                     // Preload avatars for last page comments
@@ -152,7 +152,7 @@ public class TopicViewModel
                                 is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
                                     // Fallback to page 1 if last page fails
                                     avatarPreloader.preloadAvatars(context, details.comments)
-                                    public val reversedComments = details.comments.reversed()
+                                    val reversedComments = details.comments.reversed()
                                     loadedComments.addAll(reversedComments)
                                     _uiState.value =
                                         TopicUiState.Success(
@@ -166,7 +166,7 @@ public class TopicViewModel
                         } else {
                             // Single page: just reverse and show
                             avatarPreloader.preloadAvatars(context, details.comments)
-                            public val reversedComments = details.comments.reversed()
+                            val reversedComments = details.comments.reversed()
                             loadedComments.addAll(reversedComments)
                             currentLoadedPage = 1
                             nextPageToLoad = null
@@ -202,7 +202,7 @@ public class TopicViewModel
             viewModelScope.launch {
                 _isLoadingMoreComments.value = true
 
-                public val result = rutrackerRepository.getTopicDetailsPage(topicId, pageToLoad)
+                val result = rutrackerRepository.getTopicDetailsPage(topicId, pageToLoad)
 
                 when (result) {
                     is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
@@ -212,7 +212,7 @@ public class TopicViewModel
                         // Add older comments to the end of the list
                         // Comments on each page are oldest-to-newest naturally, so we reverse them
                         // to maintain newest-to-oldest order in the combined list
-                        public val reversedPageComments = result.data.comments.reversed()
+                        val reversedPageComments = result.data.comments.reversed()
                         loadedComments.addAll(reversedPageComments)
 
                         // Update pagination state
@@ -247,7 +247,7 @@ public class TopicViewModel
                     _isRefreshing.value = true
                 }
 
-                public val result = rutrackerRepository.getTopicDetails(topicId)
+                val result = rutrackerRepository.getTopicDetails(topicId)
 
                 when (result) {
                     is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
@@ -287,7 +287,7 @@ public class TopicViewModel
             viewModelScope.launch {
                 try {
                     // Prefer magnet URL over torrent URL
-                    public val downloadUrl = magnetUrl ?: torrentUrl
+                    val downloadUrl = magnetUrl ?: torrentUrl
                     if (downloadUrl.isNullOrBlank()) {
                         Log.e("TopicViewModel", "No download URL available")
                         _message.value = context.getString(R.string.failedToStartDownload)
@@ -305,7 +305,7 @@ public class TopicViewModel
                     }
 
                     // Get default download path
-                    public val downloadsDir =
+                    val downloadsDir =
                         android.os.Environment.getExternalStoragePublicDirectory(
                             android.os.Environment.DIRECTORY_DOWNLOADS,
                         )
@@ -316,9 +316,9 @@ public class TopicViewModel
                     }
 
                     // Create base directory for JabookAudio if it doesn't exist
-                    public val baseDir = File(downloadsDir, "JabookAudio")
+                    val baseDir = File(downloadsDir, "JabookAudio")
                     if (!baseDir.exists()) {
-                        public val created = baseDir.mkdirs()
+                        val created = baseDir.mkdirs()
                         if (!created && !baseDir.exists()) {
                             Log.e("TopicViewModel", "Failed to create base directory: ${baseDir.absolutePath}")
                             _message.value = context.getString(R.string.failedToStartDownload)
@@ -327,7 +327,7 @@ public class TopicViewModel
                     }
 
                     // Get book title from current state to create folder name
-                    public val bookTitle =
+                    val bookTitle =
                         when (val state = _uiState.value) {
                             is TopicUiState.Success -> {
                                 // Sanitize title for folder name (remove invalid characters)
@@ -340,9 +340,9 @@ public class TopicViewModel
                         }
 
                     // Create folder for this specific book: JabookAudio/{topicId}_{sanitizedTitle}
-                    public val bookFolder = File(baseDir, "${topicId}_$bookTitle")
+                    val bookFolder = File(baseDir, "${topicId}_$bookTitle")
                     if (!bookFolder.exists()) {
-                        public val created = bookFolder.mkdirs()
+                        val created = bookFolder.mkdirs()
                         if (!created && !bookFolder.exists()) {
                             Log.e("TopicViewModel", "Failed to create book directory: ${bookFolder.absolutePath}")
                             _message.value = context.getString(R.string.failedToStartDownload)
@@ -350,7 +350,7 @@ public class TopicViewModel
                         }
                     }
 
-                    public val savePath = bookFolder.absolutePath
+                    val savePath = bookFolder.absolutePath
                     Log.d("TopicViewModel", "Saving torrent to: $savePath")
 
                     // Check if downloadUrl is a magnet URI or HTTP/HTTPS URL
@@ -374,7 +374,7 @@ public class TopicViewModel
                             Log.w("TopicViewModel", "TorrentManager already initialized or error: ${e.message}")
                         }
 
-                        public val result =
+                        val result =
                             torrentManager.addTorrent(
                                 magnetUri = downloadUrl,
                                 savePath = savePath,
@@ -382,12 +382,12 @@ public class TopicViewModel
                             )
 
                         if (result.isSuccess) {
-                            public val hash = result.getOrNull()
+                            val hash = result.getOrNull()
                             Log.i("TopicViewModel", "Torrent download started: $hash")
                             _message.value = context.getString(R.string.downloadStarted)
                         } else {
-                            public val exception = result.exceptionOrNull()
-                            public val error = exception?.message ?: context.getString(R.string.unknownError)
+                            val exception = result.exceptionOrNull()
+                            val error = exception?.message ?: context.getString(R.string.unknownError)
                             Log.e("TopicViewModel", "Failed to start torrent download: $error", exception)
                             _message.value = context.getString(R.string.failedToStartDownloadWithError, error)
                         }
@@ -416,15 +416,15 @@ public class TopicViewModel
                     withAuthorisedCheckUseCase(operationId = "download_torrent_file_$topicId") {
                         val response = rutrackerApi.downloadTorrent(topicId)
                         if (response.isSuccessful) {
-                            public val body: ResponseBody? = response.body()
+                            val body: ResponseBody? = response.body()
                             if (body != null) {
                                 withContext(Dispatchers.IO) {
                                     // Save to Downloads directory
-                                    public val downloadsDir =
+                                    val downloadsDir =
                                         android.os.Environment.getExternalStoragePublicDirectory(
                                             android.os.Environment.DIRECTORY_DOWNLOADS,
                                         )
-                                    public val torrentFile = File(downloadsDir, "$topicId.torrent")
+                                    val torrentFile = File(downloadsDir, "$topicId.torrent")
 
                                     body.byteStream().use { input ->
                                         FileOutputStream(torrentFile).use { output ->
@@ -462,8 +462,8 @@ public class TopicViewModel
                 return
             }
 
-            public val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            public val clip = ClipData.newPlainText(context.getString(R.string.magnetLinkLabel), magnetUrl)
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText(context.getString(R.string.magnetLinkLabel), magnetUrl)
             clipboard.setPrimaryClip(clip)
             Log.i("TopicViewModel", "Magnet link copied to clipboard")
             _message.value = context.getString(R.string.magnetLinkCopiedMessage)

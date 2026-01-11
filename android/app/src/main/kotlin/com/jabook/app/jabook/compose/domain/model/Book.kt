@@ -66,31 +66,31 @@ public data class Book(
     /**
      * Calculated remaining duration to complete the book.
      */
-    public val remainingDuration: Duration
+    val remainingDuration: Duration
         get() = totalDuration - currentPosition
 
     /**
      * Whether the book has been started (position > 0).
      */
-    public val isStarted: Boolean
+    val isStarted: Boolean
         get() = currentPosition.inWholeMilliseconds > 0
 
     /**
      * Whether the book is currently downloading.
      */
-    public val isDownloading: Boolean
+    val isDownloading: Boolean
         get() = downloadStatus == DownloadStatus.DOWNLOADING
 
     /**
      * Whether the book is fully downloaded.
      */
-    public val isDownloaded: Boolean
+    val isDownloaded: Boolean
         get() = downloadStatus == DownloadStatus.DOWNLOADED
 
     /**
      * Whether the book can be played offline.
      */
-    public val isAvailableOffline: Boolean
+    val isAvailableOffline: Boolean
         get() = isDownloaded
 
     /**

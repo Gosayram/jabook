@@ -36,9 +36,9 @@ private val Context.audioPreferencesDataStore: DataStore<Preferences> by prefere
  * Keys for audio preferences.
  */
 public object AudioPreferencesKeys {
-    public val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
-    public val LAST_PLAYED_BOOK_ID = intPreferencesKey("last_played_book_id")
-    public val AUTO_PLAY_NEXT = booleanPreferencesKey("auto_play_next")
+    val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
+    val LAST_PLAYED_BOOK_ID = intPreferencesKey("last_played_book_id")
+    val AUTO_PLAY_NEXT = booleanPreferencesKey("auto_play_next")
 }
 
 /**
@@ -52,7 +52,7 @@ public class AudioPreferences(
     /**
      * Gets the playback speed preference.
      */
-    public val playbackSpeed: Flow<Float> =
+    val playbackSpeed: Flow<Float> =
         dataStore.data.map { preferences ->
             preferences[AudioPreferencesKeys.PLAYBACK_SPEED] ?: 1.0f
         }
@@ -69,7 +69,7 @@ public class AudioPreferences(
     /**
      * Gets the last played book ID.
      */
-    public val lastPlayedBookId: Flow<Int?> =
+    val lastPlayedBookId: Flow<Int?> =
         dataStore.data.map { preferences ->
             preferences[AudioPreferencesKeys.LAST_PLAYED_BOOK_ID]
         }
@@ -86,7 +86,7 @@ public class AudioPreferences(
     /**
      * Gets the auto play next preference.
      */
-    public val autoPlayNext: Flow<Boolean> =
+    val autoPlayNext: Flow<Boolean> =
         dataStore.data.map { preferences ->
             preferences[AudioPreferencesKeys.AUTO_PLAY_NEXT] ?: true
         }

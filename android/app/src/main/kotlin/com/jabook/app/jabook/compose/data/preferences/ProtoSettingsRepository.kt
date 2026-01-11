@@ -39,7 +39,7 @@ public interface SettingsRepository {
     /**
      * Get user preferences as Flow.
      */
-    public val userPreferences: Flow<UserPreferences>
+    val userPreferences: Flow<UserPreferences>
 
     /**
      * Update theme mode.
@@ -199,7 +199,7 @@ public class ProtoSettingsRepository
             crossfadeDurationMs: Long?,
         ) {
             dataStore.updateData { preferences ->
-                public val builder = preferences.toBuilder()
+                val builder = preferences.toBuilder()
                 rewindSeconds?.let { builder.setRewindDurationSeconds(it) }
                 forwardSeconds?.let { builder.setForwardDurationSeconds(it) }
                 volumeBoost?.let { builder.setVolumeBoostLevel(it) }
@@ -226,7 +226,7 @@ public class ProtoSettingsRepository
             playerNotifications: Boolean?,
         ) {
             dataStore.updateData { preferences ->
-                public val builder = preferences.toBuilder()
+                val builder = preferences.toBuilder()
                 notificationsEnabled?.let { builder.setNotificationsEnabled(it) }
                 downloadNotifications?.let { builder.setDownloadNotifications(it) }
                 playerNotifications?.let { builder.setPlayerNotifications(it) }
@@ -242,7 +242,7 @@ public class ProtoSettingsRepository
 
         override suspend fun addCustomMirror(domain: String) {
             dataStore.updateData { preferences ->
-                public val currentMirrors = preferences.customMirrorsList.toMutableList()
+                val currentMirrors = preferences.customMirrorsList.toMutableList()
                 if (!currentMirrors.contains(domain)) {
                     currentMirrors.add(domain)
                 }
@@ -256,7 +256,7 @@ public class ProtoSettingsRepository
 
         override suspend fun removeCustomMirror(domain: String) {
             dataStore.updateData { preferences ->
-                public val currentMirrors = preferences.customMirrorsList.toMutableList()
+                val currentMirrors = preferences.customMirrorsList.toMutableList()
                 currentMirrors.remove(domain)
                 preferences
                     .toBuilder()

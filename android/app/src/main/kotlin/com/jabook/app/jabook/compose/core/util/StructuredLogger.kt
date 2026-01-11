@@ -34,9 +34,9 @@ public class StructuredLogger(
     private val tag: String,
 ) {
     private data class Operation(
-        public val id: String,
-        public val name: String,
-        public val startTime: Long,
+        val id: String,
+        val name: String,
+        val startTime: Long,
     )
 
     private val activeOperations = mutableMapOf<String, Operation>()
@@ -52,8 +52,8 @@ public class StructuredLogger(
         operationName: String,
         operationId: String? = null,
     ): String {
-        public val id = operationId ?: "${operationName}_${System.currentTimeMillis()}"
-        public val startTime = System.currentTimeMillis()
+        val id = operationId ?: "${operationName}_${System.currentTimeMillis()}"
+        val startTime = System.currentTimeMillis()
         activeOperations[id] = Operation(id, operationName, startTime)
         Log.d(tag, "[$id] $operationName started")
         return id
@@ -71,15 +71,15 @@ public class StructuredLogger(
         success: Boolean = true,
         additionalInfo: String? = null,
     ) {
-        public val operation = activeOperations.remove(operationId)
-        public val duration =
+        val operation = activeOperations.remove(operationId)
+        val duration =
             if (operation != null) {
                 System.currentTimeMillis() - operation.startTime
             } else {
                 0L
             }
-        public val status = if (success) "✅" else "❌"
-        public val message =
+        val status = if (success) "✅" else "❌"
+        val message =
             buildString {
                 append("[$operationId] ")
                 append(if (success) "completed" else "failed")
@@ -107,7 +107,7 @@ public class StructuredLogger(
         message: String,
         level: LogLevel = LogLevel.DEBUG,
     ) {
-        public val logMessage: String = "[$operationId] $message"
+        val logMessage: String = "[$operationId] $message"
         when (level) {
             LogLevel.VERBOSE -> Log.v(tag, logMessage)
             LogLevel.DEBUG -> Log.d(tag, logMessage)
@@ -131,7 +131,7 @@ public class StructuredLogger(
         duration: Long,
         level: LogLevel = LogLevel.DEBUG,
     ) {
-        public val logMessage: String = "[$operationId] $message (${duration}ms)"
+        val logMessage: String = "[$operationId] $message (${duration}ms)"
         when (level) {
             LogLevel.VERBOSE -> Log.v(tag, logMessage)
             LogLevel.DEBUG -> Log.d(tag, logMessage)
@@ -153,7 +153,7 @@ public class StructuredLogger(
         message: String,
         throwable: Throwable? = null,
     ) {
-        public val logMessage: String = "[$operationId] ❌ $message"
+        val logMessage: String = "[$operationId] ❌ $message"
         if (throwable != null) {
             Log.e(tag, logMessage, throwable)
         } else {
@@ -186,7 +186,7 @@ public class StructuredLogger(
         message: String,
         duration: Long? = null,
     ) {
-        public val logMessage =
+        val logMessage =
             buildString {
                 append("[$operationId] ✅ $message")
                 if (duration != null) {
@@ -209,15 +209,15 @@ public class StructuredLogger(
         operationId: String? = null,
         block: suspend (String) -> T,
     ): T {
-        public val id = startOperation(operationName, operationId)
-        public val startTime = System.currentTimeMillis()
+        val id = startOperation(operationName, operationId)
+        val startTime = System.currentTimeMillis()
         return try {
-            public val result = block(id)
-            public val duration = System.currentTimeMillis() - startTime
+            val result = block(id)
+            val duration = System.currentTimeMillis() - startTime
             logSuccess(id, "$operationName completed", duration)
             result
         } catch (e: Throwable) {
-            public val duration = System.currentTimeMillis() - startTime
+            val duration = System.currentTimeMillis() - startTime
             logError(id, "$operationName failed (${duration}ms)", e)
             throw e
         }
@@ -236,15 +236,15 @@ public class StructuredLogger(
         operationId: String? = null,
         block: (String) -> T,
     ): T {
-        public val id = startOperation(operationName, operationId)
-        public val startTime = System.currentTimeMillis()
+        val id = startOperation(operationName, operationId)
+        val startTime = System.currentTimeMillis()
         return try {
-            public val result = block(id)
-            public val duration = System.currentTimeMillis() - startTime
+            val result = block(id)
+            val duration = System.currentTimeMillis() - startTime
             logSuccess(id, "$operationName completed", duration)
             result
         } catch (e: Throwable) {
-            public val duration = System.currentTimeMillis() - startTime
+            val duration = System.currentTimeMillis() - startTime
             logError(id, "$operationName failed (${duration}ms)", e)
             throw e
         }

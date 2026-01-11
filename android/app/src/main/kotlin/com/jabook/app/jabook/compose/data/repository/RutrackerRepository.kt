@@ -105,9 +105,9 @@ public class RutrackerRepositoryImpl
                 // Use ONLY indexed search (no network)
                 // android.util.Log.d("RutrackerRepositoryImpl", "🔍 Search started: query='$query'")
                 try {
-                    public val countStartTime = System.currentTimeMillis()
-                    public val indexSize = offlineSearchDao.getTopicCount()
-                    public val countDuration = System.currentTimeMillis() - countStartTime
+                    val countStartTime = System.currentTimeMillis()
+                    val indexSize = offlineSearchDao.getTopicCount()
+                    val countDuration = System.currentTimeMillis() - countStartTime
                     // android.util.Log.d(
                     //    "RutrackerRepositoryImpl",
                     //    "Index size check: $indexSize topics (${countDuration}ms)",
@@ -117,8 +117,8 @@ public class RutrackerRepositoryImpl
                         // Check for debug command
                         if (query.trim() == "!index" || query.trim() == ":debug") {
                             // android.util.Log.d("RutrackerRepositoryImpl", "🐞 Debug command detected, fetching sample topics")
-                            public val sampleTopics = offlineSearchDao.getSampleTopics(10)
-                            public val domainResults =
+                            val sampleTopics = offlineSearchDao.getSampleTopics(10)
+                            val domainResults =
                                 sampleTopics
                                     .map {
                                         it.toSearchResult().copy(
@@ -131,34 +131,35 @@ public class RutrackerRepositoryImpl
                         }
 
                         // Tokenize query for fuzzy search
-                        public val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
 
                         if (tokens.isEmpty()) {
                             emit(Result.Success(emptyList()))
                         } else {
                             // Build dynamic SQL query for token-based search
                             // Each token must be present in either title OR author
-                            public val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
-                            public val args = ArrayList<Any>()
+                            val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
+                            val args = ArrayList<Any>()
 
                             tokens.forEachIndexed { index, token ->
                                 if (index > 0) sqlBuilder.append(" AND ")
                                 sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
-                                public val likePattern: String = "%$token%"                                args.add(likePattern)
+                                
+                                val likePattern: String = "%$token%"                                args.add(likePattern)
                                 args.add(likePattern)
                             }
 
                             // Add ordering and limit
                             sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
 
-                            public val simpleQuery = androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray())
+                            val simpleQuery = androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray())
 
                             // Emit Flow from Room
                             offlineSearchDao
                                 .searchIndexedTopicsRaw(simpleQuery)
                                 .map { entities ->
-                                    public val dtoResults = entities.map { it.toSearchResult() }
-                                    public val domainResults = dtoResults.toDomainFromIndex()
+                                    val dtoResults = entities.map { it.toSearchResult() }
+                                    val domainResults = dtoResults.toDomainFromIndex()
                                     Result.Success(domainResults)
                                 }.collect {
                                     emit(it)
@@ -180,11 +181,11 @@ public class RutrackerRepositoryImpl
             try {
                 // Re-use existing getTopicDetails which fetches HTML and parses it
                 // This extracts the cover URL inside RutrackerParser
-                public val result = getTopicDetails(topicId)
+                val result = getTopicDetails(topicId)
 
                 when (result) {
                     is Result.Success -> {
-                                                public val coverUrl: Long = result.data.coverUrl
+                                                val coverUrl: Long = result.data.coverUrl
                         if (!coverUrl.isNullOrBlank()) {
                             // android.util.Log.d("RutrackerRepositoryImpl", "Updating cover for $topicId: $coverUrl")
                             offlineSearchDao.updateCoverUrl(topicId, coverUrl)
@@ -216,22 +217,22 @@ public class RutrackerRepositoryImpl
 
         override suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails> {
             return try {
-                public val response = api.getTopicDetails(topicId)
+                val response = api.getTopicDetails(topicId)
 
                 if (!response.isSuccessful) {
                     return Result.Error(Exception("HTTP ${response.code()}: ${response.message()}"))
                 }
 
                 // Get raw bytes and decode as Windows-1251
-                public val rawBytes = response.body()?.bytes() ?: return Result.Error(Exception("Empty response body"))
-                public val html = String(rawBytes, charset("windows-1251"))
+                val rawBytes = response.body()?.bytes() ?: return Result.Error(Exception("Empty response body"))
+                val html = String(rawBytes, charset("windows-1251"))
 
-                public val dtoDetails =
+                val dtoDetails =
                     parser.parseTopicDetails(html, topicId)
                         ?: return Result.Error(Exception("Failed to parse topic details"))
 
                 // Map DTO to domain model
-                public val domainDetails = dtoDetails.toDomain()
+                val domainDetails = dtoDetails.toDomain()
                 if (domainDetails.isValid()) {
                     Result.Success(domainDetails)
                 } else {
@@ -253,7 +254,7 @@ public class RutrackerRepositoryImpl
                         .toByteArray(charset("windows-1251"))
                         .toRequestBody("application/x-www-form-urlencoded; charset=windows-1251".toMediaType())
 
-                public val response = api.login(requestBody)
+                val response = api.login(requestBody)
 
                 if (!response.isSuccessful) {
                     return Result.Error(Exception("Login failed: HTTP ${response.code()}"))
@@ -273,21 +274,21 @@ public class RutrackerRepositoryImpl
         ): Result<RutrackerTopicDetails> {
             return try {
                 // Calculate offset: each page has 30 comments, offset = (page - 1) * 30
-                public val offset = (page - 1) * 30
-                public val response = api.getTopicDetailsAtPage(topicId, offset)
+                val offset = (page - 1) * 30
+                val response = api.getTopicDetailsAtPage(topicId, offset)
 
                 if (!response.isSuccessful) {
                     return Result.Error(Exception("HTTP ${response.code()}: ${response.message()}"))
                 }
 
-                public val rawBytes = response.body()?.bytes() ?: return Result.Error(Exception("Empty response body"))
-                public val html = String(rawBytes, charset("windows-1251"))
+                val rawBytes = response.body()?.bytes() ?: return Result.Error(Exception("Empty response body"))
+                val html = String(rawBytes, charset("windows-1251"))
 
-                public val dtoDetails =
+                val dtoDetails =
                     parser.parseTopicDetails(html, topicId)
                         ?: return Result.Error(Exception("Failed to parse topic details"))
 
-                public val domainDetails = dtoDetails.toDomain()
+                val domainDetails = dtoDetails.toDomain()
                 if (domainDetails.isValid() || (page > 1 && domainDetails.isValidForPagination())) {
                     Result.Success(domainDetails)
                 } else {

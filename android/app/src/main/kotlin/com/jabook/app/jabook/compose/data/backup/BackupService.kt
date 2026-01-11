@@ -74,16 +74,16 @@ public class BackupService
                     Log.d(TAG, "Starting data export")
 
                     // 1. Collect data
-                    public val backupData = collectData()
+                    val backupData = collectData()
 
                     // 2. Serialize to JSON
-                    public val jsonString = json.encodeToString(backupData)
+                    val jsonString = json.encodeToString(backupData)
                     Log.d(TAG, "Serialized backup: ${jsonString.length} bytes")
 
                     // 3. Write to file
-                    val timestamp = DateTimeFormatter.formatCurrentForFilename()
-                    val fileName: String = "jabook_backup_$timestamp.json"
-                    val file = File(context.cacheDir, fileName)
+                    public val timestamp = DateTimeFormatter.formatCurrentForFilename()
+                    public val fileName: String = "jabook_backup_$timestamp.json"
+                    public val file = File(context.cacheDir, fileName)
                     file.writeText(jsonString)
 
                     Log.d(TAG, "Backup written to ${file.absolutePath}")
@@ -110,7 +110,7 @@ public class BackupService
                     Log.d(TAG, "Starting data import from $uri")
 
                     // 1. Read file
-                    public val jsonString =
+                    val jsonString =
                         context.contentResolver.openInputStream(uri)?.use {
                             it.bufferedReader().readText()
                         } ?: throw IOException("Cannot read backup file")
@@ -118,11 +118,11 @@ public class BackupService
                     Log.d(TAG, "Read backup file: ${jsonString.length} bytes")
 
                     // 2. Parse JSON
-                    public val backupData = json.decodeFromString<BackupData>(jsonString)
+                    val backupData = json.decodeFromString<BackupData>(jsonString)
                     Log.d(TAG, "Parsed backup version ${backupData.version}")
 
                     // 3. Validate schema version (support both 1.x and 2.x)
-                    public val schemaVersion = backupData.schemaVersion ?: backupData.version // Fallback for v1.0.0
+                    val schemaVersion = backupData.schemaVersion ?: backupData.version // Fallback for v1.0.0
                     if (!isCompatibleVersion(schemaVersion)) {
                         throw IllegalArgumentException(
                             "Incompatible backup schema version: $schemaVersion. " +
@@ -131,7 +131,7 @@ public class BackupService
                     }
 
                     // 4. Import data
-                    public val stats = ImportStats()
+                    val stats = ImportStats()
 
                     // Import settings
                     restoreSettings(backupData.settings)
@@ -168,16 +168,16 @@ public class BackupService
             withContext(Dispatchers.IO) {
                 Log.d(TAG, "Collecting data for backup...")
 
-                public val timestamp = DateTimeFormatter.formatCurrentISO8601()
+                val timestamp = DateTimeFormatter.formatCurrentISO8601()
 
                 // Collect all data
-                public val appInfo = collectAppInfo()
-                public val settings = collectSettings()
-                public val books = collectBookMetadata()
-                public val favorites = collectFavorites()
-                public val searchHistory = collectSearchHistory()
-                public val scanPaths = collectScanPaths()
-                public val statistics = collectStatistics(books, favorites, searchHistory, scanPaths)
+                val appInfo = collectAppInfo()
+                val settings = collectSettings()
+                val books = collectBookMetadata()
+                val favorites = collectFavorites()
+                val searchHistory = collectSearchHistory()
+                val scanPaths = collectScanPaths()
+                val statistics = collectStatistics(books, favorites, searchHistory, scanPaths)
 
                 Log.d(
                     TAG,
@@ -205,9 +205,9 @@ public class BackupService
          * Collects app version and device information.
          */
         private fun collectAppInfo(): AppInfo {
-            public val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            public val versionName = packageInfo.versionName ?: "unknown"
-            public val versionCode =
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            val versionName = packageInfo.versionName ?: "unknown"
+            val versionCode =
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
                     packageInfo.longVersionCode.toInt()
                 } else {
@@ -215,7 +215,7 @@ public class BackupService
                     packageInfo.versionCode
                 }
 
-            public val flavor =
+            val flavor =
                 try {
                     // Try to get flavor from BuildConfig.APPLICATION_ID
                     // Each flavor has a different applicationId suffix:
@@ -223,8 +223,8 @@ public class BackupService
                     // - stage: .stage
                     // - beta: .beta
                     // - prod: no suffix
-                    public val buildConfigClass = Class.forName("com.jabook.app.jabook.BuildConfig")
-                    public val applicationId = buildConfigClass.getField("APPLICATION_ID").get(null) as? String
+                    val buildConfigClass = Class.forName("com.jabook.app.jabook.BuildConfig")
+                    val applicationId = buildConfigClass.getField("APPLICATION_ID").get(null) as? String
 
                     when {
                         applicationId?.endsWith(".dev") == true -> "dev"
@@ -272,8 +272,8 @@ public class BackupService
             searchHistory: List<SearchHistoryBackup>,
             scanPaths: List<ScanPathBackup>,
         ): BackupStatistics {
-            public val downloadedBooks = books.count { it.downloadStatus == "DOWNLOADED" }
-            public val totalDuration = books.sumOf { it.duration }
+            val downloadedBooks = books.count { it.downloadStatus == "DOWNLOADED" }
+            val totalDuration = books.sumOf { it.duration }
 
             return BackupStatistics(
                 totalBooks = books.size,
@@ -290,14 +290,14 @@ public class BackupService
          * Collects current app settings.
          */
         private suspend fun collectSettings(): AppSettings {
-            public val userPrefs = userPreferencesRepository.userData.first()
-            public val protoSettings = protoSettingsRepository.userPreferences.first()
+            val userPrefs = userPreferencesRepository.userData.first()
+            val protoSettings = protoSettingsRepository.userPreferences.first()
 
             // Defaults for empty values
-            public val defaultDownloadPath: String =
+            val defaultDownloadPath: String =
                 "JabookAudio"
 
-            val defaultMirrors =
+            public val defaultMirrors =
                 listOf(
                     "https://rutracker.org",
                     "https://rutracker.net",
@@ -305,7 +305,7 @@ public class BackupService
                 )
 
             // FIX: Get ACTUAL current mirror from MirrorManager instead of guessing
-            public val actualMirror = mirrorManager.currentMirror.value
+            val actualMirror = mirrorManager.currentMirror.value
 
             return AppSettings(
                 theme = userPrefs.theme.name,
@@ -339,10 +339,10 @@ public class BackupService
          * Collects book metadata from database.
          */
         private suspend fun collectBookMetadata(): List<BookBackup> {
-            public val books = database.booksDao().getAllBooksFlow().first()
+            val books = database.booksDao().getAllBooksFlow().first()
             return books.map { entity ->
                 // Read timestamps from PlayerPersistence
-                public val playerState =
+                val playerState =
                     try {
                         playerPersistenceManager.getPlayerState(entity.id)
                     } catch (e: Exception) {
@@ -429,7 +429,7 @@ public class BackupService
             try {
                 // Restore UserPreferences
                 try {
-                    public val theme = AppTheme.valueOf(settings.theme)
+                    val theme = AppTheme.valueOf(settings.theme)
                     userPreferencesRepository.setTheme(theme)
                 } catch (e: Exception) {
                     // Ignore invalid theme enum
@@ -437,7 +437,7 @@ public class BackupService
 
                 // Restore sort order
                 try {
-                    public val sortOrder =
+                    val sortOrder =
                         com.jabook.app.jabook.compose.data.model.BookSortOrder
                             .valueOf(settings.sortOrder)
                     userPreferencesRepository.setSortOrder(sortOrder)
@@ -447,7 +447,7 @@ public class BackupService
 
                 // Restore view mode
                 try {
-                    public val viewMode =
+                    val viewMode =
                         com.jabook.app.jabook.compose.data.model.LibraryViewMode
                             .valueOf(settings.viewMode)
                     userPreferencesRepository.setViewMode(viewMode)
@@ -460,7 +460,7 @@ public class BackupService
 
                 // Restore font preference
                 try {
-                    public val font =
+                    val font =
                         com.jabook.app.jabook.compose.data.model.AppFont
                             .valueOf(settings.font)
                     userPreferencesRepository.setFont(font)
@@ -505,10 +505,10 @@ public class BackupService
          * Restores books to database.
          */
         private suspend fun restoreBooks(books: List<BookBackup>) {
-            public val dao = database.booksDao()
+            val dao = database.booksDao()
 
             books.forEach { backup ->
-                public val existing = dao.getBookById(backup.id)
+                val existing = dao.getBookById(backup.id)
                 if (existing != null) {
                     // Update existing book
                     dao.updatePlaybackProgress(
@@ -582,15 +582,15 @@ public class BackupService
          * Restores favorites.
          */
         private suspend fun restoreFavorites(favorites: List<FavoriteBackup>) {
-            public val bookDao = database.booksDao()
-            public val favoriteDao = database.favoriteDao()
+            val bookDao = database.booksDao()
+            val favoriteDao = database.favoriteDao()
 
             favorites.forEach { fav ->
                 // 1. Mark as favorite in BooksDao (if exists as a book)
                 bookDao.updateFavoriteStatus(fav.bookId, true)
 
                 // 2. Insert into FavoriteDao (for remote/search results)
-                public val addedDateStr = DateTimeFormatter.formatISO8601(fav.addedDate)
+                val addedDateStr = DateTimeFormatter.formatISO8601(fav.addedDate)
                 favoriteDao.insertFavorite(
                     com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity(
                         topicId = fav.bookId,
@@ -616,7 +616,7 @@ public class BackupService
          * Restores search history.
          */
         private suspend fun restoreSearchHistory(history: List<SearchHistoryBackup>) {
-            public val dao = database.searchHistoryDao()
+            val dao = database.searchHistoryDao()
             history.forEach { item ->
                 dao.insertSearch(
                     SearchHistoryEntity(
@@ -632,7 +632,7 @@ public class BackupService
          * Restores scan paths.
          */
         private suspend fun restoreScanPaths(paths: List<ScanPathBackup>) {
-            public val dao = database.scanPathDao()
+            val dao = database.scanPathDao()
             paths.forEach { item ->
                 dao.insertPath(
                     ScanPathEntity(

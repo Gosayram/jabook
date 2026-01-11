@@ -45,11 +45,11 @@ public class LoadPlaylistUseCase
             chapterRepository.getChapters(bookId).map { result ->
                 when (result) {
                     is com.jabook.app.jabook.audio.core.result.Result.Success -> {
-                        public val chapters = ChapterMapper.toDomainList(result.data)
-                        public val playlistEntity = playlistRepository.getPlaylist(bookId).first()
+                        val chapters = ChapterMapper.toDomainList(result.data)
+                        val playlistEntity = playlistRepository.getPlaylist(bookId).first()
                         when (playlistEntity) {
                             is com.jabook.app.jabook.audio.core.result.Result.Success -> {
-                                public val entity = playlistEntity.data
+                                val entity = playlistEntity.data
                                 if (entity != null) {
                                     com.jabook.app.jabook.audio.core.result.Result.Success(
                                         Playlist(

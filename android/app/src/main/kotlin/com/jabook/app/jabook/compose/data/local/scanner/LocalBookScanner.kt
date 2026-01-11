@@ -57,7 +57,7 @@ public data class ScannedBook(
     }
 
     override fun hashCode(): Int {
-        public var result = directory.hashCode()
+        var result = directory.hashCode()
         result = 31 * result + title.hashCode()
         result = 31 * result + author.hashCode()
         result = 31 * result + chapters.hashCode()
@@ -76,10 +76,10 @@ public data class ScannedBook(
  * @property duration Duration in milliseconds
  */
 public data class ScannedChapter(
-    public val filePath: String,
-    public val title: String,
-    public val index: Int,
-    public val duration: Long,
+    val filePath: String,
+    val title: String,
+    val index: Int,
+    val duration: Long,
 )
 
 /**
@@ -89,7 +89,7 @@ public interface LocalBookScanner {
     /**
      * Observable state of the current scanning process.
      */
-    public val scanProgress: StateFlow<ScanProgress>
+    val scanProgress: StateFlow<ScanProgress>
 
     /**
      * Scan local storage for audiobooks.
