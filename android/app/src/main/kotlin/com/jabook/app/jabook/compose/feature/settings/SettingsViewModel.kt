@@ -100,7 +100,7 @@ public class SettingsViewModel
                 initialValue = ScanProgress.Idle,
             )
 
-        public fun scanLibrary() : Unit {
+        public fun scanLibrary() {
             viewModelScope.launch {
                 // Check if scan folders are configured
                 val scanFolders = scanPathDao.getAllPathsList()
@@ -119,7 +119,7 @@ public class SettingsViewModel
             }
         }
 
-        public fun cancelScan() : Unit {
+        public fun cancelScan() {
             workManager.cancelAllWorkByTag("library_scan")
         }
 
@@ -131,7 +131,7 @@ public class SettingsViewModel
                 initialValue = com.jabook.app.jabook.compose.domain.model.AuthStatus.Unauthenticated,
             )
 
-        public fun logout() : Unit {
+        public fun logout() {
             viewModelScope.launch {
                 authRepository.logout()
             }
@@ -261,7 +261,7 @@ public class SettingsViewModel
             }
         }
 
-        public fun resetToDefaults() : Unit {
+        public fun resetToDefaults() {
             viewModelScope.launch {
                 settingsRepository.resetToDefaults()
             }
@@ -366,7 +366,7 @@ public class SettingsViewModel
         private val _torrentStorageSize = MutableStateFlow<Long>(0L)
         val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
 
-        public fun loadTorrentStorageSize() : Unit {
+        public fun loadTorrentStorageSize() {
             viewModelScope.launch {
                 val path = protoSettings.value.downloadPath
                 if (path.isNotEmpty()) {
@@ -393,7 +393,7 @@ public class SettingsViewModel
         /**
          * Export app data to JSON backup file.
          */
-        public fun exportData() : Unit {
+        public fun exportData() {
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Exporting
@@ -423,7 +423,7 @@ public class SettingsViewModel
         /**
          * Reset backup state to Idle.
          */
-        public fun resetBackupState() : Unit {
+        public fun resetBackupState() {
             _backupState.value = BackupUiState.Idle
         }
 
@@ -438,7 +438,7 @@ public class SettingsViewModel
         /**
          * Load cache statistics.
          */
-        public fun loadCacheStatistics() : Unit {
+        public fun loadCacheStatistics() {
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Loading
@@ -480,7 +480,7 @@ public class SettingsViewModel
         /**
          * Reset cache operation state.
          */
-        public fun resetCacheOperation() : Unit {
+        public fun resetCacheOperation() {
             _cacheOperation.value = CacheOperationState.Idle
         }
 
@@ -514,7 +514,7 @@ public class SettingsViewModel
         /**
          * Resets all per-book custom seek settings to global defaults.
          */
-        public fun resetAllBookSettings() : Unit {
+        public fun resetAllBookSettings() {
             viewModelScope.launch {
                 updateBookSettingsUseCase.resetAll()
             }
@@ -523,7 +523,7 @@ public class SettingsViewModel
         /**
          * Normalizes all chapter titles (e.g. "Chapter 1").
          */
-        public fun normalizeAllChapters() : Unit {
+        public fun normalizeAllChapters() {
             viewModelScope.launch {
                 booksRepository.normalizeAllChapters()
             }

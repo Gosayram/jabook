@@ -55,7 +55,7 @@ public class TorrentManager
         /**
          * Initialize torrent system
          */
-        public fun initialize() : Unit {
+        public fun initialize() {
             if (isInitialized) {
                 Log.w(TAG, "Already initialized")
                 return
@@ -146,7 +146,7 @@ public class TorrentManager
         /**
          * Pause all torrents
          */
-        public fun pauseAll() : Unit {
+        public fun pauseAll() {
             sessionManager.pauseAll()
         }
 
@@ -163,7 +163,7 @@ public class TorrentManager
         /**
          * Resume all torrents
          */
-        public fun resumeAll() : Unit {
+        public fun resumeAll() {
             sessionManager.resumeAll()
         }
 
@@ -230,7 +230,7 @@ public class TorrentManager
         /**
          * Shutdown torrent system
          */
-        public fun shutdown() : Unit {
+        public fun shutdown() {
             try {
                 sessionManager.stopSession()
                 stopDownloadService()

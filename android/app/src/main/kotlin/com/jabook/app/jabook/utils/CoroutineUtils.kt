@@ -57,7 +57,7 @@ public fun CoroutineScope.newCancelableScope(): CoroutineScope = CoroutineScope(
  * }
  * ```
  */
-public fun CoroutineScope.relaunch(block: suspend CoroutineScope.() -> Unit): Unit {
+public fun CoroutineScope.relaunch(block: suspend CoroutineScope.() -> Unit) {
     coroutineContext.cancelChildren()
     launch(block = block)
 }

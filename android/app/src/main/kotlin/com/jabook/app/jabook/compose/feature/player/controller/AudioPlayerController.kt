@@ -447,14 +447,14 @@ public class AudioPlayerController
             }
         }
 
-        public fun play() : Unit {
+        public fun play() {
             startService()
             mediaController?.play() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for play(), service may not be ready")
             }
         }
 
-        public fun pause() : Unit {
+        public fun pause() {
             mediaController?.pause() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for pause(), service may not be ready")
             }
@@ -466,13 +466,13 @@ public class AudioPlayerController
             }
         }
 
-        public fun skipToNext() : Unit {
+        public fun skipToNext() {
             mediaController?.seekToNext() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToNext(), service may not be ready")
             }
         }
 
-        public fun skipToPrevious() : Unit {
+        public fun skipToPrevious() {
             mediaController?.seekToPrevious() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToPrevious(), service may not be ready")
             }
@@ -526,7 +526,7 @@ public class AudioPlayerController
          * Releases MediaController resources.
          * Should be called when controller is no longer needed.
          */
-        public fun release() : Unit {
+        public fun release() {
             mediaController?.removeListener(mediaControllerListener)
             mediaController?.release()
             mediaController = null

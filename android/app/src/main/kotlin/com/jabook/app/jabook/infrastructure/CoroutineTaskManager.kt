@@ -150,7 +150,7 @@ public object CoroutineTaskManager {
      *
      * This is useful when the app goes to background or battery is low.
      */
-    public fun pauseNonCritical() : Unit {
+    public fun pauseNonCritical() {
         paused = true
         Log.i(TAG, "Paused non-critical tasks")
     }
@@ -158,7 +158,7 @@ public object CoroutineTaskManager {
     /**
      * Resume non-critical tasks.
      */
-    public fun resume() : Unit {
+    public fun resume() {
         paused = false
         Log.i(TAG, "Resumed non-critical tasks")
     }
@@ -173,7 +173,7 @@ public object CoroutineTaskManager {
     /**
      * Shutdown all executors (for cleanup).
      */
-    public fun shutdown() : Unit {
+    public fun shutdown() {
         heavyExecutor.shutdown()
         mediumExecutor.shutdown()
         lightExecutor.shutdown()

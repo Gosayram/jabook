@@ -77,7 +77,7 @@ public class DebugViewModel
             }
         }
 
-        public fun loadLogs() : Unit {
+        public fun loadLogs() {
             try {
                 viewModelScope.launch {
                     try {
@@ -123,7 +123,7 @@ public class DebugViewModel
             }
         }
 
-        public fun clearOldLogFiles() : Unit {
+        public fun clearOldLogFiles() {
             viewModelScope.launch {
                 try {
                     debugLogService.clearOldLogFiles()
@@ -133,7 +133,7 @@ public class DebugViewModel
             }
         }
 
-        public fun testAllMirrors() : Unit {
+        public fun testAllMirrors() {
             viewModelScope.launch {
                 try {
                     _uiState.value = DebugUiState.Loading
@@ -145,13 +145,13 @@ public class DebugViewModel
             }
         }
 
-        public fun refreshDebugData() : Unit {
+        public fun refreshDebugData() {
             loadLogs()
             refreshAuthDebugInfo()
             loadCacheStats()
         }
 
-        public fun refreshAuthDebugInfo() : Unit {
+        public fun refreshAuthDebugInfo() {
             try {
                 viewModelScope.launch {
                     try {
@@ -309,7 +309,7 @@ public class DebugViewModel
             _cacheStats
                 .asStateFlow()
 
-        public fun loadCacheStats() : Unit {
+        public fun loadCacheStats() {
             try {
                 viewModelScope.launch {
                     try {
@@ -334,7 +334,7 @@ public class DebugViewModel
             }
         }
 
-        public fun clearCache() : Unit {
+        public fun clearCache() {
             viewModelScope.launch {
                 try {
                     rutrackerRepository.clearSearchCache()

@@ -415,7 +415,8 @@ public object DatabaseModule {
     public fun provideFavoriteDao(database: JabookDatabase): FavoriteDao = database.favoriteDao()
 
     @Provides
-    public fun provideScanPathDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.ScanPathDao = database.scanPathDao()
+    public fun provideScanPathDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.ScanPathDao =
+        database.scanPathDao()
 
     @Provides
     public fun provideTorrentDownloadDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao =

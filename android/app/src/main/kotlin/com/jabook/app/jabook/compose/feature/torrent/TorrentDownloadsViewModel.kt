@@ -186,21 +186,21 @@ public class TorrentDownloadsViewModel
         /**
          * Clear selection
          */
-        public fun clearSelection() : Unit {
+        public fun clearSelection() {
             _selectedDownload.value = null
         }
 
         /**
          * Toggle show completed filter
          */
-        public fun toggleShowCompleted() : Unit {
+        public fun toggleShowCompleted() {
             _showCompletedOnly.value = !_showCompletedOnly.value
         }
 
         /**
          * Delete all completed downloads
          */
-        public fun deleteAllCompleted() : Unit {
+        public fun deleteAllCompleted() {
             viewModelScope.launch {
                 val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
@@ -214,7 +214,7 @@ public class TorrentDownloadsViewModel
         /**
          * Pause all active downloads
          */
-        public fun pauseAll() : Unit {
+        public fun pauseAll() {
             viewModelScope.launch {
                 val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
@@ -228,7 +228,7 @@ public class TorrentDownloadsViewModel
         /**
          * Resume all paused downloads
          */
-        public fun resumeAll() : Unit {
+        public fun resumeAll() {
             viewModelScope.launch {
                 val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
@@ -284,7 +284,7 @@ public class TorrentDownloadsViewModel
             _pendingDownloadPath.value = path
         }
 
-        public fun confirmAddTorrent() : Unit {
+        public fun confirmAddTorrent() {
             viewModelScope.launch {
                 val magnetLink = _pendingMagnetLink.value ?: return@launch
                 val path = _pendingDownloadPath.value
@@ -299,7 +299,7 @@ public class TorrentDownloadsViewModel
             }
         }
 
-        public fun cancelAddTorrent() : Unit {
+        public fun cancelAddTorrent() {
             _pendingMagnetLink.value = null
         }
 

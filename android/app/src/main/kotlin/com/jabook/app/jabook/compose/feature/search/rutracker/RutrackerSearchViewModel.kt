@@ -189,7 +189,7 @@ public class RutrackerSearchViewModel
         /**
          * Clear search results.
          */
-        public fun clearSearch() : Unit {
+        public fun clearSearch() {
             _searchState.value = SearchState.Empty
             originalResults = emptyList()
         }
@@ -288,7 +288,6 @@ public class RutrackerSearchViewModel
          * Handles formats like "1.5 GB", "500 MB", etc.
          */
         private fun parseSizeToMb(sizeStr: String): Double {
-            
             public val pattern = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)
             public val match = pattern.find(sizeStr) ?: return 0.0
 

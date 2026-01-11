@@ -175,7 +175,7 @@ public class FavoritesViewModel
         /**
          * Clear all favorites.
          */
-        public fun clearAllFavorites() : Unit {
+        public fun clearAllFavorites() {
             viewModelScope.launch {
                 favoritesRepository
                     .clearAllFavorites()
@@ -186,7 +186,7 @@ public class FavoritesViewModel
         /**
          * Clear the error message.
          */
-        public fun clearErrorMessage() : Unit {
+        public fun clearErrorMessage() {
             _errorMessage.value = null
         }
 

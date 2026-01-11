@@ -233,7 +233,8 @@ public class TorrentDownloadService : Service() {
 
         public const val ACTION_START: String = "org.jabook.ACTION_START_DOWNLOAD_SERVICE"
         public const val ACTION_STOP: String = "org.jabook.ACTION_STOP_DOWNLOAD_SERVICE"
-        public const val CHANNEL_ID_DOWNLOADS: String = "torrent_downloads"        private const val NOTIFICATION_ID_FOREGROUND = 1000
+        public const val CHANNEL_ID_DOWNLOADS: String = "torrent_downloads"
+        private const val NOTIFICATION_ID_FOREGROUND = 1000
         private const val NOTIFICATION_ID_SUMMARY = 1001
     }
 }

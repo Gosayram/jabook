@@ -120,7 +120,7 @@ public class TorrentSessionManager
         /**
          * Initialize libtorrent session
          */
-        public fun initSession() : Unit {
+        public fun initSession() {
             if (session != null) {
                 Log.w(TAG, "Session already initialized")
                 return
@@ -455,7 +455,13 @@ public class TorrentSessionManager
 
             try {
                 // setFlags(flags, mask) - use TorrentFlags
-                public val flags = if (enabled) org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD else org.libtorrent4j.swig.torrent_flags_t()
+                public val flags =
+                    if (enabled) {
+                        org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
+                    } else {
+                        org.libtorrent4j.swig
+                            .torrent_flags_t()
+                    }
                 public val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
                 handle.setFlags(flags, mask)
                 Log.i(TAG, "Set sequential download for $hash: $enabled")
@@ -467,7 +473,7 @@ public class TorrentSessionManager
         /**
          * Pause all torrents
          */
-        public fun pauseAll() : Unit {
+        public fun pauseAll() {
             torrents.values.forEach { it.pause() }
             updateDownloads()
         }
@@ -475,7 +481,7 @@ public class TorrentSessionManager
         /**
          * Resume all torrents
          */
-        public fun resumeAll() : Unit {
+        public fun resumeAll() {
             torrents.values.forEach { it.resume() }
             updateDownloads()
         }
@@ -488,7 +494,7 @@ public class TorrentSessionManager
         /**
          * Stop session and cleanup
          */
-        public fun stopSession() : Unit {
+        public fun stopSession() {
             try {
                 torrents.clear()
                 session?.stop()

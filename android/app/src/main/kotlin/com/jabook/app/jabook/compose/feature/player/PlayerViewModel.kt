@@ -328,7 +328,7 @@ public class PlayerViewModel
 
         // Player control methods delegated to controller
 
-        public fun play() : Unit {
+        public fun play() {
             val state = uiState.value
             if (state is PlayerUiState.Success) {
                 // Ensure book is loaded before playing
@@ -357,7 +357,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun pause() : Unit {
+        public fun pause() {
             playerController.pause()
         }
 
@@ -365,11 +365,11 @@ public class PlayerViewModel
             playerController.seekTo(positionMs)
         }
 
-        public fun skipToNext() : Unit {
+        public fun skipToNext() {
             playerController.skipToNext()
         }
 
-        public fun skipToPrevious() : Unit {
+        public fun skipToPrevious() {
             playerController.skipToPrevious()
         }
 
@@ -385,10 +385,9 @@ public class PlayerViewModel
             }
         }
 
-        public fun seekForward() : Unit {
+        public fun seekForward() {
             val state = uiState.value
             if (state is PlayerUiState.Success && state.currentChapter != null) {
-                
                 val interval: Long = state.forwardInterval
                 val newPosition =
                     (playerController.currentPosition.value + interval * 1000)
@@ -397,10 +396,9 @@ public class PlayerViewModel
             }
         }
 
-        public fun seekBackward() : Unit {
+        public fun seekBackward() {
             val state = uiState.value
             if (state is PlayerUiState.Success) {
-                
                 val interval: Long = state.rewindInterval
                 val newPosition = (playerController.currentPosition.value - interval * 1000).coerceAtLeast(0)
                 seekTo(newPosition)
@@ -424,11 +422,11 @@ public class PlayerViewModel
             sleepTimerRepository.startTimer(minutes)
         }
 
-        public fun startSleepTimerEndOfChapter() : Unit {
+        public fun startSleepTimerEndOfChapter() {
             sleepTimerRepository.startTimerEndOfChapter()
         }
 
-        public fun cancelSleepTimer() : Unit {
+        public fun cancelSleepTimer() {
             sleepTimerRepository.cancelTimer()
         }
 
@@ -441,7 +439,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun resetBookSeekSettings() : Unit {
+        public fun resetBookSeekSettings() {
             viewModelScope.launch {
                 updateBookSettingsUseCase.resetForBook(bookId)
             }
@@ -451,7 +449,7 @@ public class PlayerViewModel
          * Initialize player with book data if needed.
          * Restores saved position from database if available.
          */
-        public fun initializePlayer() : Unit {
+        public fun initializePlayer() {
             val state = uiState.value
             if (state is PlayerUiState.Success && !isBookLoaded) {
                 val filePaths = state.chapters.mapNotNull { it.fileUrl }
@@ -498,7 +496,7 @@ public class PlayerViewModel
         /**
          * Toggle chapter repeat mode: OFF -> ONCE -> INFINITE -> OFF
          */
-        public fun toggleChapterRepeat() : Unit {
+        public fun toggleChapterRepeat() {
             _chapterRepeatMode.value =
                 when (_chapterRepeatMode.value) {
                     ChapterRepeatMode.OFF -> ChapterRepeatMode.ONCE
@@ -541,7 +539,7 @@ public class PlayerViewModel
         /**
          * Reset repeat flag when chapter changes manually.
          */
-        public fun onChapterChanged() : Unit {
+        public fun onChapterChanged() {
             hasRepeatedOnce = false
         }
     }

@@ -170,7 +170,7 @@ public class TorrentNotificationManager
         /**
          * Update all notifications
          */
-        public fun updateAllNotifications() : Unit {
+        public fun updateAllNotifications() {
             // Will be called by service when needed
         }
 
@@ -234,5 +234,6 @@ public class TorrentNotificationManager
         }
 
         public companion object {
-            public const val NOTIFICATION_GROUP_DOWNLOADS: String = "torrent_downloads_group"        }
+            public const val NOTIFICATION_GROUP_DOWNLOADS: String = "torrent_downloads_group"
+        }
     }

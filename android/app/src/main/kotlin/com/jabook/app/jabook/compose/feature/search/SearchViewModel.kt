@@ -160,7 +160,7 @@ public class SearchViewModel
         /**
          * Clear search query.
          */
-        public fun clearSearch() : Unit {
+        public fun clearSearch() {
             _searchQuery.value = ""
             rawOnlineResults.value = emptyList()
             _uiState.value = SearchUiState.Idle
@@ -169,7 +169,7 @@ public class SearchViewModel
         /**
          * Perform online search on Rutracker.
          */
-        public fun searchOnline() : Unit {
+        public fun searchOnline() {
             val query = _searchQuery.value
             if (query.isBlank()) return
 
@@ -321,7 +321,7 @@ public class SearchViewModel
         /**
          * Clear all search history.
          */
-        public fun clearSearchHistory() : Unit {
+        public fun clearSearchHistory() {
             viewModelScope.launch {
                 searchHistoryRepository.clearAll()
             }

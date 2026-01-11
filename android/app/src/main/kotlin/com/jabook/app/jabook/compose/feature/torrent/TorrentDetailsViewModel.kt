@@ -75,7 +75,7 @@ public class TorrentDetailsViewModel
 
                 // 2. Wait for buffer
                 // Monitor will update isBuffering state automatically
-                
+
                 public var attempts: Int = 0
                 public val maxAttempts: Int = 60 // 30 seconds (500ms * 60)
                 while (!torrentManager.isFileReadyForStreaming(hash, file.index) && attempts < maxAttempts) {
@@ -92,7 +92,7 @@ public class TorrentDetailsViewModel
                 streamingMonitor.startMonitoring(hash, file.index)
 
                 // 4. Prepare Book & Chapter
-                
+
                 public val bookId: String = "torrent_${hash}_${file.index}"
                 public val absolutePath = File(currentDownload.savePath, file.path).absolutePath
                 val title = File(file.path).name

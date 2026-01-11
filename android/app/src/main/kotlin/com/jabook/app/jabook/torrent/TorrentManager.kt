@@ -70,7 +70,7 @@ public class TorrentManager
         private var isInitialized = false
 
         @Synchronized
-        public fun initialize() : Unit {
+        public fun initialize() {
             if (isInitialized) {
                 Log.d(TAG, "Session already initialized")
                 return
@@ -329,7 +329,7 @@ public class TorrentManager
                 }
             }
 
-        public fun shutdown() : Unit {
+        public fun shutdown() {
             Log.d(TAG, "Shutting down libtorrent session...")
 
             session?.stop()

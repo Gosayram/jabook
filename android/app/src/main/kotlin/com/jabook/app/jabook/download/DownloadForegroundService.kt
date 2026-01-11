@@ -65,6 +65,7 @@ public class DownloadForegroundService : Service() {
         public const val EXTRA_MAGNET_URI: String = "magnet_uri"
         public const val EXTRA_SAVE_PATH: String = "save_path"
         public const val EXTRA_INFO_HASH: String = "info_hash"
+
         @Volatile
         private var instance: DownloadForegroundService? = null
 

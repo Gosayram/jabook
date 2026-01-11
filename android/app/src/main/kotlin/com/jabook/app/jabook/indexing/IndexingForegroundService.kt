@@ -70,6 +70,7 @@ public class IndexingForegroundService : Service() {
         public const val ACTION_STOP: String = "com.jabook.app.jabook.indexing.STOP"
         public const val ACTION_UPDATE_PROGRESS: String = "com.jabook.app.jabook.indexing.UPDATE_PROGRESS"
         public const val EXTRA_PROGRESS: String = "progress"
+
         @Volatile
         private var instance: IndexingForegroundService? = null
 

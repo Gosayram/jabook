@@ -70,14 +70,14 @@ public class DownloadHistoryViewModel
         }
 
         // Clear all history
-        public fun clearHistory() : Unit {
+        public fun clearHistory() {
             viewModelScope.launch {
                 downloadHistoryDao.clearAll()
             }
         }
 
         // Delete old entries (older than 30 days)
-        public fun deleteOldEntries() : Unit {
+        public fun deleteOldEntries() {
             viewModelScope.launch {
                 public val cutoffTime = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
                 downloadHistoryDao.deleteOlderThan(cutoffTime)

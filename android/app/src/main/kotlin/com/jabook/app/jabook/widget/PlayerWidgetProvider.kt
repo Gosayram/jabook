@@ -711,6 +711,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         public const val ACTION_REPEAT: String = "com.jabook.app.jabook.WIDGET_REPEAT"
         public const val ACTION_SPEED: String = "com.jabook.app.jabook.WIDGET_SPEED"
         public const val ACTION_TIMER: String = "com.jabook.app.jabook.WIDGET_TIMER"
+
         /**
          * Requests widget update from anywhere in the app.
          */

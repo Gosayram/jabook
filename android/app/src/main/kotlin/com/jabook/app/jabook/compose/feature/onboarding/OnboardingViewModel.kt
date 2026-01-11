@@ -53,7 +53,7 @@ public class OnboardingViewModel
         private val _uiState = MutableStateFlow(OnboardingUiState())
         public val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
-        public fun nextStep() : Unit {
+        public fun nextStep() {
             public val current = _uiState.value.currentStep
             public val next =
                 when (current) {
@@ -67,7 +67,7 @@ public class OnboardingViewModel
             _uiState.value = _uiState.value.copy(currentStep = next)
         }
 
-        public fun previousStep() : Unit {
+        public fun previousStep() {
             public val current = _uiState.value.currentStep
             public val prev =
                 when (current) {
@@ -78,7 +78,7 @@ public class OnboardingViewModel
             _uiState.value = _uiState.value.copy(currentStep = prev)
         }
 
-        public fun finishOnboarding() : Unit {
+        public fun finishOnboarding() {
             viewModelScope.launch {
                 userPreferencesRepository.setOnboardingCompleted(true)
                 _uiState.value = _uiState.value.copy(isFinished = true)

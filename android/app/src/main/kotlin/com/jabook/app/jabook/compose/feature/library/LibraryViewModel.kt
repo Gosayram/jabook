@@ -265,7 +265,7 @@ public class LibraryViewModel
         /**
          * Hide book properties dialog.
          */
-        public fun hideBookProperties() : Unit {
+        public fun hideBookProperties() {
             _selectedBookForProperties.value = null
         }
 
@@ -279,7 +279,7 @@ public class LibraryViewModel
         /**
          * Start library scan for local audiobooks.
          */
-        public fun startLibraryScan() : Unit {
+        public fun startLibraryScan() {
             viewModelScope.launch {
                 // Check if scan folders are configured
                 val scanFolders = scanPathDao.getAllPathsList()
@@ -336,7 +336,7 @@ public class LibraryViewModel
         /**
          * Cancel the currently running library scan.
          */
-        public fun cancelLibraryScan() : Unit {
+        public fun cancelLibraryScan() {
             currentScanWorkId?.let { workId ->
                 workManager.cancelWorkById(workId)
                 currentScanWorkId = null

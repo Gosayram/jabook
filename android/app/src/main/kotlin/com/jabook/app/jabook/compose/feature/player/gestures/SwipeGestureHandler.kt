@@ -164,11 +164,13 @@ public class SwipeGestureHandler(
          * Minimum drag distance to trigger a gesture (in dp).
          */
         public const val MIN_DRAG_THRESHOLD_DP: Int = 10f
+
         /**
          * Zone width ratio for left/right side detection.
          * Value of 0.4 means left 40% of screen = brightness, right 40% = volume.
          */
-        public const val SIDE_ZONE_RATIO: Float = 0.4f    }
+        public const val SIDE_ZONE_RATIO: Float = 0.4f
+    }
 }
 
 /**

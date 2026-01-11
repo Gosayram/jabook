@@ -190,7 +190,7 @@ public class TopicViewModel
         /**
          * Load more comments from the next page (reverse pagination: N-1, N-2, ..., 1).
          */
-        public fun loadMoreComments() : Unit {
+        public fun loadMoreComments() {
             val currentState = _uiState.value
             if (currentState !is TopicUiState.Success) return
 
@@ -409,7 +409,7 @@ public class TopicViewModel
         /**
          * Download torrent file (.torrent) to device storage.
          */
-        public fun downloadTorrentFile() : Unit {
+        public fun downloadTorrentFile() {
             viewModelScope.launch {
                 try {
                     // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
@@ -481,7 +481,7 @@ public class TopicViewModel
             downloadTorrentRelease(magnetUrl, null)
         }
 
-        public fun retry() : Unit {
+        public fun retry() {
             loadTopicDetails()
         }
 

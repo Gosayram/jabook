@@ -124,7 +124,7 @@ public class IndexingViewModel
         /**
          * Cancel indexing (if possible).
          */
-        public fun cancelIndexing() : Unit {
+        public fun cancelIndexing() {
             // Note: Current implementation doesn't support cancellation
             // This is a placeholder for future implementation
             Log.d(TAG, "Cancel indexing requested (not yet implemented)")

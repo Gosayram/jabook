@@ -102,5 +102,6 @@ public class TorrentActionReceiver : BroadcastReceiver() {
         public const val ACTION_CANCEL_TORRENT: String = "org.jabook.ACTION_CANCEL_TORRENT"
         public const val ACTION_PAUSE_ALL: String = "org.jabook.ACTION_PAUSE_ALL"
         public const val ACTION_RESUME_ALL: String = "org.jabook.ACTION_RESUME_ALL"
-        public const val EXTRA_TORRENT_HASH: String = "torrent_hash"    }
+        public const val EXTRA_TORRENT_HASH: String = "torrent_hash"
+    }
 }

@@ -108,7 +108,8 @@ public object NetworkModule {
      */
     @Provides
     @Singleton
-    public fun provideDynamicBaseUrlInterceptor(mirrorManager: MirrorManager): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(mirrorManager)
+    public fun provideDynamicBaseUrlInterceptor(mirrorManager: MirrorManager): DynamicBaseUrlInterceptor =
+        DynamicBaseUrlInterceptor(mirrorManager)
 
     /**
      * Provide OkHttp client with cookie persistence, auto re-auth, dynamic base URL, proper headers, and logging.
