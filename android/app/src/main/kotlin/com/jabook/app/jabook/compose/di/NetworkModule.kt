@@ -27,6 +27,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.brotli.BrotliInterceptor
@@ -164,7 +165,7 @@ public object NetworkModule {
         okHttpClient: OkHttpClient,
         json: Json,
     ): Retrofit {
-        val contentType: String = "application/json".toMediaType()
+        val contentType = "application/json".toMediaType()
         return Retrofit
             .Builder()
             // Base URL is a placeholder - DynamicBaseUrlInterceptor replaces host with current mirror

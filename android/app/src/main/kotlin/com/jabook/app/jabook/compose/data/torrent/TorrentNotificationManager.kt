@@ -125,7 +125,7 @@ public class TorrentNotificationManager
                 } else {
                     0f
                 }
-            val totalSpeed = downloads.sumOf { it.downloadSpeed }
+            val totalSpeed = downloads.sumOf { it.downloadSpeed.toLong() }
 
             return NotificationCompat
                 .Builder(context, TorrentDownloadService.CHANNEL_ID_DOWNLOADS)
@@ -155,7 +155,7 @@ public class TorrentNotificationManager
         /**
          * Update notification for download
          */
-        public fun updateNotification() {
+        public fun updateNotification(download: TorrentDownload) {
             val notification = createProgressNotification(download)
             notificationManager.notify(download.hash.hashCode(), notification)
         }
@@ -163,7 +163,7 @@ public class TorrentNotificationManager
         /**
          * Cancel notification
          */
-        public fun cancel() {
+        public fun cancel(notificationId: Int) {
             notificationManager.cancel(notificationId)
         }
 
@@ -176,9 +176,9 @@ public class TorrentNotificationManager
 
         private fun getProgressText(download: TorrentDownload): String =
             buildString {
-                append("↓ ${formatSpeed(download.downloadSpeed)}")
-                append("  ↑ ${formatSpeed(download.uploadSpeed)}")
-                if (download.eta > 0) {
+                append("↓ ${formatSpeed(download.downloadSpeed.toLong())}")
+                append("  ↑ ${formatSpeed(download.uploadSpeed.toLong())}")
+                if (download.eta > 0L) {
                     append("  ${formatETA(download.eta)}")
                 }
             }
