@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
@@ -31,9 +31,10 @@ public class AuthInterceptor
     @Inject
     constructor(
         private val authRepository: Provider<AuthRepository>,
+        private val loggerFactory: LoggerFactory,
     ) : Interceptor {
+        private val logger = loggerFactory.get("AuthInterceptor")
         public companion object {
-            private const val TAG = "AuthInterceptor"
             private const val LOGIN_PAGE_MARKER = "login.php"
         }
 
@@ -55,7 +56,7 @@ public class AuthInterceptor
                         .contains(LOGIN_PAGE_MARKER)
 
             if (sessionExpired) {
-                Log.w(TAG, "Session expired detected (code=${response.code}, url=${response.request.url})")
+                logger.w { "Session expired detected (code=${response.code}, url=${response.request.url})" }
                 response.close() // Close original response
 
                 // Try to re-authenticate with stored credentials
@@ -66,24 +67,24 @@ public class AuthInterceptor
                         try {
                             val credentials = authRepository.get().getStoredCredentials()
                             if (credentials != null) {
-                                Log.i(TAG, "Attempting automatic re-authentication...")
+                                logger.i { "Attempting automatic re-authentication..." }
 
                                 val loginResult = authRepository.get().login(credentials)
                                 if (loginResult.isSuccess) {
-                                    Log.i(TAG, "Automatic re-authentication successful")
+                                    logger.i { "Automatic re-authentication successful" }
 
                                     // Retry original request with new session
                                     chain.proceed(request.newBuilder().build())
                                 } else {
-                                    Log.e(TAG, "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}")
+                                    logger.e { "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}" }
                                     null
                                 }
                             } else {
-                                Log.w(TAG, "No stored credentials available for re-authentication")
+                                logger.w { "No stored credentials available for re-authentication" }
                                 null
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error during automatic re-authentication", e)
+                            logger.e(e) { "Error during automatic re-authentication" }
                             null
                         }
                     }

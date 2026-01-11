@@ -25,8 +25,8 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import dagger.hilt.android.AndroidEntryPoint
@@ -49,32 +49,36 @@ public class TorrentDownloadService : Service() {
     @Inject
     public lateinit var notificationManager: TorrentNotificationManager
 
+    @Inject
+    public lateinit var loggerFactory: LoggerFactory
+
+    private val logger = loggerFactory.get("TorrentDownloadService")
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
-        Log.i(TAG, "Service created")
+        logger.i { "Service created" }
 
         // Initialize torrent manager with error handling
         // Wrap in try-catch to prevent crashes from libtorrent4j initialization errors
         try {
             torrentManager.initialize()
         } catch (e: NoSuchMethodError) {
-            Log.e(TAG, "libtorrent4j version mismatch - native library incompatible", e)
+            logger.e(e) { "libtorrent4j version mismatch - native library incompatible" }
             // Don't crash - allow service to continue without torrent functionality
             // User will see error when trying to download
         } catch (e: NoClassDefFoundError) {
-            Log.e(TAG, "libtorrent4j classes not available - version mismatch", e)
+            logger.e(e) { "libtorrent4j classes not available - version mismatch" }
             // Don't crash - allow service to continue
         } catch (e: LinkageError) {
-            Log.e(TAG, "libtorrent4j linkage error - version mismatch", e)
+            logger.e(e) { "libtorrent4j linkage error - version mismatch" }
             // Don't crash - allow service to continue
         } catch (e: UnsatisfiedLinkError) {
-            Log.e(TAG, "Failed to load libtorrent4j native library", e)
+            logger.e(e) { "Failed to load libtorrent4j native library" }
             // Don't crash - allow service to continue
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize TorrentManager", e)
+            logger.e(e) { "Failed to initialize TorrentManager" }
             // Don't crash - allow service to continue
         }
 
@@ -90,7 +94,7 @@ public class TorrentDownloadService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
-        Log.i(TAG, "onStartCommand: ${intent?.action}")
+        logger.i { "onStartCommand: ${intent?.action}" }
 
         when (intent?.action) {
             ACTION_START -> {
@@ -108,7 +112,7 @@ public class TorrentDownloadService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.i(TAG, "Service destroyed")
+        logger.i { "Service destroyed" }
 
         serviceScope.cancel()
         releaseWakeLock()
@@ -185,7 +189,7 @@ public class TorrentDownloadService : Service() {
 
                 // Auto-stop service if no downloads
                 if (downloads.isEmpty()) {
-                    Log.i(TAG, "No active downloads, stopping service")
+                    logger.i { "No active downloads, stopping service" }
                     stopSelf()
                 }
             }.launchIn(serviceScope)
@@ -229,8 +233,6 @@ public class TorrentDownloadService : Service() {
     }
 
     public companion object {
-        private const val TAG = "TorrentDownloadService"
-
         public const val ACTION_START: String = "org.jabook.ACTION_START_DOWNLOAD_SERVICE"
         public const val ACTION_STOP: String = "org.jabook.ACTION_STOP_DOWNLOAD_SERVICE"
         public const val CHANNEL_ID_DOWNLOADS: String = "torrent_downloads"
