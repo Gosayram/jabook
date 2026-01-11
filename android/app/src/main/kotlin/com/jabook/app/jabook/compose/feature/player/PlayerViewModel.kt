@@ -83,7 +83,7 @@ public class PlayerViewModel
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
 
         // Saved position from database (restored on init)
-        private var savedPosition: Int = 0L
+        private var savedPosition: Long = 0L
         private var savedChapterIndex: Int = 0
 
         // Chapter repeat mode state
@@ -137,7 +137,7 @@ public class PlayerViewModel
         /**
          * Combined UI state from book data, playback state, and settings.
          */
-        val uiState: StateFlow<PlayerUiState> =
+        public val uiState: StateFlow<PlayerUiState> =
             combine(
                 getBookDetailsUseCase(bookId),
                 getChaptersUseCase(bookId),
@@ -294,7 +294,7 @@ public class PlayerViewModel
         /**
          * Current playback speed from user preferences.
          */
-        val playbackSpeed: StateFlow<Float> =
+        public val playbackSpeed: StateFlow<Float> =
             userPreferencesRepository.userData
                 .map { it.playbackSpeed }
                 .stateIn(
@@ -306,7 +306,7 @@ public class PlayerViewModel
         /**
          * Chapter title normalization preference.
          */
-        val normalizeChapterTitles: StateFlow<Boolean> =
+        public val normalizeChapterTitles: StateFlow<Boolean> =
             userPreferencesRepository.userData
                 .map { it.normalizeChapterTitles }
                 .stateIn(
@@ -318,12 +318,12 @@ public class PlayerViewModel
         /**
          * Pitch correction state.
          */
-        val pitchCorrectionEnabled: StateFlow<Boolean> = playerController.pitchCorrectionEnabled
+        public val pitchCorrectionEnabled: StateFlow<Boolean> = playerController.pitchCorrectionEnabled
 
         /**
          * Current sleep timer state.
          */
-        val sleepTimerState: StateFlow<com.jabook.app.jabook.compose.domain.model.SleepTimerState> =
+        public val sleepTimerState: StateFlow<com.jabook.app.jabook.compose.domain.model.SleepTimerState> =
             sleepTimerRepository.timerState
 
         // Player control methods delegated to controller
@@ -361,7 +361,7 @@ public class PlayerViewModel
             playerController.pause()
         }
 
-        public fun seekTo() {
+        public fun seekTo(positionMs: Long) {
             playerController.seekTo(positionMs)
         }
 
@@ -373,7 +373,7 @@ public class PlayerViewModel
             playerController.skipToPrevious()
         }
 
-        public fun skipToChapter() {
+        public fun skipToChapter(chapterIndex: Int) {
             playerController.skipToChapter(chapterIndex)
             // Reset repeat flag when manually changing chapters
             onChapterChanged()
@@ -388,7 +388,7 @@ public class PlayerViewModel
         public fun seekForward() {
             val state = uiState.value
             if (state is PlayerUiState.Success && state.currentChapter != null) {
-                val interval: Long = state.forwardInterval
+                val interval: Long = state.forwardInterval.toLong()
                 val newPosition =
                     (playerController.currentPosition.value + interval * 1000)
                         .coerceAtMost(state.currentChapter.duration.inWholeMilliseconds)
@@ -399,13 +399,13 @@ public class PlayerViewModel
         public fun seekBackward() {
             val state = uiState.value
             if (state is PlayerUiState.Success) {
-                val interval: Long = state.rewindInterval
+                val interval: Long = state.rewindInterval.toLong()
                 val newPosition = (playerController.currentPosition.value - interval * 1000).coerceAtLeast(0)
                 seekTo(newPosition)
             }
         }
 
-        public fun setPlaybackSpeed() {
+        public fun setPlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
             }
@@ -414,11 +414,11 @@ public class PlayerViewModel
             }
         }
 
-        public fun setPitchCorrectionEnabled() {
+        public fun setPitchCorrectionEnabled(enabled: Boolean) {
             playerController.setPitchCorrectionEnabled(enabled)
         }
 
-        public fun startSleepTimer() {
+        public fun startSleepTimer(minutes: Int) {
             sleepTimerRepository.startTimer(minutes)
         }
 
@@ -487,7 +487,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun reorderChapters() {
+        public fun reorderChapters(newOrderedIds: List<String>) {
             viewModelScope.launch {
                 booksRepository.updateChapterOrder(bookId, newOrderedIds)
             }
@@ -564,7 +564,7 @@ public sealed interface PlayerUiState {
     /**
      * Loading state - fetching book data.
      */
-    data object Loading : PlayerUiState
+    public data object Loading : PlayerUiState
 
     /**
      * Success state with book and playback info.

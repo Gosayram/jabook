@@ -336,7 +336,7 @@ public class AudioPlayerController
             updateStats(exoPlayer)
         }
 
-        public fun setPitchCorrectionEnabled() {
+        public fun setPitchCorrectionEnabled(enabled: Boolean) {
             _pitchCorrectionEnabled.value = enabled
         }
 
@@ -346,7 +346,7 @@ public class AudioPlayerController
         public fun loadBook(
             filePaths: List<String>,
             initialChapterIndex: Int = 0,
-            initialPosition: Int = 0,
+            initialPosition: Long = 0L,
             autoPlay: Boolean = false,
             metadata: Map<String, String>? = null,
             bookId: String? = null,
@@ -460,7 +460,7 @@ public class AudioPlayerController
             }
         }
 
-        public fun seekTo() {
+        public fun seekTo(positionMs: Long) {
             mediaController?.seekTo(positionMs) ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for seekTo(), service may not be ready")
             }
@@ -478,13 +478,13 @@ public class AudioPlayerController
             }
         }
 
-        public fun skipToChapter() {
+        public fun skipToChapter(index: Int) {
             mediaController?.seekTo(index, 0) ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToChapter(), service may not be ready")
             }
         }
 
-        public fun setPlaybackSpeed() {
+        public fun setPlaybackSpeed(speed: Float) {
             mediaController?.setPlaybackSpeed(speed) ?: run {
                 android.util.Log.w(
                     "AudioPlayerController",
