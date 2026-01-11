@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.scanner
 
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
@@ -49,7 +50,9 @@ public class DirectFileSystemScanner
         private val bookIdentifier: BookIdentifier,
         private val encodingDetector: com.jabook.app.jabook.compose.data.local.parser.EncodingDetector,
         private val metadataCache: com.jabook.app.jabook.compose.data.local.parser.MetadataCache,
+        private val loggerFactory: LoggerFactory,
     ) : LocalBookScanner {
+        private val logger = loggerFactory.get("DirectFileSystemScanner")
         /**
          * Fast file info without metadata parsing.
          * Used for initial quick scan before metadata parsing.
@@ -77,7 +80,7 @@ public class DirectFileSystemScanner
                     _scanProgress.value = ScanProgress.Discovery(0)
 
                     // PHASE 1: FAST SCAN - No metadata parsing
-                    android.util.Log.i("DirectFileScanner", "⚡ Phase 1: Fast scan (no metadata)")
+                    logger.i { "⚡ Phase 1: Fast scan (no metadata)" }
                     val fastFiles = mutableListOf<FastFileInfo>()
                     for (path in customPaths) {
                         ensureActive() // Check for cancellation
@@ -89,20 +92,16 @@ public class DirectFileSystemScanner
                     }
 
                     val totalFiles = fastFiles.size
-                    android.util.Log.i(
-                        "DirectFileScanner",
-                        "Found $totalFiles audio files (fast scan)",
-                    )
+                    logger.i { "Found $totalFiles audio files (fast scan)" }
 
                     // PHASE 2: GROUP by directory
                     val groupedByDir = fastFiles.groupBy { it.directory }
-                    android.util.Log.i(
-                        "DirectFileScanner",
+                    logger.i {
                         "📚 Grouped into ${groupedByDir.size} books (by directory)",
                     )
 
                     // PHASE 3: Parse metadata for ALL files (Fix for missing duration)
-                    android.util.Log.i("DirectFileScanner", "⚡ Phase 3: Parsing metadata (Full Scan)")
+                    logger.i { "⚡ Phase 3: Parsing metadata (Full Scan)" }
 
                     val scannedBooks = mutableListOf<ScannedBook>()
                     var processedFilesCount = 0
@@ -197,20 +196,17 @@ public class DirectFileSystemScanner
                         scannedBooks.add(book)
                     }
 
-                    android.util.Log.i(
-                        "DirectFileScanner",
-                        "Scan complete: ${scannedBooks.size} books successfully created",
-                    )
+                    logger.i { "Scan complete: ${scannedBooks.size} books successfully created" }
 
                     _scanProgress.value = ScanProgress.Saving
 
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) {
-                        android.util.Log.i("DirectFileScanner", "Scan cancelled")
+                        logger.i { "Scan cancelled" }
                         throw e
                     }
-                    android.util.Log.e("DirectFileScanner", "Scan failed", e)
+                    logger.e(e) { "Scan failed" }
                     _scanProgress.value = ScanProgress.Error(e.message ?: "Unknown error")
                     Result.Error(e)
                 } finally {
@@ -246,7 +242,7 @@ public class DirectFileSystemScanner
                     }
                 }
             } catch (e: SecurityException) {
-                android.util.Log.w("DirectFileScanner", "Cannot access directory: ${directory.path}", e)
+                logger.w(e) { "Cannot access directory: ${directory.path}" }
             }
         }
 
@@ -283,10 +279,9 @@ public class DirectFileSystemScanner
                 val subdirs = files.filter { it.isDirectory }
                 val audioFiles = files.filter { it.isFile && it.isAudioFile() }
 
-                android.util.Log.d(
-                    "DirectFileScanner",
-                    "📁 Scanning: ${directory.name} (${audioFiles.size} audio files, ${subdirs.size} subdirs)",
-                )
+                logger.d {
+                    "📁 Scanning: ${directory.name} (${audioFiles.size} audio files, ${subdirs.size} subdirs)"
+                }
 
                 // Process audio files in PARALLEL with rate limiting
                 if (audioFiles.isNotEmpty()) {
@@ -302,16 +297,14 @@ public class DirectFileSystemScanner
                                             val audioInfo = createAudioFileInfo(file)
                                             if (audioInfo != null) {
                                                 result.add(audioInfo) // Thread-safe add
-                                                android.util.Log.v(
-                                                    "DirectFileScanner",
-                                                    "✓ ${file.name} (album: ${audioInfo.album ?: "none"})",
-                                                )
+                                                logger.d {
+                                                    "✓ ${file.name} (album: ${audioInfo.album ?: "none"})"
+                                                }
                                             }
                                         } catch (e: Exception) {
-                                            android.util.Log.w(
-                                                "DirectFileScanner",
-                                                "✗ Failed: ${file.name} - ${e.message}",
-                                            )
+                                            logger.w {
+                                                "✗ Failed: ${file.name} - ${e.message}"
+                                            }
                                             // Continue scanning other files
                                         }
                                     }
@@ -325,7 +318,7 @@ public class DirectFileSystemScanner
                     scanDirectoryParallel(subdir, result, semaphore)
                 }
             } catch (e: SecurityException) {
-                android.util.Log.w("DirectFileScanner", "Cannot access directory: ${directory.path}", e)
+                logger.w(e) { "Cannot access directory: ${directory.path}" }
             }
         }
 
@@ -353,7 +346,7 @@ public class DirectFileSystemScanner
                     title = metadata?.title,
                 )
             } catch (e: Exception) {
-                android.util.Log.w("DirectFileScanner", "Failed to parse: ${file.name}", e)
+                logger.w(e) { "Failed to parse: ${file.name}" }
                 null
             }
 
@@ -364,7 +357,7 @@ public class DirectFileSystemScanner
          */
         private fun groupFilesByAlbum(files: List<AudioFileInfo>): Map<String, List<AudioFileInfo>> {
             val totalFiles = files.size
-            android.util.Log.d("DirectFileScanner", "Grouping $totalFiles files into books...")
+            logger.d { "Grouping $totalFiles files into books..." }
 
             // Group by composite key (album or directory + artist)
             val grouped =
@@ -380,16 +373,14 @@ public class DirectFileSystemScanner
             // Log files without album metadata
             val filesWithoutAlbum = files.count { it.album.isNullOrBlank() }
             if (filesWithoutAlbum > 0) {
-                android.util.Log.w(
-                    "DirectFileScanner",
-                    "$filesWithoutAlbum files have no album metadata (will group by directory)",
-                )
+                logger.w {
+                    "$filesWithoutAlbum files have no album metadata (will group by directory)"
+                }
             }
 
-            android.util.Log.d(
-                "DirectFileScanner",
-                "Grouped into ${grouped.size} books (before: $totalFiles files)",
-            )
+            logger.d {
+                "Grouped into ${grouped.size} books (before: $totalFiles files)"
+            }
 
             return grouped
         }
@@ -411,10 +402,9 @@ public class DirectFileSystemScanner
             // Parse metadata ONLY for first file (with cache!)
             val metadata = metadataCache.getOrParse(firstFileObj, metadataParser)
 
-            android.util.Log.d(
-                "DirectFileScanner",
-                "📖 Creating book from ${fastFiles.size} files, parsing only 1st: ${firstFile.displayName}",
-            )
+            logger.d {
+                "📖 Creating book from ${fastFiles.size} files, parsing only 1st: ${firstFile.displayName}"
+            }
 
             // Generate unique book ID
             val bookId =
@@ -469,10 +459,9 @@ public class DirectFileSystemScanner
                     coverArt = null, // Memory optimization: Worker extracts cover separately
                 )
 
-            android.util.Log.d(
-                "DirectFileScanner",
-                "'${book.title}' by ${book.author} (${chapters.size} chapters, ID: $bookId)",
-            )
+            logger.d {
+                "'${book.title}' by ${book.author} (${chapters.size} chapters, ID: $bookId)"
+            }
 
             return book
         }
@@ -542,10 +531,9 @@ public class DirectFileSystemScanner
                     coverArt = null, // Memory optimization: Worker extracts cover separately
                 )
 
-            android.util.Log.d(
-                "DirectFileScanner",
-                "Created book '${book.title}' by ${book.author} (${chapters.size} chapters, ID: $bookId)",
-            )
+            logger.d {
+                "Created book '${book.title}' by ${book.author} (${chapters.size} chapters, ID: $bookId)"
+            }
 
             return book
         }

@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.scanner
 
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +43,9 @@ public class HybridBookScanner
         private val mediaStoreScanner: MediaStoreBookScanner,
         private val directScanner: DirectFileSystemScanner,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
+        private val loggerFactory: LoggerFactory,
     ) : LocalBookScanner {
+        private val logger = loggerFactory.get("HybridBookScanner")
         // Merge progress from both scanners (one is active at a time)
         override val scanProgress: kotlinx.coroutines.flow.StateFlow<ScanProgress> =
             merge(mediaStoreScanner.scanProgress, directScanner.scanProgress)
@@ -60,14 +63,14 @@ public class HybridBookScanner
             for (pathEntity in customPaths) {
                 val folder = java.io.File(pathEntity.path)
                 if (!folder.exists() || !folder.isDirectory) {
-                    android.util.Log.w("HybridScanner", "Removing non-existent scan folder: ${pathEntity.path}")
+                    logger.w { "Removing non-existent scan folder: ${pathEntity.path}" }
                     scanPathDao.deletePath(pathEntity)
                     removedCount++
                 }
             }
 
             if (removedCount > 0) {
-                android.util.Log.i("HybridScanner", "Cleaned up $removedCount deleted scan folders")
+                logger.i { "Cleaned up $removedCount deleted scan folders" }
             }
 
             // Get updated list after cleanup
@@ -75,15 +78,12 @@ public class HybridBookScanner
 
             return if (validPaths.isEmpty()) {
                 // No custom paths - use MediaStore (fast, indexed)
-                android.util.Log.d("HybridScanner", "Using MediaStore scanner (no custom paths)")
+                logger.d { "Using MediaStore scanner (no custom paths)" }
                 mediaStoreScanner.scanAudiobooks()
             } else {
                 // Has custom paths - use direct file system scan
                 // This ignores .nomedia files (user's use case: hide images, show audio)
-                android.util.Log.d(
-                    "HybridScanner",
-                    "Using direct file scanner (${validPaths.size} custom paths)",
-                )
+                logger.d { "Using direct file scanner (${validPaths.size} custom paths)" }
                 directScanner.scanAudiobooks()
             }
         }
