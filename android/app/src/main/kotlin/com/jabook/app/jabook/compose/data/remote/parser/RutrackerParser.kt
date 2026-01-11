@@ -1304,7 +1304,8 @@ public class RutrackerParser
 
             // Fallback: try to extract from text
             val leechText = document.selectFirst("span.leech, .leech")?.toStr() ?: ""
-            val regex: String = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)            regex
+            val regex = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
+            regex
                 .find(leechText)
                 ?.groupValues
                 ?.get(1)
