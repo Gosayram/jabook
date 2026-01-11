@@ -41,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -220,9 +221,9 @@ public fun DownloadHistoryScreen(
                             .padding(horizontal = contentPadding, vertical = itemSpacing),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    androidx.compose.material3.TextField(
+                    TextField(
                         value = searchQuery,
-                        onValueChange = viewModel::updateSearchQuery,
+                        onValueChange = { viewModel.updateSearchQuery(it) },
                         placeholder = { Text(stringResource(R.string.searchBooks)) },
                         leadingIcon = { Icon(Icons.Default.Search, null) },
                         trailingIcon = {

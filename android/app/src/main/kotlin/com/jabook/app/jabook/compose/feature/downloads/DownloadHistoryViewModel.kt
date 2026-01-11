@@ -60,7 +60,7 @@ public class DownloadHistoryViewModel
                 )
 
         // Update search query
-        public fun updateSearchQuery() {
+        public fun updateSearchQuery(query: String) {
             _searchQuery.value = query
         }
 

@@ -57,7 +57,7 @@ public data class BookEntity(
     @ColumnInfo(name = "total_duration")
     val totalDuration: Long,
     @ColumnInfo(name = "current_position")
-    val currentPosition: Int = 0,
+    val currentPosition: Long = 0L,
     @ColumnInfo(name = "total_progress")
     val totalProgress: Float = 0f,
     @ColumnInfo(name = "current_chapter_index")
@@ -136,7 +136,7 @@ public data class ChapterEntity(
     @ColumnInfo(name = "file_url")
     val fileUrl: String?,
     @ColumnInfo(name = "position")
-    val position: Int = 0,
+    val position: Long = 0L,
     @ColumnInfo(name = "is_completed")
     val isCompleted: Boolean = false,
     @ColumnInfo(name = "is_downloaded")
