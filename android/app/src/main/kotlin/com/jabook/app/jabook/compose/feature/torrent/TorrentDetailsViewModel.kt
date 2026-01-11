@@ -21,7 +21,6 @@ import androidx.navigation.toRoute
 import com.jabook.app.jabook.compose.data.model.DownloadStatus
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
-import com.jabook.app.jabook.compose.data.torrent.TorrentFile
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter

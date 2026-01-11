@@ -23,13 +23,9 @@ import com.jabook.app.jabook.compose.data.backup.BackupService
 import com.jabook.app.jabook.compose.data.backup.ImportStats
 import com.jabook.app.jabook.compose.data.cache.CacheManager
 import com.jabook.app.jabook.compose.data.cache.CacheStatistics
-import com.jabook.app.jabook.compose.data.cache.CacheType
-import com.jabook.app.jabook.compose.data.model.AppTheme
-import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
-import com.jabook.app.jabook.compose.data.preferences.ThemeMode
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
