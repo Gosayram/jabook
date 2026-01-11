@@ -68,7 +68,7 @@ public class InactivityTimer(
      *
      * @param minutes Timeout in minutes (10-180)
      */
-    public fun setInactivityTimeoutMinutes(...) {
+    public fun setInactivityTimeoutMinutes() {
         public val seconds = (minutes * 60).toLong()
         if (seconds < MIN_INACTIVITY_TIMEOUT_SECONDS || seconds > MAX_INACTIVITY_TIMEOUT_SECONDS) {
             android.util.Log.w(
@@ -275,7 +275,7 @@ public class InactivityTimer(
      * Resets (stops and restarts) the inactivity timer.
      * Called when user performs any action (play, seek, etc.).
      */
-    public fun resetTimer(...) {
+    public fun resetTimer() {
         if (timer != null) {
             android.util.Log.d("InactivityTimer", "Resetting inactivity timer (user action detected)")
             stopTimer()
@@ -286,7 +286,7 @@ public class InactivityTimer(
     /**
      * Stops and cancels the inactivity timer.
      */
-    public fun stopTimer(...) {
+    public fun stopTimer() {
         timer?.cancel()
         timer = null
     }
@@ -303,7 +303,7 @@ public class InactivityTimer(
     /**
      * Releases timer resources.
      */
-    public fun release(...) {
+    public fun release() {
         stopTimer()
         player.removeListener(playerListener)
         android.util.Log.d("InactivityTimer", "InactivityTimer released")

@@ -34,7 +34,7 @@ public object DownloadNotificationHelper {
     /**
      * Create or update notification channel.
      */
-    public fun createNotificationChannel(...) {
+    public fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel =
                 NotificationChannel(

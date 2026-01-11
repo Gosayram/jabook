@@ -328,7 +328,7 @@ public class PlayerViewModel
 
         // Player control methods delegated to controller
 
-        public fun play(...) {
+        public fun play() {
             val state = uiState.value
             if (state is PlayerUiState.Success) {
                 // Ensure book is loaded before playing
@@ -357,23 +357,23 @@ public class PlayerViewModel
             }
         }
 
-        public fun pause(...) {
+        public fun pause() {
             playerController.pause()
         }
 
-        public fun seekTo(...) {
+        public fun seekTo() {
             playerController.seekTo(positionMs)
         }
 
-        public fun skipToNext(...) {
+        public fun skipToNext() {
             playerController.skipToNext()
         }
 
-        public fun skipToPrevious(...) {
+        public fun skipToPrevious() {
             playerController.skipToPrevious()
         }
 
-        public fun skipToChapter(...) {
+        public fun skipToChapter() {
             playerController.skipToChapter(chapterIndex)
             // Reset repeat flag when manually changing chapters
             onChapterChanged()
@@ -385,7 +385,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun seekForward(...) {
+        public fun seekForward() {
             val state = uiState.value
             if (state is PlayerUiState.Success && state.currentChapter != null) {
                 val interval: Long = state.forwardInterval
@@ -396,7 +396,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun seekBackward(...) {
+        public fun seekBackward() {
             val state = uiState.value
             if (state is PlayerUiState.Success) {
                 val interval: Long = state.rewindInterval
@@ -405,7 +405,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun setPlaybackSpeed(...) {
+        public fun setPlaybackSpeed() {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
             }
@@ -414,19 +414,19 @@ public class PlayerViewModel
             }
         }
 
-        public fun setPitchCorrectionEnabled(...) {
+        public fun setPitchCorrectionEnabled() {
             playerController.setPitchCorrectionEnabled(enabled)
         }
 
-        public fun startSleepTimer(...) {
+        public fun startSleepTimer() {
             sleepTimerRepository.startTimer(minutes)
         }
 
-        public fun startSleepTimerEndOfChapter(...) {
+        public fun startSleepTimerEndOfChapter() {
             sleepTimerRepository.startTimerEndOfChapter()
         }
 
-        public fun cancelSleepTimer(...) {
+        public fun cancelSleepTimer() {
             sleepTimerRepository.cancelTimer()
         }
 
@@ -439,7 +439,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun resetBookSeekSettings(...) {
+        public fun resetBookSeekSettings() {
             viewModelScope.launch {
                 updateBookSettingsUseCase.resetForBook(bookId)
             }
@@ -449,7 +449,7 @@ public class PlayerViewModel
          * Initialize player with book data if needed.
          * Restores saved position from database if available.
          */
-        public fun initializePlayer(...) {
+        public fun initializePlayer() {
             val state = uiState.value
             if (state is PlayerUiState.Success && !isBookLoaded) {
                 val filePaths = state.chapters.mapNotNull { it.fileUrl }
@@ -487,7 +487,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun reorderChapters(...) {
+        public fun reorderChapters() {
             viewModelScope.launch {
                 booksRepository.updateChapterOrder(bookId, newOrderedIds)
             }
@@ -496,7 +496,7 @@ public class PlayerViewModel
         /**
          * Toggle chapter repeat mode: OFF -> ONCE -> INFINITE -> OFF
          */
-        public fun toggleChapterRepeat(...) {
+        public fun toggleChapterRepeat() {
             _chapterRepeatMode.value =
                 when (_chapterRepeatMode.value) {
                     ChapterRepeatMode.OFF -> ChapterRepeatMode.ONCE
@@ -539,7 +539,7 @@ public class PlayerViewModel
         /**
          * Reset repeat flag when chapter changes manually.
          */
-        public fun onChapterChanged(...) {
+        public fun onChapterChanged() {
             hasRepeatedOnce = false
         }
     }

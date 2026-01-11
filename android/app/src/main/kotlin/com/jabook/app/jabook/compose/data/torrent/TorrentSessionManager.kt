@@ -120,7 +120,7 @@ public class TorrentSessionManager
         /**
          * Initialize libtorrent session
          */
-        public fun initSession(...) {
+        public fun initSession() {
             if (session != null) {
                 Log.w(TAG, "Session already initialized")
                 return
@@ -396,7 +396,7 @@ public class TorrentSessionManager
         /**
          * Pause torrent
          */
-        public fun pauseTorrent(...) {
+        public fun pauseTorrent() {
             public val handle = torrents[hash] ?: return
 
             try {
@@ -411,7 +411,7 @@ public class TorrentSessionManager
         /**
          * Resume torrent
          */
-        public fun resumeTorrent(...) {
+        public fun resumeTorrent() {
             public val handle = torrents[hash] ?: return
 
             try {
@@ -473,7 +473,7 @@ public class TorrentSessionManager
         /**
          * Pause all torrents
          */
-        public fun pauseAll(...) {
+        public fun pauseAll() {
             torrents.values.forEach { it.pause() }
             updateDownloads()
         }
@@ -481,7 +481,7 @@ public class TorrentSessionManager
         /**
          * Resume all torrents
          */
-        public fun resumeAll(...) {
+        public fun resumeAll() {
             torrents.values.forEach { it.resume() }
             updateDownloads()
         }
@@ -494,7 +494,7 @@ public class TorrentSessionManager
         /**
          * Stop session and cleanup
          */
-        public fun stopSession(...) {
+        public fun stopSession() {
             try {
                 torrents.clear()
                 session?.stop()

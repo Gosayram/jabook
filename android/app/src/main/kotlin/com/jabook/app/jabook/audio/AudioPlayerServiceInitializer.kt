@@ -31,7 +31,7 @@ public class AudioPlayerServiceInitializer(
     private val service: AudioPlayerService,
 ) {
     @OptIn(UnstableApi::class)
-    public fun initialize(...) {
+    public fun initialize() {
         android.util.Log.i("AudioPlayerService", "Initializing service components...")
 
         // NOTE: NotificationHelper is already initialized in onCreate() for immediate startForeground()

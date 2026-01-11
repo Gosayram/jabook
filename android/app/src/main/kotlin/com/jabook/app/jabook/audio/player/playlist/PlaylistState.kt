@@ -38,7 +38,7 @@ public class PlaylistState {
     /**
      * Updates the playlist.
      */
-    public fun updatePlaylist(...) {
+    public fun updatePlaylist() {
         _playlist.value = playlist
         if (playlist != null) {
             _actualTrackIndex.value = playlist.currentIndex
@@ -48,7 +48,7 @@ public class PlaylistState {
     /**
      * Updates the loading state.
      */
-    public fun setLoading(...) {
+    public fun setLoading() {
         _isLoading.value = loading
     }
 
@@ -56,7 +56,7 @@ public class PlaylistState {
      * Updates the actual track index.
      * This should be called from onMediaItemTransition event.
      */
-    public fun updateActualTrackIndex(...) {
+    public fun updateActualTrackIndex() {
         _actualTrackIndex.value = index
         _playlist.value?.let { playlist ->
             _playlist.value = playlist.withCurrentIndex(index)
@@ -76,7 +76,7 @@ public class PlaylistState {
     /**
      * Resets the state.
      */
-    public fun reset(...) {
+    public fun reset() {
         _playlist.value = null
         _isLoading.value = false
         _actualTrackIndex.value = 0

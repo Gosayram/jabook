@@ -106,21 +106,21 @@ public class AuthViewModel
             }
         }
 
-        public fun logout(...) {
+        public fun logout() {
             viewModelScope.launch {
                 authRepository.logout()
             }
         }
 
-        public fun dismissCaptcha(...) {
+        public fun dismissCaptcha() {
             _uiState.update { it.copy(captchaData = null) }
         }
 
-        public fun requestWebViewLogin(...) {
+        public fun requestWebViewLogin() {
             _uiState.update { it.copy(showWebViewLogin = true) }
         }
 
-        public fun onWebViewLoginCompleted(...) {
+        public fun onWebViewLoginCompleted() {
             _uiState.update { it.copy(showWebViewLogin = false) }
             viewModelScope.launch {
                 // Sync cookies from WebView and refresh status

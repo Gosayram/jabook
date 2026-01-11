@@ -79,7 +79,7 @@ public class IndexingForegroundService : Service() {
         /**
          * Start the indexing service.
          */
-        public fun start(...) {
+        public fun start() {
             val intent =
                 Intent(context, IndexingForegroundService::class.java).apply {
                     action = ACTION_START
@@ -95,7 +95,7 @@ public class IndexingForegroundService : Service() {
         /**
          * Stop the indexing service.
          */
-        public fun stop(...) {
+        public fun stop() {
             val intent =
                 Intent(context, IndexingForegroundService::class.java).apply {
                     action = ACTION_STOP

@@ -336,7 +336,7 @@ public class AudioPlayerController
             updateStats(exoPlayer)
         }
 
-        public fun setPitchCorrectionEnabled(...) {
+        public fun setPitchCorrectionEnabled() {
             _pitchCorrectionEnabled.value = enabled
         }
 
@@ -447,44 +447,44 @@ public class AudioPlayerController
             }
         }
 
-        public fun play(...) {
+        public fun play() {
             startService()
             mediaController?.play() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for play(), service may not be ready")
             }
         }
 
-        public fun pause(...) {
+        public fun pause() {
             mediaController?.pause() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for pause(), service may not be ready")
             }
         }
 
-        public fun seekTo(...) {
+        public fun seekTo() {
             mediaController?.seekTo(positionMs) ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for seekTo(), service may not be ready")
             }
         }
 
-        public fun skipToNext(...) {
+        public fun skipToNext() {
             mediaController?.seekToNext() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToNext(), service may not be ready")
             }
         }
 
-        public fun skipToPrevious(...) {
+        public fun skipToPrevious() {
             mediaController?.seekToPrevious() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToPrevious(), service may not be ready")
             }
         }
 
-        public fun skipToChapter(...) {
+        public fun skipToChapter() {
             mediaController?.seekTo(index, 0) ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToChapter(), service may not be ready")
             }
         }
 
-        public fun setPlaybackSpeed(...) {
+        public fun setPlaybackSpeed() {
             mediaController?.setPlaybackSpeed(speed) ?: run {
                 android.util.Log.w(
                     "AudioPlayerController",
@@ -526,7 +526,7 @@ public class AudioPlayerController
          * Releases MediaController resources.
          * Should be called when controller is no longer needed.
          */
-        public fun release(...) {
+        public fun release() {
             mediaController?.removeListener(mediaControllerListener)
             mediaController?.release()
             mediaController = null

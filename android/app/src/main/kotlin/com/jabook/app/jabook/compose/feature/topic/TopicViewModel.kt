@@ -190,7 +190,7 @@ public class TopicViewModel
         /**
          * Load more comments from the next page (reverse pagination: N-1, N-2, ..., 1).
          */
-        public fun loadMoreComments(...) {
+        public fun loadMoreComments() {
             val currentState = _uiState.value
             if (currentState !is TopicUiState.Success) return
 
@@ -239,7 +239,7 @@ public class TopicViewModel
             }
         }
 
-        public fun refreshTopicDetails(...) {
+        public fun refreshTopicDetails() {
             viewModelScope.launch {
                 if (!silent) {
                     _uiState.value = TopicUiState.Loading
@@ -409,7 +409,7 @@ public class TopicViewModel
         /**
          * Download torrent file (.torrent) to device storage.
          */
-        public fun downloadTorrentFile(...) {
+        public fun downloadTorrentFile() {
             viewModelScope.launch {
                 try {
                     // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
@@ -456,7 +456,7 @@ public class TopicViewModel
         /**
          * Copy magnet link to clipboard.
          */
-        public fun copyMagnetLink(...) {
+        public fun copyMagnetLink() {
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return
@@ -472,7 +472,7 @@ public class TopicViewModel
         /**
          * Download via magnet link (if available).
          */
-        public fun downloadViaMagnet(...) {
+        public fun downloadViaMagnet() {
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return
@@ -481,7 +481,7 @@ public class TopicViewModel
             downloadTorrentRelease(magnetUrl, null)
         }
 
-        public fun retry(...) {
+        public fun retry() {
             loadTopicDetails()
         }
 

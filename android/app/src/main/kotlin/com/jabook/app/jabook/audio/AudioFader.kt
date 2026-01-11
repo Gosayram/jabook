@@ -156,7 +156,7 @@ public class AudioFader
          *
          * Use this when playback state changes abruptly (e.g., user skips track).
          */
-        public fun cancelCurrentAnimation(...) {
+        public fun cancelCurrentAnimation() {
             currentAnimator?.let { animator ->
                 animator.cancel()
                 currentAnimator = null
@@ -172,7 +172,7 @@ public class AudioFader
         /**
          * Cleans up resources. Call when service is destroyed.
          */
-        public fun release(...) {
+        public fun release() {
             cancelCurrentAnimation()
             Log.d(TAG, "AudioFader released")
         }

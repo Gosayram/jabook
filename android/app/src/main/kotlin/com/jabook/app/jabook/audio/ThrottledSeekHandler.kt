@@ -107,7 +107,7 @@ public class ThrottledSeekHandler
         /**
          * Cancels any pending seek operation.
          */
-        public fun cancel(...) {
+        public fun cancel() {
             pendingSeekJob?.cancel()
             pendingSeekJob = null
             Log.v(TAG, "Pending seek cancelled")
@@ -126,7 +126,7 @@ public class ThrottledSeekHandler
         /**
          * Releases resources. Call when service is destroyed.
          */
-        public fun release(...) {
+        public fun release() {
             cancel()
             lastSeekPosition = 0L
             Log.d(TAG, "ThrottledSeekHandler released")

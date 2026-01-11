@@ -147,7 +147,7 @@ public class TorrentDownloadsViewModel
         /**
          * Pause download
          */
-        public fun pauseDownload(...) {
+        public fun pauseDownload() {
             viewModelScope.launch {
                 torrentManager.pauseTorrent(hash)
             }
@@ -156,7 +156,7 @@ public class TorrentDownloadsViewModel
         /**
          * Resume download
          */
-        public fun resumeDownload(...) {
+        public fun resumeDownload() {
             viewModelScope.launch {
                 checkNetworkAndWarn()
                 torrentManager.resumeTorrent(hash)
@@ -179,28 +179,28 @@ public class TorrentDownloadsViewModel
         /**
          * Select download for details view
          */
-        public fun selectDownload(...) {
+        public fun selectDownload() {
             _selectedDownload.value = download
         }
 
         /**
          * Clear selection
          */
-        public fun clearSelection(...) {
+        public fun clearSelection() {
             _selectedDownload.value = null
         }
 
         /**
          * Toggle show completed filter
          */
-        public fun toggleShowCompleted(...) {
+        public fun toggleShowCompleted() {
             _showCompletedOnly.value = !_showCompletedOnly.value
         }
 
         /**
          * Delete all completed downloads
          */
-        public fun deleteAllCompleted(...) {
+        public fun deleteAllCompleted() {
             viewModelScope.launch {
                 val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
@@ -214,7 +214,7 @@ public class TorrentDownloadsViewModel
         /**
          * Pause all active downloads
          */
-        public fun pauseAll(...) {
+        public fun pauseAll() {
             viewModelScope.launch {
                 val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
@@ -228,7 +228,7 @@ public class TorrentDownloadsViewModel
         /**
          * Resume all paused downloads
          */
-        public fun resumeAll(...) {
+        public fun resumeAll() {
             viewModelScope.launch {
                 val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
@@ -261,7 +261,7 @@ public class TorrentDownloadsViewModel
             }
         }
 
-        public fun prepareAddTorrent(...) {
+        public fun prepareAddTorrent() {
             viewModelScope.launch {
                 val prefs = settingsRepository.userPreferences.first()
                 val defaultPath =
@@ -273,18 +273,18 @@ public class TorrentDownloadsViewModel
             }
         }
 
-        public fun updatePendingPath(...) {
+        public fun updatePendingPath() {
             _pendingDownloadPath.value = path
         }
 
-        public fun updatePendingPathFromUri(...) {
+        public fun updatePendingPathFromUri() {
             val path =
                 com.jabook.app.jabook.util.FileUtils
                     .resolvePathFromUri(uriString)
             _pendingDownloadPath.value = path
         }
 
-        public fun confirmAddTorrent(...) {
+        public fun confirmAddTorrent() {
             viewModelScope.launch {
                 val magnetLink = _pendingMagnetLink.value ?: return@launch
                 val path = _pendingDownloadPath.value
@@ -299,7 +299,7 @@ public class TorrentDownloadsViewModel
             }
         }
 
-        public fun cancelAddTorrent(...) {
+        public fun cancelAddTorrent() {
             _pendingMagnetLink.value = null
         }
 

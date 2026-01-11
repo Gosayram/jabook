@@ -40,7 +40,7 @@ internal class MetadataManager(
      * Note: Artwork is automatically extracted from audio file metadata by ExoPlayer
      * We don't update MediaItem here to preserve embedded artwork extracted by ExoPlayer
      */
-    public fun updateMetadata(...) {
+    public fun updateMetadata() {
         setCurrentMetadata(metadata)
         // Just update notification - ExoPlayer already has the embedded artwork in MediaItem
         // Don't replace MediaItem to avoid losing embedded artwork

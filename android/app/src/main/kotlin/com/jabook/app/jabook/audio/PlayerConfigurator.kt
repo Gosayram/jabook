@@ -73,7 +73,7 @@ internal class PlayerConfigurator(
      *
      * Inspired by lissen-android: lightweight configuration, no heavy operations.
      */
-    public fun configurePlayer(...) {
+    public fun configurePlayer() {
         try {
             // Match lissen-android: just add listener, no additional configuration
             // ExoPlayer is already configured in MediaModule with AudioAttributes
@@ -182,7 +182,7 @@ internal class PlayerConfigurator(
      * @param settings Audio processing settings
      */
     @androidx.annotation.OptIn(UnstableApi::class)
-    public fun configureExoPlayer(...) {
+    public fun configureExoPlayer() {
         try {
             // Store settings
             audioProcessingSettings = settings
@@ -382,7 +382,7 @@ internal class PlayerConfigurator(
         }
     }
 
-    public fun release(...) {
+    public fun release() {
         customExoPlayer?.release()
         customExoPlayer = null
         playerListener = null

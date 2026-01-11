@@ -126,7 +126,7 @@ public class FavoritesViewModel
         /**
          * Add or remove an audiobook from favorites.
          */
-        public fun toggleFavorite(...) {
+        public fun toggleFavorite() {
             viewModelScope.launch {
                 _isLoading.value = true
                 public val isFavoriteNow = favoritesRepository.isFavorite(favorite.topicId)
@@ -149,7 +149,7 @@ public class FavoritesViewModel
          * Remove an audiobook from favorites.
          * Synchronizes with local library (removes isFavorite flag).
          */
-        public fun removeFromFavorites(...) {
+        public fun removeFromFavorites() {
             viewModelScope.launch {
                 // Remove from FavoriteEntity
                 favoritesRepository
@@ -164,7 +164,7 @@ public class FavoritesViewModel
         /**
          * Remove multiple audiobooks from favorites.
          */
-        public fun removeMultipleFavorites(...) {
+        public fun removeMultipleFavorites() {
             viewModelScope.launch {
                 favoritesRepository
                     .removeMultipleFavorites(topicIds)
@@ -175,7 +175,7 @@ public class FavoritesViewModel
         /**
          * Clear all favorites.
          */
-        public fun clearAllFavorites(...) {
+        public fun clearAllFavorites() {
             viewModelScope.launch {
                 favoritesRepository
                     .clearAllFavorites()
@@ -186,21 +186,21 @@ public class FavoritesViewModel
         /**
          * Clear the error message.
          */
-        public fun clearErrorMessage(...) {
+        public fun clearErrorMessage() {
             _errorMessage.value = null
         }
 
         /**
          * Update search query.
          */
-        public fun onSearchQueryChanged(...) {
+        public fun onSearchQueryChanged() {
             _searchQuery.value = query
         }
 
         /**
          * Update sort order.
          */
-        public fun onSortOrderChanged(...) {
+        public fun onSortOrderChanged() {
             _sortOrder.value = order
         }
     }

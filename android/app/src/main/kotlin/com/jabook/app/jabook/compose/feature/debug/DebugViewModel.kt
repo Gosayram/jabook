@@ -77,7 +77,7 @@ public class DebugViewModel
             }
         }
 
-        public fun loadLogs(...) {
+        public fun loadLogs() {
             try {
                 viewModelScope.launch {
                     try {
@@ -111,7 +111,7 @@ public class DebugViewModel
          *
          * @param activity Activity context for starting the share intent
          */
-        public fun shareLogs(...) {
+        public fun shareLogs() {
             viewModelScope.launch {
                 try {
                     _uiState.value = DebugUiState.Loading
@@ -123,7 +123,7 @@ public class DebugViewModel
             }
         }
 
-        public fun clearOldLogFiles(...) {
+        public fun clearOldLogFiles() {
             viewModelScope.launch {
                 try {
                     debugLogService.clearOldLogFiles()
@@ -133,7 +133,7 @@ public class DebugViewModel
             }
         }
 
-        public fun testAllMirrors(...) {
+        public fun testAllMirrors() {
             viewModelScope.launch {
                 try {
                     _uiState.value = DebugUiState.Loading
@@ -145,13 +145,13 @@ public class DebugViewModel
             }
         }
 
-        public fun refreshDebugData(...) {
+        public fun refreshDebugData() {
             loadLogs()
             refreshAuthDebugInfo()
             loadCacheStats()
         }
 
-        public fun refreshAuthDebugInfo(...) {
+        public fun refreshAuthDebugInfo() {
             try {
                 viewModelScope.launch {
                     try {
@@ -309,7 +309,7 @@ public class DebugViewModel
             _cacheStats
                 .asStateFlow()
 
-        public fun loadCacheStats(...) {
+        public fun loadCacheStats() {
             try {
                 viewModelScope.launch {
                     try {
@@ -334,7 +334,7 @@ public class DebugViewModel
             }
         }
 
-        public fun clearCache(...) {
+        public fun clearCache() {
             viewModelScope.launch {
                 try {
                     rutrackerRepository.clearSearchCache()

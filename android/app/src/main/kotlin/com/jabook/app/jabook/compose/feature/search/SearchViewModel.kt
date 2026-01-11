@@ -137,14 +137,14 @@ public class SearchViewModel
         /**
          * Update search query.
          */
-        public fun onSearchQueryChanged(...) {
+        public fun onSearchQueryChanged() {
             _searchQuery.value = query
         }
 
         /**
          * Update filters.
          */
-        public fun updateFilters(...) {
+        public fun updateFilters() {
             _filters.value = newFilters
             recalculateUiState()
         }
@@ -152,7 +152,7 @@ public class SearchViewModel
         /**
          * Update sort order.
          */
-        public fun updateSortOrder(...) {
+        public fun updateSortOrder() {
             _sortOrder.value = order
             recalculateUiState()
         }
@@ -160,7 +160,7 @@ public class SearchViewModel
         /**
          * Clear search query.
          */
-        public fun clearSearch(...) {
+        public fun clearSearch() {
             _searchQuery.value = ""
             rawOnlineResults.value = emptyList()
             _uiState.value = SearchUiState.Idle
@@ -169,7 +169,7 @@ public class SearchViewModel
         /**
          * Perform online search on Rutracker.
          */
-        public fun searchOnline(...) {
+        public fun searchOnline() {
             val query = _searchQuery.value
             if (query.isBlank()) return
 
@@ -312,7 +312,7 @@ public class SearchViewModel
         /**
          * Delete specific search history item.
          */
-        public fun deleteSearchHistoryItem(...) {
+        public fun deleteSearchHistoryItem() {
             viewModelScope.launch {
                 searchHistoryRepository.deleteSearch(id)
             }
@@ -321,7 +321,7 @@ public class SearchViewModel
         /**
          * Clear all search history.
          */
-        public fun clearSearchHistory(...) {
+        public fun clearSearchHistory() {
             viewModelScope.launch {
                 searchHistoryRepository.clearAll()
             }
@@ -330,7 +330,7 @@ public class SearchViewModel
         /**
          * Toggle favorite status for a search result.
          */
-        public fun toggleFavorite(...) {
+        public fun toggleFavorite() {
             viewModelScope.launch {
                 if (favoriteIds.value.contains(result.topicId)) {
                     favoritesRepository.removeFromFavorites(result.topicId)

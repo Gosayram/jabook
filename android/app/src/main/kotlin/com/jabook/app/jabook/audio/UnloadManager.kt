@@ -58,7 +58,7 @@ internal class UnloadManager(
      * Note: Position saving is handled by Media3PlayerService (Dart) which saves
      * periodically and on app lifecycle events. This method focuses on resource cleanup.
      */
-    public fun unloadPlayerDueToInactivity(...) {
+    public fun unloadPlayerDueToInactivity() {
         android.util.Log.i("AudioPlayerService", "Unloading player due to inactivity")
 
         try {

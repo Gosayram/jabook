@@ -98,14 +98,14 @@ public class DownloadQueueManager
         /**
          * Cancel a download by book ID.
          */
-        public fun cancelDownload(...) {
+        public fun cancelDownload() {
             workManager.cancelUniqueWork("download_$bookId")
         }
 
         /**
          * Cancel a download by work ID.
          */
-        public fun cancelDownload(...) {
+        public fun cancelDownload() {
             workManager.cancelWorkById(workId)
         }
 

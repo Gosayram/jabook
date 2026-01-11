@@ -42,7 +42,7 @@ public class PermissionViewModel
             checkPermissions()
         }
 
-        public fun checkPermissions(...) {
+        public fun checkPermissions() {
             viewModelScope.launch {
                 val storage = permissionManager.hasStoragePermission()
                 val notification = permissionManager.hasNotificationPermission()

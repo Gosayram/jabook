@@ -91,7 +91,7 @@ public class PositionSaver
         /**
          * Stops periodic position saving.
          */
-        public fun stopPeriodicSaving(...) {
+        public fun stopPeriodicSaving() {
             isSavingEnabled = false
             saveJob?.cancel()
             saveJob = null

@@ -49,7 +49,7 @@ public class SyncManager
          * - Connected to internet
          * - Not in low battery mode
          */
-        public fun schedulePeriodicSync(...) {
+        public fun schedulePeriodicSync() {
             Log.d(TAG, "Scheduling periodic sync")
 
             val constraints =
@@ -80,7 +80,7 @@ public class SyncManager
         /**
          * Cancel sync.
          */
-        public fun cancelSync(...) {
+        public fun cancelSync() {
             Log.d(TAG, "Cancelling sync")
             WorkManager.getInstance(context).cancelUniqueWork(SyncWorker.WORK_NAME)
         }
@@ -88,7 +88,7 @@ public class SyncManager
         /**
          * Trigger immediate sync.
          */
-        public fun syncNow(...) {
+        public fun syncNow() {
             Log.d(TAG, "Triggering immediate sync")
             val syncRequest = androidx.work.OneTimeWorkRequestBuilder<SyncWorker>().build()
             WorkManager.getInstance(context).enqueueUniqueWork(

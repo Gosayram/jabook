@@ -36,7 +36,7 @@ internal class PlaybackController(
      *
      * Simplified implementation matching lissen-android approach.
      */
-    public fun play(...) {
+    public fun play() {
         android.util.Log.i("AudioPlayerService", "play() called")
 
         val player = getActivePlayer()
@@ -81,7 +81,7 @@ internal class PlaybackController(
      * This helps users resume from a slightly earlier position, which is useful
      * for audiobooks where context is important.
      */
-    public fun pause(...) {
+    public fun pause() {
         playerServiceScope.launch {
             try {
                 val player = getActivePlayer()
@@ -119,7 +119,7 @@ internal class PlaybackController(
      * This method stops the player but does not release all resources.
      * For full cleanup, use stopAndRelease() instead.
      */
-    public fun stop(...) {
+    public fun stop() {
         val player = getActivePlayer()
         try {
             android.util.Log.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
@@ -135,7 +135,7 @@ internal class PlaybackController(
      *
      * @param positionMs Position in milliseconds
      */
-    public fun seekTo(...) {
+    public fun seekTo() {
         val player = getActivePlayer()
 
         try {
@@ -183,7 +183,7 @@ internal class PlaybackController(
      *
      * @param speed Playback speed (0.5x to 2.0x)
      */
-    public fun setSpeed(...) {
+    public fun setSpeed() {
         getActivePlayer().setPlaybackSpeed(speed)
         // Reset inactivity timer (user action)
         resetInactivityTimer()
@@ -202,7 +202,7 @@ internal class PlaybackController(
      *   - REPEAT_MODE_ONE: Repeat current track
      *   - REPEAT_MODE_ALL: Repeat all tracks
      */
-    public fun setRepeatMode(...) {
+    public fun setRepeatMode() {
         getActivePlayer().repeatMode = repeatMode
         android.util.Log.d("AudioPlayerService", "Repeat mode set to: $repeatMode")
         // Reset inactivity timer (user action)
@@ -221,7 +221,7 @@ internal class PlaybackController(
      *
      * @param shuffleModeEnabled true to enable shuffle, false to disable
      */
-    public fun setShuffleModeEnabled(...) {
+    public fun setShuffleModeEnabled() {
         getActivePlayer().shuffleModeEnabled = shuffleModeEnabled
         android.util.Log.d("AudioPlayerService", "Shuffle mode set to: $shuffleModeEnabled")
         // Reset inactivity timer (user action)
@@ -240,7 +240,7 @@ internal class PlaybackController(
      *
      * Inspired by lissen-android: checks track availability before switching.
      */
-    public fun next(...) {
+    public fun next() {
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -273,7 +273,7 @@ internal class PlaybackController(
      *
      * Inspired by lissen-android: checks track availability before switching.
      */
-    public fun previous(...) {
+    public fun previous() {
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -306,7 +306,7 @@ internal class PlaybackController(
      *
      * @param index Track index in playlist
      */
-    public fun seekToTrack(...) {
+    public fun seekToTrack() {
         val player = getActivePlayer()
         if (index >= 0 && index < player.mediaItemCount) {
             val playWhenReadyBeforeSeek = player.playWhenReady
@@ -384,7 +384,7 @@ internal class PlaybackController(
      *
      * @param seconds Number of seconds to rewind (default: 15)
      */
-    public fun rewind(...) {
+    public fun rewind() {
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val newPosition = (currentPosition - seconds * 1000L).coerceAtLeast(0L)
@@ -399,7 +399,7 @@ internal class PlaybackController(
      *
      * @param seconds Number of seconds to forward (default: 30)
      */
-    public fun forward(...) {
+    public fun forward() {
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val duration = player.duration

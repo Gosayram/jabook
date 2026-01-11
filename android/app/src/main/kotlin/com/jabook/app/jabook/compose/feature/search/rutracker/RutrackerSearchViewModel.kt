@@ -189,7 +189,7 @@ public class RutrackerSearchViewModel
         /**
          * Clear search results.
          */
-        public fun clearSearch(...) {
+        public fun clearSearch() {
             _searchState.value = SearchState.Empty
             originalResults = emptyList()
         }
@@ -197,7 +197,7 @@ public class RutrackerSearchViewModel
         /**
          * Update search filters and reapply to results.
          */
-        public fun updateFilters(...) {
+        public fun updateFilters() {
             _filters.value = newFilters
             reapplyFiltersAndSort()
         }
@@ -205,7 +205,7 @@ public class RutrackerSearchViewModel
         /**
          * Update sort order and reapply to results.
          */
-        public fun updateSortOrder(...) {
+        public fun updateSortOrder() {
             _sortOrder.value = newSortOrder
             reapplyFiltersAndSort()
         }

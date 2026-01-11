@@ -156,7 +156,7 @@ public class PlayerPersistenceManager
                 }
             }
 
-        public fun saveGroupPathToSharedPreferences(...) {
+        public fun saveGroupPathToSharedPreferences() {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val sanitizedPath = sanitizeGroupPath(groupPath)

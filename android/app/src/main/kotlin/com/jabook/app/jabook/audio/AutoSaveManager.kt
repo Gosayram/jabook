@@ -94,7 +94,7 @@ public class AutoSaveManager
          * Stops periodic auto-save.
          * Should be called when playback stops or service is destroyed.
          */
-        public fun stopAutoSave(...) {
+        public fun stopAutoSave() {
             autoSaveJob?.cancel()
             autoSaveJob = null
             Log.d(TAG, "Auto-save stopped")

@@ -39,13 +39,13 @@ internal class CrossfadeHandler(
             }
         }
 
-    public fun startMonitoring(...) {
+    public fun startMonitoring() {
         if (isMonitoring) return
         isMonitoring = true
         handler.post(monitorRunnable)
     }
 
-    public fun stopMonitoring(...) {
+    public fun stopMonitoring() {
         isMonitoring = false
         handler.removeCallbacks(monitorRunnable)
     }

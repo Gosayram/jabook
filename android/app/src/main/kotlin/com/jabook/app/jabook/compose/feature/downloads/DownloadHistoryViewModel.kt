@@ -60,24 +60,24 @@ public class DownloadHistoryViewModel
                 )
 
         // Update search query
-        public fun updateSearchQuery(...) {
+        public fun updateSearchQuery() {
             _searchQuery.value = query
         }
 
         // Update sort order
-        public fun updateSortOrder(...) {
+        public fun updateSortOrder() {
             _sortOrder.value = order
         }
 
         // Clear all history
-        public fun clearHistory(...) {
+        public fun clearHistory() {
             viewModelScope.launch {
                 downloadHistoryDao.clearAll()
             }
         }
 
         // Delete old entries (older than 30 days)
-        public fun deleteOldEntries(...) {
+        public fun deleteOldEntries() {
             viewModelScope.launch {
                 public val cutoffTime = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
                 downloadHistoryDao.deleteOlderThan(cutoffTime)

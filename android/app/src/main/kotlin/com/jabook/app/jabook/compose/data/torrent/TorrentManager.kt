@@ -55,7 +55,7 @@ public class TorrentManager
         /**
          * Initialize torrent system
          */
-        public fun initialize(...) {
+        public fun initialize() {
             if (isInitialized) {
                 Log.w(TAG, "Already initialized")
                 return
@@ -122,14 +122,14 @@ public class TorrentManager
         /**
          * Pause torrent
          */
-        public fun pauseTorrent(...) {
+        public fun pauseTorrent() {
             sessionManager.pauseTorrent(hash)
         }
 
         /**
          * Resume torrent
          */
-        public fun resumeTorrent(...) {
+        public fun resumeTorrent() {
             sessionManager.resumeTorrent(hash)
         }
 
@@ -146,7 +146,7 @@ public class TorrentManager
         /**
          * Pause all torrents
          */
-        public fun pauseAll(...) {
+        public fun pauseAll() {
             sessionManager.pauseAll()
         }
 
@@ -163,7 +163,7 @@ public class TorrentManager
         /**
          * Resume all torrents
          */
-        public fun resumeAll(...) {
+        public fun resumeAll() {
             sessionManager.resumeAll()
         }
 
@@ -175,7 +175,7 @@ public class TorrentManager
         /**
          * Enable streaming mode for torrent
          */
-        public fun enableStreaming(...) {
+        public fun enableStreaming() {
             sessionManager.setSequentialDownload(hash, true)
         }
 
@@ -219,7 +219,7 @@ public class TorrentManager
         /**
          * Delete all torrents
          */
-        public fun deleteAllTorrents(...) {
+        public fun deleteAllTorrents() {
             public val hashes = downloadsFlow.value.keys.toList()
             hashes.forEach { hash ->
                 sessionManager.removeTorrent(hash, deleteFiles)
@@ -230,7 +230,7 @@ public class TorrentManager
         /**
          * Shutdown torrent system
          */
-        public fun shutdown(...) {
+        public fun shutdown() {
             try {
                 sessionManager.stopSession()
                 stopDownloadService()

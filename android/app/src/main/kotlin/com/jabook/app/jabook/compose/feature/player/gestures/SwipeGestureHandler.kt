@@ -126,10 +126,10 @@ public class SwipeGestureHandler(
         horizontalDrag: Float,
         screenWidth: Float,
         sensitivity: Float = 1.0f,
-        maxSeekMs: Int = _000L,
+        maxSeekMs: Long = 120_000L,
     ): Long {
         // Normalize drag to -1.0 to 1.0
-        public val normalizedDrag = (horizontalDrag / screenWidth).coerceIn(-1f, 1f)
+        val normalizedDrag = (horizontalDrag / screenWidth).coerceIn(-1f, 1f)
 
         // Apply non-linear curve for fine control at small drags
         public val curved = normalizedDrag * abs(normalizedDrag)

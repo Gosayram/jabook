@@ -113,7 +113,7 @@ internal class SleepTimerManager(
      *
      * @param minutes Timer duration in minutes
      */
-    public fun setSleepTimerMinutes(...) {
+    public fun setSleepTimerMinutes() {
         stopTimer() // Stop existing timer if any
 
         val totalMillis = minutes * 60 * 1000L
@@ -167,7 +167,7 @@ internal class SleepTimerManager(
      *
      * Inspired by lissen-android: timer pauses when playback pauses.
      */
-    public fun setSleepTimerEndOfChapter(...) {
+    public fun setSleepTimerEndOfChapter() {
         stopTimer() // Stop existing timer if any
 
         sleepTimerEndTime = 0
@@ -184,7 +184,7 @@ internal class SleepTimerManager(
     /**
      * Cancels active sleep timer.
      */
-    public fun cancelSleepTimer(...) {
+    public fun cancelSleepTimer() {
         stopTimer()
         sleepTimerEndTime = 0
         sleepTimerEndOfChapter = false
@@ -344,7 +344,7 @@ internal class SleepTimerManager(
      *
      * Should be called in onCreate or onStartCommand to restore timer after app restart.
      */
-    public fun restoreTimerState(...) {
+    public fun restoreTimerState() {
         try {
             val prefs = context.getSharedPreferences("jabook_timer_prefs", Context.MODE_PRIVATE)
             val savedEndTime = prefs.getLong("sleepTimerEndTime", 0)

@@ -50,7 +50,7 @@ public object PlayerPerformanceLogger {
      *
      * @param name Session identifier (e.g., "cold_start", "warm_start")
      */
-    public fun start(...) {
+    public fun start() {
         sessionName = name
         sessionStartTime = System.currentTimeMillis()
         events.clear()
@@ -106,7 +106,7 @@ public object PlayerPerformanceLogger {
     /**
      * Print summary of all events with timing analysis.
      */
-    public fun summary(...) {
+    public fun summary() {
         if (events.isEmpty()) {
             Log.w(TAG, "No events logged")
             return
@@ -156,7 +156,7 @@ public object PlayerPerformanceLogger {
     /**
      * Enable/disable logging (for production builds).
      */
-    public fun setEnabled(...) {
+    public fun setEnabled() {
         this.enabled = enabled
     }
 
@@ -168,7 +168,7 @@ public object PlayerPerformanceLogger {
     /**
      * Clear session data.
      */
-    public fun reset(...) {
+    public fun reset() {
         events.clear()
         sessionStartTime = 0L
         sessionName = ""

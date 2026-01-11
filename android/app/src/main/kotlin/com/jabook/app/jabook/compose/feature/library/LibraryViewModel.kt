@@ -140,14 +140,14 @@ public class LibraryViewModel
         /**
          * Update search query.
          */
-        public fun onSearchQueryChanged(...) {
+        public fun onSearchQueryChanged() {
             _searchQuery.value = query
         }
 
         /**
          * Update sort order.
          */
-        public fun onSortOrderChanged(...) {
+        public fun onSortOrderChanged() {
             _sortOrder.value = order
             viewModelScope.launch {
                 userPreferencesRepository.setSortOrder(order)
@@ -157,7 +157,7 @@ public class LibraryViewModel
         /**
          * Update view mode.
          */
-        public fun onViewModeChanged(...) {
+        public fun onViewModeChanged() {
             viewModelScope.launch {
                 _viewMode.value = mode
                 userPreferencesRepository.setViewMode(mode)
@@ -241,7 +241,7 @@ public class LibraryViewModel
         /**
          * Delete a book.
          */
-        public fun deleteBook(...) {
+        public fun deleteBook() {
             viewModelScope.launch {
                 deleteBookUseCase(bookId)
                 // Result handling can be added if needed for user feedback
@@ -251,7 +251,7 @@ public class LibraryViewModel
         /**
          * Show book properties dialog.
          */
-        public fun showBookProperties(...) {
+        public fun showBookProperties() {
             viewModelScope.launch {
                 // Find book from current UI state
                 val book =
@@ -265,7 +265,7 @@ public class LibraryViewModel
         /**
          * Hide book properties dialog.
          */
-        public fun hideBookProperties(...) {
+        public fun hideBookProperties() {
             _selectedBookForProperties.value = null
         }
 
@@ -279,7 +279,7 @@ public class LibraryViewModel
         /**
          * Start library scan for local audiobooks.
          */
-        public fun startLibraryScan(...) {
+        public fun startLibraryScan() {
             viewModelScope.launch {
                 // Check if scan folders are configured
                 val scanFolders = scanPathDao.getAllPathsList()
@@ -336,7 +336,7 @@ public class LibraryViewModel
         /**
          * Cancel the currently running library scan.
          */
-        public fun cancelLibraryScan(...) {
+        public fun cancelLibraryScan() {
             currentScanWorkId?.let { workId ->
                 workManager.cancelWorkById(workId)
                 currentScanWorkId = null

@@ -30,7 +30,6 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
-import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.utils.capitalizeFirst
 import dagger.hilt.android.AndroidEntryPoint
@@ -234,7 +233,7 @@ public class AudioPlayerService : MediaLibraryService() {
     /**
      * Deprecated: Flutter MethodChannel removed.
      */
-    public fun setMethodChannel(...) {
+    public fun setMethodChannel() {
         // No-op: Flutter bridge removed
     }
 
@@ -611,7 +610,7 @@ public class AudioPlayerService : MediaLibraryService() {
     /**
      * Stops sleep timer.
      */
-    public fun stopTimer(...) {
+    public fun stopTimer() {
         playbackTimer?.stopTimer()
     }
 
@@ -647,7 +646,7 @@ public class AudioPlayerService : MediaLibraryService() {
      * @param settings Audio processing settings
      */
     @OptIn(UnstableApi::class)
-    public fun configureExoPlayer(...) {
+    public fun configureExoPlayer() {
         playerConfigurator?.configureExoPlayer(settings) ?: run {
             android.util.Log.e("AudioPlayerService", "PlayerConfigurator not initialized")
         }
@@ -670,7 +669,7 @@ public class AudioPlayerService : MediaLibraryService() {
      * Triggers crossfade transition.
      * Called by CrossfadeHandler when condition is met.
      */
-    public fun triggerCrossfadeTransition(...) {
+    public fun triggerCrossfadeTransition() {
         // Delegate to PlaylistManager to prepare next track on secondary player
         // Then start crossfade
         playerServiceScope.launch {
@@ -773,7 +772,7 @@ public class AudioPlayerService : MediaLibraryService() {
      * @param isMinimal true for minimal notification (Play/Pause only),
      * false for full notification (all controls)
      */
-    public fun setNotificationType(...) {
+    public fun setNotificationType() {
         // MediaLibraryService automatically manages notifications based on Player state
         // If we need custom notification types, we should configure MediaButtonPreferences instead
         notificationManager?.setNotificationType(isMinimal)
@@ -783,7 +782,7 @@ public class AudioPlayerService : MediaLibraryService() {
     public val isPlaying: Boolean
         get() = getActivePlayer().isPlaying
 
-    public fun play(...) {
+    public fun play() {
         playbackController?.play() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
@@ -795,7 +794,7 @@ public class AudioPlayerService : MediaLibraryService() {
         startPeriodicPositionSaving()
     }
 
-    public fun pause(...) {
+    public fun pause() {
         playbackController?.pause() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
@@ -806,7 +805,7 @@ public class AudioPlayerService : MediaLibraryService() {
         stopPeriodicPositionSaving()
     }
 
-    public fun stop(...) {
+    public fun stop() {
         playbackController?.stop() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
@@ -827,7 +826,7 @@ public class AudioPlayerService : MediaLibraryService() {
      * This is a complete cleanup method that should be called when
      * playback is permanently stopped (e.g., from Stop button in notification).
      */
-    public fun stopAndCleanup(...) {
+    public fun stopAndCleanup() {
         lifecycleManager?.stopAndCleanup() ?: run {
             android.util.Log.e("AudioPlayerService", "ServiceLifecycleManager not initialized for stopAndCleanup")
             // Fallback manual cleanup if needed, or just log error
@@ -887,7 +886,7 @@ public class AudioPlayerService : MediaLibraryService() {
      *
      * @param minutes Timer duration in minutes
      */
-    public fun setSleepTimerMinutes(...) {
+    public fun setSleepTimerMinutes() {
         sleepTimerManager?.setSleepTimerMinutes(minutes)
     }
 
@@ -896,14 +895,14 @@ public class AudioPlayerService : MediaLibraryService() {
      *
      * Inspired by EasyBook implementation: uses boolean flag for "end of chapter" mode.
      */
-    public fun setSleepTimerEndOfChapter(...) {
+    public fun setSleepTimerEndOfChapter() {
         sleepTimerManager?.setSleepTimerEndOfChapter()
     }
 
     /**
      * Cancels active sleep timer.
      */
-    public fun cancelSleepTimer(...) {
+    public fun cancelSleepTimer() {
         sleepTimerManager?.cancelSleepTimer()
     }
 
@@ -941,7 +940,7 @@ public class AudioPlayerService : MediaLibraryService() {
      * Initializes the audio visualizer with the current audio session.
      * Should be called when playback starts.
      */
-    public fun initializeVisualizer(...) {
+    public fun initializeVisualizer() {
         val sessionId = exoPlayer.audioSessionId
         if (sessionId != 0) {
             audioVisualizerManager?.initialize(sessionId)
@@ -951,11 +950,11 @@ public class AudioPlayerService : MediaLibraryService() {
     /**
      * Enables or disables the audio visualizer.
      */
-    public fun setVisualizerEnabled(...) {
+    public fun setVisualizerEnabled() {
         audioVisualizerManager?.setEnabled(enabled)
     }
 
-    public fun next(...) {
+    public fun next() {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
             android.util.Log.i(
@@ -970,7 +969,7 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    public fun previous(...) {
+    public fun previous() {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
             android.util.Log.i(
@@ -985,7 +984,7 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    public fun seekToTrack(...) {
+    public fun seekToTrack() {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
             android.util.Log.i(
@@ -1022,7 +1021,7 @@ public class AudioPlayerService : MediaLibraryService() {
      * Stops playback and releases resources.
      * Closes notification and stops service.
      */
-    public fun stopAndRelease(...) {
+    public fun stopAndRelease() {
         val player = getActivePlayer()
         player.stop()
         player.clearMediaItems()
@@ -1142,7 +1141,7 @@ public class AudioPlayerService : MediaLibraryService() {
     private fun scheduleCustomLayoutUpdate(
         rewindSeconds: Int,
         forwardSeconds: Int,
-        delayMs: Int = ,
+        delayMs: Int = 150,
     ) {
         // Cancel any pending update
         updateLayoutJob?.cancel()
@@ -1234,7 +1233,7 @@ public class AudioPlayerService : MediaLibraryService() {
      *
      * @param minutes Timeout in minutes (10-180)
      */
-    public fun setInactivityTimeoutMinutes(...) {
+    public fun setInactivityTimeoutMinutes() {
         inactivityTimer?.setInactivityTimeoutMinutes(minutes)
         android.util.Log.d(
             "AudioPlayerService",

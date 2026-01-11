@@ -50,7 +50,7 @@ internal class PositionManager(
      * This method broadcasts the current position to trigger saving through MethodChannel.
      * Position is also saved periodically, so this is an additional safety measure.
      */
-    public fun saveCurrentPosition(...) {
+    public fun saveCurrentPosition() {
         try {
             val activePlayer = getActivePlayer()
             if (activePlayer.mediaItemCount > 0) {

@@ -78,7 +78,7 @@ public class JabookAppState(
      *
      * @param topLevelDestination The destination to navigate to
      */
-    public fun navigateToTopLevelDestination(...) {
+    public fun navigateToTopLevelDestination() {
         Log.d(TAG, "🧭 Navigating to top-level destination: ${topLevelDestination.name}")
         when (topLevelDestination) {
             TopLevelDestination.LIBRARY -> {
@@ -113,7 +113,7 @@ public class JabookAppState(
      * This clears the back stack and navigates to the library as the root destination.
      * Useful for returning to the main screen from anywhere in the app.
      */
-    public fun navigateToLibrary(...) {
+    public fun navigateToLibrary() {
         Log.d(TAG, "🧭 Navigating to Library (clearing back stack)")
         navController.navigate(LibraryRoute) {
             // Clear the entire back stack INCLUDING the current destination

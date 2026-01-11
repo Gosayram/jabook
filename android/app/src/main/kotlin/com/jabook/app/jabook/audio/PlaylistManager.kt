@@ -1302,7 +1302,7 @@ internal class PlaylistManager(
      *
      * @param nextTrackIndex Index of the track to preload
      */
-    public fun preloadNextTrack(...) {
+    public fun preloadNextTrack() {
         val filePaths =
             currentFilePaths ?: run {
                 android.util.Log.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: no file paths available")

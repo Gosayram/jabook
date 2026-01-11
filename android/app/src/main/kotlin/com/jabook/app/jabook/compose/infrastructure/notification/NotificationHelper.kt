@@ -41,7 +41,7 @@ public object NotificationHelper {
      *
      * @param context Application context
      */
-    public fun createNotificationChannels(...) {
+    public fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

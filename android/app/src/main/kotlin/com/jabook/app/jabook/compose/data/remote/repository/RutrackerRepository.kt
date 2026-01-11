@@ -759,7 +759,7 @@ public class RutrackerRepository
         /**
          * Clear search cache.
          */
-        public fun clearSearchCache(...) {
+        public fun clearSearchCache() {
             searchCache.clear()
         }
     }
