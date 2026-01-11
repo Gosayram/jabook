@@ -33,6 +33,7 @@ import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -67,7 +68,9 @@ public class SettingsViewModel
         private val workManager: WorkManager,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val torrentManager: TorrentManager,
+        private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
+        private val logger = loggerFactory.get("SettingsViewModel")
         // Expose active downloads for the settings UI
         public val activeDownloads: StateFlow<List<TorrentDownload>> =
             torrentManager.downloadsFlow
@@ -102,7 +105,7 @@ public class SettingsViewModel
                 val scanFolders = scanPathDao.getAllPathsList()
                 if (scanFolders.isEmpty()) {
                     // No folders configured - skip scan
-                    android.util.Log.w("SettingsViewModel", "Scan skipped: no folders configured")
+                    logger.w { "Scan skipped: no folders configured" }
                     return@launch
                 }
 
@@ -462,7 +465,7 @@ public class SettingsViewModel
                                         .valueOf(type.uppercase())
                                 cacheManager.clearCacheType(cacheType)
                             } catch (e: IllegalArgumentException) {
-                                android.util.Log.e("SettingsViewModel", "Invalid cache type: $type", e)
+                                logger.e(e) { "Invalid cache type: $type" }
                                 false
                             }
                         } else {

@@ -20,9 +20,12 @@ package com.jabook.app.jabook.compose.domain.model
  * This pattern is used throughout the app for type-safe error handling
  * and to represent async operations that can succeed, fail, or be loading.
  *
+ * Improved version with typed errors based on analysis.
+ *
  * @param T The type of data on success
+ * @param E The type of error (defaults to AppError)
  */
-public sealed interface Result<out T> {
+public sealed interface Result<out T, out E : AppError = AppError> {
     /**
      * Operation completed successfully with data.
      *
@@ -30,24 +33,36 @@ public sealed interface Result<out T> {
      */
     public data class Success<T>(
         val data: T,
-    ) : Result<T>
+    ) : Result<T, Nothing>
 
     /**
-     * Operation failed with an exception.
+     * Operation failed with a typed error.
      *
-     * @property exception The exception that caused the failure
-     * @property message Optional user-friendly error message
+     * @property error The typed error that caused the failure
      */
-    public data class Error(
-        val exception: Throwable,
-        val message: String? = exception.message,
-    ) : Result<Nothing>
+    public data class Error<E : AppError>(
+        val error: E,
+    ) : Result<Nothing, E>
 
     /**
      * Operation is currently in progress.
+     *
+     * @property progress Optional progress value (0.0 to 1.0)
      */
-    public data object Loading : Result<Nothing>
+    public data class Loading(
+        val progress: Float? = null,
+    ) : Result<Nothing, Nothing>
 }
+
+/**
+ * Legacy Result type for backward compatibility.
+ * @deprecated Use Result<T, AppError> instead
+ */
+@Deprecated(
+    message = "Use Result<T, AppError> instead",
+    replaceWith = ReplaceWith("Result<T, AppError>"),
+)
+public typealias LegacyResult<T> = Result<T, AppError>
 
 /**
  * Maps a successful result to a new type.
@@ -57,7 +72,7 @@ public sealed interface Result<out T> {
  * @param transform Function to transform the success data
  * @return Transformed result
  */
-public inline fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> =
+public inline fun <T, R, E : AppError> Result<T, E>.map(transform: (T) -> R): Result<R, E> =
     when (this) {
         is Result.Success -> Result.Success(transform(data))
         is Result.Error -> this
@@ -65,20 +80,152 @@ public inline fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> =
     }
 
 /**
+ * Maps an error to a new error type.
+ *
+ * @param transform Function to transform the error
+ * @return Transformed result
+ */
+public inline fun <T, E : AppError, F : AppError> Result<T, E>.mapError(transform: (E) -> F): Result<T, F> =
+    when (this) {
+        is Result.Success -> this
+        is Result.Error -> Result.Error(transform(error))
+        is Result.Loading -> this
+    }
+
+/**
  * Returns the data if this is a Success result, or null otherwise.
  */
-public fun <T> Result<T>.getOrNull(): T? =
+public fun <T, E : AppError> Result<T, E>.getOrNull(): T? =
     when (this) {
         is Result.Success -> data
         else -> null
     }
 
 /**
- * Returns the data if this is a Success result, or throws the exception if Error.
+ * Returns the data if this is a Success result, or throws the error if Error.
  */
-public fun <T> Result<T>.getOrThrow(): T =
+public fun <T, E : AppError> Result<T, E>.getOrThrow(): T =
     when (this) {
         is Result.Success -> data
-        is Result.Error -> throw exception
+        is Result.Error -> throw RuntimeException(error.message, error.cause)
         is Result.Loading -> error("Cannot get data from Loading result")
+    }
+
+/**
+ * Returns the error if this is an Error result, or null otherwise.
+ */
+public fun <T, E : AppError> Result<T, E>.getErrorOrNull(): E? =
+    when (this) {
+        is Result.Error -> error
+        else -> null
+    }
+
+/**
+ * Folds the result into a single value.
+ *
+ * @param onSuccess Function to handle success case
+ * @param onError Function to handle error case
+ * @param onLoading Function to handle loading case
+ * @return The folded value
+ */
+public inline fun <T, E : AppError, R> Result<T, E>.fold(
+    onSuccess: (T) -> R,
+    onError: (E) -> R,
+    onLoading: () -> R,
+): R =
+    when (this) {
+        is Result.Success -> onSuccess(data)
+        is Result.Error -> onError(error)
+        is Result.Loading -> onLoading()
+    }
+
+/**
+ * Executes action if result is Success.
+ */
+public inline fun <T, E : AppError> Result<T, E>.onSuccess(action: (T) -> Unit): Result<T, E> {
+    if (this is Result.Success) {
+        action(data)
+    }
+    return this
+}
+
+/**
+ * Executes action if result is Error.
+ */
+public inline fun <T, E : AppError> Result<T, E>.onError(action: (E) -> Unit): Result<T, E> {
+    if (this is Result.Error) {
+        action(error)
+    }
+    return this
+}
+
+/**
+ * Executes action if result is Loading.
+ */
+public inline fun <T, E : AppError> Result<T, E>.onLoading(action: () -> Unit): Result<T, E> {
+    if (this is Result.Loading) {
+        action()
+    }
+    return this
+}
+
+/**
+ * Converts a Throwable to AppError.Unknown.
+ */
+public fun Throwable.toAppError(): AppError.Unknown =
+    AppError.Unknown(
+        message = message ?: "Unknown error",
+        cause = this,
+    )
+
+/**
+ * Converts legacy Result<T> (with Throwable) to new Result<T, AppError>.
+ */
+public fun <T> com.jabook.app.jabook.audio.core.result.Result<T>.toTypedResult(): Result<T, AppError> =
+    when (this) {
+        is com.jabook.app.jabook.audio.core.result.Result.Success -> Result.Success(data)
+        is com.jabook.app.jabook.audio.core.result.Result.Error -> Result.Error(exception.toAppError())
+        is com.jabook.app.jabook.audio.core.result.Result.Loading -> Result.Loading()
+    }
+
+/**
+ * Extension to handle both old Result<T> (with Throwable) and new Result<T, AppError>.
+ * This allows gradual migration.
+ */
+public fun <T> Result<T, *>.getDataOrNull(): T? =
+    when (this) {
+        is Result.Success -> data
+        else -> null
+    }
+
+/**
+ * Extension to get error message from Result.
+ * Works with new Result<T, AppError> type.
+ */
+public fun <E : AppError> Result<*, E>.getErrorMessageOrNull(): String? =
+    when (this) {
+        is Result.Error -> error.message
+        else -> null
+    }
+
+/**
+ * Helper to convert old Result.Error (with Throwable) to new Result.Error (with AppError).
+ * Used during gradual migration.
+ */
+public fun <T> Result<T>.toTypedResult(): Result<T, AppError> =
+    when (this) {
+        is Result.Success -> Result.Success(data)
+        is Result.Error -> {
+            // Try to extract error from exception if it's already an AppError
+            val appError =
+                when (val cause = error.cause) {
+                    is AppError -> cause
+                    else -> error.cause?.toAppError() ?: AppError.Unknown(
+                        message = error.message ?: "Unknown error",
+                        cause = error.cause,
+                    )
+                }
+            Result.Error(appError)
+        }
+        is Result.Loading -> Result.Loading()
     }

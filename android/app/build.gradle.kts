@@ -181,149 +181,112 @@ ksp {
 
 dependencies {
     // AppCompat for AppCompatActivity and AlertDialog
-    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation(libs.androidx.appcompat)
 
     // Splash Screen API
-    implementation("androidx.core:core-splashscreen:1.2.0")
+    implementation(libs.androidx.core.splashscreen)
 
     // Dagger Hilt - Dependency Injection (using KSP instead of KAPT for Kotlin 2.0+)
-    implementation("com.google.dagger:hilt-android:2.57.2")
-    ksp("com.google.dagger:hilt-android-compiler:2.57.2")
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
 
     // Hilt WorkManager integration (using KSP)
-    implementation("androidx.hilt:hilt-work:1.2.0")
-    ksp("androidx.hilt:hilt-compiler:1.2.0")
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 
     // Media3 - Native audio player (using 1.8.0 version, same as lissen-android)
-    implementation("androidx.media3:media3-exoplayer:1.8.0")
-    implementation("androidx.media3:media3-ui:1.8.0")
-    implementation("androidx.media3:media3-session:1.8.0")
-    implementation("androidx.media3:media3-common:1.8.0")
-    // Media3 database provider for cache
-    implementation("androidx.media3:media3-database:1.8.0")
-    // Media3 datasource for network streaming (OkHttp support)
-    implementation("androidx.media3:media3-datasource-okhttp:1.8.0")
+    implementation(libs.bundles.media3)
 
     // Audio metadata parsing using KTagLib (TagLib Kotlin bindings)
-    implementation("com.github.timusus:KTagLib:1.6.1")
+    implementation(libs.ktaglib)
 
     // Android 14+ specific dependencies
     // Add support for Android 14+ foreground service types
-    implementation("androidx.work:work-runtime:2.11.0")
+    implementation(libs.androidx.work.runtime)
 
     // Add coroutines support for proper async handling
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.guava)
 
     // Kotlinx serialization (required by Room 2.8.4+)
     // Room uses setClassDiscriminatorMode which requires kotlinx.serialization 1.6.0+
-    val kotlinxSerializationVersion = "1.9.0"
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinxSerializationVersion")
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.serialization.core)
 
     // Room database for local storage
-    val roomVersion = "2.8.4"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
+    implementation(libs.bundles.room)
     // Use KSP instead of kapt for Room (recommended by Google)
-    ksp("androidx.room:room-compiler:$roomVersion")
+    ksp(libs.androidx.room.compiler)
 
     // DataStore for preferences
-    implementation("androidx.datastore:datastore-preferences:1.1.7")
+    implementation(libs.bundles.datastore)
     // Proto DataStore for typed preferences
-    implementation("androidx.datastore:datastore:1.2.0")
-    implementation("com.google.protobuf:protobuf-javalite:4.33.2")
+    implementation(libs.protobuf.javalite)
 
     // Security & Encryption - Modern approach with Tink (replaces deprecated EncryptedSharedPreferences)
-    implementation("com.google.crypto.tink:tink-android:1.20.0")
+    implementation(libs.tink.android)
     // Note: Media3 1.8.0 is the current stable version with full Android 14+ support
     // Previous alpha/beta versions (1.3.0, 1.4.0) had compatibility issues
     // Version 1.8.0 includes all Android 14+ fixes and is production-ready
 
     // Media library for MediaStyle notification (required for MediaStyle class)
     // MediaStyle is part of androidx.media, not androidx.core
-    implementation("androidx.media:media:1.7.1")
+    implementation(libs.androidx.media)
 
-    // OkHttp for network requests in MediaDataSourceFactory
-    implementation("com.squareup.okhttp3:okhttp:5.3.2")
-
-    // Retrofit for REST API calls
-    val retrofitVersion = "3.0.0"
-    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
-    implementation("com.squareup.retrofit2:converter-kotlinx-serialization:$retrofitVersion")
-
-    // OkHttp logging interceptor for debugging
-    implementation("com.squareup.okhttp3:logging-interceptor:5.3.2")
-
-    // OkHttp Brotli support (official extension)
-    implementation("com.squareup.okhttp3:okhttp-brotli:5.3.2")
-
+    // Network libraries
+    implementation(libs.bundles.network)
     // Jsoup for HTML parsing (Rutracker scraping)
-    implementation("org.jsoup:jsoup:1.21.2")
-
-    // Retrofit scalar converter for HTML responses
-    implementation("com.squareup.retrofit2:converter-scalars:$retrofitVersion")
+    implementation(libs.jsoup)
 
     // libtorrent4j for torrent downloads
-    val libtorrent4jVersion = "2.1.0-38"
-    implementation("org.libtorrent4j:libtorrent4j:$libtorrent4jVersion")
-    implementation("org.libtorrent4j:libtorrent4j-android-arm64:$libtorrent4jVersion")
-    implementation("org.libtorrent4j:libtorrent4j-android-arm:$libtorrent4jVersion")
-    implementation("org.libtorrent4j:libtorrent4j-android-x86:$libtorrent4jVersion")
-    implementation("org.libtorrent4j:libtorrent4j-android-x86_64:$libtorrent4jVersion")
+    implementation(libs.bundles.libtorrent4j)
 
     // Jetpack Compose - Modern UI toolkit
-    implementation(platform("androidx.compose:compose-bom:2025.12.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.bundles.compose)
     // Google Fonts support for Compose
-    implementation("androidx.compose.ui:ui-text-google-fonts:1.10.0")
-    implementation("androidx.compose.material3:material3-window-size-class")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material:material-icons-extended")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation(libs.androidx.compose.ui.text.google.fonts)
+    implementation(libs.androidx.compose.material3.window.size.class)
+    debugImplementation(libs.bundles.compose.debug)
 
     // Palette for extracting colors from images (Dynamic Theme)
-    implementation("androidx.palette:palette:1.0.0")
+    implementation(libs.androidx.palette)
 
     // Material 3 Adaptive - Official adaptive UI components
-    val adaptiveVersion = "1.3.0-alpha05"
-    implementation("androidx.compose.material3.adaptive:adaptive:$adaptiveVersion")
-    implementation("androidx.compose.material3.adaptive:adaptive-layout:$adaptiveVersion")
-    implementation("androidx.compose.material3.adaptive:adaptive-navigation:$adaptiveVersion")
+    implementation(libs.androidx.compose.material3.adaptive)
+    implementation(libs.androidx.compose.material3.adaptive.layout)
+    implementation(libs.androidx.compose.material3.adaptive.navigation)
 
     // NavigationSuiteScaffold for adaptive navigation
-    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.5.0-alpha11")
+    implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
 
     // Compose Navigation
-    implementation("androidx.navigation:navigation-compose:2.9.6")
-    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
 
     // Lifecycle & ViewModel for Compose
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     // Activity Compose
-    implementation("androidx.activity:activity-compose:1.12.1")
+    implementation(libs.androidx.activity.compose)
 
     // Premium UI Dependencies
     // Haze for Glassmorphism (blur effects)
-    implementation("dev.chrisbanes.haze:haze:1.7.1")
+    implementation(libs.haze)
     // HypnoticCanvas for Procedural Animated Backgrounds (Shaders)
-    implementation("com.mikepenz.hypnoticcanvas:hypnoticcanvas:0.4.1")
-    implementation("com.mikepenz.hypnoticcanvas:hypnoticcanvas-shaders:0.4.1")
+    implementation(libs.hypnoticcanvas)
+    implementation(libs.hypnoticcanvas.shaders)
 
     // Coil3 for async image loading in Compose
-    val coilVersion = "3.3.0"
-    implementation("io.coil-kt.coil3:coil-compose:$coilVersion")
+    implementation(libs.coil3.compose)
     // Coil3 network support with OkHttp (uses existing OkHttpClient)
-    implementation("io.coil-kt.coil3:coil-network-okhttp:$coilVersion")
+    implementation(libs.coil3.network.okhttp)
 
     // Glide for optimized artwork loading in notifications
     // Used specifically for Media3 BitmapLoader and notification cover art
-    implementation("com.github.bumptech.glide:glide:5.0.5")
-    ksp("com.github.bumptech.glide:ksp:5.0.5")
+    implementation(libs.glide)
+    ksp(libs.glide.ksp)
 
     // Lyricist dependency removed
 
@@ -332,35 +295,13 @@ dependencies {
     // ProGuard rules in proguard-rules.pro handle R8 warnings with -dontwarn
 
     // Testing dependencies
-    // JUnit 4 for unit tests
-    testImplementation("junit:junit:4.13.2")
-
-    // Kotlin Test
-    testImplementation("org.jetbrains.kotlin:kotlin-test:2.2.21")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.2.21")
-
-    // Mockito for mocking
-    testImplementation("org.mockito:mockito-core:5.21.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:6.1.0")
-
-    // Coroutines Test
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
-
-    // AndroidX Test - Core library
-    testImplementation("androidx.test:core:1.7.0")
-    testImplementation("androidx.test.ext:junit:1.3.0")
-
-    // Robolectric for Android framework testing
-    testImplementation("org.robolectric:robolectric:4.16")
-
-    // Truth for fluent assertions (optional but recommended)
-    testImplementation("com.google.truth:truth:1.4.5")
+    testImplementation(libs.bundles.test)
 
     // Firebase - Import the Firebase BoM to manage library versions
-    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation(platform(libs.firebase.bom))
 
     // Firebase Analytics (required for other Firebase services)
-    implementation("com.google.firebase:firebase-analytics")
+    implementation(libs.firebase.analytics)
 
     // Add other Firebase dependencies as needed
     // https://firebase.google.com/docs/android/setup#available-libraries

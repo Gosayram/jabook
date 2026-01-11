@@ -1,0 +1,293 @@
+[versions]
+# Android
+androidGradlePlugin = "8.13.1"
+compileSdk = "36"
+minSdk = "30"
+targetSdk = "36"
+
+# Kotlin
+kotlin = "2.2.21"
+ksp = "2.3.3"
+kotlinxCoroutines = "1.10.2"
+kotlinxSerialization = "1.9.0"
+
+# AndroidX Core
+androidxCore = "1.13.1"
+androidxCoreSplashscreen = "1.2.0"
+androidxActivity = "1.12.1"
+androidxAppcompat = "1.7.1"
+androidxMedia = "1.7.1"
+
+# AndroidX Lifecycle
+androidxLifecycle = "2.10.0"
+
+# AndroidX Compose
+androidxComposeBom = "2025.12.00"
+androidxComposeMaterial3Adaptive = "1.3.0-alpha05"
+androidxComposeMaterial3AdaptiveNavigation = "1.5.0-alpha11"
+androidxComposeUiTextGoogleFonts = "1.10.0"
+
+# AndroidX Navigation
+androidxNavigation = "2.9.6"
+
+# AndroidX Room
+androidxRoom = "2.8.4"
+
+# AndroidX DataStore
+androidxDatastore = "1.2.0"
+androidxDatastorePreferences = "1.1.7"
+
+# AndroidX Work
+androidxWork = "2.11.0"
+
+# AndroidX Palette
+androidxPalette = "1.0.0"
+
+# Hilt
+hilt = "2.57.2"
+hiltExt = "1.2.0"
+hiltNavigationCompose = "1.3.0"
+
+# Media3
+media3 = "1.8.0"
+
+# Network
+okhttp = "5.3.2"
+retrofit = "3.0.0"
+jsoup = "1.21.2"
+
+# Image Loading
+coil3 = "3.3.0"
+glide = "5.0.5"
+
+# Serialization
+protobuf = "4.33.2"
+
+# Security
+tink = "1.20.0"
+
+# Torrent
+libtorrent4j = "2.1.0-38"
+
+# Audio
+ktaglib = "1.6.1"
+
+# UI Libraries
+haze = "1.7.1"
+hypnoticcanvas = "0.4.1"
+
+# Firebase
+firebaseBom = "34.7.0"
+
+# Testing
+junit = "4.13.2"
+kotlinTest = "2.2.21"
+mockito = "5.21.0"
+mockitoKotlin = "6.1.0"
+kotlinxCoroutinesTest = "1.10.2"
+androidxTestCore = "1.7.0"
+androidxTestExt = "1.3.0"
+robolectric = "4.16"
+truth = "1.4.5"
+
+# Code Quality
+ktlint = "14.0.1"
+
+[libraries]
+# AndroidX Core
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "androidxCoreSplashscreen" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidxAppcompat" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidxActivity" }
+androidx-media = { group = "androidx.media", name = "media", version.ref = "androidxMedia" }
+
+# AndroidX Lifecycle
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
+
+# AndroidX Compose
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "androidxComposeBom" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-material3-window-size-class = { group = "androidx.compose.material3", name = "material3-window-size-class" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+androidx-compose-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "androidxComposeUiTextGoogleFonts" }
+androidx-compose-material3-adaptive = { group = "androidx.compose.material3.adaptive", name = "adaptive", version.ref = "androidxComposeMaterial3Adaptive" }
+androidx-compose-material3-adaptive-layout = { group = "androidx.compose.material3.adaptive", name = "adaptive-layout", version.ref = "androidxComposeMaterial3Adaptive" }
+androidx-compose-material3-adaptive-navigation = { group = "androidx.compose.material3.adaptive", name = "adaptive-navigation", version.ref = "androidxComposeMaterial3Adaptive" }
+androidx-compose-material3-adaptive-navigation-suite = { group = "androidx.compose.material3", name = "material3-adaptive-navigation-suite", version.ref = "androidxComposeMaterial3AdaptiveNavigation" }
+
+# AndroidX Navigation
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "androidxNavigation" }
+androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+
+# AndroidX Room
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "androidxRoom" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "androidxRoom" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "androidxRoom" }
+
+# AndroidX DataStore
+androidx-datastore = { group = "androidx.datastore", name = "datastore", version.ref = "androidxDatastore" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "androidxDatastorePreferences" }
+
+# AndroidX Work
+androidx-work-runtime = { group = "androidx.work", name = "work-runtime", version.ref = "androidxWork" }
+
+# AndroidX Palette
+androidx-palette = { group = "androidx.palette", name = "palette", version.ref = "androidxPalette" }
+
+# Hilt
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-android-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltExt" }
+androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltExt" }
+
+# Media3
+media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
+media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
+media3-common = { group = "androidx.media3", name = "media3-common", version.ref = "media3" }
+media3-database = { group = "androidx.media3", name = "media3-database", version.ref = "media3" }
+media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3" }
+
+# Network
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+okhttp-brotli = { group = "com.squareup.okhttp3", name = "okhttp-brotli", version.ref = "okhttp" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-converter-kotlinx-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
+retrofit-converter-scalars = { group = "com.squareup.retrofit2", name = "converter-scalars", version.ref = "retrofit" }
+jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+
+# Kotlinx
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-guava = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-guava", version.ref = "kotlinxCoroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
+
+# Image Loading
+coil3-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil3" }
+coil3-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil3" }
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+glide-ksp = { group = "com.github.bumptech.glide", name = "ksp", version.ref = "glide" }
+
+# Serialization
+protobuf-javalite = { group = "com.google.protobuf", name = "protobuf-javalite", version.ref = "protobuf" }
+
+# Security
+tink-android = { group = "com.google.crypto.tink", name = "tink-android", version.ref = "tink" }
+
+# Torrent
+libtorrent4j = { group = "org.libtorrent4j", name = "libtorrent4j", version.ref = "libtorrent4j" }
+libtorrent4j-android-arm64 = { group = "org.libtorrent4j", name = "libtorrent4j-android-arm64", version.ref = "libtorrent4j" }
+libtorrent4j-android-arm = { group = "org.libtorrent4j", name = "libtorrent4j-android-arm", version.ref = "libtorrent4j" }
+libtorrent4j-android-x86 = { group = "org.libtorrent4j", name = "libtorrent4j-android-x86", version.ref = "libtorrent4j" }
+libtorrent4j-android-x86-64 = { group = "org.libtorrent4j", name = "libtorrent4j-android-x86_64", version.ref = "libtorrent4j" }
+
+# Audio
+ktaglib = { group = "com.github.timusus", name = "KTagLib", version.ref = "ktaglib" }
+
+# UI Libraries
+haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
+hypnoticcanvas = { group = "com.mikepenz.hypnoticcanvas", name = "hypnoticcanvas", version.ref = "hypnoticcanvas" }
+hypnoticcanvas-shaders = { group = "com.mikepenz.hypnoticcanvas", name = "hypnoticcanvas-shaders", version.ref = "hypnoticcanvas" }
+
+# Firebase
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
+
+# Testing
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlinTest" }
+kotlin-test-junit = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlinTest" }
+mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
+mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version.ref = "mockitoKotlin" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesTest" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExt" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+google-services = { id = "com.google.gms.google-services", version = "4.4.4" }
+protobuf = { id = "com.google.protobuf", version = "0.9.5" }
+jacoco = { id = "jacoco", version = "0.8.14" }
+
+[bundles]
+compose = [
+    "androidx-compose-ui",
+    "androidx-compose-material3",
+    "androidx-compose-ui-tooling-preview",
+    "androidx-compose-material-icons-extended",
+]
+
+compose-debug = [
+    "androidx-compose-ui-tooling",
+    "androidx-compose-ui-test-manifest",
+]
+
+media3 = [
+    "media3-exoplayer",
+    "media3-ui",
+    "media3-session",
+    "media3-common",
+    "media3-database",
+    "media3-datasource-okhttp",
+]
+
+network = [
+    "okhttp",
+    "okhttp-logging-interceptor",
+    "okhttp-brotli",
+    "retrofit",
+    "retrofit-converter-kotlinx-serialization",
+    "retrofit-converter-scalars",
+]
+
+kotlinx = [
+    "kotlinx-coroutines-android",
+    "kotlinx-coroutines-guava",
+    "kotlinx-serialization-json",
+    "kotlinx-serialization-core",
+]
+
+room = [
+    "androidx-room-runtime",
+    "androidx-room-ktx",
+]
+
+datastore = [
+    "androidx-datastore",
+    "androidx-datastore-preferences",
+]
+
+libtorrent4j = [
+    "libtorrent4j",
+    "libtorrent4j-android-arm64",
+    "libtorrent4j-android-arm",
+    "libtorrent4j-android-x86",
+    "libtorrent4j-android-x86-64",
+]
+
+test = [
+    "junit",
+    "kotlin-test",
+    "kotlin-test-junit",
+    "mockito-core",
+    "mockito-kotlin",
+    "kotlinx-coroutines-test",
+    "androidx-test-core",
+    "androidx-test-ext-junit",
+    "robolectric",
+    "truth",
+]

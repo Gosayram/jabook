@@ -22,9 +22,11 @@ import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomainFromIndex
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
+import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
+import com.jabook.app.jabook.compose.domain.model.toAppError
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -46,7 +48,7 @@ public interface RutrackerRepository {
      * @param query Search query
      * @return Flow of Result with list of search results
      */
-    public suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>>>
+    public suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>>
 
     /**
      * Fetch topic details and save cover URL to database.
@@ -54,7 +56,7 @@ public interface RutrackerRepository {
      * @param topicId Topic ID
      * @return Result indicating success or failure
      */
-    public suspend fun fetchAndSaveCover(topicId: String): Result<Unit>
+    public suspend fun fetchAndSaveCover(topicId: String): Result<Unit, AppError>
 
     /**
      * Get topic details.
@@ -62,7 +64,7 @@ public interface RutrackerRepository {
      * @param topicId Topic ID
      * @return Result with topic details
      */
-    public suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails>
+    public suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails, AppError>
 
     /**
      * Login to Rutracker.
@@ -74,7 +76,7 @@ public interface RutrackerRepository {
     public suspend fun login(
         username: String,
         password: String,
-    ): Result<Unit>
+    ): Result<Unit, AppError>
 
     /**
      * Get topic details at a specific page.
@@ -86,7 +88,7 @@ public interface RutrackerRepository {
     public suspend fun getTopicDetailsPage(
         topicId: String,
         page: Int,
-    ): Result<RutrackerTopicDetails>
+    ): Result<RutrackerTopicDetails, AppError>
 }
 
 /**
@@ -100,7 +102,7 @@ public class RutrackerRepositoryImpl
         private val parser: RutrackerParser,
         private val offlineSearchDao: OfflineSearchDao,
     ) : RutrackerRepository {
-        override suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>>> =
+        override suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>> =
             flow {
                 // Use ONLY indexed search (no network)
                 // android.util.Log.d("RutrackerRepositoryImpl", "🔍 Search started: query='$query'")
@@ -173,12 +175,12 @@ public class RutrackerRepositoryImpl
                     }
                 } catch (e: Exception) {
                     // android.util.Log.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
-                    // Search failed - return empty results
-                    emit(Result.Success(emptyList()))
+                    // Search failed - return error
+                    emit(Result.Error(e.toAppError()))
                 }
             }
 
-        override suspend fun fetchAndSaveCover(topicId: String): Result<Unit> =
+        override suspend fun fetchAndSaveCover(topicId: String): Result<Unit, AppError> =
             try {
                 // Re-use existing getTopicDetails which fetches HTML and parses it
                 // This extracts the cover URL inside RutrackerParser
@@ -197,12 +199,12 @@ public class RutrackerRepositoryImpl
                         }
                     }
                     is Result.Error -> {
-                        Result.Error(result.exception)
+                        Result.Error(result.error)
                     }
                     is Result.Loading -> Result.Loading
                 }
             } catch (e: Exception) {
-                Result.Error(e)
+                Result.Error(e.toAppError())
             }
 
         private suspend fun saveResultsToDb(
@@ -216,38 +218,48 @@ public class RutrackerRepositoryImpl
             }
         }
 
-        override suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails> {
+        override suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails, AppError> {
             return try {
                 val response = api.getTopicDetails(topicId)
 
                 if (!response.isSuccessful) {
-                    return Result.Error(Exception("HTTP ${response.code()}: ${response.message()}"))
+                    return Result.Error(
+                        AppError.NetworkError(
+                            "HTTP ${response.code()}: ${response.message()}",
+                        ),
+                    )
                 }
 
                 // Get raw bytes and decode as Windows-1251
-                val rawBytes = response.body()?.bytes() ?: return Result.Error(Exception("Empty response body"))
+                val rawBytes = response.body()?.bytes() ?: return Result.Error(
+                    AppError.NetworkError("Empty response body"),
+                )
                 val html = String(rawBytes, charset("windows-1251"))
 
                 val dtoDetails =
                     parser.parseTopicDetails(html, topicId)
-                        ?: return Result.Error(Exception("Failed to parse topic details"))
+                        ?: return Result.Error(
+                            AppError.ParsingError("Failed to parse topic details"),
+                        )
 
                 // Map DTO to domain model
                 val domainDetails = dtoDetails.toDomain()
                 if (domainDetails.isValid()) {
                     Result.Success(domainDetails)
                 } else {
-                    Result.Error(Exception("Topic details failed validation"))
+                    Result.Error(
+                        AppError.ParsingError("Topic details failed validation"),
+                    )
                 }
             } catch (e: Exception) {
-                Result.Error(e)
+                Result.Error(e.toAppError())
             }
         }
 
         override suspend fun login(
             username: String,
             password: String,
-        ): Result<Unit> {
+        ): Result<Unit, AppError> {
             return try {
                 // Create form-url-encoded request body with CP1251 encoding
                 val formBody: String = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
@@ -259,45 +271,55 @@ public class RutrackerRepositoryImpl
                 val response = api.login(requestBody)
 
                 if (!response.isSuccessful) {
-                    return Result.Error(Exception("Login failed: HTTP ${response.code()}"))
+                    return Result.Error(
+                        AppError.NetworkError("Login failed: HTTP ${response.code()}"),
+                    )
                 }
 
                 // Check if login was successful by checking cookies or response content
                 // Rutracker sets session cookies on successful login
                 Result.Success(Unit)
             } catch (e: Exception) {
-                Result.Error(e)
+                Result.Error(e.toAppError())
             }
         }
 
         override suspend fun getTopicDetailsPage(
             topicId: String,
             page: Int,
-        ): Result<RutrackerTopicDetails> {
+        ): Result<RutrackerTopicDetails, AppError> {
             return try {
                 // Calculate offset: each page has 30 comments, offset = (page - 1) * 30
                 val offset = (page - 1) * 30
                 val response = api.getTopicDetailsAtPage(topicId, offset)
 
                 if (!response.isSuccessful) {
-                    return Result.Error(Exception("HTTP ${response.code()}: ${response.message()}"))
+                    return Result.Error(
+                        AppError.NetworkError("HTTP ${response.code()}: ${response.message()}"),
+                    )
                 }
 
-                val rawBytes = response.body()?.bytes() ?: return Result.Error(Exception("Empty response body"))
+                val rawBytes = response.body()?.bytes() ?: return Result.Error(
+                    AppError.NetworkError("Empty response body"),
+                )
                 val html = String(rawBytes, charset("windows-1251"))
 
                 val dtoDetails =
                     parser.parseTopicDetails(html, topicId)
-                        ?: return Result.Error(Exception("Failed to parse topic details"))
+                        ?: return Result.Error(
+                            AppError.ParsingError("Failed to parse topic details"),
+                        )
 
                 val domainDetails = dtoDetails.toDomain()
                 if (domainDetails.isValid() || (page > 1 && domainDetails.isValidForPagination())) {
                     Result.Success(domainDetails)
                 } else {
-                    Result.Error(Exception("Topic details failed validation"))
+                    Result.Error(
+                        AppError.ParsingError("Topic details failed validation"),
+                    )
                 }
             } catch (e: Exception) {
-                Result.Error(e)
+                Result.Error(e.toAppError())
             }
         }
     }

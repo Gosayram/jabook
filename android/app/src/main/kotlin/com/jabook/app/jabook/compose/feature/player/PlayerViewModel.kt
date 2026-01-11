@@ -25,6 +25,7 @@ import coil3.toBitmap
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCase
 import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
@@ -70,8 +71,10 @@ public class PlayerViewModel
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
         private val playbackPositionRepository: PlaybackPositionRepository,
+        private val loggerFactory: LoggerFactory,
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
+        private val logger = loggerFactory.get("PlayerViewModel")
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
         private val bookId = args.bookId
@@ -112,21 +115,22 @@ public class PlayerViewModel
                             positionResult.data?.let { entity ->
                                 savedPosition = entity.position
                                 savedChapterIndex = entity.trackIndex
-                                android.util.Log.d(
-                                    "PlayerViewModel",
-                                    "Restored position from database: chapter=$savedChapterIndex, position=${savedPosition}ms",
-                                )
+                                logger.d {
+                                    "Restored position from database: chapter=$savedChapterIndex, position=${savedPosition}ms"
+                                }
                             }
                         }
                         is com.jabook.app.jabook.audio.core.result.Result.Error -> {
-                            android.util.Log.w("PlayerViewModel", "Failed to restore position: ${positionResult.exception.message}")
+                            logger.w(positionResult.exception) {
+                                "Failed to restore position: ${positionResult.exception.message}"
+                            }
                         }
                         else -> {
                             // Loading state, will be updated when ready
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("PlayerViewModel", "Error restoring position from database", e)
+                    logger.w(e) { "Error restoring position from database" }
                 }
             }
         }
@@ -248,7 +252,7 @@ public class PlayerViewModel
                     }
                     lyricsState.value = null
                 } catch (e: Exception) {
-                    android.util.Log.e("PlayerViewModel", "Failed to load lyrics", e)
+                    logger.e(e) { "Failed to load lyrics" }
                     lyricsState.value = null
                 }
             }
@@ -287,7 +291,7 @@ public class PlayerViewModel
                 }
             } catch (e: Exception) {
                 // Ignore errors, keep default theme
-                android.util.Log.e("PlayerViewModel", "Failed to extract dynamic colors", e)
+                logger.e(e) { "Failed to extract dynamic colors" }
             }
         }
 
@@ -458,10 +462,9 @@ public class PlayerViewModel
                     val initialChapterIndex = if (savedChapterIndex > 0) savedChapterIndex else state.currentChapterIndex
                     val initialPosition = if (savedPosition > 0) savedPosition else state.currentPosition
 
-                    android.util.Log.d(
-                        "PlayerViewModel",
-                        "Initializing player: chapter=$initialChapterIndex, position=${initialPosition}ms",
-                    )
+                    logger.d {
+                        "Initializing player: chapter=$initialChapterIndex, position=${initialPosition}ms"
+                    }
 
                     // Set callback for chapter end handling (repeat logic)
                     playerController.setOnChapterEndedCallback {

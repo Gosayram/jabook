@@ -17,8 +17,8 @@ package com.jabook.app.jabook.compose.feature.topic
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
@@ -79,9 +79,11 @@ public class TopicViewModel
         private val mirrorManager: MirrorManager,
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
         private val avatarPreloader: AvatarPreloader,
+        private val loggerFactory: LoggerFactory,
         @param:ApplicationContext private val context: Context,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
+        private val logger = loggerFactory.get("TopicViewModel")
         private val topicId: String = savedStateHandle.toRoute<TopicRoute>().topicId
 
         private val _uiState = MutableStateFlow<TopicUiState>(TopicUiState.Loading)
@@ -289,7 +291,7 @@ public class TopicViewModel
                     // Prefer magnet URL over torrent URL
                     val downloadUrl = magnetUrl ?: torrentUrl
                     if (downloadUrl.isNullOrBlank()) {
-                        Log.e("TopicViewModel", "No download URL available")
+                        logger.e { "No download URL available" }
                         _message.value = context.getString(R.string.failedToStartDownload)
                         return@launch
                     }
@@ -299,7 +301,7 @@ public class TopicViewModel
                         !downloadUrl.startsWith("http://", ignoreCase = true) &&
                         !downloadUrl.startsWith("https://", ignoreCase = true)
                     ) {
-                        Log.e("TopicViewModel", "Invalid download URL format: $downloadUrl")
+                        logger.e { "Invalid download URL format: $downloadUrl" }
                         _message.value = context.getString(R.string.invalidDownloadUrl)
                         return@launch
                     }
@@ -310,7 +312,7 @@ public class TopicViewModel
                             android.os.Environment.DIRECTORY_DOWNLOADS,
                         )
                     if (downloadsDir == null || !downloadsDir.exists()) {
-                        Log.e("TopicViewModel", "Downloads directory not available")
+                        logger.e { "Downloads directory not available" }
                         _message.value = context.getString(R.string.downloadsDirectoryNotAvailable)
                         return@launch
                     }
@@ -320,7 +322,7 @@ public class TopicViewModel
                     if (!baseDir.exists()) {
                         val created = baseDir.mkdirs()
                         if (!created && !baseDir.exists()) {
-                            Log.e("TopicViewModel", "Failed to create base directory: ${baseDir.absolutePath}")
+                            logger.e { "Failed to create base directory: ${baseDir.absolutePath}" }
                             _message.value = context.getString(R.string.failedToStartDownload)
                             return@launch
                         }
@@ -344,19 +346,19 @@ public class TopicViewModel
                     if (!bookFolder.exists()) {
                         val created = bookFolder.mkdirs()
                         if (!created && !bookFolder.exists()) {
-                            Log.e("TopicViewModel", "Failed to create book directory: ${bookFolder.absolutePath}")
+                            logger.e { "Failed to create book directory: ${bookFolder.absolutePath}" }
                             _message.value = context.getString(R.string.failedToStartDownload)
                             return@launch
                         }
                     }
 
                     val savePath = bookFolder.absolutePath
-                    Log.d("TopicViewModel", "Saving torrent to: $savePath")
+                    logger.d { "Saving torrent to: $savePath" }
 
                     // Check if downloadUrl is a magnet URI or HTTP/HTTPS URL
                     // TorrentManager.addTorrent only accepts magnet URIs
                     if (!downloadUrl.startsWith("magnet:", ignoreCase = true)) {
-                        Log.e("TopicViewModel", "downloadTorrentRelease only supports magnet URIs, got: $downloadUrl")
+                        logger.e { "downloadTorrentRelease only supports magnet URIs, got: $downloadUrl" }
                         _message.value =
                             context.getString(
                                 R.string.failedToStartDownloadWithError,
@@ -371,7 +373,7 @@ public class TopicViewModel
                         try {
                             torrentManager.initialize()
                         } catch (e: Exception) {
-                            Log.w("TopicViewModel", "TorrentManager already initialized or error: ${e.message}")
+                            logger.w(e) { "TorrentManager already initialized or error: ${e.message}" }
                         }
 
                         val result =
@@ -383,23 +385,23 @@ public class TopicViewModel
 
                         if (result.isSuccess) {
                             val hash = result.getOrNull()
-                            Log.i("TopicViewModel", "Torrent download started: $hash")
+                            logger.i { "Torrent download started: $hash" }
                             _message.value = context.getString(R.string.downloadStarted)
                         } else {
                             val exception = result.exceptionOrNull()
                             val error = exception?.message ?: context.getString(R.string.unknownError)
-                            Log.e("TopicViewModel", "Failed to start torrent download: $error", exception)
+                            logger.e(exception) { "Failed to start torrent download: $error" }
                             _message.value = context.getString(R.string.failedToStartDownloadWithError, error)
                         }
                     }
                 } catch (e: RuTrackerError.Unauthorized) {
-                    Log.w("TopicViewModel", "Download requires authentication")
+                    logger.w { "Download requires authentication" }
                     _message.value = context.getString(R.string.authenticationRequired)
                 } catch (e: IllegalStateException) {
-                    Log.e("TopicViewModel", "Illegal state during torrent download", e)
+                    logger.e(e) { "Illegal state during torrent download" }
                     _message.value = context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
                 } catch (e: Exception) {
-                    Log.e("TopicViewModel", "Unexpected error starting torrent download", e)
+                    logger.e(e) { "Unexpected error starting torrent download" }
                     _message.value =
                         context.getString(R.string.failedToStartDownloadWithError, e.message ?: context.getString(R.string.unknownError))
                 }
@@ -432,23 +434,23 @@ public class TopicViewModel
                                         }
                                     }
 
-                                    Log.i("TopicViewModel", "Torrent file saved: ${torrentFile.absolutePath}")
+                                    logger.i { "Torrent file saved: ${torrentFile.absolutePath}" }
                                     _message.value = context.getString(R.string.torrentFileSaved)
                                 }
                             } else {
-                                Log.e("TopicViewModel", "Response body is null")
+                                logger.e { "Response body is null" }
                                 _message.value = context.getString(R.string.failedToDownloadTorrentFile)
                             }
                         } else {
-                            Log.e("TopicViewModel", "Failed to download torrent file: ${response.code()}")
+                            logger.e { "Failed to download torrent file: ${response.code()}" }
                             _message.value = context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code())
                         }
                     }
                 } catch (e: RuTrackerError.Unauthorized) {
-                    Log.w("TopicViewModel", "Download torrent file requires authentication")
+                    logger.w { "Download torrent file requires authentication" }
                     _message.value = context.getString(R.string.authenticationRequired)
                 } catch (e: Exception) {
-                    Log.e("TopicViewModel", "Error downloading torrent file", e)
+                    logger.e(e) { "Error downloading torrent file" }
                 }
             }
         }
@@ -466,14 +468,14 @@ public class TopicViewModel
                 }
 
             if (magnetUrl.isNullOrBlank()) {
-                Log.e("TopicViewModel", "No magnet URL available")
+                logger.e { "No magnet URL available" }
                 return
             }
 
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText(context.getString(R.string.magnetLinkLabel), magnetUrl)
             clipboard.setPrimaryClip(clip)
-            Log.i("TopicViewModel", "Magnet link copied to clipboard")
+            logger.i { "Magnet link copied to clipboard" }
             _message.value = context.getString(R.string.magnetLinkCopiedMessage)
         }
 
@@ -490,7 +492,7 @@ public class TopicViewModel
                 }
 
             if (magnetUrl.isNullOrBlank()) {
-                Log.e("TopicViewModel", "No magnet URL available")
+                logger.e { "No magnet URL available" }
                 return
             }
 
