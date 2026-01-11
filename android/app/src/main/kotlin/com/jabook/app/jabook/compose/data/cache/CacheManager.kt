@@ -15,8 +15,8 @@
 package com.jabook.app.jabook.compose.data.cache
 
 import android.content.Context
-import android.util.Log
 import coil3.SingletonImageLoader
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +35,9 @@ public class CacheManager
         @param:ApplicationContext private val context: Context,
         private val database: JabookDatabase,
         private val rutrackerSearchCache: RutrackerSearchCache,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("CacheManager")
         /**
          * Get total cache size in bytes.
          */
@@ -46,7 +48,7 @@ public class CacheManager
                     val externalCache = context.externalCacheDir?.walkFileTree()?.sumOf { it.length() } ?: 0L
                     appCache + externalCache
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to calculate cache size", e)
+                    logger.e(e) { "Failed to calculate cache size" }
                     0L
                 }
             }
@@ -73,7 +75,7 @@ public class CacheManager
                         lastCleanup = getLastCleanupTimestamp(),
                     )
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to get cache statistics", e)
+                    logger.e(e) { "Failed to get cache statistics" }
                     CacheStatistics(
                         totalSize = 0L,
                         searchCacheSize = 0L,
@@ -92,15 +94,15 @@ public class CacheManager
         public suspend fun clearAllCache(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "Clearing all cache")
+                    logger.d { "Clearing all cache" }
 
                     // Clear Coil memory cache first (before deleting directories)
                     try {
                         val imageLoader = SingletonImageLoader.get(context)
                         imageLoader.memoryCache?.clear()
-                        Log.d(TAG, "Coil memory cache cleared")
+                        logger.d { "Coil memory cache cleared" }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to clear Coil memory cache", e)
+                        logger.w(e) { "Failed to clear Coil memory cache" }
                     }
 
                     // Clear cache directories (includes Coil disk cache in image_cache/)

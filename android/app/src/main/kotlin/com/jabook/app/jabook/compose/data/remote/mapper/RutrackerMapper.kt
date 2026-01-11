@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.mapper
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.model.Comment
 import com.jabook.app.jabook.compose.data.remote.model.RelatedBook
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
@@ -32,6 +32,13 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
  * - Business logic to work with validated, normalized data
  * - Easy testing with mock data
  */
+
+/**
+ * Internal logger for mapper functions.
+ * Note: Extension functions cannot use dependency injection, so we create logger directly.
+ */
+private val mapperLogger: com.jabook.app.jabook.compose.core.logger.Logger =
+    com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl().get("RutrackerMapper")
 
 /**
  * Maps SearchResult DTO to RutrackerSearchResult domain model.
@@ -75,22 +82,20 @@ public fun List<SearchResult>.toDomain(): List<RutrackerSearchResult> {
         }
     val filteredCount = invalidResults.size
     if (filteredCount > 0) {
-        android.util.Log.w(
-            "RutrackerMapper",
-            "⚠️ Filtered out $filteredCount invalid results out of $totalCount total",
-        )
+        mapperLogger.w {
+            "⚠️ Filtered out $filteredCount invalid results out of $totalCount total"
+        }
         invalidResults.take(5).forEach { (index, dto) ->
-            android.util.Log.w(
-                "RutrackerMapper",
+            mapperLogger.w {
                 "  Invalid[$index]: topicId='${dto.topicId.take(20)}', " +
                     "title='${dto.title.take(30)}', " +
                     "author='${dto.author.take(20)}', " +
                     "category='${dto.category.take(20)}', " +
-                    "torrentUrl='${dto.torrentUrl.take(30)}'",
-            )
+                    "torrentUrl='${dto.torrentUrl.take(30)}'"
+            }
         }
         if (filteredCount > 5) {
-            android.util.Log.w("RutrackerMapper", "  ... and ${filteredCount - 5} more invalid results")
+            mapperLogger.w { "  ... and ${filteredCount - 5} more invalid results" }
         }
     }
     return results
@@ -120,20 +125,18 @@ public fun List<SearchResult>.toDomainFromIndex(): List<RutrackerSearchResult> {
         }
     val filteredCount = invalidResults.size
     if (filteredCount > 0) {
-        android.util.Log.w(
-            "RutrackerMapper",
-            "⚠️ [INDEX] Filtered out $filteredCount invalid indexed results out of $totalCount total",
-        )
+        mapperLogger.w {
+            "⚠️ [INDEX] Filtered out $filteredCount invalid indexed results out of $totalCount total"
+        }
         invalidResults.take(5).forEach { (index, dto) ->
-            android.util.Log.w(
-                "RutrackerMapper",
+            mapperLogger.w {
                 "  Invalid[$index]: topicId='${dto.topicId.take(20)}', " +
                     "title='${dto.title.take(30)}', " +
-                    "author='${dto.author.take(20)}'",
-            )
+                    "author='${dto.author.take(20)}'"
+            }
         }
         if (filteredCount > 5) {
-            android.util.Log.w("RutrackerMapper", "  ... and ${filteredCount - 5} more invalid results")
+            mapperLogger.w { "  ... and ${filteredCount - 5} more invalid results" }
         }
     }
     return results

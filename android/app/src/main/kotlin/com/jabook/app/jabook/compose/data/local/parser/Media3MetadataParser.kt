@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.local.parser
 
 import android.media.MediaMetadataRetriever
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.simplecityapps.ktaglib.KTagLib
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -32,7 +33,9 @@ public class Media3MetadataParser
     @Inject
     constructor(
         private val encodingDetector: EncodingDetector,
+        private val loggerFactory: LoggerFactory,
     ) : AudioMetadataParser {
+        private val logger = loggerFactory.get("MetadataParser")
         private val kTagLib by lazy { KTagLib() }
 
         override suspend fun parseMetadata(filePath: String): AudioMetadata? =
@@ -44,7 +47,7 @@ public class Media3MetadataParser
                     // Try KTagLib first (better tag support)
                     parseWithKTagLib(file) ?: parseWithMediaMetadataRetriever(filePath)
                 } catch (e: Exception) {
-                    android.util.Log.e("MetadataParser", "Failed to parse: $filePath", e)
+                    logger.e(e) { "Failed to parse: $filePath" }
                     null
                 }
             }
@@ -56,7 +59,7 @@ public class Media3MetadataParser
             // KTagLib's native code (libktaglib.so) uses fdopen() which violates this ownership tracking.
             // MediaMetadataRetriever is a reliable fallback for all Android versions where KTagLib crashes.
             if (android.os.Build.VERSION.SDK_INT >= 30) {
-                android.util.Log.d("MetadataParser", "Skipping KTagLib on Android 11+ (FDSAN incompatibility)")
+                logger.d { "Skipping KTagLib on Android 11+ (FDSAN incompatibility)" }
                 return null
             }
 
@@ -84,7 +87,7 @@ public class Media3MetadataParser
                     )
                 }
             } catch (e: Exception) {
-                android.util.Log.w("MetadataParser", "KTagLib parsing failed", e)
+                logger.w(e) { "KTagLib parsing failed" }
                 null
             }
         }
@@ -149,10 +152,7 @@ public class Media3MetadataParser
 
                     // Log if metadata is empty (indicates potential scanning issue)
                     if (title.isNullOrBlank() && album.isNullOrBlank() && artist.isNullOrBlank()) {
-                        android.util.Log.w(
-                            "MetadataParser",
-                            "No metadata found in file: $filePath - may cause missing books",
-                        )
+                        logger.w { "No metadata found in file: $filePath - may cause missing books" }
                     }
 
                     AudioMetadata(
@@ -170,7 +170,7 @@ public class Media3MetadataParser
                     retriever.release()
                 }
             } catch (e: Exception) {
-                android.util.Log.e("MetadataParser", "MediaMetadataRetriever failed", e)
+                logger.e(e) { "MediaMetadataRetriever failed" }
                 null
             }
     }

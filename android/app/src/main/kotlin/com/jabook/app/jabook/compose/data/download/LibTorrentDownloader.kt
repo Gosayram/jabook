@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.compose.data.download
 
 import android.content.Context
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -45,10 +45,10 @@ public class LibTorrentDownloader
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
+        private val loggerFactory: LoggerFactory,
     ) : TorrentDownloader {
+        private val logger = loggerFactory.get("LibTorrentDownloader")
         public companion object {
-            private const val TAG = "LibTorrentDownloader"
-
             // Streaming configuration
             private const val PRIORITY_PIECES_PERCENT = 0.05f // First 5% = TOP_PRIORITY
             private const val PIECE_DEADLINE_MS = 1000 // 1 second deadline for priority pieces
@@ -70,7 +70,7 @@ public class LibTorrentDownloader
         ): String =
             withContext(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "Starting STREAMING torrent download: $torrentUrl")
+                    logger.d { "Starting STREAMING torrent download: $torrentUrl" }
 
                     val saveDir = File(savePath)
                     if (!saveDir.exists()) {
@@ -128,7 +128,7 @@ public class LibTorrentDownloader
                     activeTorrents.remove(torrentUrl)
                     filePath
                 } catch (e: Exception) {
-                    Log.e(TAG, "Download failed", e)
+                    logger.e(e) { "Download failed" }
                     activeTorrents.remove(torrentUrl)
                     throw e
                 }
@@ -178,9 +178,9 @@ public class LibTorrentDownloader
                     }
                 }
 
-                Log.d(TAG, "Streaming ready - can play immediately!")
+                logger.d { "Streaming ready - can play immediately!" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to configure streaming", e)
+                logger.e(e) { "Failed to configure streaming" }
             }
         }
     }

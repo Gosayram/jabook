@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.local.parser
 
 import android.util.LruCache
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,7 +35,10 @@ import javax.inject.Singleton
 @Singleton
 public class MetadataCache
     @Inject
-    constructor() {
+    constructor(
+        private val loggerFactory: LoggerFactory,
+    ) {
+        private val logger = loggerFactory.get("MetadataCache")
         /**
          * Cached metadata with file validation info.
          */
@@ -69,17 +73,11 @@ public class MetadataCache
 
                 if (isSameSize && isSameTime) {
                     // Cache hit
-                    android.util.Log.v(
-                        "MetadataCache",
-                        "Cache HIT: ${file.name}",
-                    )
+                    logger.v { "Cache HIT: ${file.name}" }
                     return cached.metadata
                 } else {
                     // File changed, invalidate cache
-                    android.util.Log.d(
-                        "MetadataCache",
-                        "Cache INVALID: ${file.name} (size: $isSameSize, time: $isSameTime)",
-                    )
+                    logger.d { "Cache INVALID: ${file.name} (size: $isSameSize, time: $isSameTime)" }
                 }
             }
 
@@ -97,10 +95,7 @@ public class MetadataCache
                     ),
                 )
 
-                android.util.Log.v(
-                    "MetadataCache",
-                    "Cache MISS: ${file.name} - parsed and cached",
-                )
+                logger.v { "Cache MISS: ${file.name} - parsed and cached" }
             }
 
             return metadata
@@ -112,7 +107,7 @@ public class MetadataCache
          */
         public fun clearCache() {
             cache.evictAll()
-            android.util.Log.i("MetadataCache", "Cache cleared")
+            logger.i { "Cache cleared" }
         }
 
         /**

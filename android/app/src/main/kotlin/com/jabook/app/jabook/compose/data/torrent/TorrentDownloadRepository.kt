@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.torrent
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -28,7 +28,9 @@ public class TorrentDownloadRepository
     @Inject
     constructor(
         private val dao: TorrentDownloadDao,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("TorrentDownloadRepository")
         /**
          * Get all downloads as Flow
          */
@@ -62,9 +64,9 @@ public class TorrentDownloadRepository
             try {
                 val entity = TorrentDownloadEntity.fromDomain(download)
                 dao.insert(entity)
-                Log.d(TAG, "Saved torrent: ${download.hash}")
+                logger.d { "Saved torrent: ${download.hash}" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to save torrent: ${download.hash}", e)
+                logger.e(e) { "Failed to save torrent: ${download.hash}" }
             }
         }
 
@@ -75,9 +77,9 @@ public class TorrentDownloadRepository
             try {
                 val entities = downloads.map { TorrentDownloadEntity.fromDomain(it) }
                 dao.insertAll(entities)
-                Log.d(TAG, "Saved ${downloads.size} torrents")
+                logger.d { "Saved ${downloads.size} torrents" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to save torrents", e)
+                logger.e(e) { "Failed to save torrents" }
             }
         }
 
@@ -87,9 +89,9 @@ public class TorrentDownloadRepository
         public suspend fun delete(hash: String) {
             try {
                 dao.deleteByHash(hash)
-                Log.d(TAG, "Deleted torrent: $hash")
+                logger.d { "Deleted torrent: $hash" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to delete torrent: $hash", e)
+                logger.e(e) { "Failed to delete torrent: $hash" }
             }
         }
 
@@ -103,7 +105,7 @@ public class TorrentDownloadRepository
             try {
                 dao.updateState(hash, state)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to update state for: $hash", e)
+                logger.e(e) { "Failed to update state for: $hash" }
             }
         }
 
@@ -118,7 +120,7 @@ public class TorrentDownloadRepository
             try {
                 dao.updateProgress(hash, progress, downloadedSize)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to update progress for: $hash", e)
+                logger.e(e) { "Failed to update progress for: $hash" }
             }
         }
 
@@ -128,13 +130,9 @@ public class TorrentDownloadRepository
         public suspend fun deleteAllCompleted() {
             try {
                 dao.deleteAllCompleted()
-                Log.d(TAG, "Deleted all completed torrents")
+                logger.d { "Deleted all completed torrents" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to delete completed torrents", e)
+                logger.e(e) { "Failed to delete completed torrents" }
             }
-        }
-
-        public companion object {
-            private const val TAG = "TorrentDownloadRepository"
         }
     }

@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.download
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 
@@ -26,9 +26,11 @@ import javax.inject.Inject
  */
 public class StubTorrentDownloader
     @Inject
-    constructor() : TorrentDownloader {
+    constructor(
+        private val loggerFactory: LoggerFactory,
+    ) : TorrentDownloader {
+        private val logger = loggerFactory.get("StubTorrentDownloader")
         public companion object {
-            private const val TAG = "StubTorrentDownloader"
             private const val TOTAL_STEPS = 100
             private const val STEP_DELAY_MS = 50L // 5 seconds total for demo
         }
@@ -38,7 +40,7 @@ public class StubTorrentDownloader
             savePath: String,
             onProgress: (Float) -> Unit,
         ): String {
-            Log.d(TAG, "Starting stub download: $torrentUrl to $savePath")
+            logger.d { "Starting stub download: $torrentUrl to $savePath" }
 
             // Simulate download progress
             for (step in 0..TOTAL_STEPS) {
@@ -48,22 +50,22 @@ public class StubTorrentDownloader
             }
 
             val resultPath = "$savePath/downloaded_book.mp3"
-            Log.d(TAG, "Stub download completed: $resultPath")
+            logger.d { "Stub download completed: $resultPath" }
             return resultPath
         }
 
         override suspend fun pause(downloadId: String) {
-            Log.d(TAG, "Stub pause: $downloadId")
+            logger.d { "Stub pause: $downloadId" }
             // No-op for stub
         }
 
         override suspend fun resume(downloadId: String) {
-            Log.d(TAG, "Stub resume: $downloadId")
+            logger.d { "Stub resume: $downloadId" }
             // No-op for stub
         }
 
         override suspend fun cancel(downloadId: String) {
-            Log.d(TAG, "Stub cancel: $downloadId")
+            logger.d { "Stub cancel: $downloadId" }
             // No-op for stub
         }
     }
