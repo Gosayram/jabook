@@ -83,10 +83,8 @@ public class NotificationManager(
          * Gets the notification channel name with flavor suffix.
          */
         private fun getChannelName(context: Context): String {
-            public val baseName: String =
-                "JaBook Audio Playback" public
-
-                    val flavor = getFlavorSuffix(context)
+            val baseName: String = "JaBook Audio Playback"
+            val flavor = getFlavorSuffix(context)
             return baseName.appendFlavorSuffix(flavor)
         }
 

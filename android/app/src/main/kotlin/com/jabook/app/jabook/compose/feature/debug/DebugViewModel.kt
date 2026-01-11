@@ -313,7 +313,7 @@ public class DebugViewModel
             try {
                 viewModelScope.launch {
                     try {
-                        public val stats = rutrackerRepository.getCacheStatistics()
+                        val stats = rutrackerRepository.getCacheStatistics()
                         _cacheStats.value = stats
                     } catch (e: NullPointerException) {
                         android.util.Log.e(

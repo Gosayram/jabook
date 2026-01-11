@@ -39,7 +39,7 @@ public class SavedPlayerStateRepository
          */
         suspend fun getSavedState(groupPath: String): Result<SavedPlayerStateEntity?> =
             try {
-                public val entity = stateDao.getState(groupPath)
+                val entity = stateDao.getState(groupPath)
                 Result.Success(entity)
             } catch (e: Exception) {
                 Result.Error(e)
@@ -50,7 +50,7 @@ public class SavedPlayerStateRepository
          */
         suspend fun getLatestState(): Result<SavedPlayerStateEntity?> =
             try {
-                public val entity = stateDao.getLatestState()
+                val entity = stateDao.getLatestState()
                 Result.Success(entity)
             } catch (e: Exception) {
                 Result.Error(e)
@@ -130,7 +130,7 @@ public class SavedPlayerStateRepository
          */
         public fun parseFilePaths(filePathsJson: String): List<String> =
             try {
-                public val jsonArray = JSONArray(filePathsJson)
+                val jsonArray = JSONArray(filePathsJson)
                 (0 until jsonArray.length()).map { jsonArray.getString(it) }
             } catch (e: Exception) {
                 emptyList()
@@ -144,7 +144,7 @@ public class SavedPlayerStateRepository
                 if (metadataJson == null || metadataJson.isEmpty()) {
                     return null
                 }
-                public val jsonObject = JSONObject(metadataJson)
+                val jsonObject = JSONObject(metadataJson)
                 public val map = mutableMapOf<String, String>()
                 public val keys = jsonObject.keys()
                 while (keys.hasNext()) {

@@ -76,7 +76,7 @@ public class PlaylistState {
     /**
      * Resets the state.
      */
-    public fun reset() : Unit {
+    public fun reset() {
         _playlist.value = null
         _isLoading.value = false
         _actualTrackIndex.value = 0

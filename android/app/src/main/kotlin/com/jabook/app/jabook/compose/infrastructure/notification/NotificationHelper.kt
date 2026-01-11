@@ -31,7 +31,8 @@ public object NotificationHelper {
     /**
      * Notification channel IDs.
      */
-    public const val CHANNEL_DOWNLOADS: String = "downloads"    public const val CHANNEL_PLAYER: String = "player"
+    public const val CHANNEL_DOWNLOADS: String = "downloads"
+    public const val CHANNEL_PLAYER: String = "player"
     /**
      * Create notification channels.
      *
@@ -41,11 +42,11 @@ public object NotificationHelper {
      */
     public fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            public val notificationManager =
+            val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
             // Downloads channel
-            public val downloadsChannel =
+            val downloadsChannel =
                 NotificationChannel(
                     CHANNEL_DOWNLOADS,
                     "Downloads",
@@ -56,7 +57,7 @@ public object NotificationHelper {
                 }
 
             // Player channel (for media playback notifications)
-            public val playerChannel =
+            val playerChannel =
                 NotificationChannel(
                     CHANNEL_PLAYER,
                     "Audio Player",

@@ -187,7 +187,7 @@ public fun List<BookEntity>.toBooks(): List<Book> = map { it.toBook() }
  * Used for synchronizing local library favorites with FavoriteEntity table.
  */
 public fun Book.toFavoriteEntity(): com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity {
-    public val now =
+    val now =
         java.time.Instant
             .now()
             .toString()

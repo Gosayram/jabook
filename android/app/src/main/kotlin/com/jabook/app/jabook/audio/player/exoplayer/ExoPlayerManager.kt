@@ -68,14 +68,14 @@ public class ExoPlayerManager
         /**
          * Plays the player.
          */
-        public fun play() : Unit {
+        public fun play() {
             player.play()
         }
 
         /**
          * Pauses the player.
          */
-        public fun pause() : Unit {
+        public fun pause() {
             player.pause()
         }
 
@@ -99,7 +99,7 @@ public class ExoPlayerManager
         /**
          * Seeks to the next media item.
          */
-        public fun seekToNext() : Unit {
+        public fun seekToNext() {
             if (player.hasNextMediaItem()) {
                 player.seekToNextMediaItem()
             }
@@ -108,7 +108,7 @@ public class ExoPlayerManager
         /**
          * Seeks to the previous media item.
          */
-        public fun seekToPrevious() : Unit {
+        public fun seekToPrevious() {
             if (player.hasPreviousMediaItem()) {
                 player.seekToPreviousMediaItem()
             }
@@ -184,7 +184,7 @@ public class ExoPlayerManager
          * Releases the player.
          * Note: This should be called when the player is no longer needed.
          */
-        public fun release() : Unit {
+        public fun release() {
             player.release()
         }
     }

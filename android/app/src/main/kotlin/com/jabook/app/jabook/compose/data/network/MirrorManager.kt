@@ -164,9 +164,9 @@ public class MirrorManager
          * @return true if switched successfully, false if no mirrors are available
          */
         suspend fun switchToNextMirror(): Boolean {
-            public val currentDomain = _currentMirror.value
-            public val mirrors = _availableMirrors.value
-            public val currentIndex = mirrors.indexOf(currentDomain)
+            val currentDomain = _currentMirror.value
+            val mirrors = _availableMirrors.value
+            val currentIndex = mirrors.indexOf(currentDomain)
 
             Log.i(TAG, "🔄 Attempting to switch from $currentDomain to next mirror")
 
@@ -253,7 +253,7 @@ public class MirrorManager
          * Check if auto-switch is enabled in settings.
          */
         suspend fun isAutoSwitchEnabled(): Boolean {
-            public val prefs = settingsRepository.userPreferences.first()
+            val prefs = settingsRepository.userPreferences.first()
             return prefs.autoSwitchMirror
         }
     }

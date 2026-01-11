@@ -18,7 +18,10 @@ package com.jabook.app.jabook.compose.core.constants
  * Playback speed constants shared between Settings and Player.
  */
 public object PlaybackSpeedConstants {
-    public const val MIN_SPEED: Float = 0.5f    public const val MAX_SPEED: Float = 2.0f    public const val SPEED_STEP: Float = 0.05f
+    public const val MIN_SPEED: Float = 0.5f
+    public const val MAX_SPEED: Float = 2.0f
+    public const val SPEED_STEP: Float = 0.05f
+
     /**
      * Calculate number of steps for a slider.
      * Formula: (MAX - MIN) / STEP - 1
@@ -30,8 +33,8 @@ public object PlaybackSpeedConstants {
      * Used in Player speed selector.
      */
     public fun generateSpeedsList(): List<Float> {
-        public val speeds = mutableListOf<Float>()
-        public var current = MIN_SPEED
+        val speeds = mutableListOf<Float>()
+        var current = MIN_SPEED
         while (current <= MAX_SPEED + 0.001f) { // +0.001f to handle floating point precision
             speeds.add(current)
             current += SPEED_STEP

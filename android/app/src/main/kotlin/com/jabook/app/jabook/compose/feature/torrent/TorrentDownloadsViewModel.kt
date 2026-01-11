@@ -202,7 +202,7 @@ public class TorrentDownloadsViewModel
          */
         public fun deleteAllCompleted() : Unit {
             viewModelScope.launch {
-                public val state = uiState.value
+                val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
                     state.completedDownloads.forEach { download ->
                         torrentManager.removeTorrent(download.hash, deleteFiles = false)
@@ -216,7 +216,7 @@ public class TorrentDownloadsViewModel
          */
         public fun pauseAll() : Unit {
             viewModelScope.launch {
-                public val state = uiState.value
+                val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
                     state.activeDownloads.forEach { download ->
                         torrentManager.pauseTorrent(download.hash)
@@ -230,7 +230,7 @@ public class TorrentDownloadsViewModel
          */
         public fun resumeAll() : Unit {
             viewModelScope.launch {
-                public val state = uiState.value
+                val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
                     state.pausedDownloads.forEach { download ->
                         torrentManager.resumeTorrent(download.hash)
@@ -263,8 +263,8 @@ public class TorrentDownloadsViewModel
 
         public fun prepareAddTorrent(magnetLink: String) {
             viewModelScope.launch {
-                public val prefs = settingsRepository.userPreferences.first()
-                public val defaultPath =
+                val prefs = settingsRepository.userPreferences.first()
+                val defaultPath =
                     prefs.downloadPath.ifEmpty {
                         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
                     }
@@ -278,7 +278,7 @@ public class TorrentDownloadsViewModel
         }
 
         public fun updatePendingPathFromUri(uriString: String) {
-            public val path =
+            val path =
                 com.jabook.app.jabook.util.FileUtils
                     .resolvePathFromUri(uriString)
             _pendingDownloadPath.value = path
@@ -286,8 +286,8 @@ public class TorrentDownloadsViewModel
 
         public fun confirmAddTorrent() : Unit {
             viewModelScope.launch {
-                public val magnetLink = _pendingMagnetLink.value ?: return@launch
-                public val path = _pendingDownloadPath.value
+                val magnetLink = _pendingMagnetLink.value ?: return@launch
+                val path = _pendingDownloadPath.value
 
                 try {
                     checkNetworkAndWarn()
@@ -304,7 +304,7 @@ public class TorrentDownloadsViewModel
         }
 
         private suspend fun checkNetworkAndWarn() {
-            public val prefs = settingsRepository.userPreferences.first()
+            val prefs = settingsRepository.userPreferences.first()
             public val networkType = networkMonitor.networkType.first()
 
             if (prefs.wifiOnlyDownload && networkType != com.jabook.app.jabook.compose.data.network.NetworkType.WIFI) {

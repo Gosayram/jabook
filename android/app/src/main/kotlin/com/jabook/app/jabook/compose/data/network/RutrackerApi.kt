@@ -55,5 +55,6 @@ public interface RutrackerApi {
         @Deprecated("Use MirrorManager.getBaseUrl() instead", ReplaceWith("mirrorManager.getBaseUrl()"))
         public const val BASE_URL: String = "https://rutracker.org/"
         // Common category filters
-        public const val CATEGORY_AUDIOBOOKS: String = "2389"        public const val CATEGORY_AUDIOBOOKS_RU: String = "2389"    }
+        public const val CATEGORY_AUDIOBOOKS: String = "2389"
+        public const val CATEGORY_AUDIOBOOKS_RU: String = "2389"    }
 }

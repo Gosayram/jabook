@@ -56,8 +56,15 @@ public class DownloadForegroundService : Service() {
         private const val NOTIFICATION_ID = 2
         private const val UPDATE_INTERVAL_MS = 1000L // Update notification every second
 
-        public const val ACTION_START: String = "com.jabook.app.jabook.download.START"        public const val ACTION_STOP: String = "com.jabook.app.jabook.download.STOP"        public const val ACTION_ADD_MAGNET: String = "com.jabook.app.jabook.download.ADD_MAGNET"        public const val ACTION_PAUSE: String = "com.jabook.app.jabook.download.PAUSE"        public const val ACTION_RESUME: String = "com.jabook.app.jabook.download.RESUME"        public const val ACTION_REMOVE: String = "com.jabook.app.jabook.download.REMOVE"
-        public const val EXTRA_MAGNET_URI: String = "magnet_uri"        public const val EXTRA_SAVE_PATH: String = "save_path"        public const val EXTRA_INFO_HASH: String = "info_hash"
+        public const val ACTION_START: String = "com.jabook.app.jabook.download.START"
+        public const val ACTION_STOP: String = "com.jabook.app.jabook.download.STOP"
+        public const val ACTION_ADD_MAGNET: String = "com.jabook.app.jabook.download.ADD_MAGNET"
+        public const val ACTION_PAUSE: String = "com.jabook.app.jabook.download.PAUSE"
+        public const val ACTION_RESUME: String = "com.jabook.app.jabook.download.RESUME"
+        public const val ACTION_REMOVE: String = "com.jabook.app.jabook.download.REMOVE"
+        public const val EXTRA_MAGNET_URI: String = "magnet_uri"
+        public const val EXTRA_SAVE_PATH: String = "save_path"
+        public const val EXTRA_INFO_HASH: String = "info_hash"
         @Volatile
         private var instance: DownloadForegroundService? = null
 

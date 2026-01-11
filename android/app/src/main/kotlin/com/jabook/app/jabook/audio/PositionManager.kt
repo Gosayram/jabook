@@ -23,7 +23,10 @@ import androidx.media3.exoplayer.ExoPlayer
  * Constants for position saving broadcasts.
  */
 public object PositionConstants {
-    public const val ACTION_SAVE_POSITION_BEFORE_UNLOAD: String = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"    public const val EXTRA_TRACK_INDEX: String = "trackIndex"    public const val EXTRA_POSITION_MS: String = "positionMs"}
+    public const val ACTION_SAVE_POSITION_BEFORE_UNLOAD: String = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"
+    public const val EXTRA_TRACK_INDEX: String = "trackIndex"
+    public const val EXTRA_POSITION_MS: String = "positionMs"
+}
 
 /**
  * Manages playback position operations (save, restore, seek).
@@ -47,15 +50,15 @@ internal class PositionManager(
      * This method broadcasts the current position to trigger saving through MethodChannel.
      * Position is also saved periodically, so this is an additional safety measure.
      */
-    public fun saveCurrentPosition() : Unit {
+    public fun saveCurrentPosition() {
         try {
-            public val activePlayer = getActivePlayer()
+            val activePlayer = getActivePlayer()
             if (activePlayer.mediaItemCount > 0) {
-                public val currentIndex = activePlayer.currentMediaItemIndex
-                public val currentPosition = activePlayer.currentPosition
+                val currentIndex = activePlayer.currentMediaItemIndex
+                val currentPosition = activePlayer.currentPosition
 
                 // Broadcast intent to trigger position saving through MethodChannel
-                public val saveIntent =
+                val saveIntent =
                     Intent(PositionConstants.ACTION_SAVE_POSITION_BEFORE_UNLOAD).apply {
                         putExtra(PositionConstants.EXTRA_TRACK_INDEX, currentIndex)
                         putExtra(PositionConstants.EXTRA_POSITION_MS, currentPosition)
@@ -86,7 +89,7 @@ internal class PositionManager(
         filePaths: List<String>,
         progressSeconds: Double?,
     ) {
-        public val player = getActivePlayer()
+        val player = getActivePlayer()
 
         if (filePaths.isEmpty() || player.mediaItemCount == 0) {
             android.util.Log.w("AudioPlayerService", "Cannot set playback progress: empty file list or no media items")
@@ -101,7 +104,7 @@ internal class PositionManager(
             }
             else -> {
                 // Calculate which track and position to seek to
-                public val positionMs = (progressSeconds * 1000).toLong()
+                val positionMs = (progressSeconds * 1000).toLong()
 
                 // According to best practices: use only real durations from player
                 // Do NOT use approximate estimates (unreliable for VBR, partial downloads, etc.)

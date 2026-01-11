@@ -55,8 +55,8 @@ public class CookiePersistenceManager
          */
         suspend fun persistCookiesMultiStage(url: String) =
             withContext(Dispatchers.IO) {
-                public val httpUrl = url.toHttpUrl()
-                public val cookies = cookieJar.loadForRequest(httpUrl)
+                val httpUrl = url.toHttpUrl()
+                val cookies = cookieJar.loadForRequest(httpUrl)
 
                 if (cookies.isEmpty()) {
                     Log.d(TAG, "No cookies to persist for $url")
@@ -152,8 +152,8 @@ public class CookiePersistenceManager
         suspend fun syncCookiesFromWebView(url: String) =
             withContext(Dispatchers.IO) {
                 try {
-                    public val cookieManager = CookieManager.getInstance()
-                    public val cookieString = cookieManager.getCookie(url)
+                    val cookieManager = CookieManager.getInstance()
+                    val cookieString = cookieManager.getCookie(url)
 
                     if (!cookieString.isNullOrBlank()) {
                         public val cookies = parseCookieHeader(url, cookieString)

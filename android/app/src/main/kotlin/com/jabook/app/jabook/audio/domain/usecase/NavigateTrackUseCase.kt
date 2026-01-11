@@ -48,7 +48,7 @@ public class NavigateTrackUseCase
          * @return Result with previous track index, or null if there is no previous track
          */
         public fun getPreviousIndex(playlist: Playlist): Result<Int?> {
-            public val previousIndex = playlist.getPreviousIndex()
+            val previousIndex = playlist.getPreviousIndex()
             return if (previousIndex != null) {
                 com.jabook.app.jabook.audio.core.result.Result
                     .Success(previousIndex)

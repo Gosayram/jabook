@@ -44,8 +44,8 @@ public class PermissionViewModel
 
         public fun checkPermissions() : Unit {
             viewModelScope.launch {
-                public val storage = permissionManager.hasStoragePermission()
-                public val notification = permissionManager.hasNotificationPermission()
+                val storage = permissionManager.hasStoragePermission()
+                val notification = permissionManager.hasNotificationPermission()
 
                 _uiState.value =
                     PermissionUiState(

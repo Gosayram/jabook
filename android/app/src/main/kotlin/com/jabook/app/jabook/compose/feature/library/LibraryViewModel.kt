@@ -254,7 +254,7 @@ public class LibraryViewModel
         public fun showBookProperties(bookId: String) {
             viewModelScope.launch {
                 // Find book from current UI state
-                public val book =
+                val book =
                     (uiState.value as? LibraryUiState.Success)?.books?.find {
                         it.id == bookId
                     }
@@ -282,7 +282,7 @@ public class LibraryViewModel
         public fun startLibraryScan() : Unit {
             viewModelScope.launch {
                 // Check if scan folders are configured
-                public val scanFolders = scanPathDao.getAllPathsList()
+                val scanFolders = scanPathDao.getAllPathsList()
                 if (scanFolders.isEmpty()) {
                     // No folders configured - skip scan and show completion with flag
                     _scanState.value =
@@ -407,7 +407,7 @@ public sealed interface ScanState {
 public fun LibraryViewModel.createBookActionsProvider(
     onBookClick: (String) -> Unit,
 ): com.jabook.app.jabook.compose.domain.model.BookActionsProvider {
-    public val favoriteIds = favoriteBooks.value.map { it.id }.toSet()
+    val favoriteIds = favoriteBooks.value.map { it.id }.toSet()
 
     return com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
         onBookClick = onBookClick,

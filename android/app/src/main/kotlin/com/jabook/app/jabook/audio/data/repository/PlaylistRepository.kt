@@ -71,7 +71,7 @@ public class PlaylistRepository
          */
         public fun parseFilePaths(filePathsJson: String): List<String> =
             try {
-                public val jsonArray = JSONArray(filePathsJson)
+                val jsonArray = JSONArray(filePathsJson)
                 (0 until jsonArray.length()).map { jsonArray.getString(it) }
             } catch (e: Exception) {
                 emptyList()

@@ -173,7 +173,7 @@ public class IndexingViewModel
             try {
                 Log.i(TAG, "Clearing index...")
                 _clearingInProgress.value = true
-                public val startTime = System.currentTimeMillis()
+                val startTime = System.currentTimeMillis()
                 forumIndexer.clearIndex()
                 public val duration = System.currentTimeMillis() - startTime
                 Log.i(TAG, "Index cleared successfully in ${duration}ms (${duration / 1000}s)")

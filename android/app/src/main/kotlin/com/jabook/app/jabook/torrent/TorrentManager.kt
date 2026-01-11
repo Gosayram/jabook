@@ -291,7 +291,7 @@ public class TorrentManager
 
         suspend fun pauseDownload(infoHash: String) {
             synchronized(activeTorrents) {
-                public val handle = activeTorrents[infoHash]
+                val handle = activeTorrents[infoHash]
                 handle?.pause()
                 Log.d(TAG, "Paused torrent: $infoHash")
             }
@@ -299,7 +299,7 @@ public class TorrentManager
 
         suspend fun resumeDownload(infoHash: String) {
             synchronized(activeTorrents) {
-                public val handle = activeTorrents[infoHash]
+                val handle = activeTorrents[infoHash]
                 handle?.resume()
                 Log.d(TAG, "Resumed torrent: $infoHash")
             }

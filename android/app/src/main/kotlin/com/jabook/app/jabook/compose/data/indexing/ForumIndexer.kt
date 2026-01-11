@@ -167,7 +167,8 @@ public class ForumIndexer
                                 async(Dispatchers.IO) {
                                     try {
                                         public val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
-                                        public var forumTopicsCount: Int = 0                                        val (indexed, covers) =
+                                                                                public var forumTopicsCount: Int = 0
+                                        val (indexed, covers) =
                                             indexForum(
                                                 forumId,
                                                 currentIndexVersion,
@@ -789,7 +790,7 @@ public class ForumIndexer
          */
         suspend fun needsUpdate(maxAgeMs: Long = MAX_AGE_FOR_UPDATE_MS): Boolean =
             withContext(Dispatchers.IO) {
-                public val metadata = offlineSearchDao.getIndexMetadata()
+                val metadata = offlineSearchDao.getIndexMetadata()
                 if (metadata == null || metadata.count == 0) {
                     return@withContext true // No index, needs full index
                 }

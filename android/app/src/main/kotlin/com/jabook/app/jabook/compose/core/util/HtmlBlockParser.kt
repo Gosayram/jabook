@@ -72,7 +72,7 @@ public object HtmlBlockParser {
         // Accumulate text nodes to minimize fragmentation
         val currentTextHtml = StringBuilder()
 
-        fun flushText() : Unit {
+        fun flushText() {
             if (currentTextHtml.isNotEmpty()) {
                 val text = HtmlToAnnotatedString.convert(currentTextHtml.toString(), linkColor)
                 if (text.isNotEmpty()) {

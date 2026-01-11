@@ -84,8 +84,8 @@ public class SecureCredentialStorage
          */
         suspend fun saveCredentials(credentials: UserCredentials) {
             // Encrypt credentials
-            public val encryptedUsername = encrypt(credentials.username)
-            public val encryptedPassword = encrypt(credentials.password)
+            val encryptedUsername = encrypt(credentials.username)
+            val encryptedPassword = encrypt(credentials.password)
 
             // Store in DataStore
             dataStore.edit { prefs ->
@@ -99,10 +99,10 @@ public class SecureCredentialStorage
          * @return UserCredentials or null if not found.
          */
         suspend fun getCredentials(): UserCredentials? {
-            public val prefs = dataStore.data.first()
+            val prefs = dataStore.data.first()
 
-            public val encryptedUsername = prefs[KEY_USERNAME]
-            public val encryptedPassword = prefs[KEY_PASSWORD]
+            val encryptedUsername = prefs[KEY_USERNAME]
+            val encryptedPassword = prefs[KEY_PASSWORD]
 
             if (encryptedUsername == null || encryptedPassword == null) {
                 return null

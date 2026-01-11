@@ -119,7 +119,7 @@ public class MediaSessionManager
         /**
          * Releases the MediaSession.
          */
-        public fun release() : Unit {
+        public fun release() {
             mediaSession?.release()
             mediaSession = null
             callback = null

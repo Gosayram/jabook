@@ -191,11 +191,11 @@ public class TopicViewModel
          * Load more comments from the next page (reverse pagination: N-1, N-2, ..., 1).
          */
         public fun loadMoreComments() : Unit {
-            public val currentState = _uiState.value
+            val currentState = _uiState.value
             if (currentState !is TopicUiState.Success) return
 
-            public val details = currentState.details
-            public val pageToLoad = nextPageToLoad ?: return // No more pages to load
+            val details = currentState.details
+            val pageToLoad = nextPageToLoad ?: return // No more pages to load
             if (pageToLoad < 1) return // Already loaded all pages
             if (_isLoadingMoreComments.value) return // Already loading
 
@@ -414,7 +414,7 @@ public class TopicViewModel
                 try {
                     // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
                     withAuthorisedCheckUseCase(operationId = "download_torrent_file_$topicId") {
-                        public val response = rutrackerApi.downloadTorrent(topicId)
+                        val response = rutrackerApi.downloadTorrent(topicId)
                         if (response.isSuccessful) {
                             public val body: ResponseBody? = response.body()
                             if (body != null) {
@@ -489,7 +489,7 @@ public class TopicViewModel
          * Get URL for opening topic in browser using current mirror.
          */
         public fun getTopicUrl(): String {
-            public val baseUrl = mirrorManager.getBaseUrl()
+            val baseUrl = mirrorManager.getBaseUrl()
             return "$baseUrl/forum/viewtopic.php?t=$topicId"
         }
     }

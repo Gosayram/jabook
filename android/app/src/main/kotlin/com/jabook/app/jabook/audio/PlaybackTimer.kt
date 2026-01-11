@@ -39,7 +39,10 @@ public class PlaybackTimer(
     }
 
     public companion object {
-        public const val ACTION_TIMER_TICK: String = "com.jabook.app.jabook.audio.TIMER_TICK"        public const val ACTION_TIMER_EXPIRED: String = "com.jabook.app.jabook.audio.TIMER_EXPIRED"        public const val EXTRA_REMAINING_SECONDS: String = "remainingSeconds"    }
+        public const val ACTION_TIMER_TICK: String = "com.jabook.app.jabook.audio.TIMER_TICK"
+        public const val ACTION_TIMER_EXPIRED: String = "com.jabook.app.jabook.audio.TIMER_EXPIRED"
+        public const val EXTRA_REMAINING_SECONDS: String = "remainingSeconds"
+    }
 
     private val playerListener =
         object : Player.Listener {
@@ -72,7 +75,7 @@ public class PlaybackTimer(
     ) {
         stopTimer()
 
-        public val totalMillis = (delayInSeconds * 1000).toLong()
+        val totalMillis = (delayInSeconds * 1000).toLong()
         if (totalMillis <= 0L) {
             android.util.Log.w("PlaybackTimer", "Invalid timer duration: $delayInSeconds seconds")
             return
@@ -106,7 +109,7 @@ public class PlaybackTimer(
     /**
      * Stops and cancels timer.
      */
-    public fun stopTimer() : Unit {
+    public fun stopTimer() {
         timer?.cancel()
         timer = null
         android.util.Log.d("PlaybackTimer", "Timer stopped")
@@ -116,7 +119,7 @@ public class PlaybackTimer(
      * Broadcasts remaining time.
      */
     private fun broadcastRemaining(seconds: Long) {
-        public val intent =
+        val intent =
             Intent(ACTION_TIMER_TICK).apply {
                 putExtra(EXTRA_REMAINING_SECONDS, seconds)
             }
@@ -140,7 +143,7 @@ public class PlaybackTimer(
     /**
      * Releases timer resources.
      */
-    public fun release() : Unit {
+    public fun release() {
         stopTimer()
         player.removeListener(playerListener)
     }

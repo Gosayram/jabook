@@ -704,12 +704,18 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     }
 
     public companion object {
-        public const val ACTION_UPDATE_WIDGET: String = "com.jabook.app.jabook.UPDATE_WIDGET"        public const val ACTION_PLAY_PAUSE: String = "com.jabook.app.jabook.WIDGET_PLAY_PAUSE"        public const val ACTION_NEXT: String = "com.jabook.app.jabook.WIDGET_NEXT"        public const val ACTION_PREVIOUS: String = "com.jabook.app.jabook.WIDGET_PREVIOUS"        public const val ACTION_REPEAT: String = "com.jabook.app.jabook.WIDGET_REPEAT"        public const val ACTION_SPEED: String = "com.jabook.app.jabook.WIDGET_SPEED"        public const val ACTION_TIMER: String = "com.jabook.app.jabook.WIDGET_TIMER"
+        public const val ACTION_UPDATE_WIDGET: String = "com.jabook.app.jabook.UPDATE_WIDGET"
+        public const val ACTION_PLAY_PAUSE: String = "com.jabook.app.jabook.WIDGET_PLAY_PAUSE"
+        public const val ACTION_NEXT: String = "com.jabook.app.jabook.WIDGET_NEXT"
+        public const val ACTION_PREVIOUS: String = "com.jabook.app.jabook.WIDGET_PREVIOUS"
+        public const val ACTION_REPEAT: String = "com.jabook.app.jabook.WIDGET_REPEAT"
+        public const val ACTION_SPEED: String = "com.jabook.app.jabook.WIDGET_SPEED"
+        public const val ACTION_TIMER: String = "com.jabook.app.jabook.WIDGET_TIMER"
         /**
          * Requests widget update from anywhere in the app.
          */
         public fun requestUpdate(context: Context) {
-            public val intent =
+            val intent =
                 Intent(context, PlayerWidgetProvider::class.java).apply {
                     action = ACTION_UPDATE_WIDGET
                 }

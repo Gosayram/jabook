@@ -66,7 +66,7 @@ public class TorrentDetailsViewModel
 
         public fun playFile(file: TorrentFile) {
             viewModelScope.launch {
-                public val currentDownload = download.value ?: return@launch
+                val currentDownload = download.value ?: return@launch
 
                 // 1. Enable streaming
                 torrentManager.enableStreaming(hash)
@@ -75,7 +75,7 @@ public class TorrentDetailsViewModel
 
                 // 2. Wait for buffer
                 // Monitor will update isBuffering state automatically
-                public var attempts: Int = 0                public val maxAttempts: Int = 60 // 30 seconds (500ms * 60)
+                var attempts: Int = 0                public val maxAttempts: Int = 60 // 30 seconds (500ms * 60)
                 while (!torrentManager.isFileReadyForStreaming(hash, file.index) && attempts < maxAttempts) {
                     kotlinx.coroutines.delay(500)
                     attempts++
@@ -157,11 +157,11 @@ public class TorrentDetailsViewModel
         }
 
         public fun updateFileSelection(selectedIndices: Set<Int>) {
-            public val currentDownload = download.value ?: return
-            public val files = currentDownload.files
+            val currentDownload = download.value ?: return
+            val files = currentDownload.files
 
             // Map to priorities list matching file order
-            public val priorities =
+            val priorities =
                 files.map { file ->
                     if (selectedIndices.contains(file.index)) {
                         4 // Default/Normal priority

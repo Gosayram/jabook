@@ -51,7 +51,8 @@ public class ThrottledSeekHandler
             private const val TAG = "ThrottledSeekHandler"
 
             /** Default throttle delay in milliseconds */
-            public const val DEFAULT_THROTTLE_MS: Long = 500L        }
+            public const val DEFAULT_THROTTLE_MS: Long = 500L
+        }
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var pendingSeekJob: Job? = null
@@ -106,7 +107,7 @@ public class ThrottledSeekHandler
         /**
          * Cancels any pending seek operation.
          */
-        public fun cancel() : Unit {
+        public fun cancel() {
             pendingSeekJob?.cancel()
             pendingSeekJob = null
             Log.v(TAG, "Pending seek cancelled")
@@ -125,7 +126,7 @@ public class ThrottledSeekHandler
         /**
          * Releases resources. Call when service is destroyed.
          */
-        public fun release() : Unit {
+        public fun release() {
             cancel()
             lastSeekPosition = 0L
             Log.d(TAG, "ThrottledSeekHandler released")

@@ -47,7 +47,7 @@ public class DataMigrationManager
 
         suspend fun needsMigration(): Boolean =
             withContext(Dispatchers.IO) {
-                public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
                 // Check if already migrated
                 if (prefs.getBoolean(KEY_MIGRATION_COMPLETED, false)) {
@@ -65,8 +65,8 @@ public class DataMigrationManager
             withContext(Dispatchers.IO) {
                 Log.d(TAG, "Starting migration from Flutter...")
                 try {
-                    public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    public val jsonString =
+                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    val jsonString =
                         prefs.getString(KEY_PLAYER_STATE, null)
                             ?: return@withContext MigrationResult.Failure(Exception("No player state found"))
 

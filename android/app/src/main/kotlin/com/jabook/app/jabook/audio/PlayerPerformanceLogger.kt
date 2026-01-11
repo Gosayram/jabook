@@ -106,7 +106,7 @@ public object PlayerPerformanceLogger {
     /**
      * Print summary of all events with timing analysis.
      */
-    public fun summary() : Unit {
+    public fun summary() {
         if (events.isEmpty()) {
             Log.w(TAG, "No events logged")
             return
@@ -168,7 +168,7 @@ public object PlayerPerformanceLogger {
     /**
      * Clear session data.
      */
-    public fun reset() : Unit {
+    public fun reset() {
         events.clear()
         sessionStartTime = 0L
         sessionName = ""

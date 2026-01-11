@@ -105,7 +105,7 @@ public class DebugLogService
             withContext(Dispatchers.IO) {
                 try {
                     // Build logcat command with app-specific tags
-                    public val logcatArgs =
+                    val logcatArgs =
                         mutableListOf(
                             "logcat",
                             "-d", // dump and exit
@@ -237,9 +237,9 @@ public class DebugLogService
          */
         suspend fun exportLogsToFile(): Uri =
             withContext(Dispatchers.IO) {
-                public val logs = collectLogs()
-                public val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                public val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
+                val logs = collectLogs()
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
                 // Save to cache directory (will be cleared on uninstall)
                 public val logFile = File(context.cacheDir, fileName)
                 logFile.writeText(logs)
@@ -280,9 +280,9 @@ public class DebugLogService
         suspend fun shareLogs(activity: android.app.Activity) =
             withContext(Dispatchers.Main) {
                 try {
-                    public val uri = exportLogsToFile()
+                    val uri = exportLogsToFile()
 
-                    public val intent =
+                    val intent =
                         Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_STREAM, uri)
@@ -319,8 +319,8 @@ public class DebugLogService
         suspend fun clearOldLogFiles() =
             withContext(Dispatchers.IO) {
                 try {
-                    public val cacheDir = context.cacheDir
-                    public val logFiles =
+                    val cacheDir = context.cacheDir
+                    val logFiles =
                         cacheDir.listFiles { file ->
                             file.name.startsWith(LOG_FILE_PREFIX)
                         } ?: emptyArray()

@@ -103,7 +103,7 @@ public class SettingsViewModel
         public fun scanLibrary() : Unit {
             viewModelScope.launch {
                 // Check if scan folders are configured
-                public val scanFolders = scanPathDao.getAllPathsList()
+                val scanFolders = scanPathDao.getAllPathsList()
                 if (scanFolders.isEmpty()) {
                     // No folders configured - skip scan
                     android.util.Log.w("SettingsViewModel", "Scan skipped: no folders configured")
@@ -124,7 +124,7 @@ public class SettingsViewModel
         }
 
         // Exposure of auth status for UI
-        public val authStatus =
+        val authStatus =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -331,7 +331,7 @@ public class SettingsViewModel
         // ===== Download Settings =====
 
         public fun updateDownloadPath(uriString: String) {
-            public val path = resolvePathFromUri(uriString)
+            val path = resolvePathFromUri(uriString)
             viewModelScope.launch {
                 settingsRepository.updateDownloadPath(path)
             }
@@ -368,9 +368,9 @@ public class SettingsViewModel
 
         public fun loadTorrentStorageSize() : Unit {
             viewModelScope.launch {
-                public val path = protoSettings.value.downloadPath
+                val path = protoSettings.value.downloadPath
                 if (path.isNotEmpty()) {
-                    public val size = FileUtils.getDirectorySize(File(path))
+                    val size = FileUtils.getDirectorySize(File(path))
                     _torrentStorageSize.value = size
                 }
             }
@@ -397,7 +397,7 @@ public class SettingsViewModel
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Exporting
-                    public val uri = backupService.exportToFile()
+                    val uri = backupService.exportToFile()
                     _backupState.value = BackupUiState.ExportReady(uri)
                 } catch (e: Exception) {
                     _backupState.value = BackupUiState.Error(e.message ?: "Export failed")
@@ -412,7 +412,7 @@ public class SettingsViewModel
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Importing
-                    public val stats = backupService.importFromFile(uri)
+                    val stats = backupService.importFromFile(uri)
                     _backupState.value = BackupUiState.ImportComplete(stats)
                 } catch (e: Exception) {
                     _backupState.value = BackupUiState.Error(e.message ?: "Import failed: ${e.message}")
@@ -442,7 +442,7 @@ public class SettingsViewModel
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Loading
-                    public val stats = cacheManager.getCacheStatistics()
+                    val stats = cacheManager.getCacheStatistics()
                     _cacheStats.value = stats
                     _cacheOperation.value = CacheOperationState.Idle
                 } catch (e: Exception) {
@@ -458,7 +458,7 @@ public class SettingsViewModel
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Clearing
-                    public val success =
+                    val success =
                         if (type != null) {
                             cacheManager.clearCacheType(type)
                         } else {

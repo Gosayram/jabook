@@ -2130,8 +2130,8 @@ public class RutrackerParser
         public fun parseLoginResponse(html: String): LoginResult {
             android.util.Log.d(TAG, "Parsing login response, html length: ${html.length}")
 
-            public val document = Jsoup.parse(html)
-            public val lowerHtml = html.lowercase()
+            val document = Jsoup.parse(html)
+            val lowerHtml = html.lowercase()
 
             // Check for ERROR: wrong username/password (PRIORITY!)
             // Russian: "неверный пароль" or "неверное имя пользователя"

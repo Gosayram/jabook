@@ -170,7 +170,7 @@ public class SearchViewModel
          * Perform online search on Rutracker.
          */
         public fun searchOnline() : Unit {
-            public val query = _searchQuery.value
+            val query = _searchQuery.value
             if (query.isBlank()) return
 
             android.util.Log.d("SearchViewModel", "🔍 Starting online search for query: '$query'")
@@ -335,7 +335,7 @@ public class SearchViewModel
                 if (favoriteIds.value.contains(result.topicId)) {
                     favoritesRepository.removeFromFavorites(result.topicId)
                 } else {
-                    public val favorite =
+                    val favorite =
                         FavoriteEntity(
                             topicId = result.topicId,
                             title = result.title,

@@ -103,7 +103,7 @@ public object MediaControllerExtensions {
      * Sets sleep timer to end of chapter.
      */
     public fun setSleepTimerEndOfChapter(controller: MediaController): ListenableFuture<SessionResult> {
-        public val command =
+        val command =
             SessionCommand(
                 AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER,
                 Bundle.EMPTY,
@@ -115,7 +115,7 @@ public object MediaControllerExtensions {
      * Cancels sleep timer.
      */
     public fun cancelSleepTimer(controller: MediaController): ListenableFuture<SessionResult> {
-        public val command =
+        val command =
             SessionCommand(
                 AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_CANCEL_SLEEP_TIMER,
                 Bundle.EMPTY,
@@ -130,7 +130,7 @@ public object MediaControllerExtensions {
     suspend fun getSleepTimerRemainingSeconds(controller: MediaController): Int? =
         withContext(Dispatchers.IO) {
             try {
-                public val command =
+                val command =
                     SessionCommand(
                         AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING,
                         Bundle.EMPTY,
@@ -158,7 +158,7 @@ public object MediaControllerExtensions {
     suspend fun isSleepTimerActive(controller: MediaController): Boolean =
         withContext(Dispatchers.IO) {
             try {
-                public val command =
+                val command =
                     SessionCommand(
                         AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE,
                         Bundle.EMPTY,
@@ -182,7 +182,7 @@ public object MediaControllerExtensions {
     suspend fun isSleepTimerEndOfChapter(controller: MediaController): Boolean =
         withContext(Dispatchers.IO) {
             try {
-                public val command =
+                val command =
                     SessionCommand(
                         AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER,
                         Bundle.EMPTY,
@@ -206,7 +206,7 @@ public object MediaControllerExtensions {
     suspend fun getCurrentGroupPath(controller: MediaController): String? =
         withContext(Dispatchers.IO) {
             try {
-                public val command =
+                val command =
                     SessionCommand(
                         AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH,
                         Bundle.EMPTY,
@@ -230,7 +230,7 @@ public object MediaControllerExtensions {
     suspend fun getCurrentFilePaths(controller: MediaController): List<String>? =
         withContext(Dispatchers.IO) {
             try {
-                public val command =
+                val command =
                     SessionCommand(
                         AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS,
                         Bundle.EMPTY,

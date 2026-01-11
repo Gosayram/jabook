@@ -320,7 +320,7 @@ public class RutrackerRepository
         suspend fun fetchAndSaveCover(topicId: String): Result<Unit> =
             try {
                 // Re-use existing getTopicDetails which fetches HTML and parses it
-                public val result = getTopicDetails(topicId)
+                val result = getTopicDetails(topicId)
 
                 // Extract success data to check coverUrl
                 if (result.isSuccess) {
@@ -739,7 +739,7 @@ public class RutrackerRepository
         suspend fun isAuthenticated(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
-                    public val response = api.getProfile()
+                    val response = api.getProfile()
                     response.isSuccessful
                 } catch (e: Exception) {
                     Log.w(TAG, "Auth check failed", e)

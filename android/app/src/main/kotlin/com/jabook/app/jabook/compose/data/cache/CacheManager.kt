@@ -42,8 +42,8 @@ public class CacheManager
         suspend fun getTotalCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    public val appCache = context.cacheDir.walkFileTree().sumOf { it.length() }
-                    public val externalCache = context.externalCacheDir?.walkFileTree()?.sumOf { it.length() } ?: 0L
+                    val appCache = context.cacheDir.walkFileTree().sumOf { it.length() }
+                    val externalCache = context.externalCacheDir?.walkFileTree()?.sumOf { it.length() } ?: 0L
                     appCache + externalCache
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to calculate cache size", e)
@@ -57,9 +57,9 @@ public class CacheManager
         suspend fun getCacheStatistics(): CacheStatistics =
             withContext(Dispatchers.IO) {
                 try {
-                    public val searchCacheSize = getSearchCacheSize()
-                    public val topicCacheSize = getTopicCacheSize()
-                    public val tempDownloadsSize = getTempDownloadsSize()
+                    val searchCacheSize = getSearchCacheSize()
+                    val topicCacheSize = getTopicCacheSize()
+                    val tempDownloadsSize = getTempDownloadsSize()
                     public val logFilesSize = getLogFilesSize()
                     public val imageCacheSize = getImageCacheSize()
 

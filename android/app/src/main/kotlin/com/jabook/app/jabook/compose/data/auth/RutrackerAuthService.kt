@@ -216,7 +216,7 @@ public class RutrackerAuthService
             public val sb = StringBuilder()
 
             public fun encode(s: String): String {
-                public val bytes = s.toByteArray(CP1251)
+                val bytes = s.toByteArray(CP1251)
                 // Manual percent encoding for CP1251 bytes
                 return bytes.joinToString("") { byte ->
                     "%" + "%02X".format(byte)
@@ -262,10 +262,10 @@ public class RutrackerAuthService
          * @return true if authenticated, false otherwise
          */
         suspend fun validateAuth(operationId: String? = null): Boolean {
-            public val validationId =
+            val validationId =
                 operationId?.let { "${it}_validation" }
                     ?: logger.startOperation("validateAuth")
-            public val startTime = System.currentTimeMillis()
+            val startTime = System.currentTimeMillis()
 
             return withContext(Dispatchers.IO) {
                 try {
@@ -325,10 +325,10 @@ public class RutrackerAuthService
          * Used for diagnostics.
          */
         suspend fun checkConnectivity(operationId: String? = null): Boolean {
-            public val checkId = operationId?.let { "${it}_conn" } ?: logger.startOperation("checkConnectivity")
+            val checkId = operationId?.let { "${it}_conn" } ?: logger.startOperation("checkConnectivity")
             return try {
                 logger.log(checkId, "Checking connectivity...")
-                public val response = api.getIndex()
+                val response = api.getIndex()
                 if (response.isSuccessful) {
                     logger.logSuccess(checkId, "Connectivity check passed (HTTP ${response.code()})")
                     true

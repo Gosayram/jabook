@@ -329,11 +329,11 @@ public class PlayerViewModel
         // Player control methods delegated to controller
 
         public fun play() : Unit {
-            public val state = uiState.value
+            val state = uiState.value
             if (state is PlayerUiState.Success) {
                 // Ensure book is loaded before playing
                 if (!isBookLoaded) {
-                    public val filePaths = state.chapters.mapNotNull { it.fileUrl }
+                    val filePaths = state.chapters.mapNotNull { it.fileUrl }
                     if (filePaths.isNotEmpty()) {
                         playerController.loadBook(
                             filePaths = filePaths,
@@ -386,9 +386,9 @@ public class PlayerViewModel
         }
 
         public fun seekForward() : Unit {
-            public val state = uiState.value
+            val state = uiState.value
             if (state is PlayerUiState.Success && state.currentChapter != null) {
-                public val interval: Long = state.forwardInterval                public val newPosition =
+                val interval: Long = state.forwardInterval                public val newPosition =
                     (playerController.currentPosition.value + interval * 1000)
                         .coerceAtMost(state.currentChapter.duration.inWholeMilliseconds)
                 seekTo(newPosition)
@@ -396,9 +396,9 @@ public class PlayerViewModel
         }
 
         public fun seekBackward() : Unit {
-            public val state = uiState.value
+            val state = uiState.value
             if (state is PlayerUiState.Success) {
-                public val interval: Long = state.rewindInterval                public val newPosition = (playerController.currentPosition.value - interval * 1000).coerceAtLeast(0)
+                val interval: Long = state.rewindInterval                public val newPosition = (playerController.currentPosition.value - interval * 1000).coerceAtLeast(0)
                 seekTo(newPosition)
             }
         }
@@ -448,9 +448,9 @@ public class PlayerViewModel
          * Restores saved position from database if available.
          */
         public fun initializePlayer() : Unit {
-            public val state = uiState.value
+            val state = uiState.value
             if (state is PlayerUiState.Success && !isBookLoaded) {
-                public val filePaths = state.chapters.mapNotNull { it.fileUrl }
+                val filePaths = state.chapters.mapNotNull { it.fileUrl }
                 if (filePaths.isNotEmpty()) {
                     // Use saved position from database if available, otherwise use current position
                     public val initialChapterIndex = if (savedChapterIndex > 0) savedChapterIndex else state.currentChapterIndex

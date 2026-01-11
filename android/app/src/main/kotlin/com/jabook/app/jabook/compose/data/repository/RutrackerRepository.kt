@@ -184,7 +184,8 @@ public class RutrackerRepositoryImpl
 
                 when (result) {
                     is Result.Success -> {
-                        public val coverUrl: Long = result.data.coverUrl                        if (!coverUrl.isNullOrBlank()) {
+                                                public val coverUrl: Long = result.data.coverUrl
+                        if (!coverUrl.isNullOrBlank()) {
                             // android.util.Log.d("RutrackerRepositoryImpl", "Updating cover for $topicId: $coverUrl")
                             offlineSearchDao.updateCoverUrl(topicId, coverUrl)
                             Result.Success(Unit)

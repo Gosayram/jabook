@@ -46,7 +46,7 @@ public data class RetryConfig(
      * @return Delay in milliseconds
      */
     public fun calculateDelay(attempt: Int): Long {
-        public val delay = (initialDelayMs * backoffMultiplier.pow(attempt.toDouble())).toLong()
+        val delay = (initialDelayMs * backoffMultiplier.pow(attempt.toDouble())).toLong()
         return delay.coerceAtMost(maxDelayMs)
     }
 }

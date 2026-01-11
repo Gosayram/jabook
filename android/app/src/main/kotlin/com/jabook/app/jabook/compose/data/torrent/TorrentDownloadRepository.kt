@@ -60,7 +60,7 @@ public class TorrentDownloadRepository
          */
         suspend fun save(download: TorrentDownload) {
             try {
-                public val entity = TorrentDownloadEntity.fromDomain(download)
+                val entity = TorrentDownloadEntity.fromDomain(download)
                 dao.insert(entity)
                 Log.d(TAG, "Saved torrent: ${download.hash}")
             } catch (e: Exception) {
@@ -73,7 +73,7 @@ public class TorrentDownloadRepository
          */
         suspend fun saveAll(downloads: List<TorrentDownload>) {
             try {
-                public val entities = downloads.map { TorrentDownloadEntity.fromDomain(it) }
+                val entities = downloads.map { TorrentDownloadEntity.fromDomain(it) }
                 dao.insertAll(entities)
                 Log.d(TAG, "Saved ${downloads.size} torrents")
             } catch (e: Exception) {
