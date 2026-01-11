@@ -315,7 +315,7 @@ public class LoudnessNormalizer(
     public fun setReplayGain(replayGainDb: Float) {
         this.replayGainDb = replayGainDb
         // Convert dB to linear gain
-        gainMultiplier = 10.0.pow((replayGainDb / 20.0).toDouble()).toFloat()
+        gainMultiplier = 10.0.pow((replayGainDb.toDouble() / 20.0)).toFloat()
         // Limit gain to reasonable range
         gainMultiplier = gainMultiplier.coerceIn(0.1f, 10.0f)
         android.util.Log.d("LoudnessNormalizer", "ReplayGain set: ${replayGainDb}dB -> ${gainMultiplier}x")

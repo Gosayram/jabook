@@ -47,7 +47,7 @@ public class MainViewModel
     ) : ViewModel() {
         public val uiState: StateFlow<MainActivityUiState> =
             userPreferencesRepository.userData
-                .map { MainActivityUiState.Success(it) }
+                .map { userData -> MainActivityUiState.Success(userData) }
                 .stateIn(
                     scope = viewModelScope,
                     initialValue = MainActivityUiState.Loading,

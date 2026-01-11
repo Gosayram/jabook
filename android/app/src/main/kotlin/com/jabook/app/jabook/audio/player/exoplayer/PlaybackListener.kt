@@ -64,7 +64,7 @@ public class PlaybackListener : Player.Listener {
     /**
      * Updates the playback state from player.
      */
-    public fun updatePlaybackState() {
+    public fun updatePlaybackState(player: Player) {
         _playbackState.value =
             PlaybackState(
                 isPlaying = player.isPlaying,
@@ -81,7 +81,7 @@ public class PlaybackListener : Player.Listener {
      * Updates the actual track index.
      * This should be called from onMediaItemTransition.
      */
-    public fun updateActualTrackIndex() {
+    public fun updateActualTrackIndex(index: Int) {
         _actualTrackIndex.value = index
         android.util.Log.d("PlaybackListener", "Actual track index updated: $index")
     }

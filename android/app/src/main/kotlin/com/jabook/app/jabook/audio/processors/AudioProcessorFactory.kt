@@ -158,7 +158,7 @@ public data class AudioProcessingSettings(
     val autoVolumeLeveling: Boolean = false,
     val skipSilence: Boolean = false,
     val isCrossfadeEnabled: Boolean = false,
-    val crossfadeDurationMs: Int = L,
+    val crossfadeDurationMs: Long = 0L,
 ) {
     public companion object {
         /**

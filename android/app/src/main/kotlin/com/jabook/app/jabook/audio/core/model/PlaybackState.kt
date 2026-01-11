@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.audio.core.model
 
+import androidx.media3.common.Player
+
 /**
  * Represents the playback state of the audio player.
  */
@@ -55,7 +57,7 @@ public data class PlaybackState(
                 currentTrackIndex = 0,
                 playbackSpeed = 1.0f,
                 bufferedPosition = 0L,
-                playbackState = 0, // IDLE
+                playbackState = Player.PLAYBACK_STATE_IDLE,
             )
     }
 }
