@@ -37,5 +37,5 @@ public class GetLibraryUseCase
          * @param sortOrder sorting order
          * @return Flow of list of books that updates when data changes
          */
-        operator fun invoke(sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY): Flow<List<Book>> = booksRepository.getAllBooks(sortOrder)
+        public operator fun invoke(sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY): Flow<List<Book>> = booksRepository.getAllBooks(sortOrder)
     }

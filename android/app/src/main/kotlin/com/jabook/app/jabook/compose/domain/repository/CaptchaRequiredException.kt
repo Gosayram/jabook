@@ -17,5 +17,5 @@ package com.jabook.app.jabook.compose.domain.repository
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 
 public class CaptchaRequiredException(
-    val captchaData: CaptchaData,
+    public val captchaData: CaptchaData,
 ) : Exception("Captcha required")

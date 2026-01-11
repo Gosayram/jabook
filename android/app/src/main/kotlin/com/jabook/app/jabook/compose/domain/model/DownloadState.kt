@@ -24,7 +24,7 @@ public sealed interface DownloadState {
     /**
      * No active download.
      */
-    data object Idle : DownloadState
+    public data object Idle : DownloadState
 
     /**
      * Download in progress.

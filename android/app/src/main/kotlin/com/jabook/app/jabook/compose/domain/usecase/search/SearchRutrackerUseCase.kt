@@ -42,7 +42,7 @@ public class SearchRutrackerUseCase
          * @param query Search query
          * @return Result with list of search results
          */
-        suspend operator fun invoke(query: String): Flow<Result<List<RutrackerSearchResult>>> {
+        public suspend operator fun invoke(query: String): Flow<Result<List<RutrackerSearchResult>>> {
             if (query.isBlank()) {
                 Log.d(TAG, "Empty query provided, returning empty results")
                 // We need to return a Flow, so we use repository's search which handles empty query internally

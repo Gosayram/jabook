@@ -36,5 +36,5 @@ public class GetBookDetailsUseCase
          * @param bookId The ID of the book to retrieve
          * @return Flow of book that updates when data changes, or null if not found
          */
-        operator fun invoke(bookId: String): Flow<Book?> = booksRepository.getBook(bookId)
+        public operator fun invoke(bookId: String): Flow<Book?> = booksRepository.getBook(bookId)
     }

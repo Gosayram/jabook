@@ -28,8 +28,8 @@ import androidx.compose.ui.zIndex
  * State for managing drag and drop operations.
  */
 public class DragDropState {
-    var draggedIndex by mutableStateOf<Int?>(null)
-    var dragOffset by mutableStateOf(Offset.Zero)
+    public var draggedIndex: Int? by mutableStateOf<Int?>(null)
+    public var dragOffset: Offset by mutableStateOf(Offset.Zero)
 
     public fun onDragStart() {
         draggedIndex = index

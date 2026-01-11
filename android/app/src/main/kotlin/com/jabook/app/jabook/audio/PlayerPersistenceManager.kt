@@ -45,7 +45,7 @@ public class PlayerPersistenceManager
 
         // NEW: StateFlow for last played book ID (for mini player)
         private val _lastPlayedBookId = MutableStateFlow<String?>(null)
-        val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
+        public val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
 
         init {
             // Load last played book ID on init
@@ -69,7 +69,7 @@ public class PlayerPersistenceManager
             title: String,
             artist: String,
             groupPath: String,
-        ) = withContext(Dispatchers.IO) {
+        ): Unit = withContext(Dispatchers.IO) {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 prefs
@@ -156,10 +156,10 @@ public class PlayerPersistenceManager
                 }
             }
 
-        public fun saveGroupPathToSharedPreferences() {
+        public fun saveGroupPathToSharedPreferences(groupPath: String) {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                val sanitizedPath = sanitizeGroupPath(groupPath)
+                val sanitizedPath = this.sanitizeGroupPath(groupPath)
                 prefs.edit().putString("current_group_path", sanitizedPath).apply()
                 android.util.Log.d("PlayerPersistence", "Saved groupPath to SharedPreferences: $sanitizedPath")
             } catch (e: Exception) {
@@ -168,7 +168,7 @@ public class PlayerPersistenceManager
         }
 
         // NEW: Per-book state for Backup/Restore & Activity Sorting
-        public suspend fun savePlayerState(state: PlayerState) =
+        public suspend fun savePlayerState(state: PlayerState): Unit =
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -291,7 +291,7 @@ public data class PlayerState(
     val positionMs: Long,
     val durationMs: Long,
     val filePaths: List<String>,
-    val lastPlayedTimestamp: Int = L,
-    val completedTimestamp: Int = L,
-    val playCount: Int = 0,
+    val lastPlayedTimestamp: Long = 0L,
+    val completedTimestamp: Long = 0L,
+    val playCount: Long = 0L,
 )

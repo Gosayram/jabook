@@ -2120,7 +2120,7 @@ public class RutrackerParser
          * Result of a login attempt.
          */
         public sealed interface LoginResult {
-            data object Success : LoginResult
+            public data object Success : LoginResult
 
             public data class Error(
                 val message: String,

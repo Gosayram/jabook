@@ -59,7 +59,7 @@ public class ThrottledSeekHandler
         private var lastSeekPosition: Long = 0L
 
         /** Throttle delay in milliseconds. Can be configured. */
-        var throttleMs: Long = DEFAULT_THROTTLE_MS
+        public var throttleMs: Long = DEFAULT_THROTTLE_MS
 
         /**
          * Notifies a seek event. The action will be executed after [throttleMs]

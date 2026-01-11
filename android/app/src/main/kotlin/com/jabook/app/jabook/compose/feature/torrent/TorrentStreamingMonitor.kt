@@ -48,7 +48,7 @@ public class TorrentStreamingMonitor
         private val torrentManager: TorrentManager,
     ) {
         private val _isBuffering = kotlinx.coroutines.flow.MutableStateFlow(false)
-        val isBuffering = _isBuffering.asStateFlow()
+        public val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var monitoringJob: Job? = null

@@ -64,7 +64,7 @@ public class AudioPlayerLibrarySessionCallback(
     private val mediaButtonHandler: MediaButtonHandler?,
     private val getDurationForFile: (String) -> Long?,
 ) : MediaLibraryService.MediaLibrarySession.Callback {
-    val customCommands: List<CommandButton> =
+    public val customCommands: List<CommandButton> =
         listOf(
             CommandButton
                 .Builder(CommandButton.ICON_SKIP_BACK)

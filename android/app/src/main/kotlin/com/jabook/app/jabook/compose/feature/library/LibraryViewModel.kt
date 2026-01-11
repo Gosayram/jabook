@@ -77,19 +77,19 @@ public class LibraryViewModel
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        val searchQuery: StateFlow<String> = _searchQuery
+        public val searchQuery: StateFlow<String> = _searchQuery
 
         // Sort order state
         private val _sortOrder = MutableStateFlow(BookSortOrder.BY_ACTIVITY)
-        val sortOrder: StateFlow<BookSortOrder> = _sortOrder
+        public val sortOrder: StateFlow<BookSortOrder> = _sortOrder
 
         // View mode state
         private val _viewMode = MutableStateFlow(LibraryViewMode.LIST_COMPACT)
-        val viewMode: StateFlow<LibraryViewMode> = _viewMode
+        public val viewMode: StateFlow<LibraryViewMode> = _viewMode
 
         // Selected book for properties dialog
         private val _selectedBookForProperties = MutableStateFlow<Book?>(null)
-        val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
+        public val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
 
         init {
             // Load saved settings from preferences
@@ -104,7 +104,7 @@ public class LibraryViewModel
         /**
          * UI state combining books data with loading/error states.
          */
-        val uiState: StateFlow<LibraryUiState> =
+        public val uiState: StateFlow<LibraryUiState> =
             _sortOrder
                 .flatMapLatest { order ->
                     combine(
@@ -167,7 +167,7 @@ public class LibraryViewModel
         /**
          * Get favorite books reactively.
          */
-        val favoriteBooks: StateFlow<List<Book>> =
+        public val favoriteBooks: StateFlow<List<Book>> =
             getFavoriteBooksUseCase()
                 .stateIn(
                     scope = viewModelScope,
@@ -178,7 +178,7 @@ public class LibraryViewModel
         /**
          * Get recently played books.
          */
-        val recentlyPlayed: StateFlow<List<Book>> =
+        public val recentlyPlayed: StateFlow<List<Book>> =
             getRecentlyPlayedBooksUseCase(limit = 10)
                 .stateIn(
                     scope = viewModelScope,
@@ -189,7 +189,7 @@ public class LibraryViewModel
         /**
          * Get in-progress books.
          */
-        val inProgress: StateFlow<List<Book>> =
+        public val inProgress: StateFlow<List<Book>> =
             getInProgressBooksUseCase()
                 .stateIn(
                     scope = viewModelScope,
@@ -271,7 +271,7 @@ public class LibraryViewModel
 
         // Library scan state
         private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
-        val scanState: StateFlow<ScanState> = _scanState
+        public val scanState: StateFlow<ScanState> = _scanState
 
         // Track current scan work for cancellation
         private var currentScanWorkId: java.util.UUID? = null
@@ -352,7 +352,7 @@ public sealed interface LibraryUiState {
     /**
      * Loading state - initial load or refreshing.
      */
-    data object Loading : LibraryUiState
+    public data object Loading : LibraryUiState
 
     /**
      * Success state with books.
@@ -364,7 +364,7 @@ public sealed interface LibraryUiState {
     /**
      * Empty state - no books found.
      */
-    data object Empty : LibraryUiState
+    public data object Empty : LibraryUiState
 
     /**
      * Error state.
@@ -378,7 +378,7 @@ public sealed interface LibraryUiState {
  * State of library scanning operation.
  */
 public sealed interface ScanState {
-    data object Idle : ScanState
+    public data object Idle : ScanState
 
     public data class Scanning(
         val message: String,

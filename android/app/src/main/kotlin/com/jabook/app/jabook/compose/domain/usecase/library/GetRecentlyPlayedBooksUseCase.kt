@@ -38,5 +38,5 @@ public class GetRecentlyPlayedBooksUseCase
          * @param limit Maximum number of books to return (default: 10)
          * @return Flow of recently played books
          */
-        operator fun invoke(limit: Int = 10): Flow<List<Book>> = booksDao.getRecentlyPlayedBooksFlow(limit).map { it.toBooks() }
+        public operator fun invoke(limit: Int = 10): Flow<List<Book>> = booksDao.getRecentlyPlayedBooksFlow(limit).map { it.toBooks() }
     }

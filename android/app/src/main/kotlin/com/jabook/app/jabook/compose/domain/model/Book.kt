@@ -104,7 +104,7 @@ public data class Book(
         /**
          * Creates an empty Book instance for preview/testing.
          */
-        public fun preview() =
+        public fun preview(): Book =
             Book(
                 id = "1",
                 title = "Sample Audiobook",
@@ -129,7 +129,7 @@ public data class Book(
 /**
  * Extension function to convert BookEntity to domain Book model.
  */
-public fun BookEntity.toBook() =
+public fun BookEntity.toBook(): Book =
     Book(
         id = id,
         title = title,
@@ -154,7 +154,7 @@ public fun BookEntity.toBook() =
 /**
  * Extension function to convert domain Book to BookEntity.
  */
-public fun Book.toEntity() =
+public fun Book.toEntity(): BookEntity =
     BookEntity(
         id = id,
         title = title,

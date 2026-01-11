@@ -68,7 +68,7 @@ public class InactivityTimer(
      *
      * @param minutes Timeout in minutes (10-180)
      */
-    public fun setInactivityTimeoutMinutes() {
+    public fun setInactivityTimeoutMinutes(minutes: Int) {
         val seconds = (minutes * 60).toLong()
         if (seconds < MIN_INACTIVITY_TIMEOUT_SECONDS || seconds > MAX_INACTIVITY_TIMEOUT_SECONDS) {
             android.util.Log.w(

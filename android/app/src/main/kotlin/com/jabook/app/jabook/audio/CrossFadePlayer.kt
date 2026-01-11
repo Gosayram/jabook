@@ -45,11 +45,11 @@ public class CrossFadePlayer(
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
 
-    var crossFadeDurationMs: Int = 0L
+    public var crossFadeDurationMs: Int = 0
     private var currentAnimator: ValueAnimator? = null
     private var isCrossFading = false
 
-    var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
+    public var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
 
     /**
      * Prepares the next player with the given media item.
@@ -125,7 +125,7 @@ public class CrossFadePlayer(
 
         currentAnimator =
             ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = crossFadeDurationMs
+                duration = crossFadeDurationMs.toLong()
                 interpolator = LinearInterpolator()
 
                 addUpdateListener { animation ->

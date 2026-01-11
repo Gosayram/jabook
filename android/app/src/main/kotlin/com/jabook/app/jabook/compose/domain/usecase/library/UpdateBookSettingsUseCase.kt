@@ -32,7 +32,7 @@ public class UpdateBookSettingsUseCase
          * @param rewindDurationSeconds Rewind duration in seconds, or null to use global default
          * @param forwardDurationSeconds Forward duration in seconds, or null to use global default
          */
-        suspend operator fun invoke(
+        public suspend operator fun invoke(
             bookId: String,
             rewindDurationSeconds: Int?,
             forwardDurationSeconds: Int?,

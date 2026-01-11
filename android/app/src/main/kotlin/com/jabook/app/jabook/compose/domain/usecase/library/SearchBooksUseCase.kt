@@ -36,5 +36,5 @@ public class SearchBooksUseCase
          * @param query Search query (searches in title and author)
          * @return Flow of matching books
          */
-        operator fun invoke(query: String): Flow<List<Book>> = booksRepository.searchBooks(query)
+        public operator fun invoke(query: String): Flow<List<Book>> = booksRepository.searchBooks(query)
     }

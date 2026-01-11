@@ -74,24 +74,24 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
     version = 15,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
-abstract class JabookDatabase : RoomDatabase() {
-    abstract fun booksDao(): BooksDao
+public abstract class JabookDatabase : RoomDatabase() {
+    public abstract fun booksDao(): BooksDao
 
-    abstract fun chaptersDao(): ChaptersDao
+    public abstract fun chaptersDao(): ChaptersDao
 
-    abstract fun searchHistoryDao(): SearchHistoryDao
+    public abstract fun searchHistoryDao(): SearchHistoryDao
 
-    abstract fun cookiesDao(): CookiesDao
+    public abstract fun cookiesDao(): CookiesDao
 
-    abstract fun downloadQueueDao(): DownloadQueueDao
+    public abstract fun downloadQueueDao(): DownloadQueueDao
 
-    abstract fun downloadHistoryDao(): DownloadHistoryDao
+    public abstract fun downloadHistoryDao(): DownloadHistoryDao
 
-    abstract fun favoriteDao(): FavoriteDao
+    public abstract fun favoriteDao(): FavoriteDao
 
-    abstract fun scanPathDao(): ScanPathDao
+    public abstract fun scanPathDao(): ScanPathDao
 
-    abstract fun torrentDownloadDao(): TorrentDownloadDao
+    public abstract fun torrentDownloadDao(): TorrentDownloadDao
 
-    abstract fun offlineSearchDao(): OfflineSearchDao
+    public abstract fun offlineSearchDao(): OfflineSearchDao
 }

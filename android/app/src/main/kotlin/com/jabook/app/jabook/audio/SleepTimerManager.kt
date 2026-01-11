@@ -43,7 +43,7 @@ internal class SleepTimerManager(
     private val sendBroadcast: (Intent) -> Unit,
 ) {
     // Sleep timer state
-    var sleepTimerEndTime: Int = 0
+    var sleepTimerEndTime: Long = 0L
         private set
     var sleepTimerEndOfChapter: Boolean = false
         private set

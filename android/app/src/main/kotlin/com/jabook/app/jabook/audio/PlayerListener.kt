@@ -84,8 +84,8 @@ internal class PlayerListener(
      *
      * @param deferred CompletableDeferred to complete with new track index
      */
-    public fun setPendingTrackSwitchDeferred() {
-        pendingTrackSwitchDeferred = deferred
+    public fun setPendingTrackSwitchDeferred(deferred: CompletableDeferred<Int>) {
+        this.pendingTrackSwitchDeferred = deferred
         android.util.Log.d(
             "AudioPlayerService",
             "Set pendingTrackSwitchDeferred: waiting for track switch event",

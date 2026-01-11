@@ -58,7 +58,7 @@ public class ExoPlayerManager
         public fun prepare(
             mediaItems: List<MediaItem>,
             startIndex: Int,
-            startPosition: Int = L,
+            startPosition: Long = 0L,
         ) {
             player.setMediaItems(mediaItems, startIndex, startPosition)
             player.prepare()
@@ -81,7 +81,7 @@ public class ExoPlayerManager
         /**
          * Seeks to a specific position in the current media item.
          */
-        public fun seekTo() {
+        public fun seekTo(position: Long) {
             player.seekTo(position)
         }
 
@@ -156,8 +156,8 @@ public class ExoPlayerManager
         /**
          * Sets the playback speed.
          */
-        public fun setPlaybackSpeed() {
-            player.setPlaybackSpeed(speed)
+        public fun setPlaybackSpeed(speed: Float) {
+            player.playbackParameters = player.playbackParameters.withSpeed(speed)
         }
 
         /**
@@ -168,14 +168,14 @@ public class ExoPlayerManager
         /**
          * Adds a Player.Listener.
          */
-        public fun addListener() {
+        public fun addListener(listener: Player.Listener) {
             player.addListener(listener)
         }
 
         /**
          * Removes a Player.Listener.
          */
-        public fun removeListener() {
+        public fun removeListener(listener: Player.Listener) {
             player.removeListener(listener)
         }
 

@@ -53,7 +53,7 @@ public class MirrorManager
             /**
              * Default list of RuTracker mirrors.
              */
-            val DEFAULT_MIRRORS =
+            public val DEFAULT_MIRRORS: List<String> =
                 listOf(
                     "rutracker.org",
                     "rutracker.net",
@@ -73,14 +73,14 @@ public class MirrorManager
          *
          * Example: "rutracker.org"
          */
-        val currentMirror: StateFlow<String> = _currentMirror.asStateFlow()
+        public val currentMirror: StateFlow<String> = _currentMirror.asStateFlow()
 
         private val _availableMirrors = MutableStateFlow<List<String>>(DEFAULT_MIRRORS)
 
         /**
          * List of all available mirrors (default + custom).
          */
-        val availableMirrors: StateFlow<List<String>> = _availableMirrors.asStateFlow()
+        public val availableMirrors: StateFlow<List<String>> = _availableMirrors.asStateFlow()
 
         init {
             // Load saved settings on init

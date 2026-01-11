@@ -191,12 +191,12 @@ public object NetworkModule {
  */
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class NetworkBindingModule {
+public abstract class NetworkBindingModule {
     /**
      * Binds NetworkMonitor implementation to interface (following Flow pattern).
      * Using @Binds is more efficient than @Provides for interface bindings.
      */
     @Binds
     @Singleton
-    abstract fun bindNetworkMonitor(impl: com.jabook.app.jabook.compose.data.network.ConnectivityManagerNetworkMonitor): NetworkMonitor
+    public abstract fun bindNetworkMonitor(impl: com.jabook.app.jabook.compose.data.network.ConnectivityManagerNetworkMonitor): NetworkMonitor
 }

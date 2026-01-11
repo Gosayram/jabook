@@ -279,7 +279,7 @@ public class DebugLogService
          *
          * @param activity Activity context for starting the share intent
          */
-        public suspend fun shareLogs(activity: android.app.Activity) =
+        public suspend fun shareLogs(activity: android.app.Activity): Unit =
             withContext(Dispatchers.Main) {
                 try {
                     val uri = exportLogsToFile()
@@ -318,7 +318,7 @@ public class DebugLogService
         /**
          * Clears old log files from cache.
          */
-        public suspend fun clearOldLogFiles() =
+        public suspend fun clearOldLogFiles(): Unit =
             withContext(Dispatchers.IO) {
                 try {
                     val cacheDir = context.cacheDir

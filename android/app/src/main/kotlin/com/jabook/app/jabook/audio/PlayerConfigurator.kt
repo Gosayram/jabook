@@ -182,10 +182,10 @@ internal class PlayerConfigurator(
      * @param settings Audio processing settings
      */
     @androidx.annotation.OptIn(UnstableApi::class)
-    public fun configureExoPlayer() {
+    public fun configureExoPlayer(settings: AudioProcessingSettings) {
         try {
             // Store settings
-            audioProcessingSettings = settings
+            this.audioProcessingSettings = settings
 
             // Create processor chain
             val chainResult = AudioProcessorFactory.createProcessorChain(settings)

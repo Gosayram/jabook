@@ -80,7 +80,7 @@ public class PlayerViewModel
         private var isBookLoaded = false
 
         // Player Stats for Nerds
-        val playerStats: StateFlow<PlayerStats> = playerController.playerStats
+        public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
 
         // Saved position from database (restored on init)
         private var savedPosition: Int = 0L
@@ -88,14 +88,14 @@ public class PlayerViewModel
 
         // Chapter repeat mode state
         private val _chapterRepeatMode = MutableStateFlow(ChapterRepeatMode.OFF)
-        val chapterRepeatMode: StateFlow<ChapterRepeatMode> = _chapterRepeatMode.asStateFlow()
+        public val chapterRepeatMode: StateFlow<ChapterRepeatMode> = _chapterRepeatMode.asStateFlow()
 
         // Track if we've already repeated once (for ONCE mode)
         private var hasRepeatedOnce = false
 
         // Dynamic Theme Colors
         private val _themeColors = MutableStateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?>(null)
-        val themeColors: StateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?> = _themeColors.asStateFlow()
+        public val themeColors: StateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?> = _themeColors.asStateFlow()
 
         init {
             // CRITICAL: Restore saved position from database on init

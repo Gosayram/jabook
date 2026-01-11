@@ -646,8 +646,8 @@ public class AudioPlayerService : MediaLibraryService() {
      * @param settings Audio processing settings
      */
     @OptIn(UnstableApi::class)
-    public fun configureExoPlayer() {
-        playerConfigurator?.configureExoPlayer() ?: run {
+    public fun configureExoPlayer(settings: com.jabook.app.jabook.audio.processors.AudioProcessingSettings) {
+        playerConfigurator?.configureExoPlayer(settings) ?: run {
             android.util.Log.e("AudioPlayerService", "PlayerConfigurator not initialized")
         }
     }
@@ -678,7 +678,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
             if (nextSource != null) {
                 withContext(Dispatchers.Main) {
-                    crossFadePlayer?.setNextMediaSource()
+                    crossFadePlayer?.setNextMediaSource(nextSource)
                     crossFadePlayer?.startCrossFade()
                 }
             }
@@ -775,11 +775,11 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun setNotificationType() {
         // MediaLibraryService automatically manages notifications based on Player state
         // If we need custom notification types, we should configure MediaButtonPreferences instead
-        notificationManager?.setNotificationType()
+        notificationManager?.setNotificationType(false)
         // MediaLibraryService automatically updates notification when Player state changes
     }
 
-    val isPlaying: Boolean
+    public val isPlaying: Boolean
         get() = getActivePlayer().isPlaying
 
     public fun play() {
@@ -886,8 +886,8 @@ public class AudioPlayerService : MediaLibraryService() {
      *
      * @param minutes Timer duration in minutes
      */
-    public fun setSleepTimerMinutes() {
-        sleepTimerManager?.setSleepTimerMinutes()
+    public fun setSleepTimerMinutes(minutes: Int) {
+        sleepTimerManager?.setSleepTimerMinutes(minutes)
     }
 
     /**

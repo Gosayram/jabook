@@ -41,7 +41,7 @@ public class SyncChaptersUseCase
          * @param filePaths List of file paths for the playlist
          * @return Result indicating success or failure
          */
-        suspend operator fun invoke(
+        public suspend operator fun invoke(
             bookId: String,
             bookTitle: String,
             chapters: List<Chapter>,

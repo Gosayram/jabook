@@ -41,5 +41,5 @@ public class GetInProgressBooksUseCase
          *
          * @return Flow of in-progress books
          */
-        operator fun invoke(): Flow<List<Book>> = booksDao.getInProgressBooksFlow().map { it.toBooks() }
+        public operator fun invoke(): Flow<List<Book>> = booksDao.getInProgressBooksFlow().map { it.toBooks() }
     }

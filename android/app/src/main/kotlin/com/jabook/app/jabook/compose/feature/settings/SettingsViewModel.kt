@@ -120,7 +120,7 @@ public class SettingsViewModel
         }
 
         // Exposure of auth status for UI
-        val authStatus =
+        val authStatus: StateFlow<com.jabook.app.jabook.compose.domain.model.AuthStatus> =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -136,7 +136,7 @@ public class SettingsViewModel
         /**
          * Old user preferences - for backward compatibility.
          */
-        val userPreferences =
+        val userPreferences: StateFlow<UserPreferences?> =
             userPreferencesRepository.userData.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),

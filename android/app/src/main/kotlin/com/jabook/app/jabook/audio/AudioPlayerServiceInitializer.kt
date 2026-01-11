@@ -308,7 +308,7 @@ public class AudioPlayerServiceInitializer(
                         // Wait for controller with reasonable timeout for service initialization
                         val controller =
                             controllerFuture.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.SERVICE_INIT_TIMEOUT_SECONDS,
+                                com.jabook.app.jabook.audio.MediaControllerConstants.SERVICE_INIT_TIMEOUT_SECONDS.toLong(),
                                 java.util.concurrent.TimeUnit.SECONDS,
                             )
                         service.serviceMediaController = controller

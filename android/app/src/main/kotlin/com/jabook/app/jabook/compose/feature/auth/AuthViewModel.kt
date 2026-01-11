@@ -51,9 +51,9 @@ public class AuthViewModel
         private val mirrorManager: MirrorManager,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(AuthUiState())
-        val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-        val authStatus: StateFlow<AuthStatus> =
+        public val authStatus: StateFlow<AuthStatus> =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),

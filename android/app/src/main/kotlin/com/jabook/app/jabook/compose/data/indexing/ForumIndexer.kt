@@ -814,7 +814,7 @@ public class ForumIndexer
         /**
          * Clear the entire index.
          */
-        public suspend fun clearIndex() =
+        public suspend fun clearIndex(): Unit =
             withContext(Dispatchers.IO) {
                 offlineSearchDao.deleteAllTopics()
                 offlineSearchDao.deleteAllMappings()

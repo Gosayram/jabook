@@ -22,7 +22,7 @@ public data class Chapter(
     val title: String,
     val fileIndex: Int,
     val filePath: String? = null,
-    val startTime: Int = L,
+    val startTime: Int = 0,
     val endTime: Long? = null,
     val duration: Long? = null,
 ) {

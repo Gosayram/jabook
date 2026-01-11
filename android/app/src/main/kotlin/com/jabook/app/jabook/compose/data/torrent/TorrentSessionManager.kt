@@ -60,7 +60,7 @@ public class TorrentSessionManager
         private val topicIds = mutableMapOf<String, String>()
 
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
-        val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
+        public val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
 
         private val alertListener =
             object : AlertListener {

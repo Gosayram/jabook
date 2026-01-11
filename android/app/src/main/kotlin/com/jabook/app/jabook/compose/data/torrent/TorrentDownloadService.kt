@@ -44,10 +44,10 @@ import javax.inject.Inject
 @AndroidEntryPoint
 public class TorrentDownloadService : Service() {
     @Inject
-    lateinit var torrentManager: TorrentManager
+    public lateinit var torrentManager: TorrentManager
 
     @Inject
-    lateinit var notificationManager: TorrentNotificationManager
+    public lateinit var notificationManager: TorrentNotificationManager
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var wakeLock: PowerManager.WakeLock? = null

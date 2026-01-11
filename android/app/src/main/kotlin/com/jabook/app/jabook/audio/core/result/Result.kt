@@ -42,7 +42,7 @@ public sealed interface Result<out T> {
     /**
      * Represents a loading state.
      */
-    data object Loading : Result<Nothing>
+    public data object Loading : Result<Nothing>
 }
 
 /**

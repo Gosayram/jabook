@@ -35,5 +35,5 @@ public class GetChaptersUseCase
          * @param bookId ID of the book
          * @return Flow of chapters ordered by chapter index
          */
-        operator fun invoke(bookId: String): Flow<List<Chapter>> = booksRepository.getChapters(bookId)
+        public operator fun invoke(bookId: String): Flow<List<Chapter>> = booksRepository.getChapters(bookId)
     }

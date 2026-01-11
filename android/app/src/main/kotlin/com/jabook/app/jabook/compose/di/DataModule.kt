@@ -40,51 +40,51 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
  */
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class DataModule {
+public abstract class DataModule {
     /**
      * Binds the OfflineFirstBooksRepository implementation to the BooksRepository interface.
      */
     @Binds
     @Singleton
-    abstract fun bindBooksRepository(repository: OfflineFirstBooksRepository): BooksRepository
+    public abstract fun bindBooksRepository(repository: OfflineFirstBooksRepository): BooksRepository
 
     /**
      * Binds the DataStoreUserPreferencesRepository implementation to the UserPreferencesRepository interface.
      */
     @Binds
     @Singleton
-    abstract fun bindUserPreferencesRepository(repository: DataStoreUserPreferencesRepository): UserPreferencesRepository
+    public abstract fun bindUserPreferencesRepository(repository: DataStoreUserPreferencesRepository): UserPreferencesRepository
 
     /**
      * Binds the RutrackerRepositoryImpl implementation to the RutrackerRepository interface.
      */
     @Binds
     @Singleton
-    abstract fun bindRutrackerRepository(
+    public abstract fun bindRutrackerRepository(
         repository: com.jabook.app.jabook.compose.data.repository.RutrackerRepositoryImpl,
     ): com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 
     @Binds
     @Singleton
-    abstract fun bindSettingsRepository(
+    public abstract fun bindSettingsRepository(
         impl: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository,
     ): com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 
     @Binds
     @Singleton
-    abstract fun bindSleepTimerRepository(
+    public abstract fun bindSleepTimerRepository(
         impl: com.jabook.app.jabook.compose.data.repository.SleepTimerRepositoryImpl,
     ): com.jabook.app.jabook.compose.data.repository.SleepTimerRepository
 
     @Binds
     @Singleton
-    abstract fun bindLocalBookScanner(
+    public abstract fun bindLocalBookScanner(
         impl: com.jabook.app.jabook.compose.data.local.scanner.HybridBookScanner,
     ): com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 
     @Binds
     @Singleton
-    abstract fun bindAudioMetadataParser(
+    public abstract fun bindAudioMetadataParser(
         impl: com.jabook.app.jabook.compose.data.local.parser.Media3MetadataParser,
     ): com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 

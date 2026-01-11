@@ -21,7 +21,7 @@ public sealed class IndexingProgress {
     /**
      * Indexing not started or completed.
      */
-    data object Idle : IndexingProgress()
+    public data object Idle : IndexingProgress()
 
     /**
      * Indexing in progress.

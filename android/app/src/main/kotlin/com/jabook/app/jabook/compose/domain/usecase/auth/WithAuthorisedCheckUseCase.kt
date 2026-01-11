@@ -44,7 +44,7 @@ public class WithAuthorisedCheckUseCase
          * @return Result of the operation
          * @throws RuTrackerError.Unauthorized if not authenticated
          */
-        suspend operator fun <T> invoke(
+        public suspend operator fun <T> invoke(
             html: String,
             mapper: suspend (html: String) -> T,
         ): T =
@@ -65,7 +65,7 @@ public class WithAuthorisedCheckUseCase
          * @return Result of the operation
          * @throws RuTrackerError.Unauthorized if not authenticated
          */
-        suspend operator fun <T> invoke(
+        public suspend operator fun <T> invoke(
             operationId: String? = null,
             block: suspend () -> T,
         ): T =

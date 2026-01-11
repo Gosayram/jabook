@@ -23,7 +23,7 @@ public sealed interface SleepTimerState {
     /**
      * Timer is not active.
      */
-    data object Idle : SleepTimerState
+    public data object Idle : SleepTimerState
 
     /**
      * Timer is counting down.
@@ -36,7 +36,7 @@ public sealed interface SleepTimerState {
         /**
          * Formatted time string (MM:SS).
          */
-        val formattedTime: String
+        public val formattedTime: String
             get() {
                 val minutes = remainingSeconds / 60
                 val seconds = remainingSeconds % 60
@@ -47,5 +47,5 @@ public sealed interface SleepTimerState {
     /**
      * Timer is set to end of current chapter.
      */
-    data object EndOfChapter : SleepTimerState
+    public data object EndOfChapter : SleepTimerState
 }

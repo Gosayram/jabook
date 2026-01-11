@@ -37,7 +37,7 @@ public class UpdatePlaybackProgressUseCase
          * @param chapterIndex Current chapter index
          * @return Result indicating success or failure
          */
-        suspend operator fun invoke(
+        public suspend operator fun invoke(
             bookId: String,
             position: Long,
             chapterIndex: Int,

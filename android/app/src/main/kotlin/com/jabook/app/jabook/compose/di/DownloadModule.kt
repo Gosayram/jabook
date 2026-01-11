@@ -30,7 +30,7 @@ import javax.inject.Singleton
  */
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class DownloadModule {
+public abstract class DownloadModule {
     /**
      * Bind TorrentDownloader implementation.
      *
@@ -38,5 +38,5 @@ abstract class DownloadModule {
      */
     @Binds
     @Singleton
-    abstract fun bindTorrentDownloader(impl: LibTorrentDownloader): TorrentDownloader
+    public abstract fun bindTorrentDownloader(impl: LibTorrentDownloader): TorrentDownloader
 }

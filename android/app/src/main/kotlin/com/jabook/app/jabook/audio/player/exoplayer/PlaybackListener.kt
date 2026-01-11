@@ -27,10 +27,10 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 public class PlaybackListener : Player.Listener {
     private val _playbackState = MutableStateFlow<PlaybackState>(PlaybackState.empty())
-    val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
+    public val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
     private val _actualTrackIndex = MutableStateFlow<Int>(0)
-    val actualTrackIndex: StateFlow<Int> = _actualTrackIndex.asStateFlow()
+    public val actualTrackIndex: StateFlow<Int> = _actualTrackIndex.asStateFlow()
 
     /**
      * Callback when media item transitions.

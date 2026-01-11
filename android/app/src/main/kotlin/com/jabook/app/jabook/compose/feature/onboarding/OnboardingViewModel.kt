@@ -51,7 +51,7 @@ public class OnboardingViewModel
         private val userPreferencesRepository: UserPreferencesRepository,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(OnboardingUiState())
-        val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
         public fun nextStep() {
             val current = _uiState.value.currentStep

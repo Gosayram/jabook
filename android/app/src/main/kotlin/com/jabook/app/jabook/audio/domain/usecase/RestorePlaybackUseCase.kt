@@ -36,7 +36,7 @@ public class RestorePlaybackUseCase
          * @param bookId The book ID
          * @return Result containing the saved playback state, or null if not found
          */
-        suspend operator fun invoke(bookId: String): Result<PlaybackState?> =
+        public suspend operator fun invoke(bookId: String): Result<PlaybackState?> =
             try {
                 val result = positionRepository.getPosition(bookId).first()
                 when (result) {

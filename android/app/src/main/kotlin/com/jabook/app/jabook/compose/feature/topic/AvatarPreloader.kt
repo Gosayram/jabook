@@ -50,7 +50,7 @@ public class AvatarPreloader
         public suspend fun preloadAvatars(
             context: Context,
             comments: List<RutrackerComment>,
-        ) = withContext(Dispatchers.IO) {
+        ): Unit = withContext(Dispatchers.IO) {
             if (comments.isEmpty()) return@withContext
 
             val commentsWithAvatars = comments.filter { !it.avatarUrl.isNullOrBlank() }

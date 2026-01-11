@@ -46,7 +46,7 @@ public sealed interface Result<out T> {
     /**
      * Operation is currently in progress.
      */
-    data object Loading : Result<Nothing>
+    public data object Loading : Result<Nothing>
 }
 
 /**
@@ -57,7 +57,7 @@ public sealed interface Result<out T> {
  * @param transform Function to transform the success data
  * @return Transformed result
  */
-inline fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> =
+public inline fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> =
     when (this) {
         is Result.Success -> Result.Success(transform(data))
         is Result.Error -> this

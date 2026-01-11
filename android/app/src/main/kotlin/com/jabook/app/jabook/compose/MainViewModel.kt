@@ -29,7 +29,7 @@ import javax.inject.Inject
  * UI state for the main activity/app.
  */
 public sealed interface MainActivityUiState {
-    data object Loading : MainActivityUiState
+    public data object Loading : MainActivityUiState
 
     public data class Success(
         val userData: UserData,
@@ -45,7 +45,7 @@ public class MainViewModel
     constructor(
         userPreferencesRepository: UserPreferencesRepository,
     ) : ViewModel() {
-        val uiState: StateFlow<MainActivityUiState> =
+        public val uiState: StateFlow<MainActivityUiState> =
             userPreferencesRepository.userData
                 .map { MainActivityUiState.Success(it) }
                 .stateIn(

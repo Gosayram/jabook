@@ -70,20 +70,20 @@ public class AudioPlayerController
 
         // Playback State
         private val _isPlaying = MutableStateFlow(false)
-        val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+        public val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
         private val _currentPosition = MutableStateFlow(0L)
-        val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
+        public val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
 
         private val _duration = MutableStateFlow(0L)
-        val duration: StateFlow<Long> = _duration.asStateFlow()
+        public val duration: StateFlow<Long> = _duration.asStateFlow()
 
         private val _currentChapterIndex = MutableStateFlow(0)
-        val currentChapterIndex: StateFlow<Int> = _currentChapterIndex.asStateFlow()
+        public val currentChapterIndex: StateFlow<Int> = _currentChapterIndex.asStateFlow()
 
         // Pitch Correction State
         private val _pitchCorrectionEnabled = MutableStateFlow(true)
-        val pitchCorrectionEnabled: StateFlow<Boolean> = _pitchCorrectionEnabled.asStateFlow()
+        public val pitchCorrectionEnabled: StateFlow<Boolean> = _pitchCorrectionEnabled.asStateFlow()
 
         // Audio Stats for Nerds
         private val _playerStats =
@@ -91,11 +91,11 @@ public class AudioPlayerController
                 com.jabook.app.jabook.compose.feature.player
                     .PlayerStats(),
             )
-        val playerStats: StateFlow<com.jabook.app.jabook.compose.feature.player.PlayerStats> = _playerStats.asStateFlow()
+        public val playerStats: StateFlow<com.jabook.app.jabook.compose.feature.player.PlayerStats> = _playerStats.asStateFlow()
 
         // Current Book ID for isolation - ensures we don't mix data between books
         private val _currentBookId = MutableStateFlow<String?>(null)
-        val currentBookId: StateFlow<String?> = _currentBookId.asStateFlow()
+        public val currentBookId: StateFlow<String?> = _currentBookId.asStateFlow()
 
         // Callback for chapter end handling (e.g., repeat logic)
         private var onChapterEndedCallback: (() -> Boolean)? = null

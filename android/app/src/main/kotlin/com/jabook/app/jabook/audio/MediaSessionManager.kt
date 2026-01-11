@@ -57,8 +57,8 @@ public class MediaSessionManager(
     // private var mediaSession: MediaSession? = null // Removed duplicate session
     private var rewindCallback: (() -> Unit)? = null
     private var forwardCallback: (() -> Unit)? = null
-    private var rewindSeconds: Int = 0L
-    private var forwardSeconds: Int = 0L
+    private var rewindSeconds: Long = 0L
+    private var forwardSeconds: Long = 0L
     private var lastPlayWhenReady: Boolean = player.playWhenReady
 
     public companion object {

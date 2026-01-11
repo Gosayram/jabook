@@ -23,7 +23,7 @@ public data class PlaybackState(
     val duration: Long,
     val currentTrackIndex: Int,
     val playbackSpeed: Float = 1.0f,
-    val bufferedPosition: Int = L,
+    val bufferedPosition: Long = 0L,
     val playbackState: Int = 0, // 0 = idle, 1 = buffering, 2 = ready, 3 = ended
 ) {
     /**

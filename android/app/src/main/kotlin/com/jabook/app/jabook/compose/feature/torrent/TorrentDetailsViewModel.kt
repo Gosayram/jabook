@@ -47,7 +47,7 @@ public class TorrentDetailsViewModel
         private val streamingMonitor: TorrentStreamingMonitor,
     ) : ViewModel() {
         private val route = savedStateHandle.toRoute<TorrentDetailsRoute>()
-        val hash = route.hash
+        val hash: String = route.hash
 
         val download: StateFlow<TorrentDownload?> =
             torrentManager.downloadsFlow
@@ -58,7 +58,7 @@ public class TorrentDetailsViewModel
                     initialValue = null,
                 )
 
-        val isBuffering = streamingMonitor.isBuffering
+        val isBuffering: StateFlow<Boolean> = streamingMonitor.isBuffering
 
         private val _navigationEvent = MutableSharedFlow<String>()
         val navigationEvent = _navigationEvent.asSharedFlow()

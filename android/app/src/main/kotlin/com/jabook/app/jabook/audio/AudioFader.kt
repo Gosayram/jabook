@@ -61,7 +61,7 @@ public class AudioFader
         private var currentAnimator: ValueAnimator? = null
 
         /** Current fade duration in milliseconds. Can be configured via settings. */
-        var fadeDurationMs: Long = DEFAULT_FADE_DURATION_MS
+        public var fadeDurationMs: Long = DEFAULT_FADE_DURATION_MS
             set(value) {
                 field = value.coerceIn(MIN_FADE_DURATION_MS, MAX_FADE_DURATION_MS)
             }

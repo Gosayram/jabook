@@ -41,7 +41,7 @@ public class LoadPlaylistUseCase
          * @param bookId The book ID
          * @return Flow of Result containing the playlist
          */
-        operator fun invoke(bookId: String): Flow<Result<Playlist>> =
+        public operator fun invoke(bookId: String): Flow<Result<Playlist>> =
             chapterRepository.getChapters(bookId).map { result ->
                 when (result) {
                     is com.jabook.app.jabook.audio.core.result.Result.Success -> {

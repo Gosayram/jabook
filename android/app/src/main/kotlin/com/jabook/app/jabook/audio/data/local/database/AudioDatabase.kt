@@ -40,12 +40,12 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
     version = 2,
     exportSchema = true,
 )
-abstract class AudioDatabase : RoomDatabase() {
-    abstract fun playbackPositionDao(): PlaybackPositionDao
+public abstract class AudioDatabase : RoomDatabase() {
+    public abstract fun playbackPositionDao(): PlaybackPositionDao
 
-    abstract fun playlistDao(): PlaylistDao
+    public abstract fun playlistDao(): PlaylistDao
 
-    abstract fun chapterMetadataDao(): ChapterMetadataDao
+    public abstract fun chapterMetadataDao(): ChapterMetadataDao
 
-    abstract fun savedPlayerStateDao(): SavedPlayerStateDao
+    public abstract fun savedPlayerStateDao(): SavedPlayerStateDao
 }

@@ -46,7 +46,7 @@ public class TorrentManager
         private val networkMonitor: NetworkMonitor,
     ) {
         /** Current downloads */
-        val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
+        public val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
             get() = sessionManager.downloadsFlow
 
         private var isInitialized = false
@@ -122,14 +122,14 @@ public class TorrentManager
         /**
          * Pause torrent
          */
-        public fun pauseTorrent() {
+        public fun pauseTorrent(hash: String) {
             sessionManager.pauseTorrent(hash)
         }
 
         /**
          * Resume torrent
          */
-        public fun resumeTorrent() {
+        public fun resumeTorrent(hash: String) {
             sessionManager.resumeTorrent(hash)
         }
 

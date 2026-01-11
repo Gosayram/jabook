@@ -31,7 +31,7 @@ public interface UserPreferencesRepository {
      * Get user preferences as a Flow.
      * Emits whenever preferences change.
      */
-    val userData: Flow<UserData>
+    public val userData: Flow<UserData>
 
     /**
      * Update app theme preference.

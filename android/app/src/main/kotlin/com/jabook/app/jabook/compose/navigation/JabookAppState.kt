@@ -78,7 +78,7 @@ public class JabookAppState(
      *
      * @param topLevelDestination The destination to navigate to
      */
-    public fun navigateToTopLevelDestination() {
+    public fun navigateToTopLevelDestination(topLevelDestination: TopLevelDestination) {
         Log.d(TAG, "🧭 Navigating to top-level destination: ${topLevelDestination.name}")
         when (topLevelDestination) {
             TopLevelDestination.LIBRARY -> {

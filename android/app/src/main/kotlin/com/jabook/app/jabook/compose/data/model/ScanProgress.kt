@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.compose.data.model
 
 public sealed class ScanProgress {
-    data object Idle : ScanProgress()
+    public data object Idle : ScanProgress()
 
     public data class Discovery(
         val fileCount: Int,
@@ -27,7 +27,7 @@ public sealed class ScanProgress {
         val total: Int,
     ) : ScanProgress()
 
-    data object Saving : ScanProgress()
+    public data object Saving : ScanProgress()
 
     public data class Completed(
         val booksAdded: Int,

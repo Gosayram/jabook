@@ -43,9 +43,9 @@ import javax.inject.Inject
  * UI state for search.
  */
 public sealed interface SearchUiState {
-    data object Idle : SearchUiState
+    public data object Idle : SearchUiState
 
-    data object Loading : SearchUiState
+    public data object Loading : SearchUiState
 
     public data class Success(
         val localResults: List<Book>,
@@ -76,26 +76,26 @@ public class SearchViewModel
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+        public val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
         // Filters and Sort state
         private val _filters = MutableStateFlow(SearchFilters())
-        val filters: StateFlow<SearchFilters> = _filters.asStateFlow()
+        public val filters: StateFlow<SearchFilters> = _filters.asStateFlow()
 
         private val _sortOrder = MutableStateFlow(SearchSortOrder.RELEVANCE)
-        val sortOrder: StateFlow<SearchSortOrder> = _sortOrder.asStateFlow()
+        public val sortOrder: StateFlow<SearchSortOrder> = _sortOrder.asStateFlow()
 
         // Raw results to support client-side filtering
         private val rawOnlineResults = MutableStateFlow<List<RutrackerSearchResult>>(emptyList())
 
         // UI state - derived from raw results and filters
         private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
-        val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
         /**
          * Local search results with debouncing (300ms).
          */
-        val localResults: StateFlow<List<Book>> =
+        public val localResults: StateFlow<List<Book>> =
             _searchQuery
                 .debounce(300)
                 .flatMapLatest { query ->
@@ -113,7 +113,7 @@ public class SearchViewModel
         /**
          * Recent search history.
          */
-        val searchHistory: StateFlow<List<com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity>> =
+        public val searchHistory: StateFlow<List<com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity>> =
             searchHistoryRepository
                 .getRecentSearches(limit = 10)
                 .stateIn(

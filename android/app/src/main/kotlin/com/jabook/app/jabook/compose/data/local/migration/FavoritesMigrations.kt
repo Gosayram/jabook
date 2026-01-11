@@ -24,7 +24,7 @@ private const val TAG = "Room"
  * Migration from database version 6 to 7.
  * Adds favorites table for managing favorite audiobooks.
  */
-val MIGRATION_6_7 =
+public val MIGRATION_6_7: Migration =
     object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
             try {

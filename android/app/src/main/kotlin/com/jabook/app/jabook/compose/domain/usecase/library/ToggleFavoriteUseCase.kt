@@ -35,7 +35,7 @@ public class ToggleFavoriteUseCase
          * @param isFavorite New favorite status
          * @return Result indicating success or failure
          */
-        suspend operator fun invoke(
+        public suspend operator fun invoke(
             bookId: String,
             isFavorite: Boolean,
         ): Result<Unit> =

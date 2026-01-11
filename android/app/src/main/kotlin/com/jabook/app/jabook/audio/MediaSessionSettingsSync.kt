@@ -108,7 +108,7 @@ public class MediaSessionSettingsSync(
                         autoVolumeLeveling = prefs.autoVolumeLeveling,
                         skipSilence = prefs.skipSilence,
                         isCrossfadeEnabled = prefs.crossfadeEnabled,
-                        crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
+                        crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs.toInt() else 2000,
                     )
                 }.distinctUntilChanged()
                 .collect { settings ->

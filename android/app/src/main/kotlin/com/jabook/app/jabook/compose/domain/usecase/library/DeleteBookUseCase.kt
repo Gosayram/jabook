@@ -34,7 +34,7 @@ public class DeleteBookUseCase
          * @param bookId ID of the book to delete
          * @return Result indicating success or failure
          */
-        suspend operator fun invoke(bookId: String): Result<Unit> =
+        public suspend operator fun invoke(bookId: String): Result<Unit> =
             try {
                 booksRepository.deleteBook(bookId)
                 Result.Success(Unit)

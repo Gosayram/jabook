@@ -136,7 +136,7 @@ public object MediaControllerExtensions {
                         Bundle.EMPTY,
                     )
                 val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
                 if (result.resultCode == SessionResult.RESULT_SUCCESS) {
                     if (result.extras.containsKey(AudioPlayerLibrarySessionCallback.ARG_RESULT_REMAINING)) {
                         result.extras.getInt(AudioPlayerLibrarySessionCallback.ARG_RESULT_REMAINING)
@@ -164,7 +164,7 @@ public object MediaControllerExtensions {
                         Bundle.EMPTY,
                     )
                 val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
                 if (result.resultCode == SessionResult.RESULT_SUCCESS) {
                     result.extras.getBoolean(AudioPlayerLibrarySessionCallback.ARG_RESULT_ACTIVE, false)
                 } else {
@@ -188,7 +188,7 @@ public object MediaControllerExtensions {
                         Bundle.EMPTY,
                     )
                 val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
                 if (result.resultCode == SessionResult.RESULT_SUCCESS) {
                     result.extras.getBoolean(AudioPlayerLibrarySessionCallback.ARG_RESULT_END_OF_CHAPTER, false)
                 } else {
@@ -212,7 +212,7 @@ public object MediaControllerExtensions {
                         Bundle.EMPTY,
                     )
                 val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
                 if (result.resultCode == SessionResult.RESULT_SUCCESS) {
                     result.extras.getString(AudioPlayerLibrarySessionCallback.ARG_RESULT_GROUP_PATH)
                 } else {
@@ -236,7 +236,7 @@ public object MediaControllerExtensions {
                         Bundle.EMPTY,
                     )
                 val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
                 if (result.resultCode == SessionResult.RESULT_SUCCESS) {
                     result.extras.getStringArray(AudioPlayerLibrarySessionCallback.ARG_RESULT_FILE_PATHS)?.toList()
                 } else {

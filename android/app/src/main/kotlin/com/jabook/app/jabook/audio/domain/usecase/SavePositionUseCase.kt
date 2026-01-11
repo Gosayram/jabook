@@ -34,7 +34,7 @@ public class SavePositionUseCase
          * @param position The playback position in milliseconds
          * @return Result indicating success or failure
          */
-        suspend operator fun invoke(
+        public suspend operator fun invoke(
             bookId: String,
             trackIndex: Int,
             position: Long,

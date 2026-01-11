@@ -35,7 +35,7 @@ public class MigrationViewModel
         private val migrationManager: DataMigrationManager,
     ) : ViewModel() {
         private val _state = MutableStateFlow<MigrationUiState>(MigrationUiState.Checking)
-        val state: StateFlow<MigrationUiState> = _state.asStateFlow()
+        public val state: StateFlow<MigrationUiState> = _state.asStateFlow()
 
         init {
             checkAndStartMigration()

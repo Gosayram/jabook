@@ -50,7 +50,7 @@ public object PlayerPerformanceLogger {
      *
      * @param name Session identifier (e.g., "cold_start", "warm_start")
      */
-    public fun start() {
+    public fun start(name: String) {
         sessionName = name
         sessionStartTime = System.currentTimeMillis()
         events.clear()

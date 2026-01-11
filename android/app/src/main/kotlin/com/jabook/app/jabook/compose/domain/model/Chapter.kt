@@ -79,7 +79,7 @@ public data class Chapter(
         /**
          * Creates a sample Chapter for preview/testing.
          */
-        public fun preview() =
+        public fun preview(): Chapter =
             Chapter(
                 id = "1",
                 bookId = "book1",
@@ -98,7 +98,7 @@ public data class Chapter(
 /**
  * Extension function to convert ChapterEntity to domain Chapter model.
  */
-public fun ChapterEntity.toChapter() =
+public fun ChapterEntity.toChapter(): Chapter =
     Chapter(
         id = id,
         bookId = bookId,
@@ -115,7 +115,7 @@ public fun ChapterEntity.toChapter() =
 /**
  * Extension function to convert domain Chapter to ChapterEntity.
  */
-public fun Chapter.toEntity() =
+public fun Chapter.toEntity(): ChapterEntity =
     ChapterEntity(
         id = id,
         bookId = bookId,

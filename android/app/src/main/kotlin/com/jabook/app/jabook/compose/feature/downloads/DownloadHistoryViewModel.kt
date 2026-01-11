@@ -42,14 +42,14 @@ public class DownloadHistoryViewModel
     ) : ViewModel() {
         // Search query
         private val _searchQuery = MutableStateFlow("")
-        val searchQuery: StateFlow<String> = _searchQuery
+        public val searchQuery: StateFlow<String> = _searchQuery
 
         // Sort order
         private val _sortOrder = MutableStateFlow(HistorySortOrder.DATE_DESC)
-        val sortOrder: StateFlow<HistorySortOrder> = _sortOrder
+        public val sortOrder: StateFlow<HistorySortOrder> = _sortOrder
 
         // History with filters applied - simplified approach
-        val history: StateFlow<List<DownloadHistoryEntity>> =
+        public val history: StateFlow<List<DownloadHistoryEntity>> =
             _searchQuery
                 .flatMapLatest { query ->
                     downloadHistoryDao.getHistoryWithFilter(query, _sortOrder.value)
@@ -65,7 +65,7 @@ public class DownloadHistoryViewModel
         }
 
         // Update sort order
-        public fun updateSortOrder() {
+        public fun updateSortOrder(order: HistorySortOrder) {
             _sortOrder.value = order
         }
 

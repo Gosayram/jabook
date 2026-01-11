@@ -38,42 +38,42 @@ public sealed class RuTrackerError : Throwable() {
     /**
      * User is not authenticated or token is invalid.
      */
-    data object Unauthorized : RuTrackerError() {
+    public data object Unauthorized : RuTrackerError() {
         override val message: String = "Authentication required"
     }
 
     /**
      * No data found (empty response, topic not found, etc.).
      */
-    data object NoData : RuTrackerError() {
+    public data object NoData : RuTrackerError() {
         override val message: String = "No data available"
     }
 
     /**
      * Network connection error (no internet, DNS failure, etc.).
      */
-    data object NoConnection : RuTrackerError() {
+    public data object NoConnection : RuTrackerError() {
         override val message: String = "No network connection"
     }
 
     /**
      * Resource not found (404, topic deleted, etc.).
      */
-    data object NotFound : RuTrackerError() {
+    public data object NotFound : RuTrackerError() {
         override val message: String = "Resource not found"
     }
 
     /**
      * Bad request (400, invalid parameters, etc.).
      */
-    data object BadRequest : RuTrackerError() {
+    public data object BadRequest : RuTrackerError() {
         override val message: String = "Bad request"
     }
 
     /**
      * Access forbidden (403, insufficient permissions, etc.).
      */
-    data object Forbidden : RuTrackerError() {
+    public data object Forbidden : RuTrackerError() {
         override val message: String = "Access forbidden"
     }
 

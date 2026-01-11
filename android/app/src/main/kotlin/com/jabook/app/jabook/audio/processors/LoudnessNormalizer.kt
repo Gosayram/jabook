@@ -312,7 +312,7 @@ public class LoudnessNormalizer(
      *
      * @param replayGainDb ReplayGain value in dB
      */
-    public fun setReplayGain() {
+    public fun setReplayGain(replayGainDb: Float) {
         this.replayGainDb = replayGainDb
         // Convert dB to linear gain
         gainMultiplier = 10.0.pow((replayGainDb / 20.0).toDouble()).toFloat()

@@ -50,7 +50,7 @@ public class RutrackerAuthService
         }
 
         private var _lastAuthError: String? = null
-        val lastAuthError: String?
+        public val lastAuthError: String?
             get() = _lastAuthError
 
         private val logger = StructuredLogger(TAG)
@@ -240,7 +240,7 @@ public class RutrackerAuthService
         }
 
         public sealed interface AuthResult {
-            data object Success : AuthResult
+            public data object Success : AuthResult
 
             public data class Error(
                 val message: String,

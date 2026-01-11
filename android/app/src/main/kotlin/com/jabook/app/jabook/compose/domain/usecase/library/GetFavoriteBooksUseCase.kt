@@ -36,5 +36,5 @@ public class GetFavoriteBooksUseCase
          *
          * @return Flow of favorite books
          */
-        operator fun invoke(): Flow<List<Book>> = booksDao.getFavoriteBooksFlow().map { it.toBooks() }
+        public operator fun invoke(): Flow<List<Book>> = booksDao.getFavoriteBooksFlow().map { it.toBooks() }
     }

@@ -42,7 +42,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
         private const val TAG = "MediaSessionActionReceiver"
         public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY"
         public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE"
-        private const val CONTROLLER_TIMEOUT_MS: Int = 0L
+        private const val CONTROLLER_TIMEOUT_MS: Int = 0
     }
 
     override fun onReceive(
@@ -95,7 +95,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
             // Wait for controller to be ready (with shorter timeout for faster fallback)
             val controller =
                 controllerFuture.get(
-                    com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS,
+                    com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS.toLong(),
                     TimeUnit.MILLISECONDS,
                 )
 
@@ -161,7 +161,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
             // Wait for controller to be ready (with shorter timeout for faster fallback)
             val controller =
                 controllerFuture.get(
-                    com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS,
+                    com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS.toLong(),
                     TimeUnit.MILLISECONDS,
                 )
 

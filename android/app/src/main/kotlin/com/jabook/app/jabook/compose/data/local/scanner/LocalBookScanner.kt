@@ -89,7 +89,7 @@ public interface LocalBookScanner {
     /**
      * Observable state of the current scanning process.
      */
-    val scanProgress: StateFlow<ScanProgress>
+    public val scanProgress: StateFlow<ScanProgress>
 
     /**
      * Scan local storage for audiobooks.

@@ -21,7 +21,7 @@ public sealed interface AuthStatus {
     /**
      * User is not logged in.
      */
-    data object Unauthenticated : AuthStatus
+    public data object Unauthenticated : AuthStatus
 
     /**
      * User is successfully authenticated.

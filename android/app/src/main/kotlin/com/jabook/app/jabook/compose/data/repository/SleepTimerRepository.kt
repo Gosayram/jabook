@@ -26,7 +26,7 @@ public interface SleepTimerRepository {
     /**
      * Current timer state.
      */
-    val timerState: StateFlow<SleepTimerState>
+    public val timerState: StateFlow<SleepTimerState>
 
     /**
      * Start sleep timer.

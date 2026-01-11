@@ -44,7 +44,7 @@ public class VerifyAuthorisedUseCase
          * @param html HTML content to check
          * @return true if authenticated, false otherwise
          */
-        suspend operator fun invoke(html: String): Boolean {
+        public suspend operator fun invoke(html: String): Boolean {
             val lowerHtml = html.lowercase()
 
             // Check for redirect to login page

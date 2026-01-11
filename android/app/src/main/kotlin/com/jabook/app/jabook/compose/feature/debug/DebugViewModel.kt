@@ -46,13 +46,13 @@ public class DebugViewModel
     ) : ViewModel() {
         private val logger = StructuredLogger("DebugViewModel")
         private val _uiState = MutableStateFlow<DebugUiState>(DebugUiState.Initial)
-        val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
 
         private val _logs = MutableStateFlow<String>("")
-        val logs: StateFlow<String> = _logs.asStateFlow()
+        public val logs: StateFlow<String> = _logs.asStateFlow()
 
         private val _authDebugInfo = MutableStateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?>(null)
-        val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
+        public val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
 
         init {
             // Delay initialization until viewModelScope is fully ready
@@ -111,7 +111,7 @@ public class DebugViewModel
          *
          * @param activity Activity context for starting the share intent
          */
-        public fun shareLogs() {
+        public fun shareLogs(activity: android.app.Activity) {
             viewModelScope.launch {
                 try {
                     _uiState.value = DebugUiState.Loading
@@ -305,7 +305,7 @@ public class DebugViewModel
             }
 
         private val _cacheStats = MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
-        val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
+        public val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
             _cacheStats
                 .asStateFlow()
 
@@ -350,11 +350,11 @@ public class DebugViewModel
  * UI state for Debug screen.
  */
 public sealed class DebugUiState {
-    data object Initial : DebugUiState()
+    public data object Initial : DebugUiState()
 
-    data object Loading : DebugUiState()
+    public data object Loading : DebugUiState()
 
-    data object Success : DebugUiState()
+    public data object Success : DebugUiState()
 
     public data class Error(
         val message: String,

@@ -39,12 +39,12 @@ public class SwipeGestureHandler(
     /**
      * Maximum volume for the media stream.
      */
-    val maxVolume: Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    public val maxVolume: Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
     /**
      * Current volume for the media stream.
      */
-    val currentVolume: Int
+    public val currentVolume: Int
         get() = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 
     /**
