@@ -411,7 +411,7 @@ public fun LibraryViewModel.createBookActionsProvider(
 
     return com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
         onBookClick = onBookClick,
-        onBookLongPress = ::showBookProperties,
+        onBookLongPress = { bookId -> showBookProperties(bookId) },
         onToggleFavorite = ::toggleFavorite,
         favoriteIds = favoriteIds,
         showProgress = true,

@@ -103,7 +103,7 @@ public fun FavoritesScreen(
                     } else {
                         TextField(
                             value = searchQuery,
-                            onValueChange = viewModel::onSearchQueryChanged,
+                            onValueChange = { viewModel.onSearchQueryChanged(it) },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
                             singleLine = true,

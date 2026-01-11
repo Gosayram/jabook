@@ -195,13 +195,13 @@ public fun LibraryScreen(
                                     // Sort menu
                                     SortOrderMenu(
                                         currentSortOrder = sortOrder,
-                                        onSortOrderChanged = viewModel::onSortOrderChanged,
+                                        onSortOrderChanged = { order -> viewModel.onSortOrderChanged(order) },
                                     )
 
                                     // View mode toggle
                                     ViewModeToggle(
                                         currentMode = viewMode,
-                                        onModeChanged = viewModel::onViewModeChanged,
+                                        onModeChanged = { mode -> viewModel.onViewModeChanged(mode) },
                                     )
 
                                     // Favorites button

@@ -126,7 +126,7 @@ public class FavoritesViewModel
         /**
          * Add or remove an audiobook from favorites.
          */
-        public fun toggleFavorite() {
+        public fun toggleFavorite(favorite: FavoriteEntity) {
             viewModelScope.launch {
                 _isLoading.value = true
                 val isFavoriteNow = favoritesRepository.isFavorite(favorite.topicId)
@@ -149,7 +149,7 @@ public class FavoritesViewModel
          * Remove an audiobook from favorites.
          * Synchronizes with local library (removes isFavorite flag).
          */
-        public fun removeFromFavorites() {
+        public fun removeFromFavorites(topicId: String) {
             viewModelScope.launch {
                 // Remove from FavoriteEntity
                 favoritesRepository
@@ -164,7 +164,7 @@ public class FavoritesViewModel
         /**
          * Remove multiple audiobooks from favorites.
          */
-        public fun removeMultipleFavorites() {
+        public fun removeMultipleFavorites(topicIds: List<String>) {
             viewModelScope.launch {
                 favoritesRepository
                     .removeMultipleFavorites(topicIds)
@@ -193,14 +193,14 @@ public class FavoritesViewModel
         /**
          * Update search query.
          */
-        public fun onSearchQueryChanged() {
+        public fun onSearchQueryChanged(query: String) {
             _searchQuery.value = query
         }
 
         /**
          * Update sort order.
          */
-        public fun onSortOrderChanged() {
+        public fun onSortOrderChanged(order: BookSortOrder) {
             _sortOrder.value = order
         }
     }
