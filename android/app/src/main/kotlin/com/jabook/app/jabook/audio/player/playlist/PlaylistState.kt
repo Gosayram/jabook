@@ -27,13 +27,13 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 public class PlaylistState {
     private val _playlist = MutableStateFlow<Playlist?>(null)
-    public val playlist: StateFlow<Playlist?> = _playlist.asStateFlow()
+    val playlist: StateFlow<Playlist?> = _playlist.asStateFlow()
 
     private val _isLoading = MutableStateFlow<Boolean>(false)
-    public val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _actualTrackIndex = MutableStateFlow<Int>(0)
-    public val actualTrackIndex: StateFlow<Int> = _actualTrackIndex.asStateFlow()
+    val actualTrackIndex: StateFlow<Int> = _actualTrackIndex.asStateFlow()
 
     /**
      * Updates the playlist.

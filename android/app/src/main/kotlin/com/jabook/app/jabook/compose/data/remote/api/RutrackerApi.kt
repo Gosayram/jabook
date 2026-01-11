@@ -38,7 +38,7 @@ public interface RutrackerApi {
      * @return HTML response with search results (raw bytes for encoding detection)
      */
     @GET("tracker.php")
-    suspend fun searchTopics(
+    public suspend fun searchTopics(
         @Query("nm") query: String,
         @Query("f") forumIds: String? = null,
     ): Response<ResponseBody>
@@ -50,7 +50,7 @@ public interface RutrackerApi {
      * @return HTML response with topic details (raw bytes for encoding detection)
      */
     @GET("viewtopic.php")
-    suspend fun getTopicDetails(
+    public suspend fun getTopicDetails(
         @Query("t") topicId: String,
     ): Response<ResponseBody>
 
@@ -62,7 +62,7 @@ public interface RutrackerApi {
      * @return HTML response with topic details (raw bytes for encoding detection)
      */
     @GET("viewtopic.php")
-    suspend fun getTopicDetailsAtPage(
+    public suspend fun getTopicDetailsAtPage(
         @Query("t") topicId: String,
         @Query("start") start: Int,
     ): Response<ResponseBody>
@@ -74,7 +74,7 @@ public interface RutrackerApi {
      * @return Torrent file as ResponseBody
      */
     @GET("dl.php")
-    suspend fun downloadTorrent(
+    public suspend fun downloadTorrent(
         @Query("t") topicId: String,
     ): Response<ResponseBody>
 
@@ -93,7 +93,7 @@ public interface RutrackerApi {
      * @return Response body (raw bytes for CP1251 decoding)
      */
     @POST("login.php")
-    suspend fun login(
+    public suspend fun login(
         @Body body: RequestBody,
     ): Response<ResponseBody>
 
@@ -103,10 +103,10 @@ public interface RutrackerApi {
      * @return HTML response of profile page
      */
     @GET("profile.php?mode=viewprofile")
-    suspend fun getProfile(): Response<ResponseBody>
+    public suspend fun getProfile(): Response<ResponseBody>
 
     @GET("index.php")
-    suspend fun getIndex(): Response<ResponseBody>
+    public suspend fun getIndex(): Response<ResponseBody>
 
     /**
      * Get forum page with topics.
@@ -116,7 +116,7 @@ public interface RutrackerApi {
      * @return HTML response with forum topics (raw bytes for encoding detection)
      */
     @GET("viewforum.php")
-    suspend fun getForumPage(
+    public suspend fun getForumPage(
         @Query("f") forumId: String,
         @Query("start") start: Int = 0,
     ): Response<ResponseBody>

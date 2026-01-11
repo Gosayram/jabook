@@ -53,7 +53,7 @@ public class CookiePersistenceManager
          * Persist cookies using all 4 layers.
          * Follows Flutter's multi-stage persistence strategy.
          */
-        suspend fun persistCookiesMultiStage(url: String) =
+        public suspend fun persistCookiesMultiStage(url: String) =
             withContext(Dispatchers.IO) {
                 val httpUrl = url.toHttpUrl()
                 val cookies = cookieJar.loadForRequest(httpUrl)
@@ -118,7 +118,7 @@ public class CookiePersistenceManager
          * Restore cookies from any available source.
          * Tries layers in order: Database → SecureStorage → CookieJar
          */
-        suspend fun restoreCookiesFromAnySource(url: String): List<Cookie> =
+        public suspend fun restoreCookiesFromAnySource(url: String): List<Cookie> =
             withContext(Dispatchers.IO) {
                 // Layer 1: Try Database first (most reliable)
                 try {
@@ -149,7 +149,7 @@ public class CookiePersistenceManager
          * Sync cookies from WebView to other layers.
          * Call this after WebView login.
          */
-        suspend fun syncCookiesFromWebView(url: String) =
+        public suspend fun syncCookiesFromWebView(url: String) =
             withContext(Dispatchers.IO) {
                 try {
                     val cookieManager = CookieManager.getInstance()
@@ -177,7 +177,7 @@ public class CookiePersistenceManager
         /**
          * Clear cookies from all layers.
          */
-        suspend fun clearAllCookies() =
+        public suspend fun clearAllCookies() =
             withContext(Dispatchers.IO) {
                 try {
                     // Clear database

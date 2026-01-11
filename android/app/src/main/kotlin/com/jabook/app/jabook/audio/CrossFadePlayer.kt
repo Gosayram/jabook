@@ -45,16 +45,16 @@ public class CrossFadePlayer(
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
 
-    public var crossFadeDurationMs: Int = 0L
+    var crossFadeDurationMs: Int = 0L
     private var currentAnimator: ValueAnimator? = null
     private var isCrossFading = false
 
-    public var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
+    var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
 
     /**
      * Prepares the next player with the given media item.
      */
-    public fun setNextTrack() {
+    public fun setNextTrack(mediaItem: androidx.media3.common.MediaItem) {
         nextPlayer.setMediaItem(mediaItem)
         nextPlayer.prepare()
         android.util.Log.d("CrossFadePlayer", "Next track prepared on $nextPlayer")
@@ -63,7 +63,7 @@ public class CrossFadePlayer(
     /**
      * Prepares the next player with the given media source.
      */
-    public fun setNextMediaSource() {
+    public fun setNextMediaSource(mediaSource: androidx.media3.common.MediaSource) {
         nextPlayer.setMediaSource(mediaSource)
         nextPlayer.prepare()
         android.util.Log.d("CrossFadePlayer", "Next media source prepared on $nextPlayer")
@@ -105,8 +105,8 @@ public class CrossFadePlayer(
         if (isCrossFading) return
         isCrossFading = true
 
-        public val fadingOutPlayer = currentPlayer
-        public val fadingInPlayer = nextPlayer
+        val fadingOutPlayer = currentPlayer
+        val fadingInPlayer = nextPlayer
 
         // Ensure starting volumes
         fadingOutPlayer.volume = 1f
@@ -129,7 +129,7 @@ public class CrossFadePlayer(
                 interpolator = LinearInterpolator()
 
                 addUpdateListener { animation ->
-                    public val progress = animation.animatedValue as Float
+                    val progress = animation.animatedValue as Float
                     try {
                         fadingOutPlayer.volume = 1f - progress
                         fadingInPlayer.volume = progress
@@ -159,7 +159,7 @@ public class CrossFadePlayer(
     }
 
     private fun swapPlayers() {
-        public val temp = currentPlayer
+        val temp = currentPlayer
         currentPlayer = nextPlayer
         nextPlayer = temp
         onPlayerChanged?.invoke(currentPlayer)

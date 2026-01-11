@@ -21,25 +21,25 @@ import com.jabook.app.jabook.compose.domain.model.CaptchaData
  */
 public sealed class AuthError {
     public data class InvalidCredentials(
-        public val message: String,
+        val message: String,
     ) : AuthError()
 
     public data class NetworkError(
-        public val message: String,
-        public val cause: Throwable?,
+        val message: String,
+        val cause: Throwable?,
     ) : AuthError()
 
     public data class CaptchaRequired(
-        public val data: CaptchaData,
+        val data: CaptchaData,
     ) : AuthError()
 
     public data class ServerError(
-        public val code: Int,
-        public val message: String,
+        val code: Int,
+        val message: String,
     ) : AuthError()
 
     public data class Unknown(
-        public val message: String,
-        public val cause: Throwable?,
+        val message: String,
+        val cause: Throwable?,
     ) : AuthError()
 }

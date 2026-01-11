@@ -66,7 +66,7 @@ public class TorrentManager
         private var session: SessionManager? = null
         private val activeTorrents = mutableMapOf<String, TorrentHandle>()
         private val _downloads = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
-        public val downloads: StateFlow<Map<String, DownloadProgress>> = _downloads.asStateFlow()
+        val downloads: StateFlow<Map<String, DownloadProgress>> = _downloads.asStateFlow()
         private var isInitialized = false
 
         @Synchronized
@@ -237,7 +237,7 @@ public class TorrentManager
                 else -> TorrentState.QUEUED
             }
 
-        suspend fun addMagnetLink(
+        public suspend fun addMagnetLink(
             magnetUri: String,
             savePath: String,
             sequential: Boolean = true,
@@ -289,7 +289,7 @@ public class TorrentManager
             return infoHash
         }
 
-        suspend fun pauseDownload(infoHash: String) {
+        public suspend fun pauseDownload(infoHash: String) {
             synchronized(activeTorrents) {
                 val handle = activeTorrents[infoHash]
                 handle?.pause()
@@ -297,7 +297,7 @@ public class TorrentManager
             }
         }
 
-        suspend fun resumeDownload(infoHash: String) {
+        public suspend fun resumeDownload(infoHash: String) {
             synchronized(activeTorrents) {
                 val handle = activeTorrents[infoHash]
                 handle?.resume()
@@ -305,7 +305,7 @@ public class TorrentManager
             }
         }
 
-        suspend fun removeDownload(
+        public suspend fun removeDownload(
             infoHash: String,
             deleteFiles: Boolean = false,
         ) {

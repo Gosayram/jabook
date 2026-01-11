@@ -101,7 +101,7 @@ public class DebugLogService
          * Collects recent logs from logcat.
          * Returns log content as string.
          */
-        suspend fun collectLogs(): String =
+        public suspend fun collectLogs(): String =
             withContext(Dispatchers.IO) {
                 try {
                     // Build logcat command with app-specific tags
@@ -153,14 +153,14 @@ public class DebugLogService
 
                     logs.append("🖥️ DISPLAY & SCREEN\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    public val displayMetrics = context.resources.displayMetrics
+                    val displayMetrics = context.resources.displayMetrics
                     logs.append("Resolution: ${displayMetrics.widthPixels}×${displayMetrics.heightPixels}px\n")
                     logs.append("Density: ${displayMetrics.densityDpi}dpi (${displayMetrics.density}x)\n\n")
 
                     logs.append("💾 MEMORY\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    public val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
-                    public val memInfo = android.app.ActivityManager.MemoryInfo()
+                    val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                    val memInfo = android.app.ActivityManager.MemoryInfo()
                     activityManager.getMemoryInfo(memInfo)
                     logs.append("Total RAM: ${memInfo.totalMem / (1024 * 1024)}MB\n")
                     logs.append("Available: ${memInfo.availMem / (1024 * 1024)}MB\n\n")
@@ -176,9 +176,9 @@ public class DebugLogService
 
                     // Collect and filter logs
                     // Add safety limit to prevent infinite loops if process hangs
-                    public var totalLines: Int = 0
-                    public var filteredLines: Int = 0
-                    public val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
+                    var totalLines: Int = 0
+                    var filteredLines: Int = 0
+                    val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
 
                     while (totalLines < maxLinesToRead) {
                         val line = bufferedReader.readLine() ?: break
@@ -237,11 +237,11 @@ public class DebugLogService
         /**
          * Exports logs to a file and returns the file URI.
          */
-        suspend fun exportLogsToFile(): Uri =
+        public suspend fun exportLogsToFile(): Uri =
             withContext(Dispatchers.IO) {
                 val logs = collectLogs()
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                public val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
+                val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
                 // Save to cache directory (will be cleared on uninstall)
                 val logFile = File(context.cacheDir, fileName)
                 logFile.writeText(logs)
@@ -268,7 +268,7 @@ public class DebugLogService
          * Exports logs to a file and returns the file URI.
          * This method can be called from any thread.
          */
-        suspend fun getLogsUri(): Uri =
+        public suspend fun getLogsUri(): Uri =
             withContext(Dispatchers.IO) {
                 exportLogsToFile()
             }
@@ -279,7 +279,7 @@ public class DebugLogService
          *
          * @param activity Activity context for starting the share intent
          */
-        suspend fun shareLogs(activity: android.app.Activity) =
+        public suspend fun shareLogs(activity: android.app.Activity) =
             withContext(Dispatchers.Main) {
                 try {
                     val uri = exportLogsToFile()
@@ -318,7 +318,7 @@ public class DebugLogService
         /**
          * Clears old log files from cache.
          */
-        suspend fun clearOldLogFiles() =
+        public suspend fun clearOldLogFiles() =
             withContext(Dispatchers.IO) {
                 try {
                     val cacheDir = context.cacheDir
@@ -327,9 +327,9 @@ public class DebugLogService
                             file.name.startsWith(LOG_FILE_PREFIX)
                         } ?: emptyArray()
 
-                    public val now = System.currentTimeMillis()
-                    public val maxAge: Int = 7 * 24 * 60 * 60 * 1000L // 7 days
-                    public var deletedCount: Int = 0
+                    val now = System.currentTimeMillis()
+                    val maxAge: Int = 7 * 24 * 60 * 60 * 1000L // 7 days
+                    var deletedCount: Int = 0
                     logFiles.forEach { file ->
                         if (now - file.lastModified() > maxAge) {
                             if (file.delete()) {

@@ -35,7 +35,7 @@ public class PositionRestorer
          * @param bookId The book ID
          * @return Result containing the saved playback state, or null if not found
          */
-        suspend fun restorePosition(bookId: String): Result<PlaybackState?> = restorePlaybackUseCase(bookId)
+        public suspend fun restorePosition(bookId: String): Result<PlaybackState?> = restorePlaybackUseCase(bookId)
 
         /**
          * Applies the restored playback state to the player.

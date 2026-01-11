@@ -25,14 +25,14 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "saved_player_states")
 public data class SavedPlayerStateEntity(
     @PrimaryKey
-    public val groupPath: String,
-    public val filePaths: String, // JSON array of file paths
-    public val metadata: String? = null, // JSON object of metadata (title, artist, album, coverPath)
-    public val currentIndex: Int = 0,
-    public val currentPosition: Int = 0,
-    public val playbackSpeed: Double = 1.0,
-    public val isPlaying: Boolean = false,
-    public val repeatMode: Int = 0, // 0 = none, 1 = track, 2 = playlist
-    public val sleepTimerRemainingSeconds: Int? = null,
-    public val lastUpdated: Long = System.currentTimeMillis(),
+    val groupPath: String,
+    val filePaths: String, // JSON array of file paths
+    val metadata: String? = null, // JSON object of metadata (title, artist, album, coverPath)
+    val currentIndex: Int = 0,
+    val currentPosition: Int = 0,
+    val playbackSpeed: Double = 1.0,
+    val isPlaying: Boolean = false,
+    val repeatMode: Int = 0, // 0 = none, 1 = track, 2 = playlist
+    val sleepTimerRemainingSeconds: Int? = null,
+    val lastUpdated: Long = System.currentTimeMillis(),
 )

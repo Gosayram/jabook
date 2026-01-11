@@ -203,9 +203,9 @@ public class MediaStoreBookScanner
         }
 
         private data class ChapterInfo(
-            public val partNumber: Int = 0,
-            public val chapterNumber: Int = 0,
-            public val hasNumber: Boolean = false,
+            val partNumber: Int = 0,
+            val chapterNumber: Int = 0,
+            val hasNumber: Boolean = false,
         ) {
             public fun toSortKey(): Int = partNumber * 1000 + chapterNumber
         }

@@ -36,13 +36,13 @@ public interface PlaylistDao {
      * Inserts or updates a playlist.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertPlaylist(playlist: PlaylistEntity)
+    public suspend fun upsertPlaylist(playlist: PlaylistEntity)
 
     /**
      * Deletes a playlist.
      */
     @Query("DELETE FROM playlists WHERE bookId = :bookId")
-    suspend fun deletePlaylist(bookId: String)
+    public suspend fun deletePlaylist(bookId: String)
 
     /**
      * Gets all playlists.

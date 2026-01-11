@@ -53,13 +53,13 @@ public fun rememberJabookAppState(
  */
 @Stable
 public class JabookAppState(
-    public val navController: NavHostController,
-    public val snackbarHostState: androidx.compose.material3.SnackbarHostState,
+    val navController: NavHostController,
+    val snackbarHostState: androidx.compose.material3.SnackbarHostState,
 ) {
     /**
      * Current navigation destination.
      */
-    public val currentDestination: NavDestination?
+    val currentDestination: NavDestination?
         @Composable get() =
             navController
                 .currentBackStackEntryAsState()
@@ -69,7 +69,7 @@ public class JabookAppState(
     /**
      * Top-level destinations in the app (shown in bottom nav).
      */
-    public val topLevelDestinations: List<TopLevelDestination> = TopLevelDestination.entries
+    val topLevelDestinations: List<TopLevelDestination> = TopLevelDestination.entries
 
     /**
      * Navigates to a top-level destination.
@@ -87,7 +87,7 @@ public class JabookAppState(
                 navigateToLibrary()
             }
             TopLevelDestination.SETTINGS -> {
-                public val topLevelNavOptions =
+                val topLevelNavOptions =
                     navOptions {
                         // Pop up to the start destination of the graph to
                         // avoid building up a large stack of destinations

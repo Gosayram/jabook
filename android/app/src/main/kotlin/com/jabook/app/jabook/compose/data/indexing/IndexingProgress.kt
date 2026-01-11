@@ -34,12 +34,12 @@ public sealed class IndexingProgress {
      * @param estimatedTotalTopics Estimated total topics (may be 0 if unknown)
      */
     public data class InProgress(
-        public val currentForum: String,
-        public val currentForumIndex: Int,
-        public val totalForums: Int,
-        public val currentPage: Int,
-        public val topicsIndexed: Int,
-        public val estimatedTotalTopics: Int = 0,
+        val currentForum: String,
+        val currentForumIndex: Int,
+        val totalForums: Int,
+        val currentPage: Int,
+        val topicsIndexed: Int,
+        val estimatedTotalTopics: Int = 0,
     ) : IndexingProgress() {
         /**
          * Overall progress percentage (0.0 to 1.0).
@@ -47,7 +47,7 @@ public sealed class IndexingProgress {
          * Improved calculation: uses forum index and topics indexed for more accurate progress.
          * Progress is based on completed forums + current forum progress.
          */
-        public val progress: Float
+        val progress: Float
             get() =
                 if (totalForums == 0) {
                     0f
@@ -60,8 +60,8 @@ public sealed class IndexingProgress {
                     // Use a conservative estimate: assume forums have varying page counts
                     // Current page gives us a rough estimate (normalized to max 50 pages per forum)
 
-                    public val maxPagesPerForum: Float = 0f
-                    public val currentForumPageProgress = (currentPage.toFloat() / maxPagesPerForum).coerceIn(0f, 1f)
+                    val maxPagesPerForum: Float = 0f
+                    val currentForumPageProgress = (currentPage.toFloat() / maxPagesPerForum).coerceIn(0f, 1f)
                     val currentForumContribution = currentForumPageProgress / totalForums.toFloat()
 
                     (forumProgress + currentForumContribution).coerceIn(0f, 1f)
@@ -75,8 +75,8 @@ public sealed class IndexingProgress {
      * @param durationMs Duration in milliseconds
      */
     public data class Completed(
-        public val totalTopics: Int,
-        public val durationMs: Long,
+        val totalTopics: Int,
+        val durationMs: Long,
     ) : IndexingProgress()
 
     /**
@@ -86,7 +86,7 @@ public sealed class IndexingProgress {
      * @param forumId Forum ID where error occurred (if applicable)
      */
     public data class Error(
-        public val message: String,
-        public val forumId: String? = null,
+        val message: String,
+        val forumId: String? = null,
     ) : IndexingProgress()
 }

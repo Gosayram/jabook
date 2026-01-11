@@ -39,10 +39,10 @@ public object PlayerPerformanceLogger {
     private val events = mutableListOf<TimingEvent>()
 
     public data class TimingEvent(
-        public val timestamp: Long,
-        public val elapsed: Long,
-        public val component: String,
-        public val event: String,
+        val timestamp: Long,
+        val elapsed: Long,
+        val component: String,
+        val event: String,
     )
 
     /**

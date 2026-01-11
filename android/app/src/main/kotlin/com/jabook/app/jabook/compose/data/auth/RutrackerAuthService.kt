@@ -50,7 +50,7 @@ public class RutrackerAuthService
         }
 
         private var _lastAuthError: String? = null
-        public val lastAuthError: String?
+        val lastAuthError: String?
             get() = _lastAuthError
 
         private val logger = StructuredLogger(TAG)
@@ -61,7 +61,7 @@ public class RutrackerAuthService
          *
          * @return AuthResult with status and optional captcha data
          */
-        suspend fun login(
+        public suspend fun login(
             credentials: UserCredentials,
             captchaCode: String? = null,
             captchaData: CaptchaData? = null,
@@ -243,11 +243,11 @@ public class RutrackerAuthService
             data object Success : AuthResult
 
             public data class Error(
-                public val message: String,
+                val message: String,
             ) : AuthResult
 
             public data class Captcha(
-                public val data: CaptchaData,
+                val data: CaptchaData,
             ) : AuthResult
         }
 
@@ -261,7 +261,7 @@ public class RutrackerAuthService
          * @param operationId Optional operation ID for logging correlation
          * @return true if authenticated, false otherwise
          */
-        suspend fun validateAuth(operationId: String? = null): Boolean {
+        public suspend fun validateAuth(operationId: String? = null): Boolean {
             val validationId =
                 operationId?.let { "${it}_validation" }
                     ?: logger.startOperation("validateAuth")
@@ -324,7 +324,7 @@ public class RutrackerAuthService
          * Check basic connectivity to RuTracker.
          * Used for diagnostics.
          */
-        suspend fun checkConnectivity(operationId: String? = null): Boolean {
+        public suspend fun checkConnectivity(operationId: String? = null): Boolean {
             val checkId = operationId?.let { "${it}_conn" } ?: logger.startOperation("checkConnectivity")
             return try {
                 logger.log(checkId, "Checking connectivity...")

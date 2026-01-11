@@ -348,6 +348,6 @@ public interface BooksDao {
  * Only contains fields needed to check if book still exists.
  */
 public data class BookPathInfo(
-    public val id: String,
+    val id: String,
     @androidx.room.ColumnInfo(name = "local_path") val localPath: String?,
 )

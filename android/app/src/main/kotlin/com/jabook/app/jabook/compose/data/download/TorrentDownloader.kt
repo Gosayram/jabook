@@ -29,7 +29,7 @@ public interface TorrentDownloader {
      * @param onProgress Callback for progress updates (0.0 to 1.0)
      * @return Path to downloaded file
      */
-    suspend fun download(
+    public suspend fun download(
         torrentUrl: String,
         savePath: String,
         onProgress: (Float) -> Unit,
@@ -40,19 +40,19 @@ public interface TorrentDownloader {
      *
      * @param downloadId Unique ID of the download
      */
-    suspend fun pause(downloadId: String)
+    public suspend fun pause(downloadId: String)
 
     /**
      * Resume a paused download.
      *
      * @param downloadId Unique ID of the download
      */
-    suspend fun resume(downloadId: String)
+    public suspend fun resume(downloadId: String)
 
     /**
      * Cancel a download and cleanup.
      *
      * @param downloadId Unique ID of the download
      */
-    suspend fun cancel(downloadId: String)
+    public suspend fun cancel(downloadId: String)
 }

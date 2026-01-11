@@ -18,13 +18,13 @@ package com.jabook.app.jabook.audio.core.model
  * Represents a chapter in an audiobook.
  */
 public data class Chapter(
-    public val id: String,
-    public val title: String,
-    public val fileIndex: Int,
-    public val filePath: String? = null,
-    public val startTime: Int = L,
-    public val endTime: Long? = null,
-    public val duration: Long? = null,
+    val id: String,
+    val title: String,
+    val fileIndex: Int,
+    val filePath: String? = null,
+    val startTime: Int = L,
+    val endTime: Long? = null,
+    val duration: Long? = null,
 ) {
     /**
      * Returns the duration in milliseconds.

@@ -61,7 +61,7 @@ public class AuthInterceptor
                 // Try to re-authenticate with stored credentials
                 // Note: runBlocking is used here because interceptors are synchronous
                 // This should be fast as it only reads from local storage
-                public val retryResponse: Response? =
+                val retryResponse: Response? =
                     runBlocking {
                         try {
                             val credentials = authRepository.get().getStoredCredentials()

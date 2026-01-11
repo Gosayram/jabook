@@ -51,22 +51,22 @@ public interface BooksRepository {
     /**
      * Add a new book with its chapters.
      */
-    suspend fun addBook(book: Book)
+    public suspend fun addBook(book: Book)
 
     /**
      * Add multiple books with their chapters efficiently.
      */
-    suspend fun addBooks(booksWithChapters: List<Pair<Book, List<Chapter>>>)
+    public suspend fun addBooks(booksWithChapters: List<Pair<Book, List<Chapter>>>)
 
     /**
      * Update an existing book.
      */
-    suspend fun updateBook(book: Book)
+    public suspend fun updateBook(book: Book)
 
     /**
      * Update playback position for a book.
      */
-    suspend fun updatePlaybackPosition(
+    public suspend fun updatePlaybackPosition(
         bookId: String,
         position: Long,
         chapterIndex: Int,
@@ -75,7 +75,7 @@ public interface BooksRepository {
     /**
      * Update download progress for a book.
      */
-    suspend fun updateDownloadProgress(
+    public suspend fun updateDownloadProgress(
         bookId: String,
         progress: Float,
         isComplete: Boolean,
@@ -84,18 +84,18 @@ public interface BooksRepository {
     /**
      * Delete a book.
      */
-    suspend fun deleteBook(bookId: String)
+    public suspend fun deleteBook(bookId: String)
 
     /**
      * Refresh books from remote source (if applicable).
      * For now, this is a no-op as books are managed locally.
      */
-    suspend fun refresh()
+    public suspend fun refresh()
 
     /**
      * Update per-book playback settings (seek intervals).
      */
-    suspend fun updateBookSettings(
+    public suspend fun updateBookSettings(
         bookId: String,
         rewindDuration: Int?,
         forwardDuration: Int?,
@@ -104,7 +104,7 @@ public interface BooksRepository {
     /**
      * Reset all per-book playback settings to global defaults.
      */
-    suspend fun resetAllBookSettings()
+    public suspend fun resetAllBookSettings()
 
     /**
      * Get allowed scan paths.
@@ -119,25 +119,25 @@ public interface BooksRepository {
     /**
      * Add a directory to the scan paths.
      */
-    suspend fun addScanPath(path: String)
+    public suspend fun addScanPath(path: String)
 
     /**
      * Remove a directory from the scan paths.
      */
-    suspend fun removeScanPath(path: String)
+    public suspend fun removeScanPath(path: String)
 
     /**
      * Normalize chapter titles for all books in the library.
      * E.g. "01 - Chapter" -> "Chapter 1", preserving "Prologue" etc.
      */
-    suspend fun normalizeAllChapters()
+    public suspend fun normalizeAllChapters()
 
     /**
      * Update the order of chapters for a specific book.
      * @param bookId The ID of the book.
      * @param newOrderedIds List of chapter IDs in the desired order.
      */
-    suspend fun updateChapterOrder(
+    public suspend fun updateChapterOrder(
         bookId: String,
         newOrderedIds: List<String>,
     )
@@ -147,5 +147,5 @@ public interface BooksRepository {
      */
     public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?>
 
-    suspend fun getBookBySourceUrl(sourceUrl: String): Book?
+    public suspend fun getBookBySourceUrl(sourceUrl: String): Book?
 }

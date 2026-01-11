@@ -39,27 +39,27 @@ public interface SettingsRepository {
     /**
      * Get user preferences as Flow.
      */
-    public val userPreferences: Flow<UserPreferences>
+    val userPreferences: Flow<UserPreferences>
 
     /**
      * Update theme mode.
      */
-    suspend fun updateThemeMode(themeMode: ThemeMode)
+    public suspend fun updateThemeMode(themeMode: ThemeMode)
 
     /**
      * Update dynamic colors setting.
      */
-    suspend fun updateDynamicColors(enabled: Boolean)
+    public suspend fun updateDynamicColors(enabled: Boolean)
 
     /**
      * Update playback speed.
      */
-    suspend fun updatePlaybackSpeed(speed: Float)
+    public suspend fun updatePlaybackSpeed(speed: Float)
 
     /**
      * Update audio settings.
      */
-    suspend fun updateAudioSettings(
+    public suspend fun updateAudioSettings(
         rewindSeconds: Int? = null,
         forwardSeconds: Int? = null,
         volumeBoost: String? = null,
@@ -75,12 +75,12 @@ public interface SettingsRepository {
     /**
      * Update language.
      */
-    suspend fun updateLanguage(languageCode: String)
+    public suspend fun updateLanguage(languageCode: String)
 
     /**
      * Update notification settings.
      */
-    suspend fun updateNotificationSettings(
+    public suspend fun updateNotificationSettings(
         notificationsEnabled: Boolean? = null,
         downloadNotifications: Boolean? = null,
         playerNotifications: Boolean? = null,
@@ -89,62 +89,62 @@ public interface SettingsRepository {
     /**
      * Update selected mirror domain.
      */
-    suspend fun updateSelectedMirror(domain: String)
+    public suspend fun updateSelectedMirror(domain: String)
 
     /**
      * Add a custom mirror domain.
      */
-    suspend fun addCustomMirror(domain: String)
+    public suspend fun addCustomMirror(domain: String)
 
     /**
      * Remove a custom mirror domain.
      */
-    suspend fun removeCustomMirror(domain: String)
+    public suspend fun removeCustomMirror(domain: String)
 
     /**
      * Update auto-switch mirror setting.
      */
-    suspend fun updateAutoSwitchMirror(enabled: Boolean)
+    public suspend fun updateAutoSwitchMirror(enabled: Boolean)
 
     /**
      * Update download path.
      */
-    suspend fun updateDownloadPath(path: String)
+    public suspend fun updateDownloadPath(path: String)
 
     /**
      * Update Wi-Fi only download setting.
      */
-    suspend fun updateWifiOnly(enabled: Boolean)
+    public suspend fun updateWifiOnly(enabled: Boolean)
 
     /**
      * Update download speed limiting.
      */
-    suspend fun updateLimitDownloadSpeed(enabled: Boolean)
+    public suspend fun updateLimitDownloadSpeed(enabled: Boolean)
 
     /**
      * Update max download speed in KB/s.
      */
-    suspend fun updateMaxDownloadSpeed(speedKb: Int)
+    public suspend fun updateMaxDownloadSpeed(speedKb: Int)
 
     /**
      * Update max concurrent downloads.
      */
-    suspend fun updateMaxConcurrentDownloads(count: Int)
+    public suspend fun updateMaxConcurrentDownloads(count: Int)
 
     /**
      * Update library sort order.
      */
-    suspend fun updateLibrarySortOrder(sortOrder: String)
+    public suspend fun updateLibrarySortOrder(sortOrder: String)
 
     /**
      * Update onboarding completion status.
      */
-    suspend fun updateOnboardingCompleted(completed: Boolean)
+    public suspend fun updateOnboardingCompleted(completed: Boolean)
 
     /**
      * Reset all settings to defaults.
      */
-    suspend fun resetToDefaults()
+    public suspend fun resetToDefaults()
 }
 
 /**

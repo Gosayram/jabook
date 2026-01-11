@@ -113,11 +113,11 @@ internal class SleepTimerManager(
      *
      * @param minutes Timer duration in minutes
      */
-    public fun setSleepTimerMinutes() {
+    public fun setSleepTimerMinutes(minutes: Int) {
         stopTimer() // Stop existing timer if any
 
         val totalMillis = minutes * 60 * 1000L
-        if (totalMillis <= 0) return
+        if (totalMillis <= 0L) return
 
         sleepTimerEndTime = System.currentTimeMillis() + totalMillis
         sleepTimerEndOfChapter = false

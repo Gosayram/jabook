@@ -84,7 +84,7 @@ public class RutrackerRepository
          * @param forumIds Optional forum IDs (ignored - uses all indexed topics)
          * @return Result with search results (empty if index is empty or search fails)
          */
-        suspend fun searchAudiobooks(
+        public suspend fun searchAudiobooks(
             query: String,
             forumIds: String? = null,
         ): Result<List<RutrackerSearchResult>> =
@@ -130,7 +130,7 @@ public class RutrackerRepository
          * @param limit Maximum number of results
          * @return List of search results from index
          */
-        suspend fun searchIndexedTopics(
+        public suspend fun searchIndexedTopics(
             query: String,
             limit: Int = 100,
         ): List<RutrackerSearchResult> =
@@ -282,7 +282,7 @@ public class RutrackerRepository
                                 if (index > 0) sqlBuilder.append(" AND ")
                                 sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
 
-                                public val likePattern: String = "%$token%"
+                                val likePattern: String = "%$token%"
                                 args.add(likePattern)
                                 args.add(likePattern)
                             }
@@ -319,7 +319,7 @@ public class RutrackerRepository
         /**
          * Fetch topic details and save cover URL to database.
          */
-        suspend fun fetchAndSaveCover(topicId: String): Result<Unit> =
+        public suspend fun fetchAndSaveCover(topicId: String): Result<Unit> =
             try {
                 // Re-use existing getTopicDetails which fetches HTML and parses it
                 val result = getTopicDetails(topicId)
@@ -327,7 +327,7 @@ public class RutrackerRepository
                 // Extract success data to check coverUrl
                 if (result.isSuccess) {
                     val details = result.getOrNull()
-                    public val coverUrl: Long = details?.coverUrl
+                    val coverUrl: Long = details?.coverUrl
                     if (!coverUrl.isNullOrBlank()) {
                         Log.d(TAG, "Updating cover for $topicId: $coverUrl")
                         offlineSearchDao.updateCoverUrl(topicId, coverUrl)
@@ -606,7 +606,7 @@ public class RutrackerRepository
          * @param topicId Topic ID
          * @return Result with topic details or error
          */
-        suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails> =
+        public suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails> =
             withContext(Dispatchers.IO) {
                 logger.withOperation("getTopicDetails") { operationId ->
                     try {
@@ -676,7 +676,7 @@ public class RutrackerRepository
          *
          * @return Result with categories or error
          */
-        suspend fun getCategories(): Result<List<AudiobookCategory>> =
+        public suspend fun getCategories(): Result<List<AudiobookCategory>> =
             withContext(Dispatchers.IO) {
                 logger.withOperation("getCategories") { operationId ->
                     try {
@@ -739,7 +739,7 @@ public class RutrackerRepository
          *
          * @return true if authenticated
          */
-        suspend fun isAuthenticated(): Boolean =
+        public suspend fun isAuthenticated(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
                     val response = api.getProfile()

@@ -68,7 +68,7 @@ public class BackupService
          * Exports all app data to a JSON file.
          * Returns FileProvider URI for sharing.
          */
-        suspend fun exportToFile(): Uri =
+        public suspend fun exportToFile(): Uri =
             withContext(Dispatchers.IO) {
                 try {
                     Log.d(TAG, "Starting data export")
@@ -81,9 +81,9 @@ public class BackupService
                     Log.d(TAG, "Serialized backup: ${jsonString.length} bytes")
 
                     // 3. Write to file
-                    public val timestamp = DateTimeFormatter.formatCurrentForFilename()
-                    public val fileName: String = "jabook_backup_$timestamp.json"
-                    public val file = File(context.cacheDir, fileName)
+                    val timestamp = DateTimeFormatter.formatCurrentForFilename()
+                    val fileName: String = "jabook_backup_$timestamp.json"
+                    val file = File(context.cacheDir, fileName)
                     file.writeText(jsonString)
 
                     Log.d(TAG, "Backup written to ${file.absolutePath}")
@@ -104,7 +104,7 @@ public class BackupService
          * Imports app data from a JSON backup file.
          * Returns statistics about imported items.
          */
-        suspend fun importFromFile(uri: Uri): ImportStats =
+        public suspend fun importFromFile(uri: Uri): ImportStats =
             withContext(Dispatchers.IO) {
                 try {
                     Log.d(TAG, "Starting data import from $uri")
@@ -294,10 +294,10 @@ public class BackupService
             val protoSettings = protoSettingsRepository.userPreferences.first()
 
             // Defaults for empty values
-            public val defaultDownloadPath: String =
+            val defaultDownloadPath: String =
                 "JabookAudio"
 
-            public val defaultMirrors =
+            val defaultMirrors =
                 listOf(
                     "https://rutracker.org",
                     "https://rutracker.net",

@@ -29,15 +29,15 @@ public sealed interface DescriptionBlock {
      * Standard text content (rich text).
      */
     public data class Text(
-        public val content: AnnotatedString,
+        val content: AnnotatedString,
     ) : DescriptionBlock
 
     /**
      * Collapsible spoiler block.
      */
     public data class Spoiler(
-        public val title: AnnotatedString,
-        public val content: List<DescriptionBlock>,
+        val title: AnnotatedString,
+        val content: List<DescriptionBlock>,
     ) : DescriptionBlock
 }
 

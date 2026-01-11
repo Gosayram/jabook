@@ -37,13 +37,13 @@ public interface TorrentDownloadDao {
      * Get all downloads (one-time)
      */
     @Query("SELECT * FROM torrent_downloads ORDER BY addedTime DESC")
-    suspend fun getAll(): List<TorrentDownloadEntity>
+    public suspend fun getAll(): List<TorrentDownloadEntity>
 
     /**
      * Get download by hash
      */
     @Query("SELECT * FROM torrent_downloads WHERE hash = :hash")
-    suspend fun getByHash(hash: String): TorrentDownloadEntity?
+    public suspend fun getByHash(hash: String): TorrentDownloadEntity?
 
     /**
      * Get download by hash as Flow
@@ -55,7 +55,7 @@ public interface TorrentDownloadDao {
      * Get completed downloads
      */
     @Query("SELECT * FROM torrent_downloads WHERE state = 'COMPLETED' ORDER BY completedTime DESC")
-    suspend fun getCompleted(): List<TorrentDownloadEntity>
+    public suspend fun getCompleted(): List<TorrentDownloadEntity>
 
     /**
      * Get active downloads (downloading, seeding, etc)
@@ -73,49 +73,49 @@ public interface TorrentDownloadDao {
      * Insert download
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(download: TorrentDownloadEntity)
+    public suspend fun insert(download: TorrentDownloadEntity)
 
     /**
      * Insert multiple downloads
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(downloads: List<TorrentDownloadEntity>)
+    public suspend fun insertAll(downloads: List<TorrentDownloadEntity>)
 
     /**
      * Update download
      */
     @Update
-    suspend fun update(download: TorrentDownloadEntity)
+    public suspend fun update(download: TorrentDownloadEntity)
 
     /**
      * Delete download
      */
     @Delete
-    suspend fun delete(download: TorrentDownloadEntity)
+    public suspend fun delete(download: TorrentDownloadEntity)
 
     /**
      * Delete by hash
      */
     @Query("DELETE FROM torrent_downloads WHERE hash = :hash")
-    suspend fun deleteByHash(hash: String)
+    public suspend fun deleteByHash(hash: String)
 
     /**
      * Delete all completed downloads
      */
     @Query("DELETE FROM torrent_downloads WHERE state = 'COMPLETED'")
-    suspend fun deleteAllCompleted()
+    public suspend fun deleteAllCompleted()
 
     /**
      * Delete all downloads
      */
     @Query("DELETE FROM torrent_downloads")
-    suspend fun deleteAll()
+    public suspend fun deleteAll()
 
     /**
      * Update download state
      */
     @Query("UPDATE torrent_downloads SET state = :state WHERE hash = :hash")
-    suspend fun updateState(
+    public suspend fun updateState(
         hash: String,
         state: TorrentState,
     )
@@ -130,7 +130,7 @@ public interface TorrentDownloadDao {
         WHERE hash = :hash
         """,
     )
-    suspend fun updateProgress(
+    public suspend fun updateProgress(
         hash: String,
         progress: Float,
         downloadedSize: Long,

@@ -48,17 +48,17 @@ public class IndexingViewModel
         }
 
         private val _indexingProgress = MutableStateFlow<IndexingProgress>(IndexingProgress.Idle)
-        public val indexingProgress: StateFlow<IndexingProgress> = _indexingProgress.asStateFlow()
+        val indexingProgress: StateFlow<IndexingProgress> = _indexingProgress.asStateFlow()
 
         // Timing state
         private val _indexingStartTime = MutableStateFlow<Long?>(null)
-        public val indexingStartTime: StateFlow<Long?> = _indexingStartTime.asStateFlow()
+        val indexingStartTime: StateFlow<Long?> = _indexingStartTime.asStateFlow()
 
         private val _clearingInProgress = MutableStateFlow(false)
-        public val clearingInProgress: StateFlow<Boolean> = _clearingInProgress.asStateFlow()
+        val clearingInProgress: StateFlow<Boolean> = _clearingInProgress.asStateFlow()
 
         private val _isIndexing = MutableStateFlow(false)
-        public val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
+        val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
 
         /**
          * Start full indexing of all audiobook forums using Foreground Service.
@@ -133,17 +133,17 @@ public class IndexingViewModel
         /**
          * Get current index size.
          */
-        suspend fun getIndexSize(): Int = forumIndexer.getIndexSize()
+        public suspend fun getIndexSize(): Int = forumIndexer.getIndexSize()
 
         /**
          * Check if index needs update.
          */
-        suspend fun needsUpdate(): Boolean = forumIndexer.needsUpdate()
+        public suspend fun needsUpdate(): Boolean = forumIndexer.needsUpdate()
 
         /**
          * Get index metadata (statistics).
          */
-        suspend fun getIndexMetadata(): IndexMetadata? = forumIndexer.getIndexMetadata()
+        public suspend fun getIndexMetadata(): IndexMetadata? = forumIndexer.getIndexMetadata()
 
         /**
          * Start indexing in foreground service (for background operation).
@@ -169,7 +169,7 @@ public class IndexingViewModel
          * Clear the entire index (delete all indexed topics).
          * Useful for rebuilding index from scratch.
          */
-        suspend fun clearIndex(): Boolean =
+        public suspend fun clearIndex(): Boolean =
             try {
                 Log.i(TAG, "Clearing index...")
                 _clearingInProgress.value = true

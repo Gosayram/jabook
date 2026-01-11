@@ -48,17 +48,17 @@ public class TorrentDownloadRepository
         /**
          * Get all downloads (synchronous)
          */
-        suspend fun getAll(): List<TorrentDownload> = dao.getAll().map { it.toDomain() }
+        public suspend fun getAll(): List<TorrentDownload> = dao.getAll().map { it.toDomain() }
 
         /**
          * Get download by hash
          */
-        suspend fun getByHash(hash: String): TorrentDownload? = dao.getByHash(hash)?.toDomain()
+        public suspend fun getByHash(hash: String): TorrentDownload? = dao.getByHash(hash)?.toDomain()
 
         /**
          * Save download
          */
-        suspend fun save(download: TorrentDownload) {
+        public suspend fun save(download: TorrentDownload) {
             try {
                 val entity = TorrentDownloadEntity.fromDomain(download)
                 dao.insert(entity)
@@ -71,7 +71,7 @@ public class TorrentDownloadRepository
         /**
          * Save multiple downloads
          */
-        suspend fun saveAll(downloads: List<TorrentDownload>) {
+        public suspend fun saveAll(downloads: List<TorrentDownload>) {
             try {
                 val entities = downloads.map { TorrentDownloadEntity.fromDomain(it) }
                 dao.insertAll(entities)
@@ -84,7 +84,7 @@ public class TorrentDownloadRepository
         /**
          * Delete download
          */
-        suspend fun delete(hash: String) {
+        public suspend fun delete(hash: String) {
             try {
                 dao.deleteByHash(hash)
                 Log.d(TAG, "Deleted torrent: $hash")
@@ -96,7 +96,7 @@ public class TorrentDownloadRepository
         /**
          * Update download state
          */
-        suspend fun updateState(
+        public suspend fun updateState(
             hash: String,
             state: TorrentState,
         ) {
@@ -110,7 +110,7 @@ public class TorrentDownloadRepository
         /**
          * Update download progress
          */
-        suspend fun updateProgress(
+        public suspend fun updateProgress(
             hash: String,
             progress: Float,
             downloadedSize: Long,
@@ -125,7 +125,7 @@ public class TorrentDownloadRepository
         /**
          * Delete all completed downloads
          */
-        suspend fun deleteAllCompleted() {
+        public suspend fun deleteAllCompleted() {
             try {
                 dao.deleteAllCompleted()
                 Log.d(TAG, "Deleted all completed torrents")

@@ -43,14 +43,14 @@ public class UpdateBookSettingsUseCase
         /**
          * Reset settings for a specific book (set to null).
          */
-        suspend fun resetForBook(bookId: String) {
+        public suspend fun resetForBook(bookId: String) {
             booksRepository.updateBookSettings(bookId, null, null)
         }
 
         /**
          * Reset settings for ALL books.
          */
-        suspend fun resetAll() {
+        public suspend fun resetAll() {
             booksRepository.resetAllBookSettings()
         }
     }

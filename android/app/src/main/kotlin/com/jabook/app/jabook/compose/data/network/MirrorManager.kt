@@ -73,14 +73,14 @@ public class MirrorManager
          *
          * Example: "rutracker.org"
          */
-        public val currentMirror: StateFlow<String> = _currentMirror.asStateFlow()
+        val currentMirror: StateFlow<String> = _currentMirror.asStateFlow()
 
         private val _availableMirrors = MutableStateFlow<List<String>>(DEFAULT_MIRRORS)
 
         /**
          * List of all available mirrors (default + custom).
          */
-        public val availableMirrors: StateFlow<List<String>> = _availableMirrors.asStateFlow()
+        val availableMirrors: StateFlow<List<String>> = _availableMirrors.asStateFlow()
 
         init {
             // Load saved settings on init
@@ -105,7 +105,7 @@ public class MirrorManager
          *
          * @param domain Mirror domain (e.g., "rutracker.org")
          */
-        suspend fun setMirror(domain: String) {
+        public suspend fun setMirror(domain: String) {
             if (domain.isBlank()) {
                 Log.w(TAG, "Attempted to set blank mirror, ignoring")
                 return
@@ -123,7 +123,7 @@ public class MirrorManager
          * @param domain Mirror domain to check
          * @return true if mirror responds within timeout, false otherwise
          */
-        suspend fun checkMirrorHealth(domain: String): Boolean =
+        public suspend fun checkMirrorHealth(domain: String): Boolean =
             withContext(Dispatchers.IO) {
                 try {
                     Log.d(TAG, "Checking health of mirror: $domain")
@@ -144,7 +144,7 @@ public class MirrorManager
                             .build()
 
                     val response = healthCheckClient.newCall(request).execute()
-                    public val isHealthy: Long = response.isSuccessful
+                    val isHealthy: Long = response.isSuccessful
                     Log.d(TAG, "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})")
                     response.close()
 
@@ -163,7 +163,7 @@ public class MirrorManager
          *
          * @return true if switched successfully, false if no mirrors are available
          */
-        suspend fun switchToNextMirror(): Boolean {
+        public suspend fun switchToNextMirror(): Boolean {
             val currentDomain = _currentMirror.value
             val mirrors = _availableMirrors.value
             val currentIndex = mirrors.indexOf(currentDomain)
@@ -203,7 +203,7 @@ public class MirrorManager
          *
          * @param domain Custom mirror domain (e.g., "rutracker.nl")
          */
-        suspend fun addCustomMirror(domain: String) {
+        public suspend fun addCustomMirror(domain: String) {
             if (domain.isBlank() || domain in _availableMirrors.value) {
                 Log.w(TAG, "Custom mirror already exists or is blank: $domain")
                 return
@@ -232,7 +232,7 @@ public class MirrorManager
          *
          * @param domain Mirror domain to remove
          */
-        suspend fun removeCustomMirror(domain: String) {
+        public suspend fun removeCustomMirror(domain: String) {
             if (domain in DEFAULT_MIRRORS) {
                 Log.w(TAG, "Cannot remove default mirror: $domain")
                 return
@@ -252,7 +252,7 @@ public class MirrorManager
         /**
          * Check if auto-switch is enabled in settings.
          */
-        suspend fun isAutoSwitchEnabled(): Boolean {
+        public suspend fun isAutoSwitchEnabled(): Boolean {
             val prefs = settingsRepository.userPreferences.first()
             return prefs.autoSwitchMirror
         }

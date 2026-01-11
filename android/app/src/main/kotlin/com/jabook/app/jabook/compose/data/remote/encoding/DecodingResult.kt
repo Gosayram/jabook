@@ -26,11 +26,11 @@ package com.jabook.app.jabook.compose.data.remote.encoding
  * @property isValid True if decoding succeeded and text appears valid
  */
 public data class DecodingResult(
-    public val text: String,
-    public val encoding: String,
-    public val confidence: Float,
-    public val hasMojibake: Boolean = false,
-    public val isValid: Boolean = true,
+    val text: String,
+    val encoding: String,
+    val confidence: Float,
+    val hasMojibake: Boolean = false,
+    val isValid: Boolean = true,
 ) {
     public companion object {
         /**

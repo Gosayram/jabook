@@ -30,7 +30,7 @@ public class ScanSettingsViewModel
     constructor(
         private val booksRepository: BooksRepository,
     ) : ViewModel() {
-        public val scanPaths: StateFlow<List<String>> =
+        val scanPaths: StateFlow<List<String>> =
             booksRepository
                 .getScanPaths()
                 .stateIn(
@@ -57,13 +57,13 @@ public class ScanSettingsViewModel
 
         private fun resolvePathFromUri(uriString: String): String {
             try {
-                public val uri = android.net.Uri.parse(uriString)
+                val uri = android.net.Uri.parse(uriString)
                 if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
-                    public val path = uri.path ?: return uriString
-                    public val split = path.split(":")
+                    val path = uri.path ?: return uriString
+                    val split = path.split(":")
                     if (split.size > 1) {
-                        public val type = split[0]
-                        public val relativePath = split[1]
+                        val type = split[0]
+                        val relativePath = split[1]
                         if (type.endsWith("primary")) {
                             return "/storage/emulated/0/$relativePath"
                         }

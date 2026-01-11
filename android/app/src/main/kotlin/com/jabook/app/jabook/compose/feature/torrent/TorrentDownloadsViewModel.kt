@@ -46,16 +46,16 @@ public sealed interface TorrentDownloadsUiState {
     data object Loading : TorrentDownloadsUiState
 
     public data class Success(
-        public val activeDownloads: List<TorrentDownload>,
-        public val pausedDownloads: List<TorrentDownload>,
-        public val completedDownloads: List<TorrentDownload>,
-        public val errorDownloads: List<TorrentDownload>,
+        val activeDownloads: List<TorrentDownload>,
+        val pausedDownloads: List<TorrentDownload>,
+        val completedDownloads: List<TorrentDownload>,
+        val errorDownloads: List<TorrentDownload>,
     ) : TorrentDownloadsUiState
 
     data object Empty : TorrentDownloadsUiState
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : TorrentDownloadsUiState
 }
 
@@ -79,14 +79,14 @@ public class TorrentDownloadsViewModel
 
         // Selected download for details view
         private val _selectedDownload = MutableStateFlow<TorrentDownload?>(null)
-        public val selectedDownload: StateFlow<TorrentDownload?> = _selectedDownload.asStateFlow()
+        val selectedDownload: StateFlow<TorrentDownload?> = _selectedDownload.asStateFlow()
 
         // Filter state
         private val _showCompletedOnly = MutableStateFlow(false)
-        public val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
+        val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
 
         // UI state combining downloads from manager and repository
-        public val uiState: StateFlow<TorrentDownloadsUiState> =
+        val uiState: StateFlow<TorrentDownloadsUiState> =
             combine(
                 torrentManager.downloadsFlow,
                 repository.getAllFlow(),
@@ -244,10 +244,10 @@ public class TorrentDownloadsViewModel
          */
         // Pending torrent state for dialog
         private val _pendingMagnetLink = MutableStateFlow<String?>(null)
-        public val pendingMagnetLink: StateFlow<String?> = _pendingMagnetLink.asStateFlow()
+        val pendingMagnetLink: StateFlow<String?> = _pendingMagnetLink.asStateFlow()
 
         private val _pendingDownloadPath = MutableStateFlow("")
-        public val pendingDownloadPath: StateFlow<String> = _pendingDownloadPath.asStateFlow()
+        val pendingDownloadPath: StateFlow<String> = _pendingDownloadPath.asStateFlow()
 
         init {
             // Check for initial magnet link

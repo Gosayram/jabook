@@ -761,8 +761,8 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    public fun updateMetadata(): Unit =
-        metadataManager?.updateMetadata() ?: run {
+    public fun updateMetadata(metadata: Map<String, String>): Unit =
+        metadataManager?.updateMetadata(metadata) ?: run {
             android.util.Log.e("AudioPlayerService", "MetadataManager not initialized")
         }
 
@@ -779,7 +779,7 @@ public class AudioPlayerService : MediaLibraryService() {
         // MediaLibraryService automatically updates notification when Player state changes
     }
 
-    public val isPlaying: Boolean
+    val isPlaying: Boolean
         get() = getActivePlayer().isPlaying
 
     public fun play() {
@@ -1149,7 +1149,7 @@ public class AudioPlayerService : MediaLibraryService() {
         // Schedule a new update with debouncing
         updateLayoutJob =
             playerServiceScope.launch {
-                kotlinx.coroutines.delay(delayMs)
+                kotlinx.coroutines.delay(delayMs.toLong())
                 updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
             }
     }

@@ -72,5 +72,6 @@ public object MediaControllerConstants {
      * Gets quick fallback timeout in TimeUnit.MILLISECONDS.
      */
     @JvmStatic
-    public fun getQuickFallbackTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(QUICK_FALLBACK_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+    public fun getQuickFallbackTimeout(timeUnit: TimeUnit): Long =
+        timeUnit.convert(QUICK_FALLBACK_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
 }

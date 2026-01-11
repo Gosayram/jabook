@@ -52,7 +52,7 @@ public class AudioPreferences(
     /**
      * Gets the playback speed preference.
      */
-    public val playbackSpeed: Flow<Float> =
+    val playbackSpeed: Flow<Float> =
         dataStore.data.map { preferences ->
             preferences[AudioPreferencesKeys.PLAYBACK_SPEED] ?: 1.0f
         }
@@ -60,7 +60,7 @@ public class AudioPreferences(
     /**
      * Sets the playback speed preference.
      */
-    suspend fun setPlaybackSpeed(speed: Float) {
+    public suspend fun setPlaybackSpeed(speed: Float) {
         dataStore.edit { preferences ->
             preferences[AudioPreferencesKeys.PLAYBACK_SPEED] = speed
         }
@@ -69,7 +69,7 @@ public class AudioPreferences(
     /**
      * Gets the last played book ID.
      */
-    public val lastPlayedBookId: Flow<Int?> =
+    val lastPlayedBookId: Flow<Int?> =
         dataStore.data.map { preferences ->
             preferences[AudioPreferencesKeys.LAST_PLAYED_BOOK_ID]
         }
@@ -77,7 +77,7 @@ public class AudioPreferences(
     /**
      * Sets the last played book ID.
      */
-    suspend fun setLastPlayedBookId(bookId: Int) {
+    public suspend fun setLastPlayedBookId(bookId: Int) {
         dataStore.edit { preferences ->
             preferences[AudioPreferencesKeys.LAST_PLAYED_BOOK_ID] = bookId
         }
@@ -86,7 +86,7 @@ public class AudioPreferences(
     /**
      * Gets the auto play next preference.
      */
-    public val autoPlayNext: Flow<Boolean> =
+    val autoPlayNext: Flow<Boolean> =
         dataStore.data.map { preferences ->
             preferences[AudioPreferencesKeys.AUTO_PLAY_NEXT] ?: true
         }
@@ -94,7 +94,7 @@ public class AudioPreferences(
     /**
      * Sets the auto play next preference.
      */
-    suspend fun setAutoPlayNext(enabled: Boolean) {
+    public suspend fun setAutoPlayNext(enabled: Boolean) {
         dataStore.edit { preferences ->
             preferences[AudioPreferencesKeys.AUTO_PLAY_NEXT] = enabled
         }

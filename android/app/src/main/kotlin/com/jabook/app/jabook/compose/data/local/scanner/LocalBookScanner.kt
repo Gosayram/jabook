@@ -28,12 +28,12 @@ import kotlinx.coroutines.flow.StateFlow
  * @property coverArt Cover art image data
  */
 public data class ScannedBook(
-    public val directory: String,
-    public val title: String,
-    public val author: String,
-    public val chapters: List<ScannedChapter>,
-    public val totalDuration: Long,
-    public val coverArt: ByteArray?,
+    val directory: String,
+    val title: String,
+    val author: String,
+    val chapters: List<ScannedChapter>,
+    val totalDuration: Long,
+    val coverArt: ByteArray?,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -76,10 +76,10 @@ public data class ScannedBook(
  * @property duration Duration in milliseconds
  */
 public data class ScannedChapter(
-    public val filePath: String,
-    public val title: String,
-    public val index: Int,
-    public val duration: Long,
+    val filePath: String,
+    val title: String,
+    val index: Int,
+    val duration: Long,
 )
 
 /**
@@ -89,12 +89,12 @@ public interface LocalBookScanner {
     /**
      * Observable state of the current scanning process.
      */
-    public val scanProgress: StateFlow<ScanProgress>
+    val scanProgress: StateFlow<ScanProgress>
 
     /**
      * Scan local storage for audiobooks.
      *
      * @return Result containing list of scanned books or error
      */
-    suspend fun scanAudiobooks(): com.jabook.app.jabook.compose.domain.model.Result<List<ScannedBook>>
+    public suspend fun scanAudiobooks(): com.jabook.app.jabook.compose.domain.model.Result<List<ScannedBook>>
 }

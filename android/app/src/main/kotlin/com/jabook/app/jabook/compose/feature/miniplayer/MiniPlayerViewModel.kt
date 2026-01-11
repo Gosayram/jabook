@@ -46,29 +46,29 @@ public class MiniPlayerViewModel
         /**
          * Current playback state (playing/paused).
          */
-        public val isPlaying: StateFlow<Boolean> = audioPlayerController.isPlaying
+        val isPlaying: StateFlow<Boolean> = audioPlayerController.isPlaying
 
         /**
          * Current playback position in milliseconds.
          */
-        public val currentPosition: StateFlow<Long> = audioPlayerController.currentPosition
+        val currentPosition: StateFlow<Long> = audioPlayerController.currentPosition
 
         /**
          * Total duration of current track in milliseconds.
          */
-        public val duration: StateFlow<Long> = audioPlayerController.duration
+        val duration: StateFlow<Long> = audioPlayerController.duration
 
         /**
          * Current chapter/track index in playlist.
          */
-        public val currentChapterIndex: StateFlow<Int> = audioPlayerController.currentChapterIndex
+        val currentChapterIndex: StateFlow<Int> = audioPlayerController.currentChapterIndex
 
         /**
          * Current book being played (from PlayerPersistenceManager + BooksRepository).
          * This is the last played book from persistence.
          */
         @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-        public val currentBook: StateFlow<Book?> =
+        val currentBook: StateFlow<Book?> =
             playerPersistenceManager.lastPlayedBookId
                 .flatMapLatest { bookId ->
                     if (bookId != null) {

@@ -224,7 +224,7 @@ public class NotificationManager(
 
         // Load cover image from embedded artwork in audio file
         // Media3 1.8: Use player.mediaMetadata.artworkData and artworkUri (both are NOT deprecated)
-        public var largeIcon: android.graphics.Bitmap? = null
+        var largeIcon: android.graphics.Bitmap? = null
         val mediaMetadata = currentMediaItem?.mediaMetadata
 
         // Method 0: Try embeddedArtworkPath first (saved by AudioPlayerService from embedded metadata)
@@ -448,8 +448,8 @@ public class NotificationManager(
         }
 
         // Determine small icon - use cover image if available, otherwise use app icon
-        public var smallIcon: android.graphics.drawable.Icon? = null
-        public var smallIconResId: Int = android.R.drawable.ic_media_play
+        var smallIcon: android.graphics.drawable.Icon? = null
+        var smallIconResId: Int = android.R.drawable.ic_media_play
 
         android.util.Log.d(
             "NotificationManager",
@@ -939,7 +939,7 @@ public class NotificationManager(
         val displayArtist = currentMediaItem?.mediaMetadata?.artist?.toString() ?: artist
 
         // Load cover image for small icon (same logic as full notification)
-        public var largeIcon: android.graphics.Bitmap? = null
+        var largeIcon: android.graphics.Bitmap? = null
         val mediaMetadata = currentMediaItem?.mediaMetadata
 
         if (largeIcon == null && embeddedArtworkPath != null) {
@@ -989,8 +989,8 @@ public class NotificationManager(
         }
 
         // Create small icon from cover (same logic as full notification)
-        public var smallIcon: android.graphics.drawable.Icon? = null
-        public var smallIconResId: Int = android.R.drawable.ic_media_play
+        var smallIcon: android.graphics.drawable.Icon? = null
+        var smallIconResId: Int = android.R.drawable.ic_media_play
 
         if (largeIcon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {

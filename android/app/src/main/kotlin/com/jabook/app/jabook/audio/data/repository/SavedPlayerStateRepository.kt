@@ -37,7 +37,7 @@ public class SavedPlayerStateRepository
         /**
          * Gets the saved player state for a group path.
          */
-        suspend fun getSavedState(groupPath: String): Result<SavedPlayerStateEntity?> =
+        public suspend fun getSavedState(groupPath: String): Result<SavedPlayerStateEntity?> =
             try {
                 val entity = stateDao.getState(groupPath)
                 Result.Success(entity)
@@ -48,7 +48,7 @@ public class SavedPlayerStateRepository
         /**
          * Gets the most recently updated saved player state.
          */
-        suspend fun getLatestState(): Result<SavedPlayerStateEntity?> =
+        public suspend fun getLatestState(): Result<SavedPlayerStateEntity?> =
             try {
                 val entity = stateDao.getLatestState()
                 Result.Success(entity)
@@ -59,7 +59,7 @@ public class SavedPlayerStateRepository
         /**
          * Saves a player state.
          */
-        suspend fun saveState(
+        public suspend fun saveState(
             groupPath: String,
             filePaths: List<String>,
             metadata: Map<String, String>? = null,
@@ -101,7 +101,7 @@ public class SavedPlayerStateRepository
         /**
          * Updates saved state settings (repeat mode and sleep timer).
          */
-        suspend fun updateSettings(
+        public suspend fun updateSettings(
             groupPath: String,
             repeatMode: Int? = null,
             sleepTimerRemainingSeconds: Int? = null,
@@ -160,7 +160,7 @@ public class SavedPlayerStateRepository
         /**
          * Deletes a saved player state.
          */
-        suspend fun deleteState(groupPath: String): Result<Unit> =
+        public suspend fun deleteState(groupPath: String): Result<Unit> =
             try {
                 stateDao.deleteState(groupPath)
                 Result.Success(Unit)
@@ -171,7 +171,7 @@ public class SavedPlayerStateRepository
         /**
          * Deletes all saved player states.
          */
-        suspend fun deleteAllStates(): Result<Unit> =
+        public suspend fun deleteAllStates(): Result<Unit> =
             try {
                 stateDao.deleteAllStates()
                 Result.Success(Unit)

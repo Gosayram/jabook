@@ -39,7 +39,7 @@ public class ExoPlayerManager
         /**
          * Prepares the player with a single media item.
          */
-        public fun prepare() {
+        public fun prepare(mediaItem: androidx.media3.common.MediaItem) {
             player.setMediaItem(mediaItem)
             player.prepare()
         }
@@ -47,7 +47,7 @@ public class ExoPlayerManager
         /**
          * Prepares the player with a list of media items.
          */
-        public fun prepare() {
+        public fun prepare(mediaItems: List<androidx.media3.common.MediaItem>) {
             player.setMediaItems(mediaItems)
             player.prepare()
         }

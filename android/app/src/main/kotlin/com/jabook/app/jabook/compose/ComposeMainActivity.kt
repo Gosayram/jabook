@@ -95,7 +95,7 @@ public class ComposeMainActivity : ComponentActivity() {
      * @param intent The intent to handle
      */
     private fun handleIntent(intent: Intent?) {
-        public val data: Uri = intent?.data ?: return
+        val data: Uri = intent?.data ?: return
 
         Log.d(TAG, "Handling intent with data: $data, scheme: ${data.scheme}")
 

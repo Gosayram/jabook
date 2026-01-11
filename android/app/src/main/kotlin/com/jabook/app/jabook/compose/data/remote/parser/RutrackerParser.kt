@@ -254,8 +254,8 @@ public class RutrackerParser
                                 val rowTag = row.tagName()
                                 val rowClasses = row.className()
 
-                                public val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
-                                public val topicIdAttr = row.attr(TOPIC_ID_ATTR)
+                                val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
+                                val topicIdAttr = row.attr(TOPIC_ID_ATTR)
                                 val rowId = row.attr("id")
                                 val topicId = topicIdAttr.ifEmpty { rowId.removePrefix("tr-") }
 
@@ -352,8 +352,8 @@ public class RutrackerParser
          * Parse forum page and return topics along with pagination info.
          */
         public data class ForumPageResult(
-            public val topics: List<SearchResult>,
-            public val hasMorePages: Boolean,
+            val topics: List<SearchResult>,
+            val hasMorePages: Boolean,
         )
 
         public fun parseForumPage(
@@ -456,8 +456,8 @@ public class RutrackerParser
                                 // Basic validation: must have some content/structure
                                 // Use selectFirst() for better performance (returns null if not found)
 
-                                public val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
-                                public val isHeader = row.hasClass("vf-col-header-row")
+                                val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
+                                val isHeader = row.hasClass("vf-col-header-row")
                                 val isValid = !isHeader && hasTitle
 
                                 if (!isValid && row.text().length > 50) {
@@ -544,8 +544,8 @@ public class RutrackerParser
                                 val rowTag = row.tagName()
                                 val rowClasses = row.className()
 
-                                public val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
-                                public val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
+                                val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
+                                val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
 
                                 Log.w(
                                     TAG,
@@ -1132,19 +1132,19 @@ public class RutrackerParser
                 val torrentUrl = downloadElement?.absUrl("href") ?: ""
 
                 // Extract seeders and leechers from document (not just post body)
-                public val seeders = extractSeeders(document)
-                public val leechers = extractLeechers(document)
+                val seeders = extractSeeders(document)
+                val leechers = extractLeechers(document)
 
                 // Extract additional stats (Registered date, Downloads count)
                 val (registeredDate, downloadsCount) = extractTopicStats(document)
 
                 // Extract metadata from post body
-                public val metadata = extractMetadata(postBody)
+                val metadata = extractMetadata(postBody)
 
                 // Clean the title
-                public val cleanedTitle = cleanTitle(title)
+                val cleanedTitle = cleanTitle(title)
 
-                public val descriptionHtml =
+                val descriptionHtml =
                     postBody?.html()?.let { html ->
                         // Clean HTML: using DOM manipulation
                         val cleaned = cleanDescriptionHtml(html, metadata)
@@ -1652,7 +1652,7 @@ public class RutrackerParser
 
             // Find all potential metadata labels
             // We convert to list to avoid concurrent modification exceptions when removing
-            public val spans = body.select("span.post-b").toList()
+            val spans = body.select("span.post-b").toList()
 
             for (span in spans) {
                 val text =
@@ -2123,11 +2123,11 @@ public class RutrackerParser
             data object Success : LoginResult
 
             public data class Error(
-                public val message: String,
+                val message: String,
             ) : LoginResult
 
             public data class Captcha(
-                public val data: com.jabook.app.jabook.compose.domain.model.CaptchaData,
+                val data: com.jabook.app.jabook.compose.domain.model.CaptchaData,
             ) : LoginResult
         }
 

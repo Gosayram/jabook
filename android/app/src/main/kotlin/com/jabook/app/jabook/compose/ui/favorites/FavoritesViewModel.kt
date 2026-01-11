@@ -47,17 +47,17 @@ public class FavoritesViewModel
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        public val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+        val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
         // Sort order state
         private val _sortOrder = MutableStateFlow(BookSortOrder.RECENTLY_ADDED)
-        public val sortOrder: StateFlow<BookSortOrder> = _sortOrder.asStateFlow()
+        val sortOrder: StateFlow<BookSortOrder> = _sortOrder.asStateFlow()
 
         /**
          * All favorites with search and sort applied.
          * Combines online favorites (FavoriteEntity) and local library favorites (Book with isFavorite=true).
          */
-        public val favorites: StateFlow<List<FavoriteEntity>> =
+        val favorites: StateFlow<List<FavoriteEntity>> =
             combine(
                 favoritesRepository.allFavorites,
                 getFavoriteBooksUseCase(),
@@ -65,15 +65,15 @@ public class FavoritesViewModel
                 _sortOrder,
             ) { onlineFavorites, localFavoriteBooks, query, order ->
                 // Convert local favorite books to FavoriteEntity
-                public val localFavorites = localFavoriteBooks.map { it.toFavoriteEntity() }
+                val localFavorites = localFavoriteBooks.map { it.toFavoriteEntity() }
 
                 // Combine online and local favorites, avoiding duplicates (prefer online if exists)
-                public val favoriteIds = onlineFavorites.map { it.topicId }.toSet()
-                public val uniqueLocalFavorites = localFavorites.filter { it.topicId !in favoriteIds }
-                public val allFavorites = onlineFavorites + uniqueLocalFavorites
+                val favoriteIds = onlineFavorites.map { it.topicId }.toSet()
+                val uniqueLocalFavorites = localFavorites.filter { it.topicId !in favoriteIds }
+                val allFavorites = onlineFavorites + uniqueLocalFavorites
 
                 // Apply search filter
-                public val filtered =
+                val filtered =
                     if (query.isBlank()) {
                         allFavorites
                     } else {
@@ -103,13 +103,13 @@ public class FavoritesViewModel
          * Set of favorite topic IDs for quick membership checks.
          * Combines online favorites and local library favorites.
          */
-        public val favoriteIds: StateFlow<Set<String>> =
+        val favoriteIds: StateFlow<Set<String>> =
             combine(
                 favoritesRepository.favoriteIds,
                 getFavoriteBooksUseCase(),
             ) { onlineIds, localBooks ->
-                public val onlineSet = onlineIds.toSet()
-                public val localSet = localBooks.map { it.id }.toSet()
+                val onlineSet = onlineIds.toSet()
+                val localSet = localBooks.map { it.id }.toSet()
                 onlineSet + localSet
             }.stateIn(
                 scope = viewModelScope,
@@ -118,10 +118,10 @@ public class FavoritesViewModel
             )
 
         private val _isLoading = MutableStateFlow(false)
-        public val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+        val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
         private val _errorMessage = MutableStateFlow<String?>(null)
-        public val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+        val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
         /**
          * Add or remove an audiobook from favorites.
@@ -129,9 +129,9 @@ public class FavoritesViewModel
         public fun toggleFavorite() {
             viewModelScope.launch {
                 _isLoading.value = true
-                public val isFavoriteNow = favoritesRepository.isFavorite(favorite.topicId)
+                val isFavoriteNow = favoritesRepository.isFavorite(favorite.topicId)
 
-                public val result =
+                val result =
                     if (isFavoriteNow) {
                         favoritesRepository.removeFromFavorites(favorite.topicId)
                     } else {

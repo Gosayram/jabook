@@ -31,8 +31,8 @@ public object AudioProcessorFactory {
      * Contains the list of processors and a reference to the LoudnessNormalizer if created.
      */
     public data class ProcessorChainResult(
-        public val processors: List<AudioProcessor>,
-        public val loudnessNormalizer: LoudnessNormalizer? = null,
+        val processors: List<AudioProcessor>,
+        val loudnessNormalizer: LoudnessNormalizer? = null,
     )
 
     /**
@@ -151,14 +151,14 @@ public object AudioProcessorFactory {
  * Settings can come from global AudioSettingsManager or book-specific BookAudioSettings.
  */
 public data class AudioProcessingSettings(
-    public val normalizeVolume: Boolean = true,
-    public val volumeBoostLevel: VolumeBoostLevel = VolumeBoostLevel.Off,
-    public val drcLevel: DRCLevel = DRCLevel.Off,
-    public val speechEnhancer: Boolean = false,
-    public val autoVolumeLeveling: Boolean = false,
-    public val skipSilence: Boolean = false,
-    public val isCrossfadeEnabled: Boolean = false,
-    public val crossfadeDurationMs: Int = L,
+    val normalizeVolume: Boolean = true,
+    val volumeBoostLevel: VolumeBoostLevel = VolumeBoostLevel.Off,
+    val drcLevel: DRCLevel = DRCLevel.Off,
+    val speechEnhancer: Boolean = false,
+    val autoVolumeLeveling: Boolean = false,
+    val skipSilence: Boolean = false,
+    val isCrossfadeEnabled: Boolean = false,
+    val crossfadeDurationMs: Int = L,
 ) {
     public companion object {
         /**

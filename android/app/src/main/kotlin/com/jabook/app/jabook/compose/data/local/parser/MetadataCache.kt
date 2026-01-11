@@ -39,10 +39,10 @@ public class MetadataCache
          * Cached metadata with file validation info.
          */
         public data class CachedMetadata(
-            public val metadata: AudioMetadata,
-            public val fileSize: Long,
-            public val lastModified: Long,
-            public val cacheTime: Long = System.currentTimeMillis(),
+            val metadata: AudioMetadata,
+            val fileSize: Long,
+            val lastModified: Long,
+            val cacheTime: Long = System.currentTimeMillis(),
         )
 
         // Cache up to 500 files (reasonable for most libraries)
@@ -55,7 +55,7 @@ public class MetadataCache
          * @param parser Parser to use if cache miss
          * @return Parsed metadata or null if parsing failed
          */
-        suspend fun getOrParse(
+        public suspend fun getOrParse(
             file: File,
             parser: AudioMetadataParser,
         ): AudioMetadata? {
@@ -128,13 +128,13 @@ public class MetadataCache
             )
 
         public data class CacheStats(
-            public val size: Int,
-            public val maxSize: Int,
-            public val hitCount: Int,
-            public val missCount: Int,
-            public val evictionCount: Int,
+            val size: Int,
+            val maxSize: Int,
+            val hitCount: Int,
+            val missCount: Int,
+            val evictionCount: Int,
         ) {
-            public val hitRate: Float
+            val hitRate: Float
                 get() =
                     if (hitCount + missCount > 0) {
                         hitCount.toFloat() / (hitCount + missCount)

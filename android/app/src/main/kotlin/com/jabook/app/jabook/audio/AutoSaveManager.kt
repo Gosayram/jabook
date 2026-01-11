@@ -53,10 +53,10 @@ public class AutoSaveManager
             private const val TAG = "AutoSaveManager"
 
             /** Interval between auto-saves in milliseconds (30 seconds) */
-            public const val AUTO_SAVE_INTERVAL_MS: Int = 120_000L
+            public const val AUTO_SAVE_INTERVAL_MS: Long = 120_000L
 
             /** Minimum interval between saves to avoid excessive writes */
-            public const val MIN_SAVE_INTERVAL_MS: Int = 120_000L
+            public const val MIN_SAVE_INTERVAL_MS: Long = 120_000L
         }
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -145,11 +145,11 @@ public class AutoSaveManager
  * Snapshot of current playback state for persistence.
  */
 public data class PlaybackSnapshot(
-    public val mediaId: String,
-    public val positionMs: Long,
-    public val durationMs: Long,
-    public val artworkPath: String,
-    public val title: String,
-    public val artist: String,
-    public val groupPath: String,
+    val mediaId: String,
+    val positionMs: Long,
+    val durationMs: Long,
+    val artworkPath: String,
+    val title: String,
+    val artist: String,
+    val groupPath: String,
 )

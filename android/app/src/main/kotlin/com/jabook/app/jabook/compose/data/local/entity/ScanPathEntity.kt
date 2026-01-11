@@ -25,7 +25,7 @@ import androidx.room.PrimaryKey
 public data class ScanPathEntity(
     @PrimaryKey
     @ColumnInfo(name = "path")
-    public val path: String,
+    val path: String,
     @ColumnInfo(name = "added_date")
-    public val addedDate: Long = System.currentTimeMillis(),
+    val addedDate: Long = System.currentTimeMillis(),
 )

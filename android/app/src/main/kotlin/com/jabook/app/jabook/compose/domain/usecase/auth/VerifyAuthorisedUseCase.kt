@@ -80,5 +80,5 @@ public class VerifyAuthorisedUseCase
          * @param operationId Optional operation ID for logging correlation (not used, kept for API consistency)
          * @return true if authenticated, false otherwise
          */
-        suspend fun verifyViaRepository(operationId: String? = null): Boolean = authRepository.isLoggedIn()
+        public suspend fun verifyViaRepository(operationId: String? = null): Boolean = authRepository.isLoggedIn()
     }

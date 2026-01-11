@@ -19,28 +19,28 @@ package com.jabook.app.jabook.compose.data.torrent
  */
 public data class TorrentFile(
     /** File index in torrent */
-    public val index: Int,
+    val index: Int,
     /** Relative path within torrent */
-    public val path: String,
+    val path: String,
     /** File size in bytes */
-    public val size: Long,
+    val size: Long,
     /** Download priority (0-7, 0=don't download) */
-    public val priority: Int = 4,
+    val priority: Int = 4,
     /** Download progress (0.0-1.0) */
-    public val progress: Float = 0f,
+    val progress: Float = 0f,
     /** Is this file selected for download */
-    public val isSelected: Boolean = true,
+    val isSelected: Boolean = true,
 ) {
     /** File name without path */
-    public val name: String
+    val name: String
         get() = path.substringAfterLast('/')
 
     /** File extension */
-    public val extension: String
+    val extension: String
         get() = path.substringAfterLast('.', "")
 
     /** Is audio file */
-    public val isAudioFile: Boolean
+    val isAudioFile: Boolean
         get() = extension.lowercase() in AUDIO_EXTENSIONS
 
     public companion object {

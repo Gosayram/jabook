@@ -423,7 +423,7 @@ internal class PlaybackController(
      * @param positionMs Position in milliseconds to seek to
      * @param expectedTrackCount Total expected tracks (for validation)
      */
-    suspend fun applyInitialPosition(
+    public suspend fun applyInitialPosition(
         trackIndex: Int,
         positionMs: Long,
         expectedTrackCount: Int?,

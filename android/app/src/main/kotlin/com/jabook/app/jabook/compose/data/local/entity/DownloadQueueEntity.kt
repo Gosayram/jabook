@@ -23,25 +23,25 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "download_queue")
 public data class DownloadQueueEntity(
     @PrimaryKey
-    public val bookId: String,
+    val bookId: String,
     /**
      * Priority value (0=LOW, 1=NORMAL, 2=HIGH, 3=URGENT).
      */
-    public val priority: Int,
+    val priority: Int,
     /**
      * Position in queue (lower = earlier).
      */
-    public val queuePosition: Int,
+    val queuePosition: Int,
     /**
      * Current status: "queued", "active", "paused", "completed", "cancelled", "failed".
      */
-    public val status: String,
+    val status: String,
     /**
      * When download was added to queue.
      */
-    public val createdAt: Long,
+    val createdAt: Long,
     /**
      * Last update timestamp.
      */
-    public val updatedAt: Long,
+    val updatedAt: Long,
 )

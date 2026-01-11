@@ -30,7 +30,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 public data class PlayerRoute(
-    public val bookId: String,
+    val bookId: String,
 )
 
 /**
@@ -40,7 +40,7 @@ public data class PlayerRoute(
  */
 @Serializable
 public data class WebViewRoute(
-    public val url: String,
+    val url: String,
 )
 
 /**
@@ -60,7 +60,7 @@ public object SearchRoute
  */
 @Serializable
 public data class DownloadsRoute(
-    public val magnetLink: String? = null,
+    val magnetLink: String? = null,
 )
 
 /**
@@ -70,7 +70,7 @@ public data class DownloadsRoute(
  */
 @Serializable
 public data class TorrentDetailsRoute(
-    public val hash: String,
+    val hash: String,
 )
 
 /**
@@ -98,7 +98,7 @@ public object FavoritesRoute
  */
 @Serializable
 public data class TopicRoute(
-    public val topicId: String,
+    val topicId: String,
 )
 
 /**

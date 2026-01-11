@@ -21,7 +21,7 @@ package com.jabook.app.jabook.compose.feature.search.rutracker
 public object FlibustaCoverProvider {
     // TODO: Implement API client for Flibusta
 
-    suspend fun fetchCover(topicName: String): String? {
+    public suspend fun fetchCover(topicName: String): String? {
         // TODO: Search on Flibusta by name and return cover URL
         return null
     }

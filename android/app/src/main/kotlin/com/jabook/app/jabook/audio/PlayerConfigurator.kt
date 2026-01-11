@@ -270,8 +270,8 @@ internal class PlayerConfigurator(
             // BUT only if we're not already loading a playlist (prevent conflicts)
             // CRITICAL: Also check if playlist was loaded recently (within 2 seconds) - if so, don't restore stale state
             // This prevents restoration of incorrect state after Flutter loads correct playlist
-            val lastPlaylistLoadTime = playlistManager?.lastPlaylistLoadTime ?: 0L
-            val timeSinceLastLoad = System.currentTimeMillis() - lastPlaylistLoadTime
+            val lastPlaylistLoadTime: Long = playlistManager?.lastPlaylistLoadTime ?: 0L
+            val timeSinceLastLoad: Long = System.currentTimeMillis() - lastPlaylistLoadTime
             val wasRecentlyLoaded = timeSinceLastLoad < 2000L // 2 seconds
 
             val savedStateForRestore = playlistManager?.savedPlaybackState

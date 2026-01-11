@@ -70,20 +70,20 @@ public class AudioPlayerController
 
         // Playback State
         private val _isPlaying = MutableStateFlow(false)
-        public val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+        val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
         private val _currentPosition = MutableStateFlow(0L)
-        public val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
+        val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
 
         private val _duration = MutableStateFlow(0L)
-        public val duration: StateFlow<Long> = _duration.asStateFlow()
+        val duration: StateFlow<Long> = _duration.asStateFlow()
 
         private val _currentChapterIndex = MutableStateFlow(0)
-        public val currentChapterIndex: StateFlow<Int> = _currentChapterIndex.asStateFlow()
+        val currentChapterIndex: StateFlow<Int> = _currentChapterIndex.asStateFlow()
 
         // Pitch Correction State
         private val _pitchCorrectionEnabled = MutableStateFlow(true)
-        public val pitchCorrectionEnabled: StateFlow<Boolean> = _pitchCorrectionEnabled.asStateFlow()
+        val pitchCorrectionEnabled: StateFlow<Boolean> = _pitchCorrectionEnabled.asStateFlow()
 
         // Audio Stats for Nerds
         private val _playerStats =
@@ -91,11 +91,11 @@ public class AudioPlayerController
                 com.jabook.app.jabook.compose.feature.player
                     .PlayerStats(),
             )
-        public val playerStats: StateFlow<com.jabook.app.jabook.compose.feature.player.PlayerStats> = _playerStats.asStateFlow()
+        val playerStats: StateFlow<com.jabook.app.jabook.compose.feature.player.PlayerStats> = _playerStats.asStateFlow()
 
         // Current Book ID for isolation - ensures we don't mix data between books
         private val _currentBookId = MutableStateFlow<String?>(null)
-        public val currentBookId: StateFlow<String?> = _currentBookId.asStateFlow()
+        val currentBookId: StateFlow<String?> = _currentBookId.asStateFlow()
 
         // Callback for chapter end handling (e.g., repeat logic)
         private var onChapterEndedCallback: (() -> Boolean)? = null
@@ -121,7 +121,7 @@ public class AudioPlayerController
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    public val controller = mediaController ?: return
+                    val controller = mediaController ?: return
                     // Update duration from MediaController (single source of truth)
                     _duration.value = controller.duration.coerceAtLeast(0)
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
@@ -130,10 +130,10 @@ public class AudioPlayerController
 
                         // Handle chapter end for repeat logic (UI-level concern)
                         if (playbackState == Player.STATE_ENDED) {
-                            public val shouldRepeat = onChapterEndedCallback?.invoke() ?: false
+                            val shouldRepeat = onChapterEndedCallback?.invoke() ?: false
                             if (shouldRepeat) {
                                 // Repeat current chapter by seeking to start
-                                public val currentIndex = controller.currentMediaItemIndex
+                                val currentIndex = controller.currentMediaItemIndex
                                 controller.seekTo(currentIndex, 0)
                                 // Resume playback if it was playing
                                 if (controller.playWhenReady) {
@@ -149,7 +149,7 @@ public class AudioPlayerController
                     newPosition: Player.PositionInfo,
                     reason: Int,
                 ) {
-                    public val controller = mediaController ?: return
+                    val controller = mediaController ?: return
                     // Update position and chapter index from MediaController (single source of truth)
                     _currentPosition.value = controller.currentPosition
                     _currentChapterIndex.value = controller.currentMediaItemIndex
@@ -159,7 +159,7 @@ public class AudioPlayerController
                     mediaItem: MediaItem?,
                     reason: Int,
                 ) {
-                    public val controller = mediaController ?: return
+                    val controller = mediaController ?: return
                     // Update chapter index and duration from MediaController (single source of truth)
                     _currentChapterIndex.value = controller.currentMediaItemIndex
                     _duration.value = controller.duration.coerceAtLeast(0)
@@ -167,12 +167,12 @@ public class AudioPlayerController
                 }
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
-                    public val controller = mediaController ?: return
+                    val controller = mediaController ?: return
                     updateStats(controller)
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
-                    public val controller = mediaController ?: return
+                    val controller = mediaController ?: return
                     updateStats(controller)
                 }
             }
@@ -180,15 +180,15 @@ public class AudioPlayerController
         private fun updateStats(controller: Player = mediaController ?: exoPlayer) {
             // audioFormat and audioSessionId are only available in ExoPlayer, not in Player interface
             // Use exoPlayer as fallback for stats when using MediaController
-            public val exoPlayerForStats = if (controller is ExoPlayer) controller else exoPlayer
+            val exoPlayerForStats = if (controller is ExoPlayer) controller else exoPlayer
 
-            public val format = exoPlayerForStats.audioFormat
-            public val audioFormat =
+            val format = exoPlayerForStats.audioFormat
+            val audioFormat =
                 "${format?.sampleMimeType ?: "Unknown"} ${format?.bitrate?.let {
                     if (it > 0) "${it / 1000}kbps" else ""
                 } ?: ""}"
                     .trim()
-            public val bufferMs = controller.bufferedPosition - controller.currentPosition
+            val bufferMs = controller.bufferedPosition - controller.currentPosition
 
             _playerStats.value =
                 com.jabook.app.jabook.compose.feature.player.PlayerStats(
@@ -221,9 +221,9 @@ public class AudioPlayerController
                     ) { userData, pitchCorrection ->
                         Pair(userData.playbackSpeed, pitchCorrection)
                     }.collect { (speed, pitchCorrection) ->
-                        public val pitch = if (pitchCorrection) 1.0f else speed
+                        val pitch = if (pitchCorrection) 1.0f else speed
                         // Skip if no change to avoid interruptions (although setPlaybackParameters checks internally)
-                        public val params = androidx.media3.common.PlaybackParameters(speed, pitch)
+                        val params = androidx.media3.common.PlaybackParameters(speed, pitch)
                         mediaController?.playbackParameters = params
                         // Fallback to exoPlayer during migration
                         if (mediaController == null) {
@@ -240,11 +240,11 @@ public class AudioPlayerController
          * Uses retry logic to handle cases when service is not yet ready.
          */
         private fun initMediaController(retryCount: Int = 0) {
-            public val maxRetries = 3
-            public val retryDelayMs = 500L
+            val maxRetries = 3
+            val retryDelayMs = 500L
 
             try {
-                public val sessionToken =
+                val sessionToken =
                     SessionToken(
                         context,
                         ComponentName(context, AudioPlayerService::class.java),
@@ -260,7 +260,7 @@ public class AudioPlayerController
                     {
                         try {
                             // Wait for controller with timeout
-                            public val controller =
+                            val controller =
                                 mediaControllerFuture?.get(
                                     MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
                                     TimeUnit.SECONDS,
@@ -354,8 +354,8 @@ public class AudioPlayerController
             startService()
 
             // CRITICAL: Check if we're switching to a different book
-            public val previousBookId = _currentBookId.value
-            public val isBookChanged = bookId != null && bookId != previousBookId
+            val previousBookId = _currentBookId.value
+            val isBookChanged = bookId != null && bookId != previousBookId
 
             if (isBookChanged) {
                 android.util.Log.i("AudioPlayerController", "Book changed: $previousBookId -> $bookId. Resetting state.")
@@ -369,7 +369,7 @@ public class AudioPlayerController
             _currentBookId.value = bookId
 
             // Use MediaController for all operations including setPlaylist
-            public val controller = mediaController
+            val controller = mediaController
             if (controller == null) {
                 // MediaController not ready, retry asynchronously
                 android.util.Log.d("AudioPlayerController", "MediaController not ready, retrying asynchronously...")
@@ -389,12 +389,12 @@ public class AudioPlayerController
             // Use MediaController custom commands to get current state
             scope.launch {
                 try {
-                    public val currentGroupPath = MediaControllerExtensions.getCurrentGroupPath(controller)
-                    public val currentPaths = MediaControllerExtensions.getCurrentFilePaths(controller)
+                    val currentGroupPath = MediaControllerExtensions.getCurrentGroupPath(controller)
+                    val currentPaths = MediaControllerExtensions.getCurrentFilePaths(controller)
 
-                    public val isSameBook = bookId != null && bookId == currentGroupPath
+                    val isSameBook = bookId != null && bookId == currentGroupPath
                     // Compare playlists by content, not by reference, to handle sorted paths
-                    public val isSamePlaylist =
+                    val isSamePlaylist =
                         currentPaths != null &&
                             currentPaths.size == filePaths.size &&
                             currentPaths.sorted() == filePaths.sorted()
@@ -421,7 +421,7 @@ public class AudioPlayerController
                     }
 
                     // Use MediaController custom command for setPlaylist
-                    public val future =
+                    val future =
                         MediaControllerExtensions.setPlaylist(
                             controller = controller,
                             filePaths = filePaths,
@@ -432,7 +432,7 @@ public class AudioPlayerController
                         )
 
                     // Wait for result
-                    public val result = future.get(30, TimeUnit.SECONDS)
+                    val result = future.get(30, TimeUnit.SECONDS)
                     if (result.resultCode == SessionResult.RESULT_SUCCESS && autoPlay) {
                         controller.play()
                     } else if (result.resultCode != SessionResult.RESULT_SUCCESS) {
@@ -502,7 +502,7 @@ public class AudioPlayerController
                 }
 
                 android.util.Log.i("AudioPlayerController", "Starting AudioPlayerService...")
-                public val intent = Intent(context, AudioPlayerService::class.java)
+                val intent = Intent(context, AudioPlayerService::class.java)
                 // Use startService instead of startForegroundService.
                 // Since the app is in the foreground, we are allowed to start the service.
                 // MediaLibraryService will internally handle promoting it to foreground

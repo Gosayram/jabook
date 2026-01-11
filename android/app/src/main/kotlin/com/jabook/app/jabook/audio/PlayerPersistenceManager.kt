@@ -45,7 +45,7 @@ public class PlayerPersistenceManager
 
         // NEW: StateFlow for last played book ID (for mini player)
         private val _lastPlayedBookId = MutableStateFlow<String?>(null)
-        public val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
+        val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
 
         init {
             // Load last played book ID on init
@@ -54,14 +54,14 @@ public class PlayerPersistenceManager
         }
 
         public data class PersistedPlayerState(
-            public val groupPath: String,
-            public val filePaths: List<String>,
-            public val currentIndex: Int,
-            public val currentPosition: Long,
-            public val metadata: Map<String, String>?,
+            val groupPath: String,
+            val filePaths: List<String>,
+            val currentIndex: Int,
+            val currentPosition: Long,
+            val metadata: Map<String, String>?,
         )
 
-        suspend fun saveCurrentMediaItem(
+        public suspend fun saveCurrentMediaItem(
             mediaId: String,
             positionMs: Long,
             durationMs: Long,
@@ -91,7 +91,7 @@ public class PlayerPersistenceManager
             }
         }
 
-        suspend fun retrieveLastStoredMediaItem(): Map<String, Any?>? =
+        public suspend fun retrieveLastStoredMediaItem(): Map<String, Any?>? =
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -118,7 +118,7 @@ public class PlayerPersistenceManager
                 }
             }
 
-        suspend fun retrievePersistedPlayerState(): PersistedPlayerState? =
+        public suspend fun retrievePersistedPlayerState(): PersistedPlayerState? =
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -168,7 +168,7 @@ public class PlayerPersistenceManager
         }
 
         // NEW: Per-book state for Backup/Restore & Activity Sorting
-        suspend fun savePlayerState(state: PlayerState) =
+        public suspend fun savePlayerState(state: PlayerState) =
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -188,7 +188,7 @@ public class PlayerPersistenceManager
                 }
             }
 
-        suspend fun getPlayerState(bookId: String): PlayerState? =
+        public suspend fun getPlayerState(bookId: String): PlayerState? =
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -210,7 +210,7 @@ public class PlayerPersistenceManager
                 }
             }
 
-        suspend fun updateLastPlayed(bookId: String) {
+        public suspend fun updateLastPlayed(bookId: String) {
             val currentState = getPlayerState(bookId)
             val newState =
                 if (currentState != null) {
@@ -232,7 +232,7 @@ public class PlayerPersistenceManager
             prefs.edit().putString(KEY_LAST_PLAYED_BOOK_ID, bookId).apply()
         }
 
-        suspend fun markCompleted(bookId: String) {
+        public suspend fun markCompleted(bookId: String) {
             val currentState = getPlayerState(bookId)
             if (currentState != null && currentState.completedTimestamp == 0L) {
                 savePlayerState(currentState.copy(completedTimestamp = System.currentTimeMillis()))
@@ -254,7 +254,7 @@ public class PlayerPersistenceManager
          * Increments the play count for a book.
          * Should be called when a book/chapter is completed.
          */
-        suspend fun incrementPlayCount(bookId: String) {
+        public suspend fun incrementPlayCount(bookId: String) {
             val currentState = getPlayerState(bookId)
             val newState =
                 if (currentState != null) {
@@ -275,7 +275,7 @@ public class PlayerPersistenceManager
         /**
          * Gets the play count for a book.
          */
-        suspend fun getPlayCount(bookId: String): Int {
+        public suspend fun getPlayCount(bookId: String): Int {
             val state = getPlayerState(bookId)
             return state?.playCount ?: 0
         }
@@ -287,11 +287,11 @@ public class PlayerPersistenceManager
  * Lightweight state for backup and sorting
  */
 public data class PlayerState(
-    public val bookId: String,
-    public val positionMs: Long,
-    public val durationMs: Long,
-    public val filePaths: List<String>,
-    public val lastPlayedTimestamp: Int = L,
-    public val completedTimestamp: Int = L,
-    public val playCount: Int = 0,
+    val bookId: String,
+    val positionMs: Long,
+    val durationMs: Long,
+    val filePaths: List<String>,
+    val lastPlayedTimestamp: Int = L,
+    val completedTimestamp: Int = L,
+    val playCount: Int = 0,
 )

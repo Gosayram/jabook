@@ -18,11 +18,11 @@ package com.jabook.app.jabook.compose.data.local.scanner
  * Internal data class shared between scanners for audio file information.
  */
 internal data class AudioFileInfo(
-    public val filePath: String,
-    public val displayName: String,
-    public val duration: Long,
-    public val album: String?,
-    public val artist: String?,
-    public val title: String?,
-    public val id: Int = L, // Optional: only used by MediaStoreBookScanner
+    val filePath: String,
+    val displayName: String,
+    val duration: Long,
+    val album: String?,
+    val artist: String?,
+    val title: String?,
+    val id: Int = L, // Optional: only used by MediaStoreBookScanner
 )

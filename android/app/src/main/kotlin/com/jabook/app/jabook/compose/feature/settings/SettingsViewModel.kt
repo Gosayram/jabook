@@ -69,7 +69,7 @@ public class SettingsViewModel
         private val torrentManager: TorrentManager,
     ) : ViewModel() {
         // Expose active downloads for the settings UI
-        public val activeDownloads: StateFlow<List<TorrentDownload>> =
+        val activeDownloads: StateFlow<List<TorrentDownload>> =
             torrentManager.downloadsFlow
                 .map { downloadMap ->
                     downloadMap.values
@@ -89,7 +89,7 @@ public class SettingsViewModel
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = emptyList(),
                 )
-        public val scanProgress: StateFlow<ScanProgress> =
+        val scanProgress: StateFlow<ScanProgress> =
             booksRepository.getScanProgress().stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -146,7 +146,7 @@ public class SettingsViewModel
         /**
          * New Proto DataStore settings.
          */
-        public val protoSettings: StateFlow<UserPreferences> =
+        val protoSettings: StateFlow<UserPreferences> =
             settingsRepository.userPreferences.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -268,12 +268,12 @@ public class SettingsViewModel
         /**
          * Current mirror domain from MirrorManager.
          */
-        public val currentMirror: StateFlow<String> = mirrorManager.currentMirror
+        val currentMirror: StateFlow<String> = mirrorManager.currentMirror
 
         /**
          * Available mirrors (default + custom).
          */
-        public val availableMirrors: StateFlow<List<String>> = mirrorManager.availableMirrors
+        val availableMirrors: StateFlow<List<String>> = mirrorManager.availableMirrors
 
         /**
          * Update the selected mirror.
@@ -360,7 +360,7 @@ public class SettingsViewModel
         }
 
         private val _torrentStorageSize = MutableStateFlow<Long>(0L)
-        public val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
+        val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
 
         public fun loadTorrentStorageSize() {
             viewModelScope.launch {
@@ -384,7 +384,7 @@ public class SettingsViewModel
         // ===== Backup & Restore =====
 
         private val _backupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
-        public val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
+        val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
 
         /**
          * Export app data to JSON backup file.
@@ -426,10 +426,10 @@ public class SettingsViewModel
         // ===== Cache Management =====
 
         private val _cacheStats = MutableStateFlow<CacheStatistics?>(null)
-        public val cacheStats: StateFlow<CacheStatistics?> = _cacheStats.asStateFlow()
+        val cacheStats: StateFlow<CacheStatistics?> = _cacheStats.asStateFlow()
 
         private val _cacheOperation = MutableStateFlow<CacheOperationState>(CacheOperationState.Idle)
-        public val cacheOperation: StateFlow<CacheOperationState> = _cacheOperation.asStateFlow()
+        val cacheOperation: StateFlow<CacheOperationState> = _cacheOperation.asStateFlow()
 
         /**
          * Load cache statistics.
@@ -535,17 +535,17 @@ public sealed class BackupUiState {
     data object Exporting : BackupUiState()
 
     public data class ExportReady(
-        public val uri: Uri,
+        val uri: Uri,
     ) : BackupUiState()
 
     data object Importing : BackupUiState()
 
     public data class ImportComplete(
-        public val stats: ImportStats,
+        val stats: ImportStats,
     ) : BackupUiState()
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : BackupUiState()
 }
 
@@ -562,6 +562,6 @@ public sealed class CacheOperationState {
     data object Success : CacheOperationState()
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : CacheOperationState()
 }

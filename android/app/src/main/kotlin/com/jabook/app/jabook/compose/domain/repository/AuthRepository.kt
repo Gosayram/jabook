@@ -26,18 +26,18 @@ public interface AuthRepository {
     /**
      * Flow of current authentication status.
      */
-    public val authStatus: Flow<AuthStatus>
+    val authStatus: Flow<AuthStatus>
 
     /**
      * Attempt to log in with username and password.
      * @return Result.success(true) if successful, Result.failure if error.
      */
-    suspend fun login(credentials: UserCredentials): Result<Boolean>
+    public suspend fun login(credentials: UserCredentials): Result<Boolean>
 
     /**
      * Attempt to log in with captcha.
      */
-    suspend fun loginWithCaptcha(
+    public suspend fun loginWithCaptcha(
         credentials: UserCredentials,
         captchaCode: String,
         captchaData: CaptchaData,
@@ -46,37 +46,37 @@ public interface AuthRepository {
     /**
      * Log out the current user.
      */
-    suspend fun logout()
+    public suspend fun logout()
 
     /**
      * Check if user is currently logged in (valid session).
      */
-    suspend fun isLoggedIn(): Boolean
+    public suspend fun isLoggedIn(): Boolean
 
     /**
      * Save credentials for auto-login.
      */
-    suspend fun saveCredentials(credentials: UserCredentials)
+    public suspend fun saveCredentials(credentials: UserCredentials)
 
     /**
      * Get stored credentials.
      */
-    suspend fun getStoredCredentials(): UserCredentials?
+    public suspend fun getStoredCredentials(): UserCredentials?
 
     /**
      * Sync cookies from system WebView to PersistentCookieJar.
      * Should be called after WebView login.
      */
-    suspend fun syncCookiesFromWebView()
+    public suspend fun syncCookiesFromWebView()
 
     /**
      * Sync cookies from PersistentCookieJar to system WebView.
      * Should be called on app start or before WebView navigation.
      */
-    suspend fun syncCookiesToWebView()
+    public suspend fun syncCookiesToWebView()
 
     /**
      * Clear stored credentials.
      */
-    suspend fun clearStoredCredentials()
+    public suspend fun clearStoredCredentials()
 }

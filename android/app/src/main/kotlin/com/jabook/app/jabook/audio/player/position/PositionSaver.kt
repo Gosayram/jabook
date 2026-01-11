@@ -104,7 +104,7 @@ public class PositionSaver
          * @param trackIndex The current track index
          * @param position The current position
          */
-        suspend fun saveImmediately(
+        public suspend fun saveImmediately(
             bookId: String,
             trackIndex: Int,
             position: Long,

@@ -31,13 +31,13 @@ public object PlayerStateTransfer {
      * Saved player state for transfer.
      */
     public data class SavedPlayerState(
-        public val mediaItems: List<MediaItem>,
-        public val currentMediaItemIndex: Int,
-        public val currentPosition: Long,
-        public val playWhenReady: Boolean,
-        public val playbackSpeed: Float,
-        public val shuffleModeEnabled: Boolean,
-        public val repeatMode: Int,
+        val mediaItems: List<MediaItem>,
+        val currentMediaItemIndex: Int,
+        val currentPosition: Long,
+        val playWhenReady: Boolean,
+        val playbackSpeed: Float,
+        val shuffleModeEnabled: Boolean,
+        val repeatMode: Int,
     )
 
     /**

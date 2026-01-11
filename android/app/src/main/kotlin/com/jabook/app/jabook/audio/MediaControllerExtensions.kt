@@ -127,7 +127,7 @@ public object MediaControllerExtensions {
      * Gets sleep timer remaining seconds.
      * Returns null if timer is not active or set to end of chapter.
      */
-    suspend fun getSleepTimerRemainingSeconds(controller: MediaController): Int? =
+    public suspend fun getSleepTimerRemainingSeconds(controller: MediaController): Int? =
         withContext(Dispatchers.IO) {
             try {
                 val command =
@@ -155,7 +155,7 @@ public object MediaControllerExtensions {
     /**
      * Checks if sleep timer is active.
      */
-    suspend fun isSleepTimerActive(controller: MediaController): Boolean =
+    public suspend fun isSleepTimerActive(controller: MediaController): Boolean =
         withContext(Dispatchers.IO) {
             try {
                 val command =
@@ -179,7 +179,7 @@ public object MediaControllerExtensions {
     /**
      * Checks if sleep timer is set to end of chapter.
      */
-    suspend fun isSleepTimerEndOfChapter(controller: MediaController): Boolean =
+    public suspend fun isSleepTimerEndOfChapter(controller: MediaController): Boolean =
         withContext(Dispatchers.IO) {
             try {
                 val command =
@@ -203,7 +203,7 @@ public object MediaControllerExtensions {
     /**
      * Gets current group path (book ID).
      */
-    suspend fun getCurrentGroupPath(controller: MediaController): String? =
+    public suspend fun getCurrentGroupPath(controller: MediaController): String? =
         withContext(Dispatchers.IO) {
             try {
                 val command =
@@ -227,7 +227,7 @@ public object MediaControllerExtensions {
     /**
      * Gets current file paths (playlist).
      */
-    suspend fun getCurrentFilePaths(controller: MediaController): List<String>? =
+    public suspend fun getCurrentFilePaths(controller: MediaController): List<String>? =
         withContext(Dispatchers.IO) {
             try {
                 val command =

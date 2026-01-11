@@ -42,14 +42,14 @@ public class DownloadHistoryViewModel
     ) : ViewModel() {
         // Search query
         private val _searchQuery = MutableStateFlow("")
-        public val searchQuery: StateFlow<String> = _searchQuery
+        val searchQuery: StateFlow<String> = _searchQuery
 
         // Sort order
         private val _sortOrder = MutableStateFlow(HistorySortOrder.DATE_DESC)
-        public val sortOrder: StateFlow<HistorySortOrder> = _sortOrder
+        val sortOrder: StateFlow<HistorySortOrder> = _sortOrder
 
         // History with filters applied - simplified approach
-        public val history: StateFlow<List<DownloadHistoryEntity>> =
+        val history: StateFlow<List<DownloadHistoryEntity>> =
             _searchQuery
                 .flatMapLatest { query ->
                     downloadHistoryDao.getHistoryWithFilter(query, _sortOrder.value)
@@ -79,7 +79,7 @@ public class DownloadHistoryViewModel
         // Delete old entries (older than 30 days)
         public fun deleteOldEntries() {
             viewModelScope.launch {
-                public val cutoffTime = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
+                val cutoffTime = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
                 downloadHistoryDao.deleteOlderThan(cutoffTime)
             }
         }

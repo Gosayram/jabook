@@ -31,7 +31,7 @@ public class ServiceLifecycleManager
          * Called when service is being destroyed.
          * Saves current playback state.
          */
-        suspend fun onServiceDestroyed(
+        public suspend fun onServiceDestroyed(
             bookId: String,
             trackIndex: Int,
             position: Long,

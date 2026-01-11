@@ -35,7 +35,7 @@ public class MigrationViewModel
         private val migrationManager: DataMigrationManager,
     ) : ViewModel() {
         private val _state = MutableStateFlow<MigrationUiState>(MigrationUiState.Checking)
-        public val state: StateFlow<MigrationUiState> = _state.asStateFlow()
+        val state: StateFlow<MigrationUiState> = _state.asStateFlow()
 
         init {
             checkAndStartMigration()
@@ -45,7 +45,7 @@ public class MigrationViewModel
             viewModelScope.launch {
                 try {
                     // Check if migration is needed
-                    public val needsMigration = migrationManager.needsMigration()
+                    val needsMigration = migrationManager.needsMigration()
 
                     if (!needsMigration) {
                         _state.value = MigrationUiState.NotNeeded
@@ -86,12 +86,12 @@ public sealed class MigrationUiState {
     public object Migrating : MigrationUiState()
 
     public data class Success(
-        public val booksCount: Int,
-        public val chaptersCount: Int,
+        val booksCount: Int,
+        val chaptersCount: Int,
     ) : MigrationUiState()
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : MigrationUiState()
 
     public object NotNeeded : MigrationUiState()

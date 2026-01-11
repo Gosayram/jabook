@@ -67,5 +67,5 @@ public interface SearchHistoryDao {
         )
         """,
     )
-    suspend fun trimHistory(keepCount: Int = 50)
+    public suspend fun trimHistory(keepCount: Int = 50)
 }

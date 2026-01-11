@@ -42,13 +42,13 @@ public class AudioVisualizerManager(
     private var audioSessionId: Int = 0
 
     private val _waveformData = MutableStateFlow(FloatArray(CAPTURE_SIZE))
-    public val waveformData: StateFlow<FloatArray> = _waveformData.asStateFlow()
+    val waveformData: StateFlow<FloatArray> = _waveformData.asStateFlow()
 
     private val _fftData = MutableStateFlow(FloatArray(CAPTURE_SIZE / 2))
-    public val fftData: StateFlow<FloatArray> = _fftData.asStateFlow()
+    val fftData: StateFlow<FloatArray> = _fftData.asStateFlow()
 
     private val _isActive = MutableStateFlow(false)
-    public val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
+    val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
 
     /**
      * Initialize visualizer with the player's audio session ID.

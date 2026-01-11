@@ -102,7 +102,7 @@ public interface ChaptersDao {
         WHERE id = :chapterId
         """,
     )
-    suspend fun updateChapterProgress(
+    public suspend fun updateChapterProgress(
         chapterId: String,
         position: Long,
         isCompleted: Boolean,

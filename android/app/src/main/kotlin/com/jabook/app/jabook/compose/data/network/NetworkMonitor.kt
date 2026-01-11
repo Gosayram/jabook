@@ -25,6 +25,6 @@ public enum class NetworkType {
 }
 
 public interface NetworkMonitor {
-    public val networkType: Flow<NetworkType>
-    public val isOnline: Flow<Boolean>
+    val networkType: Flow<NetworkType>
+    val isOnline: Flow<Boolean>
 }

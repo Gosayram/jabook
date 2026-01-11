@@ -85,7 +85,7 @@ public interface OfflineSearchDao {
         ORDER BY S.rank ASC
     """,
     )
-    suspend fun getResultsForQuery(query: String): List<CachedTopicEntity>
+    public suspend fun getResultsForQuery(query: String): List<CachedTopicEntity>
 
     /**
      * Get a single topic by ID.
@@ -138,7 +138,7 @@ public interface OfflineSearchDao {
         LIMIT :limit
     """,
     )
-    suspend fun searchIndexedTopics(
+    public suspend fun searchIndexedTopics(
         query: String,
         limit: Int = 100,
     ): List<CachedTopicEntity>
@@ -185,7 +185,7 @@ public interface OfflineSearchDao {
         LIMIT :limit OFFSET :offset
     """,
     )
-    suspend fun getAllIndexedTopics(
+    public suspend fun getAllIndexedTopics(
         limit: Int = 100,
         offset: Int = 0,
     ): List<CachedTopicEntity>
@@ -206,7 +206,7 @@ public interface OfflineSearchDao {
         LIMIT :limit
     """,
     )
-    suspend fun getTopicsNeedingUpdate(
+    public suspend fun getTopicsNeedingUpdate(
         maxAgeMs: Long,
         currentIndexVersion: Int,
         limit: Int = 1000,
@@ -224,7 +224,7 @@ public interface OfflineSearchDao {
         WHERE topic_id IN (:topicIds)
     """,
     )
-    suspend fun getExistingTopicIds(topicIds: List<String>): List<String>
+    public suspend fun getExistingTopicIds(topicIds: List<String>): List<String>
 
     /**
      * Get index metadata (oldest and newest timestamps, total count).
@@ -241,7 +241,7 @@ public interface OfflineSearchDao {
         FROM cached_topics
     """,
     )
-    suspend fun getIndexMetadata(): IndexMetadata?
+    public suspend fun getIndexMetadata(): IndexMetadata?
 }
 
 /**
@@ -249,13 +249,13 @@ public interface OfflineSearchDao {
  */
 public data class IndexMetadata(
     @ColumnInfo(name = "count")
-    public val count: Int,
+    val count: Int,
     @ColumnInfo(name = "oldest")
-    public val oldest: Long?,
+    val oldest: Long?,
     @ColumnInfo(name = "newest")
-    public val newest: Long?,
+    val newest: Long?,
     @ColumnInfo(name = "oldest_updated")
-    public val oldestUpdated: Long?,
+    val oldestUpdated: Long?,
     @ColumnInfo(name = "newest_updated")
-    public val newestUpdated: Long?,
+    val newestUpdated: Long?,
 )

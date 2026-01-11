@@ -20,14 +20,14 @@ package com.jabook.app.jabook.compose.data.model
  * This is stored in DataStore and exposed via UserPreferencesRepository.
  */
 public data class UserData(
-    public val theme: AppTheme = AppTheme.SYSTEM,
-    public val sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY,
-    public val viewMode: LibraryViewMode = LibraryViewMode.LIST_COMPACT,
-    public val autoPlayNext: Boolean = true,
-    public val playbackSpeed: Float = 1.0f,
-    public val font: AppFont = AppFont.DEFAULT,
-    public val normalizeChapterTitles: Boolean = false, // Default: OFF
-    public val onboardingCompleted: Boolean = false,
+    val theme: AppTheme = AppTheme.SYSTEM,
+    val sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY,
+    val viewMode: LibraryViewMode = LibraryViewMode.LIST_COMPACT,
+    val autoPlayNext: Boolean = true,
+    val playbackSpeed: Float = 1.0f,
+    val font: AppFont = AppFont.DEFAULT,
+    val normalizeChapterTitles: Boolean = false, // Default: OFF
+    val onboardingCompleted: Boolean = false,
 )
 
 /**

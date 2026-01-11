@@ -32,22 +32,22 @@ package com.jabook.app.jabook.compose.domain.model
  * @property showDownloadStatus Whether to show download status (default false, for future use)
  */
 public data class BookActionsProvider(
-    public val onBookClick: (bookId: String) -> Unit,
-    public val onBookLongPress: (bookId: String) -> Unit,
-    public val onToggleFavorite: (bookId: String, isFavorite: Boolean) -> Unit,
-    public val favoriteIds: Set<String> = emptySet(),
-    public val showProgress: Boolean = true,
-    public val showFavoriteButton: Boolean = true,
-    public val showDownloadStatus: Boolean = false,
+    val onBookClick: (bookId: String) -> Unit,
+    val onBookLongPress: (bookId: String) -> Unit,
+    val onToggleFavorite: (bookId: String, isFavorite: Boolean) -> Unit,
+    val favoriteIds: Set<String> = emptySet(),
+    val showProgress: Boolean = true,
+    val showFavoriteButton: Boolean = true,
+    val showDownloadStatus: Boolean = false,
     // Optional contextual actions
     /** Share book details/link */
-    public val onShareBook: ((String) -> Unit)? = null,
+    val onShareBook: ((String) -> Unit)? = null,
     /** Delete book from library */
-    public val onDeleteBook: ((String) -> Unit)? = null,
+    val onDeleteBook: ((String) -> Unit)? = null,
     /** Add book to playlist */
-    public val onAddToPlaylist: ((String) -> Unit)? = null,
+    val onAddToPlaylist: ((String) -> Unit)? = null,
     /** Show detailed book information */
-    public val onShowBookInfo: ((String) -> Unit)? = null,
+    val onShowBookInfo: ((String) -> Unit)? = null,
 ) {
     /**
      * Checks if a book is in favorites.

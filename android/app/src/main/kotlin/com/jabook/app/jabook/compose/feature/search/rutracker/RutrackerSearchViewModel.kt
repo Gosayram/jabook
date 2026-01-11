@@ -36,8 +36,8 @@ import javax.inject.Inject
  * UI model for search result with library status.
  */
 public data class SearchResultUi(
-    public val result: RutrackerSearchResult,
-    public val isInLibrary: Boolean = false,
+    val result: RutrackerSearchResult,
+    val isInLibrary: Boolean = false,
 )
 
 /**
@@ -58,13 +58,13 @@ public class RutrackerSearchViewModel
         }
 
         private val _searchState = MutableStateFlow<SearchState>(SearchState.Empty)
-        public val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
+        val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
 
         private val _filters = MutableStateFlow(RutrackerSearchFilters())
-        public val filters: StateFlow<RutrackerSearchFilters> = _filters.asStateFlow()
+        val filters: StateFlow<RutrackerSearchFilters> = _filters.asStateFlow()
 
         private val _sortOrder = MutableStateFlow(RutrackerSortOrder.RELEVANCE)
-        public val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
+        val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
 
         // Store original results for client-side filtering/sorting
         private var originalResults: List<RutrackerSearchResult> = emptyList()
@@ -288,8 +288,8 @@ public class RutrackerSearchViewModel
          * Handles formats like "1.5 GB", "500 MB", etc.
          */
         private fun parseSizeToMb(sizeStr: String): Double {
-            public val pattern = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)
-            public val match = pattern.find(sizeStr) ?: return 0.0
+            val pattern = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)
+            val match = pattern.find(sizeStr) ?: return 0.0
 
             val value = match.groupValues[1].toDoubleOrNull() ?: return 0.0
             val unit = match.groupValues[2].uppercase()
@@ -315,12 +315,12 @@ public sealed class SearchState {
 
     /** Search completed successfully */
     public data class Success(
-        public val results: List<SearchResultUi>,
-        public val isCached: Boolean = false,
+        val results: List<SearchResultUi>,
+        val isCached: Boolean = false,
     ) : SearchState()
 
     /** Search failed */
     public data class Error(
-        public val message: String?, // Nullable - UI should use stringResource(R.string.unknownError) as fallback
+        val message: String?, // Nullable - UI should use stringResource(R.string.unknownError) as fallback
     ) : SearchState()
 }

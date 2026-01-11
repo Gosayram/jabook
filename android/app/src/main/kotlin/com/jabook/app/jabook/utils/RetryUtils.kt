@@ -33,11 +33,11 @@ import kotlin.math.pow
  * @param shouldRetry Predicate to determine if exception should trigger retry (default: retry on IOException)
  */
 public data class RetryConfig(
-    public val maxRetries: Int = 3,
-    public val initialDelayMs: Int = L,
-    public val maxDelayMs: Int = 120_000L,
-    public val backoffMultiplier: Double = 2.0,
-    public val shouldRetry: (Throwable) -> Boolean = { it is java.io.IOException || it is java.net.SocketTimeoutException },
+    val maxRetries: Int = 3,
+    val initialDelayMs: Int = L,
+    val maxDelayMs: Int = 120_000L,
+    val backoffMultiplier: Double = 2.0,
+    val shouldRetry: (Throwable) -> Boolean = { it is java.io.IOException || it is java.net.SocketTimeoutException },
 ) {
     /**
      * Calculates delay for exponential backoff.

@@ -290,7 +290,7 @@ internal class PlaylistManager(
      * @param initialTrackIndex Optional track index to load first (for saved position). If null, loads first track (index 0).
      * @param initialPosition Optional position in milliseconds to seek to after loading
      */
-    suspend fun preparePlaybackOptimized(
+    public suspend fun preparePlaybackOptimized(
         filePaths: List<String>,
         metadata: Map<String, String>?,
         initialTrackIndex: Int? = null,
@@ -513,7 +513,7 @@ internal class PlaylistManager(
                         val addedIndices = mutableSetOf<Int>(firstTrackIndex)
 
                         // Helper function to load a single MediaItem in parallel
-                        suspend fun loadMediaItem(
+                        public suspend fun loadMediaItem(
                             index: Int,
                             priority: String,
                         ) {

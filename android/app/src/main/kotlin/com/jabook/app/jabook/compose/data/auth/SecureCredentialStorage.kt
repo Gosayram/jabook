@@ -82,7 +82,7 @@ public class SecureCredentialStorage
          * Save user credentials securely.
          * Uses Tink for encryption before storing in DataStore.
          */
-        suspend fun saveCredentials(credentials: UserCredentials) {
+        public suspend fun saveCredentials(credentials: UserCredentials) {
             // Encrypt credentials
             val encryptedUsername = encrypt(credentials.username)
             val encryptedPassword = encrypt(credentials.password)
@@ -98,7 +98,7 @@ public class SecureCredentialStorage
          * Retrieve stored credentials.
          * @return UserCredentials or null if not found.
          */
-        suspend fun getCredentials(): UserCredentials? {
+        public suspend fun getCredentials(): UserCredentials? {
             val prefs = dataStore.data.first()
 
             val encryptedUsername = prefs[KEY_USERNAME]
@@ -126,7 +126,7 @@ public class SecureCredentialStorage
         /**
          * Clear stored credentials.
          */
-        suspend fun clearCredentials() {
+        public suspend fun clearCredentials() {
             dataStore.edit { prefs ->
                 prefs.remove(KEY_USERNAME)
                 prefs.remove(KEY_PASSWORD)

@@ -18,6 +18,6 @@ package com.jabook.app.jabook.compose.domain.model
  * User credentials for Rutracker authentication.
  */
 public data class UserCredentials(
-    public val username: String,
-    public val password: String,
+    val username: String,
+    val password: String,
 )

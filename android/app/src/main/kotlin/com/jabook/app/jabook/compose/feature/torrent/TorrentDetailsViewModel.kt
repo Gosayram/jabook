@@ -49,7 +49,7 @@ public class TorrentDetailsViewModel
         private val route = savedStateHandle.toRoute<TorrentDetailsRoute>()
         val hash = route.hash
 
-        public val download: StateFlow<TorrentDownload?> =
+        val download: StateFlow<TorrentDownload?> =
             torrentManager.downloadsFlow
                 .map { it[hash] }
                 .stateIn(
@@ -75,8 +75,8 @@ public class TorrentDetailsViewModel
                 // 2. Wait for buffer
                 // Monitor will update isBuffering state automatically
 
-                public var attempts: Int = 0
-                public val maxAttempts: Int = 60 // 30 seconds (500ms * 60)
+                var attempts: Int = 0
+                val maxAttempts: Int = 60 // 30 seconds (500ms * 60)
                 while (!torrentManager.isFileReadyForStreaming(hash, file.index) && attempts < maxAttempts) {
                     kotlinx.coroutines.delay(500L)
                     attempts++
@@ -92,8 +92,8 @@ public class TorrentDetailsViewModel
 
                 // 4. Prepare Book & Chapter
 
-                public val bookId: String = "torrent_${hash}_${file.index}"
-                public val absolutePath = File(currentDownload.savePath, file.path).absolutePath
+                val bookId: String = "torrent_${hash}_${file.index}"
+                val absolutePath = File(currentDownload.savePath, file.path).absolutePath
                 val title = File(file.path).name
 
                 val book =
@@ -116,7 +116,7 @@ public class TorrentDetailsViewModel
                         sourceUrl = null,
                     )
 
-                public val chapter =
+                val chapter =
                     Chapter(
                         id = "${bookId}_ch1",
                         bookId = bookId,

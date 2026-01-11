@@ -1053,7 +1053,7 @@ public class TorrentSessionManager
             if (fileIndex < 0 || fileIndex >= fileStorage.numFiles()) return false
 
             val fileSize = fileStorage.fileSize(fileIndex)
-            val checkSize = minOf(fileSize, bufferSize)
+            val checkSize = minOf(fileSize, bufferSize.toLong())
 
             // If file is very small or fully downloaded, it's ready
             val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
@@ -1066,7 +1066,7 @@ public class TorrentSessionManager
             val fileOffset = fileStorage.fileOffset(fileIndex)
             val startPiece = torrentInfo.mapFile(fileIndex, 0, 0).piece()
             // We only check the beginning of the file for "start" capability
-            val endOffsetInFile = minOf(fileSize, bufferSize)
+            val endOffsetInFile = minOf(fileSize, bufferSize.toLong())
             val endPiece = torrentInfo.mapFile(fileIndex, endOffsetInFile, 0).piece()
 
             // Check if all pieces in range are having pieces

@@ -42,7 +42,7 @@ public class PlaybackPositionRepository
         /**
          * Saves a playback position.
          */
-        suspend fun savePosition(
+        public suspend fun savePosition(
             bookId: String,
             trackIndex: Int,
             position: Long,
@@ -64,7 +64,7 @@ public class PlaybackPositionRepository
         /**
          * Deletes a playback position.
          */
-        suspend fun deletePosition(bookId: String): Result<Unit> =
+        public suspend fun deletePosition(bookId: String): Result<Unit> =
             try {
                 positionDao.deletePosition(bookId)
                 Result.Success(Unit)

@@ -48,12 +48,12 @@ public sealed interface SearchUiState {
     data object Loading : SearchUiState
 
     public data class Success(
-        public val localResults: List<Book>,
-        public val onlineResults: List<RutrackerSearchResult>,
+        val localResults: List<Book>,
+        val onlineResults: List<RutrackerSearchResult>,
     ) : SearchUiState
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : SearchUiState
 }
 
@@ -76,26 +76,26 @@ public class SearchViewModel
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        public val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+        val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
         // Filters and Sort state
         private val _filters = MutableStateFlow(SearchFilters())
-        public val filters: StateFlow<SearchFilters> = _filters.asStateFlow()
+        val filters: StateFlow<SearchFilters> = _filters.asStateFlow()
 
         private val _sortOrder = MutableStateFlow(SearchSortOrder.RELEVANCE)
-        public val sortOrder: StateFlow<SearchSortOrder> = _sortOrder.asStateFlow()
+        val sortOrder: StateFlow<SearchSortOrder> = _sortOrder.asStateFlow()
 
         // Raw results to support client-side filtering
         private val rawOnlineResults = MutableStateFlow<List<RutrackerSearchResult>>(emptyList())
 
         // UI state - derived from raw results and filters
         private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
-        public val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+        val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
         /**
          * Local search results with debouncing (300ms).
          */
-        public val localResults: StateFlow<List<Book>> =
+        val localResults: StateFlow<List<Book>> =
             _searchQuery
                 .debounce(300)
                 .flatMapLatest { query ->
@@ -113,7 +113,7 @@ public class SearchViewModel
         /**
          * Recent search history.
          */
-        public val searchHistory: StateFlow<List<com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity>> =
+        val searchHistory: StateFlow<List<com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity>> =
             searchHistoryRepository
                 .getRecentSearches(limit = 10)
                 .stateIn(
@@ -125,7 +125,7 @@ public class SearchViewModel
         /**
          * Favorite IDs for checking status.
          */
-        public val favoriteIds: StateFlow<Set<String>> =
+        val favoriteIds: StateFlow<Set<String>> =
             favoritesRepository.favoriteIds
                 .map { it.toSet() }
                 .stateIn(

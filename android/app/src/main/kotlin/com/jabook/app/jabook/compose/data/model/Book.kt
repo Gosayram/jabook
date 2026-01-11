@@ -21,31 +21,31 @@ package com.jabook.app.jabook.compose.data.model
  * It is converted from/to Room entities in the data layer.
  */
 public data class Book(
-    public val id: String,
-    public val title: String,
-    public val author: String,
-    public val coverUrl: String?,
-    public val description: String?,
-    public val totalDuration: Long, // Total duration in milliseconds
-    public val addedDate: Long, // Timestamp when book was added
-    public val lastPlayedDate: Long?, // Timestamp of last playback, null if never played
-    public val currentPosition: Long, // Current playback position in milliseconds
-    public val currentChapterIndex: Int, // Index of current chapter
-    public val isDownloaded: Boolean,
-    public val downloadProgress: Float, // 0.0 to 1.0
-    public val chapters: List<Chapter>,
+    val id: String,
+    val title: String,
+    val author: String,
+    val coverUrl: String?,
+    val description: String?,
+    val totalDuration: Long, // Total duration in milliseconds
+    val addedDate: Long, // Timestamp when book was added
+    val lastPlayedDate: Long?, // Timestamp of last playback, null if never played
+    val currentPosition: Long, // Current playback position in milliseconds
+    val currentChapterIndex: Int, // Index of current chapter
+    val isDownloaded: Boolean,
+    val downloadProgress: Float, // 0.0 to 1.0
+    val chapters: List<Chapter>,
 )
 
 /**
  * Domain model representing a chapter in an audiobook.
  */
 public data class Chapter(
-    public val id: String,
-    public val bookId: String,
-    public val title: String,
-    public val chapterIndex: Int, // 0-based index
-    public val fileIndex: Int, // Index in torrent file
-    public val duration: Long, // Duration in milliseconds
-    public val fileUrl: String?, // Local file path if downloaded, null otherwise
-    public val isDownloaded: Boolean,
+    val id: String,
+    val bookId: String,
+    val title: String,
+    val chapterIndex: Int, // 0-based index
+    val fileIndex: Int, // Index in torrent file
+    val duration: Long, // Duration in milliseconds
+    val fileUrl: String?, // Local file path if downloaded, null otherwise
+    val isDownloaded: Boolean,
 )

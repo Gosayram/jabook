@@ -109,7 +109,7 @@ private class CoverPreloader(
      * Preloads covers for the given books.
      * Skips books that have already been preloaded to avoid duplicate requests.
      */
-    suspend fun preloadCovers(books: List<Book>) =
+    public suspend fun preloadCovers(books: List<Book>) =
         withContext(Dispatchers.IO) {
             val newBooks =
                 books.filter { book ->

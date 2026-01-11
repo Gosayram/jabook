@@ -105,7 +105,7 @@ public class ForumIndexer
          * @param onProgress Callback with IndexingProgress updates
          * @return Total number of topics indexed
          */
-        suspend fun indexForums(
+        public suspend fun indexForums(
             forumIds: String,
             preloadCovers: Boolean = true,
             onProgress: ((IndexingProgress) -> Unit)? = null,
@@ -115,8 +115,8 @@ public class ForumIndexer
                 val currentIndexVersion = getCurrentIndexVersion() + 1
                 val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-                public var totalIndexed: Int = 0
-                public val coversToPreload = mutableListOf<String>()
+                var totalIndexed: Int = 0
+                val coversToPreload = mutableListOf<String>()
 
                 // Log current mirror at start of indexing
                 val initialMirror = mirrorManager.getCurrentMirrorDomain()
@@ -305,7 +305,7 @@ public class ForumIndexer
          * @param onProgress Progress callback
          * @return Number of topics updated
          */
-        suspend fun incrementalUpdate(
+        public suspend fun incrementalUpdate(
             forumIds: String,
             maxAgeMs: Long = MAX_AGE_FOR_UPDATE_MS,
             preloadCovers: Boolean = true,
@@ -315,8 +315,8 @@ public class ForumIndexer
                 val currentIndexVersion = getCurrentIndexVersion()
                 val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-                public var totalUpdated: Int = 0
-                public val coversToPreload = mutableListOf<String>()
+                var totalUpdated: Int = 0
+                val coversToPreload = mutableListOf<String>()
 
                 Log.i(TAG, "Starting incremental update (max age: ${maxAgeMs / (1000 * 60 * 60)} hours)")
 
@@ -350,10 +350,10 @@ public class ForumIndexer
             indexVersion: Int,
             onProgress: ((page: Int, topicsInForum: Int) -> Unit)? = null,
         ): Pair<Int, List<String>> {
-            public var totalTopics: Int = 0
-            public var page: Int = 0
-            public var hasMorePages: Boolean = true
-            public val coversToPreload = mutableListOf<String>()
+            var totalTopics: Int = 0
+            var page: Int = 0
+            var hasMorePages: Boolean = true
+            val coversToPreload = mutableListOf<String>()
             val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
 
             val forumStartTime = System.currentTimeMillis()
@@ -453,12 +453,12 @@ public class ForumIndexer
                             hasMorePages = false
                         } else {
                             // Try switching mirror and retry once
-                            public var retrySucceeded: Boolean = false
+                            var retrySucceeded: Boolean = false
                             try {
                                 Log.i(TAG, "Auto-switch enabled, attempting to switch mirror...")
-                                public val switched = mirrorManager.switchToNextMirror()
+                                val switched = mirrorManager.switchToNextMirror()
                                 if (switched) {
-                                    public val newMirror = mirrorManager.currentMirror.value
+                                    val newMirror = mirrorManager.currentMirror.value
                                     Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
                                     delay(500L) // Brief delay before retry
                                     // Retry the request
@@ -570,10 +570,10 @@ public class ForumIndexer
             currentIndexVersion: Int,
             onProgress: ((forumId: String, updated: Int, total: Int) -> Unit)?,
         ): Pair<Int, List<String>> {
-            public var totalUpdated: Int = 0
-            public var page: Int = 0
-            public var hasMorePages: Boolean = true
-            public val coversToPreload = mutableListOf<String>()
+            var totalUpdated: Int = 0
+            var page: Int = 0
+            var hasMorePages: Boolean = true
+            val coversToPreload = mutableListOf<String>()
 
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {
@@ -766,7 +766,7 @@ public class ForumIndexer
          *
          * @return Total number of indexed topics
          */
-        suspend fun getIndexSize(): Int =
+        public suspend fun getIndexSize(): Int =
             withContext(Dispatchers.IO) {
                 offlineSearchDao.getTopicCount()
             }
@@ -776,7 +776,7 @@ public class ForumIndexer
          *
          * @return IndexMetadata with statistics
          */
-        suspend fun getIndexMetadata(): IndexMetadata? =
+        public suspend fun getIndexMetadata(): IndexMetadata? =
             withContext(Dispatchers.IO) {
                 offlineSearchDao.getIndexMetadata()
             }
@@ -799,7 +799,7 @@ public class ForumIndexer
          * @param maxAgeMs Maximum age in milliseconds
          * @return True if index needs update
          */
-        suspend fun needsUpdate(maxAgeMs: Long = MAX_AGE_FOR_UPDATE_MS): Boolean =
+        public suspend fun needsUpdate(maxAgeMs: Long = MAX_AGE_FOR_UPDATE_MS): Boolean =
             withContext(Dispatchers.IO) {
                 val metadata = offlineSearchDao.getIndexMetadata()
                 if (metadata == null || metadata.count == 0) {
@@ -814,7 +814,7 @@ public class ForumIndexer
         /**
          * Clear the entire index.
          */
-        suspend fun clearIndex() =
+        public suspend fun clearIndex() =
             withContext(Dispatchers.IO) {
                 offlineSearchDao.deleteAllTopics()
                 offlineSearchDao.deleteAllMappings()

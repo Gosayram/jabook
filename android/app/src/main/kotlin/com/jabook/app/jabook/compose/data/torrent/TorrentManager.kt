@@ -46,7 +46,7 @@ public class TorrentManager
         private val networkMonitor: NetworkMonitor,
     ) {
         /** Current downloads */
-        public val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
+        val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
             get() = sessionManager.downloadsFlow
 
         private var isInitialized = false
@@ -94,7 +94,7 @@ public class TorrentManager
         ): Result<String> {
             ensureInitialized()
 
-            public val result = sessionManager.addTorrent(magnetUri, savePath, selectedFileIndices, topicId)
+            val result = sessionManager.addTorrent(magnetUri, savePath, selectedFileIndices, topicId)
 
             if (result.isSuccess) {
                 // Start foreground service
@@ -220,7 +220,7 @@ public class TorrentManager
          * Delete all torrents
          */
         public fun deleteAllTorrents() {
-            public val hashes = downloadsFlow.value.keys.toList()
+            val hashes = downloadsFlow.value.keys.toList()
             hashes.forEach { hash ->
                 sessionManager.removeTorrent(hash, deleteFiles)
             }
@@ -258,7 +258,7 @@ public class TorrentManager
 
         private fun startDownloadService() {
             try {
-                public val intent =
+                val intent =
                     Intent(context, TorrentDownloadService::class.java).apply {
                         action = TorrentDownloadService.ACTION_START
                     }
@@ -279,7 +279,7 @@ public class TorrentManager
 
         private fun stopDownloadService() {
             try {
-                public val intent =
+                val intent =
                     Intent(context, TorrentDownloadService::class.java).apply {
                         action = TorrentDownloadService.ACTION_STOP
                     }
@@ -322,14 +322,14 @@ public class TorrentManager
             wifiOnly: Boolean,
             net: NetworkType,
         ) {
-            public val isRestricted = wifiOnly && net == NetworkType.CELLULAR
+            val isRestricted = wifiOnly && net == NetworkType.CELLULAR
 
             if (isRestricted) {
                 if (!pausedByNetwork) {
-                    public val currentDownloads = downloadsFlow.value
+                    val currentDownloads = downloadsFlow.value
 
                     // Identify active downloads to pause
-                    public val active =
+                    val active =
                         currentDownloads.values
                             .filter {
                                 it.state != TorrentState.PAUSED &&

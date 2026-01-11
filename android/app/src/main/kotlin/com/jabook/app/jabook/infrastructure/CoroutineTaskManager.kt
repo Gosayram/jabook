@@ -80,7 +80,7 @@ public object CoroutineTaskManager {
     private val lightDispatcher: CoroutineDispatcher = lightExecutor.asCoroutineDispatcher()
 
     // Limited parallelism dispatchers (for MediaItem creation, etc.)
-    public val mediaItemDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(4)
+    val mediaItemDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(4)
 
     // Task counters for monitoring
     private val activeHeavyTasks = AtomicInteger(0)

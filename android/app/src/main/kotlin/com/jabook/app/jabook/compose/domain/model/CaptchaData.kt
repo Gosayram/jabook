@@ -19,9 +19,9 @@ package com.jabook.app.jabook.compose.domain.model
  */
 public data class CaptchaData(
     /** The URL of the captcha image */
-    public val url: String,
+    val url: String,
     /** The session ID or key associated with the captcha */
-    public val sid: String,
+    val sid: String,
     /** Additional form code if required */
-    public val code: String? = null,
+    val code: String? = null,
 )

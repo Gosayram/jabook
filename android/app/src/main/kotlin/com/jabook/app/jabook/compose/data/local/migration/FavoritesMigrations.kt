@@ -59,7 +59,7 @@ val MIGRATION_6_7 =
                     "CREATE INDEX IF NOT EXISTS index_favorites_added_to_favorites " +
                         "ON favorites (added_to_favorites)",
                 )
-                public val duration = System.currentTimeMillis() - startTime
+                val duration = System.currentTimeMillis() - startTime
                 Log.i(TAG, "✅ Migration 6→7 completed successfully (${duration}ms)")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Migration 6→7 failed: ${e.message}", e)

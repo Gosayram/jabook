@@ -109,8 +109,8 @@ public class SyncWorker
                             // Update metadata if needed
                             // For now, we mainly care about missing covers or empty metadata
 
-                            public var needsUpdate: Boolean = false
-                            public val updatedBook = matchedBook.copy() // Create copy to modify
+                            var needsUpdate: Boolean = false
+                            val updatedBook = matchedBook.copy() // Create copy to modify
 
                             // Update title if generic
                             if (matchedBook.title.isEmpty() || matchedBook.title == "Unknown Title") {
@@ -181,8 +181,8 @@ public class SyncWorker
                     val coverDir = java.io.File(applicationContext.filesDir, "covers")
                     if (!coverDir.exists()) coverDir.mkdirs()
 
-                    public val fileName: String = "cover_${book.id}.jpg"
-                    public val coverFile = java.io.File(coverDir, fileName)
+                    val fileName: String = "cover_${book.id}.jpg"
+                    val coverFile = java.io.File(coverDir, fileName)
 
                     if (!coverFile.exists()) {
                         // Download file

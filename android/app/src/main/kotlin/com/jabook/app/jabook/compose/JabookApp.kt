@@ -188,7 +188,7 @@ public fun JabookApp(
         // Mini-player state management using MiniPlayerViewModel
         // MiniPlayerViewModel is a lightweight wrapper around AudioPlayerController
         // Safe to instantiate at app root (no navigation dependencies)
-        public val miniPlayerViewModel: com.jabook.app.jabook.compose.feature.miniplayer.MiniPlayerViewModel = hiltViewModel()
+        val miniPlayerViewModel: com.jabook.app.jabook.compose.feature.miniplayer.MiniPlayerViewModel = hiltViewModel()
         val isPlaying by miniPlayerViewModel.isPlaying.collectAsStateWithLifecycle()
         val currentPosition by miniPlayerViewModel.currentPosition.collectAsStateWithLifecycle()
         val duration by miniPlayerViewModel.duration.collectAsStateWithLifecycle()

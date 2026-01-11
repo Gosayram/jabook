@@ -46,7 +46,7 @@ public interface RutrackerRepository {
      * @param query Search query
      * @return Flow of Result with list of search results
      */
-    suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>>>
+    public suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>>>
 
     /**
      * Fetch topic details and save cover URL to database.
@@ -54,7 +54,7 @@ public interface RutrackerRepository {
      * @param topicId Topic ID
      * @return Result indicating success or failure
      */
-    suspend fun fetchAndSaveCover(topicId: String): Result<Unit>
+    public suspend fun fetchAndSaveCover(topicId: String): Result<Unit>
 
     /**
      * Get topic details.
@@ -62,7 +62,7 @@ public interface RutrackerRepository {
      * @param topicId Topic ID
      * @return Result with topic details
      */
-    suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails>
+    public suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails>
 
     /**
      * Login to Rutracker.
@@ -71,7 +71,7 @@ public interface RutrackerRepository {
      * @param password Password
      * @return Result indicating success or failure
      */
-    suspend fun login(
+    public suspend fun login(
         username: String,
         password: String,
     ): Result<Unit>
@@ -83,7 +83,7 @@ public interface RutrackerRepository {
      * @param page Page number (1-indexed)
      * @return Result with topic details for that page
      */
-    suspend fun getTopicDetailsPage(
+    public suspend fun getTopicDetailsPage(
         topicId: String,
         page: Int,
     ): Result<RutrackerTopicDetails>
@@ -145,7 +145,7 @@ public class RutrackerRepositoryImpl
                                 if (index > 0) sqlBuilder.append(" AND ")
                                 sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
 
-                                public val likePattern: String = "%$token%"
+                                val likePattern: String = "%$token%"
                                 args.add(likePattern)
                                 args.add(likePattern)
                             }
@@ -250,7 +250,7 @@ public class RutrackerRepositoryImpl
         ): Result<Unit> {
             return try {
                 // Create form-url-encoded request body with CP1251 encoding
-                public val formBody: String = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
+                val formBody: String = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
                 val requestBody =
                     formBody
                         .toByteArray(charset("windows-1251"))

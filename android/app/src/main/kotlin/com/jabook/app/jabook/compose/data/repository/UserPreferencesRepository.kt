@@ -31,45 +31,45 @@ public interface UserPreferencesRepository {
      * Get user preferences as a Flow.
      * Emits whenever preferences change.
      */
-    public val userData: Flow<UserData>
+    val userData: Flow<UserData>
 
     /**
      * Update app theme preference.
      */
-    suspend fun setTheme(theme: AppTheme)
+    public suspend fun setTheme(theme: AppTheme)
 
     /**
      * Update book sort order preference.
      */
-    suspend fun setSortOrder(sortOrder: BookSortOrder)
+    public suspend fun setSortOrder(sortOrder: BookSortOrder)
 
     /**
      * Update library view mode preference.
      */
-    suspend fun setViewMode(viewMode: LibraryViewMode)
+    public suspend fun setViewMode(viewMode: LibraryViewMode)
 
     /**
      * Update auto-play next preference.
      */
-    suspend fun setAutoPlayNext(enabled: Boolean)
+    public suspend fun setAutoPlayNext(enabled: Boolean)
 
     /**
      * Update playback speed preference.
      */
-    suspend fun setPlaybackSpeed(speed: Float)
+    public suspend fun setPlaybackSpeed(speed: Float)
 
     /**
      * Update font preference.
      */
-    suspend fun setFont(font: AppFont)
+    public suspend fun setFont(font: AppFont)
 
     /**
      * Update chapter title normalization preference.
      */
-    suspend fun setNormalizeChapterTitles(enabled: Boolean)
+    public suspend fun setNormalizeChapterTitles(enabled: Boolean)
 
     /**
      * Update onboarding completion status.
      */
-    suspend fun setOnboardingCompleted(completed: Boolean)
+    public suspend fun setOnboardingCompleted(completed: Boolean)
 }

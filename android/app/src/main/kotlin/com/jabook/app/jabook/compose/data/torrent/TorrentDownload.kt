@@ -19,50 +19,50 @@ package com.jabook.app.jabook.compose.data.torrent
  */
 public data class TorrentDownload(
     /** Info hash (unique identifier) */
-    public val hash: String,
+    val hash: String,
     /** Torrent name */
-    public val name: String,
+    val name: String,
     /** Current state */
-    public val state: TorrentState,
+    val state: TorrentState,
     /** Download progress (0.0-1.0) */
-    public val progress: Float = 0f,
+    val progress: Float = 0f,
     /** Download speed in bytes/sec */
-    public val downloadSpeed: Int = 0,
+    val downloadSpeed: Int = 0,
     /** Upload speed in bytes/sec */
-    public val uploadSpeed: Int = 0,
+    val uploadSpeed: Int = 0,
     /** Total size in bytes */
-    public val totalSize: Int = 0,
+    val totalSize: Int = 0,
     /** Downloaded bytes */
-    public val downloadedSize: Int = 0,
+    val downloadedSize: Int = 0,
     /** Uploaded bytes */
-    public val uploadedSize: Int = 0,
+    val uploadedSize: Int = 0,
     /** Number of connected peers */
-    public val numPeers: Int = 0,
+    val numPeers: Int = 0,
     /** Number of connected seeds */
-    public val numSeeds: Int = 0,
+    val numSeeds: Int = 0,
     /** Estimated time to completion in seconds (-1 if unknown) */
-    public val eta: Long = -1,
+    val eta: Long = -1,
     /** Save path */
-    public val savePath: String = "",
+    val savePath: String = "",
     /** Files in torrent */
-    public val files: List<TorrentFile> = emptyList(),
+    val files: List<TorrentFile> = emptyList(),
     /** Error message if state == ERROR */
-    public val errorMessage: String? = null,
+    val errorMessage: String? = null,
     /** Timestamp when added (millis) */
-    public val addedTime: Long = System.currentTimeMillis(),
+    val addedTime: Long = System.currentTimeMillis(),
     /** Timestamp when completed (millis, 0 if not completed) */
-    public val completedTime: Int = 0,
+    val completedTime: Int = 0,
     /** Current file being downloaded (for streaming) */
-    public val currentFile: String? = null,
+    val currentFile: String? = null,
     /** Number of completed files */
-    public val completedFiles: Int = 0,
+    val completedFiles: Int = 0,
     /** Pause reason (if paused automatically) */
     var pauseReason: PauseReason? = null,
     /** Topic ID from RuTracker (for sync) */
-    public val topicId: String? = null,
+    val topicId: String? = null,
 ) {
     /** Share ratio (uploaded/downloaded) */
-    public val ratio: Float
+    val ratio: Float
         get() =
             if (downloadedSize > 0) {
                 uploadedSize.toFloat() / downloadedSize.toFloat()
@@ -71,15 +71,15 @@ public data class TorrentDownload(
             }
 
     /** Is download active */
-    public val isActive: Boolean
+    val isActive: Boolean
         get() = state in ACTIVE_STATES
 
     /** Is download completed */
-    public val isCompleted: Boolean
+    val isCompleted: Boolean
         get() = state == TorrentState.COMPLETED || progress >= 1f
 
     /** Total number of files */
-    public val totalFiles: Int
+    val totalFiles: Int
         get() = files.size
 
     public companion object {

@@ -112,8 +112,8 @@ internal class PositionManager(
                 // Strategy: Use current track duration if available
                 // If position is within current track, seek to it
                 // Otherwise, we can't accurately determine position across tracks without knowing all durations
-                public val currentTrackDuration = player.duration
-                public val currentIndex = player.currentMediaItemIndex
+                val currentTrackDuration = player.duration
+                val currentIndex = player.currentMediaItemIndex
 
                 if (currentTrackDuration != C.TIME_UNSET && currentTrackDuration > 0) {
                     // We have duration for current track

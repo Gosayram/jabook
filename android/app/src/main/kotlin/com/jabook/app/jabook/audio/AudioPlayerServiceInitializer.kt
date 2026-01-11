@@ -296,7 +296,7 @@ public class AudioPlayerServiceInitializer(
 
         try {
             // Build the controller asynchronously to avoid blocking the main thread
-            public val controllerFuture: ListenableFuture<MediaController> =
+            val controllerFuture: ListenableFuture<MediaController> =
                 MediaController
                     .Builder(service, session.token)
                     .setApplicationLooper(service.mainLooper)

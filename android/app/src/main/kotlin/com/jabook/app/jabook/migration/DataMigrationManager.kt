@@ -45,7 +45,7 @@ public class DataMigrationManager
             private const val KEY_MIGRATION_COMPLETED = "migration_completed_v1"
         }
 
-        suspend fun needsMigration(): Boolean =
+        public suspend fun needsMigration(): Boolean =
             withContext(Dispatchers.IO) {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -61,7 +61,7 @@ public class DataMigrationManager
                 hasLegacyState
             }
 
-        suspend fun migrateFromFlutter(): MigrationResult =
+        public suspend fun migrateFromFlutter(): MigrationResult =
             withContext(Dispatchers.IO) {
                 Log.d(TAG, "Starting migration from Flutter...")
                 try {
@@ -130,11 +130,11 @@ public class DataMigrationManager
  */
 public sealed class MigrationResult {
     public data class Success(
-        public val booksCount: Int,
-        public val chaptersCount: Int,
+        val booksCount: Int,
+        val chaptersCount: Int,
     ) : MigrationResult()
 
     public data class Failure(
-        public val error: Exception,
+        val error: Exception,
     ) : MigrationResult()
 }

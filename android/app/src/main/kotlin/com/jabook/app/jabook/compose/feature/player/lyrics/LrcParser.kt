@@ -18,8 +18,8 @@ package com.jabook.app.jabook.compose.feature.player.lyrics
  * Represents a single line of synchronized lyrics.
  */
 public data class LyricLine(
-    public val timeMs: Long,
-    public val text: String,
+    val timeMs: Long,
+    val text: String,
 )
 
 /**

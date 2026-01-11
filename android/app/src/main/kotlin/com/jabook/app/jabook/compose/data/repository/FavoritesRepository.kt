@@ -35,18 +35,18 @@ public class FavoritesRepository
         /**
          * Flow of all favorites, sorted by date added (newest first).
          */
-        public val allFavorites: Flow<List<FavoriteEntity>> = favoriteDao.getAllFavorites()
+        val allFavorites: Flow<List<FavoriteEntity>> = favoriteDao.getAllFavorites()
 
         /**
          * Flow of all favorite topic IDs for quick membership checks.
          */
-        public val favoriteIds: Flow<List<String>> = favoriteDao.getAllFavoriteIds()
+        val favoriteIds: Flow<List<String>> = favoriteDao.getAllFavoriteIds()
 
         /**
          * Add an audiobook to favorites.
          * Automatically handles duplicates (replaces existing entry).
          */
-        suspend fun addToFavorites(favorite: FavoriteEntity): Result<Unit> =
+        public suspend fun addToFavorites(favorite: FavoriteEntity): Result<Unit> =
             withContext(Dispatchers.IO) {
                 runCatching {
                     favoriteDao.insertFavorite(favorite)
@@ -56,7 +56,7 @@ public class FavoritesRepository
         /**
          * Remove an audiobook from favorites by topic ID.
          */
-        suspend fun removeFromFavorites(topicId: String): Result<Unit> =
+        public suspend fun removeFromFavorites(topicId: String): Result<Unit> =
             withContext(Dispatchers.IO) {
                 runCatching {
                     favoriteDao.deleteFavorite(topicId)
@@ -66,7 +66,7 @@ public class FavoritesRepository
         /**
          * Remove multiple audiobooks from favorites.
          */
-        suspend fun removeMultipleFavorites(topicIds: List<String>): Result<Unit> =
+        public suspend fun removeMultipleFavorites(topicIds: List<String>): Result<Unit> =
             withContext(Dispatchers.IO) {
                 runCatching {
                     favoriteDao.deleteFavorites(topicIds)
@@ -76,7 +76,7 @@ public class FavoritesRepository
         /**
          * Clear all favorites.
          */
-        suspend fun clearAllFavorites(): Result<Unit> =
+        public suspend fun clearAllFavorites(): Result<Unit> =
             withContext(Dispatchers.IO) {
                 runCatching {
                     favoriteDao.clearAllFavorites()
@@ -86,7 +86,7 @@ public class FavoritesRepository
         /**
          * Check if an audiobook is favorited.
          */
-        suspend fun isFavorite(topicId: String): Boolean =
+        public suspend fun isFavorite(topicId: String): Boolean =
             withContext(Dispatchers.IO) {
                 favoriteDao.isFavorite(topicId)
             }
@@ -94,7 +94,7 @@ public class FavoritesRepository
         /**
          * Get favorite count.
          */
-        suspend fun getFavoritesCount(): Int =
+        public suspend fun getFavoritesCount(): Int =
             withContext(Dispatchers.IO) {
                 favoriteDao.getFavoritesCount()
             }
@@ -102,7 +102,7 @@ public class FavoritesRepository
         /**
          * Get a single favorite by topic ID.
          */
-        suspend fun getFavoriteById(topicId: String): FavoriteEntity? =
+        public suspend fun getFavoriteById(topicId: String): FavoriteEntity? =
             withContext(Dispatchers.IO) {
                 favoriteDao.getFavoriteById(topicId)
             }

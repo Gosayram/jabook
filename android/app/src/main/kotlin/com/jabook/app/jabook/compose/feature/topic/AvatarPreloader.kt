@@ -47,7 +47,7 @@ public class AvatarPreloader
          * @param context Android context
          * @param comments List of comments to preload avatars for
          */
-        suspend fun preloadAvatars(
+        public suspend fun preloadAvatars(
             context: Context,
             comments: List<RutrackerComment>,
         ) = withContext(Dispatchers.IO) {

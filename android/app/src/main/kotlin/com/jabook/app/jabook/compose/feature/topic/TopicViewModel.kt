@@ -55,11 +55,11 @@ public sealed interface TopicUiState {
     data object Loading : TopicUiState
 
     public data class Success(
-        public val details: RutrackerTopicDetails,
+        val details: RutrackerTopicDetails,
     ) : TopicUiState
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : TopicUiState
 }
 
@@ -85,12 +85,12 @@ public class TopicViewModel
         private val topicId: String = savedStateHandle.toRoute<TopicRoute>().topicId
 
         private val _uiState = MutableStateFlow<TopicUiState>(TopicUiState.Loading)
-        public val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
+        val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
 
         private val _message = MutableStateFlow<String?>(null)
-        public val message: StateFlow<String?> = _message.asStateFlow()
+        val message: StateFlow<String?> = _message.asStateFlow()
 
-        public val authStatus: StateFlow<AuthStatus> =
+        val authStatus: StateFlow<AuthStatus> =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -98,11 +98,11 @@ public class TopicViewModel
             )
 
         private val _isRefreshing = MutableStateFlow(false)
-        public val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+        val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
         // Pagination state
         private val _isLoadingMoreComments = MutableStateFlow(false)
-        public val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
+        val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
 
         private val loadedComments = mutableListOf<com.jabook.app.jabook.compose.domain.model.RutrackerComment>()
         private var currentLoadedPage = 1
@@ -416,7 +416,7 @@ public class TopicViewModel
                     withAuthorisedCheckUseCase(operationId = "download_torrent_file_$topicId") {
                         val response = rutrackerApi.downloadTorrent(topicId)
                         if (response.isSuccessful) {
-                            public val body: ResponseBody? = response.body()
+                            val body: ResponseBody? = response.body()
                             if (body != null) {
                                 withContext(Dispatchers.IO) {
                                     // Save to Downloads directory

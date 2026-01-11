@@ -39,7 +39,7 @@ public class CacheManager
         /**
          * Get total cache size in bytes.
          */
-        suspend fun getTotalCacheSize(): Long =
+        public suspend fun getTotalCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
                     val appCache = context.cacheDir.walkFileTree().sumOf { it.length() }
@@ -54,7 +54,7 @@ public class CacheManager
         /**
          * Get cache statistics by type.
          */
-        suspend fun getCacheStatistics(): CacheStatistics =
+        public suspend fun getCacheStatistics(): CacheStatistics =
             withContext(Dispatchers.IO) {
                 try {
                     val searchCacheSize = getSearchCacheSize()
@@ -89,7 +89,7 @@ public class CacheManager
         /**
          * Clear all cache.
          */
-        suspend fun clearAllCache(): Boolean =
+        public suspend fun clearAllCache(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
                     Log.d(TAG, "Clearing all cache")
@@ -123,7 +123,7 @@ public class CacheManager
         /**
          * Clear specific cache type.
          */
-        suspend fun clearCacheType(type: CacheType): Boolean =
+        public suspend fun clearCacheType(type: CacheType): Boolean =
             when (type) {
                 CacheType.SEARCH -> clearSearchCache()
                 CacheType.TOPICS -> clearTopicCache()
@@ -173,11 +173,11 @@ public class CacheManager
         private suspend fun clearLogFiles(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
-                    public val logFiles =
+                    val logFiles =
                         context.cacheDir.listFiles { file ->
                             file.name.startsWith("jabook_logs_")
                         }
-                    public var cleared: Int = 0
+                    var cleared: Int = 0
                     logFiles?.forEach { file ->
                         if (file.delete()) cleared++
                     }
@@ -270,13 +270,13 @@ public class CacheManager
  * Cache statistics by type.
  */
 public data class CacheStatistics(
-    public val totalSize: Long,
-    public val searchCacheSize: Long,
-    public val topicCacheSize: Long,
-    public val tempDownloadsSize: Long,
-    public val logFilesSize: Long,
-    public val imageCacheSize: Long,
-    public val lastCleanup: Long,
+    val totalSize: Long,
+    val searchCacheSize: Long,
+    val topicCacheSize: Long,
+    val tempDownloadsSize: Long,
+    val logFilesSize: Long,
+    val imageCacheSize: Long,
+    val lastCleanup: Long,
 )
 
 /**

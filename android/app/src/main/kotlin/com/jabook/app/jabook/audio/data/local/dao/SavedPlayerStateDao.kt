@@ -29,29 +29,29 @@ public interface SavedPlayerStateDao {
      * Gets the saved player state for a group path.
      */
     @Query("SELECT * FROM saved_player_states WHERE groupPath = :groupPath")
-    suspend fun getState(groupPath: String): SavedPlayerStateEntity?
+    public suspend fun getState(groupPath: String): SavedPlayerStateEntity?
 
     /**
      * Gets the most recently updated saved player state.
      */
     @Query("SELECT * FROM saved_player_states ORDER BY lastUpdated DESC LIMIT 1")
-    suspend fun getLatestState(): SavedPlayerStateEntity?
+    public suspend fun getLatestState(): SavedPlayerStateEntity?
 
     /**
      * Inserts or updates a saved player state.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertState(state: SavedPlayerStateEntity)
+    public suspend fun upsertState(state: SavedPlayerStateEntity)
 
     /**
      * Deletes a saved player state.
      */
     @Query("DELETE FROM saved_player_states WHERE groupPath = :groupPath")
-    suspend fun deleteState(groupPath: String)
+    public suspend fun deleteState(groupPath: String)
 
     /**
      * Deletes all saved player states.
      */
     @Query("DELETE FROM saved_player_states")
-    suspend fun deleteAllStates()
+    public suspend fun deleteAllStates()
 }

@@ -39,7 +39,7 @@ public class SearchHistoryRepository
         /**
          * Save a search query to history.
          */
-        suspend fun saveSearch(
+        public suspend fun saveSearch(
             query: String,
             resultCount: Int = 0,
         ) {
@@ -57,14 +57,14 @@ public class SearchHistoryRepository
         /**
          * Delete a specific search from history.
          */
-        suspend fun deleteSearch(id: Long) {
+        public suspend fun deleteSearch(id: Long) {
             searchHistoryDao.deleteSearch(id)
         }
 
         /**
          * Clear all search history.
          */
-        suspend fun clearAll() {
+        public suspend fun clearAll() {
             searchHistoryDao.clearHistory()
         }
     }

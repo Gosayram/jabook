@@ -44,7 +44,7 @@ public class PlaylistRepository
         /**
          * Saves a playlist.
          */
-        suspend fun savePlaylist(
+        public suspend fun savePlaylist(
             bookId: String,
             bookTitle: String,
             filePaths: List<String>,
@@ -80,7 +80,7 @@ public class PlaylistRepository
         /**
          * Deletes a playlist.
          */
-        suspend fun deletePlaylist(bookId: String): Result<Unit> =
+        public suspend fun deletePlaylist(bookId: String): Result<Unit> =
             try {
                 playlistDao.deletePlaylist(bookId)
                 Result.Success(Unit)

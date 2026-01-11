@@ -46,33 +46,33 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 public data class CachedTopicEntity(
     @PrimaryKey
     @ColumnInfo(name = "topic_id")
-    public val topicId: String,
+    val topicId: String,
     @ColumnInfo(name = "title")
-    public val title: String,
+    val title: String,
     @ColumnInfo(name = "author")
-    public val author: String,
+    val author: String,
     @ColumnInfo(name = "category")
-    public val category: String,
+    val category: String,
     @ColumnInfo(name = "size")
-    public val size: String,
+    val size: String,
     @ColumnInfo(name = "seeders")
-    public val seeders: Int,
+    val seeders: Int,
     @ColumnInfo(name = "leechers")
-    public val leechers: Int,
+    val leechers: Int,
     // These fields are kept for backward compatibility but NOT filled during indexing
     // They are retrieved on-demand via getTopicDetails() when needed
     @ColumnInfo(name = "magnet_url")
-    public val magnetUrl: String? = null,
+    val magnetUrl: String? = null,
     @ColumnInfo(name = "torrent_url")
-    public val torrentUrl: String? = null,
+    val torrentUrl: String? = null,
     @ColumnInfo(name = "cover_url")
-    public val coverUrl: String? = null,
+    val coverUrl: String? = null,
     @ColumnInfo(name = "timestamp")
-    public val timestamp: Long = System.currentTimeMillis(),
+    val timestamp: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "last_updated")
-    public val lastUpdated: Long = System.currentTimeMillis(), // When this record was last updated
+    val lastUpdated: Long = System.currentTimeMillis(), // When this record was last updated
     @ColumnInfo(name = "index_version")
-    public val indexVersion: Int = 1, // Version of index when this was indexed
+    val indexVersion: Int = 1, // Version of index when this was indexed
 )
 
 /**

@@ -46,13 +46,13 @@ public class DebugViewModel
     ) : ViewModel() {
         private val logger = StructuredLogger("DebugViewModel")
         private val _uiState = MutableStateFlow<DebugUiState>(DebugUiState.Initial)
-        public val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
+        val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
 
         private val _logs = MutableStateFlow<String>("")
-        public val logs: StateFlow<String> = _logs.asStateFlow()
+        val logs: StateFlow<String> = _logs.asStateFlow()
 
         private val _authDebugInfo = MutableStateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?>(null)
-        public val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
+        val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
 
         init {
             // Delay initialization until viewModelScope is fully ready
@@ -305,7 +305,7 @@ public class DebugViewModel
             }
 
         private val _cacheStats = MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
-        public val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
+        val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
             _cacheStats
                 .asStateFlow()
 
@@ -357,6 +357,6 @@ public sealed class DebugUiState {
     data object Success : DebugUiState()
 
     public data class Error(
-        public val message: String,
+        val message: String,
     ) : DebugUiState()
 }

@@ -81,7 +81,7 @@ public class PersistentCookieJar
                 runBlocking {
                     val prefs = dataStore.data.first()
                     val key = stringPreferencesKey(host)
-                    public val serialized: String? = prefs[key]
+                    val serialized: String? = prefs[key]
                     if (serialized == null) return@runBlocking emptyList<Cookie>()
 
                     serialized
@@ -97,7 +97,7 @@ public class PersistentCookieJar
         /**
          * Clear all cookies.
          */
-        suspend fun clear() {
+        public suspend fun clear() {
             cache.clear()
             dataStore.edit { it.clear() }
         }
@@ -128,12 +128,12 @@ public class PersistentCookieJar
                 val name = nameValue[0]
                 val value = nameValue[1]
 
-                public var domain: String = ""
-                public var path: String = "/"
-                public var expiresAt = Long.MIN_VALUE
+                var domain: String = ""
+                var path: String = "/"
+                var expiresAt = Long.MIN_VALUE
 
-                public var secure: Boolean = false
-                public var httpOnly: Boolean = false
+                var secure: Boolean = false
+                var httpOnly: Boolean = false
                 parts.drop(1).forEach { part ->
                     val trimmed = part.trim()
                     when {

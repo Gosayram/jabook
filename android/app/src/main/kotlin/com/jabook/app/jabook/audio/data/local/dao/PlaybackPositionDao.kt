@@ -36,13 +36,13 @@ public interface PlaybackPositionDao {
      * Inserts or updates a playback position.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertPosition(position: PlaybackPositionEntity)
+    public suspend fun upsertPosition(position: PlaybackPositionEntity)
 
     /**
      * Deletes a playback position.
      */
     @Query("DELETE FROM playback_positions WHERE bookId = :bookId")
-    suspend fun deletePosition(bookId: String)
+    public suspend fun deletePosition(bookId: String)
 
     /**
      * Gets all playback positions.

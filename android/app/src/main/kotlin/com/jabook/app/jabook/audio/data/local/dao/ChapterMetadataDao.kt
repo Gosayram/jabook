@@ -42,23 +42,23 @@ public interface ChapterMetadataDao {
      * Inserts or updates chapter metadata.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertChapter(chapter: ChapterMetadataEntity)
+    public suspend fun upsertChapter(chapter: ChapterMetadataEntity)
 
     /**
      * Inserts or updates multiple chapters.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertChapters(chapters: List<ChapterMetadataEntity>)
+    public suspend fun upsertChapters(chapters: List<ChapterMetadataEntity>)
 
     /**
      * Deletes all chapters for a book.
      */
     @Query("DELETE FROM chapter_metadata WHERE bookId = :bookId")
-    suspend fun deleteChapters(bookId: String)
+    public suspend fun deleteChapters(bookId: String)
 
     /**
      * Deletes a specific chapter.
      */
     @Query("DELETE FROM chapter_metadata WHERE id = :id")
-    suspend fun deleteChapter(id: String)
+    public suspend fun deleteChapter(id: String)
 }

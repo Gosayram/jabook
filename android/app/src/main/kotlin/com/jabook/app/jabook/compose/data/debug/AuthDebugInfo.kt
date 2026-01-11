@@ -18,21 +18,21 @@ package com.jabook.app.jabook.compose.data.debug
  * Data class containing diagnostic information for RuTracker authentication and connectivity.
  */
 public data class AuthDebugInfo(
-    public val isAuthenticated: Boolean,
-    public val lastAuthAttempt: Long? = null,
-    public val lastAuthError: String? = null,
-    public val mirrorConnectivity: Map<String, Boolean> = emptyMap(),
-    public val validationResults: ValidationResults? = null,
+    val isAuthenticated: Boolean,
+    val lastAuthAttempt: Long? = null,
+    val lastAuthError: String? = null,
+    val mirrorConnectivity: Map<String, Boolean> = emptyMap(),
+    val validationResults: ValidationResults? = null,
 )
 
 /**
  * Results of 3-tier validation logic from Flutter implementation.
  */
 public data class ValidationResults(
-    public val profilePageCheck: Boolean,
-    public val searchPageCheck: Boolean,
-    public val indexPageCheck: Boolean,
-    public val lastValidation: Long,
+    val profilePageCheck: Boolean,
+    val searchPageCheck: Boolean,
+    val indexPageCheck: Boolean,
+    val lastValidation: Long,
 )
 
 /**

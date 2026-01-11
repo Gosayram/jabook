@@ -24,7 +24,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "cookies")
 public data class CookieEntity(
     @PrimaryKey
-    public val url: String,
-    public val cookieHeader: String,
-    public val timestamp: Long = System.currentTimeMillis(),
+    val url: String,
+    val cookieHeader: String,
+    val timestamp: Long = System.currentTimeMillis(),
 )

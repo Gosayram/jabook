@@ -41,10 +41,10 @@ import androidx.room.Index
 )
 public data class SearchQueryEntity(
     @ColumnInfo(name = "query")
-    public val query: String,
+    val query: String,
     @ColumnInfo(name = "topic_id")
-    public val topicId: String,
+    val topicId: String,
     // To maintain search result order
     @ColumnInfo(name = "rank")
-    public val rank: Int,
+    val rank: Int,
 )

@@ -31,13 +31,13 @@ import kotlinx.coroutines.withContext
  * @property containerColor Dominant color for container or gradient start.
  */
 public data class PlayerThemeColors(
-    public val primaryColor: Color = Color(0xFF6750A4), // Default Purple40
-    public val onPrimaryColor: Color = Color.White,
-    public val secondaryColor: Color = Color(0xFF625B71), // Default PurpleGrey40
-    public val surfaceColor: Color = Color(0xFF1C1B1F), // Default Dark Surface
-    public val onSurfaceColor: Color = Color(0xFFE6E1E5), // Default OnSurface
-    public val containerColor: Color = Color(0xFF21005D), // Default Primary Container
-    public val gradientColors: List<Color> = listOf(Color(0xFF21005D), Color(0xFF6750A4), Color(0xFFEADDFF)),
+    val primaryColor: Color = Color(0xFF6750A4), // Default Purple40
+    val onPrimaryColor: Color = Color.White,
+    val secondaryColor: Color = Color(0xFF625B71), // Default PurpleGrey40
+    val surfaceColor: Color = Color(0xFF1C1B1F), // Default Dark Surface
+    val onSurfaceColor: Color = Color(0xFFE6E1E5), // Default OnSurface
+    val containerColor: Color = Color(0xFF21005D), // Default Primary Container
+    val gradientColors: List<Color> = listOf(Color(0xFF21005D), Color(0xFF6750A4), Color(0xFFEADDFF)),
 )
 
 /**
@@ -50,7 +50,7 @@ public object DynamicThemeManager {
      * @param bitmap The source bitmap (album art).
      * @return Extracted PlayerThemeColors.
      */
-    suspend fun extractColors(bitmap: Bitmap): PlayerThemeColors =
+    public suspend fun extractColors(bitmap: Bitmap): PlayerThemeColors =
         withContext(Dispatchers.Default) {
             val palette =
                 Palette
@@ -87,19 +87,19 @@ public object DynamicThemeManager {
                     ?: Color(0xFF21005D)
 
             // Surface: Dark Muted (darkened) -> Black
-            public val surface = Color(0xFF1C1B1F) // Keep standard dark surface for consistency
+            val surface = Color(0xFF1C1B1F) // Keep standard dark surface for consistency
 
             // Calculate On-Colors (simplified, ideally use luminance check)
-            public val onPrimary = if (isDark(primary)) Color.White else Color.Black
-            public val onSurface = Color(0xFFE6E1E5)
+            val onPrimary = if (isDark(primary)) Color.White else Color.Black
+            val onSurface = Color(0xFFE6E1E5)
 
             // Extract rich colors for Mesh Gradient (3-4 colors)
             // 1. Deep/Dark base (Container)
             // 2. Main Vibrant accent (Primary)
             // 3. Secondary/Different accent (Secondary or Light Vibrant)
-            public val gradient1 = container
-            public val gradient2 = primary
-            public val gradient3 =
+            val gradient1 = container
+            val gradient2 = primary
+            val gradient3 =
                 lightVibrant?.rgb?.let(::Color)
                     ?: secondary
 
@@ -120,7 +120,7 @@ public object DynamicThemeManager {
     internal fun isDark(color: Color): Boolean {
         // Calculate luminance: 0.299*R + 0.587*G + 0.114*B
         // Compose Color uses sRGB color space
-        public val luminance: Double = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
+        val luminance: Double = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
         return luminance < 0.5
     }
 }
