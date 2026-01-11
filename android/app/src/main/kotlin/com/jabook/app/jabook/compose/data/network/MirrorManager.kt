@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,9 +46,10 @@ public class MirrorManager
     constructor(
         private val settingsRepository: SettingsRepository,
         private val okHttpClient: OkHttpClient,
+        private val loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("MirrorManager")
         public companion object {
-            private const val TAG = "MirrorManager"
 
             /**
              * Default list of RuTracker mirrors.
@@ -89,7 +90,7 @@ public class MirrorManager
                     val savedMirror = prefs.selectedMirror
                     if (savedMirror.isNotBlank() && savedMirror != _currentMirror.value) {
                         _currentMirror.value = savedMirror
-                        Log.d(TAG, "Loaded mirror from settings: $savedMirror")
+                        logger.d { "Loaded mirror from settings: $savedMirror" }
                     }
 
                     // Merge default and custom mirrors
@@ -107,14 +108,14 @@ public class MirrorManager
          */
         public suspend fun setMirror(domain: String) {
             if (domain.isBlank()) {
-                Log.w(TAG, "Attempted to set blank mirror, ignoring")
+                logger.w { "Attempted to set blank mirror, ignoring" }
                 return
             }
 
             val previousMirror = _currentMirror.value
             _currentMirror.value = domain
             settingsRepository.updateSelectedMirror(domain)
-            Log.i(TAG, "Mirror changed from $previousMirror to $domain (saved to settings)")
+            logger.i { "Mirror changed from $previousMirror to $domain (saved to settings)" }
         }
 
         /**
@@ -126,7 +127,7 @@ public class MirrorManager
         public suspend fun checkMirrorHealth(domain: String): Boolean =
             withContext(Dispatchers.IO) {
                 try {
-                    Log.d(TAG, "Checking health of mirror: $domain")
+                    logger.d { "Checking health of mirror: $domain" }
 
                     // Create a dedicated client with short timeout for health checks
                     val healthCheckClient =
@@ -145,13 +146,13 @@ public class MirrorManager
 
                     val response = healthCheckClient.newCall(request).execute()
                     val isHealthy: Boolean = response.isSuccessful
-                    Log.d(TAG, "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})")
+                    logger.d { "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})" }
                     response.close()
 
                     isHealthy
                 } catch (e: Exception) {
                     // Individual mirror unavailable is normal, not a warning
-                    Log.i(TAG, "Mirror $domain unavailable (timeout or unreachable): ${e.message}")
+                    logger.i { "Mirror $domain unavailable (timeout or unreachable): ${e.message}" }
                     false
                 }
             }
@@ -168,7 +169,7 @@ public class MirrorManager
             val mirrors = _availableMirrors.value
             val currentIndex = mirrors.indexOf(currentDomain)
 
-            Log.i(TAG, "🔄 Attempting to switch from $currentDomain to next mirror")
+            logger.i { "🔄 Attempting to switch from $currentDomain to next mirror" }
 
             // Try all mirrors starting from next one
             val mirrorsToTry =
@@ -183,18 +184,18 @@ public class MirrorManager
                 if (mirror == currentDomain) continue // Skip current
 
                 val healthCheckStart = System.currentTimeMillis()
-                Log.d(TAG, "🔍 Trying mirror: $mirror")
+                logger.d { "🔍 Trying mirror: $mirror" }
 
                 if (checkMirrorHealth(mirror)) {
                     val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
-                    Log.i(TAG, "✅ Mirror $mirror is healthy (health check: ${healthCheckDuration}ms), switching and saving to settings...")
+                    logger.i { "✅ Mirror $mirror is healthy (health check: ${healthCheckDuration}ms), switching and saving to settings..." }
                     setMirror(mirror) // This will save to settings via settingsRepository.updateSelectedMirror()
-                    Log.i(TAG, "✅ Successfully switched from $currentDomain to $mirror and saved to settings")
+                    logger.i { "✅ Successfully switched from $currentDomain to $mirror and saved to settings" }
                     return true
                 }
             }
 
-            Log.e(TAG, "❌ Failed to find any working mirror after trying ${availableMirrors.value.size} mirrors")
+            logger.e { "❌ Failed to find any working mirror after trying ${availableMirrors.value.size} mirrors" }
             return false
         }
 
@@ -205,12 +206,12 @@ public class MirrorManager
          */
         public suspend fun addCustomMirror(domain: String) {
             if (domain.isBlank() || domain in _availableMirrors.value) {
-                Log.w(TAG, "Custom mirror already exists or is blank: $domain")
+                logger.w { "Custom mirror already exists or is blank: $domain" }
                 return
             }
 
             settingsRepository.addCustomMirror(domain)
-            Log.i(TAG, "Added custom mirror: $domain")
+            logger.i { "Added custom mirror: $domain" }
         }
 
         /**
@@ -234,7 +235,7 @@ public class MirrorManager
          */
         public suspend fun removeCustomMirror(domain: String) {
             if (domain in DEFAULT_MIRRORS) {
-                Log.w(TAG, "Cannot remove default mirror: $domain")
+                logger.w { "Cannot remove default mirror: $domain" }
                 return
             }
 
@@ -243,10 +244,10 @@ public class MirrorManager
             // If current mirror is being removed, switch to default
             if (_currentMirror.value == domain) {
                 setMirror(DEFAULT_MIRROR)
-                Log.i(TAG, "Removed current mirror, switched to default")
+                logger.i { "Removed current mirror, switched to default" }
             }
 
-            Log.i(TAG, "Removed custom mirror: $domain")
+            logger.i { "Removed custom mirror: $domain" }
         }
 
         /**

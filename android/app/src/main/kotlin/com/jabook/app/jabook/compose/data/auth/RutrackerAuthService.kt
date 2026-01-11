@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.auth
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.util.StructuredLogger
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
@@ -39,6 +39,7 @@ public class RutrackerAuthService
         private val api: RutrackerApi,
         private val parser: com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser,
         private val decoder: com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder,
+        private val loggerFactory: LoggerFactory,
     ) {
         public companion object {
             private const val TAG = "RutrackerAuthService"
@@ -53,7 +54,8 @@ public class RutrackerAuthService
         public val lastAuthError: String?
             get() = _lastAuthError
 
-        private val logger = StructuredLogger(TAG)
+        private val structuredLogger = StructuredLogger(TAG)
+        private val logger = loggerFactory.get(TAG)
 
         /**
          * Attempt login with detailed logging.
@@ -66,22 +68,22 @@ public class RutrackerAuthService
             captchaCode: String? = null,
             captchaData: CaptchaData? = null,
         ): AuthResult {
-            val operationId = logger.startOperation("login", "auth_login_${System.currentTimeMillis()}")
+            val operationId = structuredLogger.startOperation("login", "auth_login_${System.currentTimeMillis()}")
             val startTime = System.currentTimeMillis()
 
             return withContext(Dispatchers.IO) {
                 try {
-                    logger.log(operationId, "Authentication started for user: ${credentials.username}")
+                    structuredLogger.log(operationId, "Authentication started for user: ${credentials.username}")
 
                     // Step 1: Encode credentials to CP1251
                     val encodeStart = System.currentTimeMillis()
                     val postData = buildPostData(credentials, captchaCode, captchaData)
                     val encodeDuration = System.currentTimeMillis() - encodeStart
-                    Log.d(TAG, "[$operationId] Credentials encoded to CP1251 (${encodeDuration}ms), data length: ${postData.length}")
+                    logger.d { "[$operationId] Credentials encoded to CP1251 (${encodeDuration}ms), data length: ${postData.length}" }
 
                     // Step 2: Build request body
                     val body = postData.toRequestBody(MEDIA_TYPE_FORM)
-                    Log.d(TAG, "[$operationId] Request body built, content-type: application/x-www-form-urlencoded")
+                    logger.d { "[$operationId] Request body built, content-type: application/x-www-form-urlencoded" }
 
                     // Step 3: Send login request
                     // Step 3: Send login request with retry
@@ -106,13 +108,12 @@ public class RutrackerAuthService
 
                     // Log User-Agent used in the request for debugging auth issues
                     val userAgent = response.raw().request.header("User-Agent")
-                    Log.d(TAG, "[$operationId] Login request User-Agent: $userAgent")
+                    logger.d { "[$operationId] Login request User-Agent: $userAgent" }
 
-                    Log.i(
-                        TAG,
+                    logger.i {
                         "[$operationId] Login request completed: HTTP $statusCode, " +
-                            "isRedirect=$isRedirect, responseSize=${rawBody.size} bytes (${requestDuration}ms)",
-                    )
+                            "isRedirect=$isRedirect, responseSize=${rawBody.size} bytes (${requestDuration}ms)"
+                    }
 
                     // Step 4: Decode response body with simple decoder (matching Flutter implementation)
                     val decodeStart = System.currentTimeMillis()
@@ -120,10 +121,9 @@ public class RutrackerAuthService
                     val bodyString = decoder.decode(rawBody, contentType)
                     val decodeDuration = System.currentTimeMillis() - decodeStart
 
-                    Log.d(
-                        TAG,
-                        "[$operationId] Response decoded (${decodeDuration}ms)",
-                    )
+                    logger.d {
+                        "[$operationId] Response decoded (${decodeDuration}ms)"
+                    }
 
                     // Step 5: Check HTTP status
                     if (!response.isSuccessful && statusCode !in 300..399) {
@@ -136,7 +136,7 @@ public class RutrackerAuthService
                                 else -> RuTrackerError.Unknown("HTTP Error: $statusCode")
                             }
                         val errorMsg = rutrackerError.message ?: "Unknown error"
-                        Log.w(TAG, "[$operationId] Authentication failed: $errorMsg")
+                        logger.w { "[$operationId] Authentication failed: $errorMsg" }
                         _lastAuthError = errorMsg
                         return@withContext AuthResult.Error(errorMsg)
                     }
@@ -147,11 +147,10 @@ public class RutrackerAuthService
                     val parseDuration = System.currentTimeMillis() - parseStart
 
                     val totalDuration = System.currentTimeMillis() - startTime
-                    Log.d(
-                        TAG,
+                    logger.d {
                         "[$operationId] Response parsed (${parseDuration}ms), " +
-                            "total: ${totalDuration}ms (encode:${encodeDuration}ms, request:${requestDuration}ms, parse:${parseDuration}ms)",
-                    )
+                            "total: ${totalDuration}ms (encode:${encodeDuration}ms, request:${requestDuration}ms, parse:${parseDuration}ms)"
+                    }
 
                     // Step 7: Convert result and log outcome
                     return@withContext when (result) {
@@ -530,7 +529,7 @@ public class RutrackerAuthService
                     if (e !is java.io.IOException && e !is java.net.SocketTimeoutException) {
                         throw e
                     }
-                    Log.w(TAG, "Operation failed, retrying in ${currentDelay}ms (attempt ${attempt + 1}/$times)", e)
+                    logger.w(e) { "Operation failed, retrying in ${currentDelay}ms (attempt ${attempt + 1}/$times)" }
                     kotlinx.coroutines.delay(currentDelay)
                     currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelay)
                 }

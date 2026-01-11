@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.compose.data.indexing
 
 import android.content.Context
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
@@ -71,13 +71,14 @@ public class ForumIndexer
         private val parser: RutrackerParser,
         private val offlineSearchDao: OfflineSearchDao,
         private val mirrorManager: MirrorManager,
+        private val loggerFactory: LoggerFactory,
         @param:ApplicationContext private val context: Context,
     ) {
+        private val logger = loggerFactory.get("ForumIndexer")
         // Background scope for non-blocking operations (cover preloading)
         private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         public companion object {
-            private const val TAG = "ForumIndexer"
             private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
             private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Rate limiting (reduced for faster indexing)
             private const val MAX_PAGES_PER_FORUM = 100_000 // Effectively unlimited (some forums have 350+ pages)
@@ -120,10 +121,10 @@ public class ForumIndexer
 
                 // Log current mirror at start of indexing
                 val initialMirror = mirrorManager.getCurrentMirrorDomain()
-                Log.i(TAG, "=== FORUM INDEXING START ===")
-                Log.i(TAG, "Using mirror: $initialMirror")
-                Log.i(TAG, "Indexing version: $currentIndexVersion")
-                Log.i(TAG, "Forums to index: ${forumIdList.size}")
+                logger.i { "=== FORUM INDEXING START ===" }
+                logger.i { "Using mirror: $initialMirror" }
+                logger.i { "Indexing version: $currentIndexVersion" }
+                logger.i { "Forums to index: ${forumIdList.size}" }
 
                 // Validate that only audiobook forums are being indexed
                 val allowedForums =
@@ -133,18 +134,18 @@ public class ForumIndexer
                         .toSet()
                 val invalidForums = forumIdList.filter { it !in allowedForums }
                 if (invalidForums.isNotEmpty()) {
-                    Log.w(TAG, "WARNING: Attempting to index non-audiobook forums: $invalidForums")
-                    Log.w(TAG, "Only audiobook forums will be indexed. Allowed forums: ${allowedForums.size}")
+                    logger.w { "WARNING: Attempting to index non-audiobook forums: $invalidForums" }
+                    logger.w { "Only audiobook forums will be indexed. Allowed forums: ${allowedForums.size}" }
                 }
 
-                Log.i(TAG, "Starting full forum indexing for ${forumIdList.size} forums (version $currentIndexVersion)")
-                Log.i(TAG, "Forums to index: ${forumIdList.joinToString(", ")}")
+                logger.i { "Starting full forum indexing for ${forumIdList.size} forums (version $currentIndexVersion)" }
+                logger.i { "Forums to index: ${forumIdList.joinToString(", ")}" }
 
                 // Clear old indexed data before starting new index to ensure only audiobook forums are indexed
-                Log.i(TAG, "Clearing old indexed data before new index...")
+                logger.i { "Clearing old indexed data before new index..." }
                 val oldCount = getIndexSize()
                 clearIndex()
-                Log.i(TAG, "Old indexed data cleared (was $oldCount topics)")
+                logger.i { "Old indexed data cleared (was $oldCount topics)" }
 
                 onProgress?.invoke(
                     IndexingProgress.InProgress(
@@ -196,7 +197,7 @@ public class ForumIndexer
                                         topicsIndexedAtomic.addAndGet(indexed)
                                         Pair(indexed, covers)
                                     } catch (e: Exception) {
-                                        Log.e(TAG, "Failed to index forum $forumId", e)
+                                        logger.e(e) { "Failed to index forum $forumId" }
                                         onProgress?.invoke(
                                             IndexingProgress.Error(
                                                 message = "Failed to index forum $forumId: ${e.message}",
@@ -240,23 +241,21 @@ public class ForumIndexer
                 // Verify mirror didn't change during indexing
                 val finalMirror = mirrorManager.getCurrentMirrorDomain()
                 if (finalMirror != initialMirror) {
-                    Log.w(
-                        TAG,
+                    logger.w {
                         "⚠️ Mirror changed during indexing! Initial: $initialMirror, Final: $finalMirror. " +
-                            "This may indicate auto-switch occurred or connection issues.",
-                    )
+                            "This may indicate auto-switch occurred or connection issues."
+                    }
                 } else {
-                    Log.d(TAG, "Mirror remained stable: $finalMirror")
+                    logger.d { "Mirror remained stable: $finalMirror" }
                 }
 
                 // Verify actual count in database matches indexed count (single source of truth)
                 val actualCountInDb = getIndexSize()
                 if (actualCountInDb != totalIndexed) {
-                    Log.w(
-                        TAG,
+                    logger.w {
                         "Count mismatch: indexed $totalIndexed topics, but database has $actualCountInDb topics. " +
-                            "Using database count as single source of truth.",
-                    )
+                            "Using database count as single source of truth."
+                    }
                 }
 
                 Log.i(
