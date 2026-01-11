@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.encoding
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import java.nio.charset.Charset
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,9 +31,11 @@ import javax.inject.Singleton
 @Singleton
 public class RutrackerSimpleDecoder
     @Inject
-    constructor() {
+    constructor(
+        private val loggerFactory: LoggerFactory,
+    ) {
+        private val logger = loggerFactory.get("RutrackerSimpleDecoder")
         public companion object {
-            private const val TAG = "RutrackerSimpleDecoder"
             private val CP1251 = Charset.forName("windows-1251")
             private val UTF8 = Charsets.UTF_8
         }
@@ -59,7 +61,7 @@ public class RutrackerSimpleDecoder
             contentType: String? = null,
         ): String {
             if (bytes.isEmpty()) {
-                Log.w(TAG, "Empty bytes provided")
+                logger.w { "Empty bytes provided" }
                 return ""
             }
 
@@ -82,28 +84,25 @@ public class RutrackerSimpleDecoder
                     }
                 } catch (e: Exception) {
                     // Log decoding error only when it occurs
-                    Log.e(
-                        TAG,
+                    logger.e(e) {
                         "Decoding error: ${e.javaClass.simpleName}: ${e.message} " +
-                            "(bytes: ${bytes.size}, encoding: $detectedEncoding)",
-                        e,
-                    )
+                            "(bytes: ${bytes.size}, encoding: $detectedEncoding)"
+                    }
                     // Fallback to UTF-8 if Windows-1251 fails
                     try {
                         String(bytes, UTF8)
                     } catch (e2: Exception) {
-                        Log.e(TAG, "UTF-8 fallback also failed: ${e2.message}", e2)
+                        logger.e(e2) { "UTF-8 fallback also failed: ${e2.message}" }
                         String(bytes, Charsets.ISO_8859_1) // Last resort
                     }
                 }
 
             // Only log if result looks invalid (contains replacement characters or is suspiciously short)
             if (result.contains("\uFFFD") || (result.length < 10 && bytes.size > 100)) {
-                Log.w(
-                    TAG,
+                logger.w {
                     "Decoding may have failed: result contains replacement chars or suspiciously short " +
-                        "(result length: ${result.length}, bytes: ${bytes.size}, encoding: $detectedEncoding)",
-                )
+                        "(result length: ${result.length}, bytes: ${bytes.size}, encoding: $detectedEncoding)"
+                }
             }
 
             return result

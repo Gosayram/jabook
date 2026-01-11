@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.parser
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import java.nio.charset.Charset
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,9 +34,11 @@ import javax.inject.Singleton
 @Singleton
 public class EncodingDetector
     @Inject
-    constructor() {
+    constructor(
+        private val loggerFactory: LoggerFactory,
+    ) {
+        private val logger = loggerFactory.get("EncodingDetector")
         public companion object {
-            private const val TAG = "EncodingDetector"
 
             // Supported encodings for Russian text
             // CRITICAL: Order matters! windows-1252 MUST come before windows-1251
@@ -171,7 +173,7 @@ public class EncodingDetector
             val decoded = String(bytes, detectedCharset)
             val clean = decoded.replace("\uFEFF", "")
 
-            Log.w(TAG, "Decoded string with encoding: ${detectedCharset.name()}")
+            logger.w { "Decoded string with encoding: ${detectedCharset.name()}" }
             return Pair(clean, detectedCharset.name())
         }
 
@@ -385,7 +387,7 @@ public class EncodingDetector
             }
 
             fixMojibake(cleanText)?.let {
-                Log.e(TAG, "Used mojibake fix: ${it.second} (${(it.third * 100).toInt()}%)")
+                logger.e { "Used mojibake fix: ${it.second} (${(it.third * 100).toInt()}%)" }
                 return Pair(it.first, it.second)
             }
 
@@ -408,8 +410,7 @@ public class EncodingDetector
                         val conf = calculateConfidence(fixed)
 
                         if (conf > 0.6 && conf > currentConf) { // Threshold 0.6
-                            Log.e(
-                                TAG,
+                            logger.e {
                                 "Fixed garbled text: $source -> $target (confidence: $conf | original: ${cleanText.take(
                                     50,
                                 )})",

@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.encoding
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import java.nio.charset.Charset
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,9 +37,11 @@ import javax.inject.Singleton
 @Singleton
 public class DefensiveEncodingHandler
     @Inject
-    constructor() {
+    constructor(
+        private val loggerFactory: LoggerFactory,
+    ) {
+        private val logger = loggerFactory.get("DefensiveEncodingHandler")
         public companion object {
-            private const val TAG = "DefensiveEncodingHandler"
 
             // Supported charsets for RuTracker
             private val CP1251 = Charset.forName("windows-1251")
@@ -84,11 +86,10 @@ public class DefensiveEncodingHandler
             // Step 1: Remove BOM if present
             val cleanBytes = removeBOM(bytes)
 
-            Log.d(
-                TAG,
+            logger.d {
                 "Decoding ${cleanBytes.size} bytes (original: ${bytes.size}), " +
-                    "contentType: ${contentType ?: "null"}",
-            )
+                    "contentType: ${contentType ?: "null"}"
+            }
 
             // Step 2: Try encoding from Content-Type header
             val headerEncoding = extractCharsetFromContentType(contentType)
@@ -96,18 +97,16 @@ public class DefensiveEncodingHandler
                 val result = tryDecode(cleanBytes, headerEncoding)
                 if (result.isValid && !result.hasMojibake) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.i(
-                        TAG,
+                    logger.i {
                         "✅ Decoded with header encoding '$headerEncoding' " +
-                            "(${result.text.length} chars, ${duration}ms)",
-                    )
+                            "(${result.text.length} chars, ${duration}ms)"
+                    }
                     return result
                 } else {
-                    Log.w(
-                        TAG,
+                    logger.w {
                         "⚠️ Header encoding '$headerEncoding' produced invalid/mojibake result, " +
-                            "trying alternatives",
-                    )
+                            "trying alternatives"
+                    }
                 }
             }
 
@@ -117,11 +116,10 @@ public class DefensiveEncodingHandler
                 val result = tryDecode(cleanBytes, detectedEncoding)
                 if (result.isValid && !result.hasMojibake) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.i(
-                        TAG,
+                    logger.i {
                         "✅ Decoded with detected encoding '${detectedEncoding.name()}' " +
-                            "(${result.text.length} chars, ${duration}ms)",
-                    )
+                            "(${result.text.length} chars, ${duration}ms)"
+                    }
                     return result
                 }
             }
