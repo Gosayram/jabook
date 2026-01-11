@@ -32,7 +32,7 @@ import kotlin.math.min
  * Provides adaptive padding, spacing, and sizes that adjust based on screen size
  * following Material Design 3 guidelines.
  */
-object AdaptiveUtils {
+public object AdaptiveUtils {
     /**
      * Threshold for smallest screen width in dp to distinguish phones from tablets.
      * Devices with smallestScreenWidthDp >= 600dp are typically tablets.
@@ -69,7 +69,7 @@ object AdaptiveUtils {
      * @param context Android context to get screen configuration
      * @return true if device should be treated as Compact (phone)
      */
-    fun shouldForceCompact(context: Context): Boolean {
+    public fun shouldForceCompact(context: Context): Boolean {
         val configuration = context.resources.configuration
         val displayMetrics = context.resources.displayMetrics
 
@@ -111,7 +111,7 @@ object AdaptiveUtils {
      * @return WindowSizeClass with device-specific overrides applied
      */
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
-    fun getEffectiveWindowSizeClass(
+    public fun getEffectiveWindowSizeClass(
         windowSizeClass: WindowSizeClass?,
         context: Context,
     ): WindowSizeClass? {
@@ -133,7 +133,7 @@ object AdaptiveUtils {
      * - Medium: 24dp (tablets)
      * - Expanded: 32dp (foldables/desktops)
      */
-    fun getContentPadding(windowSizeClass: WindowSizeClass): Dp =
+    public fun getContentPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 16.dp
             WindowWidthSizeClass.Medium -> 24.dp
@@ -148,7 +148,7 @@ object AdaptiveUtils {
      * - Medium: 24dp
      * - Expanded: 32dp
      */
-    fun getHorizontalPadding(windowSizeClass: WindowSizeClass): Dp =
+    public fun getHorizontalPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 16.dp
             WindowWidthSizeClass.Medium -> 24.dp
@@ -163,7 +163,7 @@ object AdaptiveUtils {
      * - Medium: 24dp
      * - Expanded: 32dp
      */
-    fun getVerticalPadding(windowSizeClass: WindowSizeClass): Dp =
+    public fun getVerticalPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.heightSizeClass) {
             WindowHeightSizeClass.Compact -> 16.dp
             WindowHeightSizeClass.Medium -> 24.dp
@@ -178,7 +178,7 @@ object AdaptiveUtils {
      * - Medium: 16dp
      * - Expanded: 20dp
      */
-    fun getItemSpacing(windowSizeClass: WindowSizeClass): Dp =
+    public fun getItemSpacing(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 12.dp
             WindowWidthSizeClass.Medium -> 16.dp
@@ -193,7 +193,7 @@ object AdaptiveUtils {
      * - Medium: 6dp
      * - Expanded: 8dp
      */
-    fun getSmallSpacing(windowSizeClass: WindowSizeClass): Dp =
+    public fun getSmallSpacing(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 4.dp
             WindowWidthSizeClass.Medium -> 6.dp
@@ -208,7 +208,7 @@ object AdaptiveUtils {
      * - Medium: 16dp
      * - Expanded: 20dp
      */
-    fun getCardPadding(windowSizeClass: WindowSizeClass): Dp =
+    public fun getCardPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 12.dp
             WindowWidthSizeClass.Medium -> 16.dp
@@ -219,12 +219,12 @@ object AdaptiveUtils {
     /**
      * Checks if the window is considered a tablet (Medium or Expanded width).
      */
-    fun isTablet(windowSizeClass: WindowSizeClass): Boolean = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+    public fun isTablet(windowSizeClass: WindowSizeClass): Boolean = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
     /**
      * Checks if the window is considered large (Expanded width).
      */
-    fun isLargeScreen(windowSizeClass: WindowSizeClass): Boolean = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+    public fun isLargeScreen(windowSizeClass: WindowSizeClass): Boolean = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
 
     /**
      * Returns adaptive grid column count for compact grid mode.
@@ -233,7 +233,7 @@ object AdaptiveUtils {
      * - Medium: 5 columns
      * - Expanded: 7 columns
      */
-    fun getCompactGridColumns(windowSizeClass: WindowSizeClass): Int =
+    public fun getCompactGridColumns(windowSizeClass: WindowSizeClass): Int =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 3
             WindowWidthSizeClass.Medium -> 5
@@ -248,7 +248,7 @@ object AdaptiveUtils {
      * - Medium: 4 columns
      * - Expanded: 6 columns
      */
-    fun getComfortableGridColumns(windowSizeClass: WindowSizeClass): Int =
+    public fun getComfortableGridColumns(windowSizeClass: WindowSizeClass): Int =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 2
             WindowWidthSizeClass.Medium -> 4
@@ -263,7 +263,7 @@ object AdaptiveUtils {
      * - Medium: 840dp
      * - Expanded: 1200dp
      */
-    fun getMaxContentWidth(windowSizeClass: WindowSizeClass): Dp? =
+    public fun getMaxContentWidth(windowSizeClass: WindowSizeClass): Dp? =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> null // No limit
             WindowWidthSizeClass.Medium -> 840.dp
@@ -278,7 +278,7 @@ object AdaptiveUtils {
      * - Medium: 28dp
      * - Expanded: 32dp
      */
-    fun getIconSize(windowSizeClass: WindowSizeClass): Dp =
+    public fun getIconSize(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 24.dp
             WindowWidthSizeClass.Medium -> 28.dp
@@ -293,7 +293,7 @@ object AdaptiveUtils {
      * - Medium: 24dp
      * - Expanded: 28dp
      */
-    fun getSmallIconSize(windowSizeClass: WindowSizeClass): Dp =
+    public fun getSmallIconSize(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 20.dp
             WindowWidthSizeClass.Medium -> 24.dp
@@ -308,7 +308,7 @@ object AdaptiveUtils {
      * - Medium: 48dp
      * - Expanded: 56dp
      */
-    fun getButtonHeight(windowSizeClass: WindowSizeClass): Dp =
+    public fun getButtonHeight(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 40.dp
             WindowWidthSizeClass.Medium -> 48.dp
@@ -323,7 +323,7 @@ object AdaptiveUtils {
      * - Medium: 2dp
      * - Expanded: 3dp
      */
-    fun getCardElevation(windowSizeClass: WindowSizeClass): Dp =
+    public fun getCardElevation(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 1.dp
             WindowWidthSizeClass.Medium -> 2.dp
@@ -338,7 +338,7 @@ object AdaptiveUtils {
      * - Medium: 1.1 (10% larger)
      * - Expanded: 1.2 (20% larger)
      */
-    fun getTextScaleFactor(windowSizeClass: WindowSizeClass): Float =
+    public fun getTextScaleFactor(windowSizeClass: WindowSizeClass): Float =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 1.0f
             WindowWidthSizeClass.Medium -> 1.1f
@@ -353,7 +353,7 @@ object AdaptiveUtils {
      * @param windowSizeClass Window size class for scaling
      * @return Text style with scaled font size
      */
-    fun getAdaptiveTextStyle(
+    public fun getAdaptiveTextStyle(
         baseStyle: TextStyle,
         windowSizeClass: WindowSizeClass,
     ): TextStyle {
@@ -378,7 +378,7 @@ object AdaptiveUtils {
      * - Medium: 64dp
      * - Expanded: 80dp
      */
-    fun getListCoverSize(windowSizeClass: WindowSizeClass): Dp =
+    public fun getListCoverSize(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 48.dp
             WindowWidthSizeClass.Medium -> 64.dp
@@ -393,7 +393,7 @@ object AdaptiveUtils {
      * - Medium: 56dp
      * - Expanded: 72dp
      */
-    fun getCompactListCoverSize(windowSizeClass: WindowSizeClass): Dp =
+    public fun getCompactListCoverSize(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 40.dp
             WindowWidthSizeClass.Medium -> 56.dp

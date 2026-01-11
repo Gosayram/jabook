@@ -41,7 +41,7 @@ import javax.inject.Singleton
  * Pauses playback if buffering is needed and resumes when ready.
  */
 @Singleton
-class TorrentStreamingMonitor
+public class TorrentStreamingMonitor
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -67,14 +67,14 @@ class TorrentStreamingMonitor
                 _isBuffering.value = value
             }
 
-        companion object {
+        public companion object {
             // Configuration
             private const val BUFFER_LOW_THRESHOLD_BYTES = 1 * 1024 * 1024L // 1MB
             private const val BUFFER_RESUME_THRESHOLD_BYTES = 5 * 1024 * 1024L // 5MB
             private const val POLLING_INTERVAL_MS = 1000L
         }
 
-        fun startMonitoring(
+        public fun startMonitoring(
             hash: String,
             fileIndex: Int,
         ) {
@@ -96,7 +96,7 @@ class TorrentStreamingMonitor
                 }
         }
 
-        fun stopMonitoring() {
+        public fun stopMonitoring() : Unit {
             monitoringJob?.cancel()
             monitoringJob = null
             currentHash = null
@@ -110,7 +110,7 @@ class TorrentStreamingMonitor
          * Call this when user manually pauses playback.
          * Prevents monitor from auto-resuming.
          */
-        fun onUserPaused() {
+        public fun onUserPaused() : Unit {
             pausedByUser = true
             isPausedForBuffering = false
         }
@@ -119,7 +119,7 @@ class TorrentStreamingMonitor
          * Call this when user manually resumes playback.
          * Allows monitor to resume control.
          */
-        fun onUserResumed() {
+        public fun onUserResumed() : Unit {
             pausedByUser = false
         }
 

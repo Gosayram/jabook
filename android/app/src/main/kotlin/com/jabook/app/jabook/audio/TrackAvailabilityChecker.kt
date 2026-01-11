@@ -23,7 +23,7 @@ import java.io.File
  * Inspired by lissen-android PlaybackNotificationService implementation.
  * This checks if the file exists locally or if it's a valid network URL.
  */
-object TrackAvailabilityChecker {
+public object TrackAvailabilityChecker {
     /**
      * Checks if a track at the given index is available.
      *
@@ -31,7 +31,7 @@ object TrackAvailabilityChecker {
      * @param index Track index to check
      * @return true if track is available, false otherwise
      */
-    fun isTrackAvailable(
+    public fun isTrackAvailable(
         player: ExoPlayer,
         index: Int,
     ): Boolean {
@@ -74,7 +74,7 @@ object TrackAvailabilityChecker {
      * @param maxIterations Maximum number of iterations to prevent infinite loops
      * @return Index of next available track, or null if none found
      */
-    fun findAvailableTrackIndex(
+    public fun findAvailableTrackIndex(
         player: ExoPlayer,
         currentIndex: Int,
         direction: Direction,
@@ -101,7 +101,7 @@ object TrackAvailabilityChecker {
     /**
      * Direction for searching available tracks.
      */
-    enum class Direction {
+    public enum class Direction {
         FORWARD,
         BACKWARD,
     }

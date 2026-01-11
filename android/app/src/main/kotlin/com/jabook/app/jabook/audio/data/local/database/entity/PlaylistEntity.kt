@@ -21,7 +21,7 @@ import androidx.room.PrimaryKey
  * Entity representing a saved playlist for a book.
  */
 @Entity(tableName = "playlists")
-data class PlaylistEntity(
+public data class PlaylistEntity(
     @PrimaryKey
     val bookId: String,
     val bookTitle: String,

@@ -28,7 +28,7 @@ import javax.inject.Singleton
  * Uses MediaMetadataRetriever as primary source, falls back to KTagLib for advanced tags.
  */
 @Singleton
-class Media3MetadataParser
+public class Media3MetadataParser
     @Inject
     constructor(
         private val encodingDetector: EncodingDetector,

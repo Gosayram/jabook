@@ -42,7 +42,7 @@ import androidx.room.PrimaryKey
  * @property sourceUrl Source URL where book was obtained from (e.g., rutracker link)
  */
 @Entity(tableName = "books")
-data class BookEntity(
+public data class BookEntity(
     @PrimaryKey
     @ColumnInfo(name = "id")
     val id: String,
@@ -119,7 +119,7 @@ data class BookEntity(
         androidx.room.Index(value = ["chapter_index"]), // Faster sorting by chapter order
     ],
 )
-data class ChapterEntity(
+public data class ChapterEntity(
     @PrimaryKey
     @ColumnInfo(name = "id")
     val id: String,

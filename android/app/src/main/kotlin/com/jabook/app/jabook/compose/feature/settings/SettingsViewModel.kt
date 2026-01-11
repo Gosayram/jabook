@@ -57,7 +57,7 @@ import javax.inject.Inject
  * Gradually migrating to Proto DataStore.
  */
 @HiltViewModel
-class SettingsViewModel
+public class SettingsViewModel
     @Inject
     constructor(
         private val settingsRepository: SettingsRepository,
@@ -100,7 +100,7 @@ class SettingsViewModel
                 initialValue = ScanProgress.Idle,
             )
 
-        fun scanLibrary() {
+        public fun scanLibrary() : Unit {
             viewModelScope.launch {
                 // Check if scan folders are configured
                 val scanFolders = scanPathDao.getAllPathsList()
@@ -119,7 +119,7 @@ class SettingsViewModel
             }
         }
 
-        fun cancelScan() {
+        public fun cancelScan() : Unit {
             workManager.cancelAllWorkByTag("library_scan")
         }
 
@@ -131,7 +131,7 @@ class SettingsViewModel
                 initialValue = com.jabook.app.jabook.compose.domain.model.AuthStatus.Unauthenticated,
             )
 
-        fun logout() {
+        public fun logout() : Unit {
             viewModelScope.launch {
                 authRepository.logout()
             }
@@ -161,37 +161,37 @@ class SettingsViewModel
 
         // ===== Old preferences API (kept for compatibility) =====
 
-        fun updateTheme(theme: AppTheme) {
+        public fun updateTheme(theme: AppTheme) {
             viewModelScope.launch {
                 userPreferencesRepository.setTheme(theme)
             }
         }
 
-        fun updateSortOrder(sortOrder: BookSortOrder) {
+        public fun updateSortOrder(sortOrder: BookSortOrder) {
             viewModelScope.launch {
                 userPreferencesRepository.setSortOrder(sortOrder)
             }
         }
 
-        fun updateAutoPlayNext(enabled: Boolean) {
+        public fun updateAutoPlayNext(enabled: Boolean) {
             viewModelScope.launch {
                 userPreferencesRepository.setAutoPlayNext(enabled)
             }
         }
 
-        fun updateFont(font: com.jabook.app.jabook.compose.data.model.AppFont) {
+        public fun updateFont(font: com.jabook.app.jabook.compose.data.model.AppFont) {
             viewModelScope.launch {
                 userPreferencesRepository.setFont(font)
             }
         }
 
-        fun updateNormalizeChapterTitles(enabled: Boolean) {
+        public fun updateNormalizeChapterTitles(enabled: Boolean) {
             viewModelScope.launch {
                 userPreferencesRepository.setNormalizeChapterTitles(enabled)
             }
         }
 
-        fun updatePlaybackSpeed(speed: Float) {
+        public fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
                 // Also update in Proto DataStore
@@ -201,19 +201,19 @@ class SettingsViewModel
 
         // ===== New Proto DataStore API =====
 
-        fun updateProtoTheme(themeMode: ThemeMode) {
+        public fun updateProtoTheme(themeMode: ThemeMode) {
             viewModelScope.launch {
                 settingsRepository.updateThemeMode(themeMode)
             }
         }
 
-        fun updateDynamicColors(enabled: Boolean) {
+        public fun updateDynamicColors(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateDynamicColors(enabled)
             }
         }
 
-        fun updateAudioSettings(
+        public fun updateAudioSettings(
             rewindSeconds: Int? = null,
             forwardSeconds: Int? = null,
             volumeBoost: String? = null,
@@ -241,13 +241,13 @@ class SettingsViewModel
             }
         }
 
-        fun updateLanguage(languageCode: String) {
+        public fun updateLanguage(languageCode: String) {
             viewModelScope.launch {
                 settingsRepository.updateLanguage(languageCode)
             }
         }
 
-        fun updateNotifications(
+        public fun updateNotifications(
             enabled: Boolean? = null,
             downloadNotifications: Boolean? = null,
             playerNotifications: Boolean? = null,
@@ -261,7 +261,7 @@ class SettingsViewModel
             }
         }
 
-        fun resetToDefaults() {
+        public fun resetToDefaults() : Unit {
             viewModelScope.launch {
                 settingsRepository.resetToDefaults()
             }
@@ -282,7 +282,7 @@ class SettingsViewModel
         /**
          * Update the selected mirror.
          */
-        fun updateMirror(domain: String) {
+        public fun updateMirror(domain: String) {
             viewModelScope.launch {
                 mirrorManager.setMirror(domain)
             }
@@ -291,7 +291,7 @@ class SettingsViewModel
         /**
          * Check mirror health and invoke callback with result.
          */
-        fun checkMirrorHealth(
+        public fun checkMirrorHealth(
             domain: String,
             onResult: (Boolean) -> Unit,
         ) {
@@ -304,7 +304,7 @@ class SettingsViewModel
         /**
          * Add a custom mirror domain.
          */
-        fun addCustomMirror(domain: String) {
+        public fun addCustomMirror(domain: String) {
             viewModelScope.launch {
                 mirrorManager.addCustomMirror(domain)
             }
@@ -313,7 +313,7 @@ class SettingsViewModel
         /**
          * Remove a custom mirror domain.
          */
-        fun removeCustomMirror(domain: String) {
+        public fun removeCustomMirror(domain: String) {
             viewModelScope.launch {
                 mirrorManager.removeCustomMirror(domain)
             }
@@ -322,7 +322,7 @@ class SettingsViewModel
         /**
          * Update auto-switch mirror setting.
          */
-        fun updateAutoSwitch(enabled: Boolean) {
+        public fun updateAutoSwitch(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateAutoSwitchMirror(enabled)
             }
@@ -330,7 +330,7 @@ class SettingsViewModel
 
         // ===== Download Settings =====
 
-        fun updateDownloadPath(uriString: String) {
+        public fun updateDownloadPath(uriString: String) {
             val path = resolvePathFromUri(uriString)
             viewModelScope.launch {
                 settingsRepository.updateDownloadPath(path)
@@ -357,7 +357,7 @@ class SettingsViewModel
             return uriString
         }
 
-        fun updateWifiOnly(enabled: Boolean) {
+        public fun updateWifiOnly(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateWifiOnly(enabled)
             }
@@ -366,7 +366,7 @@ class SettingsViewModel
         private val _torrentStorageSize = MutableStateFlow<Long>(0L)
         val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
 
-        fun loadTorrentStorageSize() {
+        public fun loadTorrentStorageSize() : Unit {
             viewModelScope.launch {
                 val path = protoSettings.value.downloadPath
                 if (path.isNotEmpty()) {
@@ -376,7 +376,7 @@ class SettingsViewModel
             }
         }
 
-        fun deleteAllTorrentData(deleteFiles: Boolean) {
+        public fun deleteAllTorrentData(deleteFiles: Boolean) {
             viewModelScope.launch {
                 torrentManager.deleteAllTorrents(deleteFiles)
                 // Refresh size after a short delay to allow file system ops
@@ -393,7 +393,7 @@ class SettingsViewModel
         /**
          * Export app data to JSON backup file.
          */
-        fun exportData() {
+        public fun exportData() : Unit {
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Exporting
@@ -408,7 +408,7 @@ class SettingsViewModel
         /**
          * Import app data from JSON backup file.
          */
-        fun importData(uri: Uri) {
+        public fun importData(uri: Uri) {
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Importing
@@ -423,7 +423,7 @@ class SettingsViewModel
         /**
          * Reset backup state to Idle.
          */
-        fun resetBackupState() {
+        public fun resetBackupState() : Unit {
             _backupState.value = BackupUiState.Idle
         }
 
@@ -438,7 +438,7 @@ class SettingsViewModel
         /**
          * Load cache statistics.
          */
-        fun loadCacheStatistics() {
+        public fun loadCacheStatistics() : Unit {
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Loading
@@ -454,7 +454,7 @@ class SettingsViewModel
         /**
          * Clear cache (all or specific type).
          */
-        fun clearCache(type: CacheType? = null) {
+        public fun clearCache(type: CacheType? = null) {
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Clearing
@@ -480,14 +480,14 @@ class SettingsViewModel
         /**
          * Reset cache operation state.
          */
-        fun resetCacheOperation() {
+        public fun resetCacheOperation() : Unit {
             _cacheOperation.value = CacheOperationState.Idle
         }
 
         /**
          * Toggle download speed limiting.
          */
-        fun updateLimitDownloadSpeed(enabled: Boolean) {
+        public fun updateLimitDownloadSpeed(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateLimitDownloadSpeed(enabled)
             }
@@ -496,7 +496,7 @@ class SettingsViewModel
         /**
          * Update max download speed in KB/s.
          */
-        fun updateMaxDownloadSpeed(speedKb: Int) {
+        public fun updateMaxDownloadSpeed(speedKb: Int) {
             viewModelScope.launch {
                 settingsRepository.updateMaxDownloadSpeed(speedKb)
             }
@@ -505,7 +505,7 @@ class SettingsViewModel
         /**
          * Update max concurrent downloads.
          */
-        fun updateMaxConcurrentDownloads(count: Int) {
+        public fun updateMaxConcurrentDownloads(count: Int) {
             viewModelScope.launch {
                 settingsRepository.updateMaxConcurrentDownloads(count)
             }
@@ -514,7 +514,7 @@ class SettingsViewModel
         /**
          * Resets all per-book custom seek settings to global defaults.
          */
-        fun resetAllBookSettings() {
+        public fun resetAllBookSettings() : Unit {
             viewModelScope.launch {
                 updateBookSettingsUseCase.resetAll()
             }
@@ -523,7 +523,7 @@ class SettingsViewModel
         /**
          * Normalizes all chapter titles (e.g. "Chapter 1").
          */
-        fun normalizeAllChapters() {
+        public fun normalizeAllChapters() : Unit {
             viewModelScope.launch {
                 booksRepository.normalizeAllChapters()
             }
@@ -533,22 +533,22 @@ class SettingsViewModel
 /**
  * UI state for backup/restore operations.
  */
-sealed class BackupUiState {
+public sealed class BackupUiState {
     data object Idle : BackupUiState()
 
     data object Exporting : BackupUiState()
 
-    data class ExportReady(
+    public data class ExportReady(
         val uri: Uri,
     ) : BackupUiState()
 
     data object Importing : BackupUiState()
 
-    data class ImportComplete(
+    public data class ImportComplete(
         val stats: ImportStats,
     ) : BackupUiState()
 
-    data class Error(
+    public data class Error(
         val message: String,
     ) : BackupUiState()
 }
@@ -556,7 +556,7 @@ sealed class BackupUiState {
 /**
  * UI state for cache operations.
  */
-sealed class CacheOperationState {
+public sealed class CacheOperationState {
     data object Idle : CacheOperationState()
 
     data object Loading : CacheOperationState()
@@ -565,7 +565,7 @@ sealed class CacheOperationState {
 
     data object Success : CacheOperationState()
 
-    data class Error(
+    public data class Error(
         val message: String,
     ) : CacheOperationState()
 }

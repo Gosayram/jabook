@@ -26,7 +26,7 @@ import javax.inject.Inject
  *
  * Saves chapters to local storage for offline-first access.
  */
-class SyncChaptersUseCase
+public class SyncChaptersUseCase
     @Inject
     constructor(
         private val chapterRepository: ChapterMetadataRepository,

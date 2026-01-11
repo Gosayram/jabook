@@ -39,7 +39,7 @@ import javax.inject.Singleton
  * @param booksDao Room DAO for database access
  */
 @Singleton
-class OfflineFirstBooksRepository
+public class OfflineFirstBooksRepository
     @Inject
     constructor(
         private val booksDao: BooksDao,

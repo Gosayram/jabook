@@ -24,7 +24,7 @@ import kotlinx.serialization.Serializable
  * Real implementation would need HTML parsing.
  */
 @Serializable
-data class TopicSearchResponse(
+public data class TopicSearchResponse(
     @SerialName("topics")
     val topics: List<TopicItem> = emptyList(),
 )
@@ -33,7 +33,7 @@ data class TopicSearchResponse(
  * Search result topic item.
  */
 @Serializable
-data class TopicItem(
+public data class TopicItem(
     @SerialName("id")
     val id: String,
     @SerialName("title")

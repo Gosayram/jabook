@@ -50,7 +50,7 @@ private const val TAG = "Navigation"
  */
 @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
-fun JabookNavHost(
+public fun JabookNavHost(
     appState: JabookAppState,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,

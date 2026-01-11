@@ -29,12 +29,12 @@ import kotlinx.coroutines.flow.Flow
  * Provides reactive queries for chapter data with Flow-based observations.
  */
 @Dao
-interface ChaptersDao {
+public interface ChaptersDao {
     /**
      * Observes all chapters for a specific book, ordered by chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId ORDER BY chapter_index ASC")
-    fun getChaptersByBookIdFlow(bookId: String): Flow<List<ChapterEntity>>
+    public fun getChaptersByBookIdFlow(bookId: String): Flow<List<ChapterEntity>>
 
     /**
      * Gets a single chapter by ID (one-shot).

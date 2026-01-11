@@ -30,7 +30,7 @@ import kotlin.math.roundToInt
  *
  * Based on NextPlayer gesture implementation patterns.
  */
-class SwipeGestureHandler(
+public class SwipeGestureHandler(
     private val context: Context,
 ) {
     private val audioManager: AudioManager =
@@ -55,7 +55,7 @@ class SwipeGestureHandler(
      * @param currentBrightness Current brightness (0.0 to 1.0)
      * @return New brightness value
      */
-    fun adjustBrightness(
+    public fun adjustBrightness(
         delta: Float,
         window: Window,
         currentBrightness: Float,
@@ -76,7 +76,7 @@ class SwipeGestureHandler(
      * @param window Window to get brightness from
      * @return Current brightness (0.0 to 1.0), or system default if automatic
      */
-    fun getCurrentBrightness(window: Window): Float {
+    public fun getCurrentBrightness(window: Window): Float {
         val brightness = window.attributes.screenBrightness
         return if (brightness < 0) {
             // Automatic brightness, try to get system setting
@@ -99,7 +99,7 @@ class SwipeGestureHandler(
      * @param delta Normalized delta (-1.0 to 1.0), negative = quieter
      * @return New volume level (0 to maxVolume)
      */
-    fun adjustVolume(delta: Float): Int {
+    public fun adjustVolume(delta: Float): Int {
         // Invert: swipe up increases volume
         val volumeChange = (-delta * maxVolume * 0.5f).roundToInt()
         val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)
@@ -122,7 +122,7 @@ class SwipeGestureHandler(
      * @param maxSeekMs Maximum seek in milliseconds (default 2 minutes)
      * @return Seek delta in milliseconds (positive = forward)
      */
-    fun calculateSeekDelta(
+    public fun calculateSeekDelta(
         horizontalDrag: Float,
         screenWidth: Float,
         sensitivity: Float = 1.0f,
@@ -144,7 +144,7 @@ class SwipeGestureHandler(
      * @param deltaMs Seek delta in milliseconds
      * @return Formatted string like "+10s" or "-5s"
      */
-    fun formatSeekDelta(deltaMs: Long): String {
+    public fun formatSeekDelta(deltaMs: Long): String {
         val totalSeconds = deltaMs / 1000
         val absSeconds = abs(totalSeconds)
         val sign = if (totalSeconds >= 0) "+" else "-"
@@ -159,24 +159,24 @@ class SwipeGestureHandler(
         }
     }
 
-    companion object {
+    public companion object {
         /**
          * Minimum drag distance to trigger a gesture (in dp).
          */
-        const val MIN_DRAG_THRESHOLD_DP = 10f
+        public const val MIN_DRAG_THRESHOLD_DP = 10f
 
         /**
          * Zone width ratio for left/right side detection.
          * Value of 0.4 means left 40% of screen = brightness, right 40% = volume.
          */
-        const val SIDE_ZONE_RATIO = 0.4f
+        public const val SIDE_ZONE_RATIO = 0.4f
     }
 }
 
 /**
  * Enum representing the type of gesture being performed.
  */
-enum class GestureType {
+public enum class GestureType {
     NONE,
     BRIGHTNESS,
     VOLUME,
@@ -186,7 +186,7 @@ enum class GestureType {
 /**
  * State holder for active gesture.
  */
-data class GestureState(
+public data class GestureState(
     val type: GestureType = GestureType.NONE,
     val value: Float = 0f, // 0.0 to 1.0 for brightness/volume, or seek delta in seconds
     val isActive: Boolean = false,

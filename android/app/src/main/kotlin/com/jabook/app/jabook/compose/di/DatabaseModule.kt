@@ -38,7 +38,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object DatabaseModule {
+public object DatabaseModule {
     private const val TAG = "Room"
 
     /**
@@ -298,7 +298,7 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideJabookDatabase(
+    public fun provideJabookDatabase(
         @ApplicationContext context: Context,
     ): JabookDatabase {
         val builder =
@@ -390,34 +390,34 @@ object DatabaseModule {
     }
 
     @Provides
-    fun provideOfflineSearchDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao =
+    public fun provideOfflineSearchDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao =
         database.offlineSearchDao()
 
     @Provides
-    fun provideBooksDao(database: JabookDatabase): BooksDao = database.booksDao()
+    public fun provideBooksDao(database: JabookDatabase): BooksDao = database.booksDao()
 
     @Provides
-    fun provideChaptersDao(database: JabookDatabase): ChaptersDao = database.chaptersDao()
+    public fun provideChaptersDao(database: JabookDatabase): ChaptersDao = database.chaptersDao()
 
     @Provides
-    fun provideSearchHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao =
+    public fun provideSearchHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao =
         database.searchHistoryDao()
 
     @Provides
-    fun provideDownloadQueueDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao =
+    public fun provideDownloadQueueDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao =
         database.downloadQueueDao()
 
     @Provides
-    fun provideDownloadHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao =
+    public fun provideDownloadHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao =
         database.downloadHistoryDao()
 
     @Provides
-    fun provideFavoriteDao(database: JabookDatabase): FavoriteDao = database.favoriteDao()
+    public fun provideFavoriteDao(database: JabookDatabase): FavoriteDao = database.favoriteDao()
 
     @Provides
-    fun provideScanPathDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.ScanPathDao = database.scanPathDao()
+    public fun provideScanPathDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.ScanPathDao = database.scanPathDao()
 
     @Provides
-    fun provideTorrentDownloadDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao =
+    public fun provideTorrentDownloadDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao =
         database.torrentDownloadDao()
 }

@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
  * Extension functions for MediaController to send custom commands.
  * Provides type-safe methods for accessing service functionality through MediaController.
  */
-object MediaControllerExtensions {
+public object MediaControllerExtensions {
     /**
      * Sets playlist through MediaController custom command.
      * This is more reliable than using getInstance().
@@ -40,7 +40,7 @@ object MediaControllerExtensions {
      * @param groupPath Optional group path (book ID)
      * @return Future with result
      */
-    fun setPlaylist(
+    public fun setPlaylist(
         controller: MediaController,
         filePaths: List<String>,
         metadata: Map<String, String>? = null,
@@ -83,7 +83,7 @@ object MediaControllerExtensions {
     /**
      * Sets sleep timer with duration in minutes.
      */
-    fun setSleepTimerMinutes(
+    public fun setSleepTimerMinutes(
         controller: MediaController,
         minutes: Int,
     ): ListenableFuture<SessionResult> {
@@ -102,7 +102,7 @@ object MediaControllerExtensions {
     /**
      * Sets sleep timer to end of chapter.
      */
-    fun setSleepTimerEndOfChapter(controller: MediaController): ListenableFuture<SessionResult> {
+    public fun setSleepTimerEndOfChapter(controller: MediaController): ListenableFuture<SessionResult> {
         val command =
             SessionCommand(
                 AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER,
@@ -114,7 +114,7 @@ object MediaControllerExtensions {
     /**
      * Cancels sleep timer.
      */
-    fun cancelSleepTimer(controller: MediaController): ListenableFuture<SessionResult> {
+    public fun cancelSleepTimer(controller: MediaController): ListenableFuture<SessionResult> {
         val command =
             SessionCommand(
                 AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_CANCEL_SLEEP_TIMER,

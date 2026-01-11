@@ -29,7 +29,7 @@ import org.jsoup.nodes.TextNode
 /**
  * Utility for converting HTML to AnnotatedString with clickable links.
  */
-object HtmlToAnnotatedString {
+public object HtmlToAnnotatedString {
     /**
      * Convert HTML string to AnnotatedString with clickable links.
      *
@@ -37,7 +37,7 @@ object HtmlToAnnotatedString {
      * @param linkColor Color for links (default: Material Blue #2196F3)
      * @return AnnotatedString with clickable links
      */
-    fun convert(
+    public fun convert(
         html: String,
         linkColor: androidx.compose.ui.graphics.Color =
             androidx.compose.ui.graphics

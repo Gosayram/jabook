@@ -28,7 +28,7 @@ import javax.inject.Inject
  * val isAuthenticated = verifyAuthorisedUseCase(htmlContent)
  * ```
  */
-class VerifyAuthorisedUseCase
+public class VerifyAuthorisedUseCase
     @Inject
     constructor(
         private val authRepository: AuthRepository,

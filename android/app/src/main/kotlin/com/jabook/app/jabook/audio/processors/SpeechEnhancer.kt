@@ -30,7 +30,7 @@ import kotlin.math.pow
  * - Gentle compression (threshold -28 dB, ratio 2:1) - stabilizes level
  */
 @UnstableApi
-class SpeechEnhancer : AudioProcessor {
+public class SpeechEnhancer : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
     private var outputAudioFormat: AudioProcessor.AudioFormat? = null
     private var isActive = false
@@ -263,7 +263,7 @@ class SpeechEnhancer : AudioProcessor {
         isActive = false
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

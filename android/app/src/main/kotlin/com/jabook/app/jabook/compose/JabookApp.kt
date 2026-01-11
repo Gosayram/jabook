@@ -60,7 +60,7 @@ import com.jabook.app.jabook.ui.theme.JabookTheme
  * @param appState App state holder, defaults to remembered state
  */
 @Composable
-fun JabookApp(
+public fun JabookApp(
     windowSizeClass: WindowSizeClass,
     intent: android.content.Intent? = null,
     appState: JabookAppState = rememberJabookAppState(),

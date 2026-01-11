@@ -30,7 +30,7 @@ import javax.inject.Singleton
  * TODO: Implement full migration logic.
  */
 @Singleton
-class DataMigrationManager
+public class DataMigrationManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -38,7 +38,7 @@ class DataMigrationManager
         private val preferencesDataStore: DataStore<Preferences>,
         private val bookIdentifier: com.jabook.app.jabook.compose.data.local.scanner.BookIdentifier,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "DataMigrationManager"
             private const val PREFS_NAME = "FlutterSharedPreferences"
             private const val KEY_PLAYER_STATE = "flutter.player_state"
@@ -128,13 +128,13 @@ class DataMigrationManager
 /**
  * Result of migration operation.
  */
-sealed class MigrationResult {
-    data class Success(
+public sealed class MigrationResult {
+    public data class Success(
         val booksCount: Int,
         val chaptersCount: Int,
     ) : MigrationResult()
 
-    data class Failure(
+    public data class Failure(
         val error: Exception,
     ) : MigrationResult()
 }

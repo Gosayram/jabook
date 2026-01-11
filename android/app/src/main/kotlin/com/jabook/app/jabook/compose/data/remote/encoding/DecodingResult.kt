@@ -25,18 +25,18 @@ package com.jabook.app.jabook.compose.data.remote.encoding
  * @property hasMojibake True if mojibake patterns detected in decoded text
  * @property isValid True if decoding succeeded and text appears valid
  */
-data class DecodingResult(
+public data class DecodingResult(
     val text: String,
     val encoding: String,
     val confidence: Float,
     val hasMojibake: Boolean = false,
     val isValid: Boolean = true,
 ) {
-    companion object {
+    public companion object {
         /**
          * Creates an invalid result for failed decoding attempts.
          */
-        fun invalid(): DecodingResult =
+        public fun invalid(): DecodingResult =
             DecodingResult(
                 text = "",
                 encoding = "unknown",
@@ -48,7 +48,7 @@ data class DecodingResult(
         /**
          * Creates a successful result with high confidence.
          */
-        fun success(
+        public fun success(
             text: String,
             encoding: String,
         ): DecodingResult =
@@ -63,7 +63,7 @@ data class DecodingResult(
         /**
          * Creates a low-confidence result (likely has issues).
          */
-        fun lowConfidence(
+        public fun lowConfidence(
             text: String,
             encoding: String,
             hasMojibake: Boolean = true,

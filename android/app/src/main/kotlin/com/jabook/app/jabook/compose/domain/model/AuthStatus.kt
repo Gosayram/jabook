@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.domain.model
 /**
  * Represents the current authentication status.
  */
-sealed interface AuthStatus {
+public sealed interface AuthStatus {
     /**
      * User is not logged in.
      */
@@ -26,14 +26,14 @@ sealed interface AuthStatus {
     /**
      * User is successfully authenticated.
      */
-    data class Authenticated(
+    public data class Authenticated(
         val username: String,
     ) : AuthStatus
 
     /**
      * Authentication failed or error occurred.
      */
-    data class Error(
+    public data class Error(
         val message: String,
     ) : AuthStatus
 }

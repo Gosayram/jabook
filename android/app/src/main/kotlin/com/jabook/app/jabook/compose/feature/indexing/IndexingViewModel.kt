@@ -36,14 +36,14 @@ import javax.inject.Inject
  * ViewModel for managing forum indexing operations.
  */
 @HiltViewModel
-class IndexingViewModel
+public class IndexingViewModel
     @Inject
     constructor(
         private val forumIndexer: ForumIndexer,
         private val authRepository: AuthRepository,
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
     ) : ViewModel() {
-        companion object {
+        public companion object {
             private const val TAG = "IndexingViewModel"
         }
 
@@ -67,7 +67,7 @@ class IndexingViewModel
          *
          * @param context Context needed to start foreground service
          */
-        fun startIndexing(context: Context? = null) {
+        public fun startIndexing(context: Context? = null) {
             if (_isIndexing.value) {
                 Log.w(TAG, "Indexing already in progress")
                 return
@@ -124,7 +124,7 @@ class IndexingViewModel
         /**
          * Cancel indexing (if possible).
          */
-        fun cancelIndexing() {
+        public fun cancelIndexing() : Unit {
             // Note: Current implementation doesn't support cancellation
             // This is a placeholder for future implementation
             Log.d(TAG, "Cancel indexing requested (not yet implemented)")
@@ -150,7 +150,7 @@ class IndexingViewModel
          * This allows indexing to continue even when dialog is closed.
          * Stops current indexing in ViewModel (if running) and transfers control to service.
          */
-        fun startIndexingInBackground(context: Context) {
+        public fun startIndexingInBackground(context: Context) {
             Log.d(TAG, "Transferring indexing to foreground service")
 
             // Stop current indexing in ViewModel if running

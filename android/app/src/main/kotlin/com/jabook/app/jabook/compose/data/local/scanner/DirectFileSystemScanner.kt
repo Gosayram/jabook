@@ -41,7 +41,7 @@ import javax.inject.Singleton
  * from appearing in gallery, but wants audio files to be scanned.
  */
 @Singleton
-class DirectFileSystemScanner
+public class DirectFileSystemScanner
     @Inject
     constructor(
         private val metadataParser: AudioMetadataParser,
@@ -555,7 +555,7 @@ class DirectFileSystemScanner
             val chapterNumber: Int = 0,
             val hasNumber: Boolean = false,
         ) {
-            fun toSortKey(): Int = partNumber * 1000 + chapterNumber
+            public fun toSortKey(): Int = partNumber * 1000 + chapterNumber
         }
 
         /**
@@ -642,7 +642,7 @@ class DirectFileSystemScanner
             return ChapterInfo(partNum, chapterNum, found)
         }
 
-        companion object {
+        public companion object {
             /**
              * Supported audio file extensions.
              */

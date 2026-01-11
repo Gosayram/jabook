@@ -34,7 +34,7 @@ package com.jabook.app.jabook.compose.data.remote
  * }
  * ```
  */
-sealed class RuTrackerError : Throwable() {
+public sealed class RuTrackerError : Throwable() {
     /**
      * User is not authenticated or token is invalid.
      */
@@ -80,14 +80,14 @@ sealed class RuTrackerError : Throwable() {
     /**
      * Parsing error (HTML structure changed, invalid format, etc.).
      */
-    data class ParsingError(
+    public data class ParsingError(
         override val message: String,
     ) : RuTrackerError()
 
     /**
      * Unknown error with optional message.
      */
-    data class Unknown(
+    public data class Unknown(
         private val errorMessage: String? = null,
     ) : RuTrackerError() {
         override val message: String

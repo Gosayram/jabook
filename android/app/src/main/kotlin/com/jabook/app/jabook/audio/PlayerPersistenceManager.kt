@@ -26,12 +26,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class PlayerPersistenceManager
+public class PlayerPersistenceManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
     ) {
-        companion object {
+        public companion object {
             private const val PREFS_NAME = "FlutterSharedPreferences"
             private const val KEY_RESUMPTION_FILE_PATH = "playback_resumption_file_path"
             private const val KEY_RESUMPTION_POSITION_MS = "playback_resumption_position_ms"
@@ -53,7 +53,7 @@ class PlayerPersistenceManager
             _lastPlayedBookId.value = prefs.getString(KEY_LAST_PLAYED_BOOK_ID, null)
         }
 
-        data class PersistedPlayerState(
+        public data class PersistedPlayerState(
             val groupPath: String,
             val filePaths: List<String>,
             val currentIndex: Int,
@@ -156,7 +156,7 @@ class PlayerPersistenceManager
                 }
             }
 
-        fun saveGroupPathToSharedPreferences(groupPath: String) {
+        public fun saveGroupPathToSharedPreferences(groupPath: String) {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val sanitizedPath = sanitizeGroupPath(groupPath)
@@ -286,7 +286,7 @@ class PlayerPersistenceManager
 /**
  * Lightweight state for backup and sorting
  */
-data class PlayerState(
+public data class PlayerState(
     val bookId: String,
     val positionMs: Long,
     val durationMs: Long,

@@ -29,7 +29,7 @@ import retrofit2.http.Query
  * This interface defines HTTP endpoints that return HTML,
  * which will be parsed by RutrackerParser.
  */
-interface RutrackerApi {
+public interface RutrackerApi {
     /**
      * Search for topics on Rutracker.
      *
@@ -121,12 +121,12 @@ interface RutrackerApi {
         @Query("start") start: Int = 0,
     ): Response<ResponseBody>
 
-    companion object {
+    public companion object {
         // Audiobook categories forum IDs
         // Format: comma-separated list for search query parameter
         // ONLY child forums with actual topics - parent category IDs removed
         // (2326, 2389, 2327, 2324, 2328 are parent groups showing only subforum lists)
-        const val AUDIOBOOKS_FORUM_IDS =
+        public const val AUDIOBOOKS_FORUM_IDS =
             "574,1036,400,2388,2387,661,2348,695,399,402,467,490,499,2137,2127,2325,2342,530,2152,1350,403,1279,716,2165,401"
     }
 }

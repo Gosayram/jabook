@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.Color
 // Used for backgrounds & surfaces across all themes
 // ====================
 
-object NeutralColors {
+public object NeutralColors {
     // Light theme neutrals
     val Neutral50 = Color(0xFFFAFAFA) // Nearly white - light background
     val Neutral100 = Color(0xFFF5F5F5) // Light gray - light surface

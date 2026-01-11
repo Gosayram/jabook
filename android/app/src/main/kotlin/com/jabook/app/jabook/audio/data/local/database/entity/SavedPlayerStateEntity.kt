@@ -23,7 +23,7 @@ import androidx.room.PrimaryKey
  * This includes playlist, position, speed, repeat mode, and sleep timer.
  */
 @Entity(tableName = "saved_player_states")
-data class SavedPlayerStateEntity(
+public data class SavedPlayerStateEntity(
     @PrimaryKey
     val groupPath: String,
     val filePaths: String, // JSON array of file paths

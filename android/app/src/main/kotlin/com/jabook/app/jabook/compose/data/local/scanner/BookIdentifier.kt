@@ -25,7 +25,7 @@ import javax.inject.Singleton
  * IDs for the same logical book, even if scanned from different locations.
  */
 @Singleton
-class BookIdentifier
+public class BookIdentifier
     @Inject
     constructor() {
         /**
@@ -38,7 +38,7 @@ class BookIdentifier
          * @param artist Artist/author name (nullable)
          * @return Unique book ID
          */
-        fun generateBookId(
+        public fun generateBookId(
             directory: String,
             album: String?,
             artist: String?,
@@ -88,7 +88,7 @@ class BookIdentifier
          * @param artist Artist/author name (nullable)
          * @return Composite grouping key
          */
-        fun generateGroupingKey(
+        public fun generateGroupingKey(
             directory: String,
             album: String?,
             artist: String?,

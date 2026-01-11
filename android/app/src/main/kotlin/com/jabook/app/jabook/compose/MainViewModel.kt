@@ -28,10 +28,10 @@ import javax.inject.Inject
 /**
  * UI state for the main activity/app.
  */
-sealed interface MainActivityUiState {
+public sealed interface MainActivityUiState {
     data object Loading : MainActivityUiState
 
-    data class Success(
+    public data class Success(
         val userData: UserData,
     ) : MainActivityUiState
 }
@@ -40,7 +40,7 @@ sealed interface MainActivityUiState {
  * ViewModel for the main activity logic (global state).
  */
 @HiltViewModel
-class MainViewModel
+public class MainViewModel
     @Inject
     constructor(
         userPreferencesRepository: UserPreferencesRepository,

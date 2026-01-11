@@ -24,18 +24,18 @@ import kotlinx.coroutines.flow.onStart
  *
  * Inspired by nowinandroid Result pattern for explicit error handling.
  */
-sealed interface Result<out T> {
+public sealed interface Result<out T> {
     /**
      * Represents a successful operation with data.
      */
-    data class Success<T>(
+    public data class Success<T>(
         val data: T,
     ) : Result<T>
 
     /**
      * Represents a failed operation with an exception.
      */
-    data class Error(
+    public data class Error(
         val exception: Throwable,
     ) : Result<Nothing>
 

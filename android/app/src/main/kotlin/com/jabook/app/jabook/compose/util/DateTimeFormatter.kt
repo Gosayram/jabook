@@ -24,7 +24,7 @@ import java.util.TimeZone
  * Uses device timezone with UTC fallback.
  * Formats conform to GOST 7.64-90 standard.
  */
-object DateTimeFormatter {
+public object DateTimeFormatter {
     /**
      * GOST 7.64-90 format: DD.MM.YYYY HH:MM
      */
@@ -62,7 +62,7 @@ object DateTimeFormatter {
      * @param millis Unix timestamp in milliseconds
      * @return Formatted date string
      */
-    fun formatGOST(millis: Long): String {
+    public fun formatGOST(millis: Long): String {
         val sdf = SimpleDateFormat(FORMAT_GOST, Locale.getDefault())
         sdf.timeZone = getDeviceTimeZone()
         return sdf.format(Date(millis))
@@ -75,7 +75,7 @@ object DateTimeFormatter {
      * @param millis Unix timestamp in milliseconds
      * @return Formatted date string with seconds
      */
-    fun formatGOSTWithSeconds(millis: Long): String {
+    public fun formatGOSTWithSeconds(millis: Long): String {
         val sdf = SimpleDateFormat(FORMAT_GOST_WITH_SECONDS, Locale.getDefault())
         sdf.timeZone = getDeviceTimeZone()
         return sdf.format(Date(millis))
@@ -87,7 +87,7 @@ object DateTimeFormatter {
      *
      * @return Current time formatted
      */
-    fun formatCurrentGOST(): String = formatGOST(System.currentTimeMillis())
+    public fun formatCurrentGOST(): String = formatGOST(System.currentTimeMillis())
 
     /**
      * Format current time to GOST format with seconds (DD.MM.YYYY HH:MM:SS).
@@ -95,7 +95,7 @@ object DateTimeFormatter {
      *
      * @return Current time formatted with seconds
      */
-    fun formatCurrentGOSTWithSeconds(): String = formatGOSTWithSeconds(System.currentTimeMillis())
+    public fun formatCurrentGOSTWithSeconds(): String = formatGOSTWithSeconds(System.currentTimeMillis())
 
     /**
      * Format timestamp to ISO 8601 format for backup files.
@@ -104,7 +104,7 @@ object DateTimeFormatter {
      * @param millis Unix timestamp in milliseconds
      * @return ISO 8601 formatted string in UTC
      */
-    fun formatISO8601(millis: Long): String {
+    public fun formatISO8601(millis: Long): String {
         val sdf = SimpleDateFormat(FORMAT_ISO_8601, Locale.US)
         sdf.timeZone = TimeZone.getTimeZone("UTC")
         return sdf.format(Date(millis))
@@ -116,7 +116,7 @@ object DateTimeFormatter {
      *
      * @return Current time in ISO 8601 format (UTC)
      */
-    fun formatCurrentISO8601(): String = formatISO8601(System.currentTimeMillis())
+    public fun formatCurrentISO8601(): String = formatISO8601(System.currentTimeMillis())
 
     /**
      * Format timestamp for filename (yyyyMMdd_HHmmss).
@@ -125,7 +125,7 @@ object DateTimeFormatter {
      * @param millis Unix timestamp in milliseconds
      * @return Filename-safe date string
      */
-    fun formatForFilename(millis: Long): String {
+    public fun formatForFilename(millis: Long): String {
         val sdf = SimpleDateFormat(FORMAT_FILENAME, Locale.US)
         sdf.timeZone = getDeviceTimeZone()
         return sdf.format(Date(millis))
@@ -137,21 +137,21 @@ object DateTimeFormatter {
      *
      * @return Filename-safe current timestamp
      */
-    fun formatCurrentForFilename(): String = formatForFilename(System.currentTimeMillis())
+    public fun formatCurrentForFilename(): String = formatForFilename(System.currentTimeMillis())
 
     /**
      * Get current timezone ID.
      *
      * @return Timezone ID (e.g., "Asia/Tashkent", "UTC")
      */
-    fun getCurrentTimeZoneId(): String = getDeviceTimeZone().id
+    public fun getCurrentTimeZoneId(): String = getDeviceTimeZone().id
 
     /**
      * Get current timezone offset in minutes.
      *
      * @return Offset in minutes from UTC
      */
-    fun getCurrentTimeZoneOffset(): Int {
+    public fun getCurrentTimeZoneOffset(): Int {
         val tz = getDeviceTimeZone()
         return tz.getOffset(System.currentTimeMillis()) / (1000 * 60)
     }
@@ -163,7 +163,7 @@ object DateTimeFormatter {
      * @param isoString ISO 8601 formatted string
      * @return Unix timestamp in milliseconds, or 0 if parsing fails
      */
-    fun parseISO8601ToMillis(isoString: String): Long =
+    public fun parseISO8601ToMillis(isoString: String): Long =
         try {
             val sdf = SimpleDateFormat(FORMAT_ISO_8601, Locale.US)
             sdf.timeZone = TimeZone.getTimeZone("UTC")

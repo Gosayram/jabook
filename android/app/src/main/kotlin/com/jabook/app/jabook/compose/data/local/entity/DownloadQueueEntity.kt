@@ -21,7 +21,7 @@ import androidx.room.PrimaryKey
  * Download queue entry for persistent queue management.
  */
 @Entity(tableName = "download_queue")
-data class DownloadQueueEntity(
+public data class DownloadQueueEntity(
     @PrimaryKey
     val bookId: String,
     /**

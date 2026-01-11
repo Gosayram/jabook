@@ -27,7 +27,7 @@ import javax.inject.Inject
  * Handles notification action button clicks for torrent downloads
  */
 @AndroidEntryPoint
-class TorrentActionReceiver : BroadcastReceiver() {
+public class TorrentActionReceiver : BroadcastReceiver() {
     @Inject
     lateinit var torrentManager: TorrentManager
 
@@ -93,16 +93,16 @@ class TorrentActionReceiver : BroadcastReceiver() {
         }
     }
 
-    companion object {
+    public companion object {
         private const val TAG = "TorrentActionReceiver"
 
-        const val ACTION_PAUSE_TORRENT = "org.jabook.ACTION_PAUSE_TORRENT"
-        const val ACTION_RESUME_TORRENT = "org.jabook.ACTION_RESUME_TORRENT"
-        const val ACTION_STOP_TORRENT = "org.jabook.ACTION_STOP_TORRENT"
-        const val ACTION_CANCEL_TORRENT = "org.jabook.ACTION_CANCEL_TORRENT"
-        const val ACTION_PAUSE_ALL = "org.jabook.ACTION_PAUSE_ALL"
-        const val ACTION_RESUME_ALL = "org.jabook.ACTION_RESUME_ALL"
+        public const val ACTION_PAUSE_TORRENT = "org.jabook.ACTION_PAUSE_TORRENT"
+        public const val ACTION_RESUME_TORRENT = "org.jabook.ACTION_RESUME_TORRENT"
+        public const val ACTION_STOP_TORRENT = "org.jabook.ACTION_STOP_TORRENT"
+        public const val ACTION_CANCEL_TORRENT = "org.jabook.ACTION_CANCEL_TORRENT"
+        public const val ACTION_PAUSE_ALL = "org.jabook.ACTION_PAUSE_ALL"
+        public const val ACTION_RESUME_ALL = "org.jabook.ACTION_RESUME_ALL"
 
-        const val EXTRA_TORRENT_HASH = "torrent_hash"
+        public const val EXTRA_TORRENT_HASH = "torrent_hash"
     }
 }

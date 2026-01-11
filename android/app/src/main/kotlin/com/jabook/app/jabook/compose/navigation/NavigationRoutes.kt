@@ -29,7 +29,7 @@ import kotlinx.serialization.Serializable
  * @param bookId Unique identifier of the book to play
  */
 @Serializable
-data class PlayerRoute(
+public data class PlayerRoute(
     val bookId: String,
 )
 
@@ -39,7 +39,7 @@ data class PlayerRoute(
  * @param url URL to load in the WebView
  */
 @Serializable
-data class WebViewRoute(
+public data class WebViewRoute(
     val url: String,
 )
 
@@ -47,19 +47,19 @@ data class WebViewRoute(
  * Settings screen route - shows app settings and preferences.
  */
 @Serializable
-object SettingsRoute
+public object SettingsRoute
 
 /**
  * Search screen route - search for books by title or author.
  */
 @Serializable
-object SearchRoute
+public object SearchRoute
 
 /**
  * Downloads screen route - shows active downloads.
  */
 @Serializable
-data class DownloadsRoute(
+public data class DownloadsRoute(
     val magnetLink: String? = null,
 )
 
@@ -69,7 +69,7 @@ data class DownloadsRoute(
  * @param hash Info hash of the torrent
  */
 @Serializable
-data class TorrentDetailsRoute(
+public data class TorrentDetailsRoute(
     val hash: String,
 )
 
@@ -77,19 +77,19 @@ data class TorrentDetailsRoute(
  * Debug screen route - shows debug tools and logs.
  */
 @Serializable
-object DebugRoute
+public object DebugRoute
 
 /**
  * Library screen route - displays user's books.
  */
 @Serializable
-object LibraryRoute
+public object LibraryRoute
 
 /**
  * Favorites screen route - displays favorite books.
  */
 @Serializable
-object FavoritesRoute
+public object FavoritesRoute
 
 /**
  * Topic screen route - displays books for a specific topic/category.
@@ -97,7 +97,7 @@ object FavoritesRoute
  * @param topicId The unique identifier of the topic
  */
 @Serializable
-data class TopicRoute(
+public data class TopicRoute(
     val topicId: String,
 )
 
@@ -105,31 +105,31 @@ data class TopicRoute(
  * Download History screen route - displays download history.
  */
 @Serializable
-object DownloadHistoryRoute
+public object DownloadHistoryRoute
 
 /**
  * RuTracker Search screen route - search audiobooks on RuTracker.
  */
 @Serializable
-object RutrackerSearchRoute
+public object RutrackerSearchRoute
 
 @Serializable
-object ScanSettingsRoute
+public object ScanSettingsRoute
 
 /**
  * Audio Settings screen route - configure audio playback settings.
  */
 @Serializable
-object AudioSettingsRoute
+public object AudioSettingsRoute
 
 /**
  * Migration screen route - shows data migration progress.
  */
 @Serializable
-object MigrationRoute
+public object MigrationRoute
 
 /**
  * Onboarding screen route - introduces the app to new users.
  */
 @Serializable
-object OnboardingRoute
+public object OnboardingRoute

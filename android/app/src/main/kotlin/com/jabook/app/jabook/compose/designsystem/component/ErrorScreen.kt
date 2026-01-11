@@ -47,7 +47,7 @@ import com.jabook.app.jabook.compose.core.util.getStringRes
  * @param onRetry Optional retry action callback
  */
 @Composable
-fun ErrorScreen(
+public fun ErrorScreen(
     message: String = "",
     throwable: Throwable? = null,
     modifier: Modifier = Modifier,

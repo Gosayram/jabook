@@ -57,7 +57,7 @@ import kotlin.math.roundToInt
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun PlaybackSpeedSheet(
+public fun PlaybackSpeedSheet(
     currentSpeed: Float,
     pitchCorrectionEnabled: Boolean,
     onSpeedSelected: (Float) -> Unit,

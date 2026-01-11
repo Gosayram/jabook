@@ -41,7 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
  */
 @Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
-fun MigrationScreen(
+public fun MigrationScreen(
     onMigrationComplete: () -> Unit,
     viewModel: MigrationViewModel = hiltViewModel(),
 ) {

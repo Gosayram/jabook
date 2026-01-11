@@ -31,14 +31,14 @@ import android.util.Log
  * PlayerPerformanceLogger.summary()
  * ```
  */
-object PlayerPerformanceLogger {
+public object PlayerPerformanceLogger {
     private const val TAG = "PlayerPerf"
     private var sessionStartTime = 0L
     private var sessionName = ""
     private var enabled = true
     private val events = mutableListOf<TimingEvent>()
 
-    data class TimingEvent(
+    public data class TimingEvent(
         val timestamp: Long,
         val elapsed: Long,
         val component: String,
@@ -50,7 +50,7 @@ object PlayerPerformanceLogger {
      *
      * @param name Session identifier (e.g., "cold_start", "warm_start")
      */
-    fun start(name: String) {
+    public fun start(name: String) {
         sessionName = name
         sessionStartTime = System.currentTimeMillis()
         events.clear()
@@ -63,7 +63,7 @@ object PlayerPerformanceLogger {
      * @param component Component name (e.g., "Service", "Player", "UI")
      * @param event Event description (e.g., "onCreate started")
      */
-    fun log(
+    public fun log(
         component: String,
         event: String,
     ) {
@@ -88,7 +88,7 @@ object PlayerPerformanceLogger {
     /**
      * Log with automatic delta from previous event.
      */
-    fun logDelta(
+    public fun logDelta(
         component: String,
         event: String,
     ) {
@@ -106,7 +106,7 @@ object PlayerPerformanceLogger {
     /**
      * Print summary of all events with timing analysis.
      */
-    fun summary() {
+    public fun summary() : Unit {
         if (events.isEmpty()) {
             Log.w(TAG, "No events logged")
             return
@@ -156,19 +156,19 @@ object PlayerPerformanceLogger {
     /**
      * Enable/disable logging (for production builds).
      */
-    fun setEnabled(enabled: Boolean) {
+    public fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
     }
 
     /**
      * Get all recorded events (for testing/analysis).
      */
-    fun getEvents(): List<TimingEvent> = events.toList()
+    public fun getEvents(): List<TimingEvent> = events.toList()
 
     /**
      * Clear session data.
      */
-    fun reset() {
+    public fun reset() : Unit {
         events.clear()
         sessionStartTime = 0L
         sessionName = ""

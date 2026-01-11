@@ -67,7 +67,7 @@ import com.jabook.app.jabook.compose.ui.favorites.FavoritesViewModel
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FavoritesScreen(
+public fun FavoritesScreen(
     viewModel: FavoritesViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     onNavigateToTopic: (String) -> Unit,

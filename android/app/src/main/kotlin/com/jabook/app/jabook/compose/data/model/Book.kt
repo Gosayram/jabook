@@ -20,7 +20,7 @@ package com.jabook.app.jabook.compose.data.model
  * This is the domain representation used in UI layer.
  * It is converted from/to Room entities in the data layer.
  */
-data class Book(
+public data class Book(
     val id: String,
     val title: String,
     val author: String,
@@ -39,7 +39,7 @@ data class Book(
 /**
  * Domain model representing a chapter in an audiobook.
  */
-data class Chapter(
+public data class Chapter(
     val id: String,
     val bookId: String,
     val title: String,

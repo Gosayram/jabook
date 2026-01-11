@@ -38,7 +38,7 @@ import kotlin.math.abs
  * @param content The content to overlay gestures on (usually PlayerScreen content)
  */
 @Composable
-fun GestureOverlay(
+public fun GestureOverlay(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,

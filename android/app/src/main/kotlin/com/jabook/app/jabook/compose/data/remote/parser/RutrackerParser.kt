@@ -39,7 +39,7 @@ import javax.inject.Singleton
  * - Use selectStream() for lazy evaluation of large element lists (jsoup 1.19.1+)
  */
 @Singleton
-class RutrackerParser
+public class RutrackerParser
     @Inject
     constructor(
         private val mediaInfoParser: MediaInfoParser,
@@ -48,7 +48,7 @@ class RutrackerParser
         private val coverExtractor: CoverUrlExtractor,
         private val mirrorManager: com.jabook.app.jabook.compose.data.network.MirrorManager,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "RutrackerParser"
 
             // CSS Selectors for search results - UPDATED for 2025 based on robust Dart implementation
@@ -101,7 +101,7 @@ class RutrackerParser
          * @param contentType Optional Content-Type header
          * @return ParsingResult with search results
          */
-        fun parseSearchResultsWithEncoding(
+        public fun parseSearchResultsWithEncoding(
             bytes: ByteArray,
             contentType: String? = null,
         ): ParsingResult<List<SearchResult>> {
@@ -351,12 +351,12 @@ class RutrackerParser
         /**
          * Parse forum page and return topics along with pagination info.
          */
-        data class ForumPageResult(
+        public data class ForumPageResult(
             val topics: List<SearchResult>,
             val hasMorePages: Boolean,
         )
 
-        fun parseForumPage(
+        public fun parseForumPage(
             body: okhttp3.ResponseBody,
             forumId: String,
         ): List<SearchResult> {
@@ -372,7 +372,7 @@ class RutrackerParser
          * @param contentType Optional Content-Type header
          * @return ParsingResult with search results
          */
-        fun parseForumPageWithEncoding(
+        public fun parseForumPageWithEncoding(
             bytes: ByteArray,
             contentType: String? = null,
         ): ParsingResult<List<SearchResult>> {
@@ -613,7 +613,7 @@ class RutrackerParser
          * Parse forum page with pagination detection.
          * Checks for "След." (Next) link or pagination info to determine if more pages exist.
          */
-        fun parseForumPageWithPagination(
+        public fun parseForumPageWithPagination(
             body: okhttp3.ResponseBody,
             forumId: String,
         ): ForumPageResult {
@@ -750,7 +750,7 @@ class RutrackerParser
          * @param html HTML content from search results page
          * @return List of search results
          */
-        fun parseSearchResults(html: String): List<SearchResult> {
+        public fun parseSearchResults(html: String): List<SearchResult> {
             Log.d(TAG, "=== PARSING SEARCH RESULTS ===")
             // internal implementation delegates to parseSearchResultsDefensive logic equivalent
             // For backward compatibility / simple calls
@@ -1091,7 +1091,7 @@ class RutrackerParser
          * @param html HTML content from topic details page
          * @return Topic details or null if parsing fails
          */
-        fun parseTopicDetails(
+        public fun parseTopicDetails(
             html: String,
             topicId: String,
         ): TopicDetails? {
@@ -2118,14 +2118,14 @@ class RutrackerParser
         /**
          * Result of a login attempt.
          */
-        sealed interface LoginResult {
+        public sealed interface LoginResult {
             data object Success : LoginResult
 
-            data class Error(
+            public data class Error(
                 val message: String,
             ) : LoginResult
 
-            data class Captcha(
+            public data class Captcha(
                 val data: com.jabook.app.jabook.compose.domain.model.CaptchaData,
             ) : LoginResult
         }
@@ -2136,7 +2136,7 @@ class RutrackerParser
          * @param html HTML content from login response
          * @return LoginResult
          */
-        fun parseLoginResponse(html: String): LoginResult {
+        public fun parseLoginResponse(html: String): LoginResult {
             android.util.Log.d(TAG, "Parsing login response, html length: ${html.length}")
 
             val document = Jsoup.parse(html)

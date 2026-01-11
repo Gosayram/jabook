@@ -24,7 +24,7 @@ import javax.inject.Inject
  * Updates both the book and chapter playback progress,
  * ensuring proper synchronization of playback state.
  */
-class UpdatePlaybackProgressUseCase
+public class UpdatePlaybackProgressUseCase
     @Inject
     constructor(
         private val booksRepository: BooksRepository,

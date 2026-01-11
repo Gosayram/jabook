@@ -30,7 +30,7 @@ import android.util.Log
  * logger.endOperation(operationId, success = true)
  * ```
  */
-class StructuredLogger(
+public class StructuredLogger(
     private val tag: String,
 ) {
     private data class Operation(
@@ -48,7 +48,7 @@ class StructuredLogger(
      * @param operationId Optional operation ID (for correlation with parent operations)
      * @return Operation ID for tracking
      */
-    fun startOperation(
+    public fun startOperation(
         operationName: String,
         operationId: String? = null,
     ): String {
@@ -66,7 +66,7 @@ class StructuredLogger(
      * @param success Whether operation succeeded
      * @param additionalInfo Optional additional information to log
      */
-    fun endOperation(
+    public fun endOperation(
         operationId: String,
         success: Boolean = true,
         additionalInfo: String? = null,
@@ -102,7 +102,7 @@ class StructuredLogger(
      * @param message Log message
      * @param level Log level (default: DEBUG)
      */
-    fun log(
+    public fun log(
         operationId: String,
         message: String,
         level: LogLevel = LogLevel.DEBUG,
@@ -125,7 +125,7 @@ class StructuredLogger(
      * @param duration Duration in milliseconds
      * @param level Log level (default: DEBUG)
      */
-    fun logWithDuration(
+    public fun logWithDuration(
         operationId: String,
         message: String,
         duration: Long,
@@ -148,7 +148,7 @@ class StructuredLogger(
      * @param message Error message
      * @param throwable Optional throwable
      */
-    fun logError(
+    public fun logError(
         operationId: String,
         message: String,
         throwable: Throwable? = null,
@@ -167,7 +167,7 @@ class StructuredLogger(
      * @param operationId Operation ID
      * @param message Warning message
      */
-    fun logWarning(
+    public fun logWarning(
         operationId: String,
         message: String,
     ) {
@@ -181,7 +181,7 @@ class StructuredLogger(
      * @param message Success message
      * @param duration Optional duration in milliseconds
      */
-    fun logSuccess(
+    public fun logSuccess(
         operationId: String,
         message: String,
         duration: Long? = null,
@@ -250,7 +250,7 @@ class StructuredLogger(
         }
     }
 
-    enum class LogLevel {
+    public enum class LogLevel {
         VERBOSE,
         DEBUG,
         INFO,

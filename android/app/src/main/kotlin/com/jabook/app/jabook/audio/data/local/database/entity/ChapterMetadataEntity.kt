@@ -21,7 +21,7 @@ import androidx.room.PrimaryKey
  * Entity representing chapter metadata for a book.
  */
 @Entity(tableName = "chapter_metadata")
-data class ChapterMetadataEntity(
+public data class ChapterMetadataEntity(
     @PrimaryKey
     val id: String, // bookId + "_" + fileIndex
     val bookId: String,

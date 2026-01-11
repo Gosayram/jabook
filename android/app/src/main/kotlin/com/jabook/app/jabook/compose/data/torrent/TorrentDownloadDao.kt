@@ -26,12 +26,12 @@ import kotlinx.coroutines.flow.Flow
  * DAO for torrent downloads
  */
 @Dao
-interface TorrentDownloadDao {
+public interface TorrentDownloadDao {
     /**
      * Get all downloads as Flow
      */
     @Query("SELECT * FROM torrent_downloads ORDER BY addedTime DESC")
-    fun getAllFlow(): Flow<List<TorrentDownloadEntity>>
+    public fun getAllFlow(): Flow<List<TorrentDownloadEntity>>
 
     /**
      * Get all downloads (one-time)
@@ -49,7 +49,7 @@ interface TorrentDownloadDao {
      * Get download by hash as Flow
      */
     @Query("SELECT * FROM torrent_downloads WHERE hash = :hash")
-    fun getByHashFlow(hash: String): Flow<TorrentDownloadEntity?>
+    public fun getByHashFlow(hash: String): Flow<TorrentDownloadEntity?>
 
     /**
      * Get completed downloads
@@ -67,7 +67,7 @@ interface TorrentDownloadDao {
         ORDER BY addedTime DESC
         """,
     )
-    fun getActiveFlow(): Flow<List<TorrentDownloadEntity>>
+    public fun getActiveFlow(): Flow<List<TorrentDownloadEntity>>
 
     /**
      * Insert download

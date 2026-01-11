@@ -30,7 +30,7 @@ import androidx.media3.exoplayer.ExoPlayer
  *
  * Inspired by best practices for Android Media3 lifecycle management.
  */
-class InactivityTimer(
+public class InactivityTimer(
     private val context: Context,
     private val player: ExoPlayer,
     private val onTimerExpired: () -> Unit,
@@ -43,25 +43,25 @@ class InactivityTimer(
      */
     private var inactivityTimeoutSeconds: Long = DEFAULT_INACTIVITY_TIMEOUT_SECONDS
 
-    companion object {
+    public companion object {
         /**
          * Default inactivity timeout: 60 minutes (3600 seconds).
          * Service will automatically stop after 60 minutes of inactivity.
          * Can be configured via AudioSettingsManager (Dart) and passed through MethodChannel.
          */
-        const val DEFAULT_INACTIVITY_TIMEOUT_SECONDS = 3600L // 60 minutes
+        public const val DEFAULT_INACTIVITY_TIMEOUT_SECONDS = 3600L // 60 minutes
 
         /**
          * Minimum inactivity timeout: 10 minutes (600 seconds).
          */
-        const val MIN_INACTIVITY_TIMEOUT_SECONDS = 600L // 10 minutes
+        public const val MIN_INACTIVITY_TIMEOUT_SECONDS = 600L // 10 minutes
 
         /**
          * Maximum inactivity timeout: 180 minutes (10800 seconds = 3 hours).
          */
-        const val MAX_INACTIVITY_TIMEOUT_SECONDS = 10800L // 180 minutes = 3 hours
+        public const val MAX_INACTIVITY_TIMEOUT_SECONDS = 10800L // 180 minutes = 3 hours
 
-        const val ACTION_INACTIVITY_TIMER_EXPIRED = "com.jabook.app.jabook.audio.INACTIVITY_TIMER_EXPIRED"
+        public const val ACTION_INACTIVITY_TIMER_EXPIRED = "com.jabook.app.jabook.audio.INACTIVITY_TIMER_EXPIRED"
     }
 
     /**
@@ -69,7 +69,7 @@ class InactivityTimer(
      *
      * @param minutes Timeout in minutes (10-180)
      */
-    fun setInactivityTimeoutMinutes(minutes: Int) {
+    public fun setInactivityTimeoutMinutes(minutes: Int) {
         val seconds = (minutes * 60).toLong()
         if (seconds < MIN_INACTIVITY_TIMEOUT_SECONDS || seconds > MAX_INACTIVITY_TIMEOUT_SECONDS) {
             android.util.Log.w(
@@ -276,7 +276,7 @@ class InactivityTimer(
      * Resets (stops and restarts) the inactivity timer.
      * Called when user performs any action (play, seek, etc.).
      */
-    fun resetTimer() {
+    public fun resetTimer() : Unit {
         if (timer != null) {
             android.util.Log.d("InactivityTimer", "Resetting inactivity timer (user action detected)")
             stopTimer()
@@ -287,7 +287,7 @@ class InactivityTimer(
     /**
      * Stops and cancels the inactivity timer.
      */
-    fun stopTimer() {
+    public fun stopTimer() : Unit {
         timer?.cancel()
         timer = null
     }
@@ -304,7 +304,7 @@ class InactivityTimer(
     /**
      * Releases timer resources.
      */
-    fun release() {
+    public fun release() : Unit {
         stopTimer()
         player.removeListener(playerListener)
         android.util.Log.d("InactivityTimer", "InactivityTimer released")

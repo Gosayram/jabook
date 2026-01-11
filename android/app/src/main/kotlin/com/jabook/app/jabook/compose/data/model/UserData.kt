@@ -19,7 +19,7 @@ package com.jabook.app.jabook.compose.data.model
  *
  * This is stored in DataStore and exposed via UserPreferencesRepository.
  */
-data class UserData(
+public data class UserData(
     val theme: AppTheme = AppTheme.SYSTEM,
     val sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY,
     val viewMode: LibraryViewMode = LibraryViewMode.LIST_COMPACT,
@@ -33,7 +33,7 @@ data class UserData(
 /**
  * App theme options.
  */
-enum class AppTheme {
+public enum class AppTheme {
     LIGHT,
     DARK,
     SYSTEM,
@@ -43,7 +43,7 @@ enum class AppTheme {
 /**
  * Library view mode options.
  */
-enum class LibraryViewMode {
+public enum class LibraryViewMode {
     /** Compact list view */
     LIST_COMPACT,
 

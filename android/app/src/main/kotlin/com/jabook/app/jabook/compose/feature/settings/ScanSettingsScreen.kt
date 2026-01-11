@@ -51,7 +51,7 @@ import com.jabook.app.jabook.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScanSettingsScreen(
+public fun ScanSettingsScreen(
     onNavigateUp: () -> Unit,
     viewModel: ScanSettingsViewModel = hiltViewModel(),
 ) {
@@ -147,7 +147,7 @@ fun ScanSettingsScreen(
 }
 
 @Composable
-fun ScanPathItem(
+public fun ScanPathItem(
     path: String,
     onDelete: () -> Unit,
 ) {

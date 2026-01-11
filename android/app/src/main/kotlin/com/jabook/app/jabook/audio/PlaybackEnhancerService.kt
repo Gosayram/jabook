@@ -37,7 +37,7 @@ import javax.inject.Singleton
  *
  * Inspired by lissen-android implementation with LoudnessEnhancer.
  */
-enum class PlaybackVolumeBoost {
+public enum class PlaybackVolumeBoost {
     DISABLED,
     LOW, // 3 dB
     MEDIUM, // 6 dB
@@ -51,7 +51,7 @@ enum class PlaybackVolumeBoost {
  * Proto values: "Off", "Boost50", "Boost100", "Boost200", "Auto"
  * Enum values: DISABLED, LOW (3dB), MEDIUM (6dB), HIGH (12dB), MAX (20dB)
  */
-fun mapVolumeBoostLevel(level: String): PlaybackVolumeBoost =
+public fun mapVolumeBoostLevel(level: String): PlaybackVolumeBoost =
     when (level) {
         "Off" -> PlaybackVolumeBoost.DISABLED
         "Boost50" -> PlaybackVolumeBoost.LOW // ~3dB (50% boost)
@@ -70,7 +70,7 @@ fun mapVolumeBoostLevel(level: String): PlaybackVolumeBoost =
  */
 @Singleton
 @OptIn(UnstableApi::class)
-class PlaybackEnhancerService
+public class PlaybackEnhancerService
     @Inject
     constructor(
         private val player: ExoPlayer,
@@ -92,7 +92,7 @@ class PlaybackEnhancerService
          * Initializes the enhancer service.
          * Should be called once in AudioPlayerService.onCreate().
          */
-        fun initialize() {
+        public fun initialize() : Unit {
             player.addListener(
                 object : Player.Listener {
                     override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -194,7 +194,7 @@ class PlaybackEnhancerService
          * Releases the enhancer.
          * Should be called when service is destroyed.
          */
-        fun release() {
+        public fun release() : Unit {
             enhancer?.release()
             enhancer = null
             android.util.Log.d("PlaybackEnhancerService", "LoudnessEnhancer released")

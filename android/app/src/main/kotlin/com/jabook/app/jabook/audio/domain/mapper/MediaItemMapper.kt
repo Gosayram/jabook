@@ -21,11 +21,11 @@ import com.jabook.app.jabook.audio.core.model.MediaItemData
 /**
  * Mapper for creating MediaItemData from Chapter.
  */
-object MediaItemMapper {
+public object MediaItemMapper {
     /**
      * Creates MediaItemData from Chapter.
      */
-    fun fromChapter(
+    public fun fromChapter(
         chapter: Chapter,
         bookTitle: String? = null,
     ): MediaItemData {
@@ -44,7 +44,7 @@ object MediaItemMapper {
     /**
      * Creates list of MediaItemData from list of Chapters.
      */
-    fun fromChapters(
+    public fun fromChapters(
         chapters: List<Chapter>,
         bookTitle: String? = null,
     ): List<MediaItemData> = chapters.map { fromChapter(it, bookTitle) }

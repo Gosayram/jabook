@@ -19,7 +19,7 @@ package com.jabook.app.jabook.compose.data.model
  *
  * Supports both bundled fonts and downloadable Google Fonts.
  */
-enum class AppFont(
+public enum class AppFont(
     val displayName: String,
     val googleFontName: String? = null,
 ) {

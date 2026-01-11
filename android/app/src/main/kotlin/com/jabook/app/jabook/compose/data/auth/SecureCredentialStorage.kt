@@ -45,12 +45,12 @@ private val Context.credentialsDataStore: DataStore<Preferences> by preferencesD
  * - Coroutine/Flow based
  */
 @Singleton
-class SecureCredentialStorage
+public class SecureCredentialStorage
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
     ) {
-        companion object {
+        public companion object {
             private const val KEYSET_NAME = "credentials_keyset"
             private const val PREFERENCE_FILE = "secure_credentials_prefs"
             private const val MASTER_KEY_URI = "android-keystore://credentials_master_key"

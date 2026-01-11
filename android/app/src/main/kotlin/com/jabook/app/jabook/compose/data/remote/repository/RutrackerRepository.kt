@@ -54,7 +54,7 @@ import javax.inject.Singleton
  * This is the main entry point for RuTracker functionality.
  */
 @Singleton
-class RutrackerRepository
+public class RutrackerRepository
     @Inject
     constructor(
         private val api: RutrackerApi,
@@ -65,7 +65,7 @@ class RutrackerRepository
         private val offlineSearchDao: OfflineSearchDao,
         private val mirrorManager: MirrorManager,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "RutrackerRepository"
         }
 
@@ -238,7 +238,7 @@ class RutrackerRepository
          *
          * If index is empty or search fails, returns empty list (never falls back to network).
          */
-        fun searchAudiobooksFlow(
+        public fun searchAudiobooksFlow(
             query: String,
             forumIds: String? = null,
         ): Flow<Result<List<RutrackerSearchResult>>> =
@@ -754,12 +754,12 @@ class RutrackerRepository
         /**
          * Get search cache statistics.
          */
-        fun getCacheStatistics(): RutrackerSearchCache.CacheStatistics = searchCache.getStatistics()
+        public fun getCacheStatistics(): RutrackerSearchCache.CacheStatistics = searchCache.getStatistics()
 
         /**
          * Clear search cache.
          */
-        fun clearSearchCache() {
+        public fun clearSearchCache() : Unit {
             searchCache.clear()
         }
     }

@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * Provides reactive state updates through StateFlow.
  */
-class PlaybackListener : Player.Listener {
+public class PlaybackListener : Player.Listener {
     private val _playbackState = MutableStateFlow<PlaybackState>(PlaybackState.empty())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
@@ -64,7 +64,7 @@ class PlaybackListener : Player.Listener {
     /**
      * Updates the playback state from player.
      */
-    fun updatePlaybackState(player: Player) {
+    public fun updatePlaybackState(player: Player) {
         _playbackState.value =
             PlaybackState(
                 isPlaying = player.isPlaying,
@@ -81,7 +81,7 @@ class PlaybackListener : Player.Listener {
      * Updates the actual track index.
      * This should be called from onMediaItemTransition.
      */
-    fun updateActualTrackIndex(index: Int) {
+    public fun updateActualTrackIndex(index: Int) {
         _actualTrackIndex.value = index
         android.util.Log.d("PlaybackListener", "Actual track index updated: $index")
     }

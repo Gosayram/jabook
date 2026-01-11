@@ -88,19 +88,19 @@ abstract class DataModule {
         impl: com.jabook.app.jabook.compose.data.local.parser.Media3MetadataParser,
     ): com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 
-    companion object {
+    public companion object {
         /**
          * Provides DataStore<Preferences> for user preferences.
          */
         @Provides
         @Singleton
-        fun provideDataStore(
+        public fun provideDataStore(
             @ApplicationContext context: Context,
         ): DataStore<Preferences> = context.dataStore
 
         @Provides
         @Singleton
-        fun provideWorkManager(
+        public fun provideWorkManager(
             @ApplicationContext context: Context,
         ): androidx.work.WorkManager = androidx.work.WorkManager.getInstance(context)
     }

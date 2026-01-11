@@ -20,7 +20,7 @@ package com.jabook.app.jabook.compose.data.download
  * This is a stub implementation for MVP. Real torrent integration
  * will be added in a future phase.
  */
-interface TorrentDownloader {
+public interface TorrentDownloader {
     /**
      * Start downloading a torrent.
      *

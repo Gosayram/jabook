@@ -42,7 +42,7 @@ import com.jabook.app.jabook.R
  * @param icon Optional icon to display (defaults to Inbox)
  */
 @Composable
-fun EmptyState(
+public fun EmptyState(
     message: String,
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Filled.Inbox,

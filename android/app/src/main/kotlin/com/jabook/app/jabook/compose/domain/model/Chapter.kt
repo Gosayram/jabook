@@ -34,7 +34,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property isCompleted Whether chapter has been fully played
  * @property isDownloaded Whether audio file is downloaded
  */
-data class Chapter(
+public data class Chapter(
     val id: String,
     val bookId: String,
     val title: String,
@@ -75,11 +75,11 @@ data class Chapter(
     val displayNumber: Int
         get() = chapterIndex + 1
 
-    companion object {
+    public companion object {
         /**
          * Creates a sample Chapter for preview/testing.
          */
-        fun preview() =
+        public fun preview() =
             Chapter(
                 id = "1",
                 bookId = "book1",
@@ -98,7 +98,7 @@ data class Chapter(
 /**
  * Extension function to convert ChapterEntity to domain Chapter model.
  */
-fun ChapterEntity.toChapter() =
+public fun ChapterEntity.toChapter() =
     Chapter(
         id = id,
         bookId = bookId,
@@ -115,7 +115,7 @@ fun ChapterEntity.toChapter() =
 /**
  * Extension function to convert domain Chapter to ChapterEntity.
  */
-fun Chapter.toEntity() =
+public fun Chapter.toEntity() =
     ChapterEntity(
         id = id,
         bookId = bookId,
@@ -132,4 +132,4 @@ fun Chapter.toEntity() =
 /**
  * Extension function to convert list of ChapterEntities to list of Chapters.
  */
-fun List<ChapterEntity>.toChapters(): List<Chapter> = map { it.toChapter() }
+public fun List<ChapterEntity>.toChapters(): List<Chapter> = map { it.toChapter() }

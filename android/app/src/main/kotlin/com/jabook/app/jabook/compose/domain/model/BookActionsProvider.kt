@@ -31,7 +31,7 @@ package com.jabook.app.jabook.compose.domain.model
  * @property showFavoriteButton Whether to show favorite button (default true)
  * @property showDownloadStatus Whether to show download status (default false, for future use)
  */
-data class BookActionsProvider(
+public data class BookActionsProvider(
     val onBookClick: (bookId: String) -> Unit,
     val onBookLongPress: (bookId: String) -> Unit,
     val onToggleFavorite: (bookId: String, isFavorite: Boolean) -> Unit,
@@ -52,12 +52,12 @@ data class BookActionsProvider(
     /**
      * Checks if a book is in favorites.
      */
-    fun isFavorite(bookId: String): Boolean = favoriteIds.contains(bookId)
+    public fun isFavorite(bookId: String): Boolean = favoriteIds.contains(bookId)
 
     /**
      * Checks if any contextual actions are available.
      */
-    fun hasContextualActions(): Boolean =
+    public fun hasContextualActions(): Boolean =
         onShareBook != null ||
             onDeleteBook != null ||
             onAddToPlaylist != null ||

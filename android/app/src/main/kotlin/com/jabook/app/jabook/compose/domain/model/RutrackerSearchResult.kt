@@ -25,7 +25,7 @@ package com.jabook.app.jabook.compose.domain.model
  * - Independent of data source (network, database, cache)
  * - Validated and normalized
  */
-data class RutrackerSearchResult(
+public data class RutrackerSearchResult(
     /** Unique topic ID */
     val topicId: String,
     /** Book title */
@@ -54,7 +54,7 @@ data class RutrackerSearchResult(
      *
      * @return true if valid, false otherwise
      */
-    fun isValid(): Boolean =
+    public fun isValid(): Boolean =
         topicId.isNotBlank() &&
             title.isNotBlank() &&
             author.isNotBlank() &&
@@ -70,7 +70,7 @@ data class RutrackerSearchResult(
      *
      * @return true if valid for index, false otherwise
      */
-    fun isValidForIndex(): Boolean =
+    public fun isValidForIndex(): Boolean =
         topicId.isNotBlank() &&
             title.isNotBlank() &&
             author.isNotBlank()
@@ -83,7 +83,7 @@ data class RutrackerSearchResult(
      *
      * @return true if valid for network, false otherwise
      */
-    fun isValidForNetwork(): Boolean =
+    public fun isValidForNetwork(): Boolean =
         topicId.isNotBlank() &&
             title.isNotBlank() &&
             author.isNotBlank() &&
@@ -95,5 +95,5 @@ data class RutrackerSearchResult(
      *
      * @return true if download is available
      */
-    fun hasDownloadUrl(): Boolean = !magnetUrl.isNullOrBlank() || torrentUrl.isNotBlank()
+    public fun hasDownloadUrl(): Boolean = !magnetUrl.isNullOrBlank() || torrentUrl.isNotBlank()
 }

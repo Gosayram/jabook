@@ -29,7 +29,7 @@ import androidx.media3.session.MediaConstants
  *
  * All features are optional and gracefully degrade if not supported.
  */
-object MediaMetadataExtrasHelper {
+public object MediaMetadataExtrasHelper {
     /**
      * Add download status to metadata extras.
      *
@@ -42,7 +42,7 @@ object MediaMetadataExtrasHelper {
      * @param isDownloaded True if file is available offline
      * @param isDownloading True if currently downloading
      */
-    fun Bundle.addDownloadStatus(
+    public fun Bundle.addDownloadStatus(
         isDownloaded: Boolean,
         isDownloading: Boolean = false,
     ) {
@@ -67,7 +67,7 @@ object MediaMetadataExtrasHelper {
      * @param bundle Existing Bundle to add extras to
      * @param style One of MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_*
      */
-    fun Bundle.addBrowsableStyle(style: Int) {
+    public fun Bundle.addBrowsableStyle(style: Int) {
         putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, style)
     }
 
@@ -77,7 +77,7 @@ object MediaMetadataExtrasHelper {
      * @param bundle Existing Bundle to add extras to
      * @param style One of MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_*
      */
-    fun Bundle.addPlayableStyle(style: Int) {
+    public fun Bundle.addPlayableStyle(style: Int) {
         putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, style)
     }
 
@@ -90,7 +90,7 @@ object MediaMetadataExtrasHelper {
      * @param bundle Existing Bundle to add extras to
      * @param groupTitle Human-readable group name (e.g., series name)
      */
-    fun Bundle.addContentGroup(groupTitle: String) {
+    public fun Bundle.addContentGroup(groupTitle: String) {
         if (groupTitle.isNotBlank()) {
             putString(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
         }
@@ -104,7 +104,7 @@ object MediaMetadataExtrasHelper {
      * @param bundle Existing Bundle to add extras to
      * @param isExplicit True if content has mature themes/language
      */
-    fun Bundle.addExplicitFlag(isExplicit: Boolean) {
+    public fun Bundle.addExplicitFlag(isExplicit: Boolean) {
         if (isExplicit) {
             putLong(MediaConstants.EXTRAS_KEY_IS_EXPLICIT, MediaConstants.EXTRAS_VALUE_ATTRIBUTE_PRESENT)
         }
@@ -120,7 +120,7 @@ object MediaMetadataExtrasHelper {
      * @param defaultSize Fallback size if not specified (default: 512px)
      * @return Recommended size in pixels
      */
-    fun getRecommendedArtSize(
+    public fun getRecommendedArtSize(
         params: androidx.media3.session.MediaLibraryService.LibraryParams?,
         defaultSize: Int = 512,
     ): Int = params?.extras?.getInt(MediaConstants.EXTRAS_KEY_MEDIA_ART_SIZE_PIXELS, defaultSize) ?: defaultSize
@@ -134,7 +134,7 @@ object MediaMetadataExtrasHelper {
      *
      * @return Bundle with content style preferences
      */
-    fun createRootExtras(): Bundle =
+    public fun createRootExtras(): Bundle =
         Bundle().apply {
             // Books/audiobooks: Grid view (cover art focus)
             addPlayableStyle(MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)

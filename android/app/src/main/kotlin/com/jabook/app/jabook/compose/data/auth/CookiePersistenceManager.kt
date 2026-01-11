@@ -37,7 +37,7 @@ import javax.inject.Singleton
  * 4. PersistentCookieJar - runtime cache
  */
 @Singleton
-class CookiePersistenceManager
+public class CookiePersistenceManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -45,7 +45,7 @@ class CookiePersistenceManager
         private val secureStorage: SecureCredentialStorage,
         private val cookieJar: PersistentCookieJar,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "CookiePersistence"
         }
 

@@ -53,7 +53,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.jabook.app.jabook.R
 
 @Composable
-fun PermissionScreen(
+public fun PermissionScreen(
     onPermissionsGranted: () -> Unit,
     onSkip: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,

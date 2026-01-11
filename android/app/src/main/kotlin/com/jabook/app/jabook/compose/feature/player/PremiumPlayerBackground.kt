@@ -33,7 +33,7 @@ import dev.chrisbanes.haze.hazeSource
  * Premium animated background component using Shaders (Android 13+) or Gradient fallback.
  */
 @Composable
-fun PremiumPlayerBackground(
+public fun PremiumPlayerBackground(
     themeColors: PlayerThemeColors?,
     hazeState: HazeState? = null,
     isPowerSaveMode: Boolean = false,

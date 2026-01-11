@@ -30,7 +30,7 @@ import javax.inject.Inject
  * - In the middle: every 30 seconds
  * - On critical events: immediate save
  */
-class PositionSaver
+public class PositionSaver
     @Inject
     constructor(
         private val savePositionUseCase: SavePositionUseCase,
@@ -47,7 +47,7 @@ class PositionSaver
          * @param getPosition Function to get current position
          * @param getDuration Function to get current track duration
          */
-        fun startPeriodicSaving(
+        public fun startPeriodicSaving(
             bookId: String,
             getTrackIndex: () -> Int,
             getPosition: () -> Long,
@@ -91,7 +91,7 @@ class PositionSaver
         /**
          * Stops periodic position saving.
          */
-        fun stopPeriodicSaving() {
+        public fun stopPeriodicSaving() : Unit {
             isSavingEnabled = false
             saveJob?.cancel()
             saveJob = null

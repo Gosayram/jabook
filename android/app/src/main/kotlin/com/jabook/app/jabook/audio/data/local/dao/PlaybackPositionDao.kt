@@ -25,12 +25,12 @@ import kotlinx.coroutines.flow.Flow
  * Data Access Object for playback positions.
  */
 @Dao
-interface PlaybackPositionDao {
+public interface PlaybackPositionDao {
     /**
      * Gets the playback position for a book.
      */
     @Query("SELECT * FROM playback_positions WHERE bookId = :bookId")
-    fun getPosition(bookId: String): Flow<PlaybackPositionEntity?>
+    public fun getPosition(bookId: String): Flow<PlaybackPositionEntity?>
 
     /**
      * Inserts or updates a playback position.
@@ -48,5 +48,5 @@ interface PlaybackPositionDao {
      * Gets all playback positions.
      */
     @Query("SELECT * FROM playback_positions")
-    fun getAllPositions(): Flow<List<PlaybackPositionEntity>>
+    public fun getAllPositions(): Flow<List<PlaybackPositionEntity>>
 }

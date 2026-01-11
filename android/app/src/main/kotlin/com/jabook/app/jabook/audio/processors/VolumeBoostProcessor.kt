@@ -33,7 +33,7 @@ import kotlin.math.pow
  * - 32-bit float processing for quality
  */
 @UnstableApi
-class VolumeBoostProcessor(
+public class VolumeBoostProcessor(
     private val boostLevel: VolumeBoostLevel,
 ) : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
@@ -223,7 +223,7 @@ class VolumeBoostProcessor(
         isActive = false
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

@@ -29,7 +29,7 @@ import javax.inject.Inject
  * ViewModel for migration screen.
  */
 @HiltViewModel
-class MigrationViewModel
+public class MigrationViewModel
     @Inject
     constructor(
         private val migrationManager: DataMigrationManager,
@@ -80,19 +80,19 @@ class MigrationViewModel
 /**
  * UI state for migration screen.
  */
-sealed class MigrationUiState {
-    object Checking : MigrationUiState()
+public sealed class MigrationUiState {
+    public object Checking : MigrationUiState()
 
-    object Migrating : MigrationUiState()
+    public object Migrating : MigrationUiState()
 
-    data class Success(
+    public data class Success(
         val booksCount: Int,
         val chaptersCount: Int,
     ) : MigrationUiState()
 
-    data class Error(
+    public data class Error(
         val message: String,
     ) : MigrationUiState()
 
-    object NotNeeded : MigrationUiState()
+    public object NotNeeded : MigrationUiState()
 }

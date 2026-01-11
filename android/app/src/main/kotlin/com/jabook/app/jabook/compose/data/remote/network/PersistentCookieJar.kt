@@ -36,12 +36,12 @@ import javax.inject.Singleton
  * which is essential for maintaining Rutracker authentication.
  */
 @Singleton
-class PersistentCookieJar
+public class PersistentCookieJar
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
     ) : CookieJar {
-        companion object {
+        public companion object {
             private const val DATASTORE_NAME = "cookies"
             private const val COOKIE_SEPARATOR = "||"
 

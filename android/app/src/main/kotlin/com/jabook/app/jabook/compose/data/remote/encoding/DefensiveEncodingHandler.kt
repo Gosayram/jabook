@@ -35,10 +35,10 @@ import javax.inject.Singleton
  * Reference: Flutter implementation parseSearchResults() lines 203-443
  */
 @Singleton
-class DefensiveEncodingHandler
+public class DefensiveEncodingHandler
     @Inject
     constructor() {
-        companion object {
+        public companion object {
             private const val TAG = "DefensiveEncodingHandler"
 
             // Supported charsets for RuTracker
@@ -75,7 +75,7 @@ class DefensiveEncodingHandler
          * @param contentType Content-Type header value (may contain charset)
          * @return DecodingResult with decoded text and metadata
          */
-        fun decode(
+        public fun decode(
             bytes: ByteArray,
             contentType: String? = null,
         ): DecodingResult {

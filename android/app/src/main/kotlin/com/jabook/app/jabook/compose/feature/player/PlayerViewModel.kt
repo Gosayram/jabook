@@ -57,7 +57,7 @@ import javax.inject.Inject
  * @param playerController Controller for audio playback
  */
 @HiltViewModel
-class PlayerViewModel
+public class PlayerViewModel
     @Inject
     constructor(
         savedStateHandle: SavedStateHandle,
@@ -328,7 +328,7 @@ class PlayerViewModel
 
         // Player control methods delegated to controller
 
-        fun play() {
+        public fun play() : Unit {
             val state = uiState.value
             if (state is PlayerUiState.Success) {
                 // Ensure book is loaded before playing
@@ -357,23 +357,23 @@ class PlayerViewModel
             }
         }
 
-        fun pause() {
+        public fun pause() : Unit {
             playerController.pause()
         }
 
-        fun seekTo(positionMs: Long) {
+        public fun seekTo(positionMs: Long) {
             playerController.seekTo(positionMs)
         }
 
-        fun skipToNext() {
+        public fun skipToNext() : Unit {
             playerController.skipToNext()
         }
 
-        fun skipToPrevious() {
+        public fun skipToPrevious() : Unit {
             playerController.skipToPrevious()
         }
 
-        fun skipToChapter(chapterIndex: Int) {
+        public fun skipToChapter(chapterIndex: Int) {
             playerController.skipToChapter(chapterIndex)
             // Reset repeat flag when manually changing chapters
             onChapterChanged()
@@ -385,7 +385,7 @@ class PlayerViewModel
             }
         }
 
-        fun seekForward() {
+        public fun seekForward() : Unit {
             val state = uiState.value
             if (state is PlayerUiState.Success && state.currentChapter != null) {
                 val interval = state.forwardInterval
@@ -396,7 +396,7 @@ class PlayerViewModel
             }
         }
 
-        fun seekBackward() {
+        public fun seekBackward() : Unit {
             val state = uiState.value
             if (state is PlayerUiState.Success) {
                 val interval = state.rewindInterval
@@ -405,7 +405,7 @@ class PlayerViewModel
             }
         }
 
-        fun setPlaybackSpeed(speed: Float) {
+        public fun setPlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
             }
@@ -414,23 +414,23 @@ class PlayerViewModel
             }
         }
 
-        fun setPitchCorrectionEnabled(enabled: Boolean) {
+        public fun setPitchCorrectionEnabled(enabled: Boolean) {
             playerController.setPitchCorrectionEnabled(enabled)
         }
 
-        fun startSleepTimer(minutes: Int) {
+        public fun startSleepTimer(minutes: Int) {
             sleepTimerRepository.startTimer(minutes)
         }
 
-        fun startSleepTimerEndOfChapter() {
+        public fun startSleepTimerEndOfChapter() : Unit {
             sleepTimerRepository.startTimerEndOfChapter()
         }
 
-        fun cancelSleepTimer() {
+        public fun cancelSleepTimer() : Unit {
             sleepTimerRepository.cancelTimer()
         }
 
-        fun updateBookSeekSettings(
+        public fun updateBookSeekSettings(
             rewindSeconds: Int?,
             forwardSeconds: Int?,
         ) {
@@ -439,7 +439,7 @@ class PlayerViewModel
             }
         }
 
-        fun resetBookSeekSettings() {
+        public fun resetBookSeekSettings() : Unit {
             viewModelScope.launch {
                 updateBookSettingsUseCase.resetForBook(bookId)
             }
@@ -449,7 +449,7 @@ class PlayerViewModel
          * Initialize player with book data if needed.
          * Restores saved position from database if available.
          */
-        fun initializePlayer() {
+        public fun initializePlayer() : Unit {
             val state = uiState.value
             if (state is PlayerUiState.Success && !isBookLoaded) {
                 val filePaths = state.chapters.mapNotNull { it.fileUrl }
@@ -487,7 +487,7 @@ class PlayerViewModel
             }
         }
 
-        fun reorderChapters(newOrderedIds: List<String>) {
+        public fun reorderChapters(newOrderedIds: List<String>) {
             viewModelScope.launch {
                 booksRepository.updateChapterOrder(bookId, newOrderedIds)
             }
@@ -496,7 +496,7 @@ class PlayerViewModel
         /**
          * Toggle chapter repeat mode: OFF -> ONCE -> INFINITE -> OFF
          */
-        fun toggleChapterRepeat() {
+        public fun toggleChapterRepeat() : Unit {
             _chapterRepeatMode.value =
                 when (_chapterRepeatMode.value) {
                     ChapterRepeatMode.OFF -> ChapterRepeatMode.ONCE
@@ -513,7 +513,7 @@ class PlayerViewModel
          *
          * @return true if chapter should be repeated, false to continue to next
          */
-        fun onChapterEnded(): Boolean =
+        public fun onChapterEnded(): Boolean =
             when (_chapterRepeatMode.value) {
                 ChapterRepeatMode.OFF -> {
                     // No repeat, continue to next chapter
@@ -539,7 +539,7 @@ class PlayerViewModel
         /**
          * Reset repeat flag when chapter changes manually.
          */
-        fun onChapterChanged() {
+        public fun onChapterChanged() : Unit {
             hasRepeatedOnce = false
         }
     }
@@ -551,7 +551,7 @@ class PlayerViewModel
  * - ONCE: Repeat current chapter once, then play next
  * - INFINITE: Repeat current chapter infinitely
  */
-enum class ChapterRepeatMode {
+public enum class ChapterRepeatMode {
     OFF,
     ONCE,
     INFINITE,
@@ -560,7 +560,7 @@ enum class ChapterRepeatMode {
 /**
  * UI state for the Player screen.
  */
-sealed interface PlayerUiState {
+public sealed interface PlayerUiState {
     /**
      * Loading state - fetching book data.
      */
@@ -569,7 +569,7 @@ sealed interface PlayerUiState {
     /**
      * Success state with book and playback info.
      */
-    data class Success(
+    public data class Success(
         val book: Book,
         val chapters: List<Chapter>,
         val isPlaying: Boolean,
@@ -586,7 +586,7 @@ sealed interface PlayerUiState {
     /**
      * Error state.
      */
-    data class Error(
+    public data class Error(
         val message: String,
     ) : PlayerUiState
 }

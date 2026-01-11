@@ -25,12 +25,12 @@ import androidx.media3.common.util.UnstableApi
  * optimal audio quality.
  */
 @UnstableApi
-object AudioProcessorFactory {
+public object AudioProcessorFactory {
     /**
      * Result of creating a processor chain.
      * Contains the list of processors and a reference to the LoudnessNormalizer if created.
      */
-    data class ProcessorChainResult(
+    public data class ProcessorChainResult(
         val processors: List<AudioProcessor>,
         val loudnessNormalizer: LoudnessNormalizer? = null,
     )
@@ -48,7 +48,7 @@ object AudioProcessorFactory {
      * @param settings Audio processing settings
      * @return Result containing list of AudioProcessors and optional LoudnessNormalizer
      */
-    fun createProcessorChain(settings: AudioProcessingSettings): ProcessorChainResult {
+    public fun createProcessorChain(settings: AudioProcessingSettings): ProcessorChainResult {
         val processors = mutableListOf<AudioProcessor>()
         var loudnessNormalizer: LoudnessNormalizer? = null
 
@@ -150,7 +150,7 @@ object AudioProcessorFactory {
  * This class holds all settings needed to configure audio processors.
  * Settings can come from global AudioSettingsManager or book-specific BookAudioSettings.
  */
-data class AudioProcessingSettings(
+public data class AudioProcessingSettings(
     val normalizeVolume: Boolean = true,
     val volumeBoostLevel: VolumeBoostLevel = VolumeBoostLevel.Off,
     val drcLevel: DRCLevel = DRCLevel.Off,
@@ -160,11 +160,11 @@ data class AudioProcessingSettings(
     val isCrossfadeEnabled: Boolean = false,
     val crossfadeDurationMs: Long = 2000L,
 ) {
-    companion object {
+    public companion object {
         /**
          * Creates default settings (all features disabled).
          */
-        fun defaults(): AudioProcessingSettings =
+        public fun defaults(): AudioProcessingSettings =
             AudioProcessingSettings(
                 normalizeVolume = true, // Enabled by default for consistent volume
                 volumeBoostLevel = VolumeBoostLevel.Off,
@@ -181,7 +181,7 @@ data class AudioProcessingSettings(
 /**
  * Volume boost level enum.
  */
-enum class VolumeBoostLevel {
+public enum class VolumeBoostLevel {
     Off,
     Boost50, // +50% gain
     Boost100, // +100% gain
@@ -192,7 +192,7 @@ enum class VolumeBoostLevel {
 /**
  * Dynamic Range Compression level enum.
  */
-enum class DRCLevel {
+public enum class DRCLevel {
     Off,
     Gentle, // Gentle compression for subtle effect
     Medium, // Medium compression for balanced effect

@@ -52,12 +52,12 @@ import javax.inject.Singleton
  * magnet link handling, and torrent state management.
  */
 @Singleton
-class TorrentManager
+public class TorrentManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "TorrentManager"
             private const val UPDATE_INTERVAL_MS = 1000L
         }
@@ -70,7 +70,7 @@ class TorrentManager
         private var isInitialized = false
 
         @Synchronized
-        fun initialize() {
+        public fun initialize() : Unit {
             if (isInitialized) {
                 Log.d(TAG, "Session already initialized")
                 return
@@ -322,14 +322,14 @@ class TorrentManager
             updateProgress()
         }
 
-        fun getDownloadProgress(infoHash: String): Flow<DownloadProgress> =
+        public fun getDownloadProgress(infoHash: String): Flow<DownloadProgress> =
             flow {
                 _downloads.collect { progressMap ->
                     progressMap[infoHash]?.let { emit(it) }
                 }
             }
 
-        fun shutdown() {
+        public fun shutdown() : Unit {
             Log.d(TAG, "Shutting down libtorrent session...")
 
             session?.stop()

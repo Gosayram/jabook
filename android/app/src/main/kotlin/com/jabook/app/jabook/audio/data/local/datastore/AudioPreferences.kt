@@ -35,7 +35,7 @@ private val Context.audioPreferencesDataStore: DataStore<Preferences> by prefere
 /**
  * Keys for audio preferences.
  */
-object AudioPreferencesKeys {
+public object AudioPreferencesKeys {
     val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
     val LAST_PLAYED_BOOK_ID = intPreferencesKey("last_played_book_id")
     val AUTO_PLAY_NEXT = booleanPreferencesKey("auto_play_next")
@@ -44,7 +44,7 @@ object AudioPreferencesKeys {
 /**
  * Repository for audio preferences using DataStore.
  */
-class AudioPreferences(
+public class AudioPreferences(
     private val context: Context,
 ) {
     private val dataStore = context.audioPreferencesDataStore

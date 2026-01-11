@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.Flow
  *
  * Provides access to app settings and user preferences stored in DataStore.
  */
-interface UserPreferencesRepository {
+public interface UserPreferencesRepository {
     /**
      * Get user preferences as a Flow.
      * Emits whenever preferences change.

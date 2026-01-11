@@ -19,7 +19,7 @@ package com.jabook.app.jabook.compose.domain.model
  *
  * Sleep timer automatically pauses playback after a specified duration.
  */
-sealed interface SleepTimerState {
+public sealed interface SleepTimerState {
     /**
      * Timer is not active.
      */
@@ -30,7 +30,7 @@ sealed interface SleepTimerState {
      *
      * @param remainingSeconds Seconds remaining until auto-pause
      */
-    data class Active(
+    public data class Active(
         val remainingSeconds: Int,
     ) : SleepTimerState {
         /**

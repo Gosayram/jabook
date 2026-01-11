@@ -14,14 +14,14 @@
 
 package com.jabook.app.jabook.compose.data.model
 
-sealed class ScanProgress {
+public sealed class ScanProgress {
     data object Idle : ScanProgress()
 
-    data class Discovery(
+    public data class Discovery(
         val fileCount: Int,
     ) : ScanProgress()
 
-    data class Parsing(
+    public data class Parsing(
         val currentBook: String,
         val progress: Int,
         val total: Int,
@@ -29,12 +29,12 @@ sealed class ScanProgress {
 
     data object Saving : ScanProgress()
 
-    data class Completed(
+    public data class Completed(
         val booksAdded: Int,
         val durationMs: Long,
     ) : ScanProgress()
 
-    data class Error(
+    public data class Error(
         val message: String,
     ) : ScanProgress()
 }

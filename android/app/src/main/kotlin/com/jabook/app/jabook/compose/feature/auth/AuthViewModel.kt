@@ -35,7 +35,7 @@ import javax.inject.Inject
 /**
  * UI State for AuthScreen.
  */
-data class AuthUiState(
+public data class AuthUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val captchaData: CaptchaData? = null,
@@ -44,7 +44,7 @@ data class AuthUiState(
 )
 
 @HiltViewModel
-class AuthViewModel
+public class AuthViewModel
     @Inject
     constructor(
         private val authRepository: AuthRepository,
@@ -71,7 +71,7 @@ class AuthViewModel
             }
         }
 
-        fun login(
+        public fun login(
             username: String,
             password: String,
             rememberMe: Boolean,
@@ -106,21 +106,21 @@ class AuthViewModel
             }
         }
 
-        fun logout() {
+        public fun logout() : Unit {
             viewModelScope.launch {
                 authRepository.logout()
             }
         }
 
-        fun dismissCaptcha() {
+        public fun dismissCaptcha() : Unit {
             _uiState.update { it.copy(captchaData = null) }
         }
 
-        fun requestWebViewLogin() {
+        public fun requestWebViewLogin() : Unit {
             _uiState.update { it.copy(showWebViewLogin = true) }
         }
 
-        fun onWebViewLoginCompleted() {
+        public fun onWebViewLoginCompleted() : Unit {
             _uiState.update { it.copy(showWebViewLogin = false) }
             viewModelScope.launch {
                 // Sync cookies from WebView and refresh status
@@ -132,7 +132,7 @@ class AuthViewModel
         /**
          * Get login URL using current mirror.
          */
-        fun getLoginUrl(): String {
+        public fun getLoginUrl(): String {
             val baseUrl = mirrorManager.getBaseUrl()
             return "$baseUrl/forum/login.php"
         }

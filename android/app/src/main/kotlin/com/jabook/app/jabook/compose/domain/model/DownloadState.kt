@@ -20,7 +20,7 @@ package com.jabook.app.jabook.compose.domain.model
  * Used to track download progress and display appropriate UI
  * for different download states.
  */
-sealed interface DownloadState {
+public sealed interface DownloadState {
     /**
      * No active download.
      */
@@ -34,7 +34,7 @@ sealed interface DownloadState {
      * @param totalBytes Total bytes to download (null if unknown)
      * @param speedBytesPerSecond Download speed in bytes per second
      */
-    data class Downloading(
+    public data class Downloading(
         val progress: Float,
         val downloadedBytes: Long,
         val totalBytes: Long?,
@@ -55,7 +55,7 @@ sealed interface DownloadState {
      *
      * @param localPath Path to downloaded file
      */
-    data class Completed(
+    public data class Completed(
         val localPath: String,
     ) : DownloadState
 
@@ -64,7 +64,7 @@ sealed interface DownloadState {
      *
      * @param progress Progress when paused (0.0 to 1.0)
      */
-    data class Paused(
+    public data class Paused(
         val progress: Float,
     ) : DownloadState
 
@@ -74,7 +74,7 @@ sealed interface DownloadState {
      * @param error Error message
      * @param isRetryable Whether download can be retried
      */
-    data class Failed(
+    public data class Failed(
         val error: String,
         val isRetryable: Boolean = true,
     ) : DownloadState

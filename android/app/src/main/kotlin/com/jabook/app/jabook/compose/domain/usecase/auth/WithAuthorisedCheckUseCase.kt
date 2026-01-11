@@ -31,7 +31,7 @@ import javax.inject.Inject
  * }
  * ```
  */
-class WithAuthorisedCheckUseCase
+public class WithAuthorisedCheckUseCase
     @Inject
     constructor(
         private val verifyAuthorisedUseCase: VerifyAuthorisedUseCase,

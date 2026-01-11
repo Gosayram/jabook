@@ -26,7 +26,7 @@ import com.google.common.util.concurrent.ListenableFuture
  *
  * Handles custom commands and delegates standard commands to the player.
  */
-class MediaSessionCallback(
+public class MediaSessionCallback(
     private val player: Player,
     private val onPlay: () -> Unit = {},
     private val onPause: () -> Unit = {},
@@ -35,9 +35,9 @@ class MediaSessionCallback(
     private val onRewind: (() -> Unit)? = null,
     private val onForward: (() -> Unit)? = null,
 ) : MediaSession.Callback {
-    companion object {
-        const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
-        const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
+    public companion object {
+        public const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
+        public const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
     }
 
     // Note: onPlay, onPause, onSkipToNextMediaItem, onSkipToPreviousMediaItem, and onSeekTo

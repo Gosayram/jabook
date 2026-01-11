@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.data.model
 /**
  * Sort order options for library books.
  */
-enum class BookSortOrder {
+public enum class BookSortOrder {
     /** Sort by last activity (most recently played first) */
     BY_ACTIVITY,
 

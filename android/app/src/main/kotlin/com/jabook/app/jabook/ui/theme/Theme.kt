@@ -161,7 +161,7 @@ private val AmoledDarkColorScheme =
  * @param content The composable content to be themed.
  */
 @Composable
-fun JabookTheme(
+public fun JabookTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     amoledMode: Boolean = false,
     // Dynamic color is available on Android 12+

@@ -24,7 +24,7 @@ import androidx.room.PrimaryKey
  * Stores recent search queries for quick access and autocomplete.
  */
 @Entity(tableName = "search_history")
-data class SearchHistoryEntity(
+public data class SearchHistoryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     @ColumnInfo(name = "query")

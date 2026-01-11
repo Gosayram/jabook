@@ -32,7 +32,7 @@ import kotlin.math.pow
  * @param backoffMultiplier Multiplier for exponential backoff (default: 2.0)
  * @param shouldRetry Predicate to determine if exception should trigger retry (default: retry on IOException)
  */
-data class RetryConfig(
+public data class RetryConfig(
     val maxRetries: Int = 3,
     val initialDelayMs: Long = 500L,
     val maxDelayMs: Long = 10_000L,
@@ -45,7 +45,7 @@ data class RetryConfig(
      * @param attempt Current attempt number (0-based)
      * @return Delay in milliseconds
      */
-    fun calculateDelay(attempt: Int): Long {
+    public fun calculateDelay(attempt: Int): Long {
         val delay = (initialDelayMs * backoffMultiplier.pow(attempt.toDouble())).toLong()
         return delay.coerceAtMost(maxDelayMs)
     }

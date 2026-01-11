@@ -19,7 +19,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
 /**
  * Utilities for parsing and formatting chapter information.
  */
-object ChapterUtils {
+public object ChapterUtils {
     // Regex patterns for extracting chapter numbers
     private val CHAPTER_NUMBER_PATTERNS =
         listOf(
@@ -37,7 +37,7 @@ object ChapterUtils {
      * @param fallbackIndex Fallback index if no number found
      * @return Extracted chapter number or fallbackIndex + 1
      */
-    fun extractChapterNumber(
+    public fun extractChapterNumber(
         filename: String,
         fallbackIndex: Int,
     ): Int {
@@ -62,7 +62,7 @@ object ChapterUtils {
      * @param normalizeEnabled Whether to normalize chapter names (default: true)
      * @return Formatted chapter name or original title
      */
-    fun formatChapterName(
+    public fun formatChapterName(
         chapter: Chapter,
         index: Int,
         localizedPrefix: String,
@@ -119,7 +119,7 @@ object ChapterUtils {
      * @param normalizeEnabled Whether to normalize chapter names (default: true)
      * @return Formatted "Chapter N • HH:MM:SS" or "Original Title • HH:MM:SS"
      */
-    fun formatChapterWithDuration(
+    public fun formatChapterWithDuration(
         chapter: Chapter,
         index: Int,
         localizedPrefix: String,

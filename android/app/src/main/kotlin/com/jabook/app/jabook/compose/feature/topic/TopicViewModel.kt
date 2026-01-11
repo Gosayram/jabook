@@ -51,14 +51,14 @@ import javax.inject.Inject
 /**
  * UI State for Topic Screen.
  */
-sealed interface TopicUiState {
+public sealed interface TopicUiState {
     data object Loading : TopicUiState
 
-    data class Success(
+    public data class Success(
         val details: RutrackerTopicDetails,
     ) : TopicUiState
 
-    data class Error(
+    public data class Error(
         val message: String,
     ) : TopicUiState
 }
@@ -69,7 +69,7 @@ sealed interface TopicUiState {
  * Loads and displays detailed information about a RuTracker topic.
  */
 @HiltViewModel
-class TopicViewModel
+public class TopicViewModel
     @Inject
     constructor(
         private val rutrackerRepository: RutrackerRepository,
@@ -190,7 +190,7 @@ class TopicViewModel
         /**
          * Load more comments from the next page (reverse pagination: N-1, N-2, ..., 1).
          */
-        fun loadMoreComments() {
+        public fun loadMoreComments() : Unit {
             val currentState = _uiState.value
             if (currentState !is TopicUiState.Success) return
 
@@ -239,7 +239,7 @@ class TopicViewModel
             }
         }
 
-        fun refreshTopicDetails(silent: Boolean = true) {
+        public fun refreshTopicDetails(silent: Boolean = true) {
             viewModelScope.launch {
                 if (!silent) {
                     _uiState.value = TopicUiState.Loading
@@ -280,7 +280,7 @@ class TopicViewModel
         /**
          * Download torrent release (content) using magnet link or torrent URL.
          */
-        fun downloadTorrentRelease(
+        public fun downloadTorrentRelease(
             magnetUrl: String?,
             torrentUrl: String?,
         ) {
@@ -409,7 +409,7 @@ class TopicViewModel
         /**
          * Download torrent file (.torrent) to device storage.
          */
-        fun downloadTorrentFile() {
+        public fun downloadTorrentFile() : Unit {
             viewModelScope.launch {
                 try {
                     // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
@@ -456,7 +456,7 @@ class TopicViewModel
         /**
          * Copy magnet link to clipboard.
          */
-        fun copyMagnetLink(magnetUrl: String?) {
+        public fun copyMagnetLink(magnetUrl: String?) {
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return
@@ -472,7 +472,7 @@ class TopicViewModel
         /**
          * Download via magnet link (if available).
          */
-        fun downloadViaMagnet(magnetUrl: String?) {
+        public fun downloadViaMagnet(magnetUrl: String?) {
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return
@@ -481,14 +481,14 @@ class TopicViewModel
             downloadTorrentRelease(magnetUrl, null)
         }
 
-        fun retry() {
+        public fun retry() : Unit {
             loadTopicDetails()
         }
 
         /**
          * Get URL for opening topic in browser using current mirror.
          */
-        fun getTopicUrl(): String {
+        public fun getTopicUrl(): String {
             val baseUrl = mirrorManager.getBaseUrl()
             return "$baseUrl/forum/viewtopic.php?t=$topicId"
         }

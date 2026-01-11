@@ -22,7 +22,7 @@ import android.os.CountDownTimer
  * Inspired by lissen-android implementation for better timer control.
  * This allows the timer to pause when playback pauses and resume when playback resumes.
  */
-class SuspendableCountDownTimer(
+public class SuspendableCountDownTimer(
     totalMillis: Long,
     private val intervalMillis: Long,
     private val onTickSeconds: (Long) -> Unit,
@@ -45,7 +45,7 @@ class SuspendableCountDownTimer(
      *
      * @return Remaining milliseconds
      */
-    fun pause(): Long {
+    public fun pause(): Long {
         cancel()
         return remainingMillis
     }
@@ -55,7 +55,7 @@ class SuspendableCountDownTimer(
      *
      * @return New SuspendableCountDownTimer instance
      */
-    fun resume(): SuspendableCountDownTimer {
+    public fun resume(): SuspendableCountDownTimer {
         val timer = SuspendableCountDownTimer(remainingMillis, intervalMillis, onTickSeconds, onFinished)
         timer.start()
         return timer

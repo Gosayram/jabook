@@ -26,7 +26,7 @@ import javax.inject.Inject
  *
  * Returns all books marked as favorites by the user.
  */
-class GetFavoriteBooksUseCase
+public class GetFavoriteBooksUseCase
     @Inject
     constructor(
         private val booksDao: BooksDao,

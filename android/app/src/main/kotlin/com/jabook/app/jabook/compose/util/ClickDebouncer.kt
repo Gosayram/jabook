@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
  * Inspired by Easybook implementation for better UX.
  * Prevents accidental double-taps and rapid-fire button presses.
  */
-class ClickDebouncer(
+public class ClickDebouncer(
     private val scope: CoroutineScope,
     private val debounceTimeMs: Long = 300L, // Default: 300ms debounce
 ) {
@@ -39,7 +39,7 @@ class ClickDebouncer(
      *
      * @param action Action to execute
      */
-    fun debounce(action: () -> Unit) {
+    public fun debounce(action: () -> Unit) {
         lastClickJob?.cancel()
         lastClickJob =
             scope.launch {
@@ -53,7 +53,7 @@ class ClickDebouncer(
      *
      * @param action Action to execute
      */
-    fun debounceImmediate(action: () -> Unit) {
+    public fun debounceImmediate(action: () -> Unit) {
         lastClickJob?.cancel()
         action()
         lastClickJob =
@@ -70,7 +70,7 @@ class ClickDebouncer(
  * @return ClickDebouncer instance
  */
 @Composable
-fun rememberClickDebouncer(debounceTimeMs: Long = 300L): ClickDebouncer {
+public fun rememberClickDebouncer(debounceTimeMs: Long = 300L): ClickDebouncer {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     return remember(scope, debounceTimeMs) {
         ClickDebouncer(scope, debounceTimeMs)

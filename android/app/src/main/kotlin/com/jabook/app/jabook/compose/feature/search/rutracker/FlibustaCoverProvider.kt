@@ -18,7 +18,7 @@ package com.jabook.app.jabook.compose.feature.search.rutracker
  * Stub for Flibusta Cover Provider.
  * This will be responsible for fetching covers from Flibusta if Rutracker fails.
  */
-object FlibustaCoverProvider {
+public object FlibustaCoverProvider {
     // TODO: Implement API client for Flibusta
 
     suspend fun fetchCover(topicName: String): String? {

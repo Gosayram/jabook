@@ -20,7 +20,7 @@ import javax.inject.Inject
 /**
  * Use case to update per-book playback settings (seek intervals).
  */
-class UpdateBookSettingsUseCase
+public class UpdateBookSettingsUseCase
     @Inject
     constructor(
         private val booksRepository: BooksRepository,

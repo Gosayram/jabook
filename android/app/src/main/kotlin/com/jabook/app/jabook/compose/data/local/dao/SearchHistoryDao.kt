@@ -25,14 +25,14 @@ import kotlinx.coroutines.flow.Flow
  * DAO for search history operations.
  */
 @Dao
-interface SearchHistoryDao {
+public interface SearchHistoryDao {
     /**
      * Get recent searches ordered by timestamp.
      *
      * @param limit Maximum number of results (default 10)
      */
     @Query("SELECT * FROM search_history ORDER BY timestamp DESC LIMIT :limit")
-    fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>>
+    public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>>
 
     /**
      * Insert a search query into history.

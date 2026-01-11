@@ -27,7 +27,7 @@ package com.jabook.app.jabook.compose.data.local.parser
  * @property trackNumber Track number in album
  * @property coverArt Cover art image data (JPEG/PNG)
  */
-data class AudioMetadata(
+public data class AudioMetadata(
     val title: String?,
     val artist: String?,
     val album: String?,
@@ -82,7 +82,7 @@ data class AudioMetadata(
  * Uses Media3 MetadataRetriever as primary source,
  * with TagLib as fallback for unsupported formats.
  */
-interface AudioMetadataParser {
+public interface AudioMetadataParser {
     /**
      * Extract metadata from audio file.
      *

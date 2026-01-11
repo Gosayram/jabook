@@ -31,7 +31,7 @@ import androidx.compose.ui.Modifier
  * @param content Button content (typically Text)
  */
 @Composable
-fun JabookButton(
+public fun JabookButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,

@@ -27,19 +27,19 @@ import androidx.compose.ui.zIndex
 /**
  * State for managing drag and drop operations.
  */
-class DragDropState {
+public class DragDropState {
     var draggedIndex by mutableStateOf<Int?>(null)
     var dragOffset by mutableStateOf(Offset.Zero)
 
-    fun onDragStart(index: Int) {
+    public fun onDragStart(index: Int) {
         draggedIndex = index
     }
 
-    fun onDrag(offset: Offset) {
+    public fun onDrag(offset: Offset) {
         dragOffset += offset
     }
 
-    fun onDragEnd() {
+    public fun onDragEnd() : Unit {
         draggedIndex = null
         dragOffset = Offset.Zero
     }
@@ -48,7 +48,7 @@ class DragDropState {
 /**
  * Simplified modifier extension for making items draggable.
  */
-fun Modifier.draggableItem(
+public fun Modifier.draggableItem(
     index: Int,
     dragDropState: DragDropState,
     onMove: (Int, Int) -> Unit,

@@ -23,7 +23,7 @@ import javax.inject.Inject
  *
  * Business logic wrapper for updating book favorite status.
  */
-class ToggleFavoriteUseCase
+public class ToggleFavoriteUseCase
     @Inject
     constructor(
         private val booksDao: BooksDao,

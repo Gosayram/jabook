@@ -21,7 +21,7 @@ import javax.inject.Inject
 /**
  * Use case for navigating between tracks in a playlist.
  */
-class NavigateTrackUseCase
+public class NavigateTrackUseCase
     @Inject
     constructor() {
         /**
@@ -47,7 +47,7 @@ class NavigateTrackUseCase
          * @param playlist The current playlist
          * @return Result with previous track index, or null if there is no previous track
          */
-        fun getPreviousIndex(playlist: Playlist): Result<Int?> {
+        public fun getPreviousIndex(playlist: Playlist): Result<Int?> {
             val previousIndex = playlist.getPreviousIndex()
             return if (previousIndex != null) {
                 com.jabook.app.jabook.audio.core.result.Result
@@ -65,7 +65,7 @@ class NavigateTrackUseCase
          * @param index The desired track index
          * @return Result with track index if valid, or error if out of bounds
          */
-        fun getTrackIndex(
+        public fun getTrackIndex(
             playlist: Playlist,
             index: Int,
         ): Result<Int> =

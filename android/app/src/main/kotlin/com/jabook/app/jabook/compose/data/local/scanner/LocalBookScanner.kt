@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
  * @property totalDuration Total duration of all chapters
  * @property coverArt Cover art image data
  */
-data class ScannedBook(
+public data class ScannedBook(
     val directory: String,
     val title: String,
     val author: String,
@@ -75,7 +75,7 @@ data class ScannedBook(
  * @property index Chapter index (0-based)
  * @property duration Duration in milliseconds
  */
-data class ScannedChapter(
+public data class ScannedChapter(
     val filePath: String,
     val title: String,
     val index: Int,
@@ -85,7 +85,7 @@ data class ScannedChapter(
 /**
  * Scanner for discovering audiobooks in local storage.
  */
-interface LocalBookScanner {
+public interface LocalBookScanner {
     /**
      * Observable state of the current scanning process.
      */

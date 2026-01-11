@@ -39,7 +39,7 @@ import androidx.room.Index
         Index(value = ["query"]),
     ],
 )
-data class SearchQueryEntity(
+public data class SearchQueryEntity(
     @ColumnInfo(name = "query")
     val query: String,
     @ColumnInfo(name = "topic_id")

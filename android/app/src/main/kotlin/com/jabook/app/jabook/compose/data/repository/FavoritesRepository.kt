@@ -27,7 +27,7 @@ import javax.inject.Singleton
  * Provides high-level API for favorites operations with Result wrapping.
  */
 @Singleton
-class FavoritesRepository
+public class FavoritesRepository
     @Inject
     constructor(
         private val favoriteDao: FavoriteDao,

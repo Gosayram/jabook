@@ -29,7 +29,7 @@ import javax.inject.Inject
  *
  * Implements offline-first approach: reads from local storage first.
  */
-class LoadPlaylistUseCase
+public class LoadPlaylistUseCase
     @Inject
     constructor(
         private val playlistRepository: PlaylistRepository,

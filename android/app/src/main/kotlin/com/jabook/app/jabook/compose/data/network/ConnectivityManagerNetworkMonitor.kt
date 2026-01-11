@@ -29,7 +29,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ConnectivityManagerNetworkMonitor
+public class ConnectivityManagerNetworkMonitor
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,

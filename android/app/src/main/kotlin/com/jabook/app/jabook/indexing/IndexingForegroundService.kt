@@ -47,7 +47,7 @@ import javax.inject.Inject
  * Shows progress in notification panel and allows indexing to continue in background.
  */
 @AndroidEntryPoint
-class IndexingForegroundService : Service() {
+public class IndexingForegroundService : Service() {
     @Inject
     lateinit var forumIndexer: ForumIndexer
 
@@ -59,28 +59,28 @@ class IndexingForegroundService : Service() {
     private var currentProgress: IndexingProgress = IndexingProgress.Idle
     private var startTime: Long = 0L
 
-    companion object {
+    public companion object {
         private const val TAG = "IndexingForegroundService"
         private const val CHANNEL_ID = "jabook_indexing"
         private const val CHANNEL_NAME = "Индексация форумов"
         private const val NOTIFICATION_ID = 100
         private const val AUTO_DISMISS_DELAY_MS = 5000L // 5 seconds
 
-        const val ACTION_START = "com.jabook.app.jabook.indexing.START"
-        const val ACTION_STOP = "com.jabook.app.jabook.indexing.STOP"
-        const val ACTION_UPDATE_PROGRESS = "com.jabook.app.jabook.indexing.UPDATE_PROGRESS"
+        public const val ACTION_START = "com.jabook.app.jabook.indexing.START"
+        public const val ACTION_STOP = "com.jabook.app.jabook.indexing.STOP"
+        public const val ACTION_UPDATE_PROGRESS = "com.jabook.app.jabook.indexing.UPDATE_PROGRESS"
 
-        const val EXTRA_PROGRESS = "progress"
+        public const val EXTRA_PROGRESS = "progress"
 
         @Volatile
         private var instance: IndexingForegroundService? = null
 
-        fun getInstance(): IndexingForegroundService? = instance
+        public fun getInstance(): IndexingForegroundService? = instance
 
         /**
          * Start the indexing service.
          */
-        fun start(context: Context) {
+        public fun start(context: Context) {
             val intent =
                 Intent(context, IndexingForegroundService::class.java).apply {
                     action = ACTION_START
@@ -96,7 +96,7 @@ class IndexingForegroundService : Service() {
         /**
          * Stop the indexing service.
          */
-        fun stop(context: Context) {
+        public fun stop(context: Context) {
             val intent =
                 Intent(context, IndexingForegroundService::class.java).apply {
                     action = ACTION_STOP

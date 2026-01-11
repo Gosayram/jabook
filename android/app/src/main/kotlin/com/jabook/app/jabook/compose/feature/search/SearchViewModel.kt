@@ -42,17 +42,17 @@ import javax.inject.Inject
 /**
  * UI state for search.
  */
-sealed interface SearchUiState {
+public sealed interface SearchUiState {
     data object Idle : SearchUiState
 
     data object Loading : SearchUiState
 
-    data class Success(
+    public data class Success(
         val localResults: List<Book>,
         val onlineResults: List<RutrackerSearchResult>,
     ) : SearchUiState
 
-    data class Error(
+    public data class Error(
         val message: String,
     ) : SearchUiState
 }
@@ -66,7 +66,7 @@ sealed interface SearchUiState {
  */
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class SearchViewModel
+public class SearchViewModel
     @Inject
     constructor(
         private val searchBooksUseCase: SearchBooksUseCase,
@@ -137,14 +137,14 @@ class SearchViewModel
         /**
          * Update search query.
          */
-        fun onSearchQueryChanged(query: String) {
+        public fun onSearchQueryChanged(query: String) {
             _searchQuery.value = query
         }
 
         /**
          * Update filters.
          */
-        fun updateFilters(newFilters: SearchFilters) {
+        public fun updateFilters(newFilters: SearchFilters) {
             _filters.value = newFilters
             recalculateUiState()
         }
@@ -152,7 +152,7 @@ class SearchViewModel
         /**
          * Update sort order.
          */
-        fun updateSortOrder(order: SearchSortOrder) {
+        public fun updateSortOrder(order: SearchSortOrder) {
             _sortOrder.value = order
             recalculateUiState()
         }
@@ -160,7 +160,7 @@ class SearchViewModel
         /**
          * Clear search query.
          */
-        fun clearSearch() {
+        public fun clearSearch() : Unit {
             _searchQuery.value = ""
             rawOnlineResults.value = emptyList()
             _uiState.value = SearchUiState.Idle
@@ -169,7 +169,7 @@ class SearchViewModel
         /**
          * Perform online search on Rutracker.
          */
-        fun searchOnline() {
+        public fun searchOnline() : Unit {
             val query = _searchQuery.value
             if (query.isBlank()) return
 
@@ -299,7 +299,7 @@ class SearchViewModel
         /**
          * Save search to history.
          */
-        fun saveSearchToHistory(
+        public fun saveSearchToHistory(
             query: String,
             resultCount: Int = 0,
         ) {
@@ -312,7 +312,7 @@ class SearchViewModel
         /**
          * Delete specific search history item.
          */
-        fun deleteSearchHistoryItem(id: Long) {
+        public fun deleteSearchHistoryItem(id: Long) {
             viewModelScope.launch {
                 searchHistoryRepository.deleteSearch(id)
             }
@@ -321,7 +321,7 @@ class SearchViewModel
         /**
          * Clear all search history.
          */
-        fun clearSearchHistory() {
+        public fun clearSearchHistory() : Unit {
             viewModelScope.launch {
                 searchHistoryRepository.clearAll()
             }
@@ -330,7 +330,7 @@ class SearchViewModel
         /**
          * Toggle favorite status for a search result.
          */
-        fun toggleFavorite(result: RutrackerSearchResult) {
+        public fun toggleFavorite(result: RutrackerSearchResult) {
             viewModelScope.launch {
                 if (favoriteIds.value.contains(result.topicId)) {
                     favoritesRepository.removeFromFavorites(result.topicId)
@@ -369,7 +369,7 @@ class SearchViewModel
 /**
  * Creates a BookActionsProvider for local search results.
  */
-fun SearchViewModel.createLocalBookActionsProvider(
+public fun SearchViewModel.createLocalBookActionsProvider(
     onBookClick: (String) -> Unit,
 ): com.jabook.app.jabook.compose.domain.model.BookActionsProvider =
     com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
@@ -386,7 +386,7 @@ fun SearchViewModel.createLocalBookActionsProvider(
  *
  * Note: onBookClick takes the full RutrackerSearchResult instead of just ID.
  */
-fun SearchViewModel.createOnlineBookActionsProvider(
+public fun SearchViewModel.createOnlineBookActionsProvider(
     onBookClick: (RutrackerSearchResult) -> Unit,
     onToggleFavorite: (RutrackerSearchResult) -> Unit,
 ): Pair<

@@ -76,7 +76,7 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun BookDetailPane(
+public fun BookDetailPane(
     book: Book?,
     onPlayClick: () -> Unit,
     onClose: () -> Unit,

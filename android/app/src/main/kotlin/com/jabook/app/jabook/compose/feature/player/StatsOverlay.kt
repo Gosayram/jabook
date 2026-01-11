@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-data class PlayerStats(
+public data class PlayerStats(
     val audioFormat: String = "Unknown",
     val bitrate: String = "Unknown",
     val bufferHealth: String = "0s",
@@ -50,7 +50,7 @@ data class PlayerStats(
 )
 
 @Composable
-fun StatsOverlay(
+public fun StatsOverlay(
     stats: PlayerStats,
     onDismiss: () -> Unit,
 ) {

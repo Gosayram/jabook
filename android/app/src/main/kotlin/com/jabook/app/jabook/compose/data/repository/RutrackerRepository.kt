@@ -38,7 +38,7 @@ import javax.inject.Singleton
  *
  * Handles network requests and HTML parsing for Rutracker search and details.
  */
-interface RutrackerRepository {
+public interface RutrackerRepository {
     /**
      * Search for audiobooks on Rutracker.
      *
@@ -93,7 +93,7 @@ interface RutrackerRepository {
  * Implementation of RutrackerRepository.
  */
 @Singleton
-class RutrackerRepositoryImpl
+public class RutrackerRepositoryImpl
     @Inject
     constructor(
         private val api: RutrackerApi,

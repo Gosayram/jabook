@@ -24,10 +24,10 @@ import javax.inject.Inject
  * This simulates download progress without actually downloading files.
  * Replace with real torrent client integration in production.
  */
-class StubTorrentDownloader
+public class StubTorrentDownloader
     @Inject
     constructor() : TorrentDownloader {
-        companion object {
+        public companion object {
             private const val TAG = "StubTorrentDownloader"
             private const val TOTAL_STEPS = 100
             private const val STEP_DELAY_MS = 50L // 5 seconds total for demo

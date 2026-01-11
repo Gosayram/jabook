@@ -23,7 +23,7 @@ import javax.inject.Inject
  *
  * Handles book deletion with proper error handling.
  */
-class DeleteBookUseCase
+public class DeleteBookUseCase
     @Inject
     constructor(
         private val booksRepository: BooksRepository,

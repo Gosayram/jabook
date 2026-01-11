@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class WebViewViewModel
+public class WebViewViewModel
     @Inject
     constructor(
         private val authRepository: AuthRepository,
@@ -33,7 +33,7 @@ class WebViewViewModel
          * Called when a page finishes loading in WebView.
          * Syncs cookies from WebView to Native storage.
          */
-        fun onPageFinished(url: String?) {
+        public fun onPageFinished(url: String?) {
             if (url == null) return
 
             // We only care about syncing if it's a relevant domain,
@@ -47,7 +47,7 @@ class WebViewViewModel
         /**
          * Get login URL using current mirror (for fallback).
          */
-        fun getLoginUrl(): String {
+        public fun getLoginUrl(): String {
             val baseUrl = mirrorManager.getBaseUrl()
             return "$baseUrl/forum/login.php"
         }

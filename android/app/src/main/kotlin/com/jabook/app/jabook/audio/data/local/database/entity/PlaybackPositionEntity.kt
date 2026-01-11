@@ -21,7 +21,7 @@ import androidx.room.PrimaryKey
  * Entity representing a saved playback position for a book.
  */
 @Entity(tableName = "playback_positions")
-data class PlaybackPositionEntity(
+public data class PlaybackPositionEntity(
     @PrimaryKey
     val bookId: String,
     val trackIndex: Int,

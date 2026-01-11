@@ -22,17 +22,17 @@ import android.os.Build
  * Classifies device performance to optimize app behavior.
  * Used to disable animations and complex effects on low-end devices.
  */
-enum class PerformanceClass {
+public enum class PerformanceClass {
     LOW, // Android Go, < 3GB RAM, weak CPU
     MEDIUM, // Standard devices
     HIGH, // Flagships
 }
 
-object PerformanceUtils {
+public object PerformanceUtils {
     @Volatile
     private var cachedPerformanceClass: PerformanceClass? = null
 
-    fun getPerformanceClass(context: Context): PerformanceClass {
+    public fun getPerformanceClass(context: Context): PerformanceClass {
         cachedPerformanceClass?.let { return it }
 
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -77,7 +77,7 @@ object PerformanceUtils {
         return PerformanceClass.MEDIUM
     }
 
-    fun isLowEndDevice(context: Context): Boolean = getPerformanceClass(context) == PerformanceClass.LOW
+    public fun isLowEndDevice(context: Context): Boolean = getPerformanceClass(context) == PerformanceClass.LOW
 
-    fun isHighEndDevice(context: Context): Boolean = getPerformanceClass(context) == PerformanceClass.HIGH
+    public fun isHighEndDevice(context: Context): Boolean = getPerformanceClass(context) == PerformanceClass.HIGH
 }

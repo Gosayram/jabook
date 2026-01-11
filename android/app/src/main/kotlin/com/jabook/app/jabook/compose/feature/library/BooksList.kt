@@ -55,7 +55,7 @@ import com.jabook.app.jabook.compose.domain.model.Book
         ),
 )
 @Composable
-fun BooksList(
+public fun BooksList(
     books: List<Book>,
     onBookClick: (String) -> Unit,
     modifier: Modifier = Modifier,

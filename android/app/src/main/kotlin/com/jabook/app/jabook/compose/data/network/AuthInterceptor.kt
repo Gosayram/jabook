@@ -27,12 +27,12 @@ import javax.inject.Singleton
  * Intercepts HTTP responses to detect session expiry and automatically re-authenticate.
  */
 @Singleton
-class AuthInterceptor
+public class AuthInterceptor
     @Inject
     constructor(
         private val authRepository: Provider<AuthRepository>,
     ) : Interceptor {
-        companion object {
+        public companion object {
             private const val TAG = "AuthInterceptor"
             private const val LOGIN_PAGE_MARKER = "login.php"
         }

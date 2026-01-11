@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit
  *
  * Clicking the widget opens the player screen.
  */
-class PlayerWidgetProvider : AppWidgetProvider() {
+public class PlayerWidgetProvider : AppWidgetProvider() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     // Debounce updates to prevent excessive widget refreshes
@@ -703,19 +703,19 @@ class PlayerWidgetProvider : AppWidgetProvider() {
         )
     }
 
-    companion object {
-        const val ACTION_UPDATE_WIDGET = "com.jabook.app.jabook.UPDATE_WIDGET"
-        const val ACTION_PLAY_PAUSE = "com.jabook.app.jabook.WIDGET_PLAY_PAUSE"
-        const val ACTION_NEXT = "com.jabook.app.jabook.WIDGET_NEXT"
-        const val ACTION_PREVIOUS = "com.jabook.app.jabook.WIDGET_PREVIOUS"
-        const val ACTION_REPEAT = "com.jabook.app.jabook.WIDGET_REPEAT"
-        const val ACTION_SPEED = "com.jabook.app.jabook.WIDGET_SPEED"
-        const val ACTION_TIMER = "com.jabook.app.jabook.WIDGET_TIMER"
+    public companion object {
+        public const val ACTION_UPDATE_WIDGET = "com.jabook.app.jabook.UPDATE_WIDGET"
+        public const val ACTION_PLAY_PAUSE = "com.jabook.app.jabook.WIDGET_PLAY_PAUSE"
+        public const val ACTION_NEXT = "com.jabook.app.jabook.WIDGET_NEXT"
+        public const val ACTION_PREVIOUS = "com.jabook.app.jabook.WIDGET_PREVIOUS"
+        public const val ACTION_REPEAT = "com.jabook.app.jabook.WIDGET_REPEAT"
+        public const val ACTION_SPEED = "com.jabook.app.jabook.WIDGET_SPEED"
+        public const val ACTION_TIMER = "com.jabook.app.jabook.WIDGET_TIMER"
 
         /**
          * Requests widget update from anywhere in the app.
          */
-        fun requestUpdate(context: Context) {
+        public fun requestUpdate(context: Context) {
             val intent =
                 Intent(context, PlayerWidgetProvider::class.java).apply {
                     action = ACTION_UPDATE_WIDGET

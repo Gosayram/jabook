@@ -30,7 +30,7 @@ import kotlinx.coroutines.withContext
  * @property onSurfaceColor Content color on surface.
  * @property containerColor Dominant color for container or gradient start.
  */
-data class PlayerThemeColors(
+public data class PlayerThemeColors(
     val primaryColor: Color = Color(0xFF6750A4), // Default Purple40
     val onPrimaryColor: Color = Color.White,
     val secondaryColor: Color = Color(0xFF625B71), // Default PurpleGrey40
@@ -43,7 +43,7 @@ data class PlayerThemeColors(
 /**
  * Manager for extracting dynamic theme colors from bitmaps.
  */
-object DynamicThemeManager {
+public object DynamicThemeManager {
     /**
      * Extracts a color palette from the given bitmap asynchronously.
      *

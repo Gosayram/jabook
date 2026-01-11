@@ -36,7 +36,7 @@ import javax.inject.Singleton
  * - .nomedia support for users with custom paths (e.g., hiding images from gallery)
  */
 @Singleton
-class HybridBookScanner
+public class HybridBookScanner
     @Inject
     constructor(
         private val mediaStoreScanner: MediaStoreBookScanner,

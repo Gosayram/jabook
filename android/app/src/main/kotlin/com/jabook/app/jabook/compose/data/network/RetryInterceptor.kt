@@ -41,10 +41,10 @@ import javax.inject.Singleton
  * - backoffMultiplier: Multiplier for exponential backoff (default: 2.0)
  */
 @Singleton
-class RetryInterceptor
+public class RetryInterceptor
     @Inject
     constructor() : Interceptor {
-        companion object {
+        public companion object {
             private const val TAG = "RetryInterceptor"
             private const val MAX_RETRIES = 3
             private const val INITIAL_DELAY_MS = 500L

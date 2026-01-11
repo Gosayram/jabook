@@ -17,7 +17,7 @@ package com.jabook.app.jabook.audio.core.model
 /**
  * Represents the playback state of the audio player.
  */
-data class PlaybackState(
+public data class PlaybackState(
     val isPlaying: Boolean,
     val currentPosition: Long,
     val duration: Long,
@@ -43,11 +43,11 @@ data class PlaybackState(
     val remainingTime: Long
         get() = (duration - currentPosition).coerceAtLeast(0L)
 
-    companion object {
+    public companion object {
         /**
          * Creates an empty/initial playback state.
          */
-        fun empty(): PlaybackState =
+        public fun empty(): PlaybackState =
             PlaybackState(
                 isPlaying = false,
                 currentPosition = 0L,

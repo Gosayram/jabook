@@ -35,7 +35,7 @@ import javax.inject.Inject
 /**
  * UI model for search result with library status.
  */
-data class SearchResultUi(
+public data class SearchResultUi(
     val result: RutrackerSearchResult,
     val isInLibrary: Boolean = false,
 )
@@ -46,14 +46,14 @@ data class SearchResultUi(
  * Manages search state and communicates with RutrackerRepository.
  */
 @HiltViewModel
-class RutrackerSearchViewModel
+public class RutrackerSearchViewModel
     @Inject
     constructor(
         private val repository: RutrackerRepository,
         private val booksRepository: BooksRepository,
         private val coverLoader: CoverLoader,
     ) : ViewModel() {
-        companion object {
+        public companion object {
             private const val TAG = "RutrackerSearchViewModel"
         }
 
@@ -86,7 +86,7 @@ class RutrackerSearchViewModel
          * @param query Search query
          * @param forumIds Optional forum IDs filter (defaults to audiobooks forums only)
          */
-        fun search(
+        public fun search(
             query: String,
             forumIds: String? = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
         ) {
@@ -190,7 +190,7 @@ class RutrackerSearchViewModel
         /**
          * Clear search results.
          */
-        fun clearSearch() {
+        public fun clearSearch() : Unit {
             _searchState.value = SearchState.Empty
             originalResults = emptyList()
         }
@@ -198,7 +198,7 @@ class RutrackerSearchViewModel
         /**
          * Update search filters and reapply to results.
          */
-        fun updateFilters(newFilters: RutrackerSearchFilters) {
+        public fun updateFilters(newFilters: RutrackerSearchFilters) {
             _filters.value = newFilters
             reapplyFiltersAndSort()
         }
@@ -206,7 +206,7 @@ class RutrackerSearchViewModel
         /**
          * Update sort order and reapply to results.
          */
-        fun updateSortOrder(newSortOrder: RutrackerSortOrder) {
+        public fun updateSortOrder(newSortOrder: RutrackerSortOrder) {
             _sortOrder.value = newSortOrder
             reapplyFiltersAndSort()
         }
@@ -307,7 +307,7 @@ class RutrackerSearchViewModel
 /**
  * State for RuTracker search.
  */
-sealed class SearchState {
+public sealed class SearchState {
     /** No search performed yet */
     data object Empty : SearchState()
 
@@ -315,13 +315,13 @@ sealed class SearchState {
     data object Loading : SearchState()
 
     /** Search completed successfully */
-    data class Success(
+    public data class Success(
         val results: List<SearchResultUi>,
         val isCached: Boolean = false,
     ) : SearchState()
 
     /** Search failed */
-    data class Error(
+    public data class Error(
         val message: String?, // Nullable - UI should use stringResource(R.string.unknownError) as fallback
     ) : SearchState()
 }

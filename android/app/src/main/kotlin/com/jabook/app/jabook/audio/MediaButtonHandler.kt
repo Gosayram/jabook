@@ -34,10 +34,10 @@ import javax.inject.Singleton
  * - 3 clicks: Skip to Previous (or Rewind, configurable)
  */
 @Singleton
-class MediaButtonHandler
+public class MediaButtonHandler
     @Inject
     constructor() {
-        companion object {
+        public companion object {
             private const val TAB_TIMEOUT_MS = 400L
             private const val TAG = "MediaButtonHandler"
         }
@@ -55,7 +55,7 @@ class MediaButtonHandler
          * @param onTripleClick Action for triple click (Previous)
          * @return true if the event was handled (always true for relevant keys), false otherwise.
          */
-        fun onMediaButtonEvent(
+        public fun onMediaButtonEvent(
             keyCode: Int,
             onSingleClick: () -> Unit,
             onDoubleClick: () -> Unit,

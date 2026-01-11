@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.data.torrent
 /**
  * Individual file within a torrent
  */
-data class TorrentFile(
+public data class TorrentFile(
     /** File index in torrent */
     val index: Int,
     /** Relative path within torrent */
@@ -43,7 +43,7 @@ data class TorrentFile(
     val isAudioFile: Boolean
         get() = extension.lowercase() in AUDIO_EXTENSIONS
 
-    companion object {
+    public companion object {
         private val AUDIO_EXTENSIONS =
             setOf(
                 "mp3",

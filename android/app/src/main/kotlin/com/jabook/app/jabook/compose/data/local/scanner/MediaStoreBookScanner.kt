@@ -33,7 +33,7 @@ import javax.inject.Singleton
  * Groups audio files by album tag to identify audiobooks.
  */
 @Singleton
-class MediaStoreBookScanner
+public class MediaStoreBookScanner
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -207,7 +207,7 @@ class MediaStoreBookScanner
             val chapterNumber: Int = 0,
             val hasNumber: Boolean = false,
         ) {
-            fun toSortKey(): Int = partNumber * 1000 + chapterNumber
+            public fun toSortKey(): Int = partNumber * 1000 + chapterNumber
         }
 
         private fun createChapterComparator(): Comparator<AudioFileInfo> =

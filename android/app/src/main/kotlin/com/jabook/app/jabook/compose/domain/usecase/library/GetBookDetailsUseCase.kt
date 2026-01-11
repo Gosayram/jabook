@@ -25,7 +25,7 @@ import javax.inject.Inject
  * Returns a reactive Flow that emits book details and updates
  * when the book data changes.
  */
-class GetBookDetailsUseCase
+public class GetBookDetailsUseCase
     @Inject
     constructor(
         private val booksRepository: BooksRepository,

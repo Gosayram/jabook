@@ -43,7 +43,7 @@ import javax.inject.Singleton
  * Exports/imports settings, book metadata, favorites, and search history.
  */
 @Singleton
-class BackupService
+public class BackupService
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -53,7 +53,7 @@ class BackupService
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
         private val mirrorManager: com.jabook.app.jabook.compose.data.network.MirrorManager,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "BackupService"
             private const val CURRENT_VERSION = "1.0.0"
         }

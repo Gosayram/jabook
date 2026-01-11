@@ -78,7 +78,7 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun PlayerChapterPane(
+public fun PlayerChapterPane(
     chapters: List<Chapter>,
     currentChapterIndex: Int,
     onChapterClick: (Int) -> Unit,

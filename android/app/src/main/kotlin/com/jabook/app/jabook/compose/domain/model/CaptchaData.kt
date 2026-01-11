@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.domain.model
 /**
  * Data required for Rutracker captcha verification.
  */
-data class CaptchaData(
+public data class CaptchaData(
     /** The URL of the captcha image */
     val url: String,
     /** The session ID or key associated with the captcha */

@@ -20,11 +20,11 @@ import com.jabook.app.jabook.audio.data.local.database.entity.ChapterMetadataEnt
 /**
  * Mapper for converting between Chapter domain models and ChapterMetadataEntity.
  */
-object ChapterMapper {
+public object ChapterMapper {
     /**
      * Converts ChapterMetadataEntity to Chapter domain model.
      */
-    fun toDomain(entity: ChapterMetadataEntity): Chapter =
+    public fun toDomain(entity: ChapterMetadataEntity): Chapter =
         Chapter(
             id = entity.id,
             title = entity.title,
@@ -38,12 +38,12 @@ object ChapterMapper {
     /**
      * Converts list of ChapterMetadataEntity to list of Chapter domain models.
      */
-    fun toDomainList(entities: List<ChapterMetadataEntity>): List<Chapter> = entities.map { toDomain(it) }
+    public fun toDomainList(entities: List<ChapterMetadataEntity>): List<Chapter> = entities.map { toDomain(it) }
 
     /**
      * Converts Chapter domain model to ChapterMetadataEntity.
      */
-    fun toEntity(
+    public fun toEntity(
         chapter: Chapter,
         bookId: String,
     ): ChapterMetadataEntity =
@@ -62,7 +62,7 @@ object ChapterMapper {
     /**
      * Converts list of Chapter domain models to list of ChapterMetadataEntity.
      */
-    fun toEntityList(
+    public fun toEntityList(
         chapters: List<Chapter>,
         bookId: String,
     ): List<ChapterMetadataEntity> = chapters.map { toEntity(it, bookId) }

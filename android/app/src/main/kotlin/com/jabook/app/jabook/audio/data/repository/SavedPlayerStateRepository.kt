@@ -29,7 +29,7 @@ import javax.inject.Singleton
  * playlist, position, speed, repeat mode, and sleep timer.
  */
 @Singleton
-class SavedPlayerStateRepository
+public class SavedPlayerStateRepository
     @Inject
     constructor(
         private val stateDao: SavedPlayerStateDao,
@@ -128,7 +128,7 @@ class SavedPlayerStateRepository
         /**
          * Parses file paths from JSON string.
          */
-        fun parseFilePaths(filePathsJson: String): List<String> =
+        public fun parseFilePaths(filePathsJson: String): List<String> =
             try {
                 val jsonArray = JSONArray(filePathsJson)
                 (0 until jsonArray.length()).map { jsonArray.getString(it) }
@@ -139,7 +139,7 @@ class SavedPlayerStateRepository
         /**
          * Parses metadata from JSON string.
          */
-        fun parseMetadata(metadataJson: String?): Map<String, String>? {
+        public fun parseMetadata(metadataJson: String?): Map<String, String>? {
             return try {
                 if (metadataJson == null || metadataJson.isEmpty()) {
                     return null

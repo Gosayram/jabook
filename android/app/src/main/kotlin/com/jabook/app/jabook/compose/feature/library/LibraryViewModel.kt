@@ -59,7 +59,7 @@ import javax.inject.Inject
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class LibraryViewModel
+public class LibraryViewModel
     @Inject
     constructor(
         private val getLibraryUseCase: GetLibraryUseCase,
@@ -140,14 +140,14 @@ class LibraryViewModel
         /**
          * Update search query.
          */
-        fun onSearchQueryChanged(query: String) {
+        public fun onSearchQueryChanged(query: String) {
             _searchQuery.value = query
         }
 
         /**
          * Update sort order.
          */
-        fun onSortOrderChanged(order: BookSortOrder) {
+        public fun onSortOrderChanged(order: BookSortOrder) {
             _sortOrder.value = order
             viewModelScope.launch {
                 userPreferencesRepository.setSortOrder(order)
@@ -157,7 +157,7 @@ class LibraryViewModel
         /**
          * Update view mode.
          */
-        fun onViewModeChanged(mode: LibraryViewMode) {
+        public fun onViewModeChanged(mode: LibraryViewMode) {
             viewModelScope.launch {
                 _viewMode.value = mode
                 userPreferencesRepository.setViewMode(mode)
@@ -201,7 +201,7 @@ class LibraryViewModel
          * Toggle favorite status of a book.
          * Synchronizes with FavoriteEntity for unified favorites system.
          */
-        fun toggleFavorite(
+        public fun toggleFavorite(
             bookId: String,
             isFavorite: Boolean,
         ) {
@@ -241,7 +241,7 @@ class LibraryViewModel
         /**
          * Delete a book.
          */
-        fun deleteBook(bookId: String) {
+        public fun deleteBook(bookId: String) {
             viewModelScope.launch {
                 deleteBookUseCase(bookId)
                 // Result handling can be added if needed for user feedback
@@ -251,7 +251,7 @@ class LibraryViewModel
         /**
          * Show book properties dialog.
          */
-        fun showBookProperties(bookId: String) {
+        public fun showBookProperties(bookId: String) {
             viewModelScope.launch {
                 // Find book from current UI state
                 val book =
@@ -265,7 +265,7 @@ class LibraryViewModel
         /**
          * Hide book properties dialog.
          */
-        fun hideBookProperties() {
+        public fun hideBookProperties() : Unit {
             _selectedBookForProperties.value = null
         }
 
@@ -279,7 +279,7 @@ class LibraryViewModel
         /**
          * Start library scan for local audiobooks.
          */
-        fun startLibraryScan() {
+        public fun startLibraryScan() : Unit {
             viewModelScope.launch {
                 // Check if scan folders are configured
                 val scanFolders = scanPathDao.getAllPathsList()
@@ -336,7 +336,7 @@ class LibraryViewModel
         /**
          * Cancel the currently running library scan.
          */
-        fun cancelLibraryScan() {
+        public fun cancelLibraryScan() : Unit {
             currentScanWorkId?.let { workId ->
                 workManager.cancelWorkById(workId)
                 currentScanWorkId = null
@@ -348,7 +348,7 @@ class LibraryViewModel
 /**
  * UI state for the Library screen.
  */
-sealed interface LibraryUiState {
+public sealed interface LibraryUiState {
     /**
      * Loading state - initial load or refreshing.
      */
@@ -357,7 +357,7 @@ sealed interface LibraryUiState {
     /**
      * Success state with books.
      */
-    data class Success(
+    public data class Success(
         val books: List<Book>,
     ) : LibraryUiState
 
@@ -369,7 +369,7 @@ sealed interface LibraryUiState {
     /**
      * Error state.
      */
-    data class Error(
+    public data class Error(
         val message: String,
     ) : LibraryUiState
 }
@@ -377,19 +377,19 @@ sealed interface LibraryUiState {
 /**
  * State of library scanning operation.
  */
-sealed interface ScanState {
+public sealed interface ScanState {
     data object Idle : ScanState
 
-    data class Scanning(
+    public data class Scanning(
         val message: String,
     ) : ScanState
 
-    data class Completed(
+    public data class Completed(
         val booksFound: Int,
         val noFoldersConfigured: Boolean = false,
     ) : ScanState
 
-    data class Failed(
+    public data class Failed(
         val error: String,
     ) : ScanState
 }
@@ -404,7 +404,7 @@ sealed interface ScanState {
  * @param onBookClick Optional override for book click action
  * @return BookActionsProvider configured with current ViewModel state
  */
-fun LibraryViewModel.createBookActionsProvider(
+public fun LibraryViewModel.createBookActionsProvider(
     onBookClick: (String) -> Unit,
 ): com.jabook.app.jabook.compose.domain.model.BookActionsProvider {
     val favoriteIds = favoriteBooks.value.map { it.id }.toSet()

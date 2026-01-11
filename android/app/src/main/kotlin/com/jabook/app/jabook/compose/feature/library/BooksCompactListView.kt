@@ -67,7 +67,7 @@ import com.jabook.app.jabook.compose.domain.model.Book
         ),
 )
 @Composable
-fun BooksCompactListView(
+public fun BooksCompactListView(
     books: List<Book>,
     onBookClick: (String) -> Unit,
     onToggleFavorite: (String, Boolean) -> Unit,

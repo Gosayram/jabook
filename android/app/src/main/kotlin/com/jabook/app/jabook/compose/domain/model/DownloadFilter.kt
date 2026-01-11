@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.domain.model
 /**
  * Download filter for UI filtering.
  */
-enum class DownloadFilter {
+public enum class DownloadFilter {
     /**
      * Show all downloads.
      */

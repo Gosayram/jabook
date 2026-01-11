@@ -22,14 +22,14 @@ package com.jabook.app.jabook.compose.data.remote.parser
  *
  * @param T Type of successfully parsed data
  */
-sealed class ParsingResult<T> {
+public sealed class ParsingResult<T> {
     /**
      * Complete success - all data parsed without errors.
      *
      * @property data Successfully parsed data
      * @property warnings Non-critical warnings (e.g., optional fields missing)
      */
-    data class Success<T>(
+    public data class Success<T>(
         val data: T,
         val warnings: List<String> = emptyList(),
     ) : ParsingResult<T>()
@@ -43,7 +43,7 @@ sealed class ParsingResult<T> {
      * @property data Partially parsed data
      * @property errors List of parsing errors encountered
      */
-    data class PartialSuccess<T>(
+    public data class PartialSuccess<T>(
         val data: T,
         val errors: List<ParsingError>,
     ) : ParsingResult<T>()
@@ -54,7 +54,7 @@ sealed class ParsingResult<T> {
      * @property errors List of critical errors
      * @property fallbackData Optional fallback data (e.g., empty list)
      */
-    data class Failure<T>(
+    public data class Failure<T>(
         val errors: List<ParsingError>,
         val fallbackData: T? = null,
     ) : ParsingResult<T>()
@@ -68,7 +68,7 @@ sealed class ParsingResult<T> {
  * @property severity Severity level of the error
  * @property htmlSnippet Optional HTML snippet for debugging
  */
-data class ParsingError(
+public data class ParsingError(
     val field: String,
     val reason: String,
     val severity: ErrorSeverity,
@@ -78,7 +78,7 @@ data class ParsingError(
 /**
  * Severity level of parsing errors.
  */
-enum class ErrorSeverity {
+public enum class ErrorSeverity {
     /** Non-critical issue, has fallback value */
     WARNING,
 

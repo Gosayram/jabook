@@ -23,7 +23,7 @@ import androidx.room.PrimaryKey
  * Stores information about completed, failed, or cancelled downloads.
  */
 @Entity(tableName = "download_history")
-data class DownloadHistoryEntity(
+public data class DownloadHistoryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     /**

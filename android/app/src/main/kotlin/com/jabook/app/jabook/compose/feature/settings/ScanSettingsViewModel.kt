@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ScanSettingsViewModel
+public class ScanSettingsViewModel
     @Inject
     constructor(
         private val booksRepository: BooksRepository,
@@ -39,7 +39,7 @@ class ScanSettingsViewModel
                     initialValue = emptyList(),
                 )
 
-        fun addScanPath(uriString: String) {
+        public fun addScanPath(uriString: String) {
             val path = resolvePathFromUri(uriString)
             viewModelScope.launch {
                 booksRepository.addScanPath(path)
@@ -48,7 +48,7 @@ class ScanSettingsViewModel
             }
         }
 
-        fun removeScanPath(path: String) {
+        public fun removeScanPath(path: String) {
             viewModelScope.launch {
                 booksRepository.removeScanPath(path)
                 booksRepository.refresh()

@@ -24,13 +24,13 @@ import androidx.media3.common.Player
  *
  * Inspired by Rhythm implementation for seamless state transfer.
  */
-object PlayerStateTransfer {
+public object PlayerStateTransfer {
     private const val TAG = "PlayerStateTransfer"
 
     /**
      * Saved player state for transfer.
      */
-    data class SavedPlayerState(
+    public data class SavedPlayerState(
         val mediaItems: List<MediaItem>,
         val currentMediaItemIndex: Int,
         val currentPosition: Long,
@@ -45,7 +45,7 @@ object PlayerStateTransfer {
      * @param player The player to save state from
      * @return SavedPlayerState containing all necessary state info
      */
-    fun savePlayerState(player: Player): SavedPlayerState {
+    public fun savePlayerState(player: Player): SavedPlayerState {
         Log.d(TAG, "Saving player state")
 
         val mediaItems = mutableListOf<MediaItem>()
@@ -69,7 +69,7 @@ object PlayerStateTransfer {
      * @param player The player to restore state to
      * @param savedState The saved state
      */
-    fun restorePlayerState(
+    public fun restorePlayerState(
         player: Player,
         savedState: SavedPlayerState,
     ) {
@@ -94,7 +94,7 @@ object PlayerStateTransfer {
      * @param fromPlayer Source player
      * @param toPlayer Destination player
      */
-    fun transferPlayback(
+    public fun transferPlayback(
         fromPlayer: Player,
         toPlayer: Player,
     ) {

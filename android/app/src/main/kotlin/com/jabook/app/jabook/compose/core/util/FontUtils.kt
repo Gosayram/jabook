@@ -32,7 +32,7 @@ import com.jabook.app.jabook.ui.theme.InterFontFamily
  * Supports both bundled fonts (Inter) and downloadable Google Fonts.
  * Uses Google Fonts Provider for downloading fonts on demand.
  */
-object FontUtils {
+public object FontUtils {
     /**
      * Google Fonts Provider configuration.
      * This is the official Google Fonts provider for Android.
@@ -52,7 +52,7 @@ object FontUtils {
      * @return FontFamily instance
      */
     @Composable
-    fun getFontFamily(font: AppFont): FontFamily {
+    public fun getFontFamily(font: AppFont): FontFamily {
         val context = LocalContext.current
         return remember(font) {
             when (font) {
@@ -104,7 +104,7 @@ object FontUtils {
      * @param context Android context
      * @return FontFamily instance
      */
-    fun getFontFamilySync(
+    public fun getFontFamilySync(
         font: AppFont,
         context: Context,
     ): FontFamily =

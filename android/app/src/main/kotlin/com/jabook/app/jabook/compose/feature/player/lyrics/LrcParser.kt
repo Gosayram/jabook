@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.feature.player.lyrics
 /**
  * Represents a single line of synchronized lyrics.
  */
-data class LyricLine(
+public data class LyricLine(
     val timeMs: Long,
     val text: String,
 )
@@ -26,10 +26,10 @@ data class LyricLine(
  * Validates and parses LRC format lyrics.
  * Supports standard format [mm:ss.xx] or [mm:ss.xxx].
  */
-object LrcParser {
+public object LrcParser {
     private val TIME_TAG_REGEX = "\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})]".toRegex()
 
-    fun parse(lrcContent: String): List<LyricLine> {
+    public fun parse(lrcContent: String): List<LyricLine> {
         val parsedLines = mutableListOf<LyricLine>()
 
         lrcContent.lines().forEach { line ->

@@ -35,7 +35,7 @@ import com.jabook.app.jabook.compose.navigation.TopLevelDestination
  * @param header Optional header composable (e.g. Floating Action Button)
  */
 @Composable
-fun JabookNavigationRail(
+public fun JabookNavigationRail(
     destinations: List<TopLevelDestination>,
     currentDestination: NavDestination?,
     onNavigateToDestination: (TopLevelDestination) -> Unit,

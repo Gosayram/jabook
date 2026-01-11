@@ -22,7 +22,7 @@ package com.jabook.app.jabook.compose.data.remote.model
  * @property url URL to category page
  * @property subcategories List of subcategories (nested forums)
  */
-data class AudiobookCategory(
+public data class AudiobookCategory(
     val id: String,
     val name: String,
     val url: String,

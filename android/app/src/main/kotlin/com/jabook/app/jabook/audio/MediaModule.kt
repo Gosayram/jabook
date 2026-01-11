@@ -49,11 +49,11 @@ import javax.inject.Singleton
  */
 @Module
 @InstallIn(SingletonComponent::class)
-object MediaModule {
+public object MediaModule {
     @OptIn(UnstableApi::class)
     @Provides
     @Singleton
-    fun provideMediaCache(
+    public fun provideMediaCache(
         @ApplicationContext context: Context,
     ): androidx.media3.datasource.cache.Cache {
         val initStart = System.currentTimeMillis()
@@ -123,7 +123,7 @@ object MediaModule {
     @Provides
     @Singleton
     @Named("okhttp")
-    fun provideOkHttpCache(
+    public fun provideOkHttpCache(
         @ApplicationContext context: Context,
     ): okhttp3.Cache {
         val cacheDir = File(context.cacheDir, "okhttp_cache")
@@ -138,7 +138,7 @@ object MediaModule {
     @OptIn(UnstableApi::class)
     @Provides
     @Singleton
-    fun provideExoPlayer(
+    public fun provideExoPlayer(
         @ApplicationContext context: Context,
     ): ExoPlayer {
         val initStart = System.currentTimeMillis()
@@ -188,7 +188,7 @@ object MediaModule {
      * @return Configured ExoPlayer instance
      */
     @OptIn(UnstableApi::class)
-    fun createExoPlayerWithProcessors(
+    public fun createExoPlayerWithProcessors(
         context: Context,
         settings: AudioProcessingSettings,
     ): ExoPlayer {
@@ -314,10 +314,10 @@ object MediaModule {
  */
 @Module
 @InstallIn(SingletonComponent::class)
-object AudioDataModule {
+public object AudioDataModule {
     @Provides
     @Singleton
-    fun provideAudioDatabase(
+    public fun provideAudioDatabase(
         @ApplicationContext context: Context,
     ): com.jabook.app.jabook.audio.data.local.database.AudioDatabase {
         val builder =
@@ -381,7 +381,7 @@ object AudioDataModule {
 
     @Provides
     @Singleton
-    fun provideAudioPreferences(
+    public fun provideAudioPreferences(
         @ApplicationContext context: Context,
     ): com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences =
         com.jabook.app.jabook.audio.data.local.datastore
@@ -393,16 +393,16 @@ object AudioDataModule {
  */
 @Module
 @InstallIn(SingletonComponent::class)
-object AudioRepositoryModule {
+public object AudioRepositoryModule {
     @Provides
     @Singleton
-    fun providePlaybackPositionDao(
+    public fun providePlaybackPositionDao(
         database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
     ): com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao = database.playbackPositionDao()
 
     @Provides
     @Singleton
-    fun provideSavedPlayerStateRepository(
+    public fun provideSavedPlayerStateRepository(
         database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
     ): com.jabook.app.jabook.audio.data.repository.SavedPlayerStateRepository {
         val dao = database.savedPlayerStateDao()

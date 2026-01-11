@@ -95,7 +95,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
-fun SearchScreen(
+public fun SearchScreen(
     onNavigateBack: () -> Unit,
     onBookClick: (String) -> Unit,
     onOnlineBookClick: (RutrackerSearchResult) -> Unit,

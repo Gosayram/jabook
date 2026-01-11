@@ -34,7 +34,7 @@ import kotlin.math.sqrt
  * - Strong: threshold -18 dB, ratio 4:1, attack 3 ms, release 40 ms
  */
 @UnstableApi
-class DynamicRangeCompressor(
+public class DynamicRangeCompressor(
     private val drcLevel: DRCLevel,
 ) : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
@@ -287,7 +287,7 @@ class DynamicRangeCompressor(
         isActive = false
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

@@ -27,14 +27,14 @@ import com.jabook.app.jabook.compose.ComposeMainActivity
 /**
  * Helper for creating download notifications.
  */
-object DownloadNotificationHelper {
+public object DownloadNotificationHelper {
     private const val CHANNEL_ID = "downloads"
     private const val CHANNEL_NAME = "Downloads"
 
     /**
      * Create or update notification channel.
      */
-    fun createNotificationChannel(context: Context) {
+    public fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel =
                 NotificationChannel(
@@ -56,7 +56,7 @@ object DownloadNotificationHelper {
     /**
      * Create a download notification.
      */
-    fun createDownloadNotification(
+    public fun createDownloadNotification(
         context: Context,
         title: String,
         progress: Float,

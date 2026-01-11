@@ -49,7 +49,7 @@ import javax.inject.Singleton
  * Manages libtorrent4j session and torrent operations
  */
 @Singleton
-class TorrentSessionManager
+public class TorrentSessionManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -120,7 +120,7 @@ class TorrentSessionManager
         /**
          * Initialize libtorrent session
          */
-        fun initSession() {
+        public fun initSession() : Unit {
             if (session != null) {
                 Log.w(TAG, "Session already initialized")
                 return
@@ -228,7 +228,7 @@ class TorrentSessionManager
         /**
          * Add torrent from magnet URI
          */
-        fun addTorrent(
+        public fun addTorrent(
             magnetUri: String,
             savePath: String,
             selectedFileIndices: List<Int>? = null,
@@ -371,7 +371,7 @@ class TorrentSessionManager
         /**
          * Remove torrent
          */
-        fun removeTorrent(
+        public fun removeTorrent(
             hash: String,
             deleteFiles: Boolean = false,
         ) {
@@ -396,7 +396,7 @@ class TorrentSessionManager
         /**
          * Pause torrent
          */
-        fun pauseTorrent(hash: String) {
+        public fun pauseTorrent(hash: String) {
             val handle = torrents[hash] ?: return
 
             try {
@@ -411,7 +411,7 @@ class TorrentSessionManager
         /**
          * Resume torrent
          */
-        fun resumeTorrent(hash: String) {
+        public fun resumeTorrent(hash: String) {
             val handle = torrents[hash] ?: return
 
             try {
@@ -426,7 +426,7 @@ class TorrentSessionManager
         /**
          * Move torrent storage to new path
          */
-        fun moveTorrentStorage(
+        public fun moveTorrentStorage(
             hash: String,
             newPath: String,
         ) {
@@ -447,7 +447,7 @@ class TorrentSessionManager
         /**
          * Enable sequential download for streaming
          */
-        fun setSequentialDownload(
+        public fun setSequentialDownload(
             hash: String,
             enabled: Boolean,
         ) {
@@ -467,7 +467,7 @@ class TorrentSessionManager
         /**
          * Pause all torrents
          */
-        fun pauseAll() {
+        public fun pauseAll() : Unit {
             torrents.values.forEach { it.pause() }
             updateDownloads()
         }
@@ -475,7 +475,7 @@ class TorrentSessionManager
         /**
          * Resume all torrents
          */
-        fun resumeAll() {
+        public fun resumeAll() : Unit {
             torrents.values.forEach { it.resume() }
             updateDownloads()
         }
@@ -483,12 +483,12 @@ class TorrentSessionManager
         /**
          * Get current download info
          */
-        fun getDownload(hash: String): TorrentDownload? = _downloadsFlow.value[hash]
+        public fun getDownload(hash: String): TorrentDownload? = _downloadsFlow.value[hash]
 
         /**
          * Stop session and cleanup
          */
-        fun stopSession() {
+        public fun stopSession() : Unit {
             try {
                 torrents.clear()
                 session?.stop()
@@ -896,7 +896,7 @@ class TorrentSessionManager
         /**
          * Prioritize specific file
          */
-        fun prioritizeFile(
+        public fun prioritizeFile(
             hash: String,
             fileIndex: Int,
             priority: Int,
@@ -913,7 +913,7 @@ class TorrentSessionManager
         /**
          * Set priorities for multiple files
          */
-        fun setFilePriorities(
+        public fun setFilePriorities(
             hash: String,
             priorities: List<Int>,
         ) {
@@ -1035,7 +1035,7 @@ class TorrentSessionManager
          * Check if file is ready for streaming (first chunk downloaded)
          * @param bufferSize bytes to check (default 10MB)
          */
-        fun isFileReadyForStreaming(
+        public fun isFileReadyForStreaming(
             hash: String,
             fileIndex: Int,
             bufferSize: Long = 10 * 1024 * 1024L, // 10MB
@@ -1076,7 +1076,7 @@ class TorrentSessionManager
         /**
          * Get exact downloaded bytes for a file
          */
-        fun getDownloadedBytes(
+        public fun getDownloadedBytes(
             hash: String,
             fileIndex: Int,
         ): Long {
@@ -1131,7 +1131,7 @@ class TorrentSessionManager
                 null
             }
 
-        companion object {
+        public companion object {
             private const val TAG = "TorrentSessionManager"
         }
     }

@@ -26,11 +26,11 @@ import com.jabook.app.jabook.audio.core.model.MediaItemData
  * Factory for creating Media3 MediaItem from domain models.
  */
 @OptIn(UnstableApi::class)
-object MediaItemFactory {
+public object MediaItemFactory {
     /**
      * Creates a Media3 MediaItem from MediaItemData.
      */
-    fun createMediaItem(data: MediaItemData): MediaItem {
+    public fun createMediaItem(data: MediaItemData): MediaItem {
         val builder =
             MediaItem
                 .Builder()
@@ -58,7 +58,7 @@ object MediaItemFactory {
     /**
      * Creates a Media3 MediaItem from Chapter.
      */
-    fun createMediaItemFromChapter(
+    public fun createMediaItemFromChapter(
         chapter: Chapter,
         bookTitle: String? = null,
     ): MediaItem {
@@ -79,7 +79,7 @@ object MediaItemFactory {
     /**
      * Creates a list of Media3 MediaItems from a list of Chapters.
      */
-    fun createMediaItemsFromChapters(
+    public fun createMediaItemsFromChapters(
         chapters: List<Chapter>,
         bookTitle: String? = null,
     ): List<MediaItem> = chapters.map { createMediaItemFromChapter(it, bookTitle) }
@@ -87,7 +87,7 @@ object MediaItemFactory {
     /**
      * Creates a Media3 MediaItem from a file path.
      */
-    fun createMediaItemFromPath(
+    public fun createMediaItemFromPath(
         filePath: String,
         title: String? = null,
     ): MediaItem {

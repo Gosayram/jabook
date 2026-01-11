@@ -18,18 +18,18 @@ package com.jabook.app.jabook.compose.domain.model
  * Represents different types of authentication errors.
  * Based on Flutter's robust error handling patterns.
  */
-sealed class AuthError {
+public sealed class AuthError {
     /**
      * Invalid username or password.
      */
-    data class InvalidCredentials(
+    public data class InvalidCredentials(
         val message: String = "Invalid username or password",
     ) : AuthError()
 
     /**
      * Network-related error (timeout, connection failure, etc.).
      */
-    data class NetworkError(
+    public data class NetworkError(
         val message: String,
         val cause: Throwable? = null,
     ) : AuthError()
@@ -37,14 +37,14 @@ sealed class AuthError {
     /**
      * Captcha verification required.
      */
-    data class CaptchaRequired(
+    public data class CaptchaRequired(
         val data: CaptchaData,
     ) : AuthError()
 
     /**
      * Server error (5xx status codes).
      */
-    data class ServerError(
+    public data class ServerError(
         val code: Int,
         val message: String,
     ) : AuthError()
@@ -52,14 +52,14 @@ sealed class AuthError {
     /**
      * Session expired or authentication required.
      */
-    data class SessionExpired(
+    public data class SessionExpired(
         val message: String = "Session expired. Please log in again.",
     ) : AuthError()
 
     /**
      * Unknown or unexpected error.
      */
-    data class Unknown(
+    public data class Unknown(
         val message: String,
         val cause: Throwable? = null,
     ) : AuthError()
@@ -67,7 +67,7 @@ sealed class AuthError {
     /**
      * Get user-friendly error message.
      */
-    fun getUserMessage(): String =
+    public fun getUserMessage(): String =
         when (this) {
             is InvalidCredentials -> message
             is NetworkError -> message

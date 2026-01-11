@@ -38,7 +38,7 @@ import javax.inject.Singleton
  * Implementation of AuthRepository.
  */
 @Singleton
-class AuthRepositoryImpl
+public class AuthRepositoryImpl
     @Inject
     constructor(
         private val authService: RutrackerAuthService,

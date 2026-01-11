@@ -43,12 +43,12 @@ import javax.inject.Singleton
  * Uses device's default User-Agent which is unique and well-supported by services.
  */
 @Singleton
-class RutrackerHeadersInterceptor
+public class RutrackerHeadersInterceptor
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
     ) : Interceptor {
-        companion object {
+        public companion object {
             private const val TAG = "RutrackerHeaders"
 
             private const val ACCEPT =

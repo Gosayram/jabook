@@ -24,7 +24,7 @@ import javax.inject.Inject
  *
  * Returns a reactive list of chapters for playback navigation.
  */
-class GetChaptersUseCase
+public class GetChaptersUseCase
     @Inject
     constructor(
         private val booksRepository: BooksRepository,

@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.data.torrent
 /**
  * Torrent download information
  */
-data class TorrentDownload(
+public data class TorrentDownload(
     /** Info hash (unique identifier) */
     val hash: String,
     /** Torrent name */
@@ -82,7 +82,7 @@ data class TorrentDownload(
     val totalFiles: Int
         get() = files.size
 
-    companion object {
+    public companion object {
         private val ACTIVE_STATES =
             setOf(
                 TorrentState.DOWNLOADING,
@@ -97,7 +97,7 @@ data class TorrentDownload(
 /**
  * Reason why torrent was paused
  */
-enum class PauseReason {
+public enum class PauseReason {
     USER_PAUSED,
     WAITING_FOR_WIFI,
     NO_NETWORK,

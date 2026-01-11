@@ -35,7 +35,7 @@ import javax.inject.Inject
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class DownloadHistoryViewModel
+public class DownloadHistoryViewModel
     @Inject
     constructor(
         private val downloadHistoryDao: DownloadHistoryDao,
@@ -60,24 +60,24 @@ class DownloadHistoryViewModel
                 )
 
         // Update search query
-        fun updateSearchQuery(query: String) {
+        public fun updateSearchQuery(query: String) {
             _searchQuery.value = query
         }
 
         // Update sort order
-        fun updateSortOrder(order: HistorySortOrder) {
+        public fun updateSortOrder(order: HistorySortOrder) {
             _sortOrder.value = order
         }
 
         // Clear all history
-        fun clearHistory() {
+        public fun clearHistory() : Unit {
             viewModelScope.launch {
                 downloadHistoryDao.clearAll()
             }
         }
 
         // Delete old entries (older than 30 days)
-        fun deleteOldEntries() {
+        public fun deleteOldEntries() : Unit {
             viewModelScope.launch {
                 val cutoffTime = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
                 downloadHistoryDao.deleteOlderThan(cutoffTime)

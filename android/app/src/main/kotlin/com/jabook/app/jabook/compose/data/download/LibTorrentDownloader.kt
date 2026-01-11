@@ -41,12 +41,12 @@ import javax.inject.Singleton
  * - Allows audio playback to begin immediately during download
  */
 @Singleton
-class LibTorrentDownloader
+public class LibTorrentDownloader
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
     ) : TorrentDownloader {
-        companion object {
+        public companion object {
             private const val TAG = "LibTorrentDownloader"
 
             // Streaming configuration

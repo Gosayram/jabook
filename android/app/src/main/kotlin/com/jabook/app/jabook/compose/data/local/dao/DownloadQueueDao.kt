@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.Flow
  * DAO for download queue operations.
  */
 @Dao
-interface DownloadQueueDao {
+public interface DownloadQueueDao {
     /**
      * Get active queue (queued, active, paused) ordered by priority and position.
      */
@@ -37,13 +37,13 @@ interface DownloadQueueDao {
         ORDER BY priority DESC, queuePosition ASC
         """,
     )
-    fun getActiveQueue(): Flow<List<DownloadQueueEntity>>
+    public fun getActiveQueue(): Flow<List<DownloadQueueEntity>>
 
     /**
      * Get all queue entries.
      */
     @Query("SELECT * FROM download_queue ORDER BY priority DESC, queuePosition ASC")
-    fun getAllQueue(): Flow<List<DownloadQueueEntity>>
+    public fun getAllQueue(): Flow<List<DownloadQueueEntity>>
 
     /**
      * Get queue entry by book ID.

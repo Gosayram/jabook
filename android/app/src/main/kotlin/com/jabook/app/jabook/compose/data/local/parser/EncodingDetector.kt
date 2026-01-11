@@ -32,10 +32,10 @@ import javax.inject.Singleton
  * falls back to heuristic-based detection on older devices.
  */
 @Singleton
-class EncodingDetector
+public class EncodingDetector
     @Inject
     constructor() {
-        companion object {
+        public companion object {
             private const val TAG = "EncodingDetector"
 
             // Supported encodings for Russian text
@@ -62,7 +62,7 @@ class EncodingDetector
          * @param hint Optional hint about expected encoding
          * @return Detected charset, defaults to UTF-8 if detection fails
          */
-        fun detectEncoding(
+        public fun detectEncoding(
             bytes: ByteArray,
             hint: String? = null,
         ): Charset {
@@ -148,7 +148,7 @@ class EncodingDetector
          * @param declaredEncoding Optional declared encoding to try first
          * @return Decoded string and detected encoding name
          */
-        fun decodeString(
+        public fun decodeString(
             bytes: ByteArray,
             declaredEncoding: String? = null,
         ): Pair<String, String> {
@@ -198,7 +198,7 @@ class EncodingDetector
          * Calculates confidence score for fixed text (0.0 to 1.0).
          * Higher score = more likely to be correct Russian text.
          */
-        fun calculateConfidence(text: String): Double {
+        public fun calculateConfidence(text: String): Double {
             if (text.isEmpty()) {
                 return 0.0
             }
@@ -362,7 +362,7 @@ class EncodingDetector
         /**
          * Fix garbled Russian text by trying different encodings.
          */
-        fun fixGarbledText(text: String): Pair<String, String?> {
+        public fun fixGarbledText(text: String): Pair<String, String?> {
             val cleanText = text.replace("\uFEFF", "")
 
             // Don't try to fix CJK, Greek, Arabic, Latin-dominant text

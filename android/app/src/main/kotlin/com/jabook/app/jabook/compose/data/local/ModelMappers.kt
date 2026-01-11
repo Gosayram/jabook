@@ -28,7 +28,7 @@ import com.jabook.app.jabook.compose.data.model.Chapter
 /**
  * Converts a BookEntity with its chapters to a domain Book model.
  */
-fun BookEntity.toDomainModel(chapters: List<ChapterEntity>): Book =
+public fun BookEntity.toDomainModel(chapters: List<ChapterEntity>): Book =
     Book(
         id = id,
         title = title,
@@ -48,7 +48,7 @@ fun BookEntity.toDomainModel(chapters: List<ChapterEntity>): Book =
 /**
  * Converts a ChapterEntity to a domain Chapter model.
  */
-fun ChapterEntity.toDomainModel(): Chapter =
+public fun ChapterEntity.toDomainModel(): Chapter =
     Chapter(
         id = id,
         bookId = bookId,
@@ -63,7 +63,7 @@ fun ChapterEntity.toDomainModel(): Chapter =
 /**
  * Converts a domain Book to a BookEntity (without chapters).
  */
-fun Book.toEntity(): BookEntity =
+public fun Book.toEntity(): BookEntity =
     BookEntity(
         id = id,
         title = title,
@@ -82,7 +82,7 @@ fun Book.toEntity(): BookEntity =
 /**
  * Converts a domain Chapter to a ChapterEntity.
  */
-fun Chapter.toEntity(): ChapterEntity =
+public fun Chapter.toEntity(): ChapterEntity =
     ChapterEntity(
         id = id,
         bookId = bookId,

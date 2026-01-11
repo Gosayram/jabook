@@ -25,28 +25,28 @@ import kotlinx.coroutines.flow.Flow
  * Follows the Repository pattern from Android Architecture Components.
  * Provides a clean API for data access to ViewModels.
  */
-interface BooksRepository {
+public interface BooksRepository {
     /**
      * Get all books as a Flow.
      * The Flow will emit whenever the underlying data changes.
      */
-    fun getAllBooks(sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY): Flow<List<Book>>
+    public fun getAllBooks(sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY): Flow<List<Book>>
 
     /**
      * Get a single book by ID.
      * Returns null if the book doesn't exist.
      */
-    fun getBook(bookId: String): Flow<Book?>
+    public fun getBook(bookId: String): Flow<Book?>
 
     /**
      * Get chapters for a specific book.
      */
-    fun getChapters(bookId: String): Flow<List<Chapter>>
+    public fun getChapters(bookId: String): Flow<List<Chapter>>
 
     /**
      * Search books by title or author.
      */
-    fun searchBooks(query: String): Flow<List<Book>>
+    public fun searchBooks(query: String): Flow<List<Book>>
 
     /**
      * Add a new book with its chapters.
@@ -109,12 +109,12 @@ interface BooksRepository {
     /**
      * Get allowed scan paths.
      */
-    fun getScanPaths(): Flow<List<String>>
+    public fun getScanPaths(): Flow<List<String>>
 
     /**
      * Get real-time progress of library scanning.
      */
-    fun getScanProgress(): Flow<com.jabook.app.jabook.compose.data.model.ScanProgress>
+    public fun getScanProgress(): Flow<com.jabook.app.jabook.compose.data.model.ScanProgress>
 
     /**
      * Add a directory to the scan paths.
@@ -145,7 +145,7 @@ interface BooksRepository {
     /**
      * Checks if a book exists by its source URL.
      */
-    fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?>
+    public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?>
 
     suspend fun getBookBySourceUrl(sourceUrl: String): Book?
 }

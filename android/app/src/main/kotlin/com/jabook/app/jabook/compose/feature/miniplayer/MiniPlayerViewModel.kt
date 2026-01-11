@@ -36,7 +36,7 @@ import javax.inject.Inject
  * making it safe to instantiate at the app root level.
  */
 @HiltViewModel
-class MiniPlayerViewModel
+public class MiniPlayerViewModel
     @Inject
     constructor(
         private val audioPlayerController: AudioPlayerController,
@@ -85,21 +85,21 @@ class MiniPlayerViewModel
         /**
          * Play current track.
          */
-        fun play() {
+        public fun play() : Unit {
             audioPlayerController.play()
         }
 
         /**
          * Pause current track.
          */
-        fun pause() {
+        public fun pause() : Unit {
             audioPlayerController.pause()
         }
 
         /**
          * Toggle play/pause.
          */
-        fun togglePlayPause() {
+        public fun togglePlayPause() : Unit {
             if (isPlaying.value) {
                 pause()
             } else {
@@ -110,14 +110,14 @@ class MiniPlayerViewModel
         /**
          * Skip to next track.
          */
-        fun skipToNext() {
+        public fun skipToNext() : Unit {
             audioPlayerController.skipToNext()
         }
 
         /**
          * Skip to previous track.
          */
-        fun skipToPrevious() {
+        public fun skipToPrevious() : Unit {
             audioPlayerController.skipToPrevious()
         }
     }

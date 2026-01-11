@@ -32,7 +32,7 @@ import kotlinx.coroutines.flow.Flow
  * when database changes.
  */
 @Dao
-interface BooksDao {
+public interface BooksDao {
     /**
      * Get all books ordered by favorites first, then most recently played.
      * Returns a Flow that emits whenever the database changes.
@@ -47,13 +47,13 @@ interface BooksDao {
             added_date DESC
     """,
     )
-    fun getAllBooksFlow(): Flow<List<BookEntity>>
+    public fun getAllBooksFlow(): Flow<List<BookEntity>>
 
     /**
      * Get a single book by ID.
      */
     @Query("SELECT * FROM books WHERE id = :bookId")
-    fun getBookFlow(bookId: String): Flow<BookEntity?>
+    public fun getBookFlow(bookId: String): Flow<BookEntity?>
 
     /**
      * Gets a book by ID (one-shot, not Flow).
@@ -71,13 +71,13 @@ interface BooksDao {
      * Get all chapters for a book, ordered by chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId ORDER BY chapter_index ASC")
-    fun getChaptersForBookFlow(bookId: String): Flow<List<ChapterEntity>>
+    public fun getChaptersForBookFlow(bookId: String): Flow<List<ChapterEntity>>
 
     /**
      * Observes favorite books, ordered by title.
      */
     @Query("SELECT * FROM books WHERE is_favorite = 1 ORDER BY title ASC")
-    fun getFavoriteBooksFlow(): Flow<List<BookEntity>>
+    public fun getFavoriteBooksFlow(): Flow<List<BookEntity>>
 
     /**
      * Observes books by download status.
@@ -85,7 +85,7 @@ interface BooksDao {
      * @param status Download status string (e.g., "DOWNLOADED", "DOWNLOADING")
      */
     @Query("SELECT * FROM books WHERE download_status = :status ORDER BY title ASC")
-    fun getBooksByDownloadStatusFlow(status: String): Flow<List<BookEntity>>
+    public fun getBooksByDownloadStatusFlow(status: String): Flow<List<BookEntity>>
 
     /**
      * Observes recently played books, ordered by last played date (most recent first).
@@ -100,7 +100,7 @@ interface BooksDao {
         LIMIT :limit
         """,
     )
-    fun getRecentlyPlayedBooksFlow(limit: Int = 10): Flow<List<BookEntity>>
+    public fun getRecentlyPlayedBooksFlow(limit: Int = 10): Flow<List<BookEntity>>
 
     /**
      * Observes books that have been started but not completed.
@@ -112,7 +112,7 @@ interface BooksDao {
         ORDER BY last_played_date DESC
         """,
     )
-    fun getInProgressBooksFlow(): Flow<List<BookEntity>>
+    public fun getInProgressBooksFlow(): Flow<List<BookEntity>>
 
     /**
      * Updates the favorite status of a book.
@@ -280,7 +280,7 @@ interface BooksDao {
         ORDER BY title ASC
         """,
     )
-    fun searchBooksFlow(query: String): Flow<List<BookEntity>>
+    public fun searchBooksFlow(query: String): Flow<List<BookEntity>>
 
     /**
      * Updates per-book playback settings.
@@ -316,7 +316,7 @@ interface BooksDao {
      * Finds a book by its source URL (e.g. RuTracker topic link).
      */
     @Query("SELECT * FROM books WHERE source_url = :sourceUrl LIMIT 1")
-    fun getBookBySourceUrlFlow(sourceUrl: String): Flow<BookEntity?>
+    public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<BookEntity?>
 
     /**
      * Finds a book by its source URL (one-shot).
@@ -347,7 +347,7 @@ interface BooksDao {
  * Lightweight data class for book path validation.
  * Only contains fields needed to check if book still exists.
  */
-data class BookPathInfo(
+public data class BookPathInfo(
     val id: String,
     @androidx.room.ColumnInfo(name = "local_path") val localPath: String?,
 )

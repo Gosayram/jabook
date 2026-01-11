@@ -24,7 +24,7 @@ import javax.inject.Singleton
  * Repository for torrent downloads with database persistence
  */
 @Singleton
-class TorrentDownloadRepository
+public class TorrentDownloadRepository
     @Inject
     constructor(
         private val dao: TorrentDownloadDao,
@@ -32,7 +32,7 @@ class TorrentDownloadRepository
         /**
          * Get all downloads as Flow
          */
-        fun getAllFlow(): Flow<List<TorrentDownload>> =
+        public fun getAllFlow(): Flow<List<TorrentDownload>> =
             dao.getAllFlow().map { entities ->
                 entities.map { it.toDomain() }
             }
@@ -40,7 +40,7 @@ class TorrentDownloadRepository
         /**
          * Get active downloads
          */
-        fun getActiveFlow(): Flow<List<TorrentDownload>> =
+        public fun getActiveFlow(): Flow<List<TorrentDownload>> =
             dao.getActiveFlow().map { entities ->
                 entities.map { it.toDomain() }
             }
@@ -134,7 +134,7 @@ class TorrentDownloadRepository
             }
         }
 
-        companion object {
+        public companion object {
             private const val TAG = "TorrentDownloadRepository"
         }
     }

@@ -17,7 +17,7 @@ package com.jabook.app.jabook.audio.core.model
 /**
  * Represents a chapter in an audiobook.
  */
-data class Chapter(
+public data class Chapter(
     val id: String,
     val title: String,
     val fileIndex: Int,
@@ -30,10 +30,10 @@ data class Chapter(
      * Returns the duration in milliseconds.
      * If duration is not set, calculates it from startTime and endTime.
      */
-    fun getDurationMs(): Long? = duration ?: endTime?.let { it - startTime }
+    public fun getDurationMs(): Long? = duration ?: endTime?.let { it - startTime }
 
     /**
      * Checks if the chapter has a valid file path.
      */
-    fun hasFilePath(): Boolean = !filePath.isNullOrBlank()
+    public fun hasFilePath(): Boolean = !filePath.isNullOrBlank()
 }

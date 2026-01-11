@@ -78,7 +78,7 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChapterSelectorSheet(
+public fun ChapterSelectorSheet(
     chapters: List<Chapter>,
     currentChapterIndex: Int,
     onChapterSelected: (Int) -> Unit,

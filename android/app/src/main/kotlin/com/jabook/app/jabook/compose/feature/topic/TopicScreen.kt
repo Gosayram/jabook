@@ -102,7 +102,7 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
-fun TopicScreen(
+public fun TopicScreen(
     topicId: String,
     onNavigateBack: () -> Unit,
     onNavigateToTopic: (String) -> Unit,

@@ -27,7 +27,7 @@ import javax.inject.Inject
  * Returns books ordered by last played date, useful for
  * displaying "Continue Listening" section.
  */
-class GetRecentlyPlayedBooksUseCase
+public class GetRecentlyPlayedBooksUseCase
     @Inject
     constructor(
         private val booksDao: BooksDao,

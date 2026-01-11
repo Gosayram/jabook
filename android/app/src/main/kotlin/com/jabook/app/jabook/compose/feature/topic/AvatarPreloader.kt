@@ -34,10 +34,10 @@ import javax.inject.Inject
  * connection was lost after loading the topic details but before scrolling
  * to the comments.
  */
-class AvatarPreloader
+public class AvatarPreloader
     @Inject
     constructor() {
-        companion object {
+        public companion object {
             private const val TAG = "AvatarPreloader"
         }
 

@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
  * @param message Optional loading message to display
  */
 @Composable
-fun LoadingScreen(
+public fun LoadingScreen(
     modifier: Modifier = Modifier,
     message: String? = null,
 ) {

@@ -48,7 +48,7 @@ import androidx.media3.session.CommandButton
  * Inspired by lissen-android implementation for custom commands.
  */
 @OptIn(UnstableApi::class)
-class MediaSessionManager(
+public class MediaSessionManager(
     private val context: Context,
     private val player: ExoPlayer,
     private var playCallback: (() -> Unit)? = null,
@@ -61,7 +61,7 @@ class MediaSessionManager(
     private var forwardSeconds: Long = 30L
     private var lastPlayWhenReady: Boolean = player.playWhenReady
 
-    companion object {
+    public companion object {
         private const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
         private const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
         private const val DEFAULT_REWIND_SECONDS = 15L
@@ -159,7 +159,7 @@ class MediaSessionManager(
      * @param rewindCallback Callback for rewind action (default: -15 seconds)
      * @param forwardCallback Callback for forward action (default: +30 seconds)
      */
-    fun setCallbacks(
+    public fun setCallbacks(
         rewindCallback: (() -> Unit)? = null,
         forwardCallback: (() -> Unit)? = null,
     ) {
@@ -173,7 +173,7 @@ class MediaSessionManager(
      * @param rewindSeconds Duration in seconds for rewind action
      * @param forwardSeconds Duration in seconds for forward action
      */
-    fun updateSkipDurations(
+    public fun updateSkipDurations(
         rewindSeconds: Long,
         forwardSeconds: Long,
     ) {
@@ -189,12 +189,12 @@ class MediaSessionManager(
     /**
      * Gets current rewind duration in seconds.
      */
-    fun getRewindDuration(): Long = rewindSeconds
+    public fun getRewindDuration(): Long = rewindSeconds
 
     /**
      * Gets current forward duration in seconds.
      */
-    fun getForwardDuration(): Long = forwardSeconds
+    public fun getForwardDuration(): Long = forwardSeconds
 
     // initializeMediaSession removed to prevent duplicate session
     // Logic moved/handled by AudioPlayerLibrarySessionCallback and AudioPlayerService
@@ -229,12 +229,12 @@ class MediaSessionManager(
     /**
      * Updates media metadata.
      */
-    fun updateMetadata() {
+    public fun updateMetadata() : Unit {
         // Metadata is automatically updated from ExoPlayer
         // This method can be used for custom metadata updates if needed
     }
 
-    fun release() {
+    public fun release() : Unit {
         try {
             // mediaSession?.release()
             // mediaSession = null

@@ -28,20 +28,20 @@ import kotlinx.coroutines.flow.Flow
  * DAO for download history operations.
  */
 @Dao
-interface DownloadHistoryDao {
+public interface DownloadHistoryDao {
     /**
      * Get all download history with sorting and optional search.
      *
      * @param query SQLite query for flexible sorting/search
      */
     @RawQuery(observedEntities = [DownloadHistoryEntity::class])
-    fun getHistory(query: SupportSQLiteQuery): Flow<List<DownloadHistoryEntity>>
+    public fun getHistory(query: SupportSQLiteQuery): Flow<List<DownloadHistoryEntity>>
 
     /**
      * Get history entries by status.
      */
     @Query("SELECT * FROM download_history WHERE status = :status ORDER BY completedAt DESC")
-    fun getHistoryByStatus(status: String): Flow<List<DownloadHistoryEntity>>
+    public fun getHistoryByStatus(status: String): Flow<List<DownloadHistoryEntity>>
 
     /**
      * Insert a history entry.
@@ -73,7 +73,7 @@ interface DownloadHistoryDao {
 /**
  * Helper extension to get history with search and sort.
  */
-fun DownloadHistoryDao.getHistoryWithFilter(
+public fun DownloadHistoryDao.getHistoryWithFilter(
     searchQuery: String = "",
     sortOrder: HistorySortOrder = HistorySortOrder.DATE_DESC,
 ): Flow<List<DownloadHistoryEntity>> {

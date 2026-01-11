@@ -36,7 +36,7 @@ import javax.inject.Inject
  * Manages log collection, mirror testing, and cache statistics.
  */
 @HiltViewModel
-class DebugViewModel
+public class DebugViewModel
     @Inject
     constructor(
         private val debugLogService: DebugLogService,
@@ -77,7 +77,7 @@ class DebugViewModel
             }
         }
 
-        fun loadLogs() {
+        public fun loadLogs() : Unit {
             try {
                 viewModelScope.launch {
                     try {
@@ -111,7 +111,7 @@ class DebugViewModel
          *
          * @param activity Activity context for starting the share intent
          */
-        fun shareLogs(activity: android.app.Activity) {
+        public fun shareLogs(activity: android.app.Activity) {
             viewModelScope.launch {
                 try {
                     _uiState.value = DebugUiState.Loading
@@ -123,7 +123,7 @@ class DebugViewModel
             }
         }
 
-        fun clearOldLogFiles() {
+        public fun clearOldLogFiles() : Unit {
             viewModelScope.launch {
                 try {
                     debugLogService.clearOldLogFiles()
@@ -133,7 +133,7 @@ class DebugViewModel
             }
         }
 
-        fun testAllMirrors() {
+        public fun testAllMirrors() : Unit {
             viewModelScope.launch {
                 try {
                     _uiState.value = DebugUiState.Loading
@@ -145,13 +145,13 @@ class DebugViewModel
             }
         }
 
-        fun refreshDebugData() {
+        public fun refreshDebugData() : Unit {
             loadLogs()
             refreshAuthDebugInfo()
             loadCacheStats()
         }
 
-        fun refreshAuthDebugInfo() {
+        public fun refreshAuthDebugInfo() : Unit {
             try {
                 viewModelScope.launch {
                     try {
@@ -309,7 +309,7 @@ class DebugViewModel
             _cacheStats
                 .asStateFlow()
 
-        fun loadCacheStats() {
+        public fun loadCacheStats() : Unit {
             try {
                 viewModelScope.launch {
                     try {
@@ -334,7 +334,7 @@ class DebugViewModel
             }
         }
 
-        fun clearCache() {
+        public fun clearCache() : Unit {
             viewModelScope.launch {
                 try {
                     rutrackerRepository.clearSearchCache()
@@ -349,14 +349,14 @@ class DebugViewModel
 /**
  * UI state for Debug screen.
  */
-sealed class DebugUiState {
+public sealed class DebugUiState {
     data object Initial : DebugUiState()
 
     data object Loading : DebugUiState()
 
     data object Success : DebugUiState()
 
-    data class Error(
+    public data class Error(
         val message: String,
     ) : DebugUiState()
 }

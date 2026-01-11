@@ -42,7 +42,7 @@ import kotlinx.coroutines.isActive
  * A rotating vinyl record cover component.
  */
 @Composable
-fun VinylCover(
+public fun VinylCover(
     imageRequest: ImageRequest,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,

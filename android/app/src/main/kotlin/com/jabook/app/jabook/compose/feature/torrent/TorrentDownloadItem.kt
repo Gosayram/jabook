@@ -46,7 +46,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentState
  * Download item component with progress and actions
  */
 @Composable
-fun TorrentDownloadItem(
+public fun TorrentDownloadItem(
     download: TorrentDownload,
     onPauseClick: () -> Unit,
     onResumeClick: () -> Unit,

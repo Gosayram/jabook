@@ -29,10 +29,10 @@ import javax.inject.Singleton
  * Converts unstructured MediaInfo text into structured data models.
  */
 @Singleton
-class MediaInfoParser
+public class MediaInfoParser
     @Inject
     constructor() {
-        companion object {
+        public companion object {
             private const val TAG = "MediaInfoParser"
         }
 
@@ -42,7 +42,7 @@ class MediaInfoParser
          * @param mediaInfoText Raw MediaInfo text output
          * @return Parsed MediaInfo or null if parsing fails
          */
-        fun parse(mediaInfoText: String): MediaInfo? {
+        public fun parse(mediaInfoText: String): MediaInfo? {
             try {
                 val sections = splitIntoSections(mediaInfoText)
 

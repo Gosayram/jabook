@@ -22,10 +22,10 @@ import androidx.media3.exoplayer.ExoPlayer
 /**
  * Constants for position saving broadcasts.
  */
-object PositionConstants {
-    const val ACTION_SAVE_POSITION_BEFORE_UNLOAD = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"
-    const val EXTRA_TRACK_INDEX = "trackIndex"
-    const val EXTRA_POSITION_MS = "positionMs"
+public object PositionConstants {
+    public const val ACTION_SAVE_POSITION_BEFORE_UNLOAD = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"
+    public const val EXTRA_TRACK_INDEX = "trackIndex"
+    public const val EXTRA_POSITION_MS = "positionMs"
 }
 
 /**
@@ -37,11 +37,11 @@ internal class PositionManager(
     private val packageName: String,
     private val sendBroadcast: (Intent) -> Unit,
 ) {
-    companion object {
+    public companion object {
         // Use PositionConstants for public access
-        const val ACTION_SAVE_POSITION_BEFORE_UNLOAD = PositionConstants.ACTION_SAVE_POSITION_BEFORE_UNLOAD
-        const val EXTRA_TRACK_INDEX = PositionConstants.EXTRA_TRACK_INDEX
-        const val EXTRA_POSITION_MS = PositionConstants.EXTRA_POSITION_MS
+        public const val ACTION_SAVE_POSITION_BEFORE_UNLOAD = PositionConstants.ACTION_SAVE_POSITION_BEFORE_UNLOAD
+        public const val EXTRA_TRACK_INDEX = PositionConstants.EXTRA_TRACK_INDEX
+        public const val EXTRA_POSITION_MS = PositionConstants.EXTRA_POSITION_MS
     }
 
     /**
@@ -50,7 +50,7 @@ internal class PositionManager(
      * This method broadcasts the current position to trigger saving through MethodChannel.
      * Position is also saved periodically, so this is an additional safety measure.
      */
-    fun saveCurrentPosition() {
+    public fun saveCurrentPosition() : Unit {
         try {
             val activePlayer = getActivePlayer()
             if (activePlayer.mediaItemCount > 0) {
@@ -85,7 +85,7 @@ internal class PositionManager(
      * @param filePaths List of file paths (for reference, actual durations come from MediaItems)
      * @param progressSeconds Progress in seconds (overall position across all tracks)
      */
-    fun setPlaybackProgress(
+    public fun setPlaybackProgress(
         filePaths: List<String>,
         progressSeconds: Double?,
     ) {

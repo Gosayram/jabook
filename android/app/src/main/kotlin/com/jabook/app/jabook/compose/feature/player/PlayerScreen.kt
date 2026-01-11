@@ -120,8 +120,8 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 @EntryPoint
 @InstallIn(SingletonComponent::class)
-interface AudioMetadataParserEntryPoint {
-    fun audioMetadataParser(): AudioMetadataParser
+public interface AudioMetadataParserEntryPoint {
+    public fun audioMetadataParser(): AudioMetadataParser
 }
 
 /**
@@ -139,7 +139,7 @@ interface AudioMetadataParserEntryPoint {
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-fun PlayerScreen(
+public fun PlayerScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel(),
@@ -1310,7 +1310,7 @@ private fun PlayerContent(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerSettingsSheet(
+public fun PlayerSettingsSheet(
     book: com.jabook.app.jabook.compose.domain.model.Book,
     onUpdateSettings: (Int?, Int?) -> Unit,
     onResetSettings: () -> Unit,

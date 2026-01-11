@@ -38,7 +38,7 @@ import javax.inject.Inject
  * Manages favorites state and operations.
  */
 @HiltViewModel
-class FavoritesViewModel
+public class FavoritesViewModel
     @Inject
     constructor(
         private val favoritesRepository: FavoritesRepository,
@@ -126,7 +126,7 @@ class FavoritesViewModel
         /**
          * Add or remove an audiobook from favorites.
          */
-        fun toggleFavorite(favorite: FavoriteEntity) {
+        public fun toggleFavorite(favorite: FavoriteEntity) {
             viewModelScope.launch {
                 _isLoading.value = true
                 val isFavoriteNow = favoritesRepository.isFavorite(favorite.topicId)
@@ -149,7 +149,7 @@ class FavoritesViewModel
          * Remove an audiobook from favorites.
          * Synchronizes with local library (removes isFavorite flag).
          */
-        fun removeFromFavorites(topicId: String) {
+        public fun removeFromFavorites(topicId: String) {
             viewModelScope.launch {
                 // Remove from FavoriteEntity
                 favoritesRepository
@@ -164,7 +164,7 @@ class FavoritesViewModel
         /**
          * Remove multiple audiobooks from favorites.
          */
-        fun removeMultipleFavorites(topicIds: List<String>) {
+        public fun removeMultipleFavorites(topicIds: List<String>) {
             viewModelScope.launch {
                 favoritesRepository
                     .removeMultipleFavorites(topicIds)
@@ -175,7 +175,7 @@ class FavoritesViewModel
         /**
          * Clear all favorites.
          */
-        fun clearAllFavorites() {
+        public fun clearAllFavorites() : Unit {
             viewModelScope.launch {
                 favoritesRepository
                     .clearAllFavorites()
@@ -186,21 +186,21 @@ class FavoritesViewModel
         /**
          * Clear the error message.
          */
-        fun clearErrorMessage() {
+        public fun clearErrorMessage() : Unit {
             _errorMessage.value = null
         }
 
         /**
          * Update search query.
          */
-        fun onSearchQueryChanged(query: String) {
+        public fun onSearchQueryChanged(query: String) {
             _searchQuery.value = query
         }
 
         /**
          * Update sort order.
          */
-        fun onSortOrderChanged(order: BookSortOrder) {
+        public fun onSortOrderChanged(order: BookSortOrder) {
             _sortOrder.value = order
         }
     }

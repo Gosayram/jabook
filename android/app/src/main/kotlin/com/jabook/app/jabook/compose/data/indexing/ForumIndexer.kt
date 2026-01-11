@@ -64,7 +64,7 @@ import javax.inject.Singleton
  * - Index version: For tracking which version of index created the entry
  */
 @Singleton
-class ForumIndexer
+public class ForumIndexer
     @Inject
     constructor(
         private val api: RutrackerApi,
@@ -76,7 +76,7 @@ class ForumIndexer
         // Background scope for non-blocking operations (cover preloading)
         private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-        companion object {
+        public companion object {
             private const val TAG = "ForumIndexer"
             private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
             private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Rate limiting (reduced for faster indexing)

@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
  */
 @Suppress("DEPRECATION")
 private object LegacyPhoneStateListener {
-    fun create(onStateChanged: (Int, String?) -> Unit): android.telephony.PhoneStateListener =
+    public fun create(onStateChanged: (Int, String?) -> Unit): android.telephony.PhoneStateListener =
         object : android.telephony.PhoneStateListener() {
             @Suppress("OVERRIDE_DEPRECATION") // onCallStateChanged is deprecated
             override fun onCallStateChanged(
@@ -59,7 +59,7 @@ private object LegacyPhoneStateListener {
  *
  * Uses modern TelephonyCallback API (API 31+) with fallback to PhoneStateListener (API 30).
  */
-class PhoneCallListener(
+public class PhoneCallListener(
     private val context: Context,
     private val getActivePlayer: () -> ExoPlayer,
     private val wasPlayingBeforeCall: () -> Boolean,
@@ -85,7 +85,7 @@ class PhoneCallListener(
      * Starts listening for phone call state changes.
      * Should be called when playback starts or service is created.
      */
-    fun startListening() {
+    public fun startListening() : Unit {
         if (isRegistered) {
             android.util.Log.w("PhoneCallListener", "Already listening for phone calls")
             return
@@ -140,7 +140,7 @@ class PhoneCallListener(
      * Stops listening for phone call state changes.
      * Should be called when playback stops or service is destroyed.
      */
-    fun stopListening() {
+    public fun stopListening() : Unit {
         if (!isRegistered) {
             return
         }

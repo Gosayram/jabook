@@ -25,18 +25,18 @@ import kotlinx.coroutines.flow.Flow
  * Data Access Object for chapter metadata.
  */
 @Dao
-interface ChapterMetadataDao {
+public interface ChapterMetadataDao {
     /**
      * Gets all chapter metadata for a book.
      */
     @Query("SELECT * FROM chapter_metadata WHERE bookId = :bookId ORDER BY fileIndex ASC")
-    fun getChapters(bookId: String): Flow<List<ChapterMetadataEntity>>
+    public fun getChapters(bookId: String): Flow<List<ChapterMetadataEntity>>
 
     /**
      * Gets a specific chapter by ID.
      */
     @Query("SELECT * FROM chapter_metadata WHERE id = :id")
-    fun getChapter(id: String): Flow<ChapterMetadataEntity?>
+    public fun getChapter(id: String): Flow<ChapterMetadataEntity?>
 
     /**
      * Inserts or updates chapter metadata.

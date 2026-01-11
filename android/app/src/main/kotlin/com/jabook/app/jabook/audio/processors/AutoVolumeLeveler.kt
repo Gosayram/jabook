@@ -31,7 +31,7 @@ import kotlin.math.pow
  * - Smooth gain changes (slew rate: 0.5 dB/s) to avoid artifacts
  */
 @UnstableApi
-class AutoVolumeLeveler : AudioProcessor {
+public class AutoVolumeLeveler : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
     private var outputAudioFormat: AudioProcessor.AudioFormat? = null
     private var isActive = false
@@ -281,7 +281,7 @@ class AutoVolumeLeveler : AudioProcessor {
         isActive = false
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.feature.search.rutracker
 /**
  * Sorting options for RuTracker search results.
  */
-enum class RutrackerSortOrder {
+public enum class RutrackerSortOrder {
     /** Sort by relevance (default order from RuTracker) */
     RELEVANCE,
 
@@ -44,14 +44,14 @@ enum class RutrackerSortOrder {
  * @param minSizeMb Minimum file size in MB (null = no filter)
  * @param maxSizeMb Maximum file size in MB (null = no filter)
  */
-data class RutrackerSearchFilters(
+public data class RutrackerSearchFilters(
     val minSeeders: Int? = null,
     val minSizeMb: Int? = null,
     val maxSizeMb: Int? = null,
 ) {
     /** Check if any filters are active */
-    fun isActive(): Boolean = minSeeders != null || minSizeMb != null || maxSizeMb != null
+    public fun isActive(): Boolean = minSeeders != null || minSizeMb != null || maxSizeMb != null
 
     /** Clear all filters */
-    fun clear(): RutrackerSearchFilters = RutrackerSearchFilters()
+    public fun clear(): RutrackerSearchFilters = RutrackerSearchFilters()
 }

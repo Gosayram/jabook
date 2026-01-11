@@ -27,7 +27,7 @@ import javax.inject.Inject
  * Provides high-level operations for controlling ExoPlayer.
  */
 @OptIn(UnstableApi::class)
-class ExoPlayerManager
+public class ExoPlayerManager
     @Inject
     constructor(
         private val player: ExoPlayer,
@@ -35,12 +35,12 @@ class ExoPlayerManager
         /**
          * Gets the underlying ExoPlayer instance.
          */
-        fun getPlayer(): ExoPlayer = player
+        public fun getPlayer(): ExoPlayer = player
 
         /**
          * Prepares the player with a single media item.
          */
-        fun prepare(mediaItem: MediaItem) {
+        public fun prepare(mediaItem: MediaItem) {
             player.setMediaItem(mediaItem)
             player.prepare()
         }
@@ -48,7 +48,7 @@ class ExoPlayerManager
         /**
          * Prepares the player with a list of media items.
          */
-        fun prepare(mediaItems: List<MediaItem>) {
+        public fun prepare(mediaItems: List<MediaItem>) {
             player.setMediaItems(mediaItems)
             player.prepare()
         }
@@ -56,7 +56,7 @@ class ExoPlayerManager
         /**
          * Prepares the player with media items starting at a specific index.
          */
-        fun prepare(
+        public fun prepare(
             mediaItems: List<MediaItem>,
             startIndex: Int,
             startPosition: Long = 0L,
@@ -68,28 +68,28 @@ class ExoPlayerManager
         /**
          * Plays the player.
          */
-        fun play() {
+        public fun play() : Unit {
             player.play()
         }
 
         /**
          * Pauses the player.
          */
-        fun pause() {
+        public fun pause() : Unit {
             player.pause()
         }
 
         /**
          * Seeks to a specific position in the current media item.
          */
-        fun seekTo(position: Long) {
+        public fun seekTo(position: Long) {
             player.seekTo(position)
         }
 
         /**
          * Seeks to a specific media item and position.
          */
-        fun seekTo(
+        public fun seekTo(
             mediaItemIndex: Int,
             position: Long,
         ) {
@@ -99,7 +99,7 @@ class ExoPlayerManager
         /**
          * Seeks to the next media item.
          */
-        fun seekToNext() {
+        public fun seekToNext() : Unit {
             if (player.hasNextMediaItem()) {
                 player.seekToNextMediaItem()
             }
@@ -108,7 +108,7 @@ class ExoPlayerManager
         /**
          * Seeks to the previous media item.
          */
-        fun seekToPrevious() {
+        public fun seekToPrevious() : Unit {
             if (player.hasPreviousMediaItem()) {
                 player.seekToPreviousMediaItem()
             }
@@ -117,66 +117,66 @@ class ExoPlayerManager
         /**
          * Gets the current playback state.
          */
-        fun getPlaybackState(): Int = player.playbackState
+        public fun getPlaybackState(): Int = player.playbackState
 
         /**
          * Gets whether the player is playing.
          */
-        fun isPlaying(): Boolean = player.isPlaying
+        public fun isPlaying(): Boolean = player.isPlaying
 
         /**
          * Gets the current position in milliseconds.
          */
-        fun getCurrentPosition(): Long = player.currentPosition
+        public fun getCurrentPosition(): Long = player.currentPosition
 
         /**
          * Gets the duration of the current media item in milliseconds.
          */
-        fun getDuration(): Long = player.duration
+        public fun getDuration(): Long = player.duration
 
         /**
          * Gets the current media item index.
          */
-        fun getCurrentMediaItemIndex(): Int = player.currentMediaItemIndex
+        public fun getCurrentMediaItemIndex(): Int = player.currentMediaItemIndex
 
         /**
          * Gets the current media item.
          */
-        fun getCurrentMediaItem(): MediaItem? = player.currentMediaItem
+        public fun getCurrentMediaItem(): MediaItem? = player.currentMediaItem
 
         /**
          * Gets whether there is a next media item.
          */
-        fun hasNext(): Boolean = player.hasNextMediaItem()
+        public fun hasNext(): Boolean = player.hasNextMediaItem()
 
         /**
          * Gets whether there is a previous media item.
          */
-        fun hasPrevious(): Boolean = player.hasPreviousMediaItem()
+        public fun hasPrevious(): Boolean = player.hasPreviousMediaItem()
 
         /**
          * Sets the playback speed.
          */
-        fun setPlaybackSpeed(speed: Float) {
+        public fun setPlaybackSpeed(speed: Float) {
             player.setPlaybackSpeed(speed)
         }
 
         /**
          * Gets the playback speed.
          */
-        fun getPlaybackSpeed(): Float = player.playbackParameters.speed
+        public fun getPlaybackSpeed(): Float = player.playbackParameters.speed
 
         /**
          * Adds a Player.Listener.
          */
-        fun addListener(listener: Player.Listener) {
+        public fun addListener(listener: Player.Listener) {
             player.addListener(listener)
         }
 
         /**
          * Removes a Player.Listener.
          */
-        fun removeListener(listener: Player.Listener) {
+        public fun removeListener(listener: Player.Listener) {
             player.removeListener(listener)
         }
 
@@ -184,7 +184,7 @@ class ExoPlayerManager
          * Releases the player.
          * Note: This should be called when the player is no longer needed.
          */
-        fun release() {
+        public fun release() : Unit {
             player.release()
         }
     }

@@ -25,7 +25,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
  * This class provides consistent error handling and logging across
  * all audio player components, with special handling for Android 14+.
  */
-object ErrorHandler {
+public object ErrorHandler {
     /**
      * Handles playback errors with Android 14+ specific considerations.
      *
@@ -33,7 +33,7 @@ object ErrorHandler {
      * @param error The playback exception that occurred
      * @param context Additional context information
      */
-    fun handlePlaybackError(
+    public fun handlePlaybackError(
         tag: String,
         error: PlaybackException?,
         context: String? = null,
@@ -109,7 +109,7 @@ object ErrorHandler {
      * @param exception The exception that occurred
      * @param context Additional context information
      */
-    fun handleGeneralError(
+    public fun handleGeneralError(
         tag: String,
         exception: Exception,
         context: String? = null,
@@ -173,7 +173,7 @@ object ErrorHandler {
      * @param tag Log tag for error identification
      * @return CoroutineExceptionHandler
      */
-    fun createCoroutineExceptionHandler(tag: String): CoroutineExceptionHandler =
+    public fun createCoroutineExceptionHandler(tag: String): CoroutineExceptionHandler =
         CoroutineExceptionHandler { _, exception ->
             // Convert Throwable to Exception if needed
             when (exception) {
@@ -188,7 +188,7 @@ object ErrorHandler {
      * @param context Application context
      * @return true if all requirements are met, false otherwise
      */
-    fun validateAndroid14Requirements(context: android.content.Context): Boolean {
+    public fun validateAndroid14Requirements(context: android.content.Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             return true // Not Android 14+, no special requirements
         }
@@ -237,7 +237,7 @@ object ErrorHandler {
      *
      * @return true if device is running Color OS, false otherwise
      */
-    fun isColorOS(): Boolean {
+    public fun isColorOS(): Boolean {
         val manufacturer =
             android.os.Build.MANUFACTURER
                 .lowercase()
@@ -259,7 +259,7 @@ object ErrorHandler {
      * @param context Application context
      * @return true if Color OS requirements are met, false otherwise
      */
-    fun validateColorOSRequirements(context: android.content.Context): Boolean {
+    public fun validateColorOSRequirements(context: android.content.Context): Boolean {
         if (!isColorOS()) {
             return true // Not Color OS, no special requirements
         }

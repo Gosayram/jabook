@@ -81,7 +81,7 @@ import com.jabook.app.jabook.compose.domain.model.CaptchaData
 
 @Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
-fun AuthScreen(
+public fun AuthScreen(
     onNavigateBack: () -> Unit,
     onNavigateToWebView: (String) -> Unit,
     viewModel: AuthViewModel = hiltViewModel(),
@@ -341,7 +341,7 @@ fun AuthScreen(
 }
 
 @Composable
-fun CaptchaDialog(
+public fun CaptchaDialog(
     captchaData: CaptchaData,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -396,4 +396,4 @@ fun CaptchaDialog(
 }
 
 @kotlinx.serialization.Serializable
-object AuthRoute
+public object AuthRoute

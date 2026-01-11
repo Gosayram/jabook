@@ -43,7 +43,7 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
         androidx.room.Index(value = ["seeders"]), // For sorting by popularity
     ],
 )
-data class CachedTopicEntity(
+public data class CachedTopicEntity(
     @PrimaryKey
     @ColumnInfo(name = "topic_id")
     val topicId: String,
@@ -83,7 +83,7 @@ data class CachedTopicEntity(
  *
  * @param indexVersion Version of index when this was indexed (default: 1)
  */
-fun SearchResult.toCachedTopicEntity(indexVersion: Int = 1): CachedTopicEntity {
+public fun SearchResult.toCachedTopicEntity(indexVersion: Int = 1): CachedTopicEntity {
     val now = System.currentTimeMillis()
     return CachedTopicEntity(
         topicId = topicId,
@@ -109,7 +109,7 @@ fun SearchResult.toCachedTopicEntity(indexVersion: Int = 1): CachedTopicEntity {
  * Note: magnetUrl, torrentUrl, and coverUrl will be null from index.
  * These should be retrieved on-demand via getTopicDetails() when needed.
  */
-fun CachedTopicEntity.toSearchResult(): SearchResult =
+public fun CachedTopicEntity.toSearchResult(): SearchResult =
     SearchResult(
         topicId = topicId,
         title = title,

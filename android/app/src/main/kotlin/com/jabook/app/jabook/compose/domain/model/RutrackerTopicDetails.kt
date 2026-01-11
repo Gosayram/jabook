@@ -25,7 +25,7 @@ package com.jabook.app.jabook.compose.domain.model
  * - Independent of data source (network, database, cache)
  * - Validated and normalized
  */
-data class RutrackerTopicDetails(
+public data class RutrackerTopicDetails(
     /** Topic ID */
     val topicId: String,
     /** Full title */
@@ -84,7 +84,7 @@ data class RutrackerTopicDetails(
      *
      * @return true if valid, false otherwise
      */
-    fun isValid(): Boolean =
+    public fun isValid(): Boolean =
         topicId.isNotBlank() &&
             title.isNotBlank() &&
             category.isNotBlank() &&
@@ -94,7 +94,7 @@ data class RutrackerTopicDetails(
      * Validates that the topic details have enough fields for a pagination page.
      * Pages > 1 might not have torrent info (magnet, size, etc.) but should have comments.
      */
-    fun isValidForPagination(): Boolean =
+    public fun isValidForPagination(): Boolean =
         topicId.isNotBlank() &&
             title.isNotBlank() &&
             comments.isNotEmpty()
@@ -104,20 +104,20 @@ data class RutrackerTopicDetails(
      *
      * @return true if download is available
      */
-    fun hasDownloadUrl(): Boolean = !magnetUrl.isNullOrBlank() || torrentUrl.isNotBlank()
+    public fun hasDownloadUrl(): Boolean = !magnetUrl.isNullOrBlank() || torrentUrl.isNotBlank()
 
     /**
      * Checks if cover image is available.
      *
      * @return true if cover URL is available
      */
-    fun hasCover(): Boolean = !coverUrl.isNullOrBlank()
+    public fun hasCover(): Boolean = !coverUrl.isNullOrBlank()
 }
 
 /**
  * Domain model for related audiobook.
  */
-data class RutrackerRelatedBook(
+public data class RutrackerRelatedBook(
     /** Topic ID */
     val topicId: String,
     /** Book title */
@@ -128,13 +128,13 @@ data class RutrackerRelatedBook(
      *
      * @return true if valid, false otherwise
      */
-    fun isValid(): Boolean = topicId.isNotBlank() && title.isNotBlank()
+    public fun isValid(): Boolean = topicId.isNotBlank() && title.isNotBlank()
 }
 
 /**
  * Domain model for comment.
  */
-data class RutrackerComment(
+public data class RutrackerComment(
     /** Comment ID */
     val id: String,
     /** Author username */
@@ -153,5 +153,5 @@ data class RutrackerComment(
      *
      * @return true if valid, false otherwise
      */
-    fun isValid(): Boolean = id.isNotBlank() && author.isNotBlank() && text.isNotBlank()
+    public fun isValid(): Boolean = id.isNotBlank() && author.isNotBlank() && text.isNotBlank()
 }

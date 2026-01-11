@@ -16,7 +16,7 @@ package com.jabook.app.jabook.compose.data.network
 
 import kotlinx.coroutines.flow.Flow
 
-enum class NetworkType {
+public enum class NetworkType {
     WIFI,
     CELLULAR,
     ETHERNET,
@@ -24,7 +24,7 @@ enum class NetworkType {
     UNKNOWN,
 }
 
-interface NetworkMonitor {
+public interface NetworkMonitor {
     val networkType: Flow<NetworkType>
     val isOnline: Flow<Boolean>
 }

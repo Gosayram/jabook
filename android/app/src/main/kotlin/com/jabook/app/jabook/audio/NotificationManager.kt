@@ -39,7 +39,7 @@ import android.app.NotificationManager as AndroidNotificationManager
  * This class creates and updates the notification that appears
  * in the notification panel during audio playback.
  */
-class NotificationManager(
+public class NotificationManager(
     private val context: Context,
     private var player: ExoPlayer, // Changed to var to allow updating player reference
     private val mediaSession: androidx.media3.session.MediaSession? = null,
@@ -56,7 +56,7 @@ class NotificationManager(
     /**
      * Updates the player reference. This is needed when the player is recreated.
      */
-    fun updatePlayer(newPlayer: ExoPlayer) {
+    public fun updatePlayer(newPlayer: ExoPlayer) {
         player = newPlayer
         android.util.Log.d("NotificationManager", "Player reference updated")
     }
@@ -67,7 +67,7 @@ class NotificationManager(
      * @param isMinimal true for minimal notification (Play/Pause only),
      * false for full notification (all controls)
      */
-    fun setNotificationType(isMinimal: Boolean) {
+    public fun setNotificationType(isMinimal: Boolean) {
         isMinimalNotification = isMinimal
         android.util.Log.d("NotificationManager", "Notification type set to: ${if (isMinimal) "minimal" else "full"}")
     }
@@ -75,7 +75,7 @@ class NotificationManager(
     private val notificationManager: AndroidNotificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
 
-    companion object {
+    public companion object {
         private const val CHANNEL_ID = "jabook_audio_playback"
         private const val NOTIFICATION_ID = 1
 
@@ -106,13 +106,13 @@ class NotificationManager(
             return flavor.capitalizeFirst()
         }
 
-        const val ACTION_PLAY = "com.jabook.app.jabook.audio.PLAY"
-        const val ACTION_PAUSE = "com.jabook.app.jabook.audio.PAUSE"
-        const val ACTION_NEXT = "com.jabook.app.jabook.audio.NEXT"
-        const val ACTION_PREVIOUS = "com.jabook.app.jabook.audio.PREVIOUS"
-        const val ACTION_REWIND = "com.jabook.app.jabook.audio.REWIND"
-        const val ACTION_FORWARD = "com.jabook.app.jabook.audio.FORWARD"
-        const val ACTION_STOP = "com.jabook.app.jabook.audio.STOP"
+        public const val ACTION_PLAY = "com.jabook.app.jabook.audio.PLAY"
+        public const val ACTION_PAUSE = "com.jabook.app.jabook.audio.PAUSE"
+        public const val ACTION_NEXT = "com.jabook.app.jabook.audio.NEXT"
+        public const val ACTION_PREVIOUS = "com.jabook.app.jabook.audio.PREVIOUS"
+        public const val ACTION_REWIND = "com.jabook.app.jabook.audio.REWIND"
+        public const val ACTION_FORWARD = "com.jabook.app.jabook.audio.FORWARD"
+        public const val ACTION_STOP = "com.jabook.app.jabook.audio.STOP"
     }
 
     init {
@@ -159,7 +159,7 @@ class NotificationManager(
      *
      * @return Notification instance
      */
-    fun createNotification(): Notification {
+    public fun createNotification(): Notification {
         // Use minimal notification if requested
         if (isMinimalNotification) {
             return createMinimalMediaNotification()
@@ -1130,7 +1130,7 @@ class NotificationManager(
      * This method includes rate limiting and proper error handling to prevent
      * notification-related crashes on Android 14+.
      */
-    fun updateNotification() {
+    public fun updateNotification() : Unit {
         try {
             val notification = createNotification()
             notificationManager.notify(NOTIFICATION_ID, notification)
@@ -1146,7 +1146,7 @@ class NotificationManager(
      * This method includes proper error handling to prevent
      * metadata-related crashes on Android 14+.
      */
-    fun updateMetadata(
+    public fun updateMetadata(
         metadata: Map<String, String>?,
         newEmbeddedArtworkPath: String? = null,
     ) {
@@ -1180,7 +1180,7 @@ class NotificationManager(
      * @param rewindSeconds Duration in seconds for rewind action (from book settings or global settings)
      * @param forwardSeconds Duration in seconds for forward action (from book settings or global settings)
      */
-    fun updateSkipDurations(
+    public fun updateSkipDurations(
         rewindSeconds: Long,
         forwardSeconds: Long,
     ) {
@@ -1194,7 +1194,7 @@ class NotificationManager(
      * Updates MediaSession reference.
      * Called when MediaSession is created or recreated.
      */
-    fun updateMediaSession(session: androidx.media3.session.MediaSession?) {
+    public fun updateMediaSession(session: androidx.media3.session.MediaSession?) {
         // MediaSession is already passed in constructor, but we can update if needed
         // This method is for future use if we need to update session dynamically
     }

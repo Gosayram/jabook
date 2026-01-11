@@ -28,12 +28,12 @@ import javax.inject.Singleton
  * This allows switching RuTracker mirrors without recreating Retrofit instance.
  */
 @Singleton
-class DynamicBaseUrlInterceptor
+public class DynamicBaseUrlInterceptor
     @Inject
     constructor(
         private val mirrorManager: MirrorManager,
     ) : Interceptor {
-        companion object {
+        public companion object {
             private const val TAG = "DynamicBaseUrlInterceptor"
             private const val RUTRACKER_HOST_SUFFIX = "rutracker"
         }

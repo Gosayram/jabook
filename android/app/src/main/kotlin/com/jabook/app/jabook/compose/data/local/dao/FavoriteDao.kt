@@ -25,18 +25,18 @@ import kotlinx.coroutines.flow.Flow
  * DAO for favorites table operations.
  */
 @Dao
-interface FavoriteDao {
+public interface FavoriteDao {
     /**
      * Get all favorites ordered by date added (newest first).
      */
     @Query("SELECT * FROM favorites ORDER BY added_to_favorites DESC")
-    fun getAllFavorites(): Flow<List<FavoriteEntity>>
+    public fun getAllFavorites(): Flow<List<FavoriteEntity>>
 
     /**
      * Get set of all favorite topic IDs for quick membership checks.
      */
     @Query("SELECT topic_id FROM favorites")
-    fun getAllFavoriteIds(): Flow<List<String>>
+    public fun getAllFavoriteIds(): Flow<List<String>>
 
     /**
      * Get a single favorite by topic ID.

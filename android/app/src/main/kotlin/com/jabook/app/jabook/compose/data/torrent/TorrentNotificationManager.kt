@@ -34,7 +34,7 @@ import javax.inject.Singleton
  * Manages torrent download notifications
  */
 @Singleton
-class TorrentNotificationManager
+public class TorrentNotificationManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -45,7 +45,7 @@ class TorrentNotificationManager
         /**
          * Create progress notification for individual download
          */
-        fun createProgressNotification(download: TorrentDownload): Notification {
+        public fun createProgressNotification(download: TorrentDownload): Notification {
             val builder =
                 NotificationCompat
                     .Builder(context, TorrentDownloadService.CHANNEL_ID_DOWNLOADS)
@@ -114,7 +114,7 @@ class TorrentNotificationManager
         /**
          * Create summary notification for download group
          */
-        fun createSummaryNotification(downloads: List<TorrentDownload>): Notification {
+        public fun createSummaryNotification(downloads: List<TorrentDownload>): Notification {
             val activeCount = downloads.count { it.isActive }
 
             val totalBytes = downloads.sumOf { it.totalSize }
@@ -155,7 +155,7 @@ class TorrentNotificationManager
         /**
          * Update notification for download
          */
-        fun updateNotification(download: TorrentDownload) {
+        public fun updateNotification(download: TorrentDownload) {
             val notification = createProgressNotification(download)
             notificationManager.notify(download.hash.hashCode(), notification)
         }
@@ -163,14 +163,14 @@ class TorrentNotificationManager
         /**
          * Cancel notification
          */
-        fun cancel(notificationId: Int) {
+        public fun cancel(notificationId: Int) {
             notificationManager.cancel(notificationId)
         }
 
         /**
          * Update all notifications
          */
-        fun updateAllNotifications() {
+        public fun updateAllNotifications() : Unit {
             // Will be called by service when needed
         }
 
@@ -233,7 +233,7 @@ class TorrentNotificationManager
             )
         }
 
-        companion object {
-            const val NOTIFICATION_GROUP_DOWNLOADS = "torrent_downloads_group"
+        public companion object {
+            public const val NOTIFICATION_GROUP_DOWNLOADS = "torrent_downloads_group"
         }
     }

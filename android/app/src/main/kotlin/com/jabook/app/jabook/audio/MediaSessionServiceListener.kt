@@ -29,7 +29,7 @@ import com.jabook.app.jabook.R
  * when the system prevents the service from starting in the foreground.
  */
 @OptIn(UnstableApi::class)
-class MediaSessionServiceListener(
+public class MediaSessionServiceListener(
     private val service: AudioPlayerService,
 ) : MediaSessionService.Listener {
     /**

@@ -38,7 +38,7 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
  *
  * @return Domain model with validated data
  */
-fun SearchResult.toDomain(): RutrackerSearchResult =
+public fun SearchResult.toDomain(): RutrackerSearchResult =
     RutrackerSearchResult(
         topicId = topicId.trim(),
         title = title.trim(),
@@ -60,7 +60,7 @@ fun SearchResult.toDomain(): RutrackerSearchResult =
  *
  * @return List of valid domain models
  */
-fun List<SearchResult>.toDomain(): List<RutrackerSearchResult> {
+public fun List<SearchResult>.toDomain(): List<RutrackerSearchResult> {
     val totalCount = this.size
     val invalidResults = mutableListOf<Pair<Int, SearchResult>>()
     val results =
@@ -105,7 +105,7 @@ fun List<SearchResult>.toDomain(): List<RutrackerSearchResult> {
  *
  * @return List of valid domain models from index
  */
-fun List<SearchResult>.toDomainFromIndex(): List<RutrackerSearchResult> {
+public fun List<SearchResult>.toDomainFromIndex(): List<RutrackerSearchResult> {
     val totalCount = this.size
     val invalidResults = mutableListOf<Pair<Int, SearchResult>>()
     val results =
@@ -144,7 +144,7 @@ fun List<SearchResult>.toDomainFromIndex(): List<RutrackerSearchResult> {
  *
  * @return Domain model with validated data
  */
-fun TopicDetails.toDomain(): RutrackerTopicDetails =
+public fun TopicDetails.toDomain(): RutrackerTopicDetails =
     RutrackerTopicDetails(
         topicId = topicId.trim(),
         title = title.trim(),
@@ -180,7 +180,7 @@ fun TopicDetails.toDomain(): RutrackerTopicDetails =
  *
  * @return Domain model or null if invalid
  */
-fun RelatedBook.toDomain(): RutrackerRelatedBook? {
+public fun RelatedBook.toDomain(): RutrackerRelatedBook? {
     val domain =
         RutrackerRelatedBook(
             topicId = topicId.trim(),
@@ -194,7 +194,7 @@ fun RelatedBook.toDomain(): RutrackerRelatedBook? {
  *
  * @return Domain model or null if invalid
  */
-fun Comment.toDomain(): RutrackerComment? {
+public fun Comment.toDomain(): RutrackerComment? {
     val domain =
         RutrackerComment(
             id = id.trim(),

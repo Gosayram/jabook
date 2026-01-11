@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Repository for managing authentication state and operations.
  */
-interface AuthRepository {
+public interface AuthRepository {
     /**
      * Flow of current authentication status.
      */

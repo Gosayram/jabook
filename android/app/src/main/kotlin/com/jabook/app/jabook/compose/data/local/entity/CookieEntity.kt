@@ -22,7 +22,7 @@ import androidx.room.PrimaryKey
  * Provides most reliable storage layer for session cookies.
  */
 @Entity(tableName = "cookies")
-data class CookieEntity(
+public data class CookieEntity(
     @PrimaryKey
     val url: String,
     val cookieHeader: String,

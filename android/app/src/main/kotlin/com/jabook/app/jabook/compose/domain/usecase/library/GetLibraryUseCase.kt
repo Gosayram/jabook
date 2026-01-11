@@ -26,7 +26,7 @@ import javax.inject.Inject
  * Returns a reactive Flow that emits the current list of books
  * whenever the library data changes.
  */
-class GetLibraryUseCase
+public class GetLibraryUseCase
     @Inject
     constructor(
         private val booksRepository: BooksRepository,

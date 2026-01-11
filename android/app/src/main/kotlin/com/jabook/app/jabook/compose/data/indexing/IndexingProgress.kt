@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.data.indexing
 /**
  * Progress state for forum indexing operation.
  */
-sealed class IndexingProgress {
+public sealed class IndexingProgress {
     /**
      * Indexing not started or completed.
      */
@@ -33,7 +33,7 @@ sealed class IndexingProgress {
      * @param topicsIndexed Total topics indexed so far
      * @param estimatedTotalTopics Estimated total topics (may be 0 if unknown)
      */
-    data class InProgress(
+    public data class InProgress(
         val currentForum: String,
         val currentForumIndex: Int,
         val totalForums: Int,
@@ -73,7 +73,7 @@ sealed class IndexingProgress {
      * @param totalTopics Total number of topics indexed
      * @param durationMs Duration in milliseconds
      */
-    data class Completed(
+    public data class Completed(
         val totalTopics: Int,
         val durationMs: Long,
     ) : IndexingProgress()
@@ -84,7 +84,7 @@ sealed class IndexingProgress {
      * @param message Error message
      * @param forumId Forum ID where error occurred (if applicable)
      */
-    data class Error(
+    public data class Error(
         val message: String,
         val forumId: String? = null,
     ) : IndexingProgress()

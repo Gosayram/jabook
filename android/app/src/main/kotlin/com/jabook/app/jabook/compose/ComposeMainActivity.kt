@@ -43,8 +43,8 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @AndroidEntryPoint
-class ComposeMainActivity : ComponentActivity() {
-    companion object {
+public class ComposeMainActivity : ComponentActivity() {
+    public companion object {
         private const val TAG = "ComposeMainActivity"
     }
 

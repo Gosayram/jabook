@@ -43,7 +43,7 @@ import javax.inject.Singleton
  * Polls the service to keep UI state in sync.
  */
 @Singleton
-class SleepTimerRepositoryImpl
+public class SleepTimerRepositoryImpl
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,

@@ -28,12 +28,12 @@ import javax.inject.Inject
  * No domain validation - accepts any image with valid extension
  * (.jpg, .jpeg, .png, .webp, .gif) and HTTP(S) scheme.
  */
-class CoverUrlExtractor
+public class CoverUrlExtractor
     @Inject
     constructor(
         private val mirrorManager: MirrorManager,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "CoverUrlExtractor"
 
             // Icon/smiley blacklist patterns
@@ -69,7 +69,7 @@ class CoverUrlExtractor
          * @param container Element to search within (e.g., post body)
          * @return Cover URL or null if not found
          */
-        fun extract(container: Element): String? {
+        public fun extract(container: Element): String? {
             // Priority 1: img.postImg.postImgAligned.img-right with title (как в Flow - РАБОТАЕТ!)
             // This is the correct selector used in Flow project that successfully loads covers
             val imgElement =
@@ -212,7 +212,7 @@ class CoverUrlExtractor
          * Note: This method should be called after absUrl() when possible,
          * as absUrl() handles relative URLs better when baseUri is set in Jsoup.parse().
          */
-        fun normalizeUrl(url: String): String {
+        public fun normalizeUrl(url: String): String {
             // If URL is already absolute and valid, just normalize CDN domain
             if (url.startsWith("http://") || url.startsWith("https://")) {
                 // Replace static.rutracker.* domains with static.rutracker.cc (CDN is always available)

@@ -32,13 +32,13 @@ import javax.inject.Singleton
  * - Rescan: Cache hit rate ~99%, 200x faster
  */
 @Singleton
-class MetadataCache
+public class MetadataCache
     @Inject
     constructor() {
         /**
          * Cached metadata with file validation info.
          */
-        data class CachedMetadata(
+        public data class CachedMetadata(
             val metadata: AudioMetadata,
             val fileSize: Long,
             val lastModified: Long,
@@ -110,7 +110,7 @@ class MetadataCache
          * Clear all cached metadata.
          * Useful for forced rescans.
          */
-        fun clearCache() {
+        public fun clearCache() : Unit {
             cache.evictAll()
             android.util.Log.i("MetadataCache", "Cache cleared")
         }
@@ -118,7 +118,7 @@ class MetadataCache
         /**
          * Get cache statistics for monitoring.
          */
-        fun getCacheStats(): CacheStats =
+        public fun getCacheStats(): CacheStats =
             CacheStats(
                 size = cache.size(),
                 maxSize = cache.maxSize(),
@@ -127,7 +127,7 @@ class MetadataCache
                 evictionCount = cache.evictionCount(),
             )
 
-        data class CacheStats(
+        public data class CacheStats(
             val size: Int,
             val maxSize: Int,
             val hitCount: Int,

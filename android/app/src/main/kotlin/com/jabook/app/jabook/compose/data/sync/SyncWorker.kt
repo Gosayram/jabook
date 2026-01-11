@@ -32,7 +32,7 @@ import androidx.work.WorkerParameters
  * with proper dependency injection when kapt is replaced with KSP.
  */
 @androidx.hilt.work.HiltWorker
-class SyncWorker
+public class SyncWorker
     @dagger.assisted.AssistedInject
     constructor(
         @dagger.assisted.Assisted appContext: Context,
@@ -42,9 +42,9 @@ class SyncWorker
         private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
         private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
     ) : CoroutineWorker(appContext, params) {
-        companion object {
+        public companion object {
             private const val TAG = "SyncWorker"
-            const val WORK_NAME = "sync_work"
+            public const val WORK_NAME = "sync_work"
             private const val CACHE_TTL_DAYS = 7L
         }
 

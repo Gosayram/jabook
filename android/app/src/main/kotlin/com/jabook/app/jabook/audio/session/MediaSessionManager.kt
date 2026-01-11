@@ -32,7 +32,7 @@ import javax.inject.Inject
  * Picture-in-Picture, and media button controls.
  */
 @OptIn(UnstableApi::class)
-class MediaSessionManager
+public class MediaSessionManager
     @Inject
     constructor(
         private val context: Context,
@@ -44,7 +44,7 @@ class MediaSessionManager
         /**
          * Initializes the MediaSession.
          */
-        fun initialize(
+        public fun initialize(
             onPlay: () -> Unit = {},
             onPause: () -> Unit = {},
             onSkipToNext: () -> Unit = {},
@@ -92,7 +92,7 @@ class MediaSessionManager
          * Note: MediaMetadata is read-only in Player and is automatically updated from MediaItem.
          * This method is kept for API compatibility but does not modify player state.
          */
-        fun updateMetadata(metadata: MediaMetadata) {
+        public fun updateMetadata(metadata: MediaMetadata) {
             // MediaMetadata is read-only in Player - it's automatically updated from MediaItem
             // MediaSession automatically reflects metadata from Player's current MediaItem
             android.util.Log.d("MediaSessionManager", "Metadata update requested: ${metadata.title}")
@@ -101,7 +101,7 @@ class MediaSessionManager
         /**
          * Updates the playback state.
          */
-        fun updatePlaybackState(
+        public fun updatePlaybackState(
             state: Int,
             position: Long,
             speed: Float = 1.0f,
@@ -114,12 +114,12 @@ class MediaSessionManager
         /**
          * Gets the MediaSession instance.
          */
-        fun getMediaSession(): MediaSession? = mediaSession
+        public fun getMediaSession(): MediaSession? = mediaSession
 
         /**
          * Releases the MediaSession.
          */
-        fun release() {
+        public fun release() : Unit {
             mediaSession?.release()
             mediaSession = null
             callback = null

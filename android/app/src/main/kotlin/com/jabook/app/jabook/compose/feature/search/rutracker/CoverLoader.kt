@@ -34,7 +34,7 @@ import javax.inject.Singleton
  * 3. Duplicate requests for the same topic are ignored.
  */
 @Singleton
-class CoverLoader
+public class CoverLoader
     @Inject
     constructor(
         private val repository: RutrackerRepository,
@@ -56,7 +56,7 @@ class CoverLoader
          * Request cover load for a topic.
          * Guaranteed to be non-blocking.
          */
-        fun loadCover(topicId: String) {
+        public fun loadCover(topicId: String) {
             if (topicId in loadedCache || topicId in activeLoads) {
                 return
             }

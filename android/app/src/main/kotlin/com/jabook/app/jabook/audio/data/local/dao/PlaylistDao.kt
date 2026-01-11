@@ -25,12 +25,12 @@ import kotlinx.coroutines.flow.Flow
  * Data Access Object for playlists.
  */
 @Dao
-interface PlaylistDao {
+public interface PlaylistDao {
     /**
      * Gets the playlist for a book.
      */
     @Query("SELECT * FROM playlists WHERE bookId = :bookId")
-    fun getPlaylist(bookId: String): Flow<PlaylistEntity?>
+    public fun getPlaylist(bookId: String): Flow<PlaylistEntity?>
 
     /**
      * Inserts or updates a playlist.
@@ -48,5 +48,5 @@ interface PlaylistDao {
      * Gets all playlists.
      */
     @Query("SELECT * FROM playlists")
-    fun getAllPlaylists(): Flow<List<PlaylistEntity>>
+    public fun getAllPlaylists(): Flow<List<PlaylistEntity>>
 }

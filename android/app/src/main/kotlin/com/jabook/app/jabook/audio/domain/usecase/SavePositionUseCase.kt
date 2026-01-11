@@ -21,7 +21,7 @@ import javax.inject.Inject
 /**
  * Use case for saving playback position.
  */
-class SavePositionUseCase
+public class SavePositionUseCase
     @Inject
     constructor(
         private val positionRepository: PlaybackPositionRepository,

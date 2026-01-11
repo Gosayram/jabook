@@ -27,7 +27,7 @@ import javax.inject.Inject
 /**
  * Steps in the onboarding process.
  */
-enum class OnboardingStep {
+public enum class OnboardingStep {
     WELCOME,
     FEATURES,
     PERMISSIONS,
@@ -36,7 +36,7 @@ enum class OnboardingStep {
 /**
  * UI state for the onboarding flow.
  */
-data class OnboardingUiState(
+public data class OnboardingUiState(
     val currentStep: OnboardingStep = OnboardingStep.WELCOME,
     val isFinished: Boolean = false,
 )
@@ -45,7 +45,7 @@ data class OnboardingUiState(
  * ViewModel for the Onboarding feature.
  */
 @HiltViewModel
-class OnboardingViewModel
+public class OnboardingViewModel
     @Inject
     constructor(
         private val userPreferencesRepository: UserPreferencesRepository,
@@ -53,7 +53,7 @@ class OnboardingViewModel
         private val _uiState = MutableStateFlow(OnboardingUiState())
         val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
-        fun nextStep() {
+        public fun nextStep() : Unit {
             val current = _uiState.value.currentStep
             val next =
                 when (current) {
@@ -67,7 +67,7 @@ class OnboardingViewModel
             _uiState.value = _uiState.value.copy(currentStep = next)
         }
 
-        fun previousStep() {
+        public fun previousStep() : Unit {
             val current = _uiState.value.currentStep
             val prev =
                 when (current) {
@@ -78,7 +78,7 @@ class OnboardingViewModel
             _uiState.value = _uiState.value.copy(currentStep = prev)
         }
 
-        fun finishOnboarding() {
+        public fun finishOnboarding() : Unit {
             viewModelScope.launch {
                 userPreferencesRepository.setOnboardingCompleted(true)
                 _uiState.value = _uiState.value.copy(isFinished = true)

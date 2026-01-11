@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.data.torrent
 /**
  * Torrent download state
  */
-enum class TorrentState {
+public enum class TorrentState {
     /** Queued for download */
     QUEUED,
 

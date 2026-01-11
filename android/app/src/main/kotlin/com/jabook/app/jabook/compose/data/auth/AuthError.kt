@@ -19,26 +19,26 @@ import com.jabook.app.jabook.compose.domain.model.CaptchaData
 /**
  * Structured authentication errors.
  */
-sealed class AuthError {
-    data class InvalidCredentials(
+public sealed class AuthError {
+    public data class InvalidCredentials(
         val message: String,
     ) : AuthError()
 
-    data class NetworkError(
+    public data class NetworkError(
         val message: String,
         val cause: Throwable?,
     ) : AuthError()
 
-    data class CaptchaRequired(
+    public data class CaptchaRequired(
         val data: CaptchaData,
     ) : AuthError()
 
-    data class ServerError(
+    public data class ServerError(
         val code: Int,
         val message: String,
     ) : AuthError()
 
-    data class Unknown(
+    public data class Unknown(
         val message: String,
         val cause: Throwable?,
     ) : AuthError()

@@ -58,7 +58,7 @@ import com.jabook.app.jabook.compose.domain.model.SearchFilters
  * @param modifier Modifier for the root composable
  */
 @Composable
-fun SearchFiltersPane(
+public fun SearchFiltersPane(
     filters: SearchFilters,
     onApplyFilters: (SearchFilters) -> Unit,
     onReset: () -> Unit,

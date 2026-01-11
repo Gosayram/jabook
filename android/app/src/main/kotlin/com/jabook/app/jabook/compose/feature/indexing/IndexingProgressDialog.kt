@@ -42,7 +42,7 @@ import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
  * @param modifier Modifier for the dialog
  */
 @Composable
-fun IndexingProgressDialog(
+public fun IndexingProgressDialog(
     progress: IndexingProgress,
     onDismiss: () -> Unit,
     onHide: (() -> Unit)? = null,

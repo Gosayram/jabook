@@ -52,7 +52,7 @@ import java.util.Locale
  * - Number of chapters
  */
 @Composable
-fun BookPropertiesDialog(
+public fun BookPropertiesDialog(
     book: Book,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,

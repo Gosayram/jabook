@@ -21,7 +21,7 @@ import androidx.media3.common.MediaMetadata
  *
  * Provides convenient methods for building MediaMetadata from domain models.
  */
-object MediaMetadataBuilder {
+public object MediaMetadataBuilder {
     /**
      * Builds MediaMetadata from book and chapter information.
      *
@@ -31,7 +31,7 @@ object MediaMetadataBuilder {
      * @param duration The track duration in milliseconds (optional)
      * @return MediaMetadata instance
      */
-    fun buildMetadata(
+    public fun buildMetadata(
         bookTitle: String,
         chapterTitle: String? = null,
         author: String? = null,
@@ -56,7 +56,7 @@ object MediaMetadataBuilder {
     /**
      * Builds MediaMetadata from a single title.
      */
-    fun buildSimpleMetadata(title: String): MediaMetadata =
+    public fun buildSimpleMetadata(title: String): MediaMetadata =
         MediaMetadata
             .Builder()
             .setTitle(title)

@@ -36,7 +36,7 @@ import javax.inject.Singleton
  * Manages session lifecycle and coordinates between SessionManager and Service
  */
 @Singleton
-class TorrentManager
+public class TorrentManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -55,7 +55,7 @@ class TorrentManager
         /**
          * Initialize torrent system
          */
-        fun initialize() {
+        public fun initialize() : Unit {
             if (isInitialized) {
                 Log.w(TAG, "Already initialized")
                 return
@@ -86,7 +86,7 @@ class TorrentManager
         /**
          * Add torrent and start download service
          */
-        fun addTorrent(
+        public fun addTorrent(
             magnetUri: String,
             savePath: String,
             selectedFileIndices: List<Int>? = null,
@@ -107,7 +107,7 @@ class TorrentManager
         /**
          * Remove torrent
          */
-        fun removeTorrent(
+        public fun removeTorrent(
             hash: String,
             deleteFiles: Boolean = false,
         ) {
@@ -122,21 +122,21 @@ class TorrentManager
         /**
          * Pause torrent
          */
-        fun pauseTorrent(hash: String) {
+        public fun pauseTorrent(hash: String) {
             sessionManager.pauseTorrent(hash)
         }
 
         /**
          * Resume torrent
          */
-        fun resumeTorrent(hash: String) {
+        public fun resumeTorrent(hash: String) {
             sessionManager.resumeTorrent(hash)
         }
 
         /**
          * Stop torrent (remove from session but keep in DB)
          */
-        fun stopTorrent(
+        public fun stopTorrent(
             hash: String,
             deleteFiles: Boolean = false,
         ) {
@@ -146,14 +146,14 @@ class TorrentManager
         /**
          * Pause all torrents
          */
-        fun pauseAll() {
+        public fun pauseAll() : Unit {
             sessionManager.pauseAll()
         }
 
         /**
          * Move torrent to new path
          */
-        fun moveTorrent(
+        public fun moveTorrent(
             hash: String,
             newPath: String,
         ) {
@@ -163,26 +163,26 @@ class TorrentManager
         /**
          * Resume all torrents
          */
-        fun resumeAll() {
+        public fun resumeAll() : Unit {
             sessionManager.resumeAll()
         }
 
         /**
          * Get specific download
          */
-        fun getDownload(hash: String): TorrentDownload? = sessionManager.getDownload(hash)
+        public fun getDownload(hash: String): TorrentDownload? = sessionManager.getDownload(hash)
 
         /**
          * Enable streaming mode for torrent
          */
-        fun enableStreaming(hash: String) {
+        public fun enableStreaming(hash: String) {
             sessionManager.setSequentialDownload(hash, true)
         }
 
         /**
          * Prioritize specific file (e.g. for streaming)
          */
-        fun prioritizeFile(
+        public fun prioritizeFile(
             hash: String,
             fileIndex: Int,
             priority: Int,
@@ -193,7 +193,7 @@ class TorrentManager
         /**
          * Prioritize multiple files
          */
-        fun prioritizeFiles(
+        public fun prioritizeFiles(
             hash: String,
             priorities: List<Int>,
         ) {
@@ -203,7 +203,7 @@ class TorrentManager
         /**
          * Check if file is ready for streaming
          */
-        fun isFileReadyForStreaming(
+        public fun isFileReadyForStreaming(
             hash: String,
             fileIndex: Int,
         ): Boolean = sessionManager.isFileReadyForStreaming(hash, fileIndex)
@@ -211,7 +211,7 @@ class TorrentManager
         /**
          * Get downloaded bytes
          */
-        fun getDownloadedBytes(
+        public fun getDownloadedBytes(
             hash: String,
             fileIndex: Int,
         ): Long = sessionManager.getDownloadedBytes(hash, fileIndex)
@@ -219,7 +219,7 @@ class TorrentManager
         /**
          * Delete all torrents
          */
-        fun deleteAllTorrents(deleteFiles: Boolean) {
+        public fun deleteAllTorrents(deleteFiles: Boolean) {
             val hashes = downloadsFlow.value.keys.toList()
             hashes.forEach { hash ->
                 sessionManager.removeTorrent(hash, deleteFiles)
@@ -230,7 +230,7 @@ class TorrentManager
         /**
          * Shutdown torrent system
          */
-        fun shutdown() {
+        public fun shutdown() : Unit {
             try {
                 sessionManager.stopSession()
                 stopDownloadService()
@@ -373,7 +373,7 @@ class TorrentManager
             }
         }
 
-        companion object {
+        public companion object {
             private const val TAG = "TorrentManager"
         }
     }

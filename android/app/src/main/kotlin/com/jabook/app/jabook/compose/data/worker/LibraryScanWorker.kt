@@ -41,7 +41,7 @@ import com.jabook.app.jabook.compose.domain.model.Result as DomainResult
  * WorkManager worker for scanning local audiobooks in background.
  */
 @HiltWorker
-class LibraryScanWorker
+public class LibraryScanWorker
     @AssistedInject
     constructor(
         @Assisted appContext: Context,

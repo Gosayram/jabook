@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * Sleep timer automatically pauses audio playback after a specified duration.
  */
-interface SleepTimerRepository {
+public interface SleepTimerRepository {
     /**
      * Current timer state.
      */
@@ -33,15 +33,15 @@ interface SleepTimerRepository {
      *
      * @param durationMinutes Duration in minutes before auto-pause
      */
-    fun startTimer(durationMinutes: Int)
+    public fun startTimer(durationMinutes: Int)
 
     /**
      * Start sleep timer for end of chapter.
      */
-    fun startTimerEndOfChapter()
+    public fun startTimerEndOfChapter()
 
     /**
      * Cancel active timer.
      */
-    fun cancelTimer()
+    public fun cancelTimer()
 }

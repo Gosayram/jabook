@@ -51,7 +51,7 @@ import kotlinx.coroutines.job
  * ```
  */
 @Composable
-fun RunOnFirstComposition(block: () -> Unit) {
+public fun RunOnFirstComposition(block: () -> Unit) {
     LaunchedEffect(Unit) {
         coroutineContext.job.invokeOnCompletion { error ->
             if (error == null) {
@@ -76,7 +76,7 @@ fun RunOnFirstComposition(block: () -> Unit) {
  * ```
  */
 @Composable
-fun rememberSystemBarStyle(): SystemBarStyle {
+public fun rememberSystemBarStyle(): SystemBarStyle {
     // Use isSystemInDarkTheme to detect dark theme (simpler and more reliable)
     val isDark = isSystemInDarkTheme()
 

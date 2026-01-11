@@ -39,7 +39,7 @@ import javax.inject.Singleton
  * - Retry logic
  */
 @Singleton
-class DownloadQueueManager
+public class DownloadQueueManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -55,7 +55,7 @@ class DownloadQueueManager
          * @param savePath Directory to save files
          * @return Work ID for tracking
          */
-        fun enqueueDownload(
+        public fun enqueueDownload(
             bookId: String,
             bookTitle: String,
             magnetUri: String,
@@ -98,21 +98,21 @@ class DownloadQueueManager
         /**
          * Cancel a download by book ID.
          */
-        fun cancelDownload(bookId: String) {
+        public fun cancelDownload(bookId: String) {
             workManager.cancelUniqueWork("download_$bookId")
         }
 
         /**
          * Cancel a download by work ID.
          */
-        fun cancelDownload(workId: UUID) {
+        public fun cancelDownload(workId: UUID) {
             workManager.cancelWorkById(workId)
         }
 
         /**
          * Get download progress as a Flow.
          */
-        fun getDownloadProgress(workId: UUID): Flow<DownloadProgressInfo?> =
+        public fun getDownloadProgress(workId: UUID): Flow<DownloadProgressInfo?> =
             workManager
                 .getWorkInfoByIdFlow(workId)
                 .map { workInfo ->
@@ -122,7 +122,7 @@ class DownloadQueueManager
         /**
          * Get all active downloads.
          */
-        fun getActiveDownloads(): Flow<List<DownloadProgressInfo>> =
+        public fun getActiveDownloads(): Flow<List<DownloadProgressInfo>> =
             workManager
                 .getWorkInfosByTagFlow("download")
                 .map { workInfos ->
@@ -159,7 +159,7 @@ class DownloadQueueManager
 /**
  * Download progress information from WorkManager.
  */
-data class DownloadProgressInfo(
+public data class DownloadProgressInfo(
     val workId: UUID,
     val bookId: String,
     val bookTitle: String,

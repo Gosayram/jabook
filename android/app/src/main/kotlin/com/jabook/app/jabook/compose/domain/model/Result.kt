@@ -22,13 +22,13 @@ package com.jabook.app.jabook.compose.domain.model
  *
  * @param T The type of data on success
  */
-sealed interface Result<out T> {
+public sealed interface Result<out T> {
     /**
      * Operation completed successfully with data.
      *
      * @property data The successful result data
      */
-    data class Success<T>(
+    public data class Success<T>(
         val data: T,
     ) : Result<T>
 
@@ -38,7 +38,7 @@ sealed interface Result<out T> {
      * @property exception The exception that caused the failure
      * @property message Optional user-friendly error message
      */
-    data class Error(
+    public data class Error(
         val exception: Throwable,
         val message: String? = exception.message,
     ) : Result<Nothing>

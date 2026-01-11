@@ -20,7 +20,7 @@ package com.jabook.app.jabook.compose.data.model
  * This enum is used to track the state of content downloads
  * and is stored as a string in the database.
  */
-enum class DownloadStatus {
+public enum class DownloadStatus {
     /**
      * Content is not downloaded and must be streamed.
      */
@@ -45,12 +45,12 @@ enum class DownloadStatus {
 
     ;
 
-    companion object {
+    public companion object {
         /**
          * Safely convert from database string to enum.
          * Returns NOT_DOWNLOADED if string is invalid.
          */
-        fun fromString(value: String?): DownloadStatus =
+        public fun fromString(value: String?): DownloadStatus =
             runCatching {
                 valueOf(value ?: "NOT_DOWNLOADED")
             }.getOrDefault(NOT_DOWNLOADED)

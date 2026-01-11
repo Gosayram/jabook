@@ -57,7 +57,7 @@ import javax.inject.Singleton
  * Inspired by Material-3-Music-Player and Rhythm implementations.
  */
 @Singleton
-class AudioPlayerController
+public class AudioPlayerController
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -104,7 +104,7 @@ class AudioPlayerController
          * Set callback to handle chapter end events.
          * Callback should return true if chapter should be repeated, false to continue to next.
          */
-        fun setOnChapterEndedCallback(callback: (() -> Boolean)?) {
+        public fun setOnChapterEndedCallback(callback: (() -> Boolean)?) {
             onChapterEndedCallback = callback
         }
 
@@ -336,14 +336,14 @@ class AudioPlayerController
             updateStats(exoPlayer)
         }
 
-        fun setPitchCorrectionEnabled(enabled: Boolean) {
+        public fun setPitchCorrectionEnabled(enabled: Boolean) {
             _pitchCorrectionEnabled.value = enabled
         }
 
         /**
          * Load and play a book.
          */
-        fun loadBook(
+        public fun loadBook(
             filePaths: List<String>,
             initialChapterIndex: Int = 0,
             initialPosition: Long = 0,
@@ -447,44 +447,44 @@ class AudioPlayerController
             }
         }
 
-        fun play() {
+        public fun play() : Unit {
             startService()
             mediaController?.play() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for play(), service may not be ready")
             }
         }
 
-        fun pause() {
+        public fun pause() : Unit {
             mediaController?.pause() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for pause(), service may not be ready")
             }
         }
 
-        fun seekTo(positionMs: Long) {
+        public fun seekTo(positionMs: Long) {
             mediaController?.seekTo(positionMs) ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for seekTo(), service may not be ready")
             }
         }
 
-        fun skipToNext() {
+        public fun skipToNext() : Unit {
             mediaController?.seekToNext() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToNext(), service may not be ready")
             }
         }
 
-        fun skipToPrevious() {
+        public fun skipToPrevious() : Unit {
             mediaController?.seekToPrevious() ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToPrevious(), service may not be ready")
             }
         }
 
-        fun skipToChapter(index: Int) {
+        public fun skipToChapter(index: Int) {
             mediaController?.seekTo(index, 0) ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToChapter(), service may not be ready")
             }
         }
 
-        fun setPlaybackSpeed(speed: Float) {
+        public fun setPlaybackSpeed(speed: Float) {
             mediaController?.setPlaybackSpeed(speed) ?: run {
                 android.util.Log.w(
                     "AudioPlayerController",
@@ -526,7 +526,7 @@ class AudioPlayerController
          * Releases MediaController resources.
          * Should be called when controller is no longer needed.
          */
-        fun release() {
+        public fun release() : Unit {
             mediaController?.removeListener(mediaControllerListener)
             mediaController?.release()
             mediaController = null

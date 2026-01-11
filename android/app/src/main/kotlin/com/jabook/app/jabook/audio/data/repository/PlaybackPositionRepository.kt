@@ -28,7 +28,7 @@ import javax.inject.Singleton
  * Provides offline-first access to playback positions with reactive Flow API.
  */
 @Singleton
-class PlaybackPositionRepository
+public class PlaybackPositionRepository
     @Inject
     constructor(
         private val positionDao: PlaybackPositionDao,
@@ -37,7 +37,7 @@ class PlaybackPositionRepository
          * Gets the playback position for a book.
          * Returns Flow<Result<PlaybackPositionEntity?>> for reactive updates.
          */
-        fun getPosition(bookId: String): Flow<Result<PlaybackPositionEntity?>> = positionDao.getPosition(bookId).asResult()
+        public fun getPosition(bookId: String): Flow<Result<PlaybackPositionEntity?>> = positionDao.getPosition(bookId).asResult()
 
         /**
          * Saves a playback position.
@@ -75,5 +75,5 @@ class PlaybackPositionRepository
         /**
          * Gets all playback positions.
          */
-        fun getAllPositions(): Flow<Result<List<PlaybackPositionEntity>>> = positionDao.getAllPositions().asResult()
+        public fun getAllPositions(): Flow<Result<List<PlaybackPositionEntity>>> = positionDao.getAllPositions().asResult()
     }

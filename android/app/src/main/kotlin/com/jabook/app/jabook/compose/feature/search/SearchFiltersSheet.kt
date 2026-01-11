@@ -57,7 +57,7 @@ import com.jabook.app.jabook.compose.domain.model.SearchFilters
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchFiltersSheet(
+public fun SearchFiltersSheet(
     filters: SearchFilters,
     onApplyFilters: (SearchFilters) -> Unit,
     onDismiss: () -> Unit,

@@ -44,13 +44,13 @@ import javax.inject.Singleton
  */
 @Module
 @InstallIn(SingletonComponent::class)
-object NetworkModule {
+public object NetworkModule {
     /**
      * Provide JSON serializer for Retrofit.
      */
     @Provides
     @Singleton
-    fun provideJson(): Json =
+    public fun provideJson(): Json =
         Json {
             ignoreUnknownKeys = true
             isLenient = true
@@ -66,7 +66,7 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideLoggingInterceptor(): HttpLoggingInterceptor =
+    public fun provideLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY // Use BASIC or HEADERS for production
         }
@@ -78,7 +78,7 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideMirrorManager(
+    public fun provideMirrorManager(
         settingsRepository: SettingsRepository,
         cookieJar: PersistentCookieJar,
     ): MirrorManager {
@@ -99,7 +99,7 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideRetryInterceptor(): com.jabook.app.jabook.compose.data.network.RetryInterceptor =
+    public fun provideRetryInterceptor(): com.jabook.app.jabook.compose.data.network.RetryInterceptor =
         com.jabook.app.jabook.compose.data.network
             .RetryInterceptor()
 
@@ -108,14 +108,14 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideDynamicBaseUrlInterceptor(mirrorManager: MirrorManager): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(mirrorManager)
+    public fun provideDynamicBaseUrlInterceptor(mirrorManager: MirrorManager): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(mirrorManager)
 
     /**
      * Provide OkHttp client with cookie persistence, auto re-auth, dynamic base URL, proper headers, and logging.
      */
     @Provides
     @Singleton
-    fun provideOkHttpClient(
+    public fun provideOkHttpClient(
         cookieJar: PersistentCookieJar,
         authInterceptor: AuthInterceptor,
         loggingInterceptor: HttpLoggingInterceptor,
@@ -159,7 +159,7 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideRetrofit(
+    public fun provideRetrofit(
         okHttpClient: OkHttpClient,
         json: Json,
     ): Retrofit {
@@ -182,7 +182,7 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideRutrackerApi(retrofit: Retrofit): RutrackerApi = retrofit.create(RutrackerApi::class.java)
+    public fun provideRutrackerApi(retrofit: Retrofit): RutrackerApi = retrofit.create(RutrackerApi::class.java)
 }
 
 /**

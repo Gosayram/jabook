@@ -25,7 +25,7 @@ import java.io.OutputStream
  *
  * Handles serialization and deserialization of UserPreferences protobuf messages.
  */
-object UserPreferencesSerializer : Serializer<UserPreferences> {
+public object UserPreferencesSerializer : Serializer<UserPreferences> {
     override val defaultValue: UserPreferences =
         UserPreferences
             .newBuilder()

@@ -35,7 +35,7 @@ import kotlin.math.pow
  * but effective alternative for speech content.
  */
 @UnstableApi
-class LoudnessNormalizer(
+public class LoudnessNormalizer(
     private val settings: AudioProcessingSettings,
 ) : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
@@ -312,7 +312,7 @@ class LoudnessNormalizer(
      *
      * @param replayGainDb ReplayGain value in dB
      */
-    fun setReplayGain(replayGainDb: Float) {
+    public fun setReplayGain(replayGainDb: Float) {
         this.replayGainDb = replayGainDb
         // Convert dB to linear gain
         gainMultiplier = 10.0.pow((replayGainDb / 20.0).toDouble()).toFloat()
@@ -321,7 +321,7 @@ class LoudnessNormalizer(
         android.util.Log.d("LoudnessNormalizer", "ReplayGain set: ${replayGainDb}dB -> ${gainMultiplier}x")
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

@@ -36,7 +36,7 @@ import androidx.media3.exoplayer.ExoPlayer
  * Note: This requires manual playlist management (queueing one track at a time)
  * rather than ExoPlayer's ConcatenatingMediaSource.
  */
-class CrossFadePlayer(
+public class CrossFadePlayer(
     private val context: Context,
     private val playerFactory: (Context) -> ExoPlayer,
 ) {
@@ -55,7 +55,7 @@ class CrossFadePlayer(
     /**
      * Prepares the next player with the given media item.
      */
-    fun setNextTrack(mediaItem: MediaItem) {
+    public fun setNextTrack(mediaItem: MediaItem) {
         nextPlayer.setMediaItem(mediaItem)
         nextPlayer.prepare()
         android.util.Log.d("CrossFadePlayer", "Next track prepared on $nextPlayer")
@@ -64,7 +64,7 @@ class CrossFadePlayer(
     /**
      * Prepares the next player with the given media source.
      */
-    fun setNextMediaSource(mediaSource: androidx.media3.exoplayer.source.MediaSource) {
+    public fun setNextMediaSource(mediaSource: androidx.media3.exoplayer.source.MediaSource) {
         nextPlayer.setMediaSource(mediaSource)
         nextPlayer.prepare()
         android.util.Log.d("CrossFadePlayer", "Next media source prepared on $nextPlayer")
@@ -73,7 +73,7 @@ class CrossFadePlayer(
     /**
      * Starts playback on the current player.
      */
-    fun play() {
+    public fun play() : Unit {
         if (!isCrossFading) {
             currentPlayer.play()
         }
@@ -82,7 +82,7 @@ class CrossFadePlayer(
     /**
      * Pauses playback on all players.
      */
-    fun pause() {
+    public fun pause() : Unit {
         currentPlayer.pause()
         nextPlayer.pause()
         currentAnimator?.pause()
@@ -91,7 +91,7 @@ class CrossFadePlayer(
     /**
      * Stops playback and releases resources.
      */
-    fun release() {
+    public fun release() : Unit {
         playerA.release()
         playerB.release()
         currentAnimator?.cancel()
@@ -102,7 +102,7 @@ class CrossFadePlayer(
      *
      * @param onComplete Callback when crossfade is finished.
      */
-    fun startCrossFade(onComplete: () -> Unit = {}) {
+    public fun startCrossFade(onComplete: () -> Unit = {}) {
         if (isCrossFading) return
         isCrossFading = true
 
@@ -169,7 +169,7 @@ class CrossFadePlayer(
     /**
      * Returns the currently active player (for UI/State queries).
      */
-    fun getActivePlayer(): ExoPlayer = currentPlayer
+    public fun getActivePlayer(): ExoPlayer = currentPlayer
 
-    fun getNextPlayer(): ExoPlayer = nextPlayer
+    public fun getNextPlayer(): ExoPlayer = nextPlayer
 }

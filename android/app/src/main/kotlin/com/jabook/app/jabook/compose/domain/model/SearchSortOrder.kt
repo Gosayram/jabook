@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.domain.model
 /**
  * Sorting order for search results.
  */
-enum class SearchSortOrder {
+public enum class SearchSortOrder {
     RELEVANCE,
     DATE_DESC,
     DATE_ASC,

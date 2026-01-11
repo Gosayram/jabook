@@ -39,7 +39,7 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 
 @HiltViewModel
-class TorrentDetailsViewModel
+public class TorrentDetailsViewModel
     @Inject
     constructor(
         private val torrentManager: TorrentManager,
@@ -64,7 +64,7 @@ class TorrentDetailsViewModel
         private val _navigationEvent = MutableSharedFlow<String>()
         val navigationEvent = _navigationEvent.asSharedFlow()
 
-        fun playFile(file: TorrentFile) {
+        public fun playFile(file: TorrentFile) {
             viewModelScope.launch {
                 val currentDownload = download.value ?: return@launch
 
@@ -159,7 +159,7 @@ class TorrentDetailsViewModel
             // For now, removing onCleared stop to allow background playback monitoring.
         }
 
-        fun updateFileSelection(selectedIndices: Set<Int>) {
+        public fun updateFileSelection(selectedIndices: Set<Int>) {
             val currentDownload = download.value ?: return
             val files = currentDownload.files
 

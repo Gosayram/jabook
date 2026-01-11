@@ -46,7 +46,7 @@ import java.util.concurrent.Executors
  */
 @OptIn(UnstableApi::class)
 @Suppress("DEPRECATION") // BitmapLoader is deprecated in Media3 but still required
-class GlideBitmapLoader(
+public class GlideBitmapLoader(
     private val context: Context,
 ) : BitmapLoader {
     // Executor for Glide operations to avoid blocking UI thread
@@ -197,7 +197,7 @@ class GlideBitmapLoader(
      * Clears Glide memory cache.
      * Should be called when memory is low.
      */
-    fun clearMemoryCache() {
+    public fun clearMemoryCache() : Unit {
         android.util.Log.d("GlideBitmapLoader", "Clearing Glide memory cache")
         Glide.get(context).clearMemory()
     }
@@ -206,7 +206,7 @@ class GlideBitmapLoader(
      * Clears Glide disk cache.
      * Should be called on background thread.
      */
-    fun clearDiskCache() {
+    public fun clearDiskCache() : Unit {
         executorService.execute {
             android.util.Log.d("GlideBitmapLoader", "Clearing Glide disk cache")
             Glide.get(context).clearDiskCache()

@@ -31,16 +31,16 @@ import javax.inject.Singleton
  * Based on Flutter implementation with defensive programming enhancements.
  */
 @Singleton
-class CategoryParser
+public class CategoryParser
     @Inject
     constructor(
         private val mirrorManager: MirrorManager,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "CategoryParser"
 
             // RuTracker audiobooks category ID
-            const val AUDIOBOOKS_CATEGORY_ID = "33"
+            public const val AUDIOBOOKS_CATEGORY_ID = "33"
 
             // CSS Selectors
             private const val CATEGORY_ROOT_PREFIX = "#c-"
@@ -86,7 +86,7 @@ class CategoryParser
          * @param html HTML content (already decoded)
          * @return ParsingResult with list of categories
          */
-        fun parseCategories(html: String): ParsingResult<List<AudiobookCategory>> {
+        public fun parseCategories(html: String): ParsingResult<List<AudiobookCategory>> {
             val errors = mutableListOf<ParsingError>()
             val categories = mutableListOf<AudiobookCategory>()
 

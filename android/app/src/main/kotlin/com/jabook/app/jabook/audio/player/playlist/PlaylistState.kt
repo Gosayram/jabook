@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Provides reactive state updates through StateFlow.
  * This is the single source of truth for playlist state.
  */
-class PlaylistState {
+public class PlaylistState {
     private val _playlist = MutableStateFlow<Playlist?>(null)
     val playlist: StateFlow<Playlist?> = _playlist.asStateFlow()
 
@@ -38,7 +38,7 @@ class PlaylistState {
     /**
      * Updates the playlist.
      */
-    fun updatePlaylist(playlist: Playlist?) {
+    public fun updatePlaylist(playlist: Playlist?) {
         _playlist.value = playlist
         if (playlist != null) {
             _actualTrackIndex.value = playlist.currentIndex
@@ -48,7 +48,7 @@ class PlaylistState {
     /**
      * Updates the loading state.
      */
-    fun setLoading(loading: Boolean) {
+    public fun setLoading(loading: Boolean) {
         _isLoading.value = loading
     }
 
@@ -56,7 +56,7 @@ class PlaylistState {
      * Updates the actual track index.
      * This should be called from onMediaItemTransition event.
      */
-    fun updateActualTrackIndex(index: Int) {
+    public fun updateActualTrackIndex(index: Int) {
         _actualTrackIndex.value = index
         _playlist.value?.let { playlist ->
             _playlist.value = playlist.withCurrentIndex(index)
@@ -66,17 +66,17 @@ class PlaylistState {
     /**
      * Gets the current playlist.
      */
-    fun getCurrentPlaylist(): Playlist? = _playlist.value
+    public fun getCurrentPlaylist(): Playlist? = _playlist.value
 
     /**
      * Gets the current track index.
      */
-    fun getCurrentTrackIndex(): Int = _actualTrackIndex.value
+    public fun getCurrentTrackIndex(): Int = _actualTrackIndex.value
 
     /**
      * Resets the state.
      */
-    fun reset() {
+    public fun reset() : Unit {
         _playlist.value = null
         _isLoading.value = false
         _actualTrackIndex.value = 0

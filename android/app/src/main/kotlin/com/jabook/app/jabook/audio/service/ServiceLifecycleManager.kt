@@ -22,7 +22,7 @@ import javax.inject.Inject
  *
  * Handles saving state when service is destroyed and restoring when service is created.
  */
-class ServiceLifecycleManager
+public class ServiceLifecycleManager
     @Inject
     constructor(
         private val positionSaver: PositionSaver,
@@ -47,7 +47,7 @@ class ServiceLifecycleManager
          * Called when service is created.
          * Prepares for playback restoration.
          */
-        fun onServiceCreated() {
+        public fun onServiceCreated() : Unit {
             // Service is ready, position restoration will be handled by RestorePlaybackUseCase
         }
     }

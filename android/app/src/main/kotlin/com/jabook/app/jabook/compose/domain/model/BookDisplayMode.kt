@@ -27,7 +27,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
  * This enum is used to unify display methods for books
  * across all app screens (Library, Search, Favorites).
  */
-enum class BookDisplayMode {
+public enum class BookDisplayMode {
     /**
      * Compact grid - 3 columns on phone, 6 on tablet.
      * Maximum display density for viewing large collections.
@@ -57,12 +57,12 @@ enum class BookDisplayMode {
     /**
      * Checks if the mode is a grid variant.
      */
-    fun isGrid(): Boolean = this == GRID_COMPACT || this == GRID_COMFORTABLE
+    public fun isGrid(): Boolean = this == GRID_COMPACT || this == GRID_COMFORTABLE
 
     /**
      * Checks if the mode is a list variant.
      */
-    fun isList(): Boolean = !isGrid()
+    public fun isList(): Boolean = !isGrid()
 
     /**
      * Returns GridCells configuration for this mode.
@@ -75,7 +75,7 @@ enum class BookDisplayMode {
         message = "Use getGridCells(windowSizeClass) instead",
         replaceWith = ReplaceWith("getGridCells(WindowSizeClass)"),
     )
-    fun getGridCells(isTablet: Boolean): GridCells? =
+    public fun getGridCells(isTablet: Boolean): GridCells? =
         when (this) {
             GRID_COMPACT -> GridCells.Fixed(if (isTablet) 6 else 3)
             GRID_COMFORTABLE -> GridCells.Fixed(if (isTablet) 4 else 2)
@@ -90,7 +90,7 @@ enum class BookDisplayMode {
      * @param windowSizeClass Window size class for adaptive layout
      * @return GridCells configuration or null for list modes
      */
-    fun getGridCells(windowSizeClass: WindowSizeClass): GridCells? =
+    public fun getGridCells(windowSizeClass: WindowSizeClass): GridCells? =
         when (this) {
             GRID_COMPACT -> GridCells.Fixed(AdaptiveUtils.getCompactGridColumns(windowSizeClass))
             GRID_COMFORTABLE -> GridCells.Fixed(AdaptiveUtils.getComfortableGridColumns(windowSizeClass))
@@ -102,7 +102,7 @@ enum class BookDisplayMode {
      *
      * @return Cover size in dp or null for grid modes
      */
-    fun getListCoverSize(): Int? =
+    public fun getListCoverSize(): Int? =
         when (this) {
             LIST_COMPACT -> 48
             LIST_DEFAULT -> 80

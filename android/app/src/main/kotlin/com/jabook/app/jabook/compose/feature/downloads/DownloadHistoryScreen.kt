@@ -69,7 +69,7 @@ import java.util.Locale
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun DownloadHistoryScreen(
+public fun DownloadHistoryScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DownloadHistoryViewModel = hiltViewModel(),

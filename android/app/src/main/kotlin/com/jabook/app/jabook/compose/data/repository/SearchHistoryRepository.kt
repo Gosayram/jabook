@@ -26,7 +26,7 @@ import javax.inject.Singleton
  * Manages recent search queries with persistence.
  */
 @Singleton
-class SearchHistoryRepository
+public class SearchHistoryRepository
     @Inject
     constructor(
         private val searchHistoryDao: SearchHistoryDao,
@@ -34,7 +34,7 @@ class SearchHistoryRepository
         /**
          * Get recent searches as Flow.
          */
-        fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>> = searchHistoryDao.getRecentSearches(limit)
+        public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>> = searchHistoryDao.getRecentSearches(limit)
 
         /**
          * Save a search query to history.

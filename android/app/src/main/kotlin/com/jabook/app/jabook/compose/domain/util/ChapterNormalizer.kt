@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.domain.util
 
-object ChapterNormalizer {
+public object ChapterNormalizer {
     /**
      * Normalizes chapter titles for a collection of chapters.
      * Preserves special titles like "Prologue", "Epilogue", "Intro", "Outro".
@@ -23,7 +23,7 @@ object ChapterNormalizer {
      * @param titles List of existing chapter titles in order.
      * @return List of normalized titles.
      */
-    fun normalizeTitles(titles: List<String>): List<String> =
+    public fun normalizeTitles(titles: List<String>): List<String> =
         titles.mapIndexed { index, title ->
             val lower = title.lowercase()
             when {

@@ -29,7 +29,7 @@ import javax.inject.Singleton
  * - Memory-efficient cache key generation
  */
 @Singleton
-class RutrackerSearchCache
+public class RutrackerSearchCache
     @Inject
     constructor() {
         // Cache storage: key -> CacheEntry
@@ -45,7 +45,7 @@ class RutrackerSearchCache
          * @param forumIds Optional forum filter
          * @return Cached results or null if not found/expired
          */
-        fun get(
+        public fun get(
             query: String,
             forumIds: String? = null,
         ): List<SearchResult>? {
@@ -77,7 +77,7 @@ class RutrackerSearchCache
          * @param forumIds Optional forum filter
          * @param results Search results to cache
          */
-        fun put(
+        public fun put(
             query: String,
             forumIds: String?,
             results: List<SearchResult>,
@@ -110,7 +110,7 @@ class RutrackerSearchCache
         /**
          * Clear all cached search results.
          */
-        fun clear() {
+        public fun clear() : Unit {
             cache.clear()
             synchronized(accessOrder) {
                 accessOrder.clear()
@@ -120,7 +120,7 @@ class RutrackerSearchCache
         /**
          * Get approximate cache size in bytes.
          */
-        fun getCacheSize(): Long {
+        public fun getCacheSize(): Long {
             // Rough estimation: each SearchResult ~500 bytes
             // Synchronize access to cache to prevent concurrent modification
             val resultsCount =
@@ -133,7 +133,7 @@ class RutrackerSearchCache
         /**
          * Get cache statistics.
          */
-        fun getStatistics(): CacheStatistics {
+        public fun getStatistics(): CacheStatistics {
             // Synchronize access to cache to prevent concurrent modification
             val entries =
                 synchronized(cache) {
@@ -168,13 +168,13 @@ class RutrackerSearchCache
             val results: List<SearchResult>,
             val timestamp: Long,
         ) {
-            fun isExpired(): Boolean = (System.currentTimeMillis() - timestamp) > CACHE_TTL_MS
+            public fun isExpired(): Boolean = (System.currentTimeMillis() - timestamp) > CACHE_TTL_MS
         }
 
         /**
          * Cache statistics.
          */
-        data class CacheStatistics(
+        public data class CacheStatistics(
             val entriesCount: Int,
             val totalResults: Int,
             val estimatedSize: Long,
@@ -182,7 +182,7 @@ class RutrackerSearchCache
             val newestEntry: Long,
         )
 
-        companion object {
+        public companion object {
             // Cache TTL: 30 minutes
             private const val CACHE_TTL_MS = 30 * 60 * 1000L
 

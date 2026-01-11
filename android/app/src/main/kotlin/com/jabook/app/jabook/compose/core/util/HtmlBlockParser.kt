@@ -24,18 +24,18 @@ import org.jsoup.nodes.Node
 /**
  * Represents a block of content parsed from HTML.
  */
-sealed interface DescriptionBlock {
+public sealed interface DescriptionBlock {
     /**
      * Standard text content (rich text).
      */
-    data class Text(
+    public data class Text(
         val content: AnnotatedString,
     ) : DescriptionBlock
 
     /**
      * Collapsible spoiler block.
      */
-    data class Spoiler(
+    public data class Spoiler(
         val title: AnnotatedString,
         val content: List<DescriptionBlock>,
     ) : DescriptionBlock
@@ -44,11 +44,11 @@ sealed interface DescriptionBlock {
 /**
  * Utility for parsing HTML into structured blocks (Text and Spoilers).
  */
-object HtmlBlockParser {
+public object HtmlBlockParser {
     /**
      * Parse HTML string into a list of DescriptionBlocks.
      */
-    fun parse(
+    public fun parse(
         html: String,
         linkColor: Color = Color(0xFF2196F3),
     ): List<DescriptionBlock> {
@@ -72,7 +72,7 @@ object HtmlBlockParser {
         // Accumulate text nodes to minimize fragmentation
         val currentTextHtml = StringBuilder()
 
-        fun flushText() {
+        fun flushText() : Unit {
             if (currentTextHtml.isNotEmpty()) {
                 val text = HtmlToAnnotatedString.convert(currentTextHtml.toString(), linkColor)
                 if (text.isNotEmpty()) {

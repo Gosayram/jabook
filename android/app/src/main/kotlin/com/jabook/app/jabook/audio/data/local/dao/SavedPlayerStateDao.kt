@@ -24,7 +24,7 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
  * Data Access Object for saved player states.
  */
 @Dao
-interface SavedPlayerStateDao {
+public interface SavedPlayerStateDao {
     /**
      * Gets the saved player state for a group path.
      */

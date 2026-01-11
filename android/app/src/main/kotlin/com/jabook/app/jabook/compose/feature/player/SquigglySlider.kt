@@ -63,7 +63,7 @@ import kotlin.math.sin
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SquigglySlider(
+public fun SquigglySlider(
     value: Float,
     onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier,

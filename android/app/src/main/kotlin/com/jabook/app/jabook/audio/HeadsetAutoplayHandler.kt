@@ -29,11 +29,11 @@ import android.util.Log
  * - Listens for Bluetooth device connection events (ACTION_ACL_CONNECTED)
  * - Resumes playback if it was paused
  */
-class HeadsetAutoplayHandler(
+public class HeadsetAutoplayHandler(
     private val context: Context,
     private val onHeadsetConnected: () -> Unit,
 ) {
-    companion object {
+    public companion object {
         private const val TAG = "HeadsetAutoplayHandler"
     }
 
@@ -66,7 +66,7 @@ class HeadsetAutoplayHandler(
     /**
      * Starts listening for headset connection events.
      */
-    fun startListening() {
+    public fun startListening() : Unit {
         if (isRegistered) return
 
         val filter =
@@ -82,7 +82,7 @@ class HeadsetAutoplayHandler(
     /**
      * Stops listening for events.
      */
-    fun stopListening() {
+    public fun stopListening() : Unit {
         if (!isRegistered) return
 
         try {

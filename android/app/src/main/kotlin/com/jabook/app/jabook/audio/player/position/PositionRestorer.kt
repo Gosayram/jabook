@@ -24,7 +24,7 @@ import javax.inject.Inject
  *
  * Loads saved playback position from local storage and applies it to the player.
  */
-class PositionRestorer
+public class PositionRestorer
     @Inject
     constructor(
         private val restorePlaybackUseCase: RestorePlaybackUseCase,
@@ -43,7 +43,7 @@ class PositionRestorer
          * @param playerManager The ExoPlayer manager
          * @param playbackState The restored playback state
          */
-        fun applyRestoredState(
+        public fun applyRestoredState(
             playerManager: com.jabook.app.jabook.audio.player.exoplayer.ExoPlayerManager,
             playbackState: PlaybackState,
         ) {

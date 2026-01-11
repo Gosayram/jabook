@@ -36,31 +36,31 @@ import dagger.assisted.AssistedInject
  * - Can be retried on failure
  */
 @HiltWorker
-class DownloadWorker
+public class DownloadWorker
     @AssistedInject
     constructor(
         @Assisted context: Context,
         @Assisted params: WorkerParameters,
         private val torrentManager: TorrentManager,
     ) : CoroutineWorker(context, params) {
-        companion object {
+        public companion object {
             private const val TAG = "DownloadWorker"
 
             // Input data keys
-            const val KEY_MAGNET_URI = "magnet_uri"
-            const val KEY_SAVE_PATH = "save_path"
-            const val KEY_BOOK_ID = "book_id"
-            const val KEY_BOOK_TITLE = "book_title"
+            public const val KEY_MAGNET_URI = "magnet_uri"
+            public const val KEY_SAVE_PATH = "save_path"
+            public const val KEY_BOOK_ID = "book_id"
+            public const val KEY_BOOK_TITLE = "book_title"
 
             // Output data keys
-            const val KEY_INFO_HASH = "info_hash"
-            const val KEY_FINAL_PATH = "final_path"
+            public const val KEY_INFO_HASH = "info_hash"
+            public const val KEY_FINAL_PATH = "final_path"
 
             // Progress data keys
-            const val KEY_PROGRESS = "progress"
-            const val KEY_STATE = "state"
-            const val KEY_DOWNLOAD_RATE = "download_rate"
-            const val KEY_NUM_PEERS = "num_peers"
+            public const val KEY_PROGRESS = "progress"
+            public const val KEY_STATE = "state"
+            public const val KEY_DOWNLOAD_RATE = "download_rate"
+            public const val KEY_NUM_PEERS = "num_peers"
         }
 
         override suspend fun doWork(): Result {

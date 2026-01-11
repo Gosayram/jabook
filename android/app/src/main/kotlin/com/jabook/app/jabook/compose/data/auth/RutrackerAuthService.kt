@@ -33,14 +33,14 @@ import javax.inject.Singleton
  * Handles CP1251 encoding and response parsing.
  */
 @Singleton
-class RutrackerAuthService
+public class RutrackerAuthService
     @Inject
     constructor(
         private val api: RutrackerApi,
         private val parser: com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser,
         private val decoder: com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "RutrackerAuthService"
             private val CP1251 = Charset.forName("windows-1251")
             private val MEDIA_TYPE_FORM = "application/x-www-form-urlencoded".toMediaType()
@@ -215,7 +215,7 @@ class RutrackerAuthService
         ): String {
             val sb = StringBuilder()
 
-            fun encode(s: String): String {
+            public fun encode(s: String): String {
                 val bytes = s.toByteArray(CP1251)
                 // Manual percent encoding for CP1251 bytes
                 return bytes.joinToString("") { byte ->
@@ -239,14 +239,14 @@ class RutrackerAuthService
             return sb.toString()
         }
 
-        sealed interface AuthResult {
+        public sealed interface AuthResult {
             data object Success : AuthResult
 
-            data class Error(
+            public data class Error(
                 val message: String,
             ) : AuthResult
 
-            data class Captcha(
+            public data class Captcha(
                 val data: CaptchaData,
             ) : AuthResult
         }

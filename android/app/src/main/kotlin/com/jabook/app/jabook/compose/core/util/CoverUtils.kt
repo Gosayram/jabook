@@ -35,7 +35,7 @@ import java.io.File
 /**
  * Utility object for book cover operations.
  */
-object CoverUtils {
+public object CoverUtils {
     /**
      * Gets the cover image file for a book.
      * Returns File pointing to cover.jpg in book's localPath, or null if book has no local path.
@@ -43,7 +43,7 @@ object CoverUtils {
      * @param book The book to get cover for
      * @return File pointing to cover.jpg, or null
      */
-    fun getCoverFile(book: Book): File? =
+    public fun getCoverFile(book: Book): File? =
         book.localPath?.let { path ->
             File(path, "cover.jpg")
         }
@@ -63,7 +63,7 @@ object CoverUtils {
      * @param context Android context (needed to access app storage)
      * @return File pointing to cover, or coverUrl, or null
      */
-    fun getCoverModel(
+    public fun getCoverModel(
         book: Book,
         context: android.content.Context,
     ): Any? {
@@ -166,7 +166,7 @@ object CoverUtils {
      * @param allowHardware Whether to allow hardware bitmaps for better performance (default: true)
      * @return ImageRequest.Builder ready to build
      */
-    fun createCoverImageRequest(
+    public fun createCoverImageRequest(
         book: Book,
         context: Context,
         placeholderColor: Color = Color(0xFFE0E0E0), // Light gray

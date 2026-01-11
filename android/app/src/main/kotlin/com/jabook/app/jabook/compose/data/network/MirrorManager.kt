@@ -41,13 +41,13 @@ import javax.inject.Singleton
  * - Persistence via SettingsRepository
  */
 @Singleton
-class MirrorManager
+public class MirrorManager
     @Inject
     constructor(
         private val settingsRepository: SettingsRepository,
         private val okHttpClient: OkHttpClient,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "MirrorManager"
 
             /**
@@ -219,14 +219,14 @@ class MirrorManager
          *
          * @return Base URL with current mirror domain
          */
-        fun getBaseUrl(): String = "https://${_currentMirror.value}"
+        public fun getBaseUrl(): String = "https://${_currentMirror.value}"
 
         /**
          * Get current mirror domain synchronously.
          *
          * @return Current mirror domain (e.g., "rutracker.org")
          */
-        fun getCurrentMirrorDomain(): String = _currentMirror.value
+        public fun getCurrentMirrorDomain(): String = _currentMirror.value
 
         /**
          * Remove a custom mirror domain.

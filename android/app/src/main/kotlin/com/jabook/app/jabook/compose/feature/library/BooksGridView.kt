@@ -75,7 +75,7 @@ import com.jabook.app.jabook.compose.domain.model.Book
         ),
 )
 @Composable
-fun BooksGridView(
+public fun BooksGridView(
     books: List<Book>,
     viewMode: LibraryViewMode,
     onBookClick: (String) -> Unit,

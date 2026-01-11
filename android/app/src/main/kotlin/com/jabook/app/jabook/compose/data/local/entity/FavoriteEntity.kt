@@ -27,7 +27,7 @@ import androidx.room.PrimaryKey
     tableName = "favorites",
     indices = [Index(value = ["added_to_favorites"])],
 )
-data class FavoriteEntity(
+public data class FavoriteEntity(
     @PrimaryKey
     @ColumnInfo(name = "topic_id") val topicId: String,
     @ColumnInfo(name = "title") val title: String,

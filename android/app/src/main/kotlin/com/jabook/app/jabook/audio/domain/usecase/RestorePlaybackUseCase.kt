@@ -25,7 +25,7 @@ import javax.inject.Inject
  *
  * Loads saved playback position from local storage.
  */
-class RestorePlaybackUseCase
+public class RestorePlaybackUseCase
     @Inject
     constructor(
         private val positionRepository: PlaybackPositionRepository,

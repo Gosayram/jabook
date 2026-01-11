@@ -42,7 +42,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
  * @param onChapterClick Callback when a chapter is clicked
  */
 @Composable
-fun ChapterList(
+public fun ChapterList(
     chapters: List<Chapter>,
     currentChapterIndex: Int,
     onChapterClick: (Int) -> Unit,

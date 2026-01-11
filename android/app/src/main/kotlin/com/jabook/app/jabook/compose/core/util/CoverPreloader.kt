@@ -38,7 +38,7 @@ import kotlinx.coroutines.withContext
  * @param preloadAhead Number of items ahead of visible area to preload (default: 5)
  */
 @Composable
-fun rememberCoverPreloader(
+public fun rememberCoverPreloader(
     books: List<Book>,
     listState: LazyListState,
     context: Context,
@@ -71,7 +71,7 @@ fun rememberCoverPreloader(
  * @param preloadAhead Number of items ahead of visible area to preload (default: 10 for grid)
  */
 @Composable
-fun rememberCoverPreloaderForGrid(
+public fun rememberCoverPreloaderForGrid(
     books: List<Book>,
     gridState: LazyGridState,
     context: Context,
@@ -169,7 +169,7 @@ private class CoverPreloader(
      * Clears the preloaded IDs cache.
      * Useful when the book list changes significantly.
      */
-    fun clearCache() {
+    fun clearCache() : Unit {
         preloadedIds.clear()
         android.util.Log.d("CoverPreloader", "Cleared preload cache")
     }

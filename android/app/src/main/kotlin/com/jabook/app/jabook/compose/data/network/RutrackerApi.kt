@@ -24,7 +24,7 @@ import retrofit2.http.Query
  * Base URL is dynamically set via MirrorManager and DynamicBaseUrlInterceptor.
  * The baseUrl in Retrofit is just a placeholder - actual requests use current mirror.
  */
-interface RutrackerApi {
+public interface RutrackerApi {
     /**
      * Search for topics/torrents on Rutracker.
      *
@@ -49,14 +49,14 @@ interface RutrackerApi {
         @Query("t") topicId: String,
     ): String // Returns HTML, will need parsing
 
-    companion object {
+    public companion object {
         // Note: BASE_URL is not used - MirrorManager and DynamicBaseUrlInterceptor handle base URL dynamically
         // This constant is kept for reference only
         @Deprecated("Use MirrorManager.getBaseUrl() instead", ReplaceWith("mirrorManager.getBaseUrl()"))
-        const val BASE_URL = "https://rutracker.org/"
+        public const val BASE_URL = "https://rutracker.org/"
 
         // Common category filters
-        const val CATEGORY_AUDIOBOOKS = "2389"
-        const val CATEGORY_AUDIOBOOKS_RU = "2389"
+        public const val CATEGORY_AUDIOBOOKS = "2389"
+        public const val CATEGORY_AUDIOBOOKS_RU = "2389"
     }
 }

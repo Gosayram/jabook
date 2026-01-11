@@ -28,7 +28,7 @@ import javax.inject.Singleton
  * Provides offline-first access to chapter metadata with reactive Flow API.
  */
 @Singleton
-class ChapterMetadataRepository
+public class ChapterMetadataRepository
     @Inject
     constructor(
         private val chapterDao: ChapterMetadataDao,
@@ -37,12 +37,12 @@ class ChapterMetadataRepository
          * Gets all chapters for a book.
          * Returns Flow<Result<List<ChapterMetadataEntity>>> for reactive updates.
          */
-        fun getChapters(bookId: String): Flow<Result<List<ChapterMetadataEntity>>> = chapterDao.getChapters(bookId).asResult()
+        public fun getChapters(bookId: String): Flow<Result<List<ChapterMetadataEntity>>> = chapterDao.getChapters(bookId).asResult()
 
         /**
          * Gets a specific chapter by ID.
          */
-        fun getChapter(id: String): Flow<Result<ChapterMetadataEntity?>> = chapterDao.getChapter(id).asResult()
+        public fun getChapter(id: String): Flow<Result<ChapterMetadataEntity?>> = chapterDao.getChapter(id).asResult()
 
         /**
          * Saves chapter metadata.

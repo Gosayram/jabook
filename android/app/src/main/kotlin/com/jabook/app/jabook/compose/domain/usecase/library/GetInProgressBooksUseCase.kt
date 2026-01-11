@@ -27,7 +27,7 @@ import javax.inject.Inject
  * Returns books that have been started but not completed,
  * useful for "Continue Reading" features.
  */
-class GetInProgressBooksUseCase
+public class GetInProgressBooksUseCase
     @Inject
     constructor(
         private val booksDao: BooksDao,

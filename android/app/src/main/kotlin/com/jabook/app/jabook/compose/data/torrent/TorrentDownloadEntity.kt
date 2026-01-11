@@ -26,7 +26,7 @@ import com.google.gson.reflect.TypeToken
  */
 @Entity(tableName = "torrent_downloads")
 @TypeConverters(TorrentDownloadConverters::class)
-data class TorrentDownloadEntity(
+public data class TorrentDownloadEntity(
     @PrimaryKey
     val hash: String,
     val name: String,
@@ -46,7 +46,7 @@ data class TorrentDownloadEntity(
     /**
      * Convert to domain model
      */
-    fun toDomain(): TorrentDownload =
+    public fun toDomain(): TorrentDownload =
         TorrentDownload(
             hash = hash,
             name = name,
@@ -64,11 +64,11 @@ data class TorrentDownloadEntity(
             topicId = topicId,
         )
 
-    companion object {
+    public companion object {
         /**
          * Create from domain model
          */
-        fun fromDomain(download: TorrentDownload): TorrentDownloadEntity =
+        public fun fromDomain(download: TorrentDownload): TorrentDownloadEntity =
             TorrentDownloadEntity(
                 hash = download.hash,
                 name = download.name,
@@ -91,26 +91,26 @@ data class TorrentDownloadEntity(
 /**
  * Type converters for Room
  */
-class TorrentDownloadConverters {
+public class TorrentDownloadConverters {
     private val gson = Gson()
 
     @TypeConverter
-    fun fromTorrentState(state: TorrentState): String = state.name
+    public fun fromTorrentState(state: TorrentState): String = state.name
 
     @TypeConverter
-    fun toTorrentState(value: String): TorrentState = TorrentState.valueOf(value)
+    public fun toTorrentState(value: String): TorrentState = TorrentState.valueOf(value)
 
     @TypeConverter
-    fun fromPauseReason(reason: PauseReason?): String? = reason?.name
+    public fun fromPauseReason(reason: PauseReason?): String? = reason?.name
 
     @TypeConverter
-    fun toPauseReason(value: String?): PauseReason? = value?.let { PauseReason.valueOf(it) }
+    public fun toPauseReason(value: String?): PauseReason? = value?.let { PauseReason.valueOf(it) }
 
     @TypeConverter
-    fun fromFileList(files: List<TorrentFile>): String = gson.toJson(files)
+    public fun fromFileList(files: List<TorrentFile>): String = gson.toJson(files)
 
     @TypeConverter
-    fun toFileList(value: String): List<TorrentFile> {
+    public fun toFileList(value: String): List<TorrentFile> {
         val type = object : TypeToken<List<TorrentFile>>() {}.type
         return gson.fromJson(value, type)
     }

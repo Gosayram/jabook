@@ -141,7 +141,7 @@ public object CompletionStatusHelper {
      * @param status Completion status code
      * @return Localized status string
      */
-    fun getCompletionStatusText(
+    public fun getCompletionStatusText(
         context: android.content.Context,
         status: Int,
     ): String =

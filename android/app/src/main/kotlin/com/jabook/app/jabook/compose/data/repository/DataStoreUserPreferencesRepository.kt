@@ -36,12 +36,12 @@ import javax.inject.Singleton
  * Provides reactive access to user preferences with automatic persistence.
  */
 @Singleton
-class DataStoreUserPreferencesRepository
+public class DataStoreUserPreferencesRepository
     @Inject
     constructor(
         private val dataStore: DataStore<Preferences>,
     ) : UserPreferencesRepository {
-        companion object {
+        public companion object {
             private val THEME = stringPreferencesKey("theme")
             private val SORT_ORDER = stringPreferencesKey("sort_order")
             private val VIEW_MODE = stringPreferencesKey("view_mode")

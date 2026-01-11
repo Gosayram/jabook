@@ -43,7 +43,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property isFavorite Whether user has favorited this book
  * @property sourceUrl Source URL where book was obtained
  */
-data class Book(
+public data class Book(
     val id: String,
     val title: String,
     val author: String,
@@ -100,11 +100,11 @@ data class Book(
     val isCompleted: Boolean
         get() = progress >= 0.98f
 
-    companion object {
+    public companion object {
         /**
          * Creates an empty Book instance for preview/testing.
          */
-        fun preview() =
+        public fun preview() =
             Book(
                 id = "1",
                 title = "Sample Audiobook",
@@ -129,7 +129,7 @@ data class Book(
 /**
  * Extension function to convert BookEntity to domain Book model.
  */
-fun BookEntity.toBook() =
+public fun BookEntity.toBook() =
     Book(
         id = id,
         title = title,
@@ -154,7 +154,7 @@ fun BookEntity.toBook() =
 /**
  * Extension function to convert domain Book to BookEntity.
  */
-fun Book.toEntity() =
+public fun Book.toEntity() =
     BookEntity(
         id = id,
         title = title,
@@ -180,13 +180,13 @@ fun Book.toEntity() =
 /**
  * Extension function to convert list of BookEntities to list of Books.
  */
-fun List<BookEntity>.toBooks(): List<Book> = map { it.toBook() }
+public fun List<BookEntity>.toBooks(): List<Book> = map { it.toBook() }
 
 /**
  * Extension function to convert domain Book to FavoriteEntity.
  * Used for synchronizing local library favorites with FavoriteEntity table.
  */
-fun Book.toFavoriteEntity(): com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity {
+public fun Book.toFavoriteEntity(): com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity {
     val now =
         java.time.Instant
             .now()

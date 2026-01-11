@@ -67,7 +67,7 @@ import kotlin.math.absoluteValue
  * Main entry point for the onboarding flow.
  */
 @Composable
-fun OnboardingScreen(
+public fun OnboardingScreen(
     onFinish: () -> Unit,
     isBeta: Boolean = false,
     viewModel: OnboardingViewModel = hiltViewModel(),
@@ -465,7 +465,7 @@ private fun OnboardingPermissionStep(
 }
 
 @Composable
-fun animateDpAsState(
+public fun animateDpAsState(
     targetValue: androidx.compose.ui.unit.Dp,
     label: String,
 ): State<androidx.compose.ui.unit.Dp> =

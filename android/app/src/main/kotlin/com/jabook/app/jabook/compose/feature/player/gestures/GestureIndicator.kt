@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
  * Visual indicator for swipe gestures (Brightness, Volume, Seek).
  */
 @Composable
-fun GestureIndicator(
+public fun GestureIndicator(
     gestureState: GestureState,
     modifier: Modifier = Modifier,
 ) {

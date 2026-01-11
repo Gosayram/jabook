@@ -17,7 +17,7 @@ package com.jabook.app.jabook.torrent.data
 /**
  * Download progress data for a torrent.
  */
-data class DownloadProgress(
+public data class DownloadProgress(
     val infoHash: String,
     val percentage: Float,
     val downloadRate: Long, // bytes/sec
@@ -33,7 +33,7 @@ data class DownloadProgress(
 /**
  * Torrent download state.
  */
-enum class TorrentState {
+public enum class TorrentState {
     QUEUED,
     CHECKING,
     DOWNLOADING_METADATA,

@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
  * @param service AudioPlayerService to update
  * @param scope Coroutine scope for collecting settings (typically playerServiceScope)
  */
-class MediaSessionSettingsSync(
+public class MediaSessionSettingsSync(
     private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository,
     private val service: AudioPlayerService,
     private val scope: CoroutineScope,
@@ -42,7 +42,7 @@ class MediaSessionSettingsSync(
      * Starts observing settings and syncing to MediaSession.
      * Should be called once in AudioPlayerService.onCreate().
      */
-    fun start() {
+    public fun start() : Unit {
         // Observe skip duration changes
         scope.launch {
             settingsRepository.userPreferences

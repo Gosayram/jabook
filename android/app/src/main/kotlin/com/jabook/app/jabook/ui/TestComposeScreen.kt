@@ -35,7 +35,7 @@ import com.jabook.app.jabook.ui.theme.JabookTheme
  * TODO: Replace with actual app screens (Library, Player, etc.)
  */
 @Composable
-fun TestComposeScreen(modifier: Modifier = Modifier) {
+public fun TestComposeScreen(modifier: Modifier = Modifier) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
     ) { paddingValues ->

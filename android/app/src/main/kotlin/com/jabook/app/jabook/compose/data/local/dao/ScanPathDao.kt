@@ -26,9 +26,9 @@ import kotlinx.coroutines.flow.Flow
  * Data Access Object for custom scan paths.
  */
 @Dao
-interface ScanPathDao {
+public interface ScanPathDao {
     @Query("SELECT * FROM scan_paths ORDER BY added_date DESC")
-    fun getAllPaths(): Flow<List<ScanPathEntity>>
+    public fun getAllPaths(): Flow<List<ScanPathEntity>>
 
     @Query("SELECT * FROM scan_paths")
     suspend fun getAllPathsList(): List<ScanPathEntity>

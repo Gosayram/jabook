@@ -26,10 +26,10 @@ import javax.inject.Inject
  *
  * Philosophy: Never fail, always try multiple strategies, return sensible defaults.
  */
-class DefensiveFieldExtractor
+public class DefensiveFieldExtractor
     @Inject
     constructor() {
-        companion object {
+        public companion object {
             private const val TAG = "DefensiveFieldExtractor"
         }
 
@@ -48,7 +48,7 @@ class DefensiveFieldExtractor
          * @param topicId Topic ID for logging
          * @return Seeders count (0 if not found)
          */
-        fun extractSeeders(
+        public fun extractSeeders(
             row: Element,
             topicId: String,
         ): Int {
@@ -142,7 +142,7 @@ class DefensiveFieldExtractor
          * @param topicId Topic ID for logging
          * @return Leechers count (0 if not found)
          */
-        fun extractLeechers(
+        public fun extractLeechers(
             row: Element,
             topicId: String,
         ): Int {
@@ -214,7 +214,7 @@ class DefensiveFieldExtractor
          * @param topicId Topic ID for logging
          * @return Size string (e.g., "1.5 GB") or "Unknown"
          */
-        fun extractSize(
+        public fun extractSize(
             row: Element,
             topicId: String,
         ): String {
@@ -266,7 +266,7 @@ class DefensiveFieldExtractor
          * @param row Topic row element
          * @return Title or null if not found
          */
-        fun extractTitle(row: Element): String? {
+        public fun extractTitle(row: Element): String? {
             // Strategy 1: a.torTopic
             val titleElement =
                 row.selectFirst("a.torTopic, a.torTopic.tt-text")

@@ -54,7 +54,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentFile
 /**
  * Node representing a file or directory in the torrent
  */
-data class FileNode(
+public data class FileNode(
     val name: String,
     val path: String,
     val size: Long,
@@ -68,7 +68,7 @@ data class FileNode(
  * Dialog for selecting files to download
  */
 @Composable
-fun FileSelectionDialog(
+public fun FileSelectionDialog(
     files: List<TorrentFile>,
     onConfirm: (Set<Int>) -> Unit, // Returns set of selected file indices
     onDismiss: () -> Unit,
@@ -335,7 +335,7 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
     val rootNodes = mutableListOf<FileNode>()
 
     // Helper class to build tree temporarily
-    data class TempNode(
+    public data class TempNode(
         val name: String,
         var size: Long = 0,
         var fileIndex: Int? = null,
@@ -367,7 +367,7 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
     }
 
     // Recalculate directory sizes correctly (sum of children)
-    fun calculateSizes(node: TempNode): Long {
+    public fun calculateSizes(node: TempNode): Long {
         if (node.children.isEmpty()) return node.size
 
         val childrenSize = node.children.values.sumOf { calculateSizes(it) }
@@ -378,7 +378,7 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
     calculateSizes(rootTemp)
 
     // Convert to FileNode
-    fun convert(
+    public fun convert(
         temp: TempNode,
         parentPath: String,
     ): FileNode {

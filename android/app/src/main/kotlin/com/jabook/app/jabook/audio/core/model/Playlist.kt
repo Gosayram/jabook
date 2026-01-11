@@ -17,7 +17,7 @@ package com.jabook.app.jabook.audio.core.model
 /**
  * Represents a playlist of chapters for an audiobook.
  */
-data class Playlist(
+public data class Playlist(
     val bookId: String,
     val bookTitle: String,
     val chapters: List<Chapter>,
@@ -38,32 +38,32 @@ data class Playlist(
     /**
      * Checks if there is a next chapter.
      */
-    fun hasNext(): Boolean = currentIndex < chapters.size - 1
+    public fun hasNext(): Boolean = currentIndex < chapters.size - 1
 
     /**
      * Checks if there is a previous chapter.
      */
-    fun hasPrevious(): Boolean = currentIndex > 0
+    public fun hasPrevious(): Boolean = currentIndex > 0
 
     /**
      * Returns the next chapter index, or null if there is no next chapter.
      */
-    fun getNextIndex(): Int? = if (hasNext()) currentIndex + 1 else null
+    public fun getNextIndex(): Int? = if (hasNext()) currentIndex + 1 else null
 
     /**
      * Returns the previous chapter index, or null if there is no previous chapter.
      */
-    fun getPreviousIndex(): Int? = if (hasPrevious()) currentIndex - 1 else null
+    public fun getPreviousIndex(): Int? = if (hasPrevious()) currentIndex - 1 else null
 
     /**
      * Returns the chapter at the specified index, or null if out of bounds.
      */
-    fun getChapter(index: Int): Chapter? = chapters.getOrNull(index)
+    public fun getChapter(index: Int): Chapter? = chapters.getOrNull(index)
 
     /**
      * Creates a copy of this playlist with a new current index.
      */
-    fun withCurrentIndex(index: Int): Playlist {
+    public fun withCurrentIndex(index: Int): Playlist {
         require(index in chapters.indices) { "Index $index is out of bounds for playlist of size ${chapters.size}" }
         return copy(currentIndex = index)
     }

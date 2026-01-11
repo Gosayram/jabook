@@ -57,7 +57,7 @@ import coil3.compose.SubcomposeAsyncImage
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BookCard(
+public fun BookCard(
     title: String,
     author: String,
     coverUrl: Any?,

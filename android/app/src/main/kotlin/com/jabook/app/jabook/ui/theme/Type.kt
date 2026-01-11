@@ -28,7 +28,7 @@ import com.jabook.app.jabook.R
  *
  * @param fontFamily The font family to use. Pass null to use system default fonts.
  */
-fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
+public fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
     Typography(
         // Display styles (Premium: SemiBold for impact)
         displayLarge =

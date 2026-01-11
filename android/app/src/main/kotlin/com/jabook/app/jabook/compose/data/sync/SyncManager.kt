@@ -32,12 +32,12 @@ import javax.inject.Singleton
  * Uses WorkManager to schedule periodic sync tasks.
  */
 @Singleton
-class SyncManager
+public class SyncManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "SyncManager"
             private const val SYNC_INTERVAL_HOURS = 6L
         }
@@ -49,7 +49,7 @@ class SyncManager
          * - Connected to internet
          * - Not in low battery mode
          */
-        fun schedulePeriodicSync() {
+        public fun schedulePeriodicSync() : Unit {
             Log.d(TAG, "Scheduling periodic sync")
 
             val constraints =
@@ -80,7 +80,7 @@ class SyncManager
         /**
          * Cancel sync.
          */
-        fun cancelSync() {
+        public fun cancelSync() : Unit {
             Log.d(TAG, "Cancelling sync")
             WorkManager.getInstance(context).cancelUniqueWork(SyncWorker.WORK_NAME)
         }
@@ -88,7 +88,7 @@ class SyncManager
         /**
          * Trigger immediate sync.
          */
-        fun syncNow() {
+        public fun syncNow() : Unit {
             Log.d(TAG, "Triggering immediate sync")
             val syncRequest = androidx.work.OneTimeWorkRequestBuilder<SyncWorker>().build()
             WorkManager.getInstance(context).enqueueUniqueWork(

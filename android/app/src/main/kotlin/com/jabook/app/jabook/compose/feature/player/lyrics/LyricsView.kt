@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
 @Composable
-fun LyricsView(
+public fun LyricsView(
     lyrics: List<LyricLine>,
     currentPosition: Long,
     onSeek: (Long) -> Unit,

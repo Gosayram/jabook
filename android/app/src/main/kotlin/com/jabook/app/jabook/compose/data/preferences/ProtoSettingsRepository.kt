@@ -35,7 +35,7 @@ private val Context.userPreferencesDataStore: DataStore<UserPreferences> by data
  *
  * Uses Proto DataStore for type-safe, structured preferences storage.
  */
-interface SettingsRepository {
+public interface SettingsRepository {
     /**
      * Get user preferences as Flow.
      */
@@ -151,7 +151,7 @@ interface SettingsRepository {
  * Implementation of SettingsRepository using Proto DataStore.
  */
 @Singleton
-class ProtoSettingsRepository
+public class ProtoSettingsRepository
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,

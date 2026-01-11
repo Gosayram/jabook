@@ -28,7 +28,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class PermissionManager
+public class PermissionManager
     @Inject
     constructor(
         @ApplicationContext context: Context,
@@ -40,7 +40,7 @@ class PermissionManager
          * - Android 11+ (R): Checks Environment.isExternalStorageManager()
          * - Android < 11: Checks WRITE_EXTERNAL_STORAGE
          */
-        fun hasStoragePermission(): Boolean =
+        public fun hasStoragePermission(): Boolean =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 Environment.isExternalStorageManager()
             } else {
@@ -58,7 +58,7 @@ class PermissionManager
          * Checks if the app has notification permission (Android 13+).
          * On older versions, this is always true.
          */
-        fun hasNotificationPermission(): Boolean =
+        public fun hasNotificationPermission(): Boolean =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ContextCompat.checkSelfPermission(
                     context,
@@ -71,7 +71,7 @@ class PermissionManager
         /**
          * Returns the Intent to request the "All Files Access" permission (Android 11+).
          */
-        fun getManageExternalStorageIntent(): Intent =
+        public fun getManageExternalStorageIntent(): Intent =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
                     data = Uri.parse("package:${context.packageName}")
@@ -86,7 +86,7 @@ class PermissionManager
         /**
          * Returns Intent to open App Settings (for manually enabling permissions).
          */
-        fun getAppSettingsIntent(): Intent =
+        public fun getAppSettingsIntent(): Intent =
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.parse("package:${context.packageName}")
             }

@@ -58,7 +58,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun TorrentDetailsScreen(
+public fun TorrentDetailsScreen(
     onNavigateBack: () -> Unit,
     onPlayBook: (String) -> Unit,
     viewModel: TorrentDetailsViewModel = hiltViewModel(),

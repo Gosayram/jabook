@@ -25,7 +25,7 @@ import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
  * Primary storage layer for authentication cookies.
  */
 @Dao
-interface CookiesDao {
+public interface CookiesDao {
     /**
      * Save cookies for a URL.
      * Replaces existing cookies if URL already exists.

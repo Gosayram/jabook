@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.domain.model
 /**
  * Sort options for download history.
  */
-enum class HistorySortOrder {
+public enum class HistorySortOrder {
     /**
      * Sort by completion date (newest first).
      */

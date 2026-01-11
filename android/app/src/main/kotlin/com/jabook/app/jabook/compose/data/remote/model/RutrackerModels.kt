@@ -19,7 +19,7 @@ package com.jabook.app.jabook.compose.data.remote.model
  *
  * Represents a single audiobook found in search results.
  */
-data class SearchResult(
+public data class SearchResult(
     /** Unique topic ID */
     val topicId: String,
     /** Book title */
@@ -47,7 +47,7 @@ data class SearchResult(
 /**
  * Detailed information about a topic/audiobook.
  */
-data class TopicDetails(
+public data class TopicDetails(
     /** Topic ID */
     val topicId: String,
     /** Full title */
@@ -107,7 +107,7 @@ data class TopicDetails(
 /**
  * Comment from topic page.
  */
-data class Comment(
+public data class Comment(
     /** Comment ID */
     val id: String,
     /** Author username */
@@ -125,7 +125,7 @@ data class Comment(
 /**
  * Related audiobook from the same series/cycle.
  */
-data class RelatedBook(
+public data class RelatedBook(
     /** Topic ID */
     val topicId: String,
     /** Book title */
@@ -135,7 +135,7 @@ data class RelatedBook(
 /**
  * Torrent metadata.
  */
-data class TorrentInfo(
+public data class TorrentInfo(
     /** Info hash */
     val infoHash: String,
     /** Torrent name */
@@ -149,7 +149,7 @@ data class TorrentInfo(
 /**
  * File within a torrent.
  */
-data class TorrentFile(
+public data class TorrentFile(
     /** File path within torrent */
     val path: String,
     /** File size in bytes */

@@ -25,7 +25,7 @@ import javax.inject.Inject
  * Searches books by title and author, returning matches in real-time
  * as the query or library data changes.
  */
-class SearchBooksUseCase
+public class SearchBooksUseCase
     @Inject
     constructor(
         private val booksRepository: BooksRepository,

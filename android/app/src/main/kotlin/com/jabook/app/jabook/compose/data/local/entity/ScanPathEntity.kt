@@ -22,7 +22,7 @@ import androidx.room.PrimaryKey
  * Entity representing a user-defined directory to scan for audiobooks.
  */
 @Entity(tableName = "scan_paths")
-data class ScanPathEntity(
+public data class ScanPathEntity(
     @PrimaryKey
     @ColumnInfo(name = "path")
     val path: String,

@@ -84,7 +84,7 @@ import kotlin.math.abs
  * @param modifier Modifier
  */
 @Composable
-fun MiniPlayer(
+public fun MiniPlayer(
     coverUrl: String?,
     title: String,
     author: String,
@@ -295,7 +295,7 @@ fun MiniPlayer(
  * Animated container for MiniPlayer with slide-in/out animations.
  */
 @Composable
-fun AnimatedMiniPlayer(
+public fun AnimatedMiniPlayer(
     visible: Boolean,
     coverUrl: String?,
     title: String,

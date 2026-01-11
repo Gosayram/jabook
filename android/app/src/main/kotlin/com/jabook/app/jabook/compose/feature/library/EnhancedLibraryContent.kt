@@ -46,7 +46,7 @@ import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
  */
 @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
-fun EnhancedLibraryContent(
+public fun EnhancedLibraryContent(
     allBooks: List<Book>,
     recentlyPlayed: List<Book>,
     inProgress: List<Book>,

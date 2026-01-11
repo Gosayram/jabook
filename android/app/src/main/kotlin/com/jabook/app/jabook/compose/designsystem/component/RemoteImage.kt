@@ -66,7 +66,7 @@ import coil3.transform.RoundedCornersTransformation
  * ```
  */
 @Composable
-fun RemoteImage(
+public fun RemoteImage(
     src: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
@@ -165,7 +165,7 @@ fun RemoteImage(
  * @param fallbackColor Color for fallback when no image available
  */
 @Composable
-fun SimpleRemoteImage(
+public fun SimpleRemoteImage(
     src: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,

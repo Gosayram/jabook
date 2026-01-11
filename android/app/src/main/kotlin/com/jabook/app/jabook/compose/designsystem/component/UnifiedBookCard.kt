@@ -74,7 +74,7 @@ import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
  * @param modifier Modifier for the card
  */
 @Composable
-fun UnifiedBookCard(
+public fun UnifiedBookCard(
     book: Book,
     displayMode: BookDisplayMode,
     actionsProvider: BookActionsProvider,

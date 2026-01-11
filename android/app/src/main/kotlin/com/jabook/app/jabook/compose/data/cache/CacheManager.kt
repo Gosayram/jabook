@@ -29,7 +29,7 @@ import javax.inject.Singleton
  * Manages app cache: tracks sizes, provides cleanup operations.
  */
 @Singleton
-class CacheManager
+public class CacheManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
@@ -261,7 +261,7 @@ class CacheManager
             prefs.edit().putLong("last_cleanup", System.currentTimeMillis()).apply()
         }
 
-        companion object {
+        public companion object {
             private const val TAG = "CacheManager"
         }
     }
@@ -269,7 +269,7 @@ class CacheManager
 /**
  * Cache statistics by type.
  */
-data class CacheStatistics(
+public data class CacheStatistics(
     val totalSize: Long,
     val searchCacheSize: Long,
     val topicCacheSize: Long,
@@ -282,7 +282,7 @@ data class CacheStatistics(
 /**
  * Cache type for selective clearing.
  */
-enum class CacheType {
+public enum class CacheType {
     SEARCH,
     TOPICS,
     TEMP_DOWNLOADS,

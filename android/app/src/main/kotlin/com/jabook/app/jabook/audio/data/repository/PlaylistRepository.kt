@@ -30,7 +30,7 @@ import javax.inject.Singleton
  * Provides offline-first access to playlists with reactive Flow API.
  */
 @Singleton
-class PlaylistRepository
+public class PlaylistRepository
     @Inject
     constructor(
         private val playlistDao: PlaylistDao,
@@ -39,7 +39,7 @@ class PlaylistRepository
          * Gets the playlist for a book.
          * Returns Flow<Result<PlaylistEntity?>> for reactive updates.
          */
-        fun getPlaylist(bookId: String): Flow<Result<PlaylistEntity?>> = playlistDao.getPlaylist(bookId).asResult()
+        public fun getPlaylist(bookId: String): Flow<Result<PlaylistEntity?>> = playlistDao.getPlaylist(bookId).asResult()
 
         /**
          * Saves a playlist.
@@ -69,7 +69,7 @@ class PlaylistRepository
         /**
          * Parses file paths from JSON string.
          */
-        fun parseFilePaths(filePathsJson: String): List<String> =
+        public fun parseFilePaths(filePathsJson: String): List<String> =
             try {
                 val jsonArray = JSONArray(filePathsJson)
                 (0 until jsonArray.length()).map { jsonArray.getString(it) }
@@ -91,5 +91,5 @@ class PlaylistRepository
         /**
          * Gets all playlists.
          */
-        fun getAllPlaylists(): Flow<Result<List<PlaylistEntity>>> = playlistDao.getAllPlaylists().asResult()
+        public fun getAllPlaylists(): Flow<Result<List<PlaylistEntity>>> = playlistDao.getAllPlaylists().asResult()
     }

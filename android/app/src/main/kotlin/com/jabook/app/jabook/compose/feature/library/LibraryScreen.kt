@@ -76,7 +76,7 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-fun LibraryScreen(
+public fun LibraryScreen(
     onBookClick: (String) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToDownloads: () -> Unit,

@@ -24,13 +24,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class PermissionUiState(
+public data class PermissionUiState(
     val hasStoragePermission: Boolean = false,
     val hasNotificationPermission: Boolean = false,
 )
 
 @HiltViewModel
-class PermissionViewModel
+public class PermissionViewModel
     @Inject
     constructor(
         private val permissionManager: PermissionManager,
@@ -42,7 +42,7 @@ class PermissionViewModel
             checkPermissions()
         }
 
-        fun checkPermissions() {
+        public fun checkPermissions() : Unit {
             viewModelScope.launch {
                 val storage = permissionManager.hasStoragePermission()
                 val notification = permissionManager.hasNotificationPermission()
@@ -55,9 +55,9 @@ class PermissionViewModel
             }
         }
 
-        fun getManageExternalStorageIntent() = permissionManager.getManageExternalStorageIntent()
+        public fun getManageExternalStorageIntent() = permissionManager.getManageExternalStorageIntent()
 
-        fun getAppSettingsIntent() = permissionManager.getAppSettingsIntent()
+        public fun getAppSettingsIntent() = permissionManager.getAppSettingsIntent()
 
         // Notification permission is requested via registerForActivityResult contract directly in UI
     }

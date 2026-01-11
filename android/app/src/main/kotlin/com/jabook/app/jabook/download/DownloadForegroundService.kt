@@ -48,34 +48,34 @@ import android.app.NotificationManager as AndroidNotificationManager
  * - Handles magnet links from deep links
  */
 @AndroidEntryPoint
-class DownloadForegroundService : Service() {
-    companion object {
+public class DownloadForegroundService : Service() {
+    public companion object {
         private const val TAG = "DownloadForegroundService"
         private const val CHANNEL_ID = "jabook_downloads"
         private const val CHANNEL_NAME = "Downloads"
         private const val NOTIFICATION_ID = 2
         private const val UPDATE_INTERVAL_MS = 1000L // Update notification every second
 
-        const val ACTION_START = "com.jabook.app.jabook.download.START"
-        const val ACTION_STOP = "com.jabook.app.jabook.download.STOP"
-        const val ACTION_ADD_MAGNET = "com.jabook.app.jabook.download.ADD_MAGNET"
-        const val ACTION_PAUSE = "com.jabook.app.jabook.download.PAUSE"
-        const val ACTION_RESUME = "com.jabook.app.jabook.download.RESUME"
-        const val ACTION_REMOVE = "com.jabook.app.jabook.download.REMOVE"
+        public const val ACTION_START = "com.jabook.app.jabook.download.START"
+        public const val ACTION_STOP = "com.jabook.app.jabook.download.STOP"
+        public const val ACTION_ADD_MAGNET = "com.jabook.app.jabook.download.ADD_MAGNET"
+        public const val ACTION_PAUSE = "com.jabook.app.jabook.download.PAUSE"
+        public const val ACTION_RESUME = "com.jabook.app.jabook.download.RESUME"
+        public const val ACTION_REMOVE = "com.jabook.app.jabook.download.REMOVE"
 
-        const val EXTRA_MAGNET_URI = "magnet_uri"
-        const val EXTRA_SAVE_PATH = "save_path"
-        const val EXTRA_INFO_HASH = "info_hash"
+        public const val EXTRA_MAGNET_URI = "magnet_uri"
+        public const val EXTRA_SAVE_PATH = "save_path"
+        public const val EXTRA_INFO_HASH = "info_hash"
 
         @Volatile
         private var instance: DownloadForegroundService? = null
 
-        fun getInstance(): DownloadForegroundService? = instance
+        public fun getInstance(): DownloadForegroundService? = instance
 
         /**
          * Start the download service and add a magnet link.
          */
-        fun startDownload(
+        public fun startDownload(
             context: Context,
             magnetUri: String,
             savePath: String,

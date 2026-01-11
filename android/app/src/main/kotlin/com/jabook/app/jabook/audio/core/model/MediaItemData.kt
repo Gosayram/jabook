@@ -21,7 +21,7 @@ import android.net.Uri
  *
  * This is a domain model that can be converted to Media3 MediaItem.
  */
-data class MediaItemData(
+public data class MediaItemData(
     val uri: Uri,
     val title: String? = null,
     val artist: String? = null,
@@ -33,5 +33,5 @@ data class MediaItemData(
     /**
      * Checks if this media item has valid URI.
      */
-    fun hasValidUri(): Boolean = uri != Uri.EMPTY
+    public fun hasValidUri(): Boolean = uri != Uri.EMPTY
 }

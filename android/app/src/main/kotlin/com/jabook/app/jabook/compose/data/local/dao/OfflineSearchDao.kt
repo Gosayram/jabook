@@ -26,7 +26,7 @@ import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface OfflineSearchDao {
+public interface OfflineSearchDao {
     /**
      * Insert or update cached topics.
      * Uses OnConflictStrategy.REPLACE to update existing topics with fresh data.
@@ -148,7 +148,7 @@ interface OfflineSearchDao {
      * Allows constructs like: (title LIKE %t1% OR author LIKE %t1%) AND (title LIKE %t2% OR author LIKE %t2%)
      */
     @androidx.room.RawQuery(observedEntities = [CachedTopicEntity::class])
-    fun searchIndexedTopicsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<CachedTopicEntity>>
+    public fun searchIndexedTopicsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<CachedTopicEntity>>
 
     /**
      * Update cover URL for a specific topic.
@@ -247,7 +247,7 @@ interface OfflineSearchDao {
 /**
  * Index metadata for monitoring.
  */
-data class IndexMetadata(
+public data class IndexMetadata(
     @ColumnInfo(name = "count")
     val count: Int,
     @ColumnInfo(name = "oldest")

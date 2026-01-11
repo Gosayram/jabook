@@ -21,7 +21,7 @@ import kotlinx.serialization.Serializable
  * Contains all exportable data: settings, books, favorites, history.
  */
 @Serializable
-data class BackupData(
+public data class BackupData(
     val version: String, // App version (e.g. "1.0.0")
     val schemaVersion: String = "2.0.0", // Backup format version
     val timestamp: String,
@@ -41,7 +41,7 @@ data class BackupData(
  * Includes user preferences and proto settings.
  */
 @Serializable
-data class AppSettings(
+public data class AppSettings(
     // User Preferences
     val theme: String,
     val sortOrder: String = "BY_ACTIVITY",
@@ -74,7 +74,7 @@ data class AppSettings(
  * Includes playback progress and basic info.
  */
 @Serializable
-data class BookBackup(
+public data class BookBackup(
     val id: String,
     val title: String,
     val author: String,
@@ -101,7 +101,7 @@ data class BookBackup(
  * Scan path backup.
  */
 @Serializable
-data class ScanPathBackup(
+public data class ScanPathBackup(
     val path: String,
     val addedDate: Long,
 )
@@ -110,7 +110,7 @@ data class ScanPathBackup(
  * Search history backup.
  */
 @Serializable
-data class SearchHistoryBackup(
+public data class SearchHistoryBackup(
     val query: String,
     val timestamp: Long,
     val resultCount: Int = 0,
@@ -120,7 +120,7 @@ data class SearchHistoryBackup(
  * Favorite book backup.
  */
 @Serializable
-data class FavoriteBackup(
+public data class FavoriteBackup(
     val bookId: String,
     val title: String,
     val author: String,
@@ -139,7 +139,7 @@ data class FavoriteBackup(
 /**
  * Statistics from import operation.
  */
-data class ImportStats(
+public data class ImportStats(
     var settingsRestored: Boolean = false,
     var booksRestored: Int = 0,
     var favoritesRestored: Int = 0,
@@ -154,7 +154,7 @@ data class ImportStats(
  * Added in v2.0.0 for better backup tracking.
  */
 @Serializable
-data class AppInfo(
+public data class AppInfo(
     val versionName: String, // e.g. "1.0.0"
     val versionCode: Int, // Build number
     val flavor: String = "prod", // prod, dev, beta
@@ -169,7 +169,7 @@ data class AppInfo(
  * Helps understand backup size and contents.
  */
 @Serializable
-data class BackupStatistics(
+public data class BackupStatistics(
     val totalBooks: Int = 0,
     val downloadedBooks: Int = 0,
     val favoritesCount: Int = 0,

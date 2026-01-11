@@ -27,12 +27,12 @@ import javax.inject.Inject
  *
  * Performs online search and returns results from Rutracker.
  */
-class SearchRutrackerUseCase
+public class SearchRutrackerUseCase
     @Inject
     constructor(
         private val rutrackerRepository: RutrackerRepository,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "SearchRutrackerUseCase"
         }
 

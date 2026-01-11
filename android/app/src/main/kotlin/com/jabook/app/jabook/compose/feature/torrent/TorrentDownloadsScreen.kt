@@ -70,7 +70,7 @@ import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun TorrentDownloadsScreen(
+public fun TorrentDownloadsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDetails: (String) -> Unit,
     modifier: Modifier = Modifier,

@@ -29,10 +29,10 @@ import javax.inject.Singleton
  * For books in library, use EncodingDetector instead.
  */
 @Singleton
-class RutrackerSimpleDecoder
+public class RutrackerSimpleDecoder
     @Inject
     constructor() {
-        companion object {
+        public companion object {
             private const val TAG = "RutrackerSimpleDecoder"
             private val CP1251 = Charset.forName("windows-1251")
             private val UTF8 = Charsets.UTF_8
@@ -54,7 +54,7 @@ class RutrackerSimpleDecoder
          * @param contentType Optional Content-Type header value
          * @return Decoded string
          */
-        fun decode(
+        public fun decode(
             bytes: ByteArray,
             contentType: String? = null,
         ): String {

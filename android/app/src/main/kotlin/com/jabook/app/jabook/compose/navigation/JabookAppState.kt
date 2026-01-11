@@ -33,7 +33,7 @@ private const val TAG = "Navigation"
  * @param navController Navigation controller for the app
  */
 @Composable
-fun rememberJabookAppState(
+public fun rememberJabookAppState(
     navController: NavHostController = rememberNavController(),
     snackbarHostState: androidx.compose.material3.SnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() },
 ): JabookAppState =
@@ -52,7 +52,7 @@ fun rememberJabookAppState(
  * Based on Now in Android's NiaAppState pattern.
  */
 @Stable
-class JabookAppState(
+public class JabookAppState(
     val navController: NavHostController,
     val snackbarHostState: androidx.compose.material3.SnackbarHostState,
 ) {
@@ -78,7 +78,7 @@ class JabookAppState(
      *
      * @param topLevelDestination The destination to navigate to
      */
-    fun navigateToTopLevelDestination(topLevelDestination: TopLevelDestination) {
+    public fun navigateToTopLevelDestination(topLevelDestination: TopLevelDestination) {
         Log.d(TAG, "🧭 Navigating to top-level destination: ${topLevelDestination.name}")
         when (topLevelDestination) {
             TopLevelDestination.LIBRARY -> {
@@ -113,7 +113,7 @@ class JabookAppState(
      * This clears the back stack and navigates to the library as the root destination.
      * Useful for returning to the main screen from anywhere in the app.
      */
-    fun navigateToLibrary() {
+    public fun navigateToLibrary() : Unit {
         Log.d(TAG, "🧭 Navigating to Library (clearing back stack)")
         navController.navigate(LibraryRoute) {
             // Clear the entire back stack INCLUDING the current destination

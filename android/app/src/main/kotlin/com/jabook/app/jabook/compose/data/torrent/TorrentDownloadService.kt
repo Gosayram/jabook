@@ -42,7 +42,7 @@ import javax.inject.Inject
  * Foreground service for torrent downloads
  */
 @AndroidEntryPoint
-class TorrentDownloadService : Service() {
+public class TorrentDownloadService : Service() {
     @Inject
     lateinit var torrentManager: TorrentManager
 
@@ -228,13 +228,13 @@ class TorrentDownloadService : Service() {
         wakeLock = null
     }
 
-    companion object {
+    public companion object {
         private const val TAG = "TorrentDownloadService"
 
-        const val ACTION_START = "org.jabook.ACTION_START_DOWNLOAD_SERVICE"
-        const val ACTION_STOP = "org.jabook.ACTION_STOP_DOWNLOAD_SERVICE"
+        public const val ACTION_START = "org.jabook.ACTION_START_DOWNLOAD_SERVICE"
+        public const val ACTION_STOP = "org.jabook.ACTION_STOP_DOWNLOAD_SERVICE"
 
-        const val CHANNEL_ID_DOWNLOADS = "torrent_downloads"
+        public const val CHANNEL_ID_DOWNLOADS = "torrent_downloads"
         private const val NOTIFICATION_ID_FOREGROUND = 1000
         private const val NOTIFICATION_ID_SUMMARY = 1001
     }

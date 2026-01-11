@@ -38,7 +38,7 @@ import kotlin.math.abs
 /**
  * Audio visualizer style options.
  */
-enum class VisualizerStyle {
+public enum class VisualizerStyle {
     /** Smooth waveform line */
     WAVEFORM,
 
@@ -59,7 +59,7 @@ enum class VisualizerStyle {
  * @param modifier Modifier
  */
 @Composable
-fun AudioVisualizer(
+public fun AudioVisualizer(
     waveformData: FloatArray,
     isPlaying: Boolean,
     style: VisualizerStyle = VisualizerStyle.BARS,

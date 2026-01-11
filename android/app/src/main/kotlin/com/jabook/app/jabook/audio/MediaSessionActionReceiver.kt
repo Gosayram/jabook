@@ -37,11 +37,11 @@ import java.util.concurrent.TimeoutException
  * The receiver creates a MediaController using SessionToken from AudioPlayerService
  * and uses it to send play/pause commands directly to MediaSession.
  */
-class MediaSessionActionReceiver : BroadcastReceiver() {
-    companion object {
+public class MediaSessionActionReceiver : BroadcastReceiver() {
+    public companion object {
         private const val TAG = "MediaSessionActionReceiver"
-        const val ACTION_PLAY = "com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY"
-        const val ACTION_PAUSE = "com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE"
+        public const val ACTION_PLAY = "com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY"
+        public const val ACTION_PAUSE = "com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE"
         private const val CONTROLLER_TIMEOUT_MS = 2000L
     }
 

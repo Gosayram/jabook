@@ -56,7 +56,7 @@ import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookActionsBottomSheet(
+public fun BookActionsBottomSheet(
     book: Book,
     actionsProvider: BookActionsProvider,
     sheetState: SheetState,

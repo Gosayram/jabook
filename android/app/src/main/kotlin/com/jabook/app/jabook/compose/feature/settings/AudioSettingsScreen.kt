@@ -43,7 +43,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun AudioSettingsScreen(
+public fun AudioSettingsScreen(
     onNavigateUp: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {

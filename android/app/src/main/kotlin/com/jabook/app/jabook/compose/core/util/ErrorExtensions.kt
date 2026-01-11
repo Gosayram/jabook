@@ -30,13 +30,13 @@ import com.jabook.app.jabook.compose.data.remote.RuTrackerError
  * Get string resource ID for error title.
  */
 @StringRes
-fun Throwable?.getErrorTitleRes(): Int = R.string.error_title
+public fun Throwable?.getErrorTitleRes(): Int = R.string.error_title
 
 /**
  * Get string resource ID for error message.
  */
 @StringRes
-fun Throwable?.getStringRes(): Int =
+public fun Throwable?.getStringRes(): Int =
     when (this) {
         is RuTrackerError.Unauthorized -> R.string.notAuthenticated
         is RuTrackerError.NoData -> R.string.noDataAvailable
@@ -52,7 +52,7 @@ fun Throwable?.getStringRes(): Int =
 /**
  * Get error message string.
  */
-fun Throwable?.getErrorMessage(): String =
+public fun Throwable?.getErrorMessage(): String =
     when (this) {
         is RuTrackerError.Unauthorized -> "Authentication required"
         is RuTrackerError.NoData -> "No data available"
@@ -72,4 +72,4 @@ fun Throwable?.getErrorMessage(): String =
  * and UI should handle it gracefully.
  */
 @DrawableRes
-fun Throwable?.getIllRes(): Int = 0 // Custom illustrations not yet implemented
+public fun Throwable?.getIllRes(): Int = 0 // Custom illustrations not yet implemented

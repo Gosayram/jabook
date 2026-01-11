@@ -27,12 +27,12 @@ import androidx.core.app.NotificationCompat
  * Creates notification channels and builds notifications
  * for downloads, playback, and other features.
  */
-object NotificationHelper {
+public object NotificationHelper {
     /**
      * Notification channel IDs.
      */
-    const val CHANNEL_DOWNLOADS = "downloads"
-    const val CHANNEL_PLAYER = "player"
+    public const val CHANNEL_DOWNLOADS = "downloads"
+    public const val CHANNEL_PLAYER = "player"
 
     /**
      * Create notification channels.
@@ -41,7 +41,7 @@ object NotificationHelper {
      *
      * @param context Application context
      */
-    fun createNotificationChannels(context: Context) {
+    public fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -82,7 +82,7 @@ object NotificationHelper {
      * @param progress Download progress (0-100)
      * @return Notification
      */
-    fun createDownloadNotification(
+    public fun createDownloadNotification(
         context: Context,
         bookTitle: String,
         progress: Int,
@@ -104,7 +104,7 @@ object NotificationHelper {
      * @param bookTitle Title of the downloaded book
      * @return Notification
      */
-    fun createDownloadCompleteNotification(
+    public fun createDownloadCompleteNotification(
         context: Context,
         bookTitle: String,
     ): Notification =
@@ -125,7 +125,7 @@ object NotificationHelper {
      * @param error Error message
      * @return Notification
      */
-    fun createDownloadFailedNotification(
+    public fun createDownloadFailedNotification(
         context: Context,
         bookTitle: String,
         error: String,

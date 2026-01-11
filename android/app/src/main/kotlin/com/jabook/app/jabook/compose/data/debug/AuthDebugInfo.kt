@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.data.debug
 /**
  * Data class containing diagnostic information for RuTracker authentication and connectivity.
  */
-data class AuthDebugInfo(
+public data class AuthDebugInfo(
     val isAuthenticated: Boolean,
     val lastAuthAttempt: Long? = null,
     val lastAuthError: String? = null,
@@ -28,7 +28,7 @@ data class AuthDebugInfo(
 /**
  * Results of 3-tier validation logic from Flutter implementation.
  */
-data class ValidationResults(
+public data class ValidationResults(
     val profilePageCheck: Boolean,
     val searchPageCheck: Boolean,
     val indexPageCheck: Boolean,
@@ -38,7 +38,7 @@ data class ValidationResults(
 /**
  * Extension to display validation check as emoji
  */
-fun Boolean?.toIcon(): String =
+public fun Boolean?.toIcon(): String =
     when (this) {
         true -> "✅"
         false -> "❌"

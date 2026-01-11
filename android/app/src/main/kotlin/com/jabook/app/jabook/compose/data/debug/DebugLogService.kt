@@ -36,12 +36,12 @@ import javax.inject.Singleton
  * Based on Flutter's StructuredLogger implementation.
  */
 @Singleton
-class DebugLogService
+public class DebugLogService
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "DebugLogService"
             private const val LOG_FILE_PREFIX = "jabook_logs"
             private const val MAX_LOG_LINES = 5000

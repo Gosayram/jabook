@@ -54,7 +54,7 @@ import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
  */
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun UnifiedBooksView(
+public fun UnifiedBooksView(
     books: List<Book>,
     displayMode: BookDisplayMode,
     actionsProvider: BookActionsProvider,

@@ -50,7 +50,7 @@ import com.jabook.app.jabook.compose.domain.model.SleepTimerState
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SleepTimerSheet(
+public fun SleepTimerSheet(
     currentState: SleepTimerState,
     onStartTimer: (Int) -> Unit,
     onStartTimerEndOfChapter: () -> Unit,

@@ -16,11 +16,11 @@ package com.jabook.app.jabook.util
 
 import java.io.File
 
-object FileUtils {
+public object FileUtils {
     /**
      * Calculate total size of a directory recursively
      */
-    fun getDirectorySize(directory: File): Long {
+    public fun getDirectorySize(directory: File): Long {
         if (!directory.exists()) return 0
         if (!directory.isDirectory) return directory.length()
 
@@ -34,7 +34,7 @@ object FileUtils {
     /**
      * Resolve file path from URI string
      */
-    fun resolvePathFromUri(uriString: String): String {
+    public fun resolvePathFromUri(uriString: String): String {
         try {
             val uri = android.net.Uri.parse(uriString)
             if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
@@ -68,7 +68,7 @@ object FileUtils {
     /**
      * Formats size in bytes to human-readable string.
      */
-    fun formatSize(bytes: Long): String {
+    public fun formatSize(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"
         val kb = bytes / 1024.0
         if (kb < 1024) return String.format("%.2f KB", kb)

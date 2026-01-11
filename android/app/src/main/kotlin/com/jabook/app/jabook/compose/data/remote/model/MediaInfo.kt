@@ -19,7 +19,7 @@ package com.jabook.app.jabook.compose.data.remote.model
  *
  * Replaces raw unformatted MediaInfo text with structured, usable data.
  */
-data class MediaInfo(
+public data class MediaInfo(
     /** General information about the media file */
     val general: GeneralInfo,
     /** List of video tracks */
@@ -33,7 +33,7 @@ data class MediaInfo(
 /**
  * General information about a media file.
  */
-data class GeneralInfo(
+public data class GeneralInfo(
     /** Container format (e.g., "Matroska", "MP4") */
     val format: String?,
     /** Total duration (e.g., "9 м. 34 с.", "00:09:34") */
@@ -49,7 +49,7 @@ data class GeneralInfo(
 /**
  * Video track information.
  */
-data class VideoTrack(
+public data class VideoTrack(
     /** Video codec (e.g., "AVC", "H.264", "MPEG-4") */
     val codec: String?,
     /** Codec profile (e.g., "High@L4") */
@@ -69,7 +69,7 @@ data class VideoTrack(
 /**
  * Audio track information.
  */
-data class AudioTrack(
+public data class AudioTrack(
     /** Audio codec (e.g., "AAC", "MP3", "AC3") */
     val codec: String?,
     /** Codec info (e.g., "Advanced Audio Codec Low Complexity") */
@@ -89,7 +89,7 @@ data class AudioTrack(
 /**
  * Subtitle/text track information.
  */
-data class SubtitleTrack(
+public data class SubtitleTrack(
     /** Subtitle format (e.g., "UTF-8", "SRT") */
     val format: String?,
     /** Subtitle language (e.g., "Русский", "English") */

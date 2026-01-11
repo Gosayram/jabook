@@ -18,7 +18,7 @@ package com.jabook.app.jabook.compose.domain.model
  * Download priority levels.
  * Higher priority downloads are processed first.
  */
-enum class DownloadPriority(
+public enum class DownloadPriority(
     val value: Int,
 ) {
     /**
@@ -42,11 +42,11 @@ enum class DownloadPriority(
     URGENT(3),
     ;
 
-    companion object {
+    public companion object {
         /**
          * Get priority from integer value.
          * Returns NORMAL if value is invalid.
          */
-        fun fromValue(value: Int): DownloadPriority = entries.firstOrNull { it.value == value } ?: NORMAL
+        public fun fromValue(value: Int): DownloadPriority = entries.firstOrNull { it.value == value } ?: NORMAL
     }
 }

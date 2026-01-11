@@ -78,12 +78,12 @@ import com.jabook.app.jabook.compose.data.model.ScanProgress
 import kotlinx.coroutines.launch
 
 private object GitHubUrls {
-    const val REPOSITORY = "https://github.com/Gosayram/jabook"
-    const val LICENSE = "$REPOSITORY/blob/main/LICENSE"
-    const val CHANGELOG = "$REPOSITORY/blob/main/CHANGELOG.md"
-    const val APACHE_LICENSE = "https://www.apache.org/licenses/LICENSE-2.0"
+    public const val REPOSITORY = "https://github.com/Gosayram/jabook"
+    public const val LICENSE = "$REPOSITORY/blob/main/LICENSE"
+    public const val CHANGELOG = "$REPOSITORY/blob/main/CHANGELOG.md"
+    public const val APACHE_LICENSE = "https://www.apache.org/licenses/LICENSE-2.0"
 
-    fun releaseTag(version: String): String {
+    public fun releaseTag(version: String): String {
         val cleanVersion = version.replace("-dev", "").replace("-beta", "").replace("-prod", "")
         return "$REPOSITORY/releases/tag/$cleanVersion"
     }
@@ -99,7 +99,7 @@ private object GitHubUrls {
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
-fun SettingsScreen(
+public fun SettingsScreen(
     onNavigateToAuth: () -> Unit,
     onNavigateToDebug: () -> Unit = {},
     onNavigateToScanSettings: () -> Unit = {},

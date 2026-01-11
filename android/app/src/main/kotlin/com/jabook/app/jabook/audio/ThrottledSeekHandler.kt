@@ -44,14 +44,14 @@ import javax.inject.Singleton
  * ```
  */
 @Singleton
-class ThrottledSeekHandler
+public class ThrottledSeekHandler
     @Inject
     constructor() {
-        companion object {
+        public companion object {
             private const val TAG = "ThrottledSeekHandler"
 
             /** Default throttle delay in milliseconds */
-            const val DEFAULT_THROTTLE_MS = 500L
+            public const val DEFAULT_THROTTLE_MS = 500L
         }
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -68,7 +68,7 @@ class ThrottledSeekHandler
          * @param positionMs The seek target position in milliseconds
          * @param onSeekComplete Callback executed when throttle delay expires with final position
          */
-        fun notifySeek(
+        public fun notifySeek(
             positionMs: Long,
             onSeekComplete: (Long) -> Unit,
         ) {
@@ -94,7 +94,7 @@ class ThrottledSeekHandler
          *
          * @param onSeekComplete Callback with the pending position, or current if none pending
          */
-        fun flush(onSeekComplete: ((Long) -> Unit)? = null) {
+        public fun flush(onSeekComplete: ((Long) -> Unit)? = null) {
             pendingSeekJob?.cancel()
             pendingSeekJob = null
 
@@ -107,7 +107,7 @@ class ThrottledSeekHandler
         /**
          * Cancels any pending seek operation.
          */
-        fun cancel() {
+        public fun cancel() : Unit {
             pendingSeekJob?.cancel()
             pendingSeekJob = null
             Log.v(TAG, "Pending seek cancelled")
@@ -116,17 +116,17 @@ class ThrottledSeekHandler
         /**
          * Checks if there's a pending seek operation.
          */
-        fun hasPendingSeek(): Boolean = pendingSeekJob?.isActive == true
+        public fun hasPendingSeek(): Boolean = pendingSeekJob?.isActive == true
 
         /**
          * Returns the last seek position that was requested.
          */
-        fun getLastSeekPosition(): Long = lastSeekPosition
+        public fun getLastSeekPosition(): Long = lastSeekPosition
 
         /**
          * Releases resources. Call when service is destroyed.
          */
-        fun release() {
+        public fun release() : Unit {
             cancel()
             lastSeekPosition = 0L
             Log.d(TAG, "ThrottledSeekHandler released")

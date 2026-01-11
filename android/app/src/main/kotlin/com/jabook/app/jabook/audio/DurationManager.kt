@@ -21,14 +21,14 @@ package com.jabook.app.jabook.audio
  * or MediaMetadataRetriever (fallback). This avoids repeated calls and improves performance.
  * This cache is synchronized with database via MethodChannel (Flutter side).
  */
-class DurationManager {
+public class DurationManager {
     // Cache for file durations (filePath -> duration in ms)
     private val durationCache = mutableMapOf<String, Long>()
 
     /**
      * returns a read-only view of the duration cache.
      */
-    fun getDurationCacheMap(): Map<String, Long> = durationCache
+    public fun getDurationCacheMap(): Map<String, Long> = durationCache
 
     // Callback for getting duration from database (set from Flutter via MethodChannel)
     // This allows PlayerStateHelper to request durations from database when cache miss
@@ -40,7 +40,7 @@ class DurationManager {
      *
      * @param callback Callback that takes file path and returns duration in ms, or null
      */
-    fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
+    public fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
         getDurationFromDbCallback = callback
     }
 
@@ -51,7 +51,7 @@ class DurationManager {
      * @param filePath Absolute path to the audio file
      * @return Duration in milliseconds, or null if not found
      */
-    fun getDurationForFile(filePath: String): Long? {
+    public fun getDurationForFile(filePath: String): Long? {
         // Check cache first (fast path)
         val cached = durationCache[filePath]
         if (cached != null && cached > 0) {
@@ -75,7 +75,7 @@ class DurationManager {
      * @param filePath Absolute path to the audio file
      * @return Cached duration in milliseconds, or null if not cached
      */
-    fun getCachedDuration(filePath: String): Long? = durationCache[filePath]
+    public fun getCachedDuration(filePath: String): Long? = durationCache[filePath]
 
     /**
      * Saves duration to cache.
@@ -83,7 +83,7 @@ class DurationManager {
      * @param filePath Absolute path to the audio file
      * @param durationMs Duration in milliseconds
      */
-    fun saveDurationToCache(
+    public fun saveDurationToCache(
         filePath: String,
         durationMs: Long,
     ) {
@@ -93,7 +93,7 @@ class DurationManager {
     /**
      * Clears all cached durations.
      */
-    fun clearCache() {
+    public fun clearCache() : Unit {
         durationCache.clear()
     }
 }
