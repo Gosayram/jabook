@@ -78,16 +78,19 @@ def fix_file(file_path: Path):
             # Check if we're inside a function body by looking for function declaration above
             is_inside_function_body = False
             brace_count = 0
-            for j in range(max(0, i - 20), i):
+            for j in range(max(0, i - 30), i):
                 prev_line = lines[j]
                 # Count braces to track nesting
                 brace_count += prev_line.count('{') - prev_line.count('}')
                 # Check if we found a function declaration
-                if re.match(r'^\s*(public\s+)?(suspend\s+)?fun\s+\w+', prev_line.strip()):
+                if re.match(r'^\s*(public\s+)?(suspend\s+)?(private\s+)?(internal\s+)?fun\s+\w+', prev_line.strip()):
                     # Found function, check if we're inside its body
                     if '{' in prev_line or any('{' in lines[k] for k in range(j + 1, min(len(lines), j + 5))):
                         is_inside_function_body = True
                         break
+                # Also check for lambda or block
+                if prev_line.strip().endswith('{') or prev_line.strip().endswith('->'):
+                    is_inside_function_body = True
             
             # Remove public from local variables inside functions
             if is_inside_function_body and re.match(r'^\s+public\s+(var|val)\s+\w+', line):
