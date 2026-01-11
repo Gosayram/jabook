@@ -94,6 +94,11 @@ def fix_file(file_path: Path):
                 new_line = re.sub(r'^(\s+)public\s+(var|val)', r'\1\2', line)
                 fixed = True
             
+            # Also remove stray "public" at the end of lines (fix for broken formatting)
+            if re.search(r'\bpublic\s*$', new_line.rstrip()):
+                new_line = re.sub(r'\s+public\s*$', '', new_line.rstrip()) + '\n'
+                fixed = True
+            
             # Fix 1: Add public to top-level functions
             if re.match(r'^\s*fun\s+\w+', line):
                 if not re.search(r'\b(public|private|internal|protected)\s+fun', line):
