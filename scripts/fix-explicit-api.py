@@ -119,21 +119,33 @@ def fix_file(file_path: Path):
             # Fix 4: Split multiple const val declarations on the same line
             # Pattern: public const val NAME1 = "value1"        public const val NAME2 = "value2"
             if re.search(r'public\s+const\s+val.*public\s+const\s+val', line):
-                # Split the line into multiple const val declarations
-                parts = re.split(r'(\s+)(?=public\s+const\s+val)', line)
+                # Split by multiple spaces (4+) followed by "public const val"
+                indent = re.match(r'^(\s*)', line).group(1) if re.match(r'^\s*', line) else ''
+                # Split by 4+ spaces before "public const val"
+                parts = re.split(r'\s{4,}(?=public\s+const\s+val)', line)
+                
                 if len(parts) > 1:
-                    # Reconstruct: first part + newline + indent + each subsequent const val
-                    indent = re.match(r'^(\s*)', line).group(1) if re.match(r'^\s*', line) else ''
-                    first_part = parts[0]
-                    new_parts = [first_part]
+                    new_const_lines = []
+                    for part in parts:
+                        part = part.strip()
+                        if part.startswith('public const val'):
+                            new_const_lines.append(f"{indent}{part}")
+                        elif part and not part.startswith('public'):
+                            # This might be closing brace or other content
+                            if new_const_lines:
+                                # Append to last line if it's just closing brace
+                                if part.strip() == '}':
+                                    new_const_lines[-1] += f" {part}"
+                                else:
+                                    new_const_lines.append(f"{indent}{part}")
+                            else:
+                                new_const_lines.append(f"{indent}{part}")
                     
-                    for i in range(1, len(parts), 2):
-                        if i + 1 < len(parts):
-                            const_val_part = parts[i + 1]
-                            new_parts.append(f"\n{indent}{const_val_part.strip()}")
-                    
-                    new_line = ''.join(new_parts) + '\n' if not new_line.endswith('\n') else ''.join(new_parts)
-                    fixed = True
+                    if len(new_const_lines) > 1:
+                        new_line = '\n'.join(new_const_lines)
+                        if not new_line.endswith('\n'):
+                            new_line += '\n'
+                        fixed = True
             
             # Fix 4a: Add public to const val and return type (only if not already split)
             if re.match(r'^\s*(public\s+)?const\s+val', new_line) and 'public const val' not in new_line.split('\n')[0]:
