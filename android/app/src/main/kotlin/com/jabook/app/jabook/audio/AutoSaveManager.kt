@@ -44,19 +44,19 @@ import javax.inject.Singleton
  * ```
  */
 @Singleton
-class AutoSaveManager
+public class AutoSaveManager
     @Inject
-    constructor(
+    public constructor(
         private val persistenceManager: PlayerPersistenceManager,
     ) {
-        companion object {
+        public companion object {
             private const val TAG = "AutoSaveManager"
 
             /** Interval between auto-saves in milliseconds (30 seconds) */
-            const val AUTO_SAVE_INTERVAL_MS = 30_000L
+            public const val AUTO_SAVE_INTERVAL_MS: Long = 30_000L
 
             /** Minimum interval between saves to avoid excessive writes */
-            const val MIN_SAVE_INTERVAL_MS = 5_000L
+            public const val MIN_SAVE_INTERVAL_MS: Long = 5_000L
         }
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -69,7 +69,7 @@ class AutoSaveManager
          * @param stateProvider Lambda that provides current playback state.
          *                       Called every [AUTO_SAVE_INTERVAL_MS] to get fresh state.
          */
-        fun startAutoSave(stateProvider: suspend () -> PlaybackSnapshot?) {
+        public fun startAutoSave(stateProvider: suspend () -> PlaybackSnapshot?): Unit {
             stopAutoSave() // Cancel any existing job
 
             autoSaveJob =
@@ -94,7 +94,7 @@ class AutoSaveManager
          * Stops periodic auto-save.
          * Should be called when playback stops or service is destroyed.
          */
-        fun stopAutoSave() {
+        public fun stopAutoSave(): Unit {
             autoSaveJob?.cancel()
             autoSaveJob = null
             Log.d(TAG, "Auto-save stopped")
@@ -107,10 +107,10 @@ class AutoSaveManager
          * @param snapshot Current playback state to save
          * @param force If true, ignores debounce interval
          */
-        suspend fun saveNow(
+        public suspend fun saveNow(
             snapshot: PlaybackSnapshot,
             force: Boolean = false,
-        ) {
+        ): Unit {
             val now = System.currentTimeMillis()
             if (!force && (now - lastSaveTime) < MIN_SAVE_INTERVAL_MS) {
                 Log.v(TAG, "Save skipped (debounced)")
@@ -138,13 +138,13 @@ class AutoSaveManager
         /**
          * Checks if auto-save is currently running.
          */
-        fun isRunning(): Boolean = autoSaveJob?.isActive == true
+        public fun isRunning(): Boolean = autoSaveJob?.isActive == true
     }
 
 /**
  * Snapshot of current playback state for persistence.
  */
-data class PlaybackSnapshot(
+public data class PlaybackSnapshot(
     val mediaId: String,
     val positionMs: Long,
     val durationMs: Long,

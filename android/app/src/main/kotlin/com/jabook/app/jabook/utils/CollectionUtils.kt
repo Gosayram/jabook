@@ -39,7 +39,7 @@ package com.jabook.app.jabook.utils
  * // Result: ["HELLO", "WORLD"]
  * ```
  */
-inline fun <reified T, reified R : T, Q> List<T>.mapInstanceOf(transform: (R) -> Q): List<Q> = filterIsInstance<R>().map(transform)
+public inline fun <reified T, reified R : T, Q> List<T>.mapInstanceOf(transform: (R) -> Q): List<Q> = filterIsInstance<R>().map(transform)
 
 /**
  * Returns a list containing only elements that are not blank (for strings).
@@ -52,4 +52,4 @@ inline fun <reified T, reified R : T, Q> List<T>.mapInstanceOf(transform: (R) ->
  * val nonBlank = strings.filterNotBlank() // ["hello", "world", "test"]
  * ```
  */
-fun List<String>.filterNotBlank(): List<String> = filter { it.isNotBlank() }
+public fun List<String>.filterNotBlank(): List<String> = filter { it.isNotBlank() }

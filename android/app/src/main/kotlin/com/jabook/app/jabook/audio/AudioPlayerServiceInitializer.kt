@@ -27,11 +27,11 @@ import java.util.concurrent.TimeoutException
  * Handles initialization logic for AudioPlayerService.
  * Extracts complex initialization code from onCreate to improve readability.
  */
-class AudioPlayerServiceInitializer(
+public class AudioPlayerServiceInitializer(
     private val service: AudioPlayerService,
 ) {
     @OptIn(UnstableApi::class)
-    fun initialize() {
+    public fun initialize(): Unit {
         android.util.Log.i("AudioPlayerService", "Initializing service components...")
 
         // NOTE: NotificationHelper is already initialized in onCreate() for immediate startForeground()

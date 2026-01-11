@@ -34,7 +34,7 @@ package com.jabook.app.jabook.utils
  * user.ifNotNull { println(it.name) }
  * ```
  */
-inline fun <T> T?.ifNotNull(action: (T) -> Unit): T? {
+public inline fun <T> T?.ifNotNull(action: (T) -> Unit): T? {
     if (this != null) {
         action(this)
     }
@@ -52,7 +52,7 @@ inline fun <T> T?.ifNotNull(action: (T) -> Unit): T? {
  * user.ifNull { println("User is null") }
  * ```
  */
-inline fun <T> T?.ifNull(action: () -> Unit): T? {
+public inline fun <T> T?.ifNull(action: () -> Unit): T? {
     if (this == null) {
         action()
     }
@@ -73,7 +73,7 @@ inline fun <T> T?.ifNull(action: () -> Unit): T? {
  * val userId = user?.id.requireNotNull { IllegalArgumentException("User is required") }
  * ```
  */
-inline fun <T> T?.requireNotNull(exceptionProvider: () -> Throwable): T = this ?: throw exceptionProvider()
+public inline fun <T> T?.requireNotNull(exceptionProvider: () -> Throwable): T = this ?: throw exceptionProvider()
 
 /**
  * Returns the value if not null, or returns the default value.
@@ -88,7 +88,7 @@ inline fun <T> T?.requireNotNull(exceptionProvider: () -> Throwable): T = this ?
  * val name = user?.name.orDefault("Unknown")
  * ```
  */
-fun <T> T?.orDefault(defaultValue: T): T = this ?: defaultValue
+public fun <T> T?.orDefault(defaultValue: T): T = this ?: defaultValue
 
 /**
  * Returns the value if not null, or computes the default value.
@@ -103,4 +103,4 @@ fun <T> T?.orDefault(defaultValue: T): T = this ?: defaultValue
  * val config = cachedConfig.orDefaultLazy { loadConfigFromDisk() }
  * ```
  */
-inline fun <T> T?.orDefaultLazy(defaultValue: () -> T): T = this ?: defaultValue()
+public inline fun <T> T?.orDefaultLazy(defaultValue: () -> T): T = this ?: defaultValue()

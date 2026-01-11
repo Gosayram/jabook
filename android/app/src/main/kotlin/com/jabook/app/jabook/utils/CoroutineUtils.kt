@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
  * // Later: childScope.cancel() // Only cancels child scope, not parent
  * ```
  */
-fun CoroutineScope.newCancelableScope(): CoroutineScope = CoroutineScope(coroutineContext + SupervisorJob())
+public fun CoroutineScope.newCancelableScope(): CoroutineScope = CoroutineScope(coroutineContext + SupervisorJob())
 
 /**
  * Relaunches a coroutine, cancelling all existing children first.
@@ -57,7 +57,7 @@ fun CoroutineScope.newCancelableScope(): CoroutineScope = CoroutineScope(corouti
  * }
  * ```
  */
-fun CoroutineScope.relaunch(block: suspend CoroutineScope.() -> Unit) {
+public fun CoroutineScope.relaunch(block: suspend CoroutineScope.() -> Unit): Unit {
     coroutineContext.cancelChildren()
     launch(block = block)
 }
@@ -85,7 +85,7 @@ fun CoroutineScope.relaunch(block: suspend CoroutineScope.() -> Unit) {
  * ```
  */
 @Suppress("FunctionName")
-fun <T : Any> SingleItemMutableSharedFlow(): MutableSharedFlow<T> =
+public fun <T : Any> SingleItemMutableSharedFlow(): MutableSharedFlow<T> =
     MutableSharedFlow(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,

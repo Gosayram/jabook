@@ -30,10 +30,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * Provides waveform and FFT data for UI visualization.
  * Requires RECORD_AUDIO permission on Android 6.0+.
  */
-class AudioVisualizerManager(
+public class AudioVisualizerManager(
     private val context: Context,
 ) {
-    companion object {
+    public companion object {
         private const val TAG = "AudioVisualizerManager"
         private const val CAPTURE_SIZE = 256
     }
@@ -42,18 +42,18 @@ class AudioVisualizerManager(
     private var audioSessionId: Int = 0
 
     private val _waveformData = MutableStateFlow(FloatArray(CAPTURE_SIZE))
-    val waveformData: StateFlow<FloatArray> = _waveformData.asStateFlow()
+    public val waveformData: StateFlow<FloatArray> = _waveformData.asStateFlow()
 
     private val _fftData = MutableStateFlow(FloatArray(CAPTURE_SIZE / 2))
-    val fftData: StateFlow<FloatArray> = _fftData.asStateFlow()
+    public val fftData: StateFlow<FloatArray> = _fftData.asStateFlow()
 
     private val _isActive = MutableStateFlow(false)
-    val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
+    public val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
 
     /**
      * Initialize visualizer with the player's audio session ID.
      */
-    fun initialize(audioSessionId: Int) {
+    public fun initialize(audioSessionId: Int): Unit {
         if (this.audioSessionId == audioSessionId && visualizer != null) {
             Log.d(TAG, "Visualizer already initialized with same session")
             return
@@ -125,7 +125,7 @@ class AudioVisualizerManager(
     /**
      * Enable or disable the visualizer.
      */
-    fun setEnabled(enabled: Boolean) {
+    public fun setEnabled(enabled: Boolean): Unit {
         try {
             visualizer?.enabled = enabled
             _isActive.value = enabled
@@ -137,7 +137,7 @@ class AudioVisualizerManager(
     /**
      * Release visualizer resources.
      */
-    fun release() {
+    public fun release(): Unit {
         try {
             visualizer?.enabled = false
             visualizer?.release()

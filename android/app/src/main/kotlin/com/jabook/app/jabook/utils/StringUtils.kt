@@ -33,7 +33,7 @@ package com.jabook.app.jabook.utils
  * val title = metadata?.get("title").orIfBlank("Unknown Title")
  * ```
  */
-fun String?.orIfBlank(default: String): String = if (this.isNullOrBlank()) default else this
+public fun String?.orIfBlank(default: String): String = if (this.isNullOrBlank()) default else this
 
 /**
  * Returns the string if it's not null and not empty, otherwise returns the default value.
@@ -49,7 +49,7 @@ fun String?.orIfBlank(default: String): String = if (this.isNullOrBlank()) defau
  * val artist = metadata?.get("artist").orIfEmpty("Unknown Artist")
  * ```
  */
-fun String?.orIfEmpty(default: String): String = if (this.isNullOrEmpty()) default else this
+public fun String?.orIfEmpty(default: String): String = if (this.isNullOrEmpty()) default else this
 
 /**
  * Formats a flavor suffix for display in titles.
@@ -65,7 +65,7 @@ fun String?.orIfEmpty(default: String): String = if (this.isNullOrEmpty()) defau
  * val title = "My App${flavor.formatFlavorSuffix()}" // "My App - Dev"
  * ```
  */
-fun String.formatFlavorSuffix(): String = takeIf { isNotEmpty() }?.let { " - $it" }.orEmpty()
+public fun String.formatFlavorSuffix(): String = takeIf { isNotEmpty() }?.let { " - $it" }.orEmpty()
 
 /**
  * Appends a flavor suffix to a base name if the suffix is not empty.
@@ -80,7 +80,7 @@ fun String.formatFlavorSuffix(): String = takeIf { isNotEmpty() }?.let { " - $it
  * val fullName = baseName.appendFlavorSuffix(flavor) // "jabook - dev"
  * ```
  */
-fun String.appendFlavorSuffix(flavorSuffix: String): String = if (flavorSuffix.isEmpty()) this else "$this - $flavorSuffix"
+public fun String.appendFlavorSuffix(flavorSuffix: String): String = if (flavorSuffix.isEmpty()) this else "$this - $flavorSuffix"
 
 /**
  * Capitalizes the first letter of the string if not null/empty.
@@ -96,7 +96,7 @@ fun String.appendFlavorSuffix(flavorSuffix: String): String = if (flavorSuffix.i
  * null.capitalizeFirst() // ""
  * ```
  */
-fun String?.capitalizeFirst(): String =
+public fun String?.capitalizeFirst(): String =
     when {
         this.isNullOrEmpty() -> ""
         this.length == 1 -> this.uppercase()

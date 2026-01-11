@@ -27,7 +27,7 @@ import androidx.media3.session.MediaConstants
  *
  * Based on MediaConstants from Media3 library.
  */
-object CompletionStatusHelper {
+public object CompletionStatusHelper {
     /**
      * Calculate completion percentage from position and duration.
      *
@@ -35,7 +35,7 @@ object CompletionStatusHelper {
      * @param durationMs Total audiobook duration in milliseconds
      * @return Completion percentage from 0.0 (not started) to 1.0 (fully played)
      */
-    fun calculateCompletionPercentage(
+    public fun calculateCompletionPercentage(
         positionMs: Long,
         durationMs: Long,
     ): Double {
@@ -56,7 +56,7 @@ object CompletionStatusHelper {
      * @param trackDurations List of track durations in milliseconds (must match playlist order)
      * @return Completion percentage from 0.0 (not started) to 1.0 (fully played)
      */
-    fun calculateCompletionPercentageWithTracks(
+    public fun calculateCompletionPercentageWithTracks(
         currentTrackIndex: Int,
         currentPositionMs: Long,
         trackDurations: List<Long>,
@@ -95,7 +95,7 @@ object CompletionStatusHelper {
      * - 1% - 95%: Partially played
      * - 95% - 100%: Fully played (allows 5% margin for credits/silence)
      */
-    fun getCompletionStatus(completionPercentage: Double): Int =
+    public fun getCompletionStatus(completionPercentage: Double): Int =
         when {
             completionPercentage < 0.01 -> MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
             completionPercentage >= 0.95 -> MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
@@ -117,7 +117,7 @@ object CompletionStatusHelper {
      * @param durationMs Total audiobook duration in milliseconds
      * @return Bundle with EXTRAS_KEY_COMPLETION_STATUS and optionally EXTRAS_KEY_COMPLETION_PERCENTAGE
      */
-    fun createCompletionExtras(
+    public fun createCompletionExtras(
         positionMs: Long,
         durationMs: Long,
     ): Bundle {
