@@ -262,7 +262,7 @@ public class AudioPlayerController
                             // Wait for controller with timeout
                             val controller =
                                 mediaControllerFuture?.get(
-                                    MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS,
+                                    MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(),
                                     TimeUnit.SECONDS,
                                 )
                             mediaController = controller

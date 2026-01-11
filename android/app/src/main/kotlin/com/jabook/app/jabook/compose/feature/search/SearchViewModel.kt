@@ -125,7 +125,7 @@ public class SearchViewModel
         /**
          * Favorite IDs for checking status.
          */
-        val favoriteIds: StateFlow<Set<String>> =
+        public val favoriteIds: StateFlow<Set<String>> =
             favoritesRepository.favoriteIds
                 .map { it.toSet() }
                 .stateIn(
@@ -137,14 +137,14 @@ public class SearchViewModel
         /**
          * Update search query.
          */
-        public fun onSearchQueryChanged() {
+        public fun onSearchQueryChanged(query: String) {
             _searchQuery.value = query
         }
 
         /**
          * Update filters.
          */
-        public fun updateFilters() {
+        public fun updateFilters(newFilters: SearchFilters) {
             _filters.value = newFilters
             recalculateUiState()
         }
@@ -152,7 +152,7 @@ public class SearchViewModel
         /**
          * Update sort order.
          */
-        public fun updateSortOrder() {
+        public fun updateSortOrder(order: SearchSortOrder) {
             _sortOrder.value = order
             recalculateUiState()
         }
@@ -312,9 +312,9 @@ public class SearchViewModel
         /**
          * Delete specific search history item.
          */
-        public fun deleteSearchHistoryItem() {
+        public fun deleteSearchHistoryItem(id: Int) {
             viewModelScope.launch {
-                searchHistoryRepository.deleteSearch(id)
+                searchHistoryRepository.deleteSearch(id.toLong())
             }
         }
 
@@ -330,7 +330,7 @@ public class SearchViewModel
         /**
          * Toggle favorite status for a search result.
          */
-        public fun toggleFavorite() {
+        public fun toggleFavorite(result: RutrackerSearchResult) {
             viewModelScope.launch {
                 if (favoriteIds.value.contains(result.topicId)) {
                     favoritesRepository.removeFromFavorites(result.topicId)

@@ -168,7 +168,7 @@ public fun SearchScreen(
                                 title = {
                                     TextField(
                                         value = searchQuery,
-                                        onValueChange = viewModel::onSearchQueryChanged,
+                                        onValueChange = { viewModel.onSearchQueryChanged(it) },
                                         modifier = Modifier.fillMaxWidth(),
                                         placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
                                         singleLine = true,
@@ -449,7 +449,7 @@ private fun LocalSearchResults(
     searchHistory: List<SearchHistoryEntity>,
     onBookClick: (String) -> Unit,
     onHistoryItemClick: (String) -> Unit,
-    onHistoryItemDelete: (Long) -> Unit,
+    onHistoryItemDelete: (Int) -> Unit,
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -500,7 +500,7 @@ private fun LocalSearchResults(
 private fun SearchHistoryList(
     history: List<SearchHistoryEntity>,
     onItemClick: (String) -> Unit,
-    onItemDelete: (Long) -> Unit,
+    onItemDelete: (Int) -> Unit,
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
