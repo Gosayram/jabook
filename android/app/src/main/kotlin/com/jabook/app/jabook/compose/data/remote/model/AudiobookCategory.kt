@@ -23,8 +23,8 @@ package com.jabook.app.jabook.compose.data.remote.model
  * @property subcategories List of subcategories (nested forums)
  */
 public data class AudiobookCategory(
-    val id: String,
-    val name: String,
-    val url: String,
-    val subcategories: List<AudiobookCategory> = emptyList(),
+    public val id: String,
+    public val name: String,
+    public val url: String,
+    public val subcategories: List<AudiobookCategory> = emptyList(),
 )

@@ -40,7 +40,7 @@ internal class MetadataManager(
      * Note: Artwork is automatically extracted from audio file metadata by ExoPlayer
      * We don't update MediaItem here to preserve embedded artwork extracted by ExoPlayer
      */
-    fun updateMetadata(metadata: Map<String, String>) {
+    public fun updateMetadata(...) {
         setCurrentMetadata(metadata)
         // Just update notification - ExoPlayer already has the embedded artwork in MediaItem
         // Don't replace MediaItem to avoid losing embedded artwork
@@ -53,7 +53,7 @@ internal class MetadataManager(
      *
      * @return Map with current media item information, or empty map if no item
      */
-    fun getCurrentMediaItemInfo(): Map<String, Any?> {
+    public fun getCurrentMediaItemInfo(): Map<String, Any?> {
         val player = getActivePlayer()
         val currentItem = player.currentMediaItem ?: return emptyMap()
         val metadata = currentItem.mediaMetadata
@@ -84,7 +84,7 @@ internal class MetadataManager(
      * @param filePath Path to the audio file
      * @return Path to saved artwork file, or null if no artwork found
      */
-    fun extractArtworkFromFile(filePath: String): String? {
+    public fun extractArtworkFromFile(filePath: String): String? {
         return runBlocking {
             withContext(Dispatchers.IO) {
                 try {

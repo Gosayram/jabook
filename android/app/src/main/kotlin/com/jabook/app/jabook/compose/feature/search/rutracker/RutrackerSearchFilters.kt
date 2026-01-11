@@ -45,9 +45,9 @@ public enum class RutrackerSortOrder {
  * @param maxSizeMb Maximum file size in MB (null = no filter)
  */
 public data class RutrackerSearchFilters(
-    val minSeeders: Int? = null,
-    val minSizeMb: Int? = null,
-    val maxSizeMb: Int? = null,
+    public val minSeeders: Int? = null,
+    public val minSizeMb: Int? = null,
+    public val maxSizeMb: Int? = null,
 ) {
     /** Check if any filters are active */
     public fun isActive(): Boolean = minSeeders != null || minSizeMb != null || maxSizeMb != null

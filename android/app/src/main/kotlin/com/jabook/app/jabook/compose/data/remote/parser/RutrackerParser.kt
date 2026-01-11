@@ -2123,11 +2123,11 @@ public class RutrackerParser
             data object Success : LoginResult
 
             public data class Error(
-                val message: String,
+                public val message: String,
             ) : LoginResult
 
             public data class Captcha(
-                val data: com.jabook.app.jabook.compose.domain.model.CaptchaData,
+                public val data: com.jabook.app.jabook.compose.domain.model.CaptchaData,
             ) : LoginResult
         }
 

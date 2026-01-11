@@ -715,7 +715,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         /**
          * Requests widget update from anywhere in the app.
          */
-        public fun requestUpdate(context: Context) {
+        public fun requestUpdate(...) {
             val intent =
                 Intent(context, PlayerWidgetProvider::class.java).apply {
                     action = ACTION_UPDATE_WIDGET

@@ -130,11 +130,11 @@ public class DataMigrationManager
  */
 public sealed class MigrationResult {
     public data class Success(
-        val booksCount: Int,
-        val chaptersCount: Int,
+        public val booksCount: Int,
+        public val chaptersCount: Int,
     ) : MigrationResult()
 
     public data class Failure(
-        val error: Exception,
+        public val error: Exception,
     ) : MigrationResult()
 }

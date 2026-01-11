@@ -46,13 +46,13 @@ public class DebugViewModel
     ) : ViewModel() {
         private val logger = StructuredLogger("DebugViewModel")
         private val _uiState = MutableStateFlow<DebugUiState>(DebugUiState.Initial)
-        val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
 
         private val _logs = MutableStateFlow<String>("")
-        val logs: StateFlow<String> = _logs.asStateFlow()
+        public val logs: StateFlow<String> = _logs.asStateFlow()
 
         private val _authDebugInfo = MutableStateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?>(null)
-        val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
+        public val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
 
         init {
             // Delay initialization until viewModelScope is fully ready
@@ -77,7 +77,7 @@ public class DebugViewModel
             }
         }
 
-        public fun loadLogs() {
+        public fun loadLogs(...) {
             try {
                 viewModelScope.launch {
                     try {
@@ -111,7 +111,7 @@ public class DebugViewModel
          *
          * @param activity Activity context for starting the share intent
          */
-        public fun shareLogs(activity: android.app.Activity) {
+        public fun shareLogs(...) {
             viewModelScope.launch {
                 try {
                     _uiState.value = DebugUiState.Loading
@@ -123,7 +123,7 @@ public class DebugViewModel
             }
         }
 
-        public fun clearOldLogFiles() {
+        public fun clearOldLogFiles(...) {
             viewModelScope.launch {
                 try {
                     debugLogService.clearOldLogFiles()
@@ -133,7 +133,7 @@ public class DebugViewModel
             }
         }
 
-        public fun testAllMirrors() {
+        public fun testAllMirrors(...) {
             viewModelScope.launch {
                 try {
                     _uiState.value = DebugUiState.Loading
@@ -145,13 +145,13 @@ public class DebugViewModel
             }
         }
 
-        public fun refreshDebugData() {
+        public fun refreshDebugData(...) {
             loadLogs()
             refreshAuthDebugInfo()
             loadCacheStats()
         }
 
-        public fun refreshAuthDebugInfo() {
+        public fun refreshAuthDebugInfo(...) {
             try {
                 viewModelScope.launch {
                     try {
@@ -305,11 +305,11 @@ public class DebugViewModel
             }
 
         private val _cacheStats = MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
-        val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
+        public val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
             _cacheStats
                 .asStateFlow()
 
-        public fun loadCacheStats() {
+        public fun loadCacheStats(...) {
             try {
                 viewModelScope.launch {
                     try {
@@ -334,7 +334,7 @@ public class DebugViewModel
             }
         }
 
-        public fun clearCache() {
+        public fun clearCache(...) {
             viewModelScope.launch {
                 try {
                     rutrackerRepository.clearSearchCache()
@@ -357,6 +357,6 @@ public sealed class DebugUiState {
     data object Success : DebugUiState()
 
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : DebugUiState()
 }

@@ -282,7 +282,7 @@ public class RutrackerRepository
                                 if (index > 0) sqlBuilder.append(" AND ")
                                 sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
 
-                                val likePattern: String = "%$token%"
+                                public val likePattern: String = "%$token%"
                                 args.add(likePattern)
                                 args.add(likePattern)
                             }
@@ -327,7 +327,7 @@ public class RutrackerRepository
                 // Extract success data to check coverUrl
                 if (result.isSuccess) {
                     val details = result.getOrNull()
-                    val coverUrl: Long = details?.coverUrl
+                    public val coverUrl: Long = details?.coverUrl
                     if (!coverUrl.isNullOrBlank()) {
                         Log.d(TAG, "Updating cover for $topicId: $coverUrl")
                         offlineSearchDao.updateCoverUrl(topicId, coverUrl)
@@ -759,7 +759,7 @@ public class RutrackerRepository
         /**
          * Clear search cache.
          */
-        public fun clearSearchCache() {
+        public fun clearSearchCache(...) {
             searchCache.clear()
         }
     }

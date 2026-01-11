@@ -46,16 +46,16 @@ public sealed interface TorrentDownloadsUiState {
     data object Loading : TorrentDownloadsUiState
 
     public data class Success(
-        val activeDownloads: List<TorrentDownload>,
-        val pausedDownloads: List<TorrentDownload>,
-        val completedDownloads: List<TorrentDownload>,
-        val errorDownloads: List<TorrentDownload>,
+        public val activeDownloads: List<TorrentDownload>,
+        public val pausedDownloads: List<TorrentDownload>,
+        public val completedDownloads: List<TorrentDownload>,
+        public val errorDownloads: List<TorrentDownload>,
     ) : TorrentDownloadsUiState
 
     data object Empty : TorrentDownloadsUiState
 
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : TorrentDownloadsUiState
 }
 
@@ -79,14 +79,14 @@ public class TorrentDownloadsViewModel
 
         // Selected download for details view
         private val _selectedDownload = MutableStateFlow<TorrentDownload?>(null)
-        val selectedDownload: StateFlow<TorrentDownload?> = _selectedDownload.asStateFlow()
+        public val selectedDownload: StateFlow<TorrentDownload?> = _selectedDownload.asStateFlow()
 
         // Filter state
         private val _showCompletedOnly = MutableStateFlow(false)
-        val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
+        public val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
 
         // UI state combining downloads from manager and repository
-        val uiState: StateFlow<TorrentDownloadsUiState> =
+        public val uiState: StateFlow<TorrentDownloadsUiState> =
             combine(
                 torrentManager.downloadsFlow,
                 repository.getAllFlow(),
@@ -147,7 +147,7 @@ public class TorrentDownloadsViewModel
         /**
          * Pause download
          */
-        public fun pauseDownload(hash: String) {
+        public fun pauseDownload(...) {
             viewModelScope.launch {
                 torrentManager.pauseTorrent(hash)
             }
@@ -156,7 +156,7 @@ public class TorrentDownloadsViewModel
         /**
          * Resume download
          */
-        public fun resumeDownload(hash: String) {
+        public fun resumeDownload(...) {
             viewModelScope.launch {
                 checkNetworkAndWarn()
                 torrentManager.resumeTorrent(hash)
@@ -179,28 +179,28 @@ public class TorrentDownloadsViewModel
         /**
          * Select download for details view
          */
-        public fun selectDownload(download: TorrentDownload) {
+        public fun selectDownload(...) {
             _selectedDownload.value = download
         }
 
         /**
          * Clear selection
          */
-        public fun clearSelection() {
+        public fun clearSelection(...) {
             _selectedDownload.value = null
         }
 
         /**
          * Toggle show completed filter
          */
-        public fun toggleShowCompleted() {
+        public fun toggleShowCompleted(...) {
             _showCompletedOnly.value = !_showCompletedOnly.value
         }
 
         /**
          * Delete all completed downloads
          */
-        public fun deleteAllCompleted() {
+        public fun deleteAllCompleted(...) {
             viewModelScope.launch {
                 val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
@@ -214,7 +214,7 @@ public class TorrentDownloadsViewModel
         /**
          * Pause all active downloads
          */
-        public fun pauseAll() {
+        public fun pauseAll(...) {
             viewModelScope.launch {
                 val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
@@ -228,7 +228,7 @@ public class TorrentDownloadsViewModel
         /**
          * Resume all paused downloads
          */
-        public fun resumeAll() {
+        public fun resumeAll(...) {
             viewModelScope.launch {
                 val state = uiState.value
                 if (state is TorrentDownloadsUiState.Success) {
@@ -244,10 +244,10 @@ public class TorrentDownloadsViewModel
          */
         // Pending torrent state for dialog
         private val _pendingMagnetLink = MutableStateFlow<String?>(null)
-        val pendingMagnetLink: StateFlow<String?> = _pendingMagnetLink.asStateFlow()
+        public val pendingMagnetLink: StateFlow<String?> = _pendingMagnetLink.asStateFlow()
 
         private val _pendingDownloadPath = MutableStateFlow("")
-        val pendingDownloadPath: StateFlow<String> = _pendingDownloadPath.asStateFlow()
+        public val pendingDownloadPath: StateFlow<String> = _pendingDownloadPath.asStateFlow()
 
         init {
             // Check for initial magnet link
@@ -261,7 +261,7 @@ public class TorrentDownloadsViewModel
             }
         }
 
-        public fun prepareAddTorrent(magnetLink: String) {
+        public fun prepareAddTorrent(...) {
             viewModelScope.launch {
                 val prefs = settingsRepository.userPreferences.first()
                 val defaultPath =
@@ -273,18 +273,18 @@ public class TorrentDownloadsViewModel
             }
         }
 
-        public fun updatePendingPath(path: String) {
+        public fun updatePendingPath(...) {
             _pendingDownloadPath.value = path
         }
 
-        public fun updatePendingPathFromUri(uriString: String) {
+        public fun updatePendingPathFromUri(...) {
             val path =
                 com.jabook.app.jabook.util.FileUtils
                     .resolvePathFromUri(uriString)
             _pendingDownloadPath.value = path
         }
 
-        public fun confirmAddTorrent() {
+        public fun confirmAddTorrent(...) {
             viewModelScope.launch {
                 val magnetLink = _pendingMagnetLink.value ?: return@launch
                 val path = _pendingDownloadPath.value
@@ -299,7 +299,7 @@ public class TorrentDownloadsViewModel
             }
         }
 
-        public fun cancelAddTorrent() {
+        public fun cancelAddTorrent(...) {
             _pendingMagnetLink.value = null
         }
 

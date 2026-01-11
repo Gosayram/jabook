@@ -48,17 +48,17 @@ public class IndexingViewModel
         }
 
         private val _indexingProgress = MutableStateFlow<IndexingProgress>(IndexingProgress.Idle)
-        val indexingProgress: StateFlow<IndexingProgress> = _indexingProgress.asStateFlow()
+        public val indexingProgress: StateFlow<IndexingProgress> = _indexingProgress.asStateFlow()
 
         // Timing state
         private val _indexingStartTime = MutableStateFlow<Long?>(null)
-        val indexingStartTime: StateFlow<Long?> = _indexingStartTime.asStateFlow()
+        public val indexingStartTime: StateFlow<Long?> = _indexingStartTime.asStateFlow()
 
         private val _clearingInProgress = MutableStateFlow(false)
-        val clearingInProgress: StateFlow<Boolean> = _clearingInProgress.asStateFlow()
+        public val clearingInProgress: StateFlow<Boolean> = _clearingInProgress.asStateFlow()
 
         private val _isIndexing = MutableStateFlow(false)
-        val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
+        public val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
 
         /**
          * Start full indexing of all audiobook forums using Foreground Service.
@@ -67,7 +67,7 @@ public class IndexingViewModel
          *
          * @param context Context needed to start foreground service
          */
-        public fun startIndexing(context: Context? = null) {
+        public fun startIndexing(...) {
             if (_isIndexing.value) {
                 Log.w(TAG, "Indexing already in progress")
                 return
@@ -124,7 +124,7 @@ public class IndexingViewModel
         /**
          * Cancel indexing (if possible).
          */
-        public fun cancelIndexing() {
+        public fun cancelIndexing(...) {
             // Note: Current implementation doesn't support cancellation
             // This is a placeholder for future implementation
             Log.d(TAG, "Cancel indexing requested (not yet implemented)")
@@ -150,7 +150,7 @@ public class IndexingViewModel
          * This allows indexing to continue even when dialog is closed.
          * Stops current indexing in ViewModel (if running) and transfers control to service.
          */
-        public fun startIndexingInBackground(context: Context) {
+        public fun startIndexingInBackground(...) {
             Log.d(TAG, "Transferring indexing to foreground service")
 
             // Stop current indexing in ViewModel if running

@@ -42,7 +42,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
         private const val TAG = "MediaSessionActionReceiver"
         public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY"
         public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE"
-        private const val CONTROLLER_TIMEOUT_MS: Long = 2000L
+        private const val CONTROLLER_TIMEOUT_MS: Int = L
     }
 
     override fun onReceive(

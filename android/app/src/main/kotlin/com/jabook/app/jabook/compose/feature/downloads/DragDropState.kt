@@ -31,15 +31,15 @@ public class DragDropState {
     var draggedIndex by mutableStateOf<Int?>(null)
     var dragOffset by mutableStateOf(Offset.Zero)
 
-    public fun onDragStart(index: Int) {
+    public fun onDragStart(...) {
         draggedIndex = index
     }
 
-    public fun onDrag(offset: Offset) {
+    public fun onDrag(...) {
         dragOffset += offset
     }
 
-    public fun onDragEnd() {
+    public fun onDragEnd(...) {
         draggedIndex = null
         dragOffset = Offset.Zero
     }
@@ -77,8 +77,8 @@ public fun Modifier.draggableItem(
                     // Simple reordering based on total drag distance
                     val draggedDistance = dragDropState.dragOffset.y
 
-                    public val itemHeight: Int = 100f // Approximate item height
-                    public val targetIndex = (index + (draggedDistance / itemHeight).toInt()).coerceIn(0, Int.MAX_VALUE)
+                    val itemHeight: Float = 100f // Approximate item height
+                    val targetIndex = (index + (draggedDistance / itemHeight).toInt()).coerceIn(0, Int.MAX_VALUE)
 
                     if (targetIndex != index) {
                         onMove(index, targetIndex)

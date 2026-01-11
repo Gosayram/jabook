@@ -43,7 +43,7 @@ internal class NotificationHelper(
      *
      * @return Minimal notification for foreground service
      */
-    fun createMinimalNotification(): Notification {
+    public fun createMinimalNotification(): Notification {
         // Create notification channel if not exists
         ensureNotificationChannel(CHANNEL_ID)
 
@@ -76,7 +76,7 @@ internal class NotificationHelper(
      *
      * @return Basic fallback notification
      */
-    fun createFallbackNotification(): Notification {
+    public fun createFallbackNotification(): Notification {
         ensureNotificationChannel(CHANNEL_ID)
 
         return NotificationCompat

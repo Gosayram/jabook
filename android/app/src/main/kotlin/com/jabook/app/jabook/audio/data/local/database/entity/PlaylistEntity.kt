@@ -23,9 +23,9 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "playlists")
 public data class PlaylistEntity(
     @PrimaryKey
-    val bookId: String,
-    val bookTitle: String,
-    val filePaths: String, // JSON array of file paths
-    val currentIndex: Int = 0,
-    val lastUpdated: Long = System.currentTimeMillis(),
+    public val bookId: String,
+    public val bookTitle: String,
+    public val filePaths: String, // JSON array of file paths
+    public val currentIndex: Int = 0,
+    public val lastUpdated: Long = System.currentTimeMillis(),
 )

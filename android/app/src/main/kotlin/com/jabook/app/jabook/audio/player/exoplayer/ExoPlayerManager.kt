@@ -40,7 +40,7 @@ public class ExoPlayerManager
         /**
          * Prepares the player with a single media item.
          */
-        public fun prepare(mediaItem: MediaItem) {
+        public fun prepare(...) {
             player.setMediaItem(mediaItem)
             player.prepare()
         }
@@ -48,7 +48,7 @@ public class ExoPlayerManager
         /**
          * Prepares the player with a list of media items.
          */
-        public fun prepare(mediaItems: List<MediaItem>) {
+        public fun prepare(...) {
             player.setMediaItems(mediaItems)
             player.prepare()
         }
@@ -59,7 +59,7 @@ public class ExoPlayerManager
         public fun prepare(
             mediaItems: List<MediaItem>,
             startIndex: Int,
-            startPosition: Long = 0L,
+            startPosition: Int = L,
         ) {
             player.setMediaItems(mediaItems, startIndex, startPosition)
             player.prepare()
@@ -68,21 +68,21 @@ public class ExoPlayerManager
         /**
          * Plays the player.
          */
-        public fun play() {
+        public fun play(...) {
             player.play()
         }
 
         /**
          * Pauses the player.
          */
-        public fun pause() {
+        public fun pause(...) {
             player.pause()
         }
 
         /**
          * Seeks to a specific position in the current media item.
          */
-        public fun seekTo(position: Long) {
+        public fun seekTo(...) {
             player.seekTo(position)
         }
 
@@ -99,7 +99,7 @@ public class ExoPlayerManager
         /**
          * Seeks to the next media item.
          */
-        public fun seekToNext() {
+        public fun seekToNext(...) {
             if (player.hasNextMediaItem()) {
                 player.seekToNextMediaItem()
             }
@@ -108,7 +108,7 @@ public class ExoPlayerManager
         /**
          * Seeks to the previous media item.
          */
-        public fun seekToPrevious() {
+        public fun seekToPrevious(...) {
             if (player.hasPreviousMediaItem()) {
                 player.seekToPreviousMediaItem()
             }
@@ -157,7 +157,7 @@ public class ExoPlayerManager
         /**
          * Sets the playback speed.
          */
-        public fun setPlaybackSpeed(speed: Float) {
+        public fun setPlaybackSpeed(...) {
             player.setPlaybackSpeed(speed)
         }
 
@@ -169,14 +169,14 @@ public class ExoPlayerManager
         /**
          * Adds a Player.Listener.
          */
-        public fun addListener(listener: Player.Listener) {
+        public fun addListener(...) {
             player.addListener(listener)
         }
 
         /**
          * Removes a Player.Listener.
          */
-        public fun removeListener(listener: Player.Listener) {
+        public fun removeListener(...) {
             player.removeListener(listener)
         }
 
@@ -184,7 +184,7 @@ public class ExoPlayerManager
          * Releases the player.
          * Note: This should be called when the player is no longer needed.
          */
-        public fun release() {
+        public fun release(...) {
             player.release()
         }
     }

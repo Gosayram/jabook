@@ -294,7 +294,7 @@ public class BackupService
             val protoSettings = protoSettingsRepository.userPreferences.first()
 
             // Defaults for empty values
-            val defaultDownloadPath: String =
+            public val defaultDownloadPath: String =
                 "JabookAudio"
 
             public val defaultMirrors =

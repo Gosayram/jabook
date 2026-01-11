@@ -29,14 +29,14 @@ public sealed interface Result<out T> {
      * Represents a successful operation with data.
      */
     public data class Success<T>(
-        val data: T,
+        public val data: T,
     ) : Result<T>
 
     /**
      * Represents a failed operation with an exception.
      */
     public data class Error(
-        val exception: Throwable,
+        public val exception: Throwable,
     ) : Result<Nothing>
 
     /**
@@ -50,7 +50,7 @@ public sealed interface Result<out T> {
  *
  * Automatically wraps the flow with Loading and Error states.
  */
-fun <T> Flow<T>.asResult(): Flow<Result<T>> =
+public fun <T> Flow<T>.asResult(): Flow<Result<T>> =
     map<T, Result<T>> { Result.Success(it) }
         .onStart { emit(Result.Loading) }
         .catch { emit(Result.Error(it)) }

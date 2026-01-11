@@ -85,21 +85,21 @@ public class MiniPlayerViewModel
         /**
          * Play current track.
          */
-        public fun play() {
+        public fun play(...) {
             audioPlayerController.play()
         }
 
         /**
          * Pause current track.
          */
-        public fun pause() {
+        public fun pause(...) {
             audioPlayerController.pause()
         }
 
         /**
          * Toggle play/pause.
          */
-        public fun togglePlayPause() {
+        public fun togglePlayPause(...) {
             if (isPlaying.value) {
                 pause()
             } else {
@@ -110,14 +110,14 @@ public class MiniPlayerViewModel
         /**
          * Skip to next track.
          */
-        public fun skipToNext() {
+        public fun skipToNext(...) {
             audioPlayerController.skipToNext()
         }
 
         /**
          * Skip to previous track.
          */
-        public fun skipToPrevious() {
+        public fun skipToPrevious(...) {
             audioPlayerController.skipToPrevious()
         }
     }

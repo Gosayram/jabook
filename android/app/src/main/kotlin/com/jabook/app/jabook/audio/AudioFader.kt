@@ -49,13 +49,13 @@ public class AudioFader
             private const val TAG = "AudioFader"
 
             /** Default fade duration in milliseconds */
-            public const val DEFAULT_FADE_DURATION_MS: Long = 300L
+            public const val DEFAULT_FADE_DURATION_MS: Int = L
 
             /** Minimum fade duration (instant) */
-            public const val MIN_FADE_DURATION_MS: Long = 0L
+            public const val MIN_FADE_DURATION_MS: Int = L
 
             /** Maximum fade duration */
-            public const val MAX_FADE_DURATION_MS: Long = 2000L
+            public const val MAX_FADE_DURATION_MS: Int = L
         }
 
         private var currentAnimator: ValueAnimator? = null
@@ -156,7 +156,7 @@ public class AudioFader
          *
          * Use this when playback state changes abruptly (e.g., user skips track).
          */
-        public fun cancelCurrentAnimation() {
+        public fun cancelCurrentAnimation(...) {
             currentAnimator?.let { animator ->
                 animator.cancel()
                 currentAnimator = null
@@ -172,7 +172,7 @@ public class AudioFader
         /**
          * Cleans up resources. Call when service is destroyed.
          */
-        public fun release() {
+        public fun release(...) {
             cancelCurrentAnimation()
             Log.d(TAG, "AudioFader released")
         }

@@ -28,20 +28,20 @@ import com.google.gson.reflect.TypeToken
 @TypeConverters(TorrentDownloadConverters::class)
 public data class TorrentDownloadEntity(
     @PrimaryKey
-    val hash: String,
-    val name: String,
-    val state: TorrentState,
-    val progress: Float,
-    val totalSize: Long,
-    val downloadedSize: Long,
-    val uploadedSize: Long,
-    val savePath: String,
-    val files: List<TorrentFile>,
-    val errorMessage: String?,
-    val addedTime: Long,
-    val completedTime: Long,
-    val pauseReason: PauseReason?,
-    val topicId: String? = null,
+    public val hash: String,
+    public val name: String,
+    public val state: TorrentState,
+    public val progress: Float,
+    public val totalSize: Long,
+    public val downloadedSize: Long,
+    public val uploadedSize: Long,
+    public val savePath: String,
+    public val files: List<TorrentFile>,
+    public val errorMessage: String?,
+    public val addedTime: Long,
+    public val completedTime: Long,
+    public val pauseReason: PauseReason?,
+    public val topicId: String? = null,
 ) {
     /**
      * Convert to domain model

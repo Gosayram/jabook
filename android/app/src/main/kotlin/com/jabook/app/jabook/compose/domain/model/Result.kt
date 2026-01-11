@@ -29,7 +29,7 @@ public sealed interface Result<out T> {
      * @property data The successful result data
      */
     public data class Success<T>(
-        val data: T,
+        public val data: T,
     ) : Result<T>
 
     /**
@@ -39,8 +39,8 @@ public sealed interface Result<out T> {
      * @property message Optional user-friendly error message
      */
     public data class Error(
-        val exception: Throwable,
-        val message: String? = exception.message,
+        public val exception: Throwable,
+        public val message: String? = exception.message,
     ) : Result<Nothing>
 
     /**
@@ -67,7 +67,7 @@ inline fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> =
 /**
  * Returns the data if this is a Success result, or null otherwise.
  */
-fun <T> Result<T>.getOrNull(): T? =
+public fun <T> Result<T>.getOrNull(): T? =
     when (this) {
         is Result.Success -> data
         else -> null
@@ -76,7 +76,7 @@ fun <T> Result<T>.getOrNull(): T? =
 /**
  * Returns the data if this is a Success result, or throws the exception if Error.
  */
-fun <T> Result<T>.getOrThrow(): T =
+public fun <T> Result<T>.getOrThrow(): T =
     when (this) {
         is Result.Success -> data
         is Result.Error -> throw exception

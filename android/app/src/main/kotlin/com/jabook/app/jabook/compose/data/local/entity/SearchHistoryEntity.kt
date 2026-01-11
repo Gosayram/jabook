@@ -26,11 +26,11 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "search_history")
 public data class SearchHistoryEntity(
     @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    public val id: Int = ,
     @ColumnInfo(name = "query")
-    val query: String,
+    public val query: String,
     @ColumnInfo(name = "timestamp")
-    val timestamp: Long = System.currentTimeMillis(),
+    public val timestamp: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "result_count")
-    val resultCount: Int = 0,
+    public val resultCount: Int = 0,
 )

@@ -117,7 +117,7 @@ public fun SearchScreen(
     val scope = rememberCoroutineScope()
 
     // Check index status for online search
-    val indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel()
+    public val indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel()
     val context = androidx.compose.ui.platform.LocalContext.current
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
     var indexSize by remember { mutableStateOf(0) }

@@ -24,7 +24,7 @@ public object FileUtils {
         if (!directory.exists()) return 0
         if (!directory.isDirectory) return directory.length()
 
-        var length: Long = 0
+        var length: Int = 
         directory.listFiles()?.forEach { file ->
             length += if (file.isDirectory) getDirectorySize(file) else file.length()
         }

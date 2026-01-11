@@ -76,10 +76,10 @@ public data class ScannedBook(
  * @property duration Duration in milliseconds
  */
 public data class ScannedChapter(
-    val filePath: String,
-    val title: String,
-    val index: Int,
-    val duration: Long,
+    public val filePath: String,
+    public val title: String,
+    public val index: Int,
+    public val duration: Long,
 )
 
 /**
@@ -89,7 +89,7 @@ public interface LocalBookScanner {
     /**
      * Observable state of the current scanning process.
      */
-    val scanProgress: StateFlow<ScanProgress>
+    public val scanProgress: StateFlow<ScanProgress>
 
     /**
      * Scan local storage for audiobooks.

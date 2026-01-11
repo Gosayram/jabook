@@ -55,11 +55,11 @@ public class DirectFileSystemScanner
          * Used for initial quick scan before metadata parsing.
          */
         private data class FastFileInfo(
-            val filePath: String,
-            val displayName: String,
-            val directory: String,
-            val size: Long,
-            val lastModified: Long,
+            public val filePath: String,
+            public val displayName: String,
+            public val directory: String,
+            public val size: Long,
+            public val lastModified: Long,
         )
 
         private val _scanProgress = kotlinx.coroutines.flow.MutableStateFlow<ScanProgress>(ScanProgress.Idle)
@@ -551,9 +551,9 @@ public class DirectFileSystemScanner
         }
 
         private data class ChapterInfo(
-            val partNumber: Int = 0,
-            val chapterNumber: Int = 0,
-            val hasNumber: Boolean = false,
+            public val partNumber: Int = 0,
+            public val chapterNumber: Int = 0,
+            public val hasNumber: Boolean = false,
         ) {
             public fun toSortKey(): Int = partNumber * 1000 + chapterNumber
         }

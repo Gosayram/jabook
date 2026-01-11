@@ -315,7 +315,7 @@ public class AudioPlayerLibrarySessionCallback(
                 val filePaths = filePathsArray.toList()
 
                 // Extract metadata if present, converting Map<String!, String?>? to Map<String, String>?
-                val metadataMap: Map<String, String>? =
+                public val metadataMap: Map<String, String>? =
                     args.getBundle(ARG_METADATA)?.let { metadataBundle ->
                         metadataBundle
                             .keySet()

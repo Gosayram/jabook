@@ -18,8 +18,8 @@ package com.jabook.app.jabook.compose.domain.model
  * Filter criteria for search results.
  */
 public data class SearchFilters(
-    val categories: Set<String> = emptySet(),
-    val minSize: Long? = null,
-    val maxSize: Long? = null,
-    val minSeeders: Int? = null,
+    public val categories: Set<String> = emptySet(),
+    public val minSize: Long? = null,
+    public val maxSize: Long? = null,
+    public val minSeeders: Int? = null,
 )

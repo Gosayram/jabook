@@ -31,7 +31,7 @@ public class AudioPlayerServiceInitializer(
     private val service: AudioPlayerService,
 ) {
     @OptIn(UnstableApi::class)
-    public fun initialize() {
+    public fun initialize(...) {
         android.util.Log.i("AudioPlayerService", "Initializing service components...")
 
         // NOTE: NotificationHelper is already initialized in onCreate() for immediate startForeground()
@@ -296,7 +296,7 @@ public class AudioPlayerServiceInitializer(
 
         try {
             // Build the controller asynchronously to avoid blocking the main thread
-            val controllerFuture: ListenableFuture<MediaController> =
+            public val controllerFuture: ListenableFuture<MediaController> =
                 MediaController
                     .Builder(service, session.token)
                     .setApplicationLooper(service.mainLooper)

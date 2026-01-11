@@ -34,9 +34,9 @@ public class StructuredLogger(
     private val tag: String,
 ) {
     private data class Operation(
-        val id: String,
-        val name: String,
-        val startTime: Long,
+        public val id: String,
+        public val name: String,
+        public val startTime: Long,
     )
 
     private val activeOperations = mutableMapOf<String, Operation>()
@@ -107,7 +107,7 @@ public class StructuredLogger(
         message: String,
         level: LogLevel = LogLevel.DEBUG,
     ) {
-        val logMessage: String = "[$operationId] $message"
+        public val logMessage: String = "[$operationId] $message"
         when (level) {
             LogLevel.VERBOSE -> Log.v(tag, logMessage)
             LogLevel.DEBUG -> Log.d(tag, logMessage)
@@ -131,7 +131,7 @@ public class StructuredLogger(
         duration: Long,
         level: LogLevel = LogLevel.DEBUG,
     ) {
-        val logMessage: String = "[$operationId] $message (${duration}ms)"
+        public val logMessage: String = "[$operationId] $message (${duration}ms)"
         when (level) {
             LogLevel.VERBOSE -> Log.v(tag, logMessage)
             LogLevel.DEBUG -> Log.d(tag, logMessage)
@@ -153,7 +153,7 @@ public class StructuredLogger(
         message: String,
         throwable: Throwable? = null,
     ) {
-        val logMessage: String = "[$operationId] ❌ $message"
+        public val logMessage: String = "[$operationId] ❌ $message"
         if (throwable != null) {
             Log.e(tag, logMessage, throwable)
         } else {
@@ -231,7 +231,7 @@ public class StructuredLogger(
      * @param block Operation to execute
      * @return Result of the operation
      */
-    fun <T> withOperationSync(
+    public fun <T> withOperationSync(
         operationName: String,
         operationId: String? = null,
         block: (String) -> T,

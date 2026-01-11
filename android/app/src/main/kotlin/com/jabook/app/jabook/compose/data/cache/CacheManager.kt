@@ -270,13 +270,13 @@ public class CacheManager
  * Cache statistics by type.
  */
 public data class CacheStatistics(
-    val totalSize: Long,
-    val searchCacheSize: Long,
-    val topicCacheSize: Long,
-    val tempDownloadsSize: Long,
-    val logFilesSize: Long,
-    val imageCacheSize: Long,
-    val lastCleanup: Long,
+    public val totalSize: Long,
+    public val searchCacheSize: Long,
+    public val topicCacheSize: Long,
+    public val tempDownloadsSize: Long,
+    public val logFilesSize: Long,
+    public val imageCacheSize: Long,
+    public val lastCleanup: Long,
 )
 
 /**

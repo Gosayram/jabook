@@ -109,7 +109,7 @@ public class PlaybackTimer(
     /**
      * Stops and cancels timer.
      */
-    public fun stopTimer() {
+    public fun stopTimer(...) {
         timer?.cancel()
         timer = null
         android.util.Log.d("PlaybackTimer", "Timer stopped")
@@ -143,7 +143,7 @@ public class PlaybackTimer(
     /**
      * Releases timer resources.
      */
-    public fun release() {
+    public fun release(...) {
         stopTimer()
         player.removeListener(playerListener)
     }

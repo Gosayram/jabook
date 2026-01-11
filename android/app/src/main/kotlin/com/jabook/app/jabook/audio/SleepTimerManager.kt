@@ -43,7 +43,7 @@ internal class SleepTimerManager(
     private val sendBroadcast: (Intent) -> Unit,
 ) {
     // Sleep timer state
-    var sleepTimerEndTime: Long = 0
+    var sleepTimerEndTime: Int = 
         private set
     var sleepTimerEndOfChapter: Boolean = false
         private set
@@ -56,7 +56,7 @@ internal class SleepTimerManager(
     // Shake to Extend
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    private var lastShakeTime: Long = 0
+    private var lastShakeTime: Int = 
     private val shakeThreshold = 1.6f // g-force threshold
     private val shakeDebounceMs = 2000L
 
@@ -103,7 +103,7 @@ internal class SleepTimerManager(
     }
 
     companion object {
-        const val ACTION_SLEEP_TIMER_EXPIRED = "com.jabook.app.jabook.audio.SLEEP_TIMER_EXPIRED"
+        public const val ACTION_SLEEP_TIMER_EXPIRED = "com.jabook.app.jabook.audio.SLEEP_TIMER_EXPIRED"
     }
 
     /**
@@ -113,7 +113,7 @@ internal class SleepTimerManager(
      *
      * @param minutes Timer duration in minutes
      */
-    fun setSleepTimerMinutes(minutes: Int) {
+    public fun setSleepTimerMinutes(...) {
         stopTimer() // Stop existing timer if any
 
         val totalMillis = minutes * 60 * 1000L
@@ -167,7 +167,7 @@ internal class SleepTimerManager(
      *
      * Inspired by lissen-android: timer pauses when playback pauses.
      */
-    fun setSleepTimerEndOfChapter() {
+    public fun setSleepTimerEndOfChapter(...) {
         stopTimer() // Stop existing timer if any
 
         sleepTimerEndTime = 0
@@ -184,7 +184,7 @@ internal class SleepTimerManager(
     /**
      * Cancels active sleep timer.
      */
-    fun cancelSleepTimer() {
+    public fun cancelSleepTimer(...) {
         stopTimer()
         sleepTimerEndTime = 0
         sleepTimerEndOfChapter = false
@@ -208,7 +208,7 @@ internal class SleepTimerManager(
      *
      * @return Remaining seconds, or null if timer is not active or set to "end of chapter"
      */
-    fun getSleepTimerRemainingSeconds(): Int? {
+    public fun getSleepTimerRemainingSeconds(): Int? {
         if (sleepTimerEndTime == 0L && !sleepTimerEndOfChapter) {
             return null
         }
@@ -224,7 +224,7 @@ internal class SleepTimerManager(
      *
      * @return true if timer is active (either fixed duration or end of chapter)
      */
-    fun isSleepTimerActive(): Boolean = sleepTimerEndTime > 0 || sleepTimerEndOfChapter
+    public fun isSleepTimerActive(): Boolean = sleepTimerEndTime > 0 || sleepTimerEndOfChapter
 
     /**
      * Sends sleep timer expired event to Flutter.
@@ -344,7 +344,7 @@ internal class SleepTimerManager(
      *
      * Should be called in onCreate or onStartCommand to restore timer after app restart.
      */
-    fun restoreTimerState() {
+    public fun restoreTimerState(...) {
         try {
             val prefs = context.getSharedPreferences("jabook_timer_prefs", Context.MODE_PRIVATE)
             val savedEndTime = prefs.getLong("sleepTimerEndTime", 0)

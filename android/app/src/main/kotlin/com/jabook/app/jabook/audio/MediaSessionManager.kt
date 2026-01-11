@@ -57,8 +57,8 @@ public class MediaSessionManager(
     // private var mediaSession: MediaSession? = null // Removed duplicate session
     private var rewindCallback: (() -> Unit)? = null
     private var forwardCallback: (() -> Unit)? = null
-    private var rewindSeconds: Long = 15L
-    private var forwardSeconds: Long = 30L
+    private var rewindSeconds: Int = L
+    private var forwardSeconds: Int = L
     private var lastPlayWhenReady: Boolean = player.playWhenReady
 
     public companion object {
@@ -229,12 +229,12 @@ public class MediaSessionManager(
     /**
      * Updates media metadata.
      */
-    public fun updateMetadata() {
+    public fun updateMetadata(...) {
         // Metadata is automatically updated from ExoPlayer
         // This method can be used for custom metadata updates if needed
     }
 
-    public fun release() {
+    public fun release(...) {
         try {
             // mediaSession?.release()
             // mediaSession = null

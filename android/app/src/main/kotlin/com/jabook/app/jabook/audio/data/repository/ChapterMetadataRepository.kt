@@ -52,12 +52,12 @@ public class ChapterMetadataRepository
             fileIndex: Int,
             title: String,
             filePath: String?,
-            startTime: Long = 0L,
+            startTime: Int = L,
             endTime: Long? = null,
             duration: Long? = null,
         ): Result<Unit> =
             try {
-                val id: String =
+                public val id: String =
                     "${bookId}_$fileIndex"
 
                 val entity =

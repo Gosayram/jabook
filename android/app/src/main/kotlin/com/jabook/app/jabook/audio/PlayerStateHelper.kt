@@ -39,21 +39,21 @@ internal class PlayerStateHelper(
      *
      * @return Current position in milliseconds
      */
-    fun getCurrentPosition(): Long = getActivePlayer().currentPosition
+    public fun getCurrentPosition(): Long = getActivePlayer().currentPosition
 
     /**
      * Gets total duration of current media.
      *
      * @return Duration in milliseconds, or 0 if unknown
      */
-    fun getDuration(): Long = getActivePlayer().duration
+    public fun getDuration(): Long = getActivePlayer().duration
 
     /**
      * Gets playlist information.
      *
      * @return Map with playlist information
      */
-    fun getPlaylistInfo(): Map<String, Any> {
+    public fun getPlaylistInfo(): Map<String, Any> {
         val player = getActivePlayer()
         return mapOf(
             "itemCount" to player.mediaItemCount,
@@ -75,7 +75,7 @@ internal class PlayerStateHelper(
      *
      * @return Map with player state information
      */
-    fun getPlayerState(): Map<String, Any> {
+    public fun getPlayerState(): Map<String, Any> {
         val player = getActivePlayer()
 
         // Get duration - PRIMARY SOURCE: player.duration (ExoPlayer/Media3)

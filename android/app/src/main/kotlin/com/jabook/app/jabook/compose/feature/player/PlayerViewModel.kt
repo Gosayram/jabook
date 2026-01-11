@@ -80,22 +80,22 @@ public class PlayerViewModel
         private var isBookLoaded = false
 
         // Player Stats for Nerds
-        val playerStats: StateFlow<PlayerStats> = playerController.playerStats
+        public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
 
         // Saved position from database (restored on init)
-        private var savedPosition: Long = 0L
+        private var savedPosition: Int = L
         private var savedChapterIndex: Int = 0
 
         // Chapter repeat mode state
         private val _chapterRepeatMode = MutableStateFlow(ChapterRepeatMode.OFF)
-        val chapterRepeatMode: StateFlow<ChapterRepeatMode> = _chapterRepeatMode.asStateFlow()
+        public val chapterRepeatMode: StateFlow<ChapterRepeatMode> = _chapterRepeatMode.asStateFlow()
 
         // Track if we've already repeated once (for ONCE mode)
         private var hasRepeatedOnce = false
 
         // Dynamic Theme Colors
         private val _themeColors = MutableStateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?>(null)
-        val themeColors: StateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?> = _themeColors.asStateFlow()
+        public val themeColors: StateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?> = _themeColors.asStateFlow()
 
         init {
             // CRITICAL: Restore saved position from database on init
@@ -137,7 +137,7 @@ public class PlayerViewModel
         /**
          * Combined UI state from book data, playback state, and settings.
          */
-        val uiState: StateFlow<PlayerUiState> =
+        public val uiState: StateFlow<PlayerUiState> =
             combine(
                 getBookDetailsUseCase(bookId),
                 getChaptersUseCase(bookId),
@@ -294,7 +294,7 @@ public class PlayerViewModel
         /**
          * Current playback speed from user preferences.
          */
-        val playbackSpeed: StateFlow<Float> =
+        public val playbackSpeed: StateFlow<Float> =
             userPreferencesRepository.userData
                 .map { it.playbackSpeed }
                 .stateIn(
@@ -306,7 +306,7 @@ public class PlayerViewModel
         /**
          * Chapter title normalization preference.
          */
-        val normalizeChapterTitles: StateFlow<Boolean> =
+        public val normalizeChapterTitles: StateFlow<Boolean> =
             userPreferencesRepository.userData
                 .map { it.normalizeChapterTitles }
                 .stateIn(
@@ -328,7 +328,7 @@ public class PlayerViewModel
 
         // Player control methods delegated to controller
 
-        public fun play() {
+        public fun play(...) {
             val state = uiState.value
             if (state is PlayerUiState.Success) {
                 // Ensure book is loaded before playing
@@ -357,23 +357,23 @@ public class PlayerViewModel
             }
         }
 
-        public fun pause() {
+        public fun pause(...) {
             playerController.pause()
         }
 
-        public fun seekTo(positionMs: Long) {
+        public fun seekTo(...) {
             playerController.seekTo(positionMs)
         }
 
-        public fun skipToNext() {
+        public fun skipToNext(...) {
             playerController.skipToNext()
         }
 
-        public fun skipToPrevious() {
+        public fun skipToPrevious(...) {
             playerController.skipToPrevious()
         }
 
-        public fun skipToChapter(chapterIndex: Int) {
+        public fun skipToChapter(...) {
             playerController.skipToChapter(chapterIndex)
             // Reset repeat flag when manually changing chapters
             onChapterChanged()
@@ -385,7 +385,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun seekForward() {
+        public fun seekForward(...) {
             val state = uiState.value
             if (state is PlayerUiState.Success && state.currentChapter != null) {
                 val interval: Long = state.forwardInterval
@@ -396,7 +396,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun seekBackward() {
+        public fun seekBackward(...) {
             val state = uiState.value
             if (state is PlayerUiState.Success) {
                 val interval: Long = state.rewindInterval
@@ -405,7 +405,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun setPlaybackSpeed(speed: Float) {
+        public fun setPlaybackSpeed(...) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
             }
@@ -414,19 +414,19 @@ public class PlayerViewModel
             }
         }
 
-        public fun setPitchCorrectionEnabled(enabled: Boolean) {
+        public fun setPitchCorrectionEnabled(...) {
             playerController.setPitchCorrectionEnabled(enabled)
         }
 
-        public fun startSleepTimer(minutes: Int) {
+        public fun startSleepTimer(...) {
             sleepTimerRepository.startTimer(minutes)
         }
 
-        public fun startSleepTimerEndOfChapter() {
+        public fun startSleepTimerEndOfChapter(...) {
             sleepTimerRepository.startTimerEndOfChapter()
         }
 
-        public fun cancelSleepTimer() {
+        public fun cancelSleepTimer(...) {
             sleepTimerRepository.cancelTimer()
         }
 
@@ -439,7 +439,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun resetBookSeekSettings() {
+        public fun resetBookSeekSettings(...) {
             viewModelScope.launch {
                 updateBookSettingsUseCase.resetForBook(bookId)
             }
@@ -449,7 +449,7 @@ public class PlayerViewModel
          * Initialize player with book data if needed.
          * Restores saved position from database if available.
          */
-        public fun initializePlayer() {
+        public fun initializePlayer(...) {
             val state = uiState.value
             if (state is PlayerUiState.Success && !isBookLoaded) {
                 val filePaths = state.chapters.mapNotNull { it.fileUrl }
@@ -487,7 +487,7 @@ public class PlayerViewModel
             }
         }
 
-        public fun reorderChapters(newOrderedIds: List<String>) {
+        public fun reorderChapters(...) {
             viewModelScope.launch {
                 booksRepository.updateChapterOrder(bookId, newOrderedIds)
             }
@@ -496,7 +496,7 @@ public class PlayerViewModel
         /**
          * Toggle chapter repeat mode: OFF -> ONCE -> INFINITE -> OFF
          */
-        public fun toggleChapterRepeat() {
+        public fun toggleChapterRepeat(...) {
             _chapterRepeatMode.value =
                 when (_chapterRepeatMode.value) {
                     ChapterRepeatMode.OFF -> ChapterRepeatMode.ONCE
@@ -539,7 +539,7 @@ public class PlayerViewModel
         /**
          * Reset repeat flag when chapter changes manually.
          */
-        public fun onChapterChanged() {
+        public fun onChapterChanged(...) {
             hasRepeatedOnce = false
         }
     }
@@ -570,23 +570,23 @@ public sealed interface PlayerUiState {
      * Success state with book and playback info.
      */
     public data class Success(
-        val book: Book,
-        val chapters: List<Chapter>,
-        val isPlaying: Boolean,
-        val currentPosition: Long, // milliseconds
-        val currentChapterIndex: Int,
-        val currentChapter: Chapter?,
-        val rewindInterval: Int,
-        val forwardInterval: Int,
-        val playbackSpeed: Float,
-        val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
-        val lyrics: List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
+        public val book: Book,
+        public val chapters: List<Chapter>,
+        public val isPlaying: Boolean,
+        public val currentPosition: Long, // milliseconds
+        public val currentChapterIndex: Int,
+        public val currentChapter: Chapter?,
+        public val rewindInterval: Int,
+        public val forwardInterval: Int,
+        public val playbackSpeed: Float,
+        public val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
+        public val lyrics: List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
     ) : PlayerUiState
 
     /**
      * Error state.
      */
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : PlayerUiState
 }

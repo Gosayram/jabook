@@ -92,7 +92,7 @@ public fun PlayerChapterPane(
     val activity = LocalContext.current as? android.app.Activity
     val windowSizeClass = activity?.let { calculateWindowSizeClass(it) }
 
-    val horizontalPadding: Dp =
+    public val horizontalPadding: Dp =
         when (windowSizeClass?.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 16.dp // Phone portrait
             WindowWidthSizeClass.Medium -> 24.dp // Phone landscape, small tablet
@@ -100,7 +100,7 @@ public fun PlayerChapterPane(
             else -> 16.dp // Fallback
         }
 
-    val verticalPadding: Dp =
+    public val verticalPadding: Dp =
         when (windowSizeClass?.widthSizeClass) {
             WindowWidthSizeClass.Compact -> 12.dp
             else -> 16.dp

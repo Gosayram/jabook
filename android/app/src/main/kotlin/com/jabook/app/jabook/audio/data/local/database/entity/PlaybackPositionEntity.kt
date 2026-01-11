@@ -23,8 +23,8 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "playback_positions")
 public data class PlaybackPositionEntity(
     @PrimaryKey
-    val bookId: String,
-    val trackIndex: Int,
-    val position: Long,
-    val lastUpdated: Long = System.currentTimeMillis(),
+    public val bookId: String,
+    public val trackIndex: Int,
+    public val position: Long,
+    public val lastUpdated: Long = System.currentTimeMillis(),
 )

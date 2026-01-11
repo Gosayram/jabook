@@ -27,27 +27,27 @@ package com.jabook.app.jabook.compose.domain.model
  */
 public data class RutrackerSearchResult(
     /** Unique topic ID */
-    val topicId: String,
+    public val topicId: String,
     /** Book title */
-    val title: String,
+    public val title: String,
     /** Author/narrator */
-    val author: String,
+    public val author: String,
     /** Category/genre */
-    val category: String,
+    public val category: String,
     /** File size (formatted, e.g., "1.5 GB") */
-    val size: String,
+    public val size: String,
     /** Number of seeders */
-    val seeders: Int,
+    public val seeders: Int,
     /** Number of leechers */
-    val leechers: Int,
+    public val leechers: Int,
     /** Magnet link for direct download (nullable - may not be available in search results) */
-    val magnetUrl: String?,
+    public val magnetUrl: String?,
     /** Torrent download URL */
-    val torrentUrl: String,
+    public val torrentUrl: String,
     /** Cover image URL (optional, may not be available in search results) */
-    val coverUrl: String? = null,
+    public val coverUrl: String? = null,
     /** Uploader nickname (optional) */
-    val uploader: String? = null,
+    public val uploader: String? = null,
 ) {
     /**
      * Validates that the search result has required fields.

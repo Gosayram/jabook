@@ -26,7 +26,7 @@ import kotlinx.coroutines.cancel
 internal class ServiceLifecycleManager(
     private val service: AudioPlayerService,
 ) {
-    fun onTaskRemoved(rootIntent: Intent?) {
+    public fun onTaskRemoved(...) {
         android.util.Log.i("AudioPlayerService", "onTaskRemoved called")
 
         try {
@@ -49,7 +49,7 @@ internal class ServiceLifecycleManager(
     }
 
     @OptIn(UnstableApi::class)
-    fun onDestroy() {
+    public fun onDestroy(...) {
         android.util.Log.d("AudioPlayerService", "onDestroy called")
 
         // CRITICAL: Save position before destroying service
@@ -142,7 +142,7 @@ internal class ServiceLifecycleManager(
         android.util.Log.i("AudioPlayerService", "Service destroyed and all resources cleaned up")
     }
 
-    fun stopAndCleanup() {
+    public fun stopAndCleanup(...) {
         android.util.Log.d("AudioPlayerService", "stopAndCleanup() called")
 
         // Clear duration cache to free memory

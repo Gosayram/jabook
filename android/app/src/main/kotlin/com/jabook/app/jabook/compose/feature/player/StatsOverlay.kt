@@ -41,12 +41,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 public data class PlayerStats(
-    val audioFormat: String = "Unknown",
-    val bitrate: String = "Unknown",
-    val bufferHealth: String = "0s",
-    val audioSessionId: String = "Unknown",
-    val decoderName: String = "Unknown",
-    val droppedFrames: Int = 0,
+    public val audioFormat: String = "Unknown",
+    public val bitrate: String = "Unknown",
+    public val bufferHealth: String = "0s",
+    public val audioSessionId: String = "Unknown",
+    public val decoderName: String = "Unknown",
+    public val droppedFrames: Int = 0,
 )
 
 @Composable

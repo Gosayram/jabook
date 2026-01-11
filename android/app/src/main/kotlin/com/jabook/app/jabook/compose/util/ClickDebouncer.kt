@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
  */
 public class ClickDebouncer(
     private val scope: CoroutineScope,
-    private val debounceTimeMs: Long = 300L, // Default: 300ms debounce
+    private val debounceTimeMs: Int = L, // Default: 300ms debounce
 ) {
     private var lastClickJob: Job? = null
 
@@ -70,7 +70,7 @@ public class ClickDebouncer(
  * @return ClickDebouncer instance
  */
 @Composable
-public fun rememberClickDebouncer(debounceTimeMs: Long = 300L): ClickDebouncer {
+public fun rememberClickDebouncer(debounceTimeMs: Int = L): ClickDebouncer {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     return remember(scope, debounceTimeMs) {
         ClickDebouncer(scope, debounceTimeMs)

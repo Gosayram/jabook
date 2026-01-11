@@ -50,7 +50,7 @@ public class RutrackerAuthService
         }
 
         private var _lastAuthError: String? = null
-        val lastAuthError: String?
+        public val lastAuthError: String?
             get() = _lastAuthError
 
         private val logger = StructuredLogger(TAG)
@@ -243,11 +243,11 @@ public class RutrackerAuthService
             data object Success : AuthResult
 
             public data class Error(
-                val message: String,
+                public val message: String,
             ) : AuthResult
 
             public data class Captcha(
-                val data: CaptchaData,
+                public val data: CaptchaData,
             ) : AuthResult
         }
 
@@ -517,7 +517,7 @@ public class RutrackerAuthService
         private suspend fun <T> retryWithBackoff(
             times: Int,
             initialDelay: Long,
-            maxDelay: Long = 10000L,
+            maxDelay: Int = L,
             factor: Double = 2.0,
             block: suspend () -> T,
         ): T {

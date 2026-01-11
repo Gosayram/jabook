@@ -30,8 +30,8 @@ public sealed class ParsingResult<T> {
      * @property warnings Non-critical warnings (e.g., optional fields missing)
      */
     public data class Success<T>(
-        val data: T,
-        val warnings: List<String> = emptyList(),
+        public val data: T,
+        public val warnings: List<String> = emptyList(),
     ) : ParsingResult<T>()
 
     /**
@@ -44,8 +44,8 @@ public sealed class ParsingResult<T> {
      * @property errors List of parsing errors encountered
      */
     public data class PartialSuccess<T>(
-        val data: T,
-        val errors: List<ParsingError>,
+        public val data: T,
+        public val errors: List<ParsingError>,
     ) : ParsingResult<T>()
 
     /**
@@ -55,8 +55,8 @@ public sealed class ParsingResult<T> {
      * @property fallbackData Optional fallback data (e.g., empty list)
      */
     public data class Failure<T>(
-        val errors: List<ParsingError>,
-        val fallbackData: T? = null,
+        public val errors: List<ParsingError>,
+        public val fallbackData: T? = null,
     ) : ParsingResult<T>()
 }
 
@@ -69,10 +69,10 @@ public sealed class ParsingResult<T> {
  * @property htmlSnippet Optional HTML snippet for debugging
  */
 public data class ParsingError(
-    val field: String,
-    val reason: String,
-    val severity: ErrorSeverity,
-    val htmlSnippet: String? = null,
+    public val field: String,
+    public val reason: String,
+    public val severity: ErrorSeverity,
+    public val htmlSnippet: String? = null,
 )
 
 /**

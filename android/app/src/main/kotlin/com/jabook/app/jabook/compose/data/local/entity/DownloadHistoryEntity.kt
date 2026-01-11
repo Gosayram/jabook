@@ -25,33 +25,33 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "download_history")
 public data class DownloadHistoryEntity(
     @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    public val id: Int = ,
     /**
      * Book ID from catalog.
      */
-    val bookId: String,
+    public val bookId: String,
     /**
      * Book title for display.
      */
-    val bookTitle: String,
+    public val bookTitle: String,
     /**
      * Final status: "completed", "failed", "cancelled".
      */
-    val status: String,
+    public val status: String,
     /**
      * When download started (timestamp).
      */
-    val startedAt: Long,
+    public val startedAt: Long,
     /**
      * When download finished (timestamp).
      */
-    val completedAt: Long,
+    public val completedAt: Long,
     /**
      * Total bytes downloaded (if available).
      */
-    val totalBytes: Long?,
+    public val totalBytes: Long?,
     /**
      * Error message for failed downloads.
      */
-    val errorMessage: String?,
+    public val errorMessage: String?,
 )

@@ -241,7 +241,7 @@ public class DebugLogService
             withContext(Dispatchers.IO) {
                 val logs = collectLogs()
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
+                public val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
                 // Save to cache directory (will be cleared on uninstall)
                 val logFile = File(context.cacheDir, fileName)
                 logFile.writeText(logs)

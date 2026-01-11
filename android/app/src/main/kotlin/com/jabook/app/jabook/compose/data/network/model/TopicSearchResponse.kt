@@ -26,7 +26,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 public data class TopicSearchResponse(
     @SerialName("topics")
-    val topics: List<TopicItem> = emptyList(),
+    public val topics: List<TopicItem> = emptyList(),
 )
 
 /**
@@ -35,17 +35,17 @@ public data class TopicSearchResponse(
 @Serializable
 public data class TopicItem(
     @SerialName("id")
-    val id: String,
+    public val id: String,
     @SerialName("title")
-    val title: String,
+    public val title: String,
     @SerialName("author")
-    val author: String? = null,
+    public val author: String? = null,
     @SerialName("size")
-    val sizeBytes: Long? = null,
+    public val sizeBytes: Long? = null,
     @SerialName("seeders")
-    val seeders: Int = 0,
+    public val seeders: Int = 0,
     @SerialName("leechers")
-    val leechers: Int = 0,
+    public val leechers: Int = 0,
     @SerialName("torrent_link")
-    val torrentLink: String? = null,
+    public val torrentLink: String? = null,
 )

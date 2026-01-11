@@ -35,7 +35,7 @@ internal object ParsingValidators {
      * @param html HTML content to check
      * @return true if topic exists, false otherwise
      */
-    fun isTopicExists(html: String): Boolean {
+    public fun isTopicExists(html: String): Boolean {
         val lowerHtml = html.lowercase()
         return !lowerHtml.contains("тема не найдена") &&
             !lowerHtml.contains("тема находится в мусорке") &&
@@ -51,7 +51,7 @@ internal object ParsingValidators {
      * @param html HTML content to check
      * @return true if blocked for region, false otherwise
      */
-    fun isBlockedForRegion(html: String): Boolean {
+    public fun isBlockedForRegion(html: String): Boolean {
         val lowerHtml = html.lowercase()
         return lowerHtml.contains("извините, раздача недоступна для вашего региона") ||
             lowerHtml.contains("недоступна для вашего региона") ||
@@ -65,7 +65,7 @@ internal object ParsingValidators {
      * @param html HTML content to check
      * @return true if authentication required, false otherwise
      */
-    fun requiresAuthentication(html: String): Boolean {
+    public fun requiresAuthentication(html: String): Boolean {
         val lowerHtml = html.lowercase()
         return lowerHtml.contains("войдите в систему") ||
             lowerHtml.contains("авторизация") ||
@@ -82,7 +82,7 @@ internal object ParsingValidators {
      * @param html HTML content to check
      * @return true if access forbidden, false otherwise
      */
-    fun isAccessForbidden(html: String): Boolean {
+    public fun isAccessForbidden(html: String): Boolean {
         val lowerHtml = html.lowercase()
         return lowerHtml.contains("доступ запрещен") ||
             lowerHtml.contains("access forbidden") ||
@@ -97,7 +97,7 @@ internal object ParsingValidators {
      * @param html HTML content to check
      * @return true if bad request, false otherwise
      */
-    fun isBadRequest(html: String): Boolean {
+    public fun isBadRequest(html: String): Boolean {
         val lowerHtml = html.lowercase()
         // More specific patterns to avoid false positives
         // Check for explicit error messages, not just presence of "400" and "error" separately
@@ -115,7 +115,7 @@ internal object ParsingValidators {
      * @param html HTML content to check
      * @return true if content is valid, false otherwise
      */
-    fun isValidContent(html: String): Boolean =
+    public fun isValidContent(html: String): Boolean =
         html.isNotBlank() &&
             html.length > 100 &&
             // Minimum reasonable HTML size
@@ -128,7 +128,7 @@ internal object ParsingValidators {
      * @param html HTML content to validate
      * @return RuTrackerError if validation fails, null if valid
      */
-    fun validateContent(html: String): RuTrackerError? {
+    public fun validateContent(html: String): RuTrackerError? {
         if (!isValidContent(html)) {
             return RuTrackerError.NoData
         }
@@ -162,7 +162,7 @@ internal object ParsingValidators {
      * @param html HTML content to validate
      * @return RuTrackerError if validation fails, null if valid
      */
-    fun validateSearchResults(html: String): RuTrackerError? {
+    public fun validateSearchResults(html: String): RuTrackerError? {
         if (!isValidContent(html)) {
             return RuTrackerError.NoData
         }
@@ -188,7 +188,7 @@ internal object ParsingValidators {
      * @param html HTML content to validate
      * @return RuTrackerError if validation fails, null if valid
      */
-    fun validateTopicDetails(html: String): RuTrackerError? {
+    public fun validateTopicDetails(html: String): RuTrackerError? {
         return validateContent(html) // Topic details use the same validation as general content
     }
 
@@ -200,7 +200,7 @@ internal object ParsingValidators {
      * @param html HTML content to validate
      * @return RuTrackerError if validation fails, null if valid
      */
-    fun validateForumPage(html: String): RuTrackerError? {
+    public fun validateForumPage(html: String): RuTrackerError? {
         if (!isValidContent(html)) {
             return RuTrackerError.NoData
         }

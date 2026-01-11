@@ -45,7 +45,7 @@ public class PlayerPersistenceManager
 
         // NEW: StateFlow for last played book ID (for mini player)
         private val _lastPlayedBookId = MutableStateFlow<String?>(null)
-        val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
+        public val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
 
         init {
             // Load last played book ID on init
@@ -54,11 +54,11 @@ public class PlayerPersistenceManager
         }
 
         public data class PersistedPlayerState(
-            val groupPath: String,
-            val filePaths: List<String>,
-            val currentIndex: Int,
-            val currentPosition: Long,
-            val metadata: Map<String, String>?,
+            public val groupPath: String,
+            public val filePaths: List<String>,
+            public val currentIndex: Int,
+            public val currentPosition: Long,
+            public val metadata: Map<String, String>?,
         )
 
         suspend fun saveCurrentMediaItem(
@@ -156,7 +156,7 @@ public class PlayerPersistenceManager
                 }
             }
 
-        public fun saveGroupPathToSharedPreferences(groupPath: String) {
+        public fun saveGroupPathToSharedPreferences(...) {
             try {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val sanitizedPath = sanitizeGroupPath(groupPath)
@@ -287,11 +287,11 @@ public class PlayerPersistenceManager
  * Lightweight state for backup and sorting
  */
 public data class PlayerState(
-    val bookId: String,
-    val positionMs: Long,
-    val durationMs: Long,
-    val filePaths: List<String>,
-    val lastPlayedTimestamp: Long = 0L,
-    val completedTimestamp: Long = 0L,
-    val playCount: Int = 0,
+    public val bookId: String,
+    public val positionMs: Long,
+    public val durationMs: Long,
+    public val filePaths: List<String>,
+    public val lastPlayedTimestamp: Int = L,
+    public val completedTimestamp: Int = L,
+    public val playCount: Int = 0,
 )

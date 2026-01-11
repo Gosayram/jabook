@@ -33,7 +33,7 @@ public class WebViewViewModel
          * Called when a page finishes loading in WebView.
          * Syncs cookies from WebView to Native storage.
          */
-        public fun onPageFinished(url: String?) {
+        public fun onPageFinished(...) {
             if (url == null) return
 
             // We only care about syncing if it's a relevant domain,

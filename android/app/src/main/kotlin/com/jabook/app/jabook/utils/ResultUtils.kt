@@ -26,17 +26,17 @@ import com.jabook.app.jabook.compose.domain.model.Result
 /**
  * Returns true if this is a Success result.
  */
-fun <T> Result<T>.isSuccess(): Boolean = this is Result.Success
+public fun <T> Result<T>.isSuccess(): Boolean = this is Result.Success
 
 /**
  * Returns true if this is an Error result.
  */
-fun <T> Result<T>.isError(): Boolean = this is Result.Error
+public fun <T> Result<T>.isError(): Boolean = this is Result.Error
 
 /**
  * Returns true if this is a Loading result.
  */
-fun <T> Result<T>.isLoading(): Boolean = this is Result.Loading
+public fun <T> Result<T>.isLoading(): Boolean = this is Result.Loading
 
 /**
  * Returns the data if this is a Success result, or the default value otherwise.

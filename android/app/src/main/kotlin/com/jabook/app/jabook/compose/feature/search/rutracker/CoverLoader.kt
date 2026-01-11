@@ -56,7 +56,7 @@ public class CoverLoader
          * Request cover load for a topic.
          * Guaranteed to be non-blocking.
          */
-        public fun loadCover(topicId: String) {
+        public fun loadCover(...) {
             if (topicId in loadedCache || topicId in activeLoads) {
                 return
             }

@@ -155,7 +155,7 @@ public class TorrentNotificationManager
         /**
          * Update notification for download
          */
-        public fun updateNotification(download: TorrentDownload) {
+        public fun updateNotification(...) {
             public val notification = createProgressNotification(download)
             notificationManager.notify(download.hash.hashCode(), notification)
         }
@@ -163,14 +163,14 @@ public class TorrentNotificationManager
         /**
          * Cancel notification
          */
-        public fun cancel(notificationId: Int) {
+        public fun cancel(...) {
             notificationManager.cancel(notificationId)
         }
 
         /**
          * Update all notifications
          */
-        public fun updateAllNotifications() {
+        public fun updateAllNotifications(...) {
             // Will be called by service when needed
         }
 

@@ -58,13 +58,13 @@ public class RutrackerSearchViewModel
         }
 
         private val _searchState = MutableStateFlow<SearchState>(SearchState.Empty)
-        val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
+        public val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
 
         private val _filters = MutableStateFlow(RutrackerSearchFilters())
-        val filters: StateFlow<RutrackerSearchFilters> = _filters.asStateFlow()
+        public val filters: StateFlow<RutrackerSearchFilters> = _filters.asStateFlow()
 
         private val _sortOrder = MutableStateFlow(RutrackerSortOrder.RELEVANCE)
-        val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
+        public val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
 
         // Store original results for client-side filtering/sorting
         private var originalResults: List<RutrackerSearchResult> = emptyList()
@@ -189,7 +189,7 @@ public class RutrackerSearchViewModel
         /**
          * Clear search results.
          */
-        public fun clearSearch() {
+        public fun clearSearch(...) {
             _searchState.value = SearchState.Empty
             originalResults = emptyList()
         }
@@ -197,7 +197,7 @@ public class RutrackerSearchViewModel
         /**
          * Update search filters and reapply to results.
          */
-        public fun updateFilters(newFilters: RutrackerSearchFilters) {
+        public fun updateFilters(...) {
             _filters.value = newFilters
             reapplyFiltersAndSort()
         }
@@ -205,7 +205,7 @@ public class RutrackerSearchViewModel
         /**
          * Update sort order and reapply to results.
          */
-        public fun updateSortOrder(newSortOrder: RutrackerSortOrder) {
+        public fun updateSortOrder(...) {
             _sortOrder.value = newSortOrder
             reapplyFiltersAndSort()
         }
@@ -315,12 +315,12 @@ public sealed class SearchState {
 
     /** Search completed successfully */
     public data class Success(
-        val results: List<SearchResultUi>,
-        val isCached: Boolean = false,
+        public val results: List<SearchResultUi>,
+        public val isCached: Boolean = false,
     ) : SearchState()
 
     /** Search failed */
     public data class Error(
-        val message: String?, // Nullable - UI should use stringResource(R.string.unknownError) as fallback
+        public val message: String?, // Nullable - UI should use stringResource(R.string.unknownError) as fallback
     ) : SearchState()
 }

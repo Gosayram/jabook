@@ -93,7 +93,7 @@ public class CategoryParser
             try {
                 // Parse with baseUri for proper absolute URL resolution
                 // Using current mirror base URL for resolving relative links
-                val baseUrl: String = "${mirrorManager.getBaseUrl()}/forum/"
+                public val baseUrl: String = "${mirrorManager.getBaseUrl()}/forum/"
                 val document = Jsoup.parse(html, baseUrl)
 
                 // Find audiobooks category (c=33)

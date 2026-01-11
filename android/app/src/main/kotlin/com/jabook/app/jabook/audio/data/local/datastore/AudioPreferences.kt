@@ -52,7 +52,7 @@ public class AudioPreferences(
     /**
      * Gets the playback speed preference.
      */
-    val playbackSpeed: Flow<Float> =
+    public val playbackSpeed: Flow<Float> =
         dataStore.data.map { preferences ->
             preferences[AudioPreferencesKeys.PLAYBACK_SPEED] ?: 1.0f
         }
@@ -69,7 +69,7 @@ public class AudioPreferences(
     /**
      * Gets the last played book ID.
      */
-    val lastPlayedBookId: Flow<Int?> =
+    public val lastPlayedBookId: Flow<Int?> =
         dataStore.data.map { preferences ->
             preferences[AudioPreferencesKeys.LAST_PLAYED_BOOK_ID]
         }
@@ -86,7 +86,7 @@ public class AudioPreferences(
     /**
      * Gets the auto play next preference.
      */
-    val autoPlayNext: Flow<Boolean> =
+    public val autoPlayNext: Flow<Boolean> =
         dataStore.data.map { preferences ->
             preferences[AudioPreferencesKeys.AUTO_PLAY_NEXT] ?: true
         }

@@ -28,23 +28,23 @@ package com.jabook.app.jabook.compose.domain.model
  * @param createdAt When download was created (Unix timestamp)
  */
 public data class DownloadInfo(
-    val bookId: String,
-    val bookTitle: String,
-    val torrentUrl: String,
-    val state: DownloadState,
-    val priority: DownloadPriority = DownloadPriority.NORMAL,
-    val queuePosition: Int = 0,
-    val createdAt: Long = System.currentTimeMillis(),
+    public val bookId: String,
+    public val bookTitle: String,
+    public val torrentUrl: String,
+    public val state: DownloadState,
+    public val priority: DownloadPriority = DownloadPriority.NORMAL,
+    public val queuePosition: Int = 0,
+    public val createdAt: Long = System.currentTimeMillis(),
 ) {
     /**
      * Whether this download is currently active (downloading).
      */
-    val isActive: Boolean
+    public val isActive: Boolean
         get() = state is DownloadState.Downloading
 
     /**
      * Whether this download is queued (waiting to start).
      */
-    val isQueued: Boolean
+    public val isQueued: Boolean
         get() = queuePosition > 0
 }

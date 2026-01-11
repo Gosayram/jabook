@@ -66,7 +66,7 @@ public class HeadsetAutoplayHandler(
     /**
      * Starts listening for headset connection events.
      */
-    public fun startListening() {
+    public fun startListening(...) {
         if (isRegistered) return
 
         val filter =
@@ -82,7 +82,7 @@ public class HeadsetAutoplayHandler(
     /**
      * Stops listening for events.
      */
-    public fun stopListening() {
+    public fun stopListening(...) {
         if (!isRegistered) return
 
         try {

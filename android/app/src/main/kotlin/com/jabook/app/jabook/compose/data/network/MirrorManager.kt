@@ -73,7 +73,7 @@ public class MirrorManager
          *
          * Example: "rutracker.org"
          */
-        val currentMirror: StateFlow<String> = _currentMirror.asStateFlow()
+        public val currentMirror: StateFlow<String> = _currentMirror.asStateFlow()
 
         private val _availableMirrors = MutableStateFlow<List<String>>(DEFAULT_MIRRORS)
 
@@ -144,7 +144,7 @@ public class MirrorManager
                             .build()
 
                     val response = healthCheckClient.newCall(request).execute()
-                    val isHealthy: Long = response.isSuccessful
+                    public val isHealthy: Long = response.isSuccessful
                     Log.d(TAG, "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})")
                     response.close()
 

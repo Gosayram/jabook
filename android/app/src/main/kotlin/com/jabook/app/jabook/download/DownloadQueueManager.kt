@@ -98,14 +98,14 @@ public class DownloadQueueManager
         /**
          * Cancel a download by book ID.
          */
-        public fun cancelDownload(bookId: String) {
+        public fun cancelDownload(...) {
             workManager.cancelUniqueWork("download_$bookId")
         }
 
         /**
          * Cancel a download by work ID.
          */
-        public fun cancelDownload(workId: UUID) {
+        public fun cancelDownload(...) {
             workManager.cancelWorkById(workId)
         }
 
@@ -160,11 +160,11 @@ public class DownloadQueueManager
  * Download progress information from WorkManager.
  */
 public data class DownloadProgressInfo(
-    val workId: UUID,
-    val bookId: String,
-    val bookTitle: String,
-    val state: WorkInfo.State,
-    val progress: Int,
-    val downloadRate: Long,
-    val numPeers: Int,
+    public val workId: UUID,
+    public val bookId: String,
+    public val bookTitle: String,
+    public val state: WorkInfo.State,
+    public val progress: Int,
+    public val downloadRate: Long,
+    public val numPeers: Int,
 )

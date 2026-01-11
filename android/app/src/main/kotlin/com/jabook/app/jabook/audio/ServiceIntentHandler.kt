@@ -24,7 +24,7 @@ import android.content.Intent
 internal class ServiceIntentHandler(
     private val service: AudioPlayerService,
 ) {
-    fun handleStartCommand(
+    public fun handleStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int,

@@ -29,15 +29,15 @@ public sealed interface DescriptionBlock {
      * Standard text content (rich text).
      */
     public data class Text(
-        val content: AnnotatedString,
+        public val content: AnnotatedString,
     ) : DescriptionBlock
 
     /**
      * Collapsible spoiler block.
      */
     public data class Spoiler(
-        val title: AnnotatedString,
-        val content: List<DescriptionBlock>,
+        public val title: AnnotatedString,
+        public val content: List<DescriptionBlock>,
     ) : DescriptionBlock
 }
 
@@ -72,7 +72,7 @@ public object HtmlBlockParser {
         // Accumulate text nodes to minimize fragmentation
         val currentTextHtml = StringBuilder()
 
-        fun flushText() {
+        public fun flushText(...) {
             if (currentTextHtml.isNotEmpty()) {
                 val text = HtmlToAnnotatedString.convert(currentTextHtml.toString(), linkColor)
                 if (text.isNotEmpty()) {

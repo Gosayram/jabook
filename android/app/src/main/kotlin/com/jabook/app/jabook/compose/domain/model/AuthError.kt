@@ -23,45 +23,45 @@ public sealed class AuthError {
      * Invalid username or password.
      */
     public data class InvalidCredentials(
-        val message: String = "Invalid username or password",
+        public val message: String = "Invalid username or password",
     ) : AuthError()
 
     /**
      * Network-related error (timeout, connection failure, etc.).
      */
     public data class NetworkError(
-        val message: String,
-        val cause: Throwable? = null,
+        public val message: String,
+        public val cause: Throwable? = null,
     ) : AuthError()
 
     /**
      * Captcha verification required.
      */
     public data class CaptchaRequired(
-        val data: CaptchaData,
+        public val data: CaptchaData,
     ) : AuthError()
 
     /**
      * Server error (5xx status codes).
      */
     public data class ServerError(
-        val code: Int,
-        val message: String,
+        public val code: Int,
+        public val message: String,
     ) : AuthError()
 
     /**
      * Session expired or authentication required.
      */
     public data class SessionExpired(
-        val message: String = "Session expired. Please log in again.",
+        public val message: String = "Session expired. Please log in again.",
     ) : AuthError()
 
     /**
      * Unknown or unexpected error.
      */
     public data class Unknown(
-        val message: String,
-        val cause: Throwable? = null,
+        public val message: String,
+        public val cause: Throwable? = null,
     ) : AuthError()
 
     /**

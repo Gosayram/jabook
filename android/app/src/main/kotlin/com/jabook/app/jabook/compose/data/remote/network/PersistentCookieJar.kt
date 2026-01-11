@@ -81,7 +81,7 @@ public class PersistentCookieJar
                 runBlocking {
                     val prefs = dataStore.data.first()
                     val key = stringPreferencesKey(host)
-                    val serialized: String? = prefs[key]
+                    public val serialized: String? = prefs[key]
                     if (serialized == null) return@runBlocking emptyList<Cookie>()
 
                     serialized

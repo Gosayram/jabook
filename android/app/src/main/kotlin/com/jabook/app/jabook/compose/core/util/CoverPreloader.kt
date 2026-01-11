@@ -169,7 +169,7 @@ private class CoverPreloader(
      * Clears the preloaded IDs cache.
      * Useful when the book list changes significantly.
      */
-    fun clearCache() {
+    public fun clearCache(...) {
         preloadedIds.clear()
         android.util.Log.d("CoverPreloader", "Cleared preload cache")
     }

@@ -39,10 +39,10 @@ public class MetadataCache
          * Cached metadata with file validation info.
          */
         public data class CachedMetadata(
-            val metadata: AudioMetadata,
-            val fileSize: Long,
-            val lastModified: Long,
-            val cacheTime: Long = System.currentTimeMillis(),
+            public val metadata: AudioMetadata,
+            public val fileSize: Long,
+            public val lastModified: Long,
+            public val cacheTime: Long = System.currentTimeMillis(),
         )
 
         // Cache up to 500 files (reasonable for most libraries)
@@ -110,7 +110,7 @@ public class MetadataCache
          * Clear all cached metadata.
          * Useful for forced rescans.
          */
-        public fun clearCache() {
+        public fun clearCache(...) {
             cache.evictAll()
             android.util.Log.i("MetadataCache", "Cache cleared")
         }
@@ -128,13 +128,13 @@ public class MetadataCache
             )
 
         public data class CacheStats(
-            val size: Int,
-            val maxSize: Int,
-            val hitCount: Int,
-            val missCount: Int,
-            val evictionCount: Int,
+            public val size: Int,
+            public val maxSize: Int,
+            public val hitCount: Int,
+            public val missCount: Int,
+            public val evictionCount: Int,
         ) {
-            val hitRate: Float
+            public val hitRate: Float
                 get() =
                     if (hitCount + missCount > 0) {
                         hitCount.toFloat() / (hitCount + missCount)

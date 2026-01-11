@@ -77,19 +77,19 @@ public class LibraryViewModel
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        val searchQuery: StateFlow<String> = _searchQuery
+        public val searchQuery: StateFlow<String> = _searchQuery
 
         // Sort order state
         private val _sortOrder = MutableStateFlow(BookSortOrder.BY_ACTIVITY)
-        val sortOrder: StateFlow<BookSortOrder> = _sortOrder
+        public val sortOrder: StateFlow<BookSortOrder> = _sortOrder
 
         // View mode state
         private val _viewMode = MutableStateFlow(LibraryViewMode.LIST_COMPACT)
-        val viewMode: StateFlow<LibraryViewMode> = _viewMode
+        public val viewMode: StateFlow<LibraryViewMode> = _viewMode
 
         // Selected book for properties dialog
         private val _selectedBookForProperties = MutableStateFlow<Book?>(null)
-        val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
+        public val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
 
         init {
             // Load saved settings from preferences
@@ -104,7 +104,7 @@ public class LibraryViewModel
         /**
          * UI state combining books data with loading/error states.
          */
-        val uiState: StateFlow<LibraryUiState> =
+        public val uiState: StateFlow<LibraryUiState> =
             _sortOrder
                 .flatMapLatest { order ->
                     combine(
@@ -140,14 +140,14 @@ public class LibraryViewModel
         /**
          * Update search query.
          */
-        public fun onSearchQueryChanged(query: String) {
+        public fun onSearchQueryChanged(...) {
             _searchQuery.value = query
         }
 
         /**
          * Update sort order.
          */
-        public fun onSortOrderChanged(order: BookSortOrder) {
+        public fun onSortOrderChanged(...) {
             _sortOrder.value = order
             viewModelScope.launch {
                 userPreferencesRepository.setSortOrder(order)
@@ -157,7 +157,7 @@ public class LibraryViewModel
         /**
          * Update view mode.
          */
-        public fun onViewModeChanged(mode: LibraryViewMode) {
+        public fun onViewModeChanged(...) {
             viewModelScope.launch {
                 _viewMode.value = mode
                 userPreferencesRepository.setViewMode(mode)
@@ -167,7 +167,7 @@ public class LibraryViewModel
         /**
          * Get favorite books reactively.
          */
-        val favoriteBooks: StateFlow<List<Book>> =
+        public val favoriteBooks: StateFlow<List<Book>> =
             getFavoriteBooksUseCase()
                 .stateIn(
                     scope = viewModelScope,
@@ -178,7 +178,7 @@ public class LibraryViewModel
         /**
          * Get recently played books.
          */
-        val recentlyPlayed: StateFlow<List<Book>> =
+        public val recentlyPlayed: StateFlow<List<Book>> =
             getRecentlyPlayedBooksUseCase(limit = 10)
                 .stateIn(
                     scope = viewModelScope,
@@ -241,7 +241,7 @@ public class LibraryViewModel
         /**
          * Delete a book.
          */
-        public fun deleteBook(bookId: String) {
+        public fun deleteBook(...) {
             viewModelScope.launch {
                 deleteBookUseCase(bookId)
                 // Result handling can be added if needed for user feedback
@@ -251,7 +251,7 @@ public class LibraryViewModel
         /**
          * Show book properties dialog.
          */
-        public fun showBookProperties(bookId: String) {
+        public fun showBookProperties(...) {
             viewModelScope.launch {
                 // Find book from current UI state
                 val book =
@@ -265,13 +265,13 @@ public class LibraryViewModel
         /**
          * Hide book properties dialog.
          */
-        public fun hideBookProperties() {
+        public fun hideBookProperties(...) {
             _selectedBookForProperties.value = null
         }
 
         // Library scan state
         private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
-        val scanState: StateFlow<ScanState> = _scanState
+        public val scanState: StateFlow<ScanState> = _scanState
 
         // Track current scan work for cancellation
         private var currentScanWorkId: java.util.UUID? = null
@@ -279,7 +279,7 @@ public class LibraryViewModel
         /**
          * Start library scan for local audiobooks.
          */
-        public fun startLibraryScan() {
+        public fun startLibraryScan(...) {
             viewModelScope.launch {
                 // Check if scan folders are configured
                 val scanFolders = scanPathDao.getAllPathsList()
@@ -336,7 +336,7 @@ public class LibraryViewModel
         /**
          * Cancel the currently running library scan.
          */
-        public fun cancelLibraryScan() {
+        public fun cancelLibraryScan(...) {
             currentScanWorkId?.let { workId ->
                 workManager.cancelWorkById(workId)
                 currentScanWorkId = null
@@ -358,7 +358,7 @@ public sealed interface LibraryUiState {
      * Success state with books.
      */
     public data class Success(
-        val books: List<Book>,
+        public val books: List<Book>,
     ) : LibraryUiState
 
     /**
@@ -370,7 +370,7 @@ public sealed interface LibraryUiState {
      * Error state.
      */
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : LibraryUiState
 }
 
@@ -381,16 +381,16 @@ public sealed interface ScanState {
     data object Idle : ScanState
 
     public data class Scanning(
-        val message: String,
+        public val message: String,
     ) : ScanState
 
     public data class Completed(
-        val booksFound: Int,
-        val noFoldersConfigured: Boolean = false,
+        public val booksFound: Int,
+        public val noFoldersConfigured: Boolean = false,
     ) : ScanState
 
     public data class Failed(
-        val error: String,
+        public val error: String,
     ) : ScanState
 }
 

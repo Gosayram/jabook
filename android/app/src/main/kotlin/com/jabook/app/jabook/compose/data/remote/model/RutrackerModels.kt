@@ -21,27 +21,27 @@ package com.jabook.app.jabook.compose.data.remote.model
  */
 public data class SearchResult(
     /** Unique topic ID */
-    val topicId: String,
+    public val topicId: String,
     /** Book title */
-    val title: String,
+    public val title: String,
     /** Author/narrator */
-    val author: String,
+    public val author: String,
     /** Category/genre */
-    val category: String,
+    public val category: String,
     /** File size (formatted, e.g., "1.5 GB") */
-    val size: String,
+    public val size: String,
     /** Number of seeders */
-    val seeders: Int,
+    public val seeders: Int,
     /** Number of leechers */
-    val leechers: Int,
+    public val leechers: Int,
     /** Magnet link for direct download */
-    val magnetUrl: String?,
+    public val magnetUrl: String?,
     /** Torrent download URL */
-    val torrentUrl: String,
+    public val torrentUrl: String,
     /** Cover image URL (optional, may not be available in search results) */
-    val coverUrl: String? = null,
+    public val coverUrl: String? = null,
     /** Uploader nickname (optional) */
-    val uploader: String? = null,
+    public val uploader: String? = null,
 )
 
 /**
@@ -49,59 +49,59 @@ public data class SearchResult(
  */
 public data class TopicDetails(
     /** Topic ID */
-    val topicId: String,
+    public val topicId: String,
     /** Full title */
-    val title: String,
+    public val title: String,
     /** Author or narrator info */
-    val author: String?,
+    public val author: String?,
     /** Book performer/reader */
-    val performer: String?,
+    public val performer: String?,
     /** Category */
-    val category: String,
+    public val category: String,
     /** File size */
-    val size: String,
+    public val size: String,
     /** Seeders count */
-    val seeders: Int,
+    public val seeders: Int,
     /** Leechers count */
-    val leechers: Int,
+    public val leechers: Int,
     /** Magnet link */
-    val magnetUrl: String?,
+    public val magnetUrl: String?,
     /** Torrent file URL */
-    val torrentUrl: String,
+    public val torrentUrl: String,
     /** Cover image URL */
-    val coverUrl: String?,
+    public val coverUrl: String?,
     /** List of genres */
-    val genres: List<String>,
+    public val genres: List<String>,
     /** Date added */
-    val addedDate: String?,
+    public val addedDate: String?,
     /** Duration (e.g., "08:05:13") */
-    val duration: String?,
+    public val duration: String?,
     /** Bitrate (e.g., "128 kbps") */
-    val bitrate: String?,
+    public val bitrate: String?,
     /** Audio codec (e.g., "MP3") */
-    val audioCodec: String?,
+    public val audioCodec: String?,
     /** Description/content (plain text) */
-    val description: String?,
+    public val description: String?,
     /** Description HTML (preserves links and formatting) */
-    val descriptionHtml: String? = null,
+    public val descriptionHtml: String? = null,
     /** Structured MediaInfo data */
-    val mediaInfo: MediaInfo? = null,
+    public val mediaInfo: MediaInfo? = null,
     /** Related audiobooks from same series */
-    val relatedBooks: List<RelatedBook>,
+    public val relatedBooks: List<RelatedBook>,
     /** Series/cycle name */
-    val series: String? = null,
+    public val series: String? = null,
     /** Comments from topic */
-    val comments: List<Comment> = emptyList(),
+    public val comments: List<Comment> = emptyList(),
     /** Registration date */
-    val registeredDate: String? = null,
+    public val registeredDate: String? = null,
     /** Download count */
-    val downloadsCount: String? = null,
+    public val downloadsCount: String? = null,
     /** Current page number (1-indexed) */
-    val currentPage: Int = 1,
+    public val currentPage: Int = 1,
     /** Total number of pages */
-    val totalPages: Int = 1,
+    public val totalPages: Int = 1,
     /** All extracted metadata fields */
-    val allMetadata: Map<String, String> = emptyMap(),
+    public val allMetadata: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -109,17 +109,17 @@ public data class TopicDetails(
  */
 public data class Comment(
     /** Comment ID */
-    val id: String,
+    public val id: String,
     /** Author username */
-    val author: String,
+    public val author: String,
     /** Comment date/time */
-    val date: String,
+    public val date: String,
     /** Comment text (plain text, links removed) */
-    val text: String,
+    public val text: String,
     /** Comment HTML (preserves links and formatting) */
-    val html: String? = null,
+    public val html: String? = null,
     /** Avatar image URL (optional) */
-    val avatarUrl: String? = null,
+    public val avatarUrl: String? = null,
 )
 
 /**
@@ -127,9 +127,9 @@ public data class Comment(
  */
 public data class RelatedBook(
     /** Topic ID */
-    val topicId: String,
+    public val topicId: String,
     /** Book title */
-    val title: String,
+    public val title: String,
 )
 
 /**
@@ -137,13 +137,13 @@ public data class RelatedBook(
  */
 public data class TorrentInfo(
     /** Info hash */
-    val infoHash: String,
+    public val infoHash: String,
     /** Torrent name */
-    val name: String,
+    public val name: String,
     /** Total size in bytes */
-    val totalSize: Long,
+    public val totalSize: Long,
     /** List of files in torrent */
-    val files: List<TorrentFile>,
+    public val files: List<TorrentFile>,
 )
 
 /**
@@ -151,7 +151,7 @@ public data class TorrentInfo(
  */
 public data class TorrentFile(
     /** File path within torrent */
-    val path: String,
+    public val path: String,
     /** File size in bytes */
-    val size: Long,
+    public val size: Long,
 )

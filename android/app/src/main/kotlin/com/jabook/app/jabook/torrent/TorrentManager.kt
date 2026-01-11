@@ -66,11 +66,11 @@ public class TorrentManager
         private var session: SessionManager? = null
         private val activeTorrents = mutableMapOf<String, TorrentHandle>()
         private val _downloads = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
-        val downloads: StateFlow<Map<String, DownloadProgress>> = _downloads.asStateFlow()
+        public val downloads: StateFlow<Map<String, DownloadProgress>> = _downloads.asStateFlow()
         private var isInitialized = false
 
         @Synchronized
-        public fun initialize() {
+        public fun initialize(...) {
             if (isInitialized) {
                 Log.d(TAG, "Session already initialized")
                 return
@@ -329,7 +329,7 @@ public class TorrentManager
                 }
             }
 
-        public fun shutdown() {
+        public fun shutdown(...) {
             Log.d(TAG, "Shutting down libtorrent session...")
 
             session?.stop()

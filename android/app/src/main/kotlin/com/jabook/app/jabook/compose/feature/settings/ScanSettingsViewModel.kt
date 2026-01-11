@@ -39,7 +39,7 @@ public class ScanSettingsViewModel
                     initialValue = emptyList(),
                 )
 
-        public fun addScanPath(uriString: String) {
+        public fun addScanPath(...) {
             public val path = resolvePathFromUri(uriString)
             viewModelScope.launch {
                 booksRepository.addScanPath(path)
@@ -48,7 +48,7 @@ public class ScanSettingsViewModel
             }
         }
 
-        public fun removeScanPath(path: String) {
+        public fun removeScanPath(...) {
             viewModelScope.launch {
                 booksRepository.removeScanPath(path)
                 booksRepository.refresh()

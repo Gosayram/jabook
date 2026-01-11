@@ -23,13 +23,13 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "chapter_metadata")
 public data class ChapterMetadataEntity(
     @PrimaryKey
-    val id: String, // bookId + "_" + fileIndex
-    val bookId: String,
-    val fileIndex: Int,
-    val title: String,
-    val filePath: String?,
-    val startTime: Long = 0L,
-    val endTime: Long? = null,
-    val duration: Long? = null,
-    val lastUpdated: Long = System.currentTimeMillis(),
+    public val id: String, // bookId + "_" + fileIndex
+    public val bookId: String,
+    public val fileIndex: Int,
+    public val title: String,
+    public val filePath: String?,
+    public val startTime: Int = L,
+    public val endTime: Long? = null,
+    public val duration: Long? = null,
+    public val lastUpdated: Long = System.currentTimeMillis(),
 )

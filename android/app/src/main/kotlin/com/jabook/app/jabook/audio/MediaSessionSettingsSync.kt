@@ -42,7 +42,7 @@ public class MediaSessionSettingsSync(
      * Starts observing settings and syncing to MediaSession.
      * Should be called once in AudioPlayerService.onCreate().
      */
-    public fun start() {
+    public fun start(...) {
         // Observe skip duration changes
         scope.launch {
             settingsRepository.userPreferences

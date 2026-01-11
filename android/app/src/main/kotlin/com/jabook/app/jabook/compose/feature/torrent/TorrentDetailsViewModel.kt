@@ -50,7 +50,7 @@ public class TorrentDetailsViewModel
         private val route = savedStateHandle.toRoute<TorrentDetailsRoute>()
         val hash = route.hash
 
-        val download: StateFlow<TorrentDownload?> =
+        public val download: StateFlow<TorrentDownload?> =
             torrentManager.downloadsFlow
                 .map { it[hash] }
                 .stateIn(
@@ -64,7 +64,7 @@ public class TorrentDetailsViewModel
         private val _navigationEvent = MutableSharedFlow<String>()
         val navigationEvent = _navigationEvent.asSharedFlow()
 
-        public fun playFile(file: TorrentFile) {
+        public fun playFile(...) {
             viewModelScope.launch {
                 val currentDownload = download.value ?: return@launch
 
@@ -160,7 +160,7 @@ public class TorrentDetailsViewModel
             // For now, removing onCleared stop to allow background playback monitoring.
         }
 
-        public fun updateFileSelection(selectedIndices: Set<Int>) {
+        public fun updateFileSelection(...) {
             val currentDownload = download.value ?: return
             val files = currentDownload.files
 

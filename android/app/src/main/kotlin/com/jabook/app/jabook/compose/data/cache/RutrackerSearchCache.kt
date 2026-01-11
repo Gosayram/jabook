@@ -110,7 +110,7 @@ public class RutrackerSearchCache
         /**
          * Clear all cached search results.
          */
-        public fun clear() {
+        public fun clear(...) {
             cache.clear()
             synchronized(accessOrder) {
                 accessOrder.clear()
@@ -165,8 +165,8 @@ public class RutrackerSearchCache
          * Cache entry with TTL.
          */
         private data class CacheEntry(
-            val results: List<SearchResult>,
-            val timestamp: Long,
+            public val results: List<SearchResult>,
+            public val timestamp: Long,
         ) {
             public fun isExpired(): Boolean = (System.currentTimeMillis() - timestamp) > CACHE_TTL_MS
         }
@@ -175,11 +175,11 @@ public class RutrackerSearchCache
          * Cache statistics.
          */
         public data class CacheStatistics(
-            val entriesCount: Int,
-            val totalResults: Int,
-            val estimatedSize: Long,
-            val oldestEntry: Long,
-            val newestEntry: Long,
+            public val entriesCount: Int,
+            public val totalResults: Int,
+            public val estimatedSize: Long,
+            public val oldestEntry: Long,
+            public val newestEntry: Long,
         )
 
         public companion object {

@@ -84,7 +84,7 @@ internal class PlayerListener(
      *
      * @param deferred CompletableDeferred to complete with new track index
      */
-    fun setPendingTrackSwitchDeferred(deferred: CompletableDeferred<Int>) {
+    public fun setPendingTrackSwitchDeferred(...) {
         pendingTrackSwitchDeferred = deferred
         android.util.Log.d(
             "AudioPlayerService",
@@ -95,7 +95,7 @@ internal class PlayerListener(
     /**
      * Clears the pending deferred (cancels waiting for track switch).
      */
-    fun clearPendingTrackSwitchDeferred() {
+    public fun clearPendingTrackSwitchDeferred(...) {
         pendingTrackSwitchDeferred?.cancel()
         pendingTrackSwitchDeferred = null
         android.util.Log.d("AudioPlayerService", "Cleared pendingTrackSwitchDeferred")

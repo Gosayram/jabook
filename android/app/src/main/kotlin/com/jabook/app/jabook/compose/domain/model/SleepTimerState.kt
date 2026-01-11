@@ -31,12 +31,12 @@ public sealed interface SleepTimerState {
      * @param remainingSeconds Seconds remaining until auto-pause
      */
     public data class Active(
-        val remainingSeconds: Int,
+        public val remainingSeconds: Int,
     ) : SleepTimerState {
         /**
          * Formatted time string (MM:SS).
          */
-        val formattedTime: String
+        public val formattedTime: String
             get() {
                 val minutes = remainingSeconds / 60
                 val seconds = remainingSeconds % 60

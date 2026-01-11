@@ -22,13 +22,13 @@ import android.net.Uri
  * This is a domain model that can be converted to Media3 MediaItem.
  */
 public data class MediaItemData(
-    val uri: Uri,
-    val title: String? = null,
-    val artist: String? = null,
-    val album: String? = null,
-    val duration: Long? = null,
-    val chapterId: String? = null,
-    val fileIndex: Int = 0,
+    public val uri: Uri,
+    public val title: String? = null,
+    public val artist: String? = null,
+    public val album: String? = null,
+    public val duration: Long? = null,
+    public val chapterId: String? = null,
+    public val fileIndex: Int = 0,
 ) {
     /**
      * Checks if this media item has valid URI.

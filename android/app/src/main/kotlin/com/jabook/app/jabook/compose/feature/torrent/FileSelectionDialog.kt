@@ -55,13 +55,13 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentFile
  * Node representing a file or directory in the torrent
  */
 public data class FileNode(
-    val name: String,
-    val path: String,
-    val size: Long,
-    val fileIndex: Int?, // null for directories
-    val children: List<FileNode> = emptyList(),
+    public val name: String,
+    public val path: String,
+    public val size: Long,
+    public val fileIndex: Int?, // null for directories
+    public val children: List<FileNode> = emptyList(),
 ) {
-    val isDirectory: Boolean get() = fileIndex == null
+    public val isDirectory: Boolean get() = fileIndex == null
 }
 
 /**
@@ -175,7 +175,7 @@ private fun FileNodeItem(
     // - true if ALL children selected
     // - false if NO children selected
     // - null (tri-state) if SOME children selected
-    val isSelected: Boolean? =
+    public val isSelected: Boolean? =
         if (node.isDirectory) {
             val childrenStates = getAllFilePaths(node).map { selectionState[it] ?: false }
             if (childrenStates.all { it }) {
@@ -336,10 +336,10 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
 
     // Helper class to build tree temporarily
     public data class TempNode(
-        val name: String,
-        var size: Long = 0,
+        public val name: String,
+        var size: Int = ,
         var fileIndex: Int? = null,
-        val children: MutableMap<String, TempNode> = mutableMapOf(),
+        public val children: MutableMap<String, TempNode> = mutableMapOf(),
     )
 
     val rootTemp = TempNode("root")

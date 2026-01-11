@@ -56,7 +56,7 @@ public class NotificationManager(
     /**
      * Updates the player reference. This is needed when the player is recreated.
      */
-    public fun updatePlayer(newPlayer: ExoPlayer) {
+    public fun updatePlayer(...) {
         player = newPlayer
         android.util.Log.d("NotificationManager", "Player reference updated")
     }
@@ -67,7 +67,7 @@ public class NotificationManager(
      * @param isMinimal true for minimal notification (Play/Pause only),
      * false for full notification (all controls)
      */
-    public fun setNotificationType(isMinimal: Boolean) {
+    public fun setNotificationType(...) {
         isMinimalNotification = isMinimal
         android.util.Log.d("NotificationManager", "Notification type set to: ${if (isMinimal) "minimal" else "full"}")
     }
@@ -83,7 +83,7 @@ public class NotificationManager(
          * Gets the notification channel name with flavor suffix.
          */
         private fun getChannelName(context: Context): String {
-            val baseName: String = "JaBook Audio Playback"
+            public val baseName: String = "JaBook Audio Playback"
             val flavor = getFlavorSuffix(context)
             return baseName.appendFlavorSuffix(flavor)
         }
@@ -1130,7 +1130,7 @@ public class NotificationManager(
      * This method includes rate limiting and proper error handling to prevent
      * notification-related crashes on Android 14+.
      */
-    public fun updateNotification() {
+    public fun updateNotification(...) {
         try {
             public val notification = createNotification()
             notificationManager.notify(NOTIFICATION_ID, notification)
@@ -1194,7 +1194,7 @@ public class NotificationManager(
      * Updates MediaSession reference.
      * Called when MediaSession is created or recreated.
      */
-    public fun updateMediaSession(session: androidx.media3.session.MediaSession?) {
+    public fun updateMediaSession(...) {
         // MediaSession is already passed in constructor, but we can update if needed
         // This method is for future use if we need to update session dynamically
     }

@@ -45,47 +45,47 @@ import androidx.room.PrimaryKey
 public data class BookEntity(
     @PrimaryKey
     @ColumnInfo(name = "id")
-    val id: String,
+    public val id: String,
     @ColumnInfo(name = "title")
-    val title: String,
+    public val title: String,
     @ColumnInfo(name = "author")
-    val author: String,
+    public val author: String,
     @ColumnInfo(name = "cover_url")
-    val coverUrl: String?,
+    public val coverUrl: String?,
     @ColumnInfo(name = "description")
-    val description: String?,
+    public val description: String?,
     @ColumnInfo(name = "total_duration")
-    val totalDuration: Long,
+    public val totalDuration: Long,
     @ColumnInfo(name = "current_position")
-    val currentPosition: Long = 0,
+    public val currentPosition: Int = ,
     @ColumnInfo(name = "total_progress")
-    val totalProgress: Float = 0f,
+    public val totalProgress: Float = 0f,
     @ColumnInfo(name = "current_chapter_index")
-    val currentChapterIndex: Int = 0,
+    public val currentChapterIndex: Int = 0,
     @ColumnInfo(name = "download_status")
-    val downloadStatus: String = "NOT_DOWNLOADED",
+    public val downloadStatus: String = "NOT_DOWNLOADED",
     @ColumnInfo(name = "download_progress")
-    val downloadProgress: Float = 0f,
+    public val downloadProgress: Float = 0f,
     @ColumnInfo(name = "local_path")
-    val localPath: String? = null,
+    public val localPath: String? = null,
     @ColumnInfo(name = "added_date")
-    val addedDate: Long,
+    public val addedDate: Long,
     @ColumnInfo(name = "last_played_date")
-    val lastPlayedDate: Long? = null,
+    public val lastPlayedDate: Long? = null,
     @ColumnInfo(name = "is_favorite")
-    val isFavorite: Boolean = false,
+    public val isFavorite: Boolean = false,
     @ColumnInfo(name = "source_url")
-    val sourceUrl: String? = null,
+    public val sourceUrl: String? = null,
     @ColumnInfo(name = "cover_path")
-    val coverPath: String? = null,
+    public val coverPath: String? = null,
     // Per-book playback settings (null = use global default)
     @ColumnInfo(name = "rewind_duration")
-    val rewindDuration: Int? = null,
+    public val rewindDuration: Int? = null,
     @ColumnInfo(name = "forward_duration")
-    val forwardDuration: Int? = null,
+    public val forwardDuration: Int? = null,
     // Legacy field for backwards compatibility
     @ColumnInfo(name = "is_downloaded")
-    val isDownloaded: Boolean = false,
+    public val isDownloaded: Boolean = false,
 )
 
 /**
@@ -122,23 +122,23 @@ public data class BookEntity(
 public data class ChapterEntity(
     @PrimaryKey
     @ColumnInfo(name = "id")
-    val id: String,
+    public val id: String,
     @ColumnInfo(name = "book_id")
-    val bookId: String,
+    public val bookId: String,
     @ColumnInfo(name = "title")
-    val title: String,
+    public val title: String,
     @ColumnInfo(name = "chapter_index")
-    val chapterIndex: Int,
+    public val chapterIndex: Int,
     @ColumnInfo(name = "file_index")
-    val fileIndex: Int,
+    public val fileIndex: Int,
     @ColumnInfo(name = "duration")
-    val duration: Long,
+    public val duration: Long,
     @ColumnInfo(name = "file_url")
-    val fileUrl: String?,
+    public val fileUrl: String?,
     @ColumnInfo(name = "position")
-    val position: Long = 0,
+    public val position: Int = ,
     @ColumnInfo(name = "is_completed")
-    val isCompleted: Boolean = false,
+    public val isCompleted: Boolean = false,
     @ColumnInfo(name = "is_downloaded")
-    val isDownloaded: Boolean = false,
+    public val isDownloaded: Boolean = false,
 )

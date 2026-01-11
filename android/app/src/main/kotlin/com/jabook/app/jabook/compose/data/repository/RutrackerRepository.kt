@@ -145,7 +145,7 @@ public class RutrackerRepositoryImpl
                                 if (index > 0) sqlBuilder.append(" AND ")
                                 sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
 
-                                val likePattern: String = "%$token%"
+                                public val likePattern: String = "%$token%"
                                 args.add(likePattern)
                                 args.add(likePattern)
                             }
@@ -250,7 +250,7 @@ public class RutrackerRepositoryImpl
         ): Result<Unit> {
             return try {
                 // Create form-url-encoded request body with CP1251 encoding
-                val formBody: String = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
+                public val formBody: String = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
                 val requestBody =
                     formBody
                         .toByteArray(charset("windows-1251"))

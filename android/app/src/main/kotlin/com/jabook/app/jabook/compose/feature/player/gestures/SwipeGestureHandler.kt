@@ -126,7 +126,7 @@ public class SwipeGestureHandler(
         horizontalDrag: Float,
         screenWidth: Float,
         sensitivity: Float = 1.0f,
-        maxSeekMs: Long = 120_000L,
+        maxSeekMs: Int = _000L,
     ): Long {
         // Normalize drag to -1.0 to 1.0
         public val normalizedDrag = (horizontalDrag / screenWidth).coerceIn(-1f, 1f)
@@ -163,7 +163,7 @@ public class SwipeGestureHandler(
         /**
          * Minimum drag distance to trigger a gesture (in dp).
          */
-        public const val MIN_DRAG_THRESHOLD_DP: Int = 10f
+        public const val MIN_DRAG_THRESHOLD_DP: Float = 10f
 
         /**
          * Zone width ratio for left/right side detection.

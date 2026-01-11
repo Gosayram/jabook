@@ -197,7 +197,7 @@ public class GlideBitmapLoader(
      * Clears Glide memory cache.
      * Should be called when memory is low.
      */
-    public fun clearMemoryCache() {
+    public fun clearMemoryCache(...) {
         android.util.Log.d("GlideBitmapLoader", "Clearing Glide memory cache")
         Glide.get(context).clearMemory()
     }
@@ -206,7 +206,7 @@ public class GlideBitmapLoader(
      * Clears Glide disk cache.
      * Should be called on background thread.
      */
-    public fun clearDiskCache() {
+    public fun clearDiskCache(...) {
         executorService.execute {
             android.util.Log.d("GlideBitmapLoader", "Clearing Glide disk cache")
             Glide.get(context).clearDiskCache()

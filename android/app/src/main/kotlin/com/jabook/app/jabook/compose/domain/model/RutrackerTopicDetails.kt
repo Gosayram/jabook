@@ -27,57 +27,57 @@ package com.jabook.app.jabook.compose.domain.model
  */
 public data class RutrackerTopicDetails(
     /** Topic ID */
-    val topicId: String,
+    public val topicId: String,
     /** Full title */
-    val title: String,
+    public val title: String,
     /** Author or narrator info */
-    val author: String?,
+    public val author: String?,
     /** Book performer/reader */
-    val performer: String?,
+    public val performer: String?,
     /** Category */
-    val category: String,
+    public val category: String,
     /** File size */
-    val size: String,
+    public val size: String,
     /** Seeders count */
-    val seeders: Int,
+    public val seeders: Int,
     /** Leechers count */
-    val leechers: Int,
+    public val leechers: Int,
     /** Magnet link */
-    val magnetUrl: String?,
+    public val magnetUrl: String?,
     /** Torrent file URL */
-    val torrentUrl: String,
+    public val torrentUrl: String,
     /** Cover image URL */
-    val coverUrl: String?,
+    public val coverUrl: String?,
     /** List of genres */
-    val genres: List<String>,
+    public val genres: List<String>,
     /** Date added */
-    val addedDate: String?,
+    public val addedDate: String?,
     /** Duration (e.g., "08:05:13") */
-    val duration: String?,
+    public val duration: String?,
     /** Bitrate (e.g., "128 kbps") */
-    val bitrate: String?,
+    public val bitrate: String?,
     /** Audio codec (e.g., "MP3") */
-    val audioCodec: String?,
+    public val audioCodec: String?,
     /** Description/content (plain text) */
-    val description: String?,
+    public val description: String?,
     /** Description HTML (preserves links and formatting) */
-    val descriptionHtml: String? = null,
+    public val descriptionHtml: String? = null,
     /** Structured MediaInfo data */
-    val mediaInfo: com.jabook.app.jabook.compose.data.remote.model.MediaInfo? = null,
+    public val mediaInfo: com.jabook.app.jabook.compose.data.remote.model.MediaInfo? = null,
     /** Related audiobooks from same series */
-    val relatedBooks: List<RutrackerRelatedBook>,
+    public val relatedBooks: List<RutrackerRelatedBook>,
     /** Series/cycle name */
-    val series: String? = null,
+    public val series: String? = null,
     /** Comments from topic */
-    val comments: List<RutrackerComment> = emptyList(),
+    public val comments: List<RutrackerComment> = emptyList(),
     /** Registration date */
-    val registeredDate: String? = null,
+    public val registeredDate: String? = null,
     /** Download count */
-    val downloadsCount: String? = null,
-    val currentPage: Int = 1,
-    val totalPages: Int = 1,
+    public val downloadsCount: String? = null,
+    public val currentPage: Int = 1,
+    public val totalPages: Int = 1,
     /** All extracted metadata fields */
-    val allMetadata: Map<String, String> = emptyMap(),
+    public val allMetadata: Map<String, String> = emptyMap(),
 ) {
     /**
      * Validates that the topic details have required fields.
@@ -119,9 +119,9 @@ public data class RutrackerTopicDetails(
  */
 public data class RutrackerRelatedBook(
     /** Topic ID */
-    val topicId: String,
+    public val topicId: String,
     /** Book title */
-    val title: String,
+    public val title: String,
 ) {
     /**
      * Validates that the related book has required fields.
@@ -136,17 +136,17 @@ public data class RutrackerRelatedBook(
  */
 public data class RutrackerComment(
     /** Comment ID */
-    val id: String,
+    public val id: String,
     /** Author username */
-    val author: String,
+    public val author: String,
     /** Comment date/time */
-    val date: String,
+    public val date: String,
     /** Comment text (plain text, links removed) */
-    val text: String,
+    public val text: String,
     /** Comment HTML (preserves links and formatting) */
-    val html: String? = null,
+    public val html: String? = null,
     /** Avatar image URL (optional) */
-    val avatarUrl: String? = null,
+    public val avatarUrl: String? = null,
 ) {
     /**
      * Validates that the comment has required fields.

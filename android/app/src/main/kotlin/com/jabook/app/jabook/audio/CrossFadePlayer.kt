@@ -46,7 +46,7 @@ public class CrossFadePlayer(
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
 
-    public var crossFadeDurationMs: Long = 2000L
+    public var crossFadeDurationMs: Int = L
     private var currentAnimator: ValueAnimator? = null
     private var isCrossFading = false
 
@@ -55,7 +55,7 @@ public class CrossFadePlayer(
     /**
      * Prepares the next player with the given media item.
      */
-    public fun setNextTrack(mediaItem: MediaItem) {
+    public fun setNextTrack(...) {
         nextPlayer.setMediaItem(mediaItem)
         nextPlayer.prepare()
         android.util.Log.d("CrossFadePlayer", "Next track prepared on $nextPlayer")
@@ -64,7 +64,7 @@ public class CrossFadePlayer(
     /**
      * Prepares the next player with the given media source.
      */
-    public fun setNextMediaSource(mediaSource: androidx.media3.exoplayer.source.MediaSource) {
+    public fun setNextMediaSource(...) {
         nextPlayer.setMediaSource(mediaSource)
         nextPlayer.prepare()
         android.util.Log.d("CrossFadePlayer", "Next media source prepared on $nextPlayer")
@@ -73,7 +73,7 @@ public class CrossFadePlayer(
     /**
      * Starts playback on the current player.
      */
-    public fun play() {
+    public fun play(...) {
         if (!isCrossFading) {
             currentPlayer.play()
         }
@@ -82,7 +82,7 @@ public class CrossFadePlayer(
     /**
      * Pauses playback on all players.
      */
-    public fun pause() {
+    public fun pause(...) {
         currentPlayer.pause()
         nextPlayer.pause()
         currentAnimator?.pause()
@@ -91,7 +91,7 @@ public class CrossFadePlayer(
     /**
      * Stops playback and releases resources.
      */
-    public fun release() {
+    public fun release(...) {
         playerA.release()
         playerB.release()
         currentAnimator?.cancel()

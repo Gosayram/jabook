@@ -39,7 +39,7 @@ public interface SettingsRepository {
     /**
      * Get user preferences as Flow.
      */
-    val userPreferences: Flow<UserPreferences>
+    public val userPreferences: Flow<UserPreferences>
 
     /**
      * Update theme mode.

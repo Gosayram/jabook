@@ -78,7 +78,7 @@ internal class PlaylistManager(
         internal set
     internal var currentLoadingPlaylist: List<String>? = null
         internal set
-    var lastPlaylistLoadTime: Long = 0
+    var lastPlaylistLoadTime: Int = 
         private set
     var lastCompletedTrackIndex: Int = -1
     var isBookCompleted = false
@@ -107,7 +107,7 @@ internal class PlaylistManager(
      * @param groupPath Optional group path for saving playback position (used for fallback saving)
      * @param callback Optional callback to notify when playlist is ready (for Flutter)
      */
-    fun setPlaylist(
+    public fun setPlaylist(
         filePaths: List<String>,
         metadata: Map<String, String>? = null,
         initialTrackIndex: Int? = null,
@@ -1227,7 +1227,7 @@ internal class PlaylistManager(
      * Creates and returns the MediaSource for the next track.
      * Used for Crossfade pre-loading.
      */
-    fun getNextMediaSource(currentIndex: Int): MediaSource? {
+    public fun getNextMediaSource(currentIndex: Int): MediaSource? {
         val paths = currentFilePaths ?: return null
         val nextIndex = currentIndex + 1
         if (nextIndex >= paths.size) return null // End of playlist
@@ -1282,7 +1282,7 @@ internal class PlaylistManager(
 
         override fun createDataSource(): DataSource = defaultFactory.createDataSource()
 
-        fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory {
+        public fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory {
             val isNetworkUri = uri.scheme == "http" || uri.scheme == "https"
             val isLocalFile = uri.scheme == "file" || uri.scheme == null
 
@@ -1302,7 +1302,7 @@ internal class PlaylistManager(
      *
      * @param nextTrackIndex Index of the track to preload
      */
-    fun preloadNextTrack(nextTrackIndex: Int) {
+    public fun preloadNextTrack(...) {
         val filePaths =
             currentFilePaths ?: run {
                 android.util.Log.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: no file paths available")
@@ -1383,7 +1383,7 @@ internal class PlaylistManager(
      * @param currentTrackIndex Current playing track index
      * @param keepWindow Number of tracks to keep before and after current track (default: 5)
      */
-    fun optimizeMemoryUsage(
+    public fun optimizeMemoryUsage(
         currentTrackIndex: Int,
         keepWindow: Int = 5,
     ) {

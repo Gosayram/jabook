@@ -36,7 +36,7 @@ internal class PlaybackController(
      *
      * Simplified implementation matching lissen-android approach.
      */
-    fun play() {
+    public fun play(...) {
         android.util.Log.i("AudioPlayerService", "play() called")
 
         val player = getActivePlayer()
@@ -81,7 +81,7 @@ internal class PlaybackController(
      * This helps users resume from a slightly earlier position, which is useful
      * for audiobooks where context is important.
      */
-    fun pause() {
+    public fun pause(...) {
         playerServiceScope.launch {
             try {
                 val player = getActivePlayer()
@@ -119,7 +119,7 @@ internal class PlaybackController(
      * This method stops the player but does not release all resources.
      * For full cleanup, use stopAndRelease() instead.
      */
-    fun stop() {
+    public fun stop(...) {
         val player = getActivePlayer()
         try {
             android.util.Log.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
@@ -135,7 +135,7 @@ internal class PlaybackController(
      *
      * @param positionMs Position in milliseconds
      */
-    fun seekTo(positionMs: Long) {
+    public fun seekTo(...) {
         val player = getActivePlayer()
 
         try {
@@ -183,7 +183,7 @@ internal class PlaybackController(
      *
      * @param speed Playback speed (0.5x to 2.0x)
      */
-    fun setSpeed(speed: Float) {
+    public fun setSpeed(...) {
         getActivePlayer().setPlaybackSpeed(speed)
         // Reset inactivity timer (user action)
         resetInactivityTimer()
@@ -192,7 +192,7 @@ internal class PlaybackController(
     /**
      * Gets current playback speed.
      */
-    fun getSpeed(): Float = getActivePlayer().playbackParameters.speed
+    public fun getSpeed(): Float = getActivePlayer().playbackParameters.speed
 
     /**
      * Sets repeat mode.
@@ -202,7 +202,7 @@ internal class PlaybackController(
      *   - REPEAT_MODE_ONE: Repeat current track
      *   - REPEAT_MODE_ALL: Repeat all tracks
      */
-    fun setRepeatMode(repeatMode: Int) {
+    public fun setRepeatMode(...) {
         getActivePlayer().repeatMode = repeatMode
         android.util.Log.d("AudioPlayerService", "Repeat mode set to: $repeatMode")
         // Reset inactivity timer (user action)
@@ -214,14 +214,14 @@ internal class PlaybackController(
      *
      * @return Current repeat mode
      */
-    fun getRepeatMode(): Int = getActivePlayer().repeatMode
+    public fun getRepeatMode(): Int = getActivePlayer().repeatMode
 
     /**
      * Sets shuffle mode.
      *
      * @param shuffleModeEnabled true to enable shuffle, false to disable
      */
-    fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
+    public fun setShuffleModeEnabled(...) {
         getActivePlayer().shuffleModeEnabled = shuffleModeEnabled
         android.util.Log.d("AudioPlayerService", "Shuffle mode set to: $shuffleModeEnabled")
         // Reset inactivity timer (user action)
@@ -233,14 +233,14 @@ internal class PlaybackController(
      *
      * @return true if shuffle is enabled, false otherwise
      */
-    fun getShuffleModeEnabled(): Boolean = getActivePlayer().shuffleModeEnabled
+    public fun getShuffleModeEnabled(): Boolean = getActivePlayer().shuffleModeEnabled
 
     /**
      * Skips to next track.
      *
      * Inspired by lissen-android: checks track availability before switching.
      */
-    fun next() {
+    public fun next(...) {
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -273,7 +273,7 @@ internal class PlaybackController(
      *
      * Inspired by lissen-android: checks track availability before switching.
      */
-    fun previous() {
+    public fun previous(...) {
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -306,7 +306,7 @@ internal class PlaybackController(
      *
      * @param index Track index in playlist
      */
-    fun seekToTrack(index: Int) {
+    public fun seekToTrack(...) {
         val player = getActivePlayer()
         if (index >= 0 && index < player.mediaItemCount) {
             val playWhenReadyBeforeSeek = player.playWhenReady
@@ -334,7 +334,7 @@ internal class PlaybackController(
      * @param trackIndex Track index in playlist
      * @param positionMs Position in milliseconds within the track
      */
-    fun seekToTrackAndPosition(
+    public fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
     ) {
@@ -384,7 +384,7 @@ internal class PlaybackController(
      *
      * @param seconds Number of seconds to rewind (default: 15)
      */
-    fun rewind(seconds: Int = 15) {
+    public fun rewind(...) {
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val newPosition = (currentPosition - seconds * 1000L).coerceAtLeast(0L)
@@ -399,7 +399,7 @@ internal class PlaybackController(
      *
      * @param seconds Number of seconds to forward (default: 30)
      */
-    fun forward(seconds: Int = 30) {
+    public fun forward(...) {
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val duration = player.duration

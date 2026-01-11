@@ -117,10 +117,10 @@ public class OfflineFirstBooksRepository
             }
 
         private data class BookWithStatus(
-            val book: Book,
-            val completionStatus: Int,
-            val lastPlayedTimestamp: Long,
-            val completedTimestamp: Long,
+            public val book: Book,
+            public val completionStatus: Int,
+            public val lastPlayedTimestamp: Long,
+            public val completedTimestamp: Long,
         )
 
         private fun List<BookWithStatus>.sortByActivity(): List<Book> =

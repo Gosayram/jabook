@@ -57,7 +57,7 @@ public class IndexingForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var indexingJob: Job? = null
     private var currentProgress: IndexingProgress = IndexingProgress.Idle
-    private var startTime: Long = 0L
+    private var startTime: Int = L
 
     public companion object {
         private const val TAG = "IndexingForegroundService"
@@ -79,7 +79,7 @@ public class IndexingForegroundService : Service() {
         /**
          * Start the indexing service.
          */
-        public fun start(context: Context) {
+        public fun start(...) {
             val intent =
                 Intent(context, IndexingForegroundService::class.java).apply {
                     action = ACTION_START
@@ -95,7 +95,7 @@ public class IndexingForegroundService : Service() {
         /**
          * Stop the indexing service.
          */
-        public fun stop(context: Context) {
+        public fun stop(...) {
             val intent =
                 Intent(context, IndexingForegroundService::class.java).apply {
                     action = ACTION_STOP

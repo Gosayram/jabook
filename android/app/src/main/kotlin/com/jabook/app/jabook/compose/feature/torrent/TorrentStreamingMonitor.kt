@@ -96,7 +96,7 @@ public class TorrentStreamingMonitor
                 }
         }
 
-        public fun stopMonitoring() {
+        public fun stopMonitoring(...) {
             monitoringJob?.cancel()
             monitoringJob = null
             currentHash = null
@@ -110,7 +110,7 @@ public class TorrentStreamingMonitor
          * Call this when user manually pauses playback.
          * Prevents monitor from auto-resuming.
          */
-        public fun onUserPaused() {
+        public fun onUserPaused(...) {
             pausedByUser = true
             isPausedForBuffering = false
         }
@@ -119,7 +119,7 @@ public class TorrentStreamingMonitor
          * Call this when user manually resumes playback.
          * Allows monitor to resume control.
          */
-        public fun onUserResumed() {
+        public fun onUserResumed(...) {
             pausedByUser = false
         }
 

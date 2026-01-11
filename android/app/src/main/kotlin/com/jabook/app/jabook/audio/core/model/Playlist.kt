@@ -18,21 +18,21 @@ package com.jabook.app.jabook.audio.core.model
  * Represents a playlist of chapters for an audiobook.
  */
 public data class Playlist(
-    val bookId: String,
-    val bookTitle: String,
-    val chapters: List<Chapter>,
-    val currentIndex: Int = 0,
+    public val bookId: String,
+    public val bookTitle: String,
+    public val chapters: List<Chapter>,
+    public val currentIndex: Int = 0,
 ) {
     /**
      * Returns the current chapter, if available.
      */
-    val currentChapter: Chapter?
+    public val currentChapter: Chapter?
         get() = chapters.getOrNull(currentIndex)
 
     /**
      * Returns the total number of chapters.
      */
-    val size: Int
+    public val size: Int
         get() = chapters.size
 
     /**

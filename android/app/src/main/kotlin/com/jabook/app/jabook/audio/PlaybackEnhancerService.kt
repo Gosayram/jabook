@@ -92,7 +92,7 @@ public class PlaybackEnhancerService
          * Initializes the enhancer service.
          * Should be called once in AudioPlayerService.onCreate().
          */
-        public fun initialize() {
+        public fun initialize(...) {
             player.addListener(
                 object : Player.Listener {
                     override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -194,7 +194,7 @@ public class PlaybackEnhancerService
          * Releases the enhancer.
          * Should be called when service is destroyed.
          */
-        public fun release() {
+        public fun release(...) {
             enhancer?.release()
             enhancer = null
             android.util.Log.d("PlaybackEnhancerService", "LoudnessEnhancer released")

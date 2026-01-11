@@ -55,11 +55,11 @@ public sealed interface TopicUiState {
     data object Loading : TopicUiState
 
     public data class Success(
-        val details: RutrackerTopicDetails,
+        public val details: RutrackerTopicDetails,
     ) : TopicUiState
 
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : TopicUiState
 }
 
@@ -85,12 +85,12 @@ public class TopicViewModel
         private val topicId: String = savedStateHandle.toRoute<TopicRoute>().topicId
 
         private val _uiState = MutableStateFlow<TopicUiState>(TopicUiState.Loading)
-        val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
 
         private val _message = MutableStateFlow<String?>(null)
-        val message: StateFlow<String?> = _message.asStateFlow()
+        public val message: StateFlow<String?> = _message.asStateFlow()
 
-        val authStatus: StateFlow<AuthStatus> =
+        public val authStatus: StateFlow<AuthStatus> =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -98,11 +98,11 @@ public class TopicViewModel
             )
 
         private val _isRefreshing = MutableStateFlow(false)
-        val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+        public val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
         // Pagination state
         private val _isLoadingMoreComments = MutableStateFlow(false)
-        val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
+        public val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
 
         private val loadedComments = mutableListOf<com.jabook.app.jabook.compose.domain.model.RutrackerComment>()
         private var currentLoadedPage = 1
@@ -190,7 +190,7 @@ public class TopicViewModel
         /**
          * Load more comments from the next page (reverse pagination: N-1, N-2, ..., 1).
          */
-        public fun loadMoreComments() {
+        public fun loadMoreComments(...) {
             val currentState = _uiState.value
             if (currentState !is TopicUiState.Success) return
 
@@ -239,7 +239,7 @@ public class TopicViewModel
             }
         }
 
-        public fun refreshTopicDetails(silent: Boolean = true) {
+        public fun refreshTopicDetails(...) {
             viewModelScope.launch {
                 if (!silent) {
                     _uiState.value = TopicUiState.Loading
@@ -409,14 +409,14 @@ public class TopicViewModel
         /**
          * Download torrent file (.torrent) to device storage.
          */
-        public fun downloadTorrentFile() {
+        public fun downloadTorrentFile(...) {
             viewModelScope.launch {
                 try {
                     // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
                     withAuthorisedCheckUseCase(operationId = "download_torrent_file_$topicId") {
                         val response = rutrackerApi.downloadTorrent(topicId)
                         if (response.isSuccessful) {
-                            val body: ResponseBody? = response.body()
+                            public val body: ResponseBody? = response.body()
                             if (body != null) {
                                 withContext(Dispatchers.IO) {
                                     // Save to Downloads directory
@@ -456,7 +456,7 @@ public class TopicViewModel
         /**
          * Copy magnet link to clipboard.
          */
-        public fun copyMagnetLink(magnetUrl: String?) {
+        public fun copyMagnetLink(...) {
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return
@@ -472,7 +472,7 @@ public class TopicViewModel
         /**
          * Download via magnet link (if available).
          */
-        public fun downloadViaMagnet(magnetUrl: String?) {
+        public fun downloadViaMagnet(...) {
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return
@@ -481,7 +481,7 @@ public class TopicViewModel
             downloadTorrentRelease(magnetUrl, null)
         }
 
-        public fun retry() {
+        public fun retry(...) {
             loadTopicDetails()
         }
 

@@ -18,16 +18,16 @@ package com.jabook.app.jabook.torrent.data
  * Download progress data for a torrent.
  */
 public data class DownloadProgress(
-    val infoHash: String,
-    val percentage: Float,
-    val downloadRate: Long, // bytes/sec
-    val uploadRate: Long, // bytes/sec
-    val downloaded: Long, // bytes
-    val uploaded: Long, // bytes
-    val totalSize: Long, // bytes
-    val numPeers: Int,
-    val numSeeds: Int,
-    val state: TorrentState,
+    public val infoHash: String,
+    public val percentage: Float,
+    public val downloadRate: Long, // bytes/sec
+    public val uploadRate: Long, // bytes/sec
+    public val downloaded: Long, // bytes
+    public val uploaded: Long, // bytes
+    public val totalSize: Long, // bytes
+    public val numPeers: Int,
+    public val numSeeds: Int,
+    public val state: TorrentState,
 )
 
 /**

@@ -62,7 +62,7 @@ internal class PlayerConfigurator(
      * Gets the active ExoPlayer instance (custom with processors or singleton).
      * @param defaultPlayer The singleton ExoPlayer instance to return if no custom player exists
      */
-    fun getActivePlayer(defaultPlayer: ExoPlayer): ExoPlayer = customExoPlayer ?: defaultPlayer
+    public fun getActivePlayer(defaultPlayer: ExoPlayer): ExoPlayer = customExoPlayer ?: defaultPlayer
 
     /**
      * Configures ExoPlayer instance (already created via Hilt).
@@ -73,7 +73,7 @@ internal class PlayerConfigurator(
      *
      * Inspired by lissen-android: lightweight configuration, no heavy operations.
      */
-    fun configurePlayer() {
+    public fun configurePlayer(...) {
         try {
             // Match lissen-android: just add listener, no additional configuration
             // ExoPlayer is already configured in MediaModule with AudioAttributes
@@ -182,7 +182,7 @@ internal class PlayerConfigurator(
      * @param settings Audio processing settings
      */
     @androidx.annotation.OptIn(UnstableApi::class)
-    fun configureExoPlayer(settings: AudioProcessingSettings) {
+    public fun configureExoPlayer(...) {
         try {
             // Store settings
             audioProcessingSettings = settings
@@ -382,7 +382,7 @@ internal class PlayerConfigurator(
         }
     }
 
-    fun release() {
+    public fun release(...) {
         customExoPlayer?.release()
         customExoPlayer = null
         playerListener = null
