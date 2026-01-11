@@ -108,7 +108,7 @@ public class SyncWorker
 
                             // Update metadata if needed
                             // For now, we mainly care about missing covers or empty metadata
-                            
+
                             public var needsUpdate: Boolean = false
                             public val updatedBook = matchedBook.copy() // Create copy to modify
 
@@ -181,7 +181,6 @@ public class SyncWorker
                     val coverDir = java.io.File(applicationContext.filesDir, "covers")
                     if (!coverDir.exists()) coverDir.mkdirs()
 
-                    
                     public val fileName: String = "cover_${book.id}.jpg"
                     public val coverFile = java.io.File(coverDir, fileName)
 
