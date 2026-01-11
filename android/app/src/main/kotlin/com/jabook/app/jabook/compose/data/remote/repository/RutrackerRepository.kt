@@ -281,8 +281,9 @@ public class RutrackerRepository
                             tokens.forEachIndexed { index, token ->
                                 if (index > 0) sqlBuilder.append(" AND ")
                                 sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
-                                
-                                val likePattern: String = "%$token%"                                args.add(likePattern)
+
+                                val likePattern: String = "%$token%"
+                                args.add(likePattern)
                                 args.add(likePattern)
                             }
 
@@ -363,7 +364,8 @@ public class RutrackerRepository
             val response = api.searchTopics(query, forumIds)
 
             // Log request details
-            val requestUrl: Long = response.raw().request.url            Log.w(TAG, "Request URL: $requestUrl")
+            val requestUrl = response.raw().request.url
+            Log.w(TAG, "Request URL: $requestUrl")
 
             // === HTTP RESPONSE LOGGING ===
             val networkDuration = System.currentTimeMillis() - networkStartTime
@@ -757,7 +759,7 @@ public class RutrackerRepository
         /**
          * Clear search cache.
          */
-        public fun clearSearchCache() : Unit {
+        public fun clearSearchCache() {
             searchCache.clear()
         }
     }

@@ -253,7 +253,7 @@ public class RutrackerParser
                             if (row.text().length > 50) {
                                 val rowTag = row.tagName()
                                 val rowClasses = row.className()
-                                
+
                                 public val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null
                                 public val topicIdAttr = row.attr(TOPIC_ID_ATTR)
                                 val rowId = row.attr("id")
@@ -455,7 +455,7 @@ public class RutrackerParser
                             actualRows.filter { row ->
                                 // Basic validation: must have some content/structure
                                 // Use selectFirst() for better performance (returns null if not found)
-                                
+
                                 public val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null
                                 public val isHeader = row.hasClass("vf-col-header-row")
                                 val isValid = !isHeader && hasTitle
@@ -543,7 +543,7 @@ public class RutrackerParser
                             if (row.text().length > 50) {
                                 val rowTag = row.tagName()
                                 val rowClasses = row.className()
-                                
+
                                 public val hasTitle: Long = row.selectFirst(TITLE_SELECTOR) != null
                                 public val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
 
@@ -1267,7 +1267,7 @@ public class RutrackerParser
 
             // Fallback: try to extract from text
             val seedText = document.select("span.seed, .seed").toStr()
-            val regex: String = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
+            val regex = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
             regex
                 .find(seedText)
                 ?.groupValues
@@ -1455,7 +1455,8 @@ public class RutrackerParser
             // Strategy 2: Regex fallback (using wholeText to preserve newlines)
             if (genreText == null) {
                 val text = postBody.wholeText()
-                val genrePattern: String = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()                genreText = genrePattern.find(text)?.groupValues?.get(1)
+                val genrePattern = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()
+                genreText = genrePattern.find(text)?.groupValues?.get(1)
             }
 
             return genreText
@@ -1495,7 +1496,8 @@ public class RutrackerParser
                 val label = span.toStr().trim()
                 if (label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true)) {
                     val nextText = span.nextSibling()?.toString() ?: ""
-                    val match: String = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)                    match
+                    val match = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)
+                    match
                         ?.groupValues
                         ?.get(1)
                         ?.trim()
