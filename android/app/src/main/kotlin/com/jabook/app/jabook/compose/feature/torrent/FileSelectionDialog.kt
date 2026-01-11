@@ -337,7 +337,7 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
     // Helper class to build tree temporarily
     public data class TempNode(
         public val name: String,
-        var size: Int = ,
+        var size: Int = 0,
         var fileIndex: Int? = null,
         public val children: MutableMap<String, TempNode> = mutableMapOf(),
     )

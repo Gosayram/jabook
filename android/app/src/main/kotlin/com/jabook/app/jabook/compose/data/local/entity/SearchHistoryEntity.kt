@@ -26,7 +26,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "search_history")
 public data class SearchHistoryEntity(
     @PrimaryKey(autoGenerate = true)
-    public val id: Int = ,
+    public val id: Int = 0,
     @ColumnInfo(name = "query")
     public val query: String,
     @ColumnInfo(name = "timestamp")

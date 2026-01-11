@@ -346,7 +346,7 @@ public class AudioPlayerController
         public fun loadBook(
             filePaths: List<String>,
             initialChapterIndex: Int = 0,
-            initialPosition: Int = ,
+            initialPosition: Int = 0,
             autoPlay: Boolean = false,
             metadata: Map<String, String>? = null,
             bookId: String? = null,

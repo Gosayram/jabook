@@ -78,18 +78,18 @@ public data class BookBackup(
     public val id: String,
     public val title: String,
     public val author: String,
-    public val lastPosition: Int = ,
-    public val duration: Int = ,
+    public val lastPosition: Int = 0,
+    public val duration: Int = 0,
     public val coverPath: String? = null,
     public val totalProgress: Float = 0f,
     public val isCompleted: Boolean = false,
     public val downloadStatus: String = "NOT_DOWNLOADED",
-    public val addedDate: Int = ,
+    public val addedDate: Int = 0,
     public val rewindDuration: Int? = null,
     public val forwardDuration: Int? = null,
     // Activity timestamps for sorting by activity
-    public val lastPlayedTimestamp: Int = , // When last played
-    public val completedTimestamp: Int = , // When completed (if completed)
+    public val lastPlayedTimestamp: Int = 0, // When last played
+    public val completedTimestamp: Int = 0, // When completed (if completed)
     // NEW Phase 9B: Torrent metadata for re-download capability
     public val torrentPath: String? = null, // Path to .torrent file
     public val sourceUrl: String? = null, // RuTracker topic URL
@@ -175,6 +175,6 @@ public data class BackupStatistics(
     public val favoritesCount: Int = 0,
     public val historyCount: Int = 0,
     public val scanPathsCount: Int = 0,
-    public val totalDuration: Int = , // Total duration of all books in ms
-    public val backupSizeBytes: Int = , // Estimated backup size
+    public val totalDuration: Int = 0, // Total duration of all books in ms
+    public val backupSizeBytes: Int = 0, // Estimated backup size
 )

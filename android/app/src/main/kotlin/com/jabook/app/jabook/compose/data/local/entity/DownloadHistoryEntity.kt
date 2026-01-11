@@ -25,7 +25,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "download_history")
 public data class DownloadHistoryEntity(
     @PrimaryKey(autoGenerate = true)
-    public val id: Int = ,
+    public val id: Int = 0,
     /**
      * Book ID from catalog.
      */

@@ -43,7 +43,7 @@ internal class SleepTimerManager(
     private val sendBroadcast: (Intent) -> Unit,
 ) {
     // Sleep timer state
-    var sleepTimerEndTime: Int = 
+    var sleepTimerEndTime: Int = 0
         private set
     var sleepTimerEndOfChapter: Boolean = false
         private set
@@ -56,7 +56,7 @@ internal class SleepTimerManager(
     // Shake to Extend
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    private var lastShakeTime: Int = 
+    private var lastShakeTime: Int = 0
     private val shakeThreshold = 1.6f // g-force threshold
     private val shakeDebounceMs = 2000L
 

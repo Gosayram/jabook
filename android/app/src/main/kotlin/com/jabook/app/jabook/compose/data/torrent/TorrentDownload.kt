@@ -27,15 +27,15 @@ public data class TorrentDownload(
     /** Download progress (0.0-1.0) */
     public val progress: Float = 0f,
     /** Download speed in bytes/sec */
-    public val downloadSpeed: Int = ,
+    public val downloadSpeed: Int = 0,
     /** Upload speed in bytes/sec */
-    public val uploadSpeed: Int = ,
+    public val uploadSpeed: Int = 0,
     /** Total size in bytes */
-    public val totalSize: Int = ,
+    public val totalSize: Int = 0,
     /** Downloaded bytes */
-    public val downloadedSize: Int = ,
+    public val downloadedSize: Int = 0,
     /** Uploaded bytes */
-    public val uploadedSize: Int = ,
+    public val uploadedSize: Int = 0,
     /** Number of connected peers */
     public val numPeers: Int = 0,
     /** Number of connected seeds */
@@ -51,7 +51,7 @@ public data class TorrentDownload(
     /** Timestamp when added (millis) */
     public val addedTime: Long = System.currentTimeMillis(),
     /** Timestamp when completed (millis, 0 if not completed) */
-    public val completedTime: Int = ,
+    public val completedTime: Int = 0,
     /** Current file being downloaded (for streaming) */
     public val currentFile: String? = null,
     /** Number of completed files */

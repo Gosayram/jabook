@@ -64,7 +64,7 @@ public class SavedPlayerStateRepository
             filePaths: List<String>,
             metadata: Map<String, String>? = null,
             currentIndex: Int = 0,
-            currentPosition: Int = ,
+            currentPosition: Int = 0,
             playbackSpeed: Double = 1.0,
             isPlaying: Boolean = false,
             repeatMode: Int = 0,

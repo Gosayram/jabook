@@ -1044,7 +1044,7 @@ public class TorrentSessionManager
         public fun isFileReadyForStreaming(
             hash: String,
             fileIndex: Int,
-            bufferSize: Int =  * 1024 * 1024L, // 10MB
+            bufferSize: Int = 10 * 1024 * 1024, // 10MB
         ): Boolean {
             public val handle = torrents[hash] ?: return false
             public val torrentInfo = handle.torrentFile() ?: return false

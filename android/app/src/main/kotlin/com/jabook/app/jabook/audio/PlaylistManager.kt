@@ -78,7 +78,7 @@ internal class PlaylistManager(
         internal set
     internal var currentLoadingPlaylist: List<String>? = null
         internal set
-    var lastPlaylistLoadTime: Int = 
+    var lastPlaylistLoadTime: Int = 0
         private set
     var lastCompletedTrackIndex: Int = -1
     var isBookCompleted = false

@@ -29,7 +29,7 @@ public data class SavedPlayerStateEntity(
     public val filePaths: String, // JSON array of file paths
     public val metadata: String? = null, // JSON object of metadata (title, artist, album, coverPath)
     public val currentIndex: Int = 0,
-    public val currentPosition: Int = ,
+    public val currentPosition: Int = 0,
     public val playbackSpeed: Double = 1.0,
     public val isPlaying: Boolean = false,
     public val repeatMode: Int = 0, // 0 = none, 1 = track, 2 = playlist
