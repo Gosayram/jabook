@@ -99,6 +99,29 @@ def fix_file(file_path: Path):
                 new_line = re.sub(r'\s+public\s*$', '', new_line.rstrip()) + '\n'
                 fixed = True
             
+            # Fix: Split multiple statements on the same line
+            # Pattern: val x = y        return z
+            if re.search(r'[=:]\s+[^=:]*\s{4,}[a-zA-Z]', new_line):
+                # Split by 4+ spaces followed by a word (likely a new statement)
+                parts = re.split(r'(\s{4,})(?=[a-zA-Z])', new_line)
+                if len(parts) > 1:
+                    indent = re.match(r'^(\s*)', new_line).group(1) if re.match(r'^\s*', new_line) else ''
+                    new_statements = []
+                    current_statement = parts[0]
+                    for i in range(1, len(parts), 2):
+                        if i + 1 < len(parts):
+                            next_statement = parts[i + 1].strip()
+                            if next_statement and not next_statement.startswith('//'):
+                                new_statements.append(f"{indent}{current_statement.rstrip()}")
+                                current_statement = next_statement
+                            else:
+                                current_statement += parts[i] + parts[i + 1]
+                    if current_statement:
+                        new_statements.append(f"{indent}{current_statement.rstrip()}")
+                    if len(new_statements) > 1:
+                        new_line = '\n'.join(new_statements) + '\n'
+                        fixed = True
+            
             # Fix 1: Add public to top-level functions
             if re.match(r'^\s*fun\s+\w+', line):
                 if not re.search(r'\b(public|private|internal|protected)\s+fun', line):
