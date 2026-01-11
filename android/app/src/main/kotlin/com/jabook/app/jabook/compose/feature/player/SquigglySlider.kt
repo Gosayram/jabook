@@ -129,12 +129,24 @@ fun SquigglySlider(
             val height = size.height
             val centerY = height / 2
 
-            // Calculate progress ratio (0..1)
-            val range = valueRange.endInclusive - valueRange.start
-            val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
-            val fraction = if (range > 0) (coercedValue - valueRange.start) / range else 0f
+            // Validate and sanitize value: check for NaN, Infinity, and ensure it's in valid range
+            val sanitizedValue =
+                when {
+                    !value.isFinite() || value.isNaN() -> valueRange.start // Default to start if invalid
+                    else -> value.coerceIn(valueRange.start, valueRange.endInclusive)
+                }
 
-            val activeWidth = width * fraction
+            // Calculate progress ratio (0..1) with protection against division by zero
+            val range = valueRange.endInclusive - valueRange.start
+            val fraction =
+                if (range > 0 && range.isFinite()) {
+                    ((sanitizedValue - valueRange.start) / range).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+
+            // Ensure activeWidth is valid and finite
+            val activeWidth = (width * fraction.coerceIn(0f, 1f)).coerceAtLeast(0f).coerceAtMost(width)
 
             // Draw Inactive Track (Straight line usually, strictly)
             // Or should the WHOLE track be squiggly? InnerTune usually has squiggly active part.

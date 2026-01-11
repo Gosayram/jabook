@@ -73,6 +73,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -712,13 +713,17 @@ private fun PlayerContent(
                             .padding(horizontal = if (isCompact) 4.dp else 0.dp),
                 ) {
                     // Progress bar with local state to prevent conflicts during dragging
+                    // Using derivedStateOf for performance optimization (inspired by Flow pattern)
                     val durationMs = state.currentChapter?.duration?.inWholeMilliseconds ?: 0L
-                    val playerProgress =
-                        if (durationMs > 0) {
-                            state.currentPosition.toFloat() / durationMs.toFloat()
-                        } else {
-                            0f
+                    val playerProgress by remember(state.currentPosition, durationMs) {
+                        derivedStateOf {
+                            if (durationMs > 0 && state.currentPosition >= 0) {
+                                (state.currentPosition.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                            } else {
+                                0f
+                            }
                         }
+                    }
 
                     // Local state for smooth slider interaction
                     var isDragging by remember { mutableStateOf(false) }
@@ -726,8 +731,8 @@ private fun PlayerContent(
 
                     // Update slider position from player when not dragging
                     LaunchedEffect(playerProgress) {
-                        if (!isDragging) {
-                            sliderPosition = playerProgress
+                        if (!isDragging && playerProgress.isFinite() && !playerProgress.isNaN()) {
+                            sliderPosition = playerProgress.coerceIn(0f, 1f)
                         }
                     }
 
@@ -740,8 +745,12 @@ private fun PlayerContent(
                         onValueChangeFinished = {
                             // Seek only when user finishes dragging
                             state.currentChapter?.let { chapter ->
-                                val seekPosition = (sliderPosition * chapter.duration.inWholeMilliseconds.toFloat()).toLong()
-                                onSeek(seekPosition)
+                                val durationMs = chapter.duration.inWholeMilliseconds
+                                if (durationMs > 0 && sliderPosition.isFinite() && !sliderPosition.isNaN()) {
+                                    val clampedProgress = sliderPosition.coerceIn(0f, 1f)
+                                    val seekPosition = (clampedProgress * durationMs.toFloat()).toLong().coerceAtLeast(0L)
+                                    onSeek(seekPosition)
+                                }
                             }
                             isDragging = false
                         },

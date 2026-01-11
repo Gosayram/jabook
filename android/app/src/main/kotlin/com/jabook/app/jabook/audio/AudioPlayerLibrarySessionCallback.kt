@@ -816,6 +816,19 @@ class AudioPlayerLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> =
         CoroutineScope(Dispatchers.Unconfined).future {
+            // Check if book is completed - don't resume completed books
+            if (service.isBookCompleted) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Book is completed, skipping playback resumption",
+                )
+                return@future MediaSession.MediaItemsWithStartPosition(
+                    emptyList(),
+                    0,
+                    0L,
+                )
+            }
+
             // Try to load full playlist state first (New Logic)
             val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
 
@@ -939,8 +952,15 @@ class AudioPlayerLibrarySessionCallback(
 
             val storedData = playerPersistenceManager.retrieveLastStoredMediaItem()
             if (storedData == null) {
-                android.util.Log.w("AudioPlayerService", "No stored media item found for playback resumption")
-                throw IllegalStateException("previous media id not found")
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "No stored media item found for playback resumption, returning empty list",
+                )
+                return@future MediaSession.MediaItemsWithStartPosition(
+                    emptyList(),
+                    0,
+                    0L,
+                )
             }
 
             val filePath =
