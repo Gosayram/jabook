@@ -78,7 +78,7 @@ public class TorrentDetailsViewModel
                 public var attempts: Int = 0
                 public val maxAttempts: Int = 60 // 30 seconds (500ms * 60)
                 while (!torrentManager.isFileReadyForStreaming(hash, file.index) && attempts < maxAttempts) {
-                    kotlinx.coroutines.delay(500)
+                    kotlinx.coroutines.delay(500L)
                     attempts++
                 }
 

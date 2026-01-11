@@ -81,7 +81,7 @@ public class CoverLoader
         private suspend fun processTopic(topicId: String) {
             try {
                 // Artificial delay to prevent burst if needed, or just proceed
-                // delay(100)
+                // delay(100L)
 
                 val result = repository.fetchAndSaveCover(topicId)
 

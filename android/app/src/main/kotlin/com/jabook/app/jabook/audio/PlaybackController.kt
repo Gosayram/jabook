@@ -165,7 +165,7 @@ internal class PlaybackController(
 
             if (playWhenReadyBeforeSeek) {
                 playerServiceScope.launch {
-                    delay(100)
+                    delay(100L)
                     if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
                         if (!player.playWhenReady) {
                             player.playWhenReady = true
@@ -317,7 +317,7 @@ internal class PlaybackController(
 
             if (playWhenReadyBeforeSeek) {
                 playerServiceScope.launch {
-                    delay(100)
+                    delay(100L)
                     if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
                         if (!player.playWhenReady) {
                             player.playWhenReady = true
@@ -362,7 +362,7 @@ internal class PlaybackController(
 
             if (playWhenReadyBeforeSeek) {
                 playerServiceScope.launch {
-                    delay(100)
+                    delay(100L)
                     if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
                         if (!player.playWhenReady) {
                             player.playWhenReady = true
@@ -493,7 +493,7 @@ internal class PlaybackController(
                 )
             }
 
-            delay(100)
+            delay(100L)
             attempts++
         }
 
@@ -528,7 +528,7 @@ internal class PlaybackController(
                 "Target track $trackIndex is already current, applying position immediately for smooth resume",
             )
             // Small delay to ensure player is stable
-            delay(100)
+            delay(100L)
         } else {
             // If target track is not current, we need to wait a bit more and potentially
             // wait for all tracks to prevent playlist resets during seekTo
@@ -536,7 +536,7 @@ internal class PlaybackController(
                 "AudioPlayerService",
                 "Target track $trackIndex is not current (current=$currentMediaItemIndex), waiting for stability",
             )
-            delay(200) // Small delay to let parallel loading stabilize
+            delay(200L) // Small delay to let parallel loading stabilize
 
             // Only wait for all tracks if target is not the first loaded track
             if (expectedTrackCount != null && currentMediaItemCount < expectedTrackCount) {
@@ -547,7 +547,7 @@ internal class PlaybackController(
                 var waitAttempts = 0
                 val maxWaitAttempts = 20 // 2 seconds (reduced for faster resume)
                 while (waitAttempts < maxWaitAttempts && currentMediaItemCount < expectedTrackCount) {
-                    delay(100)
+                    delay(100L)
                     val checkPlayer = getActivePlayer()
                     val newCount = checkPlayer.mediaItemCount
                     if (newCount >= expectedTrackCount) {
@@ -583,7 +583,7 @@ internal class PlaybackController(
             var retryAttempts = 0
             val maxRetryAttempts = 50 // 5 more seconds
             while (retryAttempts < maxRetryAttempts) {
-                delay(200)
+                delay(200L)
                 val retryPlayer = getActivePlayer()
                 if (retryPlayer.mediaItemCount > trackIndex) {
                     android.util.Log.i(

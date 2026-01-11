@@ -83,7 +83,7 @@ public class PlayerViewModel
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
 
         // Saved position from database (restored on init)
-        private var savedPosition: Int = L
+        private var savedPosition: Int = 0L
         private var savedChapterIndex: Int = 0
 
         // Chapter repeat mode state
@@ -380,7 +380,7 @@ public class PlayerViewModel
             // Always start playback when user selects a chapter from the chapter selector
             // Use coroutine to ensure chapter switch completes before starting playback
             viewModelScope.launch {
-                kotlinx.coroutines.delay(100) // Small delay to ensure chapter switch completes
+                kotlinx.coroutines.delay(100L) // Small delay to ensure chapter switch completes
                 playerController.play()
             }
         }

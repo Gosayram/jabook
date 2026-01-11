@@ -35,7 +35,7 @@ import kotlin.math.pow
 public data class RetryConfig(
     public val maxRetries: Int = 3,
     public val initialDelayMs: Int = L,
-    public val maxDelayMs: Int = _000L,
+    public val maxDelayMs: Int = 120_000L,
     public val backoffMultiplier: Double = 2.0,
     public val shouldRetry: (Throwable) -> Boolean = { it is java.io.IOException || it is java.net.SocketTimeoutException },
 ) {

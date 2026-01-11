@@ -221,7 +221,7 @@ public class PhoneCallListener(
 
                     // Delay resume slightly to ensure audio focus is regained
                     scope.launch {
-                        delay(500) // Small delay to ensure audio focus is ready
+                        delay(500L) // Small delay to ensure audio focus is ready
 
                         try {
                             val player = getActivePlayer()

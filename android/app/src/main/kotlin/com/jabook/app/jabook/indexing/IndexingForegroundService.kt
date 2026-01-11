@@ -56,7 +56,7 @@ public class IndexingForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var indexingJob: Job? = null
     private var currentProgress: IndexingProgress = IndexingProgress.Idle
-    private var startTime: Int = L
+    private var startTime: Int = 0L
 
     public companion object {
         private const val TAG = "IndexingForegroundService"

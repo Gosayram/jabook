@@ -321,7 +321,7 @@ public fun SettingsScreen(
                             } else {
                                 String.format("%02d:%02d", minutes % 60, seconds % 60)
                             }
-                        kotlinx.coroutines.delay(1000)
+                        kotlinx.coroutines.delay(1000L)
                     }
                 } else {
                     elapsedTimeStr = ""

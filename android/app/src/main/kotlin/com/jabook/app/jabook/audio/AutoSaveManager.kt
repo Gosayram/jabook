@@ -53,10 +53,10 @@ public class AutoSaveManager
             private const val TAG = "AutoSaveManager"
 
             /** Interval between auto-saves in milliseconds (30 seconds) */
-            public const val AUTO_SAVE_INTERVAL_MS: Int = _000L
+            public const val AUTO_SAVE_INTERVAL_MS: Int = 120_000L
 
             /** Minimum interval between saves to avoid excessive writes */
-            public const val MIN_SAVE_INTERVAL_MS: Int = _000L
+            public const val MIN_SAVE_INTERVAL_MS: Int = 120_000L
         }
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

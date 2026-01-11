@@ -546,7 +546,7 @@ internal class PlaylistManager(
                                     if (allPreviousAdded) {
                                         break
                                     }
-                                    delay(100)
+                                    delay(100L)
                                     waitAttempts++
                                 }
 
@@ -632,7 +632,7 @@ internal class PlaylistManager(
                             )
                         } else {
                             // For smaller playlists, wait briefly to ensure critical tracks load
-                            kotlinx.coroutines.delay(100) // Small delay to let priority tracks start
+                            kotlinx.coroutines.delay(100L) // Small delay to let priority tracks start
                         }
 
                         android.util.Log.i(
@@ -670,7 +670,7 @@ internal class PlaylistManager(
             playerServiceScope.launch {
                 try {
                     // Wait a bit for items to load
-                    delay(2000)
+                    delay(2000L)
                     withContext(Dispatchers.Main) {
                         val activePlayer = getActivePlayer()
                         if (activePlayer.mediaItemCount == filePaths.size) {
@@ -761,7 +761,7 @@ internal class PlaylistManager(
 
             // Apply position within the track
             activePlayer.seekTo(initialTrackIndex, initialPosition)
-            delay(500) // Wait for position to stabilize
+            delay(500L) // Wait for position to stabilize
 
             // Verify final state
             verifyPositionApplied(activePlayer, initialTrackIndex, initialPosition)
@@ -835,7 +835,7 @@ internal class PlaylistManager(
                 stableCount = 0
             }
             lastCount = currentCount
-            delay(100)
+            delay(100L)
             attempts++
         }
 
@@ -865,7 +865,7 @@ internal class PlaylistManager(
             player.playbackState != Player.STATE_READY &&
             player.playbackState != Player.STATE_BUFFERING
         ) {
-            delay(100)
+            delay(100L)
             attempts++
         }
     }
@@ -1011,7 +1011,7 @@ internal class PlaylistManager(
                 )
                 return
             }
-            delay(100)
+            delay(100L)
             attempts++
         }
 
@@ -1049,9 +1049,9 @@ internal class PlaylistManager(
             // Retry as last resort
             try {
                 player.seekToDefaultPosition(targetIndex)
-                delay(300)
+                delay(300L)
                 player.seekTo(targetIndex, targetPosition)
-                delay(500)
+                delay(500L)
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerService", "Retry failed: ${e.message}")
             }

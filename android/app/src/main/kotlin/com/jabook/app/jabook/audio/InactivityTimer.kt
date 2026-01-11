@@ -49,17 +49,17 @@ public class InactivityTimer(
          * Service will automatically stop after 60 minutes of inactivity.
          * Can be configured via AudioSettingsManager (Dart) and passed through MethodChannel.
          */
-        public const val DEFAULT_INACTIVITY_TIMEOUT_SECONDS: Int = 3600L // 60 minutes
+        public const val DEFAULT_INACTIVITY_TIMEOUT_SECONDS: Long = 3600L // 60 minutes
 
         /**
          * Minimum inactivity timeout: 10 minutes (600 seconds).
          */
-        public const val MIN_INACTIVITY_TIMEOUT_SECONDS: Int = 600L // 10 minutes
+        public const val MIN_INACTIVITY_TIMEOUT_SECONDS: Long = 600L // 10 minutes
 
         /**
          * Maximum inactivity timeout: 180 minutes (10800 seconds = 3 hours).
          */
-        public const val MAX_INACTIVITY_TIMEOUT_SECONDS: Int = 10800L // 180 minutes = 3 hours
+        public const val MAX_INACTIVITY_TIMEOUT_SECONDS: Long = 10800L // 180 minutes = 3 hours
         public const val ACTION_INACTIVITY_TIMER_EXPIRED: String = "com.jabook.app.jabook.audio.INACTIVITY_TIMER_EXPIRED"
     }
 

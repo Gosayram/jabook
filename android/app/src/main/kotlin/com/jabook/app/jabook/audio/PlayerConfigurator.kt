@@ -320,7 +320,7 @@ internal class PlayerConfigurator(
                             ) {
                                 break
                             }
-                            delay(100)
+                            delay(100L)
                             attempts++
                         }
 

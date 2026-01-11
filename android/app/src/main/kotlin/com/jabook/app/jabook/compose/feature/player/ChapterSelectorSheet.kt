@@ -276,7 +276,7 @@ public fun ChapterSelectorSheet(
                                     try {
                                         sheetState.hide()
                                         // Wait for animation to complete
-                                        kotlinx.coroutines.delay(300) // Typical sheet animation duration
+                                        kotlinx.coroutines.delay(300L) // Typical sheet animation duration
                                     } catch (e: Exception) {
                                         // Sheet might already be hidden, ignore
                                     }

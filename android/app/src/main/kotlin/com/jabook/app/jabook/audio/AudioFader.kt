@@ -49,13 +49,13 @@ public class AudioFader
             private const val TAG = "AudioFader"
 
             /** Default fade duration in milliseconds */
-            public const val DEFAULT_FADE_DURATION_MS: Int = L
+            public const val DEFAULT_FADE_DURATION_MS: Int = 0L
 
             /** Minimum fade duration (instant) */
-            public const val MIN_FADE_DURATION_MS: Int = L
+            public const val MIN_FADE_DURATION_MS: Int = 0L
 
             /** Maximum fade duration */
-            public const val MAX_FADE_DURATION_MS: Int = L
+            public const val MAX_FADE_DURATION_MS: Int = 0L
         }
 
         private var currentAnimator: ValueAnimator? = null

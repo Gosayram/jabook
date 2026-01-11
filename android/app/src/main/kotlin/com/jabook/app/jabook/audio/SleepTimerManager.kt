@@ -56,7 +56,7 @@ internal class SleepTimerManager(
     // Shake to Extend
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    private var lastShakeTime: Int = 0
+    private var lastShakeTime: Long = 0L
     private val shakeThreshold = 1.6f // g-force threshold
     private val shakeDebounceMs = 2000L
 

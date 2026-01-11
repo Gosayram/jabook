@@ -374,7 +374,7 @@ public class AudioPlayerController
                 // MediaController not ready, retry asynchronously
                 android.util.Log.d("AudioPlayerController", "MediaController not ready, retrying asynchronously...")
                 scope.launch {
-                    kotlinx.coroutines.delay(500)
+                    kotlinx.coroutines.delay(500L)
                     if (mediaController != null) {
                         // Retry loadBook with ready MediaController
                         loadBook(filePaths, initialChapterIndex, initialPosition, autoPlay, metadata, bookId)
@@ -511,7 +511,7 @@ public class AudioPlayerController
 
                 // Retry MediaController initialization after service start
                 scope.launch {
-                    kotlinx.coroutines.delay(500) // Wait for service to initialize
+                    kotlinx.coroutines.delay(500L) // Wait for service to initialize
                     if (mediaController == null) {
                         android.util.Log.d("AudioPlayerController", "Retrying MediaController initialization after service start")
                         initMediaController()

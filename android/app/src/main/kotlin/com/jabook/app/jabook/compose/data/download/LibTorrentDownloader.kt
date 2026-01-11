@@ -101,7 +101,7 @@ public class LibTorrentDownloader
                     while (torrentHandle == null && attempts < 10) {
                         torrentHandle = sessionManager.find(infoHash)
                         if (torrentHandle == null) {
-                            delay(100)
+                            delay(100L)
                             attempts++
                         }
                     }
@@ -116,7 +116,7 @@ public class LibTorrentDownloader
                     torrentHandle.resume()
 
                     while (!torrentHandle.status().isFinished) {
-                        delay(1000)
+                        delay(1000L)
                         val status = torrentHandle.status()
                         onProgress(status.progress())
                     }

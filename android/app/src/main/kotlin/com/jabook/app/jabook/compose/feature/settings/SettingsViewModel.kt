@@ -376,7 +376,7 @@ public class SettingsViewModel
             viewModelScope.launch {
                 torrentManager.deleteAllTorrents(deleteFiles)
                 // Refresh size after a short delay to allow file system ops
-                kotlinx.coroutines.delay(500)
+                kotlinx.coroutines.delay(500L)
                 loadTorrentStorageSize()
             }
         }

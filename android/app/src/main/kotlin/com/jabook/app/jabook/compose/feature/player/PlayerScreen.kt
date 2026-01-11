@@ -429,7 +429,7 @@ public fun PlayerScreen(
                             // On compact screens, smoothly close the pane after selection
                             scope.launch {
                                 // Small delay to ensure playback starts before closing
-                                kotlinx.coroutines.delay(50)
+                                kotlinx.coroutines.delay(50L)
                                 if (scaffoldNavigator.canNavigateBack()) {
                                     scaffoldNavigator.navigateBack()
                                 }

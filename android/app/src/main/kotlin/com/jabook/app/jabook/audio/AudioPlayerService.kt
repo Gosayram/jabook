@@ -288,7 +288,7 @@ public class AudioPlayerService : MediaLibraryService() {
         positionSaveJob =
             playerServiceScope.launch {
                 while (coroutineContext[kotlinx.coroutines.Job]?.isActive == true) {
-                    kotlinx.coroutines.delay(10000) // Save every 10 seconds
+                    kotlinx.coroutines.delay(10000L) // Save every 10 seconds
                     savePositionToRepository()
                 }
             }

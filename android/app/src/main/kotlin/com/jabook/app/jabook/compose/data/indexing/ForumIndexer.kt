@@ -460,7 +460,7 @@ public class ForumIndexer
                                 if (switched) {
                                     public val newMirror = mirrorManager.currentMirror.value
                                     Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
-                                    delay(500) // Brief delay before retry
+                                    delay(500L) // Brief delay before retry
                                     // Retry the request
                                     val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
                                     if (retryResponse.isSuccessful) {
@@ -661,7 +661,7 @@ public class ForumIndexer
                                 if (switched) {
                                     val newMirror = mirrorManager.currentMirror.value
                                     Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
-                                    delay(500) // Brief delay before retry
+                                    delay(500L) // Brief delay before retry
                                     // Retry the request - will continue in next iteration if successful
                                     val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
                                     if (retryResponse.isSuccessful) {

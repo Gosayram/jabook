@@ -51,12 +51,12 @@ public class ThrottledSeekHandler
             private const val TAG = "ThrottledSeekHandler"
 
             /** Default throttle delay in milliseconds */
-            public const val DEFAULT_THROTTLE_MS: Int = L
+            public const val DEFAULT_THROTTLE_MS: Int = 0L
         }
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var pendingSeekJob: Job? = null
-        private var lastSeekPosition: Int = L
+        private var lastSeekPosition: Int = 0L
 
         /** Throttle delay in milliseconds. Can be configured. */
         public var throttleMs: Long = DEFAULT_THROTTLE_MS

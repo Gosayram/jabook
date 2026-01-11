@@ -67,7 +67,7 @@ public class LibraryScanWorker
                             var lastUpdate = System.currentTimeMillis()
 
                             while (true) {
-                                kotlinx.coroutines.delay(5000) // Check every 5s
+                                kotlinx.coroutines.delay(5000L) // Check every 5s
 
                                 val currentProgress = bookScanner.scanProgress.value
                                 if (currentProgress != lastProgress) {
