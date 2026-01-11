@@ -144,7 +144,8 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     // Wait for controller with timeout (faster for widget UX)
                     controller =
                         controllerFuture?.get(
-                            com.jabook.app.jabook.audio.MediaControllerConstants.WIDGET_TIMEOUT_SECONDS.toLong(),
+                            com.jabook.app.jabook.audio.MediaControllerConstants.WIDGET_TIMEOUT_SECONDS
+                                .toLong(),
                             TimeUnit.SECONDS,
                         )
 

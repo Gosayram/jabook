@@ -458,12 +458,13 @@ public class TopicViewModel
          */
         public fun copyMagnetLink() {
             val currentState = _uiState.value
-            val magnetUrl = if (currentState is TopicUiState.Success) {
-                currentState.details.magnetUrl
-            } else {
-                null
-            }
-            
+            val magnetUrl =
+                if (currentState is TopicUiState.Success) {
+                    currentState.details.magnetUrl
+                } else {
+                    null
+                }
+
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return
@@ -481,12 +482,13 @@ public class TopicViewModel
          */
         public fun downloadViaMagnet() {
             val currentState = _uiState.value
-            val magnetUrl = if (currentState is TopicUiState.Success) {
-                currentState.details.magnetUrl
-            } else {
-                null
-            }
-            
+            val magnetUrl =
+                if (currentState is TopicUiState.Success) {
+                    currentState.details.magnetUrl
+                } else {
+                    null
+                }
+
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return

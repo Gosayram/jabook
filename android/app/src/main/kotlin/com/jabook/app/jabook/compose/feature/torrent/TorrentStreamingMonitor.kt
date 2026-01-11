@@ -143,7 +143,8 @@ public class TorrentStreamingMonitor
                         try {
                             val controller =
                                 mediaControllerFuture?.get(
-                                    com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(),
+                                    com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
+                                        .toLong(),
                                     TimeUnit.SECONDS,
                                 )
                             mediaController = controller
