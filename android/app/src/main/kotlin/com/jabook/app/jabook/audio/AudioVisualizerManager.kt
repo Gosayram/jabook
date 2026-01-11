@@ -53,7 +53,7 @@ public class AudioVisualizerManager(
     /**
      * Initialize visualizer with the player's audio session ID.
      */
-    public fun initialize(audioSessionId: Int): Unit {
+    public fun initialize(audioSessionId: Int) {
         if (this.audioSessionId == audioSessionId && visualizer != null) {
             Log.d(TAG, "Visualizer already initialized with same session")
             return
@@ -125,7 +125,7 @@ public class AudioVisualizerManager(
     /**
      * Enable or disable the visualizer.
      */
-    public fun setEnabled(enabled: Boolean): Unit {
+    public fun setEnabled(enabled: Boolean) {
         try {
             visualizer?.enabled = enabled
             _isActive.value = enabled
@@ -137,7 +137,7 @@ public class AudioVisualizerManager(
     /**
      * Release visualizer resources.
      */
-    public fun release(): Unit {
+    public fun release() {
         try {
             visualizer?.enabled = false
             visualizer?.release()

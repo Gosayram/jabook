@@ -73,7 +73,7 @@ public class CrossFadePlayer(
     /**
      * Starts playback on the current player.
      */
-    public fun play() : Unit {
+    public fun play() {
         if (!isCrossFading) {
             currentPlayer.play()
         }
@@ -82,7 +82,7 @@ public class CrossFadePlayer(
     /**
      * Pauses playback on all players.
      */
-    public fun pause() : Unit {
+    public fun pause() {
         currentPlayer.pause()
         nextPlayer.pause()
         currentAnimator?.pause()
@@ -91,7 +91,7 @@ public class CrossFadePlayer(
     /**
      * Stops playback and releases resources.
      */
-    public fun release() : Unit {
+    public fun release() {
         playerA.release()
         playerB.release()
         currentAnimator?.cancel()

@@ -93,7 +93,7 @@ public class DurationManager {
     /**
      * Clears all cached durations.
      */
-    public fun clearCache() : Unit {
+    public fun clearCache() {
         durationCache.clear()
     }
 }

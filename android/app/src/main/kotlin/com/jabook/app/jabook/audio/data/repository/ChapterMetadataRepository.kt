@@ -57,18 +57,21 @@ public class ChapterMetadataRepository
             duration: Long? = null,
         ): Result<Unit> =
             try {
-                public val id: String = "${bookId}_$fileIndex"                public val entity =
-                    ChapterMetadataEntity(
-                        id = id,
-                        bookId = bookId,
-                        fileIndex = fileIndex,
-                        title = title,
-                        filePath = filePath,
-                        startTime = startTime,
-                        endTime = endTime,
-                        duration = duration,
-                        lastUpdated = System.currentTimeMillis(),
-                    )
+                public val id: String =
+                    "${bookId}_$fileIndex" public
+
+                        val entity =
+                            ChapterMetadataEntity(
+                                id = id,
+                                bookId = bookId,
+                                fileIndex = fileIndex,
+                                title = title,
+                                filePath = filePath,
+                                startTime = startTime,
+                                endTime = endTime,
+                                duration = duration,
+                                lastUpdated = System.currentTimeMillis(),
+                            )
                 chapterDao.upsertChapter(entity)
                 Result.Success(Unit)
             } catch (e: Exception) {

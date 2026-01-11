@@ -77,7 +77,7 @@ public class AudioFader
         public fun fadeIn(
             player: Player,
             onComplete: (() -> Unit)? = null,
-        ): Unit {
+        ) {
             cancelCurrentAnimation()
 
             if (fadeDurationMs == 0L) {
@@ -119,7 +119,7 @@ public class AudioFader
         public fun fadeOut(
             player: Player,
             onComplete: (() -> Unit)? = null,
-        ): Unit {
+        ) {
             cancelCurrentAnimation()
 
             if (fadeDurationMs == 0L) {
@@ -156,7 +156,7 @@ public class AudioFader
          *
          * Use this when playback state changes abruptly (e.g., user skips track).
          */
-        public fun cancelCurrentAnimation(): Unit {
+        public fun cancelCurrentAnimation() {
             currentAnimator?.let { animator ->
                 animator.cancel()
                 currentAnimator = null
@@ -172,7 +172,7 @@ public class AudioFader
         /**
          * Cleans up resources. Call when service is destroyed.
          */
-        public fun release(): Unit {
+        public fun release() {
             cancelCurrentAnimation()
             Log.d(TAG, "AudioFader released")
         }

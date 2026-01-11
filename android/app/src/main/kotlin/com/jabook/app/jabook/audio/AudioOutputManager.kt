@@ -68,7 +68,7 @@ public class AudioOutputManager
          * Starts monitoring the proximity sensor.
          * Should be called when playback starts.
          */
-        public fun startMonitoring(): Unit {
+        public fun startMonitoring() {
             if (isMonitoring || proximitySensor == null) return
 
             sensorManager.registerListener(
@@ -84,7 +84,7 @@ public class AudioOutputManager
          * Stops monitoring the proximity sensor and resets audio settings.
          * Should be called when playback stops/pauses.
          */
-        public fun stopMonitoring(): Unit {
+        public fun stopMonitoring() {
             if (!isMonitoring) return
 
             sensorManager.unregisterListener(this)

@@ -377,8 +377,8 @@ public class AudioPlayerLibrarySessionCallback(
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerService", "Error in handleSetPlaylistCommand", e)
                 SessionResult(SessionError.ERROR_UNKNOWN)
+            }
         }
-    }
 
     public companion object {
         public const val CUSTOM_COMMAND_REWIND: String = "com.jabook.app.jabook.rewind"

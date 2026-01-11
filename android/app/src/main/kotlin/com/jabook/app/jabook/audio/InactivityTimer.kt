@@ -50,15 +50,18 @@ public class InactivityTimer(
          * Can be configured via AudioSettingsManager (Dart) and passed through MethodChannel.
          */
         public const val DEFAULT_INACTIVITY_TIMEOUT_SECONDS: Int = 3600L // 60 minutes
+
         /**
          * Minimum inactivity timeout: 10 minutes (600 seconds).
          */
         public const val MIN_INACTIVITY_TIMEOUT_SECONDS: Int = 600L // 10 minutes
+
         /**
          * Maximum inactivity timeout: 180 minutes (10800 seconds = 3 hours).
          */
         public const val MAX_INACTIVITY_TIMEOUT_SECONDS: Int = 10800L // 180 minutes = 3 hours
-        public const val ACTION_INACTIVITY_TIMER_EXPIRED: String = "com.jabook.app.jabook.audio.INACTIVITY_TIMER_EXPIRED"    }
+        public const val ACTION_INACTIVITY_TIMER_EXPIRED: String = "com.jabook.app.jabook.audio.INACTIVITY_TIMER_EXPIRED"
+    }
 
     /**
      * Sets the inactivity timeout in minutes.
@@ -272,7 +275,7 @@ public class InactivityTimer(
      * Resets (stops and restarts) the inactivity timer.
      * Called when user performs any action (play, seek, etc.).
      */
-    public fun resetTimer() : Unit {
+    public fun resetTimer() {
         if (timer != null) {
             android.util.Log.d("InactivityTimer", "Resetting inactivity timer (user action detected)")
             stopTimer()
@@ -283,7 +286,7 @@ public class InactivityTimer(
     /**
      * Stops and cancels the inactivity timer.
      */
-    public fun stopTimer() : Unit {
+    public fun stopTimer() {
         timer?.cancel()
         timer = null
     }
@@ -300,7 +303,7 @@ public class InactivityTimer(
     /**
      * Releases timer resources.
      */
-    public fun release() : Unit {
+    public fun release() {
         stopTimer()
         player.removeListener(playerListener)
         android.util.Log.d("InactivityTimer", "InactivityTimer released")

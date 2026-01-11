@@ -69,7 +69,7 @@ public class AutoSaveManager
          * @param stateProvider Lambda that provides current playback state.
          *                       Called every [AUTO_SAVE_INTERVAL_MS] to get fresh state.
          */
-        public fun startAutoSave(stateProvider: suspend () -> PlaybackSnapshot?): Unit {
+        public fun startAutoSave(stateProvider: suspend () -> PlaybackSnapshot?) {
             stopAutoSave() // Cancel any existing job
 
             autoSaveJob =
@@ -94,7 +94,7 @@ public class AutoSaveManager
          * Stops periodic auto-save.
          * Should be called when playback stops or service is destroyed.
          */
-        public fun stopAutoSave(): Unit {
+        public fun stopAutoSave() {
             autoSaveJob?.cancel()
             autoSaveJob = null
             Log.d(TAG, "Auto-save stopped")
@@ -110,7 +110,7 @@ public class AutoSaveManager
         public suspend fun saveNow(
             snapshot: PlaybackSnapshot,
             force: Boolean = false,
-        ): Unit {
+        ) {
             val now = System.currentTimeMillis()
             if (!force && (now - lastSaveTime) < MIN_SAVE_INTERVAL_MS) {
                 Log.v(TAG, "Save skipped (debounced)")
