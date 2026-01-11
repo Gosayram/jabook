@@ -674,7 +674,7 @@ public fun SettingsScreen(
                 title = stringResource(R.string.wifiOnly),
                 subtitle = stringResource(R.string.downloadOnlyViaWifi),
                 checked = protoSettings.wifiOnlyDownload,
-                onCheckedChange = viewModel::updateWifiOnly,
+                onCheckedChange = { enabled -> viewModel.updateWifiOnly(enabled) },
                 contentPadding = contentPadding,
                 itemSpacing = itemSpacing,
                 smallSpacing = smallSpacing,
@@ -993,7 +993,7 @@ public fun SettingsScreen(
             ) {
                 ThemeSelector(
                     selectedTheme = userPreferences?.theme ?: AppTheme.SYSTEM,
-                    onThemeSelected = viewModel::updateTheme,
+                    onThemeSelected = { theme -> viewModel.updateTheme(theme) },
                 )
             }
 
@@ -1003,7 +1003,7 @@ public fun SettingsScreen(
             ) {
                 FontSelector(
                     selectedFont = userPreferences?.font ?: com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
-                    onFontSelected = viewModel::updateFont,
+                    onFontSelected = { font -> viewModel.updateFont(font) },
                 )
             }
 

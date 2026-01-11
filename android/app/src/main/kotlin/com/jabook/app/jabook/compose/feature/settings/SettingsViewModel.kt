@@ -384,7 +384,7 @@ public class SettingsViewModel
         // ===== Backup & Restore =====
 
         private val _backupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
-        val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
+        public val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
 
         /**
          * Export app data to JSON backup file.
@@ -492,7 +492,7 @@ public class SettingsViewModel
         /**
          * Update max download speed in KB/s.
          */
-        public fun updateMaxDownloadSpeed() {
+        public fun updateMaxDownloadSpeed(speedKb: Int) {
             viewModelScope.launch {
                 settingsRepository.updateMaxDownloadSpeed(speedKb)
             }
@@ -501,7 +501,7 @@ public class SettingsViewModel
         /**
          * Update max concurrent downloads.
          */
-        public fun updateMaxConcurrentDownloads() {
+        public fun updateMaxConcurrentDownloads(count: Int) {
             viewModelScope.launch {
                 settingsRepository.updateMaxConcurrentDownloads(count)
             }

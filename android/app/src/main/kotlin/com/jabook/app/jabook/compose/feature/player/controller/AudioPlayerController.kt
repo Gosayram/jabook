@@ -360,7 +360,7 @@ public class AudioPlayerController
             if (isBookChanged) {
                 android.util.Log.i("AudioPlayerController", "Book changed: $previousBookId -> $bookId. Resetting state.")
                 // Reset state to avoid showing old book's data
-                _currentPosition.value = initialPosition
+                _currentPosition.value = initialPosition.toLong()
                 _currentChapterIndex.value = initialChapterIndex
                 _isPlaying.value = false
             }
@@ -410,7 +410,7 @@ public class AudioPlayerController
                         if (initialChapterIndex != controller.currentMediaItemIndex) {
                             controller.seekTo(initialChapterIndex, 0L)
                         }
-                        if (initialPosition > 0 && Math.abs(controller.currentPosition - initialPosition) > 1000) {
+                        if (initialPosition > 0L && Math.abs(controller.currentPosition - initialPosition) > 1000L) {
                             controller.seekTo(initialPosition)
                         }
 
@@ -427,7 +427,7 @@ public class AudioPlayerController
                             filePaths = filePaths,
                             metadata = metadata,
                             initialTrackIndex = initialChapterIndex,
-                            initialPosition = initialPosition,
+                            initialPosition = initialPosition.toLong(),
                             groupPath = bookId,
                         )
 
