@@ -31,10 +31,10 @@ def collect_violations():
             ["./gradlew", ":app:compileBetaDebugKotlin", "--no-daemon"],
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=600  # Increased timeout to 10 minutes
         )
     except subprocess.TimeoutExpired:
-        print("⚠️  Compilation timed out")
+        print("⚠️  Compilation timed out (10 minutes)")
         return {}
     
     violations = defaultdict(list)
@@ -127,33 +127,66 @@ def fix_file(file_path: Path):
                             new_line = f"{indent}{name}: {type_name}{equals}{value}"
                             fixed = True
             
-            # Fix 5: Add public to var/val properties inside classes (indented)
-            if re.match(r'^\s{4,}(var|val)\s+\w+', line):
+            # Fix 5: Add public to var/val properties inside classes (indented, but not private/internal)
+            if re.match(r'^\s+(var|val)\s+\w+', line):
                 if not re.search(r'\b(public|private|internal|protected)\s+(var|val)', line):
                     # Only add public if it's not already private/internal
                     if not re.search(r'\b(private|internal)\s+(var|val)', line):
-                        new_line = re.sub(r'^(\s{4,})(var|val)', r'\1public \2', new_line)
+                        # Check if it's a class member (indented) or top-level
+                        indent_match = re.match(r'^(\s+)(var|val)', line)
+                        if indent_match:
+                            indent = indent_match.group(1)
+                            new_line = re.sub(r'^(\s+)(var|val)', r'\1public \2', new_line)
+                            fixed = True
+            
+            # Fix 6: Add public to functions inside classes (indented, but not private/internal)
+            if re.match(r'^\s+fun\s+\w+', line):
+                if not re.search(r'\b(public|private|internal|protected)\s+fun', line):
+                    # Only add public if it's not already private/internal
+                    if not re.search(r'\b(private|internal)\s+fun', line):
+                        new_line = re.sub(r'^(\s+)fun', r'\1public fun', new_line)
                         fixed = True
             
-            # Fix 5: Add return type : Unit to functions ending with {
+            # Fix 7: Add return type : Unit to functions ending with {
             if re.match(r'^(\s*(public\s+)?fun\s+\w+.*\))\s*{\s*$', line.rstrip()):
                 if ': Unit' not in line and ': ' not in line:
                     new_line = re.sub(r'(\s*)\{\s*$', r'\1: Unit {', line.rstrip()) + '\n'
                     fixed = True
             
-            # Fix 6: Add return type to expression body functions (simple cases)
+            # Fix 8: Add return type to expression body functions (simple cases)
             if re.match(r'^(\s*(public\s+)?fun\s+\w+.*\))\s*=\s*run\s*{', line):
                 if ': Unit' not in line and ': ' not in line:
                     new_line = re.sub(r'\)\s*=\s*run\s*{', r') : Unit = run {', new_line)
                     fixed = True
             
-            # Fix 7: Add return type to simple expression functions
+            # Fix 9: Add return type to simple expression functions
             # Pattern: fun name(...) = expression (where expression is simple)
             if re.match(r'^(\s*(public\s+)?fun\s+\w+.*\))\s*=\s*[^=]+$', line.rstrip()):
                 if ': ' not in line and not re.search(r':\s*(Boolean|Int|Long|String|Float|Double|Unit|List|Map|Set)', line):
                     # Try to infer type from expression
                     expr = line.split('=')[1].strip() if '=' in line else ''
                     if expr.startswith('run') or expr.startswith('if') or expr.startswith('when'):
+                        new_line = re.sub(r'\)\s*=\s*', r') : Unit = ', new_line)
+                        fixed = True
+            
+            # Fix 10: Add return type to property getters
+            # Pattern: val/var name: Type get() = ...
+            if re.match(r'^\s+(val|var)\s+\w+.*get\(\)\s*=', line):
+                if ': ' not in line.split('get()')[0]:
+                    # Try to infer from context or add Unit
+                    new_line = re.sub(r'(get\(\)\s*=\s*)', r'get(): Unit = ', new_line)
+                    fixed = True
+            
+            # Fix 11: Add return type to extension functions
+            # Pattern: fun Type.name(...) = ...
+            if re.match(r'^\s*(public\s+)?fun\s+\w+\.\w+', line):
+                if not re.search(r'\b(public|private|internal|protected)\s+fun', line):
+                    new_line = re.sub(r'^(\s*)fun', r'\1public fun', new_line)
+                    fixed = True
+                # Add return type if missing
+                if ': ' not in line and '=' in line:
+                    expr = line.split('=')[1].strip() if '=' in line else ''
+                    if expr.startswith('run') or expr.startswith('if') or expr.startswith('when') or expr.startswith('{'):
                         new_line = re.sub(r'\)\s*=\s*', r') : Unit = ', new_line)
                         fixed = True
             
@@ -188,27 +221,39 @@ def main():
     print(f"\n🔧 Processing {len(violations)} files...\n")
     
     total_fixed = 0
+    skipped = 0
     for file_path_str, line_nums in violations.items():
         file_path = SRC_DIR / file_path_str
-        if fix_file(file_path):
-            print(f"  ✅ Fixed: {file_path_str}")
-            total_fixed += 1
-        else:
-            print(f"  ⚠️  Skipped (may need manual fix): {file_path_str}")
+        try:
+            if fix_file(file_path):
+                print(f"  ✅ Fixed: {file_path_str} ({len(line_nums)} violations)")
+                total_fixed += 1
+            else:
+                print(f"  ⚠️  Skipped (may need manual fix): {file_path_str} ({len(line_nums)} violations)")
+                skipped += 1
+        except Exception as e:
+            print(f"  ❌ Error processing {file_path_str}: {e}")
+            skipped += 1
     
     print(f"\n✨ Fixed {total_fixed} files")
+    if skipped > 0:
+        print(f"⚠️  Skipped {skipped} files (may need manual fixes)")
     
     # Check remaining errors
     print("\n🧪 Checking remaining violations...")
     remaining = collect_violations()
     remaining_count = sum(len(lines) for lines in remaining.values())
     
-    print(f"📊 Remaining violations: {remaining_count}")
+    print(f"📊 Remaining violations: {remaining_count} in {len(remaining)} files")
     
     if remaining_count == 0:
         print("🎉 All Explicit API violations fixed!")
     else:
         print(f"⚠️  {remaining_count} violations remain. Run the script again or fix manually.")
+        if remaining_count < 100:
+            print("\n📋 Files with remaining violations:")
+            for file_path_str, line_nums in sorted(remaining.items())[:20]:
+                print(f"  - {file_path_str}: {len(line_nums)} violations")
 
 
 if __name__ == "__main__":
