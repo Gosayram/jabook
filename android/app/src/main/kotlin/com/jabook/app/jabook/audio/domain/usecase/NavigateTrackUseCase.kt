@@ -31,7 +31,7 @@ public class NavigateTrackUseCase
          * @return Result with next track index, or null if there is no next track
          */
         operator fun invoke(playlist: Playlist): Result<Int?> {
-            val nextIndex = playlist.getNextIndex()
+            public val nextIndex = playlist.getNextIndex()
             return if (nextIndex != null) {
                 com.jabook.app.jabook.audio.core.result.Result
                     .Success(nextIndex)
@@ -48,7 +48,7 @@ public class NavigateTrackUseCase
          * @return Result with previous track index, or null if there is no previous track
          */
         public fun getPreviousIndex(playlist: Playlist): Result<Int?> {
-            val previousIndex = playlist.getPreviousIndex()
+            public val previousIndex = playlist.getPreviousIndex()
             return if (previousIndex != null) {
                 com.jabook.app.jabook.audio.core.result.Result
                     .Success(previousIndex)

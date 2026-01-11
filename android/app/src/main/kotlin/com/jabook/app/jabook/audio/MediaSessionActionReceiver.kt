@@ -49,7 +49,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
         context: Context,
         intent: Intent,
     ) {
-        val action = intent.action
+        public val action = intent.action
         android.util.Log.i(
             TAG,
             "onReceive called! action: $action, intent: $intent, component: ${intent.component}",
@@ -77,10 +77,10 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
      */
     private fun handlePlayCommand(context: Context) {
         // Try MediaController first, but use shorter timeout for faster fallback
-        var controllerFuture: ListenableFuture<MediaController>? = null
+        public var controllerFuture: ListenableFuture<MediaController>? = null
         try {
             // Create SessionToken for AudioPlayerService
-            val sessionToken =
+            public val sessionToken =
                 SessionToken(
                     context,
                     ComponentName(context, AudioPlayerService::class.java),
@@ -93,7 +93,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
                     .buildAsync()
 
             // Wait for controller to be ready (with shorter timeout for faster fallback)
-            val controller =
+            public val controller =
                 controllerFuture.get(
                     com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS,
                     TimeUnit.MILLISECONDS,
@@ -143,10 +143,10 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
      */
     private fun handlePauseCommand(context: Context) {
         // Try MediaController first, but use shorter timeout for faster fallback
-        var controllerFuture: ListenableFuture<MediaController>? = null
+        public var controllerFuture: ListenableFuture<MediaController>? = null
         try {
             // Create SessionToken for AudioPlayerService
-            val sessionToken =
+            public val sessionToken =
                 SessionToken(
                     context,
                     ComponentName(context, AudioPlayerService::class.java),
@@ -159,7 +159,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
                     .buildAsync()
 
             // Wait for controller to be ready (with shorter timeout for faster fallback)
-            val controller =
+            public val controller =
                 controllerFuture.get(
                     com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS,
                     TimeUnit.MILLISECONDS,
@@ -212,7 +212,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
     ) {
         try {
             android.util.Log.w(TAG, "Falling back to service intent for action: $action")
-            val serviceIntent =
+            public val serviceIntent =
                 Intent(context, AudioPlayerService::class.java).apply {
                     this.action = action
                     putExtra("use_media_session", true)

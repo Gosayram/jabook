@@ -64,9 +64,9 @@ public class DownloadWorker
         }
 
         override suspend fun doWork(): Result {
-            val magnetUri = inputData.getString(KEY_MAGNET_URI) ?: return Result.failure()
-            val savePath = inputData.getString(KEY_SAVE_PATH) ?: return Result.failure()
-            val bookTitle = inputData.getString(KEY_BOOK_TITLE) ?: "Unknown Book"
+            public val magnetUri = inputData.getString(KEY_MAGNET_URI) ?: return Result.failure()
+            public val savePath = inputData.getString(KEY_SAVE_PATH) ?: return Result.failure()
+            public val bookTitle = inputData.getString(KEY_BOOK_TITLE) ?: "Unknown Book"
 
             Log.d(TAG, "Starting download: $bookTitle")
             Log.d(TAG, "Magnet URI: $magnetUri")
@@ -77,7 +77,7 @@ public class DownloadWorker
                 torrentManager.initialize()
 
                 // Add magnet link
-                val infoHash = torrentManager.addMagnetLink(magnetUri, savePath, sequential = true)
+                public val infoHash = torrentManager.addMagnetLink(magnetUri, savePath, sequential = true)
                 Log.i(TAG, "Download started: $infoHash")
 
                 // Monitor progress until complete or error
@@ -96,7 +96,7 @@ public class DownloadWorker
             infoHash: String,
             bookTitle: String,
         ): Result {
-            var result: Result? = null
+            public var result: Result? = null
 
             torrentManager.getDownloadProgress(infoHash).collect { progress ->
                 // Update progress
@@ -156,8 +156,8 @@ public class DownloadWorker
          * Provide foreground service info for long-running work.
          */
         override suspend fun getForegroundInfo(): ForegroundInfo {
-            val bookTitle = inputData.getString(KEY_BOOK_TITLE) ?: "Unknown Book"
-            val notification =
+            public val bookTitle = inputData.getString(KEY_BOOK_TITLE) ?: "Unknown Book"
+            public val notification =
                 DownloadNotificationHelper.createDownloadNotification(
                     context = applicationContext,
                     title = "Downloading $bookTitle",

@@ -46,7 +46,7 @@ public class TorrentNotificationManager
          * Create progress notification for individual download
          */
         public fun createProgressNotification(download: TorrentDownload): Notification {
-            val builder =
+            public val builder =
                 NotificationCompat
                     .Builder(context, TorrentDownloadService.CHANNEL_ID_DOWNLOADS)
                     .setSmallIcon(R.drawable.ic_download)
@@ -115,17 +115,17 @@ public class TorrentNotificationManager
          * Create summary notification for download group
          */
         public fun createSummaryNotification(downloads: List<TorrentDownload>): Notification {
-            val activeCount = downloads.count { it.isActive }
+            public val activeCount = downloads.count { it.isActive }
 
-            val totalBytes = downloads.sumOf { it.totalSize }
-            val downloadedBytes = downloads.sumOf { it.downloadedSize }
-            val totalProgress =
+            public val totalBytes = downloads.sumOf { it.totalSize }
+            public val downloadedBytes = downloads.sumOf { it.downloadedSize }
+            public val totalProgress =
                 if (totalBytes > 0) {
                     (downloadedBytes.toFloat() / totalBytes).coerceIn(0f, 1f)
                 } else {
                     0f
                 }
-            val totalSpeed = downloads.sumOf { it.downloadSpeed }
+            public val totalSpeed = downloads.sumOf { it.downloadSpeed }
 
             return NotificationCompat
                 .Builder(context, TorrentDownloadService.CHANNEL_ID_DOWNLOADS)
@@ -156,7 +156,7 @@ public class TorrentNotificationManager
          * Update notification for download
          */
         public fun updateNotification(download: TorrentDownload) {
-            val notification = createProgressNotification(download)
+            public val notification = createProgressNotification(download)
             notificationManager.notify(download.hash.hashCode(), notification)
         }
 
@@ -198,7 +198,7 @@ public class TorrentNotificationManager
             action: String,
             hash: String? = null,
         ): PendingIntent {
-            val intent =
+            public val intent =
                 Intent(context, TorrentActionReceiver::class.java).apply {
                     this.action = action
                     if (hash != null) {
@@ -207,7 +207,7 @@ public class TorrentNotificationManager
                 }
 
             // Use unique request code to distinguish different hashes/actions
-            val requestCode = (hash?.hashCode() ?: 0) + action.hashCode()
+            public val requestCode = (hash?.hashCode() ?: 0) + action.hashCode()
 
             return PendingIntent.getBroadcast(
                 context,
@@ -218,7 +218,7 @@ public class TorrentNotificationManager
         }
 
         private fun createOpenDownloadsIntent(): PendingIntent {
-            val intent =
+            public val intent =
                 Intent(context, ComposeMainActivity::class.java).apply {
                     action = Intent.ACTION_VIEW
                     data = Uri.parse("jabook://downloads")

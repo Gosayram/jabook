@@ -52,13 +52,13 @@ internal class PositionManager(
      */
     public fun saveCurrentPosition() : Unit {
         try {
-            val activePlayer = getActivePlayer()
+            public val activePlayer = getActivePlayer()
             if (activePlayer.mediaItemCount > 0) {
-                val currentIndex = activePlayer.currentMediaItemIndex
-                val currentPosition = activePlayer.currentPosition
+                public val currentIndex = activePlayer.currentMediaItemIndex
+                public val currentPosition = activePlayer.currentPosition
 
                 // Broadcast intent to trigger position saving through MethodChannel
-                val saveIntent =
+                public val saveIntent =
                     Intent(PositionConstants.ACTION_SAVE_POSITION_BEFORE_UNLOAD).apply {
                         putExtra(PositionConstants.EXTRA_TRACK_INDEX, currentIndex)
                         putExtra(PositionConstants.EXTRA_POSITION_MS, currentPosition)
@@ -89,7 +89,7 @@ internal class PositionManager(
         filePaths: List<String>,
         progressSeconds: Double?,
     ) {
-        val player = getActivePlayer()
+        public val player = getActivePlayer()
 
         if (filePaths.isEmpty() || player.mediaItemCount == 0) {
             android.util.Log.w("AudioPlayerService", "Cannot set playback progress: empty file list or no media items")
@@ -104,7 +104,7 @@ internal class PositionManager(
             }
             else -> {
                 // Calculate which track and position to seek to
-                val positionMs = (progressSeconds * 1000).toLong()
+                public val positionMs = (progressSeconds * 1000).toLong()
 
                 // According to best practices: use only real durations from player
                 // Do NOT use approximate estimates (unreliable for VBR, partial downloads, etc.)
@@ -112,8 +112,8 @@ internal class PositionManager(
                 // Strategy: Use current track duration if available
                 // If position is within current track, seek to it
                 // Otherwise, we can't accurately determine position across tracks without knowing all durations
-                val currentTrackDuration = player.duration
-                val currentIndex = player.currentMediaItemIndex
+                public val currentTrackDuration = player.duration
+                public val currentIndex = player.currentMediaItemIndex
 
                 if (currentTrackDuration != C.TIME_UNSET && currentTrackDuration > 0) {
                     // We have duration for current track

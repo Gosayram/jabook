@@ -33,11 +33,11 @@ import kotlin.math.pow
  * @param shouldRetry Predicate to determine if exception should trigger retry (default: retry on IOException)
  */
 public data class RetryConfig(
-    val maxRetries: Int = 3,
-    val initialDelayMs: Long = 500L,
-    val maxDelayMs: Long = 10_000L,
-    val backoffMultiplier: Double = 2.0,
-    val shouldRetry: (Throwable) -> Boolean = { it is java.io.IOException || it is java.net.SocketTimeoutException },
+    public val maxRetries: Int = 3,
+    public val initialDelayMs: Long = 500L,
+    public val maxDelayMs: Long = 10_000L,
+    public val backoffMultiplier: Double = 2.0,
+    public val shouldRetry: (Throwable) -> Boolean = { it is java.io.IOException || it is java.net.SocketTimeoutException },
 ) {
     /**
      * Calculates delay for exponential backoff.
@@ -46,7 +46,7 @@ public data class RetryConfig(
      * @return Delay in milliseconds
      */
     public fun calculateDelay(attempt: Int): Long {
-        val delay = (initialDelayMs * backoffMultiplier.pow(attempt.toDouble())).toLong()
+        public val delay = (initialDelayMs * backoffMultiplier.pow(attempt.toDouble())).toLong()
         return delay.coerceAtMost(maxDelayMs)
     }
 }
@@ -70,7 +70,7 @@ suspend fun <T> retryWithBackoff(
     config: RetryConfig = RetryConfig(),
     block: suspend () -> T,
 ): T {
-    var lastException: Throwable? = null
+    public var lastException: Throwable? = null
 
     repeat(config.maxRetries + 1) { attempt ->
         try {
@@ -80,7 +80,7 @@ suspend fun <T> retryWithBackoff(
 
             // Check if we should retry
             if (attempt < config.maxRetries && config.shouldRetry(e)) {
-                val delay = config.calculateDelay(attempt)
+                public val delay = config.calculateDelay(attempt)
                 kotlinx.coroutines.delay(delay)
                 // Continue to next attempt
             } else {

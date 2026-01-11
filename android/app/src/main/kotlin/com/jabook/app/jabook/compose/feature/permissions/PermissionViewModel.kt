@@ -25,8 +25,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 public data class PermissionUiState(
-    val hasStoragePermission: Boolean = false,
-    val hasNotificationPermission: Boolean = false,
+    public val hasStoragePermission: Boolean = false,
+    public val hasNotificationPermission: Boolean = false,
 )
 
 @HiltViewModel
@@ -36,7 +36,7 @@ public class PermissionViewModel
         private val permissionManager: PermissionManager,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(PermissionUiState())
-        val uiState: StateFlow<PermissionUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<PermissionUiState> = _uiState.asStateFlow()
 
         init {
             checkPermissions()
@@ -44,8 +44,8 @@ public class PermissionViewModel
 
         public fun checkPermissions() : Unit {
             viewModelScope.launch {
-                val storage = permissionManager.hasStoragePermission()
-                val notification = permissionManager.hasNotificationPermission()
+                public val storage = permissionManager.hasStoragePermission()
+                public val notification = permissionManager.hasNotificationPermission()
 
                 _uiState.value =
                     PermissionUiState(

@@ -47,7 +47,7 @@ public class DataMigrationManager
 
         suspend fun needsMigration(): Boolean =
             withContext(Dispatchers.IO) {
-                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
                 // Check if already migrated
                 if (prefs.getBoolean(KEY_MIGRATION_COMPLETED, false)) {
@@ -56,7 +56,7 @@ public class DataMigrationManager
                 }
 
                 // Check if legacy state exists
-                val hasLegacyState = prefs.contains(KEY_PLAYER_STATE)
+                public val hasLegacyState = prefs.contains(KEY_PLAYER_STATE)
                 Log.d(TAG, "needsMigration: $hasLegacyState")
                 hasLegacyState
             }
@@ -65,24 +65,24 @@ public class DataMigrationManager
             withContext(Dispatchers.IO) {
                 Log.d(TAG, "Starting migration from Flutter...")
                 try {
-                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val jsonString =
+                    public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    public val jsonString =
                         prefs.getString(KEY_PLAYER_STATE, null)
                             ?: return@withContext MigrationResult.Failure(Exception("No player state found"))
 
-                    val json = org.json.JSONObject(jsonString)
-                    val groupPath = json.getString("groupPath")
-                    val currentPosition = json.optLong("currentPosition", 0L)
-                    val currentIndex = json.optInt("currentIndex", 0)
+                    public val json = org.json.JSONObject(jsonString)
+                    public val groupPath = json.getString("groupPath")
+                    public val currentPosition = json.optLong("currentPosition", 0L)
+                    public val currentIndex = json.optInt("currentIndex", 0)
 
                     // Metadata
-                    val metadataJson = json.optJSONObject("metadata")
-                    val album = metadataJson?.optString("album")
-                    val artist = metadataJson?.optString("artist") ?: metadataJson?.optString("albumArtist")
-                    val title = metadataJson?.optString("title") ?: java.io.File(groupPath).name
+                    public val metadataJson = json.optJSONObject("metadata")
+                    public val album = metadataJson?.optString("album")
+                    public val artist = metadataJson?.optString("artist") ?: metadataJson?.optString("albumArtist")
+                    public val title = metadataJson?.optString("title") ?: java.io.File(groupPath).name
 
                     // Generate ID consistent with Scanner
-                    val bookId =
+                    public val bookId =
                         bookIdentifier.generateBookId(
                             directory = groupPath,
                             album = album,
@@ -94,7 +94,7 @@ public class DataMigrationManager
                     // Create BookEntity
                     // We treat it as "Partial" because we haven't scanned it fully yet
                     // But we populate enough for playback resumption
-                    val bookEntity =
+                    public val bookEntity =
                         com.jabook.app.jabook.compose.data.local.entity.BookEntity(
                             id = bookId,
                             title = title,
@@ -130,11 +130,11 @@ public class DataMigrationManager
  */
 public sealed class MigrationResult {
     public data class Success(
-        val booksCount: Int,
-        val chaptersCount: Int,
+        public val booksCount: Int,
+        public val chaptersCount: Int,
     ) : MigrationResult()
 
     public data class Failure(
-        val error: Exception,
+        public val error: Exception,
     ) : MigrationResult()
 }

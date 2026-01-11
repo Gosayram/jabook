@@ -35,27 +35,27 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property isDownloaded Whether audio file is downloaded
  */
 public data class Chapter(
-    val id: String,
-    val bookId: String,
-    val title: String,
-    val chapterIndex: Int,
-    val fileIndex: Int,
-    val duration: Duration,
-    val fileUrl: String?,
-    val position: Duration,
-    val isCompleted: Boolean,
-    val isDownloaded: Boolean,
+    public val id: String,
+    public val bookId: String,
+    public val title: String,
+    public val chapterIndex: Int,
+    public val fileIndex: Int,
+    public val duration: Duration,
+    public val fileUrl: String?,
+    public val position: Duration,
+    public val isCompleted: Boolean,
+    public val isDownloaded: Boolean,
 ) {
     /**
      * Remaining duration in this chapter.
      */
-    val remainingDuration: Duration
+    public val remainingDuration: Duration
         get() = duration - position
 
     /**
      * Progress within this chapter (0.0 to 1.0).
      */
-    val progress: Float
+    public val progress: Float
         get() =
             if (duration.inWholeMilliseconds > 0) {
                 (position.inWholeMilliseconds.toFloat() / duration.inWholeMilliseconds.toFloat()).coerceIn(0f, 1f)
@@ -66,13 +66,13 @@ public data class Chapter(
     /**
      * Whether chapter has been started.
      */
-    val isStarted: Boolean
+    public val isStarted: Boolean
         get() = position.inWholeMilliseconds > 0
 
     /**
      * Display number (1-indexed) for UI.
      */
-    val displayNumber: Int
+    public val displayNumber: Int
         get() = chapterIndex + 1
 
     public companion object {

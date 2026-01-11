@@ -30,7 +30,7 @@ public class ScanSettingsViewModel
     constructor(
         private val booksRepository: BooksRepository,
     ) : ViewModel() {
-        val scanPaths: StateFlow<List<String>> =
+        public val scanPaths: StateFlow<List<String>> =
             booksRepository
                 .getScanPaths()
                 .stateIn(
@@ -40,7 +40,7 @@ public class ScanSettingsViewModel
                 )
 
         public fun addScanPath(uriString: String) {
-            val path = resolvePathFromUri(uriString)
+            public val path = resolvePathFromUri(uriString)
             viewModelScope.launch {
                 booksRepository.addScanPath(path)
                 // Trigger rescan? The scanner runs on startup or manual refresh.
@@ -57,13 +57,13 @@ public class ScanSettingsViewModel
 
         private fun resolvePathFromUri(uriString: String): String {
             try {
-                val uri = android.net.Uri.parse(uriString)
+                public val uri = android.net.Uri.parse(uriString)
                 if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
-                    val path = uri.path ?: return uriString
-                    val split = path.split(":")
+                    public val path = uri.path ?: return uriString
+                    public val split = path.split(":")
                     if (split.size > 1) {
-                        val type = split[0]
-                        val relativePath = split[1]
+                        public val type = split[0]
+                        public val relativePath = split[1]
                         if (type.endsWith("primary")) {
                             return "/storage/emulated/0/$relativePath"
                         }

@@ -38,10 +38,10 @@ public class RestorePlaybackUseCase
          */
         suspend operator fun invoke(bookId: String): Result<PlaybackState?> =
             try {
-                val result = positionRepository.getPosition(bookId).first()
+                public val result = positionRepository.getPosition(bookId).first()
                 when (result) {
                     is com.jabook.app.jabook.audio.core.result.Result.Success -> {
-                        val entity = result.data
+                        public val entity = result.data
                         if (entity != null) {
                             com.jabook.app.jabook.audio.core.result.Result.Success(
                                 PlaybackState(

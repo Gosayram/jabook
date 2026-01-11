@@ -87,17 +87,17 @@ public class CategoryParser
          * @return ParsingResult with list of categories
          */
         public fun parseCategories(html: String): ParsingResult<List<AudiobookCategory>> {
-            val errors = mutableListOf<ParsingError>()
-            val categories = mutableListOf<AudiobookCategory>()
+            public val errors = mutableListOf<ParsingError>()
+            public val categories = mutableListOf<AudiobookCategory>()
 
             try {
                 // Parse with baseUri for proper absolute URL resolution
                 // Using current mirror base URL for resolving relative links
-                val baseUrl = "${mirrorManager.getBaseUrl()}/forum/"
-                val document = Jsoup.parse(html, baseUrl)
+                public val baseUrl = "${mirrorManager.getBaseUrl()}/forum/"
+                public val document = Jsoup.parse(html, baseUrl)
 
                 // Find audiobooks category (c=33)
-                val audiobooksCategoryElement =
+                public val audiobooksCategoryElement =
                     document.selectFirst("$CATEGORY_ROOT_PREFIX$AUDIOBOOKS_CATEGORY_ID")
 
                 if (audiobooksCategoryElement == null) {
@@ -113,12 +113,12 @@ public class CategoryParser
                 }
 
                 // Extract forum rows
-                val forumRows = audiobooksCategoryElement.select(FORUM_ROW_SELECTOR)
+                public val forumRows = audiobooksCategoryElement.select(FORUM_ROW_SELECTOR)
                 Log.d(TAG, "Found ${forumRows.size} forum rows in audiobooks category")
 
                 for (row in forumRows) {
                     try {
-                        val category = parseForumRow(row)
+                        public val category = parseForumRow(row)
                         if (category != null) {
                             categories.add(category)
                         }
@@ -161,12 +161,12 @@ public class CategoryParser
          */
         private fun parseForumRow(row: Element): AudiobookCategory? {
             // Extract forum link
-            val forumLink = row.selectFirst(FORUM_LINK_SELECTOR) ?: return null
+            public val forumLink = row.selectFirst(FORUM_LINK_SELECTOR) ?: return null
 
-            val forumName = forumLink.text().trim()
+            public val forumName = forumLink.text().trim()
             // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-            val forumUrl = forumLink.absUrl("href")
-            val forumId = row.id().removePrefix("f-")
+            public val forumUrl = forumLink.absUrl("href")
+            public val forumId = row.id().removePrefix("f-")
 
             // Skip if blacklisted
             if (forumId.isEmpty() || shouldIgnoreForum(forumName)) {
@@ -175,7 +175,7 @@ public class CategoryParser
             }
 
             // Parse subcategories
-            val subcategories = parseSubcategories(row)
+            public val subcategories = parseSubcategories(row)
 
             return AudiobookCategory(
                 id = forumId,
@@ -192,17 +192,17 @@ public class CategoryParser
          * @return List of subcategories
          */
         private fun parseSubcategories(row: Element): List<AudiobookCategory> {
-            val subcategories = mutableListOf<AudiobookCategory>()
+            public val subcategories = mutableListOf<AudiobookCategory>()
 
-            val subforumsElement = row.selectFirst(SUBFORUMS_SELECTOR) ?: return emptyList()
+            public val subforumsElement = row.selectFirst(SUBFORUMS_SELECTOR) ?: return emptyList()
 
-            val subforumLinks = subforumsElement.select("a")
+            public val subforumLinks = subforumsElement.select("a")
 
             for (link in subforumLinks) {
-                val name = link.text().trim()
+                public val name = link.text().trim()
                 // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-                val url = link.absUrl("href")
-                val id = extractForumId(url)
+                public val url = link.absUrl("href")
+                public val id = extractForumId(url)
 
                 if (id.isNotEmpty() && !shouldIgnoreCategory(name)) {
                     subcategories.add(
@@ -227,7 +227,7 @@ public class CategoryParser
          * @return Forum ID or empty string
          */
         private fun extractForumId(url: String): String {
-            val regex = Regex("""f=(\d+)""")
+            public val regex = Regex("""f=(\d+)""")
             return regex.find(url)?.groupValues?.get(1) ?: ""
         }
 
@@ -238,7 +238,7 @@ public class CategoryParser
          * @return true if should be ignored
          */
         private fun shouldIgnoreForum(forumName: String): Boolean {
-            val lowerName = forumName.lowercase()
+            public val lowerName = forumName.lowercase()
             return FORUM_BLACKLIST.any { lowerName.contains(it) }
         }
 
@@ -249,7 +249,7 @@ public class CategoryParser
          * @return true if should be ignored
          */
         private fun shouldIgnoreCategory(categoryName: String): Boolean {
-            val lowerName = categoryName.lowercase()
+            public val lowerName = categoryName.lowercase()
             return CATEGORY_BLACKLIST.any { lowerName.contains(it) }
         }
     }

@@ -28,15 +28,15 @@ package com.jabook.app.jabook.compose.data.local.parser
  * @property coverArt Cover art image data (JPEG/PNG)
  */
 public data class AudioMetadata(
-    val title: String?,
-    val artist: String?,
-    val album: String?,
-    val albumArtist: String?,
-    val duration: Long, // milliseconds
-    val genre: String?,
-    val year: String?,
-    val trackNumber: Int?,
-    val coverArt: ByteArray?,
+    public val title: String?,
+    public val artist: String?,
+    public val album: String?,
+    public val albumArtist: String?,
+    public val duration: Long, // milliseconds
+    public val genre: String?,
+    public val year: String?,
+    public val trackNumber: Int?,
+    public val coverArt: ByteArray?,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -63,7 +63,7 @@ public data class AudioMetadata(
     }
 
     override fun hashCode(): Int {
-        var result = title?.hashCode() ?: 0
+        public var result = title?.hashCode() ?: 0
         result = 31 * result + (artist?.hashCode() ?: 0)
         result = 31 * result + (album?.hashCode() ?: 0)
         result = 31 * result + (albumArtist?.hashCode() ?: 0)

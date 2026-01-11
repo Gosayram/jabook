@@ -39,12 +39,12 @@ public class SwipeGestureHandler(
     /**
      * Maximum volume for the media stream.
      */
-    val maxVolume: Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    public val maxVolume: Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
     /**
      * Current volume for the media stream.
      */
-    val currentVolume: Int
+    public val currentVolume: Int
         get() = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 
     /**
@@ -61,9 +61,9 @@ public class SwipeGestureHandler(
         currentBrightness: Float,
     ): Float {
         // Invert: swipe up increases brightness
-        val newBrightness = (currentBrightness - delta).coerceIn(0.01f, 1.0f)
+        public val newBrightness = (currentBrightness - delta).coerceIn(0.01f, 1.0f)
 
-        val layoutParams = window.attributes
+        public val layoutParams = window.attributes
         layoutParams.screenBrightness = newBrightness
         window.attributes = layoutParams
 
@@ -77,7 +77,7 @@ public class SwipeGestureHandler(
      * @return Current brightness (0.0 to 1.0), or system default if automatic
      */
     public fun getCurrentBrightness(window: Window): Float {
-        val brightness = window.attributes.screenBrightness
+        public val brightness = window.attributes.screenBrightness
         return if (brightness < 0) {
             // Automatic brightness, try to get system setting
             try {
@@ -101,8 +101,8 @@ public class SwipeGestureHandler(
      */
     public fun adjustVolume(delta: Float): Int {
         // Invert: swipe up increases volume
-        val volumeChange = (-delta * maxVolume * 0.5f).roundToInt()
-        val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)
+        public val volumeChange = (-delta * maxVolume * 0.5f).roundToInt()
+        public val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)
 
         audioManager.setStreamVolume(
             AudioManager.STREAM_MUSIC,
@@ -129,10 +129,10 @@ public class SwipeGestureHandler(
         maxSeekMs: Long = 120_000L,
     ): Long {
         // Normalize drag to -1.0 to 1.0
-        val normalizedDrag = (horizontalDrag / screenWidth).coerceIn(-1f, 1f)
+        public val normalizedDrag = (horizontalDrag / screenWidth).coerceIn(-1f, 1f)
 
         // Apply non-linear curve for fine control at small drags
-        val curved = normalizedDrag * abs(normalizedDrag)
+        public val curved = normalizedDrag * abs(normalizedDrag)
 
         // Calculate seek in milliseconds
         return (curved * maxSeekMs * sensitivity).toLong()
@@ -145,12 +145,12 @@ public class SwipeGestureHandler(
      * @return Formatted string like "+10s" or "-5s"
      */
     public fun formatSeekDelta(deltaMs: Long): String {
-        val totalSeconds = deltaMs / 1000
-        val absSeconds = abs(totalSeconds)
-        val sign = if (totalSeconds >= 0) "+" else "-"
+        public val totalSeconds = deltaMs / 1000
+        public val absSeconds = abs(totalSeconds)
+        public val sign = if (totalSeconds >= 0) "+" else "-"
 
-        val m = absSeconds / 60
-        val s = absSeconds % 60
+        public val m = absSeconds / 60
+        public val s = absSeconds % 60
 
         return if (m > 0) {
             "$sign$m:${s.toString().padStart(2, '0')}"
@@ -187,7 +187,7 @@ public enum class GestureType {
  * State holder for active gesture.
  */
 public data class GestureState(
-    val type: GestureType = GestureType.NONE,
-    val value: Float = 0f, // 0.0 to 1.0 for brightness/volume, or seek delta in seconds
-    val isActive: Boolean = false,
+    public val type: GestureType = GestureType.NONE,
+    public val value: Float = 0f, // 0.0 to 1.0 for brightness/volume, or seek delta in seconds
+    public val isActive: Boolean = false,
 )

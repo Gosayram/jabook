@@ -36,11 +36,11 @@ import javax.inject.Inject
  * UI State for AuthScreen.
  */
 public data class AuthUiState(
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val captchaData: CaptchaData? = null,
-    val showWebViewLogin: Boolean = false,
-    val savedCredentials: UserCredentials? = null,
+    public val isLoading: Boolean = false,
+    public val error: String? = null,
+    public val captchaData: CaptchaData? = null,
+    public val showWebViewLogin: Boolean = false,
+    public val savedCredentials: UserCredentials? = null,
 )
 
 @HiltViewModel
@@ -51,9 +51,9 @@ public class AuthViewModel
         private val mirrorManager: MirrorManager,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(AuthUiState())
-        val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-        val authStatus: StateFlow<AuthStatus> =
+        public val authStatus: StateFlow<AuthStatus> =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -66,7 +66,7 @@ public class AuthViewModel
 
         private fun loadSavedCredentials() {
             viewModelScope.launch {
-                val credentials = authRepository.getStoredCredentials()
+                public val credentials = authRepository.getStoredCredentials()
                 _uiState.update { it.copy(savedCredentials = credentials) }
             }
         }
@@ -80,8 +80,8 @@ public class AuthViewModel
             viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true, error = null) }
 
-                val credentials = UserCredentials(username, password)
-                val result =
+                public val credentials = UserCredentials(username, password)
+                public val result =
                     if (captchaCode != null && _uiState.value.captchaData != null) {
                         authRepository.loginWithCaptcha(credentials, captchaCode, _uiState.value.captchaData!!)
                     } else {
@@ -133,7 +133,7 @@ public class AuthViewModel
          * Get login URL using current mirror.
          */
         public fun getLoginUrl(): String {
-            val baseUrl = mirrorManager.getBaseUrl()
+            public val baseUrl = mirrorManager.getBaseUrl()
             return "$baseUrl/forum/login.php"
         }
     }

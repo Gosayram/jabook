@@ -47,7 +47,7 @@ public class PlaybackTimer(
     private val playerListener =
         object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                val currentTimer = timer ?: return
+                public val currentTimer = timer ?: return
 
                 // For CURRENT_TRACK option, pause/resume timer with playback
                 if (timerOption == TimerOption.CURRENT_TRACK) {
@@ -75,7 +75,7 @@ public class PlaybackTimer(
     ) {
         stopTimer()
 
-        val totalMillis = (delayInSeconds * 1000).toLong()
+        public val totalMillis = (delayInSeconds * 1000).toLong()
         if (totalMillis <= 0L) {
             android.util.Log.w("PlaybackTimer", "Invalid timer duration: $delayInSeconds seconds")
             return
@@ -119,7 +119,7 @@ public class PlaybackTimer(
      * Broadcasts remaining time.
      */
     private fun broadcastRemaining(seconds: Long) {
-        val intent =
+        public val intent =
             Intent(ACTION_TIMER_TICK).apply {
                 putExtra(EXTRA_REMAINING_SECONDS, seconds)
             }
@@ -130,7 +130,7 @@ public class PlaybackTimer(
      * Broadcasts timer expiration.
      */
     private fun broadcastTimerExpired() {
-        val intent = Intent(ACTION_TIMER_EXPIRED)
+        public val intent = Intent(ACTION_TIMER_EXPIRED)
         context.sendBroadcast(intent)
 
         // Auto-pause playback when timer expires (inspired by lissen-android)

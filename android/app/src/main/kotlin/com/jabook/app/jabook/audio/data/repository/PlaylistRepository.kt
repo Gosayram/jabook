@@ -51,8 +51,8 @@ public class PlaylistRepository
             currentIndex: Int = 0,
         ): Result<Unit> =
             try {
-                val filePathsJson = JSONArray(filePaths).toString()
-                val entity =
+                public val filePathsJson = JSONArray(filePaths).toString()
+                public val entity =
                     PlaylistEntity(
                         bookId = bookId,
                         bookTitle = bookTitle,
@@ -71,7 +71,7 @@ public class PlaylistRepository
          */
         public fun parseFilePaths(filePathsJson: String): List<String> =
             try {
-                val jsonArray = JSONArray(filePathsJson)
+                public val jsonArray = JSONArray(filePathsJson)
                 (0 until jsonArray.length()).map { jsonArray.getString(it) }
             } catch (e: Exception) {
                 emptyList()

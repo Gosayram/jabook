@@ -45,20 +45,20 @@ public class PlayerPersistenceManager
 
         // NEW: StateFlow for last played book ID (for mini player)
         private val _lastPlayedBookId = MutableStateFlow<String?>(null)
-        val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
+        public val lastPlayedBookId: StateFlow<String?> = _lastPlayedBookId.asStateFlow()
 
         init {
             // Load last played book ID on init
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             _lastPlayedBookId.value = prefs.getString(KEY_LAST_PLAYED_BOOK_ID, null)
         }
 
         public data class PersistedPlayerState(
-            val groupPath: String,
-            val filePaths: List<String>,
-            val currentIndex: Int,
-            val currentPosition: Long,
-            val metadata: Map<String, String>?,
+            public val groupPath: String,
+            public val filePaths: List<String>,
+            public val currentIndex: Int,
+            public val currentPosition: Long,
+            public val metadata: Map<String, String>?,
         )
 
         suspend fun saveCurrentMediaItem(
@@ -71,7 +71,7 @@ public class PlayerPersistenceManager
             groupPath: String,
         ) = withContext(Dispatchers.IO) {
             try {
-                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 prefs
                     .edit()
                     .putString(KEY_RESUMPTION_FILE_PATH, mediaId)
@@ -94,14 +94,14 @@ public class PlayerPersistenceManager
         suspend fun retrieveLastStoredMediaItem(): Map<String, Any?>? =
             withContext(Dispatchers.IO) {
                 try {
-                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val filePath = prefs.getString(KEY_RESUMPTION_FILE_PATH, null) ?: return@withContext null
-                    val positionMs = prefs.getLong(KEY_RESUMPTION_POSITION_MS, 0L)
-                    val durationMs = prefs.getLong(KEY_RESUMPTION_DURATION_MS, 0L)
-                    val artworkPath = prefs.getString(KEY_RESUMPTION_ARTWORK_PATH, "")
-                    val title = prefs.getString(KEY_RESUMPTION_TITLE, "")
-                    val artist = prefs.getString(KEY_RESUMPTION_ARTIST, "")
-                    val groupPath = prefs.getString(KEY_RESUMPTION_GROUP_PATH, "")
+                    public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    public val filePath = prefs.getString(KEY_RESUMPTION_FILE_PATH, null) ?: return@withContext null
+                    public val positionMs = prefs.getLong(KEY_RESUMPTION_POSITION_MS, 0L)
+                    public val durationMs = prefs.getLong(KEY_RESUMPTION_DURATION_MS, 0L)
+                    public val artworkPath = prefs.getString(KEY_RESUMPTION_ARTWORK_PATH, "")
+                    public val title = prefs.getString(KEY_RESUMPTION_TITLE, "")
+                    public val artist = prefs.getString(KEY_RESUMPTION_ARTIST, "")
+                    public val groupPath = prefs.getString(KEY_RESUMPTION_GROUP_PATH, "")
 
                     mapOf(
                         "filePath" to filePath,
@@ -121,27 +121,27 @@ public class PlayerPersistenceManager
         suspend fun retrievePersistedPlayerState(): PersistedPlayerState? =
             withContext(Dispatchers.IO) {
                 try {
-                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val jsonString = prefs.getString("flutter.player_state", null) ?: return@withContext null
+                    public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    public val jsonString = prefs.getString("flutter.player_state", null) ?: return@withContext null
 
-                    val json = JSONObject(jsonString)
-                    val groupPath = json.getString("groupPath")
-                    val currentIndex = json.optInt("currentIndex", 0)
-                    val currentPosition = json.optLong("currentPosition", 0L)
+                    public val json = JSONObject(jsonString)
+                    public val groupPath = json.getString("groupPath")
+                    public val currentIndex = json.optInt("currentIndex", 0)
+                    public val currentPosition = json.optLong("currentPosition", 0L)
 
-                    val filePathsJson = json.getJSONArray("filePaths")
-                    val filePaths = mutableListOf<String>()
+                    public val filePathsJson = json.getJSONArray("filePaths")
+                    public val filePaths = mutableListOf<String>()
                     for (i in 0 until filePathsJson.length()) {
                         filePaths.add(filePathsJson.getString(i))
                     }
 
-                    val metadataJson = json.optJSONObject("metadata")
-                    val metadata =
+                    public val metadataJson = json.optJSONObject("metadata")
+                    public val metadata =
                         if (metadataJson != null) {
-                            val map = mutableMapOf<String, String>()
-                            val keys = metadataJson.keys()
+                            public val map = mutableMapOf<String, String>()
+                            public val keys = metadataJson.keys()
                             while (keys.hasNext()) {
-                                val key = keys.next()
+                                public val key = keys.next()
                                 map[key] = metadataJson.getString(key)
                             }
                             map
@@ -158,8 +158,8 @@ public class PlayerPersistenceManager
 
         public fun saveGroupPathToSharedPreferences(groupPath: String) {
             try {
-                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                val sanitizedPath = sanitizeGroupPath(groupPath)
+                public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                public val sanitizedPath = sanitizeGroupPath(groupPath)
                 prefs.edit().putString("current_group_path", sanitizedPath).apply()
                 android.util.Log.d("PlayerPersistence", "Saved groupPath to SharedPreferences: $sanitizedPath")
             } catch (e: Exception) {
@@ -171,8 +171,8 @@ public class PlayerPersistenceManager
         suspend fun savePlayerState(state: PlayerState) =
             withContext(Dispatchers.IO) {
                 try {
-                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val json =
+                    public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    public val json =
                         JSONObject().apply {
                             put("bookId", state.bookId)
                             put("positionMs", state.positionMs)
@@ -191,9 +191,9 @@ public class PlayerPersistenceManager
         suspend fun getPlayerState(bookId: String): PlayerState? =
             withContext(Dispatchers.IO) {
                 try {
-                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val jsonString = prefs.getString("book_state_$bookId", null) ?: return@withContext null
-                    val json = JSONObject(jsonString)
+                    public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    public val jsonString = prefs.getString("book_state_$bookId", null) ?: return@withContext null
+                    public val json = JSONObject(jsonString)
 
                     PlayerState(
                         bookId = json.getString("bookId"),
@@ -211,8 +211,8 @@ public class PlayerPersistenceManager
             }
 
         suspend fun updateLastPlayed(bookId: String) {
-            val currentState = getPlayerState(bookId)
-            val newState =
+            public val currentState = getPlayerState(bookId)
+            public val newState =
                 if (currentState != null) {
                     currentState.copy(lastPlayedTimestamp = System.currentTimeMillis())
                 } else {
@@ -228,12 +228,12 @@ public class PlayerPersistenceManager
 
             // NEW: Update last played book ID for mini player
             _lastPlayedBookId.value = bookId
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            public val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().putString(KEY_LAST_PLAYED_BOOK_ID, bookId).apply()
         }
 
         suspend fun markCompleted(bookId: String) {
-            val currentState = getPlayerState(bookId)
+            public val currentState = getPlayerState(bookId)
             if (currentState != null && currentState.completedTimestamp == 0L) {
                 savePlayerState(currentState.copy(completedTimestamp = System.currentTimeMillis()))
             } else if (currentState == null) {
@@ -255,8 +255,8 @@ public class PlayerPersistenceManager
          * Should be called when a book/chapter is completed.
          */
         suspend fun incrementPlayCount(bookId: String) {
-            val currentState = getPlayerState(bookId)
-            val newState =
+            public val currentState = getPlayerState(bookId)
+            public val newState =
                 if (currentState != null) {
                     currentState.copy(playCount = currentState.playCount + 1)
                 } else {
@@ -276,7 +276,7 @@ public class PlayerPersistenceManager
          * Gets the play count for a book.
          */
         suspend fun getPlayCount(bookId: String): Int {
-            val state = getPlayerState(bookId)
+            public val state = getPlayerState(bookId)
             return state?.playCount ?: 0
         }
 
@@ -287,11 +287,11 @@ public class PlayerPersistenceManager
  * Lightweight state for backup and sorting
  */
 public data class PlayerState(
-    val bookId: String,
-    val positionMs: Long,
-    val durationMs: Long,
-    val filePaths: List<String>,
-    val lastPlayedTimestamp: Long = 0L,
-    val completedTimestamp: Long = 0L,
-    val playCount: Int = 0,
+    public val bookId: String,
+    public val positionMs: Long,
+    public val durationMs: Long,
+    public val filePaths: List<String>,
+    public val lastPlayedTimestamp: Long = 0L,
+    public val completedTimestamp: Long = 0L,
+    public val playCount: Int = 0,
 )

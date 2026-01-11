@@ -57,8 +57,8 @@ public class ChapterMetadataRepository
             duration: Long? = null,
         ): Result<Unit> =
             try {
-                val id = "${bookId}_$fileIndex"
-                val entity =
+                public val id = "${bookId}_$fileIndex"
+                public val entity =
                     ChapterMetadataEntity(
                         id = id,
                         bookId = bookId,

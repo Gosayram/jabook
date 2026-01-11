@@ -26,15 +26,15 @@ public object PlaybackSpeedConstants {
      * Calculate number of steps for a slider.
      * Formula: (MAX - MIN) / STEP - 1
      */
-    val SLIDER_STEPS = ((MAX_SPEED - MIN_SPEED) / SPEED_STEP - 1).toInt()
+    public val SLIDER_STEPS = ((MAX_SPEED - MIN_SPEED) / SPEED_STEP - 1).toInt()
 
     /**
      * Generate list of all available speeds.
      * Used in Player speed selector.
      */
     public fun generateSpeedsList(): List<Float> {
-        val speeds = mutableListOf<Float>()
-        var current = MIN_SPEED
+        public val speeds = mutableListOf<Float>()
+        public var current = MIN_SPEED
         while (current <= MAX_SPEED + 0.001f) { // +0.001f to handle floating point precision
             speeds.add(current)
             current += SPEED_STEP

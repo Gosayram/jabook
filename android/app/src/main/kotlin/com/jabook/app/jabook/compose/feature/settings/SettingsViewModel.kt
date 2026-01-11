@@ -73,7 +73,7 @@ public class SettingsViewModel
         private val torrentManager: TorrentManager,
     ) : ViewModel() {
         // Expose active downloads for the settings UI
-        val activeDownloads: StateFlow<List<TorrentDownload>> =
+        public val activeDownloads: StateFlow<List<TorrentDownload>> =
             torrentManager.downloadsFlow
                 .map { downloadMap ->
                     downloadMap.values
@@ -93,7 +93,7 @@ public class SettingsViewModel
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = emptyList(),
                 )
-        val scanProgress: StateFlow<ScanProgress> =
+        public val scanProgress: StateFlow<ScanProgress> =
             booksRepository.getScanProgress().stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -103,7 +103,7 @@ public class SettingsViewModel
         public fun scanLibrary() : Unit {
             viewModelScope.launch {
                 // Check if scan folders are configured
-                val scanFolders = scanPathDao.getAllPathsList()
+                public val scanFolders = scanPathDao.getAllPathsList()
                 if (scanFolders.isEmpty()) {
                     // No folders configured - skip scan
                     android.util.Log.w("SettingsViewModel", "Scan skipped: no folders configured")
@@ -111,7 +111,7 @@ public class SettingsViewModel
                 }
 
                 // Folders configured - proceed with scan
-                val workRequest =
+                public val workRequest =
                     OneTimeWorkRequestBuilder<LibraryScanWorker>()
                         .addTag("library_scan")
                         .build()
@@ -124,7 +124,7 @@ public class SettingsViewModel
         }
 
         // Exposure of auth status for UI
-        val authStatus =
+        public val authStatus =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -140,7 +140,7 @@ public class SettingsViewModel
         /**
          * Old user preferences - for backward compatibility.
          */
-        val userPreferences =
+        public val userPreferences =
             userPreferencesRepository.userData.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -150,7 +150,7 @@ public class SettingsViewModel
         /**
          * New Proto DataStore settings.
          */
-        val protoSettings: StateFlow<UserPreferences> =
+        public val protoSettings: StateFlow<UserPreferences> =
             settingsRepository.userPreferences.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -272,12 +272,12 @@ public class SettingsViewModel
         /**
          * Current mirror domain from MirrorManager.
          */
-        val currentMirror: StateFlow<String> = mirrorManager.currentMirror
+        public val currentMirror: StateFlow<String> = mirrorManager.currentMirror
 
         /**
          * Available mirrors (default + custom).
          */
-        val availableMirrors: StateFlow<List<String>> = mirrorManager.availableMirrors
+        public val availableMirrors: StateFlow<List<String>> = mirrorManager.availableMirrors
 
         /**
          * Update the selected mirror.
@@ -296,7 +296,7 @@ public class SettingsViewModel
             onResult: (Boolean) -> Unit,
         ) {
             viewModelScope.launch {
-                val isHealthy = mirrorManager.checkMirrorHealth(domain)
+                public val isHealthy = mirrorManager.checkMirrorHealth(domain)
                 onResult(isHealthy)
             }
         }
@@ -331,7 +331,7 @@ public class SettingsViewModel
         // ===== Download Settings =====
 
         public fun updateDownloadPath(uriString: String) {
-            val path = resolvePathFromUri(uriString)
+            public val path = resolvePathFromUri(uriString)
             viewModelScope.launch {
                 settingsRepository.updateDownloadPath(path)
             }
@@ -339,13 +339,13 @@ public class SettingsViewModel
 
         private fun resolvePathFromUri(uriString: String): String {
             try {
-                val uri = android.net.Uri.parse(uriString)
+                public val uri = android.net.Uri.parse(uriString)
                 if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
-                    val path = uri.path ?: return uriString
-                    val split = path.split(":")
+                    public val path = uri.path ?: return uriString
+                    public val split = path.split(":")
                     if (split.size > 1) {
-                        val type = split[0]
-                        val relativePath = split[1]
+                        public val type = split[0]
+                        public val relativePath = split[1]
                         if (type.endsWith("primary")) {
                             return "/storage/emulated/0/$relativePath"
                         }
@@ -364,13 +364,13 @@ public class SettingsViewModel
         }
 
         private val _torrentStorageSize = MutableStateFlow<Long>(0L)
-        val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
+        public val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
 
         public fun loadTorrentStorageSize() : Unit {
             viewModelScope.launch {
-                val path = protoSettings.value.downloadPath
+                public val path = protoSettings.value.downloadPath
                 if (path.isNotEmpty()) {
-                    val size = FileUtils.getDirectorySize(File(path))
+                    public val size = FileUtils.getDirectorySize(File(path))
                     _torrentStorageSize.value = size
                 }
             }
@@ -388,7 +388,7 @@ public class SettingsViewModel
         // ===== Backup & Restore =====
 
         private val _backupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
-        val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
+        public val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
 
         /**
          * Export app data to JSON backup file.
@@ -397,7 +397,7 @@ public class SettingsViewModel
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Exporting
-                    val uri = backupService.exportToFile()
+                    public val uri = backupService.exportToFile()
                     _backupState.value = BackupUiState.ExportReady(uri)
                 } catch (e: Exception) {
                     _backupState.value = BackupUiState.Error(e.message ?: "Export failed")
@@ -412,7 +412,7 @@ public class SettingsViewModel
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Importing
-                    val stats = backupService.importFromFile(uri)
+                    public val stats = backupService.importFromFile(uri)
                     _backupState.value = BackupUiState.ImportComplete(stats)
                 } catch (e: Exception) {
                     _backupState.value = BackupUiState.Error(e.message ?: "Import failed: ${e.message}")
@@ -430,10 +430,10 @@ public class SettingsViewModel
         // ===== Cache Management =====
 
         private val _cacheStats = MutableStateFlow<CacheStatistics?>(null)
-        val cacheStats: StateFlow<CacheStatistics?> = _cacheStats.asStateFlow()
+        public val cacheStats: StateFlow<CacheStatistics?> = _cacheStats.asStateFlow()
 
         private val _cacheOperation = MutableStateFlow<CacheOperationState>(CacheOperationState.Idle)
-        val cacheOperation: StateFlow<CacheOperationState> = _cacheOperation.asStateFlow()
+        public val cacheOperation: StateFlow<CacheOperationState> = _cacheOperation.asStateFlow()
 
         /**
          * Load cache statistics.
@@ -442,7 +442,7 @@ public class SettingsViewModel
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Loading
-                    val stats = cacheManager.getCacheStatistics()
+                    public val stats = cacheManager.getCacheStatistics()
                     _cacheStats.value = stats
                     _cacheOperation.value = CacheOperationState.Idle
                 } catch (e: Exception) {
@@ -458,7 +458,7 @@ public class SettingsViewModel
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Clearing
-                    val success =
+                    public val success =
                         if (type != null) {
                             cacheManager.clearCacheType(type)
                         } else {
@@ -539,17 +539,17 @@ public sealed class BackupUiState {
     data object Exporting : BackupUiState()
 
     public data class ExportReady(
-        val uri: Uri,
+        public val uri: Uri,
     ) : BackupUiState()
 
     data object Importing : BackupUiState()
 
     public data class ImportComplete(
-        val stats: ImportStats,
+        public val stats: ImportStats,
     ) : BackupUiState()
 
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : BackupUiState()
 }
 
@@ -566,6 +566,6 @@ public sealed class CacheOperationState {
     data object Success : CacheOperationState()
 
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : CacheOperationState()
 }

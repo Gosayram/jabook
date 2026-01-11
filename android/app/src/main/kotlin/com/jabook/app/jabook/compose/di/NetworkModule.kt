@@ -83,7 +83,7 @@ public object NetworkModule {
         cookieJar: PersistentCookieJar,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
-        val healthCheckClient =
+        public val healthCheckClient =
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
@@ -163,7 +163,7 @@ public object NetworkModule {
         okHttpClient: OkHttpClient,
         json: Json,
     ): Retrofit {
-        val contentType = "application/json".toMediaType()
+        public val contentType = "application/json".toMediaType()
 
         return Retrofit
             .Builder()

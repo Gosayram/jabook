@@ -61,16 +61,16 @@ public class PositionSaver
             saveJob =
                 coroutineScope.launch {
                     while (isSavingEnabled) {
-                        val position = getPosition()
-                        val duration = getDuration()
-                        val trackIndex = getTrackIndex()
+                        public val position = getPosition()
+                        public val duration = getDuration()
+                        public val trackIndex = getTrackIndex()
 
                         // Validate position before saving
                         if (position >= 0 && duration > 0 && trackIndex >= 0) {
-                            val progress = position.toFloat() / duration.toFloat()
+                            public val progress = position.toFloat() / duration.toFloat()
 
                             // Determine save interval based on position
-                            val interval =
+                            public val interval =
                                 when {
                                     progress <= 0.1f || progress >= 0.9f -> 5000L // 5 seconds for start/end
                                     else -> 30000L // 30 seconds for middle

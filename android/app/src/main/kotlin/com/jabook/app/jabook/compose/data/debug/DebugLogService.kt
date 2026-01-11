@@ -105,7 +105,7 @@ public class DebugLogService
             withContext(Dispatchers.IO) {
                 try {
                     // Build logcat command with app-specific tags
-                    val logcatArgs =
+                    public val logcatArgs =
                         mutableListOf(
                             "logcat",
                             "-d", // dump and exit
@@ -124,18 +124,18 @@ public class DebugLogService
                     logcatArgs.add("AndroidRuntime:E")
                     logcatArgs.add("*:F") // Fatal errors from any source
 
-                    val process = Runtime.getRuntime().exec(logcatArgs.toTypedArray())
+                    public val process = Runtime.getRuntime().exec(logcatArgs.toTypedArray())
 
-                    val bufferedReader = BufferedReader(InputStreamReader(process.inputStream))
-                    val logs = StringBuilder()
+                    public val bufferedReader = BufferedReader(InputStreamReader(process.inputStream))
+                    public val logs = StringBuilder()
 
                     // Add header with comprehensive device info
                     logs.append("╔════════════════════════════════════════════╗\n")
                     logs.append("║       JABOOK DEBUG LOGS & DIAGNOSTICS      ║\n")
                     logs.append("╚════════════════════════════════════════════╝\n\n")
 
-                    val currentDate = Date()
-                    val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    public val currentDate = Date()
+                    public val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                     logs.append("📅 Captured: ${dateFormatter.format(currentDate)}\n")
                     logs.append("📦 Package: ${context.packageName}\n")
                     logs.append("🔖 Version: ${getAppVersion()}\n\n")
@@ -153,14 +153,14 @@ public class DebugLogService
 
                     logs.append("🖥️ DISPLAY & SCREEN\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    val displayMetrics = context.resources.displayMetrics
+                    public val displayMetrics = context.resources.displayMetrics
                     logs.append("Resolution: ${displayMetrics.widthPixels}×${displayMetrics.heightPixels}px\n")
                     logs.append("Density: ${displayMetrics.densityDpi}dpi (${displayMetrics.density}x)\n\n")
 
                     logs.append("💾 MEMORY\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
-                    val memInfo = android.app.ActivityManager.MemoryInfo()
+                    public val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                    public val memInfo = android.app.ActivityManager.MemoryInfo()
                     activityManager.getMemoryInfo(memInfo)
                     logs.append("Total RAM: ${memInfo.totalMem / (1024 * 1024)}MB\n")
                     logs.append("Available: ${memInfo.availMem / (1024 * 1024)}MB\n\n")
@@ -176,19 +176,19 @@ public class DebugLogService
 
                     // Collect and filter logs
                     // Add safety limit to prevent infinite loops if process hangs
-                    var totalLines = 0
-                    var filteredLines = 0
-                    val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
+                    public var totalLines = 0
+                    public var filteredLines = 0
+                    public val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
 
                     while (totalLines < maxLinesToRead) {
-                        val line = bufferedReader.readLine() ?: break
+                        public val line = bufferedReader.readLine() ?: break
                         totalLines++
 
                         // Skip empty lines
                         if (line.trim().isEmpty()) continue
 
                         // Skip system noise patterns
-                        val shouldSkip =
+                        public val shouldSkip =
                             SYSTEM_LOG_PATTERNS.any { pattern ->
                                 line.contains(pattern, ignoreCase = true)
                             }
@@ -221,7 +221,7 @@ public class DebugLogService
                     bufferedReader.close()
 
                     // Wait for process with timeout to prevent hanging
-                    val processExited = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
+                    public val processExited = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
                     if (!processExited) {
                         Log.w(TAG, "Logcat process did not exit within timeout, destroying")
                         process.destroyForcibly()
@@ -239,12 +239,12 @@ public class DebugLogService
          */
         suspend fun exportLogsToFile(): Uri =
             withContext(Dispatchers.IO) {
-                val logs = collectLogs()
-                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                val fileName = "${LOG_FILE_PREFIX}_$timestamp.txt"
+                public val logs = collectLogs()
+                public val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                public val fileName = "${LOG_FILE_PREFIX}_$timestamp.txt"
 
                 // Save to cache directory (will be cleared on uninstall)
-                val logFile = File(context.cacheDir, fileName)
+                public val logFile = File(context.cacheDir, fileName)
                 logFile.writeText(logs)
 
                 Log.d(TAG, "Logs exported to ${logFile.absolutePath} (${logFile.length()} bytes)")
@@ -283,9 +283,9 @@ public class DebugLogService
         suspend fun shareLogs(activity: android.app.Activity) =
             withContext(Dispatchers.Main) {
                 try {
-                    val uri = exportLogsToFile()
+                    public val uri = exportLogsToFile()
 
-                    val intent =
+                    public val intent =
                         Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_STREAM, uri)
@@ -297,7 +297,7 @@ public class DebugLogService
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
 
-                    val chooser = Intent.createChooser(intent, "Share logs via")
+                    public val chooser = Intent.createChooser(intent, "Share logs via")
                     chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
                     // Use Activity context to start the intent
@@ -322,16 +322,16 @@ public class DebugLogService
         suspend fun clearOldLogFiles() =
             withContext(Dispatchers.IO) {
                 try {
-                    val cacheDir = context.cacheDir
-                    val logFiles =
+                    public val cacheDir = context.cacheDir
+                    public val logFiles =
                         cacheDir.listFiles { file ->
                             file.name.startsWith(LOG_FILE_PREFIX)
                         } ?: emptyArray()
 
-                    val now = System.currentTimeMillis()
-                    val maxAge = 7 * 24 * 60 * 60 * 1000L // 7 days
+                    public val now = System.currentTimeMillis()
+                    public val maxAge = 7 * 24 * 60 * 60 * 1000L // 7 days
 
-                    var deletedCount = 0
+                    public var deletedCount = 0
                     logFiles.forEach { file ->
                         if (now - file.lastModified() > maxAge) {
                             if (file.delete()) {
@@ -351,7 +351,7 @@ public class DebugLogService
          */
         private fun getAppVersion(): String =
             try {
-                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                public val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
                 packageInfo.versionName ?: "Unknown"
             } catch (e: Exception) {
                 "Unknown"

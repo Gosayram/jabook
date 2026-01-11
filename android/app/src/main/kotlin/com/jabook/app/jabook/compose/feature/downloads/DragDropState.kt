@@ -28,8 +28,8 @@ import androidx.compose.ui.zIndex
  * State for managing drag and drop operations.
  */
 public class DragDropState {
-    var draggedIndex by mutableStateOf<Int?>(null)
-    var dragOffset by mutableStateOf(Offset.Zero)
+    public var draggedIndex by mutableStateOf<Int?>(null)
+    public var dragOffset by mutableStateOf(Offset.Zero)
 
     public fun onDragStart(index: Int) {
         draggedIndex = index
@@ -53,7 +53,7 @@ public fun Modifier.draggableItem(
     dragDropState: DragDropState,
     onMove: (Int, Int) -> Unit,
 ): Modifier {
-    val isDragging = dragDropState.draggedIndex == index
+    public val isDragging = dragDropState.draggedIndex == index
 
     return this
         .zIndex(if (isDragging) 1f else 0f)
@@ -75,9 +75,9 @@ public fun Modifier.draggableItem(
                 },
                 onDragEnd = {
                     // Simple reordering based on total drag distance
-                    val draggedDistance = dragDropState.dragOffset.y
-                    val itemHeight = 100f // Approximate item height
-                    val targetIndex = (index + (draggedDistance / itemHeight).toInt()).coerceIn(0, Int.MAX_VALUE)
+                    public val draggedDistance = dragDropState.dragOffset.y
+                    public val itemHeight = 100f // Approximate item height
+                    public val targetIndex = (index + (draggedDistance / itemHeight).toInt()).coerceIn(0, Int.MAX_VALUE)
 
                     if (targetIndex != index) {
                         onMove(index, targetIndex)

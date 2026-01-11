@@ -120,7 +120,7 @@ public class TorrentDownloadService : Service() {
     private fun startForeground() {
         createNotificationChannel()
 
-        val notification = createForegroundNotification()
+        public val notification = createForegroundNotification()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
@@ -137,7 +137,7 @@ public class TorrentDownloadService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel =
+            public val channel =
                 NotificationChannel(
                     CHANNEL_ID_DOWNLOADS,
                     getString(R.string.torrent_downloads),
@@ -147,18 +147,18 @@ public class TorrentDownloadService : Service() {
                     setShowBadge(false)
                 }
 
-            val manager = getSystemService(NotificationManager::class.java)
+            public val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
     }
 
     private fun createForegroundNotification(): Notification {
-        val intent =
+        public val intent =
             Intent(this, ComposeMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
 
-        val pendingIntent =
+        public val pendingIntent =
             PendingIntent.getActivity(
                 this,
                 0,
@@ -195,24 +195,24 @@ public class TorrentDownloadService : Service() {
         if (downloads.isEmpty()) return
 
         // Update summary notification
-        val summaryNotification =
+        public val summaryNotification =
             notificationManager.createSummaryNotification(
                 downloads.values.toList(),
             )
 
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        public val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIFICATION_ID_SUMMARY, summaryNotification)
 
         // Update individual notifications
         downloads.forEach { (hash, download) ->
-            val notification = notificationManager.createProgressNotification(download)
+            public val notification = notificationManager.createProgressNotification(download)
             nm.notify(hash.hashCode(), notification)
         }
     }
 
     private fun acquireWakeLock() {
         if (wakeLock == null) {
-            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            public val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock =
                 powerManager.newWakeLock(
                     PowerManager.PARTIAL_WAKE_LOCK,

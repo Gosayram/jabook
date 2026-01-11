@@ -77,19 +77,19 @@ public class LibraryViewModel
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        val searchQuery: StateFlow<String> = _searchQuery
+        public val searchQuery: StateFlow<String> = _searchQuery
 
         // Sort order state
         private val _sortOrder = MutableStateFlow(BookSortOrder.BY_ACTIVITY)
-        val sortOrder: StateFlow<BookSortOrder> = _sortOrder
+        public val sortOrder: StateFlow<BookSortOrder> = _sortOrder
 
         // View mode state
         private val _viewMode = MutableStateFlow(LibraryViewMode.LIST_COMPACT)
-        val viewMode: StateFlow<LibraryViewMode> = _viewMode
+        public val viewMode: StateFlow<LibraryViewMode> = _viewMode
 
         // Selected book for properties dialog
         private val _selectedBookForProperties = MutableStateFlow<Book?>(null)
-        val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
+        public val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
 
         init {
             // Load saved settings from preferences
@@ -104,7 +104,7 @@ public class LibraryViewModel
         /**
          * UI state combining books data with loading/error states.
          */
-        val uiState: StateFlow<LibraryUiState> =
+        public val uiState: StateFlow<LibraryUiState> =
             _sortOrder
                 .flatMapLatest { order ->
                     combine(
@@ -112,7 +112,7 @@ public class LibraryViewModel
                         _searchQuery,
                     ) { books, query ->
                         try {
-                            val filteredBooks =
+                            public val filteredBooks =
                                 if (query.isBlank()) {
                                     books
                                 } else {
@@ -167,7 +167,7 @@ public class LibraryViewModel
         /**
          * Get favorite books reactively.
          */
-        val favoriteBooks: StateFlow<List<Book>> =
+        public val favoriteBooks: StateFlow<List<Book>> =
             getFavoriteBooksUseCase()
                 .stateIn(
                     scope = viewModelScope,
@@ -178,7 +178,7 @@ public class LibraryViewModel
         /**
          * Get recently played books.
          */
-        val recentlyPlayed: StateFlow<List<Book>> =
+        public val recentlyPlayed: StateFlow<List<Book>> =
             getRecentlyPlayedBooksUseCase(limit = 10)
                 .stateIn(
                     scope = viewModelScope,
@@ -189,7 +189,7 @@ public class LibraryViewModel
         /**
          * Get in-progress books.
          */
-        val inProgress: StateFlow<List<Book>> =
+        public val inProgress: StateFlow<List<Book>> =
             getInProgressBooksUseCase()
                 .stateIn(
                     scope = viewModelScope,
@@ -208,8 +208,8 @@ public class LibraryViewModel
             viewModelScope.launch {
                 // CRITICAL: Get book data BEFORE updating, as we need current book info
                 // Use current sort order to get book from the same Flow that UI uses
-                val currentBooks = getLibraryUseCase(_sortOrder.value).first()
-                val book = currentBooks.find { it.id == bookId }
+                public val currentBooks = getLibraryUseCase(_sortOrder.value).first()
+                public val book = currentBooks.find { it.id == bookId }
 
                 // Update local book favorite status in database
                 // This will trigger Flow update automatically
@@ -219,15 +219,15 @@ public class LibraryViewModel
                 if (isFavorite) {
                     // Add to FavoriteEntity if book exists
                     if (book != null) {
-                        val favoriteEntity = book.toFavoriteEntity()
+                        public val favoriteEntity = book.toFavoriteEntity()
                         favoritesRepository.addToFavorites(favoriteEntity)
                     } else {
                         // If book not found in current list, try to get it from database directly
                         // This can happen if book is filtered out by search
-                        val allBooks = getLibraryUseCase(BookSortOrder.BY_ACTIVITY).first()
-                        val foundBook = allBooks.find { it.id == bookId }
+                        public val allBooks = getLibraryUseCase(BookSortOrder.BY_ACTIVITY).first()
+                        public val foundBook = allBooks.find { it.id == bookId }
                         if (foundBook != null) {
-                            val favoriteEntity = foundBook.toFavoriteEntity()
+                            public val favoriteEntity = foundBook.toFavoriteEntity()
                             favoritesRepository.addToFavorites(favoriteEntity)
                         }
                     }
@@ -254,7 +254,7 @@ public class LibraryViewModel
         public fun showBookProperties(bookId: String) {
             viewModelScope.launch {
                 // Find book from current UI state
-                val book =
+                public val book =
                     (uiState.value as? LibraryUiState.Success)?.books?.find {
                         it.id == bookId
                     }
@@ -271,7 +271,7 @@ public class LibraryViewModel
 
         // Library scan state
         private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
-        val scanState: StateFlow<ScanState> = _scanState
+        public val scanState: StateFlow<ScanState> = _scanState
 
         // Track current scan work for cancellation
         private var currentScanWorkId: java.util.UUID? = null
@@ -282,7 +282,7 @@ public class LibraryViewModel
         public fun startLibraryScan() : Unit {
             viewModelScope.launch {
                 // Check if scan folders are configured
-                val scanFolders = scanPathDao.getAllPathsList()
+                public val scanFolders = scanPathDao.getAllPathsList()
                 if (scanFolders.isEmpty()) {
                     // No folders configured - skip scan and show completion with flag
                     _scanState.value =
@@ -294,7 +294,7 @@ public class LibraryViewModel
                 }
 
                 // Folders configured - proceed with scan
-                val scanRequest =
+                public val scanRequest =
                     OneTimeWorkRequestBuilder<LibraryScanWorker>()
                         .setConstraints(
                             Constraints
@@ -312,17 +312,17 @@ public class LibraryViewModel
                     _scanState.value =
                         when (workInfo?.state) {
                             WorkInfo.State.RUNNING -> {
-                                val status =
+                                public val status =
                                     workInfo.progress.getString("status")
                                         ?: application.getString(com.jabook.app.jabook.R.string.scanningLibrary)
                                 ScanState.Scanning(status)
                             }
                             WorkInfo.State.SUCCEEDED -> {
-                                val count = workInfo.outputData.getInt("booksFound", 0)
+                                public val count = workInfo.outputData.getInt("booksFound", 0)
                                 ScanState.Completed(count)
                             }
                             WorkInfo.State.FAILED -> {
-                                val error =
+                                public val error =
                                     workInfo.outputData.getString("error")
                                         ?: application.getString(com.jabook.app.jabook.R.string.libraryUnknownError)
                                 ScanState.Failed(error)
@@ -358,7 +358,7 @@ public sealed interface LibraryUiState {
      * Success state with books.
      */
     public data class Success(
-        val books: List<Book>,
+        public val books: List<Book>,
     ) : LibraryUiState
 
     /**
@@ -370,7 +370,7 @@ public sealed interface LibraryUiState {
      * Error state.
      */
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : LibraryUiState
 }
 
@@ -381,16 +381,16 @@ public sealed interface ScanState {
     data object Idle : ScanState
 
     public data class Scanning(
-        val message: String,
+        public val message: String,
     ) : ScanState
 
     public data class Completed(
-        val booksFound: Int,
-        val noFoldersConfigured: Boolean = false,
+        public val booksFound: Int,
+        public val noFoldersConfigured: Boolean = false,
     ) : ScanState
 
     public data class Failed(
-        val error: String,
+        public val error: String,
     ) : ScanState
 }
 
@@ -407,7 +407,7 @@ public sealed interface ScanState {
 public fun LibraryViewModel.createBookActionsProvider(
     onBookClick: (String) -> Unit,
 ): com.jabook.app.jabook.compose.domain.model.BookActionsProvider {
-    val favoriteIds = favoriteBooks.value.map { it.id }.toSet()
+    public val favoriteIds = favoriteBooks.value.map { it.id }.toSet()
 
     return com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
         onBookClick = onBookClick,

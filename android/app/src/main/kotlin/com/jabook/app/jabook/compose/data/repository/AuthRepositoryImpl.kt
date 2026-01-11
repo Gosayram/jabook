@@ -71,12 +71,12 @@ public class AuthRepositoryImpl
         }
 
         private suspend fun checkAuthStatus() {
-            val cookies = cookieJar.loadForRequest(rutrackerUrl)
-            val hasSession = cookies.any { it.name == "bb_session" }
+            public val cookies = cookieJar.loadForRequest(rutrackerUrl)
+            public val hasSession = cookies.any { it.name == "bb_session" }
 
             if (hasSession) {
                 // Validate with server (strict check) with timeout handling
-                val isValid =
+                public val isValid =
                     try {
                         authService.validateAuth()
                     } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
@@ -88,7 +88,7 @@ public class AuthRepositoryImpl
                     }
 
                 if (isValid) {
-                    val stored = secureStorage.getCredentials()
+                    public val stored = secureStorage.getCredentials()
                     // CRITICAL: Only show authenticated if we have stored credentials with username
                     // If no credentials stored, user is not actually authenticated
                     if (stored != null && stored.username.isNotBlank()) {
@@ -109,7 +109,7 @@ public class AuthRepositoryImpl
                     _authStatus.value = AuthStatus.Unauthenticated
 
                     // Attempt automatic re-login if we have credentials
-                    val stored = secureStorage.getCredentials()
+                    public val stored = secureStorage.getCredentials()
                     if (stored != null) {
                         android.util.Log.d("AuthRepository", "Found stored credentials, attempting auto-relogin")
                         try {
@@ -121,7 +121,7 @@ public class AuthRepositoryImpl
                 }
             } else {
                 // No session cookie, check if we should auto-login
-                val stored = secureStorage.getCredentials()
+                public val stored = secureStorage.getCredentials()
                 if (stored != null && _authStatus.value !is AuthStatus.Authenticated) {
                     android.util.Log.d("AuthRepository", "No session but found credentials, attempting auto-login")
                     try {
@@ -145,13 +145,13 @@ public class AuthRepositoryImpl
 
             return loginMutex.withLock {
                 try {
-                    val operationId = "login_${System.currentTimeMillis()}"
+                    public val operationId = "login_${System.currentTimeMillis()}"
                     android.util.Log.d("AuthRepository", "[$operationId] Login attempt started")
 
                     when (val result = authService.login(credentials)) {
                         is RutrackerAuthService.AuthResult.Success -> {
                             // Validate authentication to ensure it actually worked
-                            val isValid =
+                            public val isValid =
                                 try {
                                     authService.validateAuth(operationId)
                                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
@@ -216,13 +216,13 @@ public class AuthRepositoryImpl
 
             return loginMutex.withLock {
                 try {
-                    val operationId = "login_captcha_${System.currentTimeMillis()}"
+                    public val operationId = "login_captcha_${System.currentTimeMillis()}"
                     android.util.Log.d("AuthRepository", "[$operationId] Captcha login attempt started")
 
                     when (val result = authService.login(credentials, captchaCode, captchaData)) {
                         is RutrackerAuthService.AuthResult.Success -> {
                             // Validate authentication to ensure it actually worked
-                            val isValid = authService.validateAuth(operationId)
+                            public val isValid = authService.validateAuth(operationId)
 
                             if (isValid) {
                                 // Persist cookies to all layers
@@ -283,7 +283,7 @@ public class AuthRepositoryImpl
         override suspend fun getStoredCredentials(): UserCredentials? = secureStorage.getCredentials()
 
         override suspend fun syncCookiesFromWebView() {
-            val url = rutrackerUrl.toString()
+            public val url = rutrackerUrl.toString()
 
             // Use CookiePersistenceManager to sync from WebView to all layers
             cookiePersistence.syncCookiesFromWebView(url)
@@ -293,19 +293,19 @@ public class AuthRepositoryImpl
         }
 
         override suspend fun syncCookiesToWebView() {
-            val cookies = cookieJar.loadForRequest(rutrackerUrl)
+            public val cookies = cookieJar.loadForRequest(rutrackerUrl)
             if (cookies.isEmpty()) return
 
-            val cookieManager = android.webkit.CookieManager.getInstance()
+            public val cookieManager = android.webkit.CookieManager.getInstance()
             cookieManager.setAcceptCookie(true)
 
-            val currentHost = mirrorManager.currentMirror.value
-            val url = rutrackerUrl.toString()
+            public val currentHost = mirrorManager.currentMirror.value
+            public val url = rutrackerUrl.toString()
             // Ensure domain is set with leading dot for wildcard matching across subdomains
-            val domain = if (currentHost.startsWith(".")) currentHost else ".$currentHost"
+            public val domain = if (currentHost.startsWith(".")) currentHost else ".$currentHost"
 
             cookies.forEach { cookie ->
-                val cookieString =
+                public val cookieString =
                     buildString {
                         append("${cookie.name}=${cookie.value}")
                         // Force domain to match current mirror
@@ -323,17 +323,17 @@ public class AuthRepositoryImpl
             url: String,
             cookieHeader: String,
         ): List<okhttp3.Cookie> {
-            val cookies = mutableListOf<okhttp3.Cookie>()
-            val httpUrl = url.toHttpUrl()
+            public val cookies = mutableListOf<okhttp3.Cookie>()
+            public val httpUrl = url.toHttpUrl()
             cookieHeader.split(";").forEach { pair ->
                 // Format: name=value
                 // WebView cookies don't have detailed attributes in getCookie() result (only name=value)
                 // We assume domain is the url host and path is /
-                val parts = pair.trim().split("=", limit = 2)
+                public val parts = pair.trim().split("=", limit = 2)
                 if (parts.size == 2) {
-                    val name = parts[0]
-                    val value = parts[1]
-                    val cookie =
+                    public val name = parts[0]
+                    public val value = parts[1]
+                    public val cookie =
                         okhttp3.Cookie
                             .Builder()
                             .name(name)

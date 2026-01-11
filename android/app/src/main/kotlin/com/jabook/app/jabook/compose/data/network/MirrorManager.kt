@@ -53,7 +53,7 @@ public class MirrorManager
             /**
              * Default list of RuTracker mirrors.
              */
-            val DEFAULT_MIRRORS =
+            public val DEFAULT_MIRRORS =
                 listOf(
                     "rutracker.org",
                     "rutracker.net",
@@ -73,28 +73,28 @@ public class MirrorManager
          *
          * Example: "rutracker.org"
          */
-        val currentMirror: StateFlow<String> = _currentMirror.asStateFlow()
+        public val currentMirror: StateFlow<String> = _currentMirror.asStateFlow()
 
         private val _availableMirrors = MutableStateFlow<List<String>>(DEFAULT_MIRRORS)
 
         /**
          * List of all available mirrors (default + custom).
          */
-        val availableMirrors: StateFlow<List<String>> = _availableMirrors.asStateFlow()
+        public val availableMirrors: StateFlow<List<String>> = _availableMirrors.asStateFlow()
 
         init {
             // Load saved settings on init
             scope.launch {
                 settingsRepository.userPreferences.collect { prefs ->
-                    val savedMirror = prefs.selectedMirror
+                    public val savedMirror = prefs.selectedMirror
                     if (savedMirror.isNotBlank() && savedMirror != _currentMirror.value) {
                         _currentMirror.value = savedMirror
                         Log.d(TAG, "Loaded mirror from settings: $savedMirror")
                     }
 
                     // Merge default and custom mirrors
-                    val customMirrors = prefs.customMirrorsList
-                    val allMirrors = (DEFAULT_MIRRORS + customMirrors).distinct()
+                    public val customMirrors = prefs.customMirrorsList
+                    public val allMirrors = (DEFAULT_MIRRORS + customMirrors).distinct()
                     _availableMirrors.value = allMirrors
                 }
             }
@@ -111,7 +111,7 @@ public class MirrorManager
                 return
             }
 
-            val previousMirror = _currentMirror.value
+            public val previousMirror = _currentMirror.value
             _currentMirror.value = domain
             settingsRepository.updateSelectedMirror(domain)
             Log.i(TAG, "Mirror changed from $previousMirror to $domain (saved to settings)")
@@ -129,22 +129,22 @@ public class MirrorManager
                     Log.d(TAG, "Checking health of mirror: $domain")
 
                     // Create a dedicated client with short timeout for health checks
-                    val healthCheckClient =
+                    public val healthCheckClient =
                         okHttpClient
                             .newBuilder()
                             .connectTimeout(HEALTH_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                             .readTimeout(HEALTH_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                             .build()
 
-                    val request =
+                    public val request =
                         Request
                             .Builder()
                             .url("https://$domain/forum/")
                             .head() // HEAD request for faster response
                             .build()
 
-                    val response = healthCheckClient.newCall(request).execute()
-                    val isHealthy = response.isSuccessful
+                    public val response = healthCheckClient.newCall(request).execute()
+                    public val isHealthy = response.isSuccessful
 
                     Log.d(TAG, "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})")
                     response.close()
@@ -165,14 +165,14 @@ public class MirrorManager
          * @return true if switched successfully, false if no mirrors are available
          */
         suspend fun switchToNextMirror(): Boolean {
-            val currentDomain = _currentMirror.value
-            val mirrors = _availableMirrors.value
-            val currentIndex = mirrors.indexOf(currentDomain)
+            public val currentDomain = _currentMirror.value
+            public val mirrors = _availableMirrors.value
+            public val currentIndex = mirrors.indexOf(currentDomain)
 
             Log.i(TAG, "🔄 Attempting to switch from $currentDomain to next mirror")
 
             // Try all mirrors starting from next one
-            val mirrorsToTry =
+            public val mirrorsToTry =
                 if (currentIndex >= 0) {
                     // Start from next mirror, wrap around
                     mirrors.drop(currentIndex + 1) + mirrors.take(currentIndex + 1)
@@ -183,11 +183,11 @@ public class MirrorManager
             for (mirror in mirrorsToTry) {
                 if (mirror == currentDomain) continue // Skip current
 
-                val healthCheckStart = System.currentTimeMillis()
+                public val healthCheckStart = System.currentTimeMillis()
                 Log.d(TAG, "🔍 Trying mirror: $mirror")
 
                 if (checkMirrorHealth(mirror)) {
-                    val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
+                    public val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
                     Log.i(TAG, "✅ Mirror $mirror is healthy (health check: ${healthCheckDuration}ms), switching and saving to settings...")
                     setMirror(mirror) // This will save to settings via settingsRepository.updateSelectedMirror()
                     Log.i(TAG, "✅ Successfully switched from $currentDomain to $mirror and saved to settings")
@@ -254,7 +254,7 @@ public class MirrorManager
          * Check if auto-switch is enabled in settings.
          */
         suspend fun isAutoSwitchEnabled(): Boolean {
-            val prefs = settingsRepository.userPreferences.first()
+            public val prefs = settingsRepository.userPreferences.first()
             return prefs.autoSwitchMirror
         }
     }

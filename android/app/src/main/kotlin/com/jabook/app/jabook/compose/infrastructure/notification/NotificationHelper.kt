@@ -43,11 +43,11 @@ public object NotificationHelper {
      */
     public fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager =
+            public val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
             // Downloads channel
-            val downloadsChannel =
+            public val downloadsChannel =
                 NotificationChannel(
                     CHANNEL_DOWNLOADS,
                     "Downloads",
@@ -58,7 +58,7 @@ public object NotificationHelper {
                 }
 
             // Player channel (for media playback notifications)
-            val playerChannel =
+            public val playerChannel =
                 NotificationChannel(
                     CHANNEL_PLAYER,
                     "Audio Player",

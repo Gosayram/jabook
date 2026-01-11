@@ -77,24 +77,24 @@ public class SyncWorker
             Log.d(TAG, "Syncing book metadata")
 
             // Get downloads with topicId
-            val downloads = torrentDownloadRepository.getAll().filter { !it.topicId.isNullOrEmpty() }
+            public val downloads = torrentDownloadRepository.getAll().filter { !it.topicId.isNullOrEmpty() }
             Log.d(TAG, "Found ${downloads.size} downloads to sync")
 
             for (download in downloads) {
-                val topicId = download.topicId ?: continue
+                public val topicId = download.topicId ?: continue
 
                 try {
                     // Fetch details from RuTracker
-                    val result = rutrackerRepository.getTopicDetails(topicId)
+                    public val result = rutrackerRepository.getTopicDetails(topicId)
 
                     if (result.isSuccess) {
-                        val details = result.getOrNull() ?: continue
+                        public val details = result.getOrNull() ?: continue
 
                         // Find matching book by path
                         // Ideally we would have a better link, but path is what we have for now
                         // We check if the book path contains the download path or vice versa
-                        val books = booksDao.getAllBooks()
-                        val matchedBook =
+                        public val books = booksDao.getAllBooks()
+                        public val matchedBook =
                             books.find { book ->
                                 book.localPath?.let { localPath ->
                                     localPath == download.savePath ||
@@ -108,8 +108,8 @@ public class SyncWorker
 
                             // Update metadata if needed
                             // For now, we mainly care about missing covers or empty metadata
-                            var needsUpdate = false
-                            val updatedBook = matchedBook.copy() // Create copy to modify
+                            public var needsUpdate = false
+                            public val updatedBook = matchedBook.copy() // Create copy to modify
 
                             // Update title if generic
                             if (matchedBook.title.isEmpty() || matchedBook.title == "Unknown Title") {
@@ -160,8 +160,8 @@ public class SyncWorker
             Log.d(TAG, "Syncing cover images")
 
             // Find books with coverUrl but no local coverPath
-            val books = booksDao.getAllBooks()
-            val booksNeedCover =
+            public val books = booksDao.getAllBooks()
+            public val booksNeedCover =
                 books.filter {
                     !it.coverUrl.isNullOrEmpty() &&
                         (it.coverPath.isNullOrEmpty() || !java.io.File(it.coverPath!!).exists())
@@ -171,21 +171,21 @@ public class SyncWorker
 
             for (book in booksNeedCover) {
                 try {
-                    val coverUrl = book.coverUrl ?: continue
+                    public val coverUrl = book.coverUrl ?: continue
 
                     // Simple download to cache dir
                     // Note: Ideally we use a dedicated ImageDownloader or Coil's loader
                     // But here we want a persistent file path to save to DB
 
-                    val coverDir = java.io.File(applicationContext.filesDir, "covers")
+                    public val coverDir = java.io.File(applicationContext.filesDir, "covers")
                     if (!coverDir.exists()) coverDir.mkdirs()
 
-                    val fileName = "cover_${book.id}.jpg"
-                    val coverFile = java.io.File(coverDir, fileName)
+                    public val fileName = "cover_${book.id}.jpg"
+                    public val coverFile = java.io.File(coverDir, fileName)
 
                     if (!coverFile.exists()) {
                         // Download file
-                        val url = java.net.URL(coverUrl)
+                        public val url = java.net.URL(coverUrl)
                         url.openStream().use { input ->
                             java.io.FileOutputStream(coverFile).use { output ->
                                 input.copyTo(output)
@@ -204,7 +204,7 @@ public class SyncWorker
 
         private suspend fun cleanupOldData() {
             Log.d(TAG, "Cleaning up old search cache")
-            val threshold = System.currentTimeMillis() - (CACHE_TTL_DAYS * 24 * 60 * 60 * 1000) // 7 days ago
+            public val threshold = System.currentTimeMillis() - (CACHE_TTL_DAYS * 24 * 60 * 60 * 1000) // 7 days ago
             offlineSearchDao.clearOldCache(threshold)
         }
     }

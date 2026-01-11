@@ -61,7 +61,7 @@ public interface OfflineSearchDao {
         upsertTopics(topics)
         deleteMappingsForQuery(query)
 
-        val mappings =
+        public val mappings =
             topics.mapIndexed { index, topic ->
                 SearchQueryEntity(
                     query = query,
@@ -249,13 +249,13 @@ public interface OfflineSearchDao {
  */
 public data class IndexMetadata(
     @ColumnInfo(name = "count")
-    val count: Int,
+    public val count: Int,
     @ColumnInfo(name = "oldest")
-    val oldest: Long?,
+    public val oldest: Long?,
     @ColumnInfo(name = "newest")
-    val newest: Long?,
+    public val newest: Long?,
     @ColumnInfo(name = "oldest_updated")
-    val oldestUpdated: Long?,
+    public val oldestUpdated: Long?,
     @ColumnInfo(name = "newest_updated")
-    val newestUpdated: Long?,
+    public val newestUpdated: Long?,
 )

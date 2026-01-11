@@ -66,7 +66,7 @@ public class TorrentManager
         private var session: SessionManager? = null
         private val activeTorrents = mutableMapOf<String, TorrentHandle>()
         private val _downloads = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
-        val downloads: StateFlow<Map<String, DownloadProgress>> = _downloads.asStateFlow()
+        public val downloads: StateFlow<Map<String, DownloadProgress>> = _downloads.asStateFlow()
         private var isInitialized = false
 
         @Synchronized
@@ -156,8 +156,8 @@ public class TorrentManager
             }
 
         private fun handleAddTorrentAlert(alert: AddTorrentAlert) {
-            val handle = alert.handle()
-            val infoHash = handle.infoHash().toHex()
+            public val handle = alert.handle()
+            public val infoHash = handle.infoHash().toHex()
             Log.d(TAG, "Torrent added: $infoHash")
 
             synchronized(activeTorrents) {
@@ -167,21 +167,21 @@ public class TorrentManager
         }
 
         private fun handleTorrentFinished(alert: TorrentFinishedAlert) {
-            val handle = alert.handle()
-            val infoHash = handle.infoHash().toHex()
+            public val handle = alert.handle()
+            public val infoHash = handle.infoHash().toHex()
             Log.i(TAG, "Torrent finished: $infoHash")
         }
 
         private fun handleMetadataReceived(alert: MetadataReceivedAlert) {
-            val handle = alert.handle()
-            val infoHash = handle.infoHash().toHex()
+            public val handle = alert.handle()
+            public val infoHash = handle.infoHash().toHex()
             Log.d(TAG, "Metadata received for: $infoHash")
         }
 
         private fun handleTorrentError(alert: TorrentErrorAlert) {
-            val handle = alert.handle()
-            val infoHash = handle.infoHash().toHex()
-            val error = alert.error()
+            public val handle = alert.handle()
+            public val infoHash = handle.infoHash().toHex()
+            public val error = alert.error()
             Log.e(TAG, "Torrent error: $infoHash - $error")
         }
 
@@ -195,12 +195,12 @@ public class TorrentManager
         }
 
         private fun updateProgress() {
-            val progressMap = mutableMapOf<String, DownloadProgress>()
+            public val progressMap = mutableMapOf<String, DownloadProgress>()
 
             synchronized(activeTorrents) {
                 activeTorrents.forEach { (infoHash, handle) ->
                     if (handle.isValid) {
-                        val status = handle.status()
+                        public val status = handle.status()
                         progressMap[infoHash] = mapTorrentStatus(infoHash, status)
                     }
                 }
@@ -246,28 +246,28 @@ public class TorrentManager
                 initialize()
             }
 
-            val session = this.session ?: throw IllegalStateException("Session not initialized")
+            public val session = this.session ?: throw IllegalStateException("Session not initialized")
 
             Log.d(TAG, "Adding magnet link: $magnetUri")
             Log.d(TAG, "Save path: $savePath")
 
-            val saveDir = File(savePath)
+            public val saveDir = File(savePath)
             if (!saveDir.exists()) {
                 saveDir.mkdirs()
             }
 
             // Fetch magnet metadata (20 second timeout)
-            val metadata = session.fetchMagnet(magnetUri, 20, saveDir)
+            public val metadata = session.fetchMagnet(magnetUri, 20, saveDir)
             if (metadata == null || metadata.isEmpty()) {
                 throw IllegalStateException("Failed to fetch magnet metadata")
             }
 
             // Parse torrent info from metadata
-            val ti = TorrentInfo.bdecode(metadata)
+            public val ti = TorrentInfo.bdecode(metadata)
 
             // Download torrent using correct API signature
             // download(torrentInfo, saveDir, resumeData, priorities, filePriorities, flags)
-            val handle =
+            public val handle =
                 if (sequential) {
                     // Sequential download with SEQUENTIAL_DOWNLOAD flag
                     session.download(ti, saveDir, null, null, null, TorrentFlags.SEQUENTIAL_DOWNLOAD)
@@ -276,7 +276,7 @@ public class TorrentManager
                     session.download(ti, saveDir)
                 }
 
-            val infoHash = ti.infoHash().toHex()
+            public val infoHash = ti.infoHash().toHex()
 
             // Alert handler will add to activeTorrents and resume when ADD_TORRENT alert fires
             // synchronized(activeTorrents) {
@@ -291,7 +291,7 @@ public class TorrentManager
 
         suspend fun pauseDownload(infoHash: String) {
             synchronized(activeTorrents) {
-                val handle = activeTorrents[infoHash]
+                public val handle = activeTorrents[infoHash]
                 handle?.pause()
                 Log.d(TAG, "Paused torrent: $infoHash")
             }
@@ -299,7 +299,7 @@ public class TorrentManager
 
         suspend fun resumeDownload(infoHash: String) {
             synchronized(activeTorrents) {
-                val handle = activeTorrents[infoHash]
+                public val handle = activeTorrents[infoHash]
                 handle?.resume()
                 Log.d(TAG, "Resumed torrent: $infoHash")
             }
@@ -309,10 +309,10 @@ public class TorrentManager
             infoHash: String,
             deleteFiles: Boolean = false,
         ) {
-            val session = this.session ?: return
+            public val session = this.session ?: return
 
             synchronized(activeTorrents) {
-                val handle = activeTorrents.remove(infoHash)
+                public val handle = activeTorrents.remove(infoHash)
                 if (handle != null) {
                     session.remove(handle)
                     Log.d(TAG, "Removed torrent: $infoHash (deleteFiles=$deleteFiles)")

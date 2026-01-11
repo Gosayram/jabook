@@ -42,8 +42,8 @@ public class CacheManager
         suspend fun getTotalCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val appCache = context.cacheDir.walkFileTree().sumOf { it.length() }
-                    val externalCache = context.externalCacheDir?.walkFileTree()?.sumOf { it.length() } ?: 0L
+                    public val appCache = context.cacheDir.walkFileTree().sumOf { it.length() }
+                    public val externalCache = context.externalCacheDir?.walkFileTree()?.sumOf { it.length() } ?: 0L
                     appCache + externalCache
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to calculate cache size", e)
@@ -57,11 +57,11 @@ public class CacheManager
         suspend fun getCacheStatistics(): CacheStatistics =
             withContext(Dispatchers.IO) {
                 try {
-                    val searchCacheSize = getSearchCacheSize()
-                    val topicCacheSize = getTopicCacheSize()
-                    val tempDownloadsSize = getTempDownloadsSize()
-                    val logFilesSize = getLogFilesSize()
-                    val imageCacheSize = getImageCacheSize()
+                    public val searchCacheSize = getSearchCacheSize()
+                    public val topicCacheSize = getTopicCacheSize()
+                    public val tempDownloadsSize = getTempDownloadsSize()
+                    public val logFilesSize = getLogFilesSize()
+                    public val imageCacheSize = getImageCacheSize()
 
                     CacheStatistics(
                         totalSize = getTotalCacheSize(),
@@ -96,7 +96,7 @@ public class CacheManager
 
                     // Clear Coil memory cache first (before deleting directories)
                     try {
-                        val imageLoader = SingletonImageLoader.get(context)
+                        public val imageLoader = SingletonImageLoader.get(context)
                         imageLoader.memoryCache?.clear()
                         Log.d(TAG, "Coil memory cache cleared")
                     } catch (e: Exception) {
@@ -159,8 +159,8 @@ public class CacheManager
         private suspend fun clearTempDownloads(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
-                    val tempDir = File(context.cacheDir, "downloads")
-                    val result = tempDir.deleteRecursively()
+                    public val tempDir = File(context.cacheDir, "downloads")
+                    public val result = tempDir.deleteRecursively()
                     tempDir.mkdirs()
                     Log.d(TAG, "Temp downloads cleared: $result")
                     result
@@ -173,11 +173,11 @@ public class CacheManager
         private suspend fun clearLogFiles(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
-                    val logFiles =
+                    public val logFiles =
                         context.cacheDir.listFiles { file ->
                             file.name.startsWith("jabook_logs_")
                         }
-                    var cleared = 0
+                    public var cleared = 0
                     logFiles?.forEach { file ->
                         if (file.delete()) cleared++
                     }
@@ -201,7 +201,7 @@ public class CacheManager
         private suspend fun getTopicCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val count = database.offlineSearchDao().getTopicCount()
+                    public val count = database.offlineSearchDao().getTopicCount()
                     // Estimate ~1KB per topic entity including mappings
                     count * 1024L
                 } catch (e: Exception) {
@@ -212,7 +212,7 @@ public class CacheManager
         private suspend fun getTempDownloadsSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val tempDir = File(context.cacheDir, "downloads")
+                    public val tempDir = File(context.cacheDir, "downloads")
                     if (tempDir.exists()) {
                         tempDir.walkFileTree().sumOf { it.length() }
                     } else {
@@ -226,7 +226,7 @@ public class CacheManager
         private suspend fun getLogFilesSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val logFiles =
+                    public val logFiles =
                         context.cacheDir.listFiles { file ->
                             file.name.startsWith("jabook_logs_")
                         }
@@ -239,7 +239,7 @@ public class CacheManager
         private suspend fun getImageCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val imageCacheDir = File(context.cacheDir, "image_cache")
+                    public val imageCacheDir = File(context.cacheDir, "image_cache")
                     if (imageCacheDir.exists()) {
                         imageCacheDir.walkFileTree().sumOf { it.length() }
                     } else {
@@ -252,12 +252,12 @@ public class CacheManager
             }
 
         private fun getLastCleanupTimestamp(): Long {
-            val prefs = context.getSharedPreferences("cache_prefs", Context.MODE_PRIVATE)
+            public val prefs = context.getSharedPreferences("cache_prefs", Context.MODE_PRIVATE)
             return prefs.getLong("last_cleanup", 0L)
         }
 
         private fun saveLastCleanupTimestamp() {
-            val prefs = context.getSharedPreferences("cache_prefs", Context.MODE_PRIVATE)
+            public val prefs = context.getSharedPreferences("cache_prefs", Context.MODE_PRIVATE)
             prefs.edit().putLong("last_cleanup", System.currentTimeMillis()).apply()
         }
 
@@ -270,13 +270,13 @@ public class CacheManager
  * Cache statistics by type.
  */
 public data class CacheStatistics(
-    val totalSize: Long,
-    val searchCacheSize: Long,
-    val topicCacheSize: Long,
-    val tempDownloadsSize: Long,
-    val logFilesSize: Long,
-    val imageCacheSize: Long,
-    val lastCleanup: Long,
+    public val totalSize: Long,
+    public val searchCacheSize: Long,
+    public val topicCacheSize: Long,
+    public val tempDownloadsSize: Long,
+    public val logFilesSize: Long,
+    public val imageCacheSize: Long,
+    public val lastCleanup: Long,
 )
 
 /**
@@ -296,7 +296,7 @@ private fun File.walkFileTree(): Sequence<File> =
     sequence {
         if (exists()) {
             if (isDirectory) {
-                val children = listFiles()
+                public val children = listFiles()
                 if (children != null) {
                     for (child in children) {
                         yieldAll(child.walkFileTree())

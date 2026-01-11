@@ -70,7 +70,7 @@ public class InactivityTimer(
      * @param minutes Timeout in minutes (10-180)
      */
     public fun setInactivityTimeoutMinutes(minutes: Int) {
-        val seconds = (minutes * 60).toLong()
+        public val seconds = (minutes * 60).toLong()
         if (seconds < MIN_INACTIVITY_TIMEOUT_SECONDS || seconds > MAX_INACTIVITY_TIMEOUT_SECONDS) {
             android.util.Log.w(
                 "InactivityTimer",
@@ -80,7 +80,7 @@ public class InactivityTimer(
             return
         }
 
-        val oldTimeout = inactivityTimeoutSeconds
+        public val oldTimeout = inactivityTimeoutSeconds
         inactivityTimeoutSeconds = seconds
         android.util.Log.d(
             "InactivityTimer",
@@ -213,8 +213,8 @@ public class InactivityTimer(
             return
         }
 
-        val playbackState = player.playbackState
-        val shouldStart =
+        public val playbackState = player.playbackState
+        public val shouldStart =
             when (playbackState) {
                 Player.STATE_READY -> !player.playWhenReady // Paused
                 Player.STATE_ENDED -> true // Ended
@@ -296,7 +296,7 @@ public class InactivityTimer(
      * Broadcasts timer expiration event.
      */
     private fun broadcastTimerExpired() {
-        val intent = Intent(ACTION_INACTIVITY_TIMER_EXPIRED)
+        public val intent = Intent(ACTION_INACTIVITY_TIMER_EXPIRED)
         context.sendBroadcast(intent)
         android.util.Log.d("InactivityTimer", "Broadcasted inactivity timer expiration")
     }

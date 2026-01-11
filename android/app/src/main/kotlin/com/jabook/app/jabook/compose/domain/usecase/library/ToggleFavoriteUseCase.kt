@@ -41,10 +41,10 @@ public class ToggleFavoriteUseCase
         ): Result<Unit> =
             try {
                 // Get book entity first to update it properly
-                val bookEntity = booksDao.getBookById(bookId)
+                public val bookEntity = booksDao.getBookById(bookId)
                 if (bookEntity != null) {
                     // Update using @Update to ensure Room Flow detects changes
-                    val updatedEntity = bookEntity.copy(isFavorite = isFavorite)
+                    public val updatedEntity = bookEntity.copy(isFavorite = isFavorite)
                     booksDao.updateBook(updatedEntity)
                 } else {
                     // Fallback to @Query UPDATE if book not found

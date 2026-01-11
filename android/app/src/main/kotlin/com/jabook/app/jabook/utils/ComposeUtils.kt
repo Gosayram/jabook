@@ -78,7 +78,7 @@ public fun RunOnFirstComposition(block: () -> Unit) {
 @Composable
 public fun rememberSystemBarStyle(): SystemBarStyle {
     // Use isSystemInDarkTheme to detect dark theme (simpler and more reliable)
-    val isDark = isSystemInDarkTheme()
+    public val isDark = isSystemInDarkTheme()
 
     return remember(isDark) {
         if (isDark) {

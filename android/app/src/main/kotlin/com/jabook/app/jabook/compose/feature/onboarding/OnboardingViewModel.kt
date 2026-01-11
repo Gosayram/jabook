@@ -37,8 +37,8 @@ public enum class OnboardingStep {
  * UI state for the onboarding flow.
  */
 public data class OnboardingUiState(
-    val currentStep: OnboardingStep = OnboardingStep.WELCOME,
-    val isFinished: Boolean = false,
+    public val currentStep: OnboardingStep = OnboardingStep.WELCOME,
+    public val isFinished: Boolean = false,
 )
 
 /**
@@ -51,11 +51,11 @@ public class OnboardingViewModel
         private val userPreferencesRepository: UserPreferencesRepository,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(OnboardingUiState())
-        val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
         public fun nextStep() : Unit {
-            val current = _uiState.value.currentStep
-            val next =
+            public val current = _uiState.value.currentStep
+            public val next =
                 when (current) {
                     OnboardingStep.WELCOME -> OnboardingStep.FEATURES
                     OnboardingStep.FEATURES -> OnboardingStep.PERMISSIONS
@@ -68,8 +68,8 @@ public class OnboardingViewModel
         }
 
         public fun previousStep() : Unit {
-            val current = _uiState.value.currentStep
-            val prev =
+            public val current = _uiState.value.currentStep
+            public val prev =
                 when (current) {
                     OnboardingStep.WELCOME -> return
                     OnboardingStep.FEATURES -> OnboardingStep.WELCOME

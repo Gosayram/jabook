@@ -44,60 +44,60 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property sourceUrl Source URL where book was obtained
  */
 public data class Book(
-    val id: String,
-    val title: String,
-    val author: String,
-    val coverUrl: String?,
-    val description: String?,
-    val totalDuration: Duration,
-    val currentPosition: Duration,
-    val progress: Float,
-    val currentChapterIndex: Int,
-    val downloadStatus: DownloadStatus,
-    val downloadProgress: Float,
-    val localPath: String?,
-    val addedDate: Long,
-    val lastPlayedDate: Long?,
-    val isFavorite: Boolean,
-    val sourceUrl: String?,
-    val rewindDuration: Int? = null,
-    val forwardDuration: Int? = null,
+    public val id: String,
+    public val title: String,
+    public val author: String,
+    public val coverUrl: String?,
+    public val description: String?,
+    public val totalDuration: Duration,
+    public val currentPosition: Duration,
+    public val progress: Float,
+    public val currentChapterIndex: Int,
+    public val downloadStatus: DownloadStatus,
+    public val downloadProgress: Float,
+    public val localPath: String?,
+    public val addedDate: Long,
+    public val lastPlayedDate: Long?,
+    public val isFavorite: Boolean,
+    public val sourceUrl: String?,
+    public val rewindDuration: Int? = null,
+    public val forwardDuration: Int? = null,
 ) {
     /**
      * Calculated remaining duration to complete the book.
      */
-    val remainingDuration: Duration
+    public val remainingDuration: Duration
         get() = totalDuration - currentPosition
 
     /**
      * Whether the book has been started (position > 0).
      */
-    val isStarted: Boolean
+    public val isStarted: Boolean
         get() = currentPosition.inWholeMilliseconds > 0
 
     /**
      * Whether the book is currently downloading.
      */
-    val isDownloading: Boolean
+    public val isDownloading: Boolean
         get() = downloadStatus == DownloadStatus.DOWNLOADING
 
     /**
      * Whether the book is fully downloaded.
      */
-    val isDownloaded: Boolean
+    public val isDownloaded: Boolean
         get() = downloadStatus == DownloadStatus.DOWNLOADED
 
     /**
      * Whether the book can be played offline.
      */
-    val isAvailableOffline: Boolean
+    public val isAvailableOffline: Boolean
         get() = isDownloaded
 
     /**
      * Whether the book is completed (progress >= 0.98).
      * Uses 98% threshold to account for floating point precision.
      */
-    val isCompleted: Boolean
+    public val isCompleted: Boolean
         get() = progress >= 0.98f
 
     public companion object {
@@ -187,7 +187,7 @@ public fun List<BookEntity>.toBooks(): List<Book> = map { it.toBook() }
  * Used for synchronizing local library favorites with FavoriteEntity table.
  */
 public fun Book.toFavoriteEntity(): com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity {
-    val now =
+    public val now =
         java.time.Instant
             .now()
             .toString()

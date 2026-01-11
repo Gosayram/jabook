@@ -46,11 +46,11 @@ public class CrossFadePlayer(
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
 
-    var crossFadeDurationMs: Long = 2000L
+    public var crossFadeDurationMs: Long = 2000L
     private var currentAnimator: ValueAnimator? = null
     private var isCrossFading = false
 
-    var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
+    public var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
 
     /**
      * Prepares the next player with the given media item.
@@ -106,8 +106,8 @@ public class CrossFadePlayer(
         if (isCrossFading) return
         isCrossFading = true
 
-        val fadingOutPlayer = currentPlayer
-        val fadingInPlayer = nextPlayer
+        public val fadingOutPlayer = currentPlayer
+        public val fadingInPlayer = nextPlayer
 
         // Ensure starting volumes
         fadingOutPlayer.volume = 1f
@@ -130,7 +130,7 @@ public class CrossFadePlayer(
                 interpolator = LinearInterpolator()
 
                 addUpdateListener { animation ->
-                    val progress = animation.animatedValue as Float
+                    public val progress = animation.animatedValue as Float
                     try {
                         fadingOutPlayer.volume = 1f - progress
                         fadingInPlayer.volume = progress
@@ -160,7 +160,7 @@ public class CrossFadePlayer(
     }
 
     private fun swapPlayers() {
-        val temp = currentPlayer
+        public val temp = currentPlayer
         currentPlayer = nextPlayer
         nextPlayer = temp
         onPlayerChanged?.invoke(currentPlayer)

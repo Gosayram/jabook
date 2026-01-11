@@ -48,9 +48,9 @@ public class TorrentDetailsViewModel
         private val streamingMonitor: TorrentStreamingMonitor,
     ) : ViewModel() {
         private val route = savedStateHandle.toRoute<TorrentDetailsRoute>()
-        val hash = route.hash
+        public val hash = route.hash
 
-        val download: StateFlow<TorrentDownload?> =
+        public val download: StateFlow<TorrentDownload?> =
             torrentManager.downloadsFlow
                 .map { it[hash] }
                 .stateIn(
@@ -59,14 +59,14 @@ public class TorrentDetailsViewModel
                     initialValue = null,
                 )
 
-        val isBuffering = streamingMonitor.isBuffering
+        public val isBuffering = streamingMonitor.isBuffering
 
         private val _navigationEvent = MutableSharedFlow<String>()
-        val navigationEvent = _navigationEvent.asSharedFlow()
+        public val navigationEvent = _navigationEvent.asSharedFlow()
 
         public fun playFile(file: TorrentFile) {
             viewModelScope.launch {
-                val currentDownload = download.value ?: return@launch
+                public val currentDownload = download.value ?: return@launch
 
                 // 1. Enable streaming
                 torrentManager.enableStreaming(hash)
@@ -75,8 +75,8 @@ public class TorrentDetailsViewModel
 
                 // 2. Wait for buffer
                 // Monitor will update isBuffering state automatically
-                var attempts = 0
-                val maxAttempts = 60 // 30 seconds (500ms * 60)
+                public var attempts = 0
+                public val maxAttempts = 60 // 30 seconds (500ms * 60)
 
                 while (!torrentManager.isFileReadyForStreaming(hash, file.index) && attempts < maxAttempts) {
                     kotlinx.coroutines.delay(500)
@@ -92,11 +92,11 @@ public class TorrentDetailsViewModel
                 streamingMonitor.startMonitoring(hash, file.index)
 
                 // 4. Prepare Book & Chapter
-                val bookId = "torrent_${hash}_${file.index}"
-                val absolutePath = File(currentDownload.savePath, file.path).absolutePath
-                val title = File(file.path).name
+                public val bookId = "torrent_${hash}_${file.index}"
+                public val absolutePath = File(currentDownload.savePath, file.path).absolutePath
+                public val title = File(file.path).name
 
-                val book =
+                public val book =
                     Book(
                         id = bookId,
                         title = title,
@@ -116,7 +116,7 @@ public class TorrentDetailsViewModel
                         sourceUrl = null,
                     )
 
-                val chapter =
+                public val chapter =
                     Chapter(
                         id = "${bookId}_ch1",
                         bookId = bookId,
@@ -160,11 +160,11 @@ public class TorrentDetailsViewModel
         }
 
         public fun updateFileSelection(selectedIndices: Set<Int>) {
-            val currentDownload = download.value ?: return
-            val files = currentDownload.files
+            public val currentDownload = download.value ?: return
+            public val files = currentDownload.files
 
             // Map to priorities list matching file order
-            val priorities =
+            public val priorities =
                 files.map { file ->
                     if (selectedIndices.contains(file.index)) {
                         4 // Default/Normal priority

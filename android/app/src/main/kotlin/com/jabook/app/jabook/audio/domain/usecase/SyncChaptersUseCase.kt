@@ -49,14 +49,14 @@ public class SyncChaptersUseCase
         ): Result<Unit> {
             return try {
                 // Save chapters metadata
-                val entities = ChapterMapper.toEntityList(chapters, bookId)
-                val saveChaptersResult = chapterRepository.saveChapters(entities)
+                public val entities = ChapterMapper.toEntityList(chapters, bookId)
+                public val saveChaptersResult = chapterRepository.saveChapters(entities)
                 if (saveChaptersResult is com.jabook.app.jabook.audio.core.result.Result.Error) {
                     return saveChaptersResult
                 }
 
                 // Save playlist
-                val savePlaylistResult =
+                public val savePlaylistResult =
                     playlistRepository.savePlaylist(
                         bookId = bookId,
                         bookTitle = bookTitle,

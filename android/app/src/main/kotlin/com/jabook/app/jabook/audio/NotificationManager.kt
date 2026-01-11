@@ -83,8 +83,8 @@ public class NotificationManager(
          * Gets the notification channel name with flavor suffix.
          */
         private fun getChannelName(context: Context): String {
-            val baseName = "JaBook Audio Playback"
-            val flavor = getFlavorSuffix(context)
+            public val baseName = "JaBook Audio Playback"
+            public val flavor = getFlavorSuffix(context)
             return baseName.appendFlavorSuffix(flavor)
         }
 
@@ -93,8 +93,8 @@ public class NotificationManager(
          * Returns formatted flavor name (capitalized) or empty string for prod.
          */
         private fun getFlavorSuffix(context: Context): String {
-            val packageName = context.packageName
-            val flavor =
+            public val packageName = context.packageName
+            public val flavor =
                 when {
                     packageName.endsWith(".dev") -> "dev"
                     packageName.endsWith(".stage") -> "stage"
@@ -124,8 +124,8 @@ public class NotificationManager(
      */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelName = Companion.getChannelName(context)
-            val channel =
+            public val channelName = Companion.getChannelName(context)
+            public val channel =
                 NotificationChannel(
                     CHANNEL_ID,
                     channelName,
@@ -164,14 +164,14 @@ public class NotificationManager(
         if (isMinimalNotification) {
             return createMinimalMediaNotification()
         }
-        val intent =
+        public val intent =
             Intent(context, ComposeMainActivity::class.java).apply {
                 flags =
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                 // Add extra to indicate we want to open player
                 putExtra("open_player", true)
             }
-        val pendingIntent =
+        public val pendingIntent =
             PendingIntent.getActivity(
                 context,
                 0,
@@ -185,15 +185,15 @@ public class NotificationManager(
         // CRITICAL: Read player state directly from player to ensure we get the latest state
         // This avoids race conditions where updateNotification() is called before state is updated
         // Also check isPlaying for more accurate state detection
-        val currentPlayWhenReady = player.playWhenReady
-        val currentPlaybackState = player.playbackState
-        val currentIsPlaying = player.isPlaying
-        val shouldShowPlay = Util.shouldShowPlayButton(player, true)
+        public val currentPlayWhenReady = player.playWhenReady
+        public val currentPlaybackState = player.playbackState
+        public val currentIsPlaying = player.isPlaying
+        public val shouldShowPlay = Util.shouldShowPlayButton(player, true)
         android.util.Log.d(
             "NotificationManager",
             "Determining Play/Pause button: playWhenReady=$currentPlayWhenReady, isPlaying=$currentIsPlaying, playbackState=$currentPlaybackState, shouldShowPlay=$shouldShowPlay",
         )
-        val playPauseAction =
+        public val playPauseAction =
             if (shouldShowPlay) {
                 android.util.Log.d("NotificationManager", "Creating PLAY button action (shouldShowPlay=true)")
                 NotificationCompat.Action(
@@ -211,28 +211,28 @@ public class NotificationManager(
             }
 
         // Get flavor suffix for notification title
-        val flavorSuffix = Companion.getFlavorSuffix(context)
-        val flavorText = flavorSuffix.formatFlavorSuffix()
+        public val flavorSuffix = Companion.getFlavorSuffix(context)
+        public val flavorText = flavorSuffix.formatFlavorSuffix()
 
-        val title = metadata?.get("title") ?: "jabook Audio"
-        val artist = metadata?.get("artist") ?: "Playing audio"
-        val currentMediaItem = player.currentMediaItem
-        val baseTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: title
+        public val title = metadata?.get("title") ?: "jabook Audio"
+        public val artist = metadata?.get("artist") ?: "Playing audio"
+        public val currentMediaItem = player.currentMediaItem
+        public val baseTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: title
         // Always add flavor suffix to title, even if metadata has title
-        val displayTitle = baseTitle + flavorText
-        val displayArtist = currentMediaItem?.mediaMetadata?.artist?.toString() ?: artist
+        public val displayTitle = baseTitle + flavorText
+        public val displayArtist = currentMediaItem?.mediaMetadata?.artist?.toString() ?: artist
 
         // Load cover image from embedded artwork in audio file
         // Media3 1.8: Use player.mediaMetadata.artworkData and artworkUri (both are NOT deprecated)
-        var largeIcon: android.graphics.Bitmap? = null
-        val mediaMetadata = currentMediaItem?.mediaMetadata
+        public var largeIcon: android.graphics.Bitmap? = null
+        public val mediaMetadata = currentMediaItem?.mediaMetadata
 
         // Method 0: Try embeddedArtworkPath first (saved by AudioPlayerService from embedded metadata)
         android.util.Log.d("NotificationManager", "Checking embeddedArtworkPath: $embeddedArtworkPath")
         if (largeIcon == null && embeddedArtworkPath != null) {
             embeddedArtworkPath?.let { path ->
                 try {
-                    val artworkFile = java.io.File(path)
+                    public val artworkFile = java.io.File(path)
                     android.util.Log.d(
                         "NotificationManager",
                         "Artwork file exists: ${artworkFile.exists()}, size: ${artworkFile.length()}",
@@ -274,12 +274,12 @@ public class NotificationManager(
                 // Method 1: Try artworkUri first (external cover file - better performance)
                 // This is set via setArtworkUri(uri) in AudioPlayerService.setPlaylist()
                 if (largeIcon == null) {
-                    val artworkUri = mediaMetadata.artworkUri
+                    public val artworkUri = mediaMetadata.artworkUri
                     if (artworkUri != null) {
                         try {
                             // Handle file:// URIs
                             if (artworkUri.scheme == "file") {
-                                val filePath = artworkUri.path
+                                public val filePath = artworkUri.path
                                 if (filePath != null) {
                                     largeIcon = BitmapFactory.decodeFile(filePath)
                                     if (largeIcon != null) {
@@ -291,7 +291,7 @@ public class NotificationManager(
                                 }
                             } else {
                                 // Try content resolver for other URI schemes (content://, http://, etc.)
-                                val inputStream = context.contentResolver.openInputStream(artworkUri)
+                                public val inputStream = context.contentResolver.openInputStream(artworkUri)
                                 if (inputStream != null) {
                                     largeIcon = BitmapFactory.decodeStream(inputStream)
                                     inputStream.close()
@@ -316,7 +316,7 @@ public class NotificationManager(
                 // Method 2: Fallback to artworkData if artworkUri is not available (embedded bytes)
                 // This is set via setArtworkData(bytes, PICTURE_TYPE_FRONT_COVER) in AudioPlayerService.setPlaylist()
                 if (largeIcon == null) {
-                    val artworkData = mediaMetadata.artworkData
+                    public val artworkData = mediaMetadata.artworkData
                     if (artworkData != null && artworkData.isNotEmpty()) {
                         largeIcon = BitmapFactory.decodeByteArray(artworkData, 0, artworkData.size)
                         if (largeIcon != null) {
@@ -347,7 +347,7 @@ public class NotificationManager(
             android.util.Log.d("NotificationManager", "MediaMetadata is null for current media item")
         }
 
-        val mediaStyle =
+        public val mediaStyle =
             MediaStyle()
                 // Compact view: Rewind (1), Play/Pause (2), Forward (3)
                 .setShowActionsInCompactView(1, 2, 3)
@@ -362,14 +362,14 @@ public class NotificationManager(
                 // Media3 MediaSession: use public getToken() method to get SessionToken
                 // For androidx.media.app.NotificationCompat.MediaStyle, we need to get the underlying
                 // android.media.session.MediaSession.Token from SessionToken
-                val sessionToken = mediaSession.getToken()
+                public val sessionToken = mediaSession.getToken()
 
                 // Try to get the underlying native token using reflection
                 // SessionToken wraps the native android.media.session.MediaSession.Token
                 try {
-                    val sessionTokenClass = sessionToken.javaClass
-                    val getTokenMethod = sessionTokenClass.getMethod("getToken")
-                    val nativeToken = getTokenMethod.invoke(sessionToken) as? android.media.session.MediaSession.Token
+                    public val sessionTokenClass = sessionToken.javaClass
+                    public val getTokenMethod = sessionTokenClass.getMethod("getToken")
+                    public val nativeToken = getTokenMethod.invoke(sessionToken) as? android.media.session.MediaSession.Token
 
                     if (nativeToken != null) {
                         // Create MediaSessionCompat.Token from native token using reflection
@@ -377,14 +377,14 @@ public class NotificationManager(
                         // accepts android.media.session.MediaSession.Token and returns MediaSessionCompat.Token
                         try {
                             // Get MediaSessionCompat.Token class
-                            val compatTokenClass = Class.forName("androidx.media.session.MediaSessionCompat\$Token")
+                            public val compatTokenClass = Class.forName("androidx.media.session.MediaSessionCompat\$Token")
                             // Get static method fromToken(token: Any!)
-                            val fromTokenMethod = compatTokenClass.getMethod("fromToken", Any::class.java)
+                            public val fromTokenMethod = compatTokenClass.getMethod("fromToken", Any::class.java)
                             // Call fromToken with native token to create MediaSessionCompat.Token
-                            val compatToken = fromTokenMethod.invoke(null, nativeToken)
+                            public val compatToken = fromTokenMethod.invoke(null, nativeToken)
                             // Use reflection to call setMediaSession() with MediaSessionCompat.Token
                             // This is needed because reflection returns Any! but setMediaSession expects MediaSessionCompat.Token!
-                            val setMediaSessionMethod =
+                            public val setMediaSessionMethod =
                                 mediaStyle.javaClass.getMethod(
                                     "setMediaSession",
                                     compatTokenClass,
@@ -402,7 +402,7 @@ public class NotificationManager(
                             )
                             // Fallback: try to set native token directly (may not work but worth trying)
                             try {
-                                val setMediaSessionMethod =
+                                public val setMediaSessionMethod =
                                     mediaStyle.javaClass.getMethod(
                                         "setMediaSession",
                                         android.media.session.MediaSession.Token::class.java,
@@ -448,8 +448,8 @@ public class NotificationManager(
         }
 
         // Determine small icon - use cover image if available, otherwise use app icon
-        var smallIcon: android.graphics.drawable.Icon? = null
-        var smallIconResId: Int = android.R.drawable.ic_media_play
+        public var smallIcon: android.graphics.drawable.Icon? = null
+        public var smallIconResId: Int = android.R.drawable.ic_media_play
 
         android.util.Log.d(
             "NotificationManager",
@@ -459,12 +459,12 @@ public class NotificationManager(
             try {
                 // Create a small icon from the cover image for the status bar
                 // Scale down the large icon to a small icon size (typically 24dp = ~72px on xxxhdpi)
-                val smallIconSize = (24 * context.resources.displayMetrics.density).toInt()
+                public val smallIconSize = (24 * context.resources.displayMetrics.density).toInt()
                 android.util.Log.d(
                     "NotificationManager",
                     "Scaling bitmap to small icon size: ${smallIconSize}x$smallIconSize",
                 )
-                val smallIconBitmap =
+                public val smallIconBitmap =
                     android.graphics.Bitmap.createScaledBitmap(
                         largeIcon,
                         smallIconSize,
@@ -494,7 +494,7 @@ public class NotificationManager(
 
         // Set fallback icon resource ID
         try {
-            val appIconId = context.applicationInfo.icon
+            public val appIconId = context.applicationInfo.icon
             if (appIconId != 0) {
                 smallIconResId = appIconId
             }
@@ -508,7 +508,7 @@ public class NotificationManager(
 
         // For Android 7.0+ with custom icon, use Notification.Builder directly
         // For older versions or when no custom icon, use NotificationCompat.Builder
-        val notification =
+        public val notification =
             if (smallIcon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 try {
                     android.util.Log.d(
@@ -516,7 +516,7 @@ public class NotificationManager(
                         "Creating notification with Notification.Builder and custom Icon",
                     )
                     // Use Notification.Builder which supports Icon directly
-                    val builder =
+                    public val builder =
                         Notification
                             .Builder(context, CHANNEL_ID)
                             .setSmallIcon(smallIcon) // Custom icon from album cover
@@ -530,7 +530,7 @@ public class NotificationManager(
 
                     // Add actions using NotificationCompat.Action.Builder (non-deprecated)
                     // Then convert to Notification.Action for Notification.Builder
-                    val previousActionCompat =
+                    public val previousActionCompat =
                         NotificationCompat.Action
                             .Builder(
                                 android.R.drawable.ic_media_previous,
@@ -542,8 +542,8 @@ public class NotificationManager(
                     // This is the same logic used in PlayerNotificationManager from Media3
                     // Use createPlaybackAction() for consistency with all other actions (Previous, Next, Rewind, Forward, Stop)
                     // CRITICAL: Read player state directly from player to ensure we get the latest state
-                    val shouldShowPlay = Util.shouldShowPlayButton(player, true)
-                    val playPauseActionCompat =
+                    public val shouldShowPlay = Util.shouldShowPlayButton(player, true)
+                    public val playPauseActionCompat =
                         NotificationCompat.Action
                             .Builder(
                                 if (shouldShowPlay) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
@@ -553,7 +553,7 @@ public class NotificationManager(
                                 ),
                             ).build()
 
-                    val nextActionCompat =
+                    public val nextActionCompat =
                         NotificationCompat.Action
                             .Builder(
                                 android.R.drawable.ic_media_next,
@@ -561,7 +561,7 @@ public class NotificationManager(
                                 createPlaybackAction(NotificationManager.ACTION_NEXT),
                             ).build()
 
-                    val rewindActionCompat =
+                    public val rewindActionCompat =
                         NotificationCompat.Action
                             .Builder(
                                 android.R.drawable.ic_media_rew,
@@ -569,7 +569,7 @@ public class NotificationManager(
                                 createPlaybackAction(NotificationManager.ACTION_REWIND),
                             ).build()
 
-                    val forwardActionCompat =
+                    public val forwardActionCompat =
                         NotificationCompat.Action
                             .Builder(
                                 android.R.drawable.ic_media_ff,
@@ -577,7 +577,7 @@ public class NotificationManager(
                                 createPlaybackAction(NotificationManager.ACTION_FORWARD),
                             ).build()
 
-                    val stopActionCompat =
+                    public val stopActionCompat =
                         NotificationCompat.Action
                             .Builder(
                                 android.R.drawable.ic_menu_close_clear_cancel,
@@ -587,10 +587,10 @@ public class NotificationManager(
 
                     // Convert NotificationCompat.Action to Notification.Action using Icon
                     // Use resource IDs directly instead of deprecated icon field
-                    val previousIcon =
+                    public val previousIcon =
                         android.graphics.drawable.Icon
                             .createWithResource(context, android.R.drawable.ic_media_previous)
-                    val previousAction =
+                    public val previousAction =
                         Notification.Action
                             .Builder(
                                 previousIcon,
@@ -602,12 +602,12 @@ public class NotificationManager(
                     // Use Media3 Util.shouldShowPlayButton() for correct Play/Pause button determination
                     // Reuse shouldShowPlay from above
                     // Use createPlaybackAction() for consistency with all other actions (Previous, Next, Rewind, Forward, Stop)
-                    val playPauseIcon =
+                    public val playPauseIcon =
                         android.graphics.drawable.Icon.createWithResource(
                             context,
                             if (shouldShowPlay) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
                         )
-                    val playPauseActionNative =
+                    public val playPauseActionNative =
                         Notification.Action
                             .Builder(
                                 playPauseIcon,
@@ -618,10 +618,10 @@ public class NotificationManager(
                                     ),
                             ).build()
 
-                    val nextIcon =
+                    public val nextIcon =
                         android.graphics.drawable.Icon
                             .createWithResource(context, android.R.drawable.ic_media_next)
-                    val nextAction =
+                    public val nextAction =
                         Notification.Action
                             .Builder(
                                 nextIcon,
@@ -629,10 +629,10 @@ public class NotificationManager(
                                 nextActionCompat.actionIntent ?: createPlaybackAction(NotificationManager.ACTION_NEXT),
                             ).build()
 
-                    val rewindIcon =
+                    public val rewindIcon =
                         android.graphics.drawable.Icon
                             .createWithResource(context, android.R.drawable.ic_media_rew)
-                    val rewindAction =
+                    public val rewindAction =
                         Notification.Action
                             .Builder(
                                 rewindIcon,
@@ -641,10 +641,10 @@ public class NotificationManager(
                                     ?: createPlaybackAction(NotificationManager.ACTION_REWIND),
                             ).build()
 
-                    val forwardIcon =
+                    public val forwardIcon =
                         android.graphics.drawable.Icon
                             .createWithResource(context, android.R.drawable.ic_media_ff)
-                    val forwardAction =
+                    public val forwardAction =
                         Notification.Action
                             .Builder(
                                 forwardIcon,
@@ -653,10 +653,10 @@ public class NotificationManager(
                                     ?: createPlaybackAction(NotificationManager.ACTION_FORWARD),
                             ).build()
 
-                    val stopIcon =
+                    public val stopIcon =
                         android.graphics.drawable.Icon
                             .createWithResource(context, android.R.drawable.ic_menu_close_clear_cancel)
-                    val stopAction =
+                    public val stopAction =
                         Notification.Action
                             .Builder(
                                 stopIcon,
@@ -681,19 +681,19 @@ public class NotificationManager(
                                 "NotificationManager",
                                 "Attempting to set MediaStyle on Notification.Builder via reflection",
                             )
-                            val setStyleMethod =
+                            public val setStyleMethod =
                                 builder.javaClass.getMethod(
                                     "setStyle",
                                     android.app.Notification.Style::class.java,
                                 )
 
                             // Create Notification.MediaStyle (available from API 21+)
-                            val mediaStyleClass = Class.forName("android.app.Notification\$MediaStyle")
-                            val mediaStyleConstructor = mediaStyleClass.getConstructor()
-                            val nativeMediaStyle = mediaStyleConstructor.newInstance()
+                            public val mediaStyleClass = Class.forName("android.app.Notification\$MediaStyle")
+                            public val mediaStyleConstructor = mediaStyleClass.getConstructor()
+                            public val nativeMediaStyle = mediaStyleConstructor.newInstance()
 
                             // Set show actions in compact view (1, 2, 3 = rewind, play/pause, forward)
-                            val setShowActionsInCompactViewMethod =
+                            public val setShowActionsInCompactViewMethod =
                                 mediaStyleClass.getMethod(
                                     "setShowActionsInCompactView",
                                     IntArray::class.java,
@@ -705,12 +705,12 @@ public class NotificationManager(
                             try {
                                 // Media3 MediaSession: use public getToken() method to get SessionToken
                                 // Reference: https://developer.android.com/reference/kotlin/androidx/media3/session/SessionToken
-                                val sessionToken = mediaSession.getToken()
+                                public val sessionToken = mediaSession.getToken()
 
                                 // Get the underlying android.media.session.MediaSession.Token
                                 // Media3 SessionToken wraps the native token - use reflection to get native token
                                 // for native MediaStyle which requires android.media.session.MediaSession.Token
-                                val setMediaSessionMethod =
+                                public val setMediaSessionMethod =
                                     mediaStyleClass.getMethod(
                                         "setMediaSession",
                                         android.media.session.MediaSession.Token::class.java,
@@ -718,9 +718,9 @@ public class NotificationManager(
 
                                 // Media3 SessionToken has a getToken() method that returns the native token
                                 // This requires reflection as it's an internal API
-                                val sessionTokenClass = sessionToken.javaClass
-                                val getNativeTokenMethod = sessionTokenClass.getMethod("getToken")
-                                val nativeToken = getNativeTokenMethod.invoke(sessionToken)
+                                public val sessionTokenClass = sessionToken.javaClass
+                                public val getNativeTokenMethod = sessionTokenClass.getMethod("getToken")
+                                public val nativeToken = getNativeTokenMethod.invoke(sessionToken)
                                 setMediaSessionMethod.invoke(nativeMediaStyle, nativeToken)
 
                                 android.util.Log.d(
@@ -736,8 +736,8 @@ public class NotificationManager(
                                 // Try alternative approach: try to use SessionToken directly
                                 try {
                                     // Alternative: try to use SessionToken as-is (may work in some cases)
-                                    val sessionToken = mediaSession.getToken()
-                                    val setMediaSessionMethod =
+                                    public val sessionToken = mediaSession.getToken()
+                                    public val setMediaSessionMethod =
                                         mediaStyleClass.getMethod(
                                             "setMediaSession",
                                             android.media.session.MediaSession.Token::class.java,
@@ -776,7 +776,7 @@ public class NotificationManager(
                         )
                     }
 
-                    val builtNotification = builder.build()
+                    public val builtNotification = builder.build()
                     android.util.Log.i(
                         "NotificationManager",
                         "Successfully created notification with custom Icon and Notification.Builder",
@@ -897,13 +897,13 @@ public class NotificationManager(
      * @return Notification instance
      */
     private fun createMinimalMediaNotification(): Notification {
-        val intent =
+        public val intent =
             Intent(context, ComposeMainActivity::class.java).apply {
                 flags =
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                 putExtra("open_player", true)
             }
-        val pendingIntent =
+        public val pendingIntent =
             PendingIntent.getActivity(
                 context,
                 0,
@@ -912,8 +912,8 @@ public class NotificationManager(
             )
 
         // Determine Play/Pause button
-        val shouldShowPlay = Util.shouldShowPlayButton(player, true)
-        val playPauseAction =
+        public val shouldShowPlay = Util.shouldShowPlayButton(player, true)
+        public val playPauseAction =
             if (shouldShowPlay) {
                 NotificationCompat.Action(
                     android.R.drawable.ic_media_play,
@@ -929,23 +929,23 @@ public class NotificationManager(
             }
 
         // Get metadata
-        val flavorSuffix = Companion.getFlavorSuffix(context)
-        val flavorText = flavorSuffix.formatFlavorSuffix()
-        val title = metadata?.get("title") ?: "jabook Audio"
-        val artist = metadata?.get("artist") ?: "Playing audio"
-        val currentMediaItem = player.currentMediaItem
-        val baseTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: title
-        val displayTitle = baseTitle + flavorText
-        val displayArtist = currentMediaItem?.mediaMetadata?.artist?.toString() ?: artist
+        public val flavorSuffix = Companion.getFlavorSuffix(context)
+        public val flavorText = flavorSuffix.formatFlavorSuffix()
+        public val title = metadata?.get("title") ?: "jabook Audio"
+        public val artist = metadata?.get("artist") ?: "Playing audio"
+        public val currentMediaItem = player.currentMediaItem
+        public val baseTitle = currentMediaItem?.mediaMetadata?.title?.toString() ?: title
+        public val displayTitle = baseTitle + flavorText
+        public val displayArtist = currentMediaItem?.mediaMetadata?.artist?.toString() ?: artist
 
         // Load cover image for small icon (same logic as full notification)
-        var largeIcon: android.graphics.Bitmap? = null
-        val mediaMetadata = currentMediaItem?.mediaMetadata
+        public var largeIcon: android.graphics.Bitmap? = null
+        public val mediaMetadata = currentMediaItem?.mediaMetadata
 
         if (largeIcon == null && embeddedArtworkPath != null) {
             embeddedArtworkPath?.let { path ->
                 try {
-                    val artworkFile = java.io.File(path)
+                    public val artworkFile = java.io.File(path)
                     if (artworkFile.exists() && artworkFile.length() > 0) {
                         largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
                     }
@@ -957,16 +957,16 @@ public class NotificationManager(
 
         if (largeIcon == null && mediaMetadata != null) {
             try {
-                val artworkUri = mediaMetadata.artworkUri
+                public val artworkUri = mediaMetadata.artworkUri
                 if (artworkUri != null) {
                     try {
                         if (artworkUri.scheme == "file") {
-                            val filePath = artworkUri.path
+                            public val filePath = artworkUri.path
                             if (filePath != null) {
                                 largeIcon = BitmapFactory.decodeFile(filePath)
                             }
                         } else {
-                            val inputStream = context.contentResolver.openInputStream(artworkUri)
+                            public val inputStream = context.contentResolver.openInputStream(artworkUri)
                             if (inputStream != null) {
                                 largeIcon = BitmapFactory.decodeStream(inputStream)
                                 inputStream.close()
@@ -978,7 +978,7 @@ public class NotificationManager(
                 }
 
                 if (largeIcon == null) {
-                    val artworkData = mediaMetadata.artworkData
+                    public val artworkData = mediaMetadata.artworkData
                     if (artworkData != null && artworkData.isNotEmpty()) {
                         largeIcon = BitmapFactory.decodeByteArray(artworkData, 0, artworkData.size)
                     }
@@ -989,13 +989,13 @@ public class NotificationManager(
         }
 
         // Create small icon from cover (same logic as full notification)
-        var smallIcon: android.graphics.drawable.Icon? = null
-        var smallIconResId: Int = android.R.drawable.ic_media_play
+        public var smallIcon: android.graphics.drawable.Icon? = null
+        public var smallIconResId: Int = android.R.drawable.ic_media_play
 
         if (largeIcon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {
-                val smallIconSize = (24 * context.resources.displayMetrics.density).toInt()
-                val smallIconBitmap =
+                public val smallIconSize = (24 * context.resources.displayMetrics.density).toInt()
+                public val smallIconBitmap =
                     android.graphics.Bitmap.createScaledBitmap(
                         largeIcon,
                         smallIconSize,
@@ -1011,7 +1011,7 @@ public class NotificationManager(
         }
 
         try {
-            val appIconId = context.applicationInfo.icon
+            public val appIconId = context.applicationInfo.icon
             if (appIconId != 0) {
                 smallIconResId = appIconId
             }
@@ -1020,23 +1020,23 @@ public class NotificationManager(
         }
 
         // Create MediaStyle with MediaSession token (CRITICAL for system integration)
-        val mediaStyle = MediaStyle()
+        public val mediaStyle = MediaStyle()
 
         // Set MediaSession token for system controls
         if (mediaSession != null) {
             try {
-                val sessionToken = mediaSession.getToken()
+                public val sessionToken = mediaSession.getToken()
                 try {
-                    val sessionTokenClass = sessionToken.javaClass
-                    val getTokenMethod = sessionTokenClass.getMethod("getToken")
-                    val nativeToken = getTokenMethod.invoke(sessionToken) as? android.media.session.MediaSession.Token
+                    public val sessionTokenClass = sessionToken.javaClass
+                    public val getTokenMethod = sessionTokenClass.getMethod("getToken")
+                    public val nativeToken = getTokenMethod.invoke(sessionToken) as? android.media.session.MediaSession.Token
 
                     if (nativeToken != null) {
                         try {
-                            val compatTokenClass = Class.forName("androidx.media.session.MediaSessionCompat\$Token")
-                            val fromTokenMethod = compatTokenClass.getMethod("fromToken", Any::class.java)
-                            val compatToken = fromTokenMethod.invoke(null, nativeToken)
-                            val setMediaSessionMethod =
+                            public val compatTokenClass = Class.forName("androidx.media.session.MediaSessionCompat\$Token")
+                            public val fromTokenMethod = compatTokenClass.getMethod("fromToken", Any::class.java)
+                            public val compatToken = fromTokenMethod.invoke(null, nativeToken)
+                            public val setMediaSessionMethod =
                                 mediaStyle.javaClass.getMethod(
                                     "setMediaSession",
                                     compatTokenClass,
@@ -1092,10 +1092,10 @@ public class NotificationManager(
                         .setMediaSession(
                             if (mediaSession != null) {
                                 try {
-                                    val sessionToken = mediaSession.getToken()
-                                    val sessionTokenClass = sessionToken.javaClass
-                                    val getTokenMethod = sessionTokenClass.getMethod("getToken")
-                                    val nativeToken =
+                                    public val sessionToken = mediaSession.getToken()
+                                    public val sessionTokenClass = sessionToken.javaClass
+                                    public val getTokenMethod = sessionTokenClass.getMethod("getToken")
+                                    public val nativeToken =
                                         getTokenMethod.invoke(
                                             sessionToken,
                                         ) as? android.media.session.MediaSession.Token
@@ -1132,7 +1132,7 @@ public class NotificationManager(
      */
     public fun updateNotification() : Unit {
         try {
-            val notification = createNotification()
+            public val notification = createNotification()
             notificationManager.notify(NOTIFICATION_ID, notification)
             android.util.Log.d("NotificationManager", "Notification updated successfully")
         } catch (e: Exception) {
@@ -1212,14 +1212,14 @@ public class NotificationManager(
      */
     private fun createPlaybackAction(action: String): PendingIntent {
         try {
-            val intent =
+            public val intent =
                 Intent(context, AudioPlayerService::class.java).apply {
                     this.action = action
                 }
 
             // Use unique request codes for each action to avoid conflicts
             // This is especially important for Play/Pause on Samsung devices
-            val requestCode =
+            public val requestCode =
                 when (action) {
                     ACTION_PLAY -> 1001
                     ACTION_PAUSE -> 1002
@@ -1231,7 +1231,7 @@ public class NotificationManager(
                     else -> action.hashCode()
                 }
 
-            val flags =
+            public val flags =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                 } else {
@@ -1243,7 +1243,7 @@ public class NotificationManager(
                 "Creating PendingIntent for action: $action, requestCode: $requestCode, flags: $flags",
             )
 
-            val pendingIntent =
+            public val pendingIntent =
                 PendingIntent.getService(
                     context,
                     requestCode,
@@ -1257,8 +1257,8 @@ public class NotificationManager(
             android.util.Log.e("NotificationManager", "Failed to create PendingIntent for action: $action", e)
 
             // Fallback: create a simple PendingIntent without action
-            val fallbackIntent = Intent(context, AudioPlayerService::class.java)
-            val flags =
+            public val fallbackIntent = Intent(context, AudioPlayerService::class.java)
+            public val flags =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     PendingIntent.FLAG_IMMUTABLE
                 } else {
