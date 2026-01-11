@@ -97,38 +97,48 @@ def fix_file(file_path: Path):
                     fixed = True
             
             # Fix 4: Add public to const val and return type
-            if re.match(r'^\s*const\s+val', line):
+            if re.match(r'^\s*(public\s+)?const\s+val', line):
+                # Add public if missing
                 if not re.search(r'\b(public|private|internal|protected)\s+const', line):
                     new_line = re.sub(r'^(\s*)const', r'\1public const', new_line)
                     fixed = True
+                
                 # Add return type if missing (e.g., const val NAME = "value" -> const val NAME: String = "value")
+                # Handle both "const val" and "public const val"
                 if ': ' not in line and '=' in line:
-                    # Extract name and value
-                    match = re.match(r'^(\s*public\s+const\s+val\s+)(\w+)(\s*=\s*)(.+)$', new_line)
+                    # Extract name and value - handle both with and without public
+                    match = re.match(r'^(\s*(?:public\s+)?const\s+val\s+)(\w+)(\s*=\s*)(.+)$', new_line)
                     if match:
-                        indent, name, equals, value = match.groups()
+                        prefix, name, equals, value = match.groups()
                         # Try to infer type from value
-                        value_stripped = value.strip().rstrip('\n')
-                        if value_stripped.startswith('"') or value_stripped.startswith("'"):
+                        value_stripped = value.strip().rstrip('\n').rstrip(')').rstrip('(')
+                        
+                        # Check for Long (ends with L)
+                        if value_stripped.upper().endswith('L') or value_stripped.upper().endswith('L)'):
+                            type_name = "Long"
+                        # Check for String
+                        elif value_stripped.startswith('"') or value_stripped.startswith("'"):
                             type_name = "String"
-                        elif value_stripped.replace('.', '').replace('-', '').isdigit():
-                            if 'L' in value_stripped.upper():
-                                type_name = "Long"
-                            elif '.' in value_stripped:
+                        # Check for Boolean
+                        elif value_stripped.lower() in ('true', 'false'):
+                            type_name = "Boolean"
+                        # Check for numeric types
+                        elif re.match(r'^-?\d+\.?\d*', value_stripped):
+                            if '.' in value_stripped:
                                 type_name = "Float" if 'f' in value_stripped.lower() else "Double"
                             else:
                                 type_name = "Int"
-                        elif value_stripped.lower() in ('true', 'false'):
-                            type_name = "Boolean"
                         else:
                             type_name = None
                         
                         if type_name:
-                            new_line = f"{indent}{name}: {type_name}{equals}{value}"
+                            new_line = f"{prefix}{name}: {type_name}{equals}{value}"
                             fixed = True
             
             # Fix 5: Add public to var/val properties inside classes (indented, but not private/internal)
-            if re.match(r'^\s+(var|val)\s+\w+', line):
+            # Also handle properties that already have public but need return type
+            if re.match(r'^\s+(public\s+)?(var|val)\s+\w+', line):
+                # Add public if missing
                 if not re.search(r'\b(public|private|internal|protected)\s+(var|val)', line):
                     # Only add public if it's not already private/internal
                     if not re.search(r'\b(private|internal)\s+(var|val)', line):
@@ -137,6 +147,33 @@ def fix_file(file_path: Path):
                         if indent_match:
                             indent = indent_match.group(1)
                             new_line = re.sub(r'^(\s+)(var|val)', r'\1public \2', new_line)
+                            fixed = True
+                
+                # Add return type if missing for public properties
+                if re.search(r'\bpublic\s+(var|val)', new_line) and ': ' not in new_line and '=' in new_line:
+                    # Pattern: public var/val name = value
+                    match = re.match(r'^(\s+public\s+(?:lateinit\s+)?(?:@\w+\s+)?(?:@\w+\([^)]+\)\s+)?)(var|val)\s+(\w+)(\s*=\s*)(.+)$', new_line)
+                    if match:
+                        prefix, var_or_val, name, equals, value = match.groups()
+                        value_stripped = value.strip().rstrip('\n')
+                        
+                        # Try to infer type
+                        if value_stripped.upper().endswith('L'):
+                            type_name = "Long"
+                        elif value_stripped.startswith('"') or value_stripped.startswith("'"):
+                            type_name = "String"
+                        elif value_stripped.lower() in ('true', 'false'):
+                            type_name = "Boolean"
+                        elif re.match(r'^-?\d+\.?\d*', value_stripped):
+                            if '.' in value_stripped:
+                                type_name = "Float" if 'f' in value_stripped.lower() else "Double"
+                            else:
+                                type_name = "Int"
+                        else:
+                            type_name = None
+                        
+                        if type_name:
+                            new_line = f"{prefix}{var_or_val} {name}: {type_name}{equals}{value}"
                             fixed = True
             
             # Fix 6: Add public to functions inside classes (indented, but not private/internal)
