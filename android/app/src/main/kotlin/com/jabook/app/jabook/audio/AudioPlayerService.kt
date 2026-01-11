@@ -658,8 +658,10 @@ class AudioPlayerService : MediaLibraryService() {
      */
     internal fun getActivePlayer(): ExoPlayer {
         val settings = playerConfigurator?.audioProcessingSettings
-        if (settings?.isCrossfadeEnabled == true && crossFadePlayer != null) {
-            return crossFadePlayer!!.getActivePlayer()
+        if (settings?.isCrossfadeEnabled == true) {
+            crossFadePlayer?.let {
+                return it.getActivePlayer()
+            }
         }
         return playerConfigurator?.getActivePlayer(exoPlayer) ?: exoPlayer
     }

@@ -623,19 +623,21 @@ private fun PlayerContent(
                 )
 
                 if (showLyrics && !state.lyrics.isNullOrEmpty()) {
-                    Box(
-                        modifier =
-                            imageModifier
-                                .fillMaxWidth(coverWidth)
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
-                    ) {
-                        LyricsView(
-                            lyrics = state.lyrics!!,
-                            currentPosition = state.currentPosition,
-                            onSeek = onSeek,
-                        )
+                    state.lyrics?.let { lyrics ->
+                        Box(
+                            modifier =
+                                imageModifier
+                                    .fillMaxWidth(coverWidth)
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                        ) {
+                            LyricsView(
+                                lyrics = lyrics,
+                                currentPosition = state.currentPosition,
+                                onSeek = onSeek,
+                            )
+                        }
                     }
                 } else if (isVinylMode) {
                     VinylCover(
@@ -1291,6 +1293,21 @@ private fun PlayerContent(
     }
 }
 
+/**
+ * Settings sheet for player screen.
+ *
+ * Allows users to configure:
+ * - Playback speed
+ * - Sleep timer
+ * - Vinyl mode
+ *
+ * @param book The book being played
+ * @param onUpdateSettings Callback when settings are updated (speed, sleep timer)
+ * @param onResetSettings Callback to reset settings to defaults
+ * @param onDismiss Callback when sheet is dismissed
+ * @param isVinylMode Current vinyl mode state
+ * @param onVinylModeChange Callback when vinyl mode is toggled
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSettingsSheet(

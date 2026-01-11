@@ -130,6 +130,45 @@ fmt-kotlin:
 	fi; \
 	exit $$EXIT_CODE
 
+# Run unit tests
+.PHONY: test
+test:
+	@echo "Running unit tests..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Unit tests passed"; \
+	else \
+		echo "❌ Unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+# Generate test coverage report
+.PHONY: test-coverage
+test-coverage:
+	@echo "Generating test coverage report..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest :app:jacocoTestReport --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Test coverage report generated at android/app/build/reports/jacoco/jacocoTestReport/html/index.html"; \
+	else \
+		echo "❌ Test coverage report generation failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+# Verify test coverage meets minimum threshold (85%)
+.PHONY: test-coverage-verify
+test-coverage-verify: test-coverage
+	@echo "Verifying test coverage meets minimum threshold of 85%..."
+	@(cd android && ./gradlew :app:jacocoCoverageVerification --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Test coverage meets minimum threshold of 85%"; \
+	else \
+		echo "❌ Test coverage is below minimum threshold of 85%"; \
+	fi; \
+	exit $$EXIT_CODE
+
 .PHONY: ktlint-strace
 ktlint-strace:
 	@echo "Linting Kotlin code with ktlint..."

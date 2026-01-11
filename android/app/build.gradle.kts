@@ -16,6 +16,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     // Protobuf for Proto DataStore
     id("com.google.protobuf") version "0.9.5"
+    // JaCoCo for test coverage
+    id("jacoco")
 }
 
 android {
@@ -36,6 +38,8 @@ android {
             freeCompilerArgs.addAll(
                 "-opt-in=kotlin.RequiresOptIn",
             )
+            // Explicit API mode - requires explicit visibility modifiers and return types for public API
+            explicitApi()
         }
     }
 
@@ -383,4 +387,95 @@ protobuf {
             }
         }
     }
+}
+
+// JaCoCo configuration for test coverage
+jacoco {
+    toolVersion = "0.8.14"
+}
+
+// Task to generate test coverage report
+tasks.register<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoTestReport") {
+    group = "verification"
+    description = "Generate JaCoCo test coverage report"
+
+    // Run tests first
+    dependsOn("testBetaDebugUnitTest", "testProdDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    // Collect execution data from test tasks
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("jacoco/*.exec")
+        },
+    )
+
+    // Include source files
+    sourceDirectories.setFrom(files("src/main/kotlin"))
+
+    // Include class files (excluding generated and test classes)
+    classDirectories.setFrom(
+        files(
+            fileTree(layout.buildDirectory.dir("intermediates/javac/betaDebug/classes")) {
+                exclude(
+                    "**/R.class",
+                    "**/R\$*.class",
+                    "**/BuildConfig.*",
+                    "**/Manifest*.*",
+                    "**/*Test*.*",
+                    "**/*_Factory.*",
+                    "**/*_HiltModules.*",
+                    "**/Hilt_*.*",
+                    "android/**/*.*",
+                )
+            },
+        ),
+    )
+}
+
+// Task to verify coverage meets minimum threshold (85% as per rules)
+tasks.register<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoCoverageVerification") {
+    group = "verification"
+    description = "Verify test coverage meets minimum threshold of 85%"
+
+    dependsOn("jacocoTestReport")
+
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.85".toBigDecimal()
+            }
+        }
+    }
+
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("jacoco/*.exec")
+        },
+    )
+
+    sourceDirectories.setFrom(files("src/main/kotlin"))
+
+    classDirectories.setFrom(
+        files(
+            fileTree(layout.buildDirectory.dir("intermediates/javac/betaDebug/classes")) {
+                exclude(
+                    "**/R.class",
+                    "**/R\$*.class",
+                    "**/BuildConfig.*",
+                    "**/Manifest*.*",
+                    "**/*Test*.*",
+                    "**/*_Factory.*",
+                    "**/*_HiltModules.*",
+                    "**/Hilt_*.*",
+                    "android/**/*.*",
+                )
+            },
+        ),
+    )
 }

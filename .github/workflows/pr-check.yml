@@ -62,3 +62,12 @@ jobs:
 
       - name: Compile Kotlin code
         run: make compile
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Generate test coverage report
+        run: make test-coverage
+
+      - name: Verify test coverage (85% minimum)
+        run: make test-coverage-verify

@@ -1454,7 +1454,9 @@ internal class PlayerListener(
                 }
             }
 
-        positionCheckHandler.postDelayed(positionCheckRunnable!!, positionCheckIntervalMs)
+        positionCheckRunnable?.let {
+            positionCheckHandler.postDelayed(it, positionCheckIntervalMs)
+        }
     }
 
     /**

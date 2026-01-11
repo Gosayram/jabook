@@ -42,6 +42,21 @@ import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.withTimeout
 import java.io.File
 
+/**
+ * Callback implementation for Media3 MediaLibraryService session.
+ *
+ * Handles media library operations such as:
+ * - Browsing media items (books, chapters)
+ * - Getting item metadata
+ * - Subscribing to item changes
+ * - Handling media button events
+ *
+ * @param service The AudioPlayerService instance
+ * @param playerPersistenceManager Manages player state persistence
+ * @param torrentDownloadRepository Repository for torrent downloads
+ * @param mediaButtonHandler Handler for media button events
+ * @param getDurationForFile Function to get duration for a file path
+ */
 class AudioPlayerLibrarySessionCallback(
     private val service: AudioPlayerService,
     private val playerPersistenceManager: PlayerPersistenceManager,

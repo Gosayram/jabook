@@ -80,7 +80,9 @@ class AudioPlayerServiceInitializer(
                 },
                 durationManager = service.durationManager,
                 playerPersistenceManager = service.playerPersistenceManager,
-                playbackController = service.playbackController!!,
+                playbackController =
+                    service.playbackController
+                        ?: throw IllegalStateException("PlaybackController must be initialized before PlaylistManager"),
                 getCurrentTrackIndex = { service.actualTrackIndex },
             )
 

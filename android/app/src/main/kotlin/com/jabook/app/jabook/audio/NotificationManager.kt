@@ -230,37 +230,39 @@ class NotificationManager(
         // Method 0: Try embeddedArtworkPath first (saved by AudioPlayerService from embedded metadata)
         android.util.Log.d("NotificationManager", "Checking embeddedArtworkPath: $embeddedArtworkPath")
         if (largeIcon == null && embeddedArtworkPath != null) {
-            try {
-                val artworkFile = java.io.File(embeddedArtworkPath!!)
-                android.util.Log.d(
-                    "NotificationManager",
-                    "Artwork file exists: ${artworkFile.exists()}, size: ${artworkFile.length()}",
-                )
-                if (artworkFile.exists() && artworkFile.length() > 0) {
-                    largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
-                    if (largeIcon != null) {
-                        android.util.Log.i(
-                            "NotificationManager",
-                            "Loaded cover image from embeddedArtworkPath: $embeddedArtworkPath (${largeIcon.width}x${largeIcon.height})",
-                        )
+            embeddedArtworkPath?.let { path ->
+                try {
+                    val artworkFile = java.io.File(path)
+                    android.util.Log.d(
+                        "NotificationManager",
+                        "Artwork file exists: ${artworkFile.exists()}, size: ${artworkFile.length()}",
+                    )
+                    if (artworkFile.exists() && artworkFile.length() > 0) {
+                        largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
+                        if (largeIcon != null) {
+                            android.util.Log.i(
+                                "NotificationManager",
+                                "Loaded cover image from embeddedArtworkPath: $embeddedArtworkPath (${largeIcon.width}x${largeIcon.height})",
+                            )
+                        } else {
+                            android.util.Log.w(
+                                "NotificationManager",
+                                "Failed to decode bitmap from embeddedArtworkPath: $embeddedArtworkPath",
+                            )
+                        }
                     } else {
                         android.util.Log.w(
                             "NotificationManager",
-                            "Failed to decode bitmap from embeddedArtworkPath: $embeddedArtworkPath",
+                            "Artwork file does not exist or is empty: $embeddedArtworkPath",
                         )
                     }
-                } else {
-                    android.util.Log.w(
+                } catch (e: Exception) {
+                    android.util.Log.e(
                         "NotificationManager",
-                        "Artwork file does not exist or is empty: $embeddedArtworkPath",
+                        "Failed to load cover image from embeddedArtworkPath: $path",
+                        e,
                     )
                 }
-            } catch (e: Exception) {
-                android.util.Log.e(
-                    "NotificationManager",
-                    "Failed to load cover image from embeddedArtworkPath: $embeddedArtworkPath",
-                    e,
-                )
             }
         } else if (embeddedArtworkPath == null) {
             android.util.Log.d("NotificationManager", "embeddedArtworkPath is null")
@@ -335,7 +337,7 @@ class NotificationManager(
                 if (largeIcon == null) {
                     android.util.Log.d(
                         "NotificationManager",
-                        "No artwork found. artworkData=${mediaMetadata.artworkData != null && mediaMetadata.artworkData!!.isNotEmpty()}, artworkUri=${mediaMetadata.artworkUri}, embeddedArtworkPath=$embeddedArtworkPath",
+                        "No artwork found. artworkData=${mediaMetadata.artworkData?.isNotEmpty() == true}, artworkUri=${mediaMetadata.artworkUri}, embeddedArtworkPath=$embeddedArtworkPath",
                     )
                 }
             } catch (e: Exception) {
@@ -699,11 +701,11 @@ class NotificationManager(
                             setShowActionsInCompactViewMethod.invoke(nativeMediaStyle, intArrayOf(1, 2, 3))
 
                             // Set media session token for system integration (CRITICAL for Quick Settings)
-                            // Note: mediaSession is already checked above (line 620)
+                            // Note: mediaSession is already checked above (line 678)
                             try {
                                 // Media3 MediaSession: use public getToken() method to get SessionToken
                                 // Reference: https://developer.android.com/reference/kotlin/androidx/media3/session/SessionToken
-                                val sessionToken = mediaSession!!.getToken()
+                                val sessionToken = mediaSession.getToken()
 
                                 // Get the underlying android.media.session.MediaSession.Token
                                 // Media3 SessionToken wraps the native token - use reflection to get native token
@@ -941,13 +943,15 @@ class NotificationManager(
         val mediaMetadata = currentMediaItem?.mediaMetadata
 
         if (largeIcon == null && embeddedArtworkPath != null) {
-            try {
-                val artworkFile = java.io.File(embeddedArtworkPath!!)
-                if (artworkFile.exists() && artworkFile.length() > 0) {
-                    largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
+            embeddedArtworkPath?.let { path ->
+                try {
+                    val artworkFile = java.io.File(path)
+                    if (artworkFile.exists() && artworkFile.length() > 0) {
+                        largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("NotificationManager", "Failed to load cover from embeddedArtworkPath", e)
                 }
-            } catch (e: Exception) {
-                android.util.Log.w("NotificationManager", "Failed to load cover from embeddedArtworkPath", e)
             }
         }
 

@@ -154,7 +154,9 @@ internal class PlayerConfigurator(
                     },
                 )
 
-            activePlayer.addListener(playerListener!!)
+            playerListener?.let {
+                activePlayer.addListener(it)
+            }
 
             // Match lissen-android: don't set WakeMode or ScrubbingMode
             // These may interfere with AudioFocus handling
