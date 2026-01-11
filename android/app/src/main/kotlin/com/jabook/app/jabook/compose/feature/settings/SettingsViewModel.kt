@@ -69,7 +69,7 @@ public class SettingsViewModel
         private val torrentManager: TorrentManager,
     ) : ViewModel() {
         // Expose active downloads for the settings UI
-        val activeDownloads: StateFlow<List<TorrentDownload>> =
+        public val activeDownloads: StateFlow<List<TorrentDownload>> =
             torrentManager.downloadsFlow
                 .map { downloadMap ->
                     downloadMap.values
@@ -89,7 +89,7 @@ public class SettingsViewModel
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = emptyList(),
                 )
-        val scanProgress: StateFlow<ScanProgress> =
+        public val scanProgress: StateFlow<ScanProgress> =
             booksRepository.getScanProgress().stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -120,7 +120,7 @@ public class SettingsViewModel
         }
 
         // Exposure of auth status for UI
-        val authStatus: StateFlow<com.jabook.app.jabook.compose.domain.model.AuthStatus> =
+        public val authStatus: StateFlow<com.jabook.app.jabook.compose.domain.model.AuthStatus> =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -136,7 +136,7 @@ public class SettingsViewModel
         /**
          * Old user preferences - for backward compatibility.
          */
-        val userPreferences: StateFlow<UserPreferences?> =
+        public val userPreferences: StateFlow<UserPreferences?> =
             userPreferencesRepository.userData.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -146,7 +146,7 @@ public class SettingsViewModel
         /**
          * New Proto DataStore settings.
          */
-        val protoSettings: StateFlow<UserPreferences> =
+        public val protoSettings: StateFlow<UserPreferences> =
             settingsRepository.userPreferences.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -157,15 +157,15 @@ public class SettingsViewModel
 
         // ===== Old preferences API (kept for compatibility) =====
 
-        public fun updateTheme(theme: String) {
+        public fun updateTheme(theme: com.jabook.app.jabook.compose.data.model.AppTheme) {
             viewModelScope.launch {
-                userPreferencesRepository.setTheme(theme)
+                userPreferencesRepository.setTheme(theme.name)
             }
         }
 
-        public fun updateSortOrder(sortOrder: String) {
+        public fun updateSortOrder(sortOrder: com.jabook.app.jabook.compose.domain.model.BookSortOrder) {
             viewModelScope.launch {
-                userPreferencesRepository.setSortOrder(sortOrder)
+                userPreferencesRepository.setSortOrder(sortOrder.name)
             }
         }
 
@@ -175,9 +175,9 @@ public class SettingsViewModel
             }
         }
 
-        public fun updateFont(font: String) {
+        public fun updateFont(font: com.jabook.app.jabook.compose.data.model.AppFont) {
             viewModelScope.launch {
-                userPreferencesRepository.setFont(font)
+                userPreferencesRepository.setFont(font.name)
             }
         }
 
@@ -197,7 +197,7 @@ public class SettingsViewModel
 
         // ===== New Proto DataStore API =====
 
-        public fun updateProtoTheme(themeMode: Int) {
+        public fun updateProtoTheme(themeMode: com.jabook.app.jabook.compose.data.preferences.ThemeMode) {
             viewModelScope.launch {
                 settingsRepository.updateThemeMode(themeMode)
             }
@@ -268,12 +268,12 @@ public class SettingsViewModel
         /**
          * Current mirror domain from MirrorManager.
          */
-        val currentMirror: StateFlow<String> = mirrorManager.currentMirror
+        public val currentMirror: StateFlow<String> = mirrorManager.currentMirror
 
         /**
          * Available mirrors (default + custom).
          */
-        val availableMirrors: StateFlow<List<String>> = mirrorManager.availableMirrors
+        public val availableMirrors: StateFlow<List<String>> = mirrorManager.availableMirrors
 
         /**
          * Update the selected mirror.
@@ -353,14 +353,14 @@ public class SettingsViewModel
             return uriString
         }
 
-        public fun updateWifiOnly() {
+        public fun updateWifiOnly(enabled: Boolean) {
             viewModelScope.launch {
                 settingsRepository.updateWifiOnly(enabled)
             }
         }
 
         private val _torrentStorageSize = MutableStateFlow<Long>(0L)
-        val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
+        public val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
 
         public fun loadTorrentStorageSize() {
             viewModelScope.launch {
@@ -372,7 +372,7 @@ public class SettingsViewModel
             }
         }
 
-        public fun deleteAllTorrentData(deleteFiles: Boolean) {
+        public fun deleteAllTorrents(deleteFiles: Boolean) {
             viewModelScope.launch {
                 torrentManager.deleteAllTorrents(deleteFiles)
                 // Refresh size after a short delay to allow file system ops
@@ -404,7 +404,7 @@ public class SettingsViewModel
         /**
          * Import app data from JSON backup file.
          */
-        public fun importData() {
+        public fun importData(uri: android.net.Uri) {
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Importing
@@ -426,10 +426,10 @@ public class SettingsViewModel
         // ===== Cache Management =====
 
         private val _cacheStats = MutableStateFlow<CacheStatistics?>(null)
-        val cacheStats: StateFlow<CacheStatistics?> = _cacheStats.asStateFlow()
+        public val cacheStats: StateFlow<CacheStatistics?> = _cacheStats.asStateFlow()
 
         private val _cacheOperation = MutableStateFlow<CacheOperationState>(CacheOperationState.Idle)
-        val cacheOperation: StateFlow<CacheOperationState> = _cacheOperation.asStateFlow()
+        public val cacheOperation: StateFlow<CacheOperationState> = _cacheOperation.asStateFlow()
 
         /**
          * Load cache statistics.

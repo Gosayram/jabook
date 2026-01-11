@@ -48,12 +48,12 @@ public sealed interface SearchUiState {
     public data object Loading : SearchUiState
 
     public data class Success(
-        val localResults: List<Book>,
-        val onlineResults: List<RutrackerSearchResult>,
+        public val localResults: List<Book>,
+        public val onlineResults: List<RutrackerSearchResult>,
     ) : SearchUiState
 
     public data class Error(
-        val message: String,
+        public val message: String,
     ) : SearchUiState
 }
 

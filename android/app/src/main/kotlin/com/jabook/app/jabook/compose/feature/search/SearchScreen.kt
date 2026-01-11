@@ -370,7 +370,7 @@ public fun SearchScreen(
                                             viewModel.onSearchQueryChanged(query)
                                             // Optionally trigger online search automatically or just set query
                                         },
-                                        onHistoryItemDelete = viewModel::deleteSearchHistoryItem,
+                                        onHistoryItemDelete = { id -> viewModel.deleteSearchHistoryItem(id) },
                                         onClearHistory = viewModel::clearSearchHistory,
                                     )
                                 }
@@ -389,7 +389,7 @@ public fun SearchScreen(
                                         results = state.onlineResults,
                                         favoriteIds = favoriteIds,
                                         onBookClick = onOnlineBookClick,
-                                        onToggleFavorite = viewModel::toggleFavorite,
+                                        onToggleFavorite = { result -> viewModel.toggleFavorite(result) },
                                     )
                                 }
 

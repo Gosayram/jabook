@@ -30,7 +30,7 @@ public class ScanSettingsViewModel
     constructor(
         private val booksRepository: BooksRepository,
     ) : ViewModel() {
-        val scanPaths: StateFlow<List<String>> =
+        public val scanPaths: StateFlow<List<String>> =
             booksRepository
                 .getScanPaths()
                 .stateIn(

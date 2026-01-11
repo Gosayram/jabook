@@ -408,7 +408,7 @@ public class AudioPlayerController
                         // Handle seeking if needed (e.g. user clicked a specific chapter)
                         // Only seek if significantly different to allow resume logic to work
                         if (initialChapterIndex != controller.currentMediaItemIndex) {
-                            controller.seekTo(initialChapterIndex, 0)
+                            controller.seekTo(initialChapterIndex, 0L)
                         }
                         if (initialPosition > 0 && Math.abs(controller.currentPosition - initialPosition) > 1000) {
                             controller.seekTo(initialPosition)
@@ -479,7 +479,7 @@ public class AudioPlayerController
         }
 
         public fun skipToChapter(index: Int) {
-            mediaController?.seekTo(index, 0) ?: run {
+            mediaController?.seekTo(index, 0L) ?: run {
                 android.util.Log.w("AudioPlayerController", "MediaController not available for skipToChapter(), service may not be ready")
             }
         }
