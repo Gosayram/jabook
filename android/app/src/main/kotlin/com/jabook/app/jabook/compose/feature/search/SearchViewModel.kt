@@ -86,10 +86,10 @@ public class SearchViewModel
         public val sortOrder: StateFlow<SearchSortOrder> = _sortOrder.asStateFlow()
 
         // Raw results to support client-side filtering
-        private val rawOnlineResults = MutableStateFlow<List<RutrackerSearchResult>>(emptyList())
+        private val rawOnlineResults: MutableStateFlow<List<RutrackerSearchResult>> = MutableStateFlow(emptyList())
 
         // UI state - derived from raw results and filters
-        private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
+        private val _uiState: MutableStateFlow<SearchUiState> = MutableStateFlow(SearchUiState.Idle)
         public val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
         /**
@@ -224,7 +224,7 @@ public class SearchViewModel
             }
         }
 
-        private fun recalculateUiState() {
+        private fun recalculateUiState(): Unit {
             val currentRaw = rawOnlineResults.value
             if (currentRaw.isEmpty() && _uiState.value !is SearchUiState.Success) {
                 android.util.Log.d("SearchViewModel", "⏭️ Skipping UI state recalculation: no raw results")

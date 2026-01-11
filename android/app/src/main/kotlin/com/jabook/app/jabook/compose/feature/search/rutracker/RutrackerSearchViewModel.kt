@@ -58,13 +58,13 @@ public class RutrackerSearchViewModel
         }
 
         private val _searchState = MutableStateFlow<SearchState>(SearchState.Empty)
-        val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
+        public val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
 
         private val _filters = MutableStateFlow(RutrackerSearchFilters())
-        val filters: StateFlow<RutrackerSearchFilters> = _filters.asStateFlow()
+        public val filters: StateFlow<RutrackerSearchFilters> = _filters.asStateFlow()
 
         private val _sortOrder = MutableStateFlow(RutrackerSortOrder.RELEVANCE)
-        val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
+        public val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
 
         // Store original results for client-side filtering/sorting
         private var originalResults: List<RutrackerSearchResult> = emptyList()
@@ -197,7 +197,7 @@ public class RutrackerSearchViewModel
         /**
          * Update search filters and reapply to results.
          */
-        public fun updateFilters() {
+        public fun updateFilters(newFilters: RutrackerSearchFilters) {
             _filters.value = newFilters
             reapplyFiltersAndSort()
         }
@@ -205,7 +205,7 @@ public class RutrackerSearchViewModel
         /**
          * Update sort order and reapply to results.
          */
-        public fun updateSortOrder() {
+        public fun updateSortOrder(newSortOrder: RutrackerSortOrder) {
             _sortOrder.value = newSortOrder
             reapplyFiltersAndSort()
         }
@@ -308,10 +308,10 @@ public class RutrackerSearchViewModel
  */
 public sealed class SearchState {
     /** No search performed yet */
-    data object Empty : SearchState()
+    public data object Empty : SearchState()
 
     /** Search in progress */
-    data object Loading : SearchState()
+    public data object Loading : SearchState()
 
     /** Search completed successfully */
     public data class Success(
