@@ -95,7 +95,8 @@ def fix_file(file_path: Path):
                 fixed = True
             
             # Also remove stray "public" at the end of lines (fix for broken formatting)
-            if re.search(r'\bpublic\s*$', new_line.rstrip()):
+            # Pattern: "value" public or value public
+            if re.search(r'["\']\s*public\s*$', new_line.rstrip()) or re.search(r'\w+\s+public\s*$', new_line.rstrip()):
                 new_line = re.sub(r'\s+public\s*$', '', new_line.rstrip()) + '\n'
                 fixed = True
             
