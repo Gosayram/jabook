@@ -337,7 +337,7 @@ public fun PlayerScreen(
                             is PlayerUiState.Success -> {
                                 val chapterRepeatMode by viewModel.chapterRepeatMode.collectAsStateWithLifecycle()
                                 // Click debouncer for preventing double clicks (inspired by Easybook)
-                                val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300L)
+                                val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
 
                                 // Haze State for Glassmorphism
                                 val hazeState = rememberHazeState()

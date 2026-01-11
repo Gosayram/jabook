@@ -48,15 +48,15 @@ import javax.inject.Inject
 @AndroidEntryPoint
 public class IndexingForegroundService : Service() {
     @Inject
-    lateinit var forumIndexer: ForumIndexer
+    public lateinit var forumIndexer: ForumIndexer
 
     @Inject
-    lateinit var authRepository: AuthRepository
+    public lateinit var authRepository: AuthRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var indexingJob: Job? = null
     private var currentProgress: IndexingProgress = IndexingProgress.Idle
-    private var startTime: Int = 0L
+    private var startTime: Long = 0L
 
     public companion object {
         private const val TAG = "IndexingForegroundService"

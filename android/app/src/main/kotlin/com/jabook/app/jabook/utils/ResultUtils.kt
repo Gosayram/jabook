@@ -49,7 +49,7 @@ public fun <T> Result<T>.isLoading(): Boolean = this is Result.Loading
  * val value = result.getOrElse { "default" }
  * ```
  */
-inline fun <T> Result<T>.getOrElse(defaultValue: () -> T): T =
+public inline fun <T> Result<T>.getOrElse(defaultValue: () -> T): T =
     when (this) {
         is Result.Success -> data
         else -> defaultValue()
@@ -68,7 +68,7 @@ inline fun <T> Result<T>.getOrElse(defaultValue: () -> T): T =
  * }
  * ```
  */
-inline fun <T> Result<T>.onSuccess(action: (T) -> Unit): Result<T> {
+public inline fun <T> Result<T>.onSuccess(action: (T) -> Unit): Result<T> {
     if (this is Result.Success) {
         action(data)
     }
@@ -88,7 +88,7 @@ inline fun <T> Result<T>.onSuccess(action: (T) -> Unit): Result<T> {
  * }
  * ```
  */
-inline fun <T> Result<T>.onFailure(action: (Throwable) -> Unit): Result<T> {
+public inline fun <T> Result<T>.onFailure(action: (Throwable) -> Unit): Result<T> {
     if (this is Result.Error) {
         action(exception)
     }
@@ -108,7 +108,7 @@ inline fun <T> Result<T>.onFailure(action: (Throwable) -> Unit): Result<T> {
  * }
  * ```
  */
-inline fun <T> Result<T>.onLoading(action: () -> Unit): Result<T> {
+public inline fun <T> Result<T>.onLoading(action: () -> Unit): Result<T> {
     if (this is Result.Loading) {
         action()
     }
@@ -132,7 +132,7 @@ inline fun <T> Result<T>.onLoading(action: () -> Unit): Result<T> {
  * )
  * ```
  */
-inline fun <T, R> Result<T>.fold(
+public inline fun <T, R> Result<T>.fold(
     onSuccess: (T) -> R,
     onError: (Throwable) -> R,
     onLoading: () -> R,
@@ -155,7 +155,7 @@ inline fun <T, R> Result<T>.fold(
  *     .flatMap { user -> fetchUserDetails(user.id) }
  * ```
  */
-inline fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> =
+public inline fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> =
     when (this) {
         is Result.Success -> transform(data)
         is Result.Error -> this
@@ -180,7 +180,7 @@ inline fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> =
  *     }
  * ```
  */
-inline fun <T> Result<T>.recover(recover: (Throwable) -> T): Result<T> =
+public inline fun <T> Result<T>.recover(recover: (Throwable) -> T): Result<T> =
     when (this) {
         is Result.Success -> this
         is Result.Error -> Result.Success(recover(exception))
@@ -205,7 +205,7 @@ inline fun <T> Result<T>.recover(recover: (Throwable) -> T): Result<T> =
  *     }
  * ```
  */
-inline fun <T> Result<T>.recoverWith(recover: (Throwable) -> Result<T>): Result<T> =
+public inline fun <T> Result<T>.recoverWith(recover: (Throwable) -> Result<T>): Result<T> =
     when (this) {
         is Result.Success -> this
         is Result.Error -> recover(exception)

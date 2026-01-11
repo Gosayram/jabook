@@ -149,7 +149,7 @@ public fun TorrentDownloadItem(
                 // Download speed
                 if (download.state == TorrentState.DOWNLOADING) {
                     Text(
-                        text = "↓ ${formatSpeed(download.downloadSpeed)}/s",
+                        text = "↓ ${formatSpeed(download.downloadSpeed.toLong())}/s",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -158,7 +158,7 @@ public fun TorrentDownloadItem(
                 // Upload speed
                 if (download.uploadSpeed > 0) {
                     Text(
-                        text = "↑ ${formatSpeed(download.uploadSpeed)}/s",
+                        text = "↑ ${formatSpeed(download.uploadSpeed.toLong())}/s",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.secondary,
                     )

@@ -33,8 +33,8 @@ public class WebViewViewModel
          * Called when a page finishes loading in WebView.
          * Syncs cookies from WebView to Native storage.
          */
-        public fun onPageFinished() {
-            if (url == null) return
+        public fun onPageFinished(url: String) {
+            if (url.isBlank()) return
 
             // We only care about syncing if it's a relevant domain,
             // but AuthRepository.syncCookiesFromWebView checks the base URL internally or uses CookieManager for the specific API URL.

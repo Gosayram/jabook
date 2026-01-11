@@ -104,7 +104,7 @@ public fun rememberSystemBarStyle(): SystemBarStyle {
  * activity.startActivity(intent)
  * ```
  */
-val Context.componentActivity: ComponentActivity
+public val Context.componentActivity: ComponentActivity
     get() {
         return when (this) {
             is ComponentActivity -> this

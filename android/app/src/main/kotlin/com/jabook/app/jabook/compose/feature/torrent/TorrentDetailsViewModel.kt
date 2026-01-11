@@ -47,9 +47,9 @@ public class TorrentDetailsViewModel
         private val streamingMonitor: TorrentStreamingMonitor,
     ) : ViewModel() {
         private val route = savedStateHandle.toRoute<TorrentDetailsRoute>()
-        val hash: String = route.hash
+        public val hash: String = route.hash
 
-        val download: StateFlow<TorrentDownload?> =
+        public val download: StateFlow<TorrentDownload?> =
             torrentManager.downloadsFlow
                 .map { it[hash] }
                 .stateIn(
@@ -58,12 +58,12 @@ public class TorrentDetailsViewModel
                     initialValue = null,
                 )
 
-        val isBuffering: StateFlow<Boolean> = streamingMonitor.isBuffering
+        public val isBuffering: StateFlow<Boolean> = streamingMonitor.isBuffering
 
         private val _navigationEvent = MutableSharedFlow<String>()
-        val navigationEvent = _navigationEvent.asSharedFlow()
+        public val navigationEvent = _navigationEvent.asSharedFlow()
 
-        public fun playFile() {
+        public fun playFile(file: com.jabook.app.jabook.compose.data.torrent.TorrentFile) {
             viewModelScope.launch {
                 val currentDownload = download.value ?: return@launch
 
@@ -159,7 +159,7 @@ public class TorrentDetailsViewModel
             // For now, removing onCleared stop to allow background playback monitoring.
         }
 
-        public fun updateFileSelection() {
+        public fun updateFileSelection(selectedIndices: Set<Int>) {
             val currentDownload = download.value ?: return
             val files = currentDownload.files
 

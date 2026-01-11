@@ -335,7 +335,7 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
     val rootNodes = mutableListOf<FileNode>()
 
     // Helper class to build tree temporarily
-    public data class TempNode(
+    data class TempNode(
         val name: String,
         var size: Long = 0L,
         var fileIndex: Int? = null,
@@ -367,7 +367,7 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
     }
 
     // Recalculate directory sizes correctly (sum of children)
-    public fun calculateSizes(node: TempNode): Long {
+    fun calculateSizes(node: TempNode): Long {
         if (node.children.isEmpty()) return node.size
 
         val childrenSize = node.children.values.sumOf { calculateSizes(it) }
@@ -378,7 +378,7 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
     calculateSizes(rootTemp)
 
     // Convert to FileNode
-    public fun convert(
+    fun convert(
         temp: TempNode,
         parentPath: String,
     ): FileNode {

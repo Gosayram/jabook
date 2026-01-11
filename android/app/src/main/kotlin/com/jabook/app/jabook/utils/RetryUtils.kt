@@ -34,8 +34,8 @@ import kotlin.math.pow
  */
 public data class RetryConfig(
     val maxRetries: Int = 3,
-    val initialDelayMs: Int = L,
-    val maxDelayMs: Int = 120_000L,
+    val initialDelayMs: Long = 1000L,
+    val maxDelayMs: Long = 120_000L,
     val backoffMultiplier: Double = 2.0,
     val shouldRetry: (Throwable) -> Boolean = { it is java.io.IOException || it is java.net.SocketTimeoutException },
 ) {
@@ -66,7 +66,7 @@ public data class RetryConfig(
  * }
  * ```
  */
-suspend fun <T> retryWithBackoff(
+public suspend fun <T> retryWithBackoff(
     config: RetryConfig = RetryConfig(),
     block: suspend () -> T,
 ): T {
@@ -116,7 +116,7 @@ suspend fun <T> retryWithBackoff(
  * }
  * ```
  */
-suspend fun <T> retryWithBackoffResult(
+public suspend fun <T> retryWithBackoffResult(
     config: RetryConfig = RetryConfig(),
     block: suspend () -> T,
 ): Result<T> =

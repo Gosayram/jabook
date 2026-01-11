@@ -28,7 +28,7 @@ import com.jabook.app.jabook.R
  *
  * @param fontFamily The font family to use. Pass null to use system default fonts.
  */
-public fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
+public fun createTypography(fontFamily: FontFamily = FontFamily.Default): Typography =
     Typography(
         // Display styles (Premium: SemiBold for impact)
         displayLarge =
@@ -161,7 +161,7 @@ public fun createTypography(fontFamily: FontFamily = FontFamily.Default) =
  * Custom font family using Inter fonts from res/font/.
  * This is the default app font family.
  */
-val InterFontFamily =
+public val InterFontFamily: FontFamily =
     FontFamily(
         Font(R.font.inter_regular, FontWeight.Normal, FontStyle.Normal),
         Font(R.font.inter_medium, FontWeight.Medium, FontStyle.Normal),
@@ -170,4 +170,4 @@ val InterFontFamily =
     )
 
 // Default typography using app's custom Inter font family
-val Typography = createTypography(InterFontFamily)
+public val Typography: Typography = createTypography(InterFontFamily)

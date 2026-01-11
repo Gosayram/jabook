@@ -30,10 +30,10 @@ import com.jabook.app.jabook.R
  * Based on Now in Android's TopLevelDestination pattern.
  */
 public enum class TopLevelDestination(
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
-    @param:StringRes val iconTextId: Int,
-    @param:StringRes val titleTextId: Int,
+    public val selectedIcon: ImageVector,
+    public val unselectedIcon: ImageVector,
+    @param:StringRes public val iconTextId: Int,
+    @param:StringRes public val titleTextId: Int,
 ) {
     LIBRARY(
         selectedIcon = Icons.Filled.Home,

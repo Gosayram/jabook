@@ -47,17 +47,17 @@ public class FavoritesViewModel
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+        public val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
         // Sort order state
         private val _sortOrder = MutableStateFlow(BookSortOrder.RECENTLY_ADDED)
-        val sortOrder: StateFlow<BookSortOrder> = _sortOrder.asStateFlow()
+        public val sortOrder: StateFlow<BookSortOrder> = _sortOrder.asStateFlow()
 
         /**
          * All favorites with search and sort applied.
          * Combines online favorites (FavoriteEntity) and local library favorites (Book with isFavorite=true).
          */
-        val favorites: StateFlow<List<FavoriteEntity>> =
+        public val favorites: StateFlow<List<FavoriteEntity>> =
             combine(
                 favoritesRepository.allFavorites,
                 getFavoriteBooksUseCase(),
@@ -103,7 +103,7 @@ public class FavoritesViewModel
          * Set of favorite topic IDs for quick membership checks.
          * Combines online favorites and local library favorites.
          */
-        val favoriteIds: StateFlow<Set<String>> =
+        public val favoriteIds: StateFlow<Set<String>> =
             combine(
                 favoritesRepository.favoriteIds,
                 getFavoriteBooksUseCase(),
@@ -118,10 +118,10 @@ public class FavoritesViewModel
             )
 
         private val _isLoading = MutableStateFlow(false)
-        val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+        public val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
         private val _errorMessage = MutableStateFlow<String?>(null)
-        val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+        public val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
         /**
          * Add or remove an audiobook from favorites.

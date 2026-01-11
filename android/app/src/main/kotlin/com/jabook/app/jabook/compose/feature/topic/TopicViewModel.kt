@@ -52,7 +52,7 @@ import javax.inject.Inject
  * UI State for Topic Screen.
  */
 public sealed interface TopicUiState {
-    data object Loading : TopicUiState
+    public data object Loading : TopicUiState
 
     public data class Success(
         val details: RutrackerTopicDetails,
@@ -85,12 +85,12 @@ public class TopicViewModel
         private val topicId: String = savedStateHandle.toRoute<TopicRoute>().topicId
 
         private val _uiState = MutableStateFlow<TopicUiState>(TopicUiState.Loading)
-        val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
+        public val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
 
         private val _message = MutableStateFlow<String?>(null)
-        val message: StateFlow<String?> = _message.asStateFlow()
+        public val message: StateFlow<String?> = _message.asStateFlow()
 
-        val authStatus: StateFlow<AuthStatus> =
+        public val authStatus: StateFlow<AuthStatus> =
             authRepository.authStatus.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -98,11 +98,11 @@ public class TopicViewModel
             )
 
         private val _isRefreshing = MutableStateFlow(false)
-        val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+        public val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
         // Pagination state
         private val _isLoadingMoreComments = MutableStateFlow(false)
-        val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
+        public val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
 
         private val loadedComments = mutableListOf<com.jabook.app.jabook.compose.domain.model.RutrackerComment>()
         private var currentLoadedPage = 1
@@ -239,7 +239,7 @@ public class TopicViewModel
             }
         }
 
-        public fun refreshTopicDetails() {
+        public fun refreshTopicDetails(silent: Boolean = false) {
             viewModelScope.launch {
                 if (!silent) {
                     _uiState.value = TopicUiState.Loading
@@ -457,6 +457,13 @@ public class TopicViewModel
          * Copy magnet link to clipboard.
          */
         public fun copyMagnetLink() {
+            val currentState = _uiState.value
+            val magnetUrl = if (currentState is TopicUiState.Success) {
+                currentState.details.magnetUrl
+            } else {
+                null
+            }
+            
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return
@@ -473,6 +480,13 @@ public class TopicViewModel
          * Download via magnet link (if available).
          */
         public fun downloadViaMagnet() {
+            val currentState = _uiState.value
+            val magnetUrl = if (currentState is TopicUiState.Success) {
+                currentState.details.magnetUrl
+            } else {
+                null
+            }
+            
             if (magnetUrl.isNullOrBlank()) {
                 Log.e("TopicViewModel", "No magnet URL available")
                 return

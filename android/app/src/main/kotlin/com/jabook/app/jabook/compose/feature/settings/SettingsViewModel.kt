@@ -163,7 +163,7 @@ public class SettingsViewModel
             }
         }
 
-        public fun updateSortOrder(sortOrder: com.jabook.app.jabook.compose.domain.model.BookSortOrder) {
+        public fun updateSortOrder(sortOrder: com.jabook.app.jabook.compose.data.model.BookSortOrder) {
             viewModelScope.launch {
                 userPreferencesRepository.setSortOrder(sortOrder.name)
             }

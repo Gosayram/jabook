@@ -29,10 +29,10 @@ import javax.inject.Inject
 @AndroidEntryPoint
 public class TorrentActionReceiver : BroadcastReceiver() {
     @Inject
-    lateinit var torrentManager: TorrentManager
+    public lateinit var torrentManager: TorrentManager
 
     @Inject
-    lateinit var notificationManager: TorrentNotificationManager
+    public lateinit var notificationManager: TorrentNotificationManager
 
     override fun onReceive(
         context: Context,

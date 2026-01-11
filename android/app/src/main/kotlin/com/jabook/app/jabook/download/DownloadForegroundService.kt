@@ -95,7 +95,7 @@ public class DownloadForegroundService : Service() {
     }
 
     @Inject
-    lateinit var torrentManager: TorrentManager
+    public lateinit var torrentManager: TorrentManager
 
     private var notificationManager: AndroidNotificationManager? = null
     private var isServiceRunning = false

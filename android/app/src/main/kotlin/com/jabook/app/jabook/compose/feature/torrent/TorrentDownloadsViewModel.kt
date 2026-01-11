@@ -43,7 +43,7 @@ import javax.inject.Inject
  * UI state for torrent downloads screen
  */
 public sealed interface TorrentDownloadsUiState {
-    data object Loading : TorrentDownloadsUiState
+    public data object Loading : TorrentDownloadsUiState
 
     public data class Success(
         val activeDownloads: List<TorrentDownload>,
@@ -52,7 +52,7 @@ public sealed interface TorrentDownloadsUiState {
         val errorDownloads: List<TorrentDownload>,
     ) : TorrentDownloadsUiState
 
-    data object Empty : TorrentDownloadsUiState
+    public data object Empty : TorrentDownloadsUiState
 
     public data class Error(
         val message: String,
@@ -75,18 +75,18 @@ public class TorrentDownloadsViewModel
         // Init block moved below to use new prepareAddTorrent logic
 
         private val _snackbarEvent = Channel<String>()
-        val snackbarEvent = _snackbarEvent.receiveAsFlow()
+        public val snackbarEvent = _snackbarEvent.receiveAsFlow()
 
         // Selected download for details view
         private val _selectedDownload = MutableStateFlow<TorrentDownload?>(null)
-        val selectedDownload: StateFlow<TorrentDownload?> = _selectedDownload.asStateFlow()
+        public val selectedDownload: StateFlow<TorrentDownload?> = _selectedDownload.asStateFlow()
 
         // Filter state
         private val _showCompletedOnly = MutableStateFlow(false)
-        val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
+        public val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
 
         // UI state combining downloads from manager and repository
-        val uiState: StateFlow<TorrentDownloadsUiState> =
+        public val uiState: StateFlow<TorrentDownloadsUiState> =
             combine(
                 torrentManager.downloadsFlow,
                 repository.getAllFlow(),
@@ -147,7 +147,7 @@ public class TorrentDownloadsViewModel
         /**
          * Pause download
          */
-        public fun pauseDownload() {
+        public fun pauseDownload(hash: String) {
             viewModelScope.launch {
                 torrentManager.pauseTorrent(hash)
             }
@@ -156,7 +156,7 @@ public class TorrentDownloadsViewModel
         /**
          * Resume download
          */
-        public fun resumeDownload() {
+        public fun resumeDownload(hash: String) {
             viewModelScope.launch {
                 checkNetworkAndWarn()
                 torrentManager.resumeTorrent(hash)
@@ -261,7 +261,7 @@ public class TorrentDownloadsViewModel
             }
         }
 
-        public fun prepareAddTorrent() {
+        public fun prepareAddTorrent(magnetLink: String) {
             viewModelScope.launch {
                 val prefs = settingsRepository.userPreferences.first()
                 val defaultPath =
@@ -273,11 +273,11 @@ public class TorrentDownloadsViewModel
             }
         }
 
-        public fun updatePendingPath() {
+        public fun updatePendingPath(path: String) {
             _pendingDownloadPath.value = path
         }
 
-        public fun updatePendingPathFromUri() {
+        public fun updatePendingPathFromUri(uriString: String) {
             val path =
                 com.jabook.app.jabook.util.FileUtils
                     .resolvePathFromUri(uriString)
