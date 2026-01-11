@@ -41,6 +41,7 @@ public class CategoryParser
 
             // RuTracker audiobooks category ID
             public const val AUDIOBOOKS_CATEGORY_ID: String = "33"
+
             // CSS Selectors
             private const val CATEGORY_ROOT_PREFIX = "#c-"
             private const val FORUM_ROW_SELECTOR = "tr[id^=\"f-\"]"
@@ -92,7 +93,10 @@ public class CategoryParser
             try {
                 // Parse with baseUri for proper absolute URL resolution
                 // Using current mirror base URL for resolving relative links
-                public val baseUrl: String = "${mirrorManager.getBaseUrl()}/forum/"                public val document = Jsoup.parse(html, baseUrl)
+                public val baseUrl: String =
+                    "${mirrorManager.getBaseUrl()}/forum/" public
+
+                        val document = Jsoup.parse(html, baseUrl)
 
                 // Find audiobooks category (c=33)
                 public val audiobooksCategoryElement =

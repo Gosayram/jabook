@@ -1267,7 +1267,8 @@ public class RutrackerParser
 
             // Fallback: try to extract from text
             val seedText = document.select("span.seed, .seed").toStr()
-            val regex: String = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)            regex
+            val regex: String = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
+            regex
                 .find(seedText)
                 ?.groupValues
                 ?.get(1)

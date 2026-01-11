@@ -59,7 +59,7 @@ public sealed class IndexingProgress {
                     // Progress from current forum: estimate based on page number
                     // Use a conservative estimate: assume forums have varying page counts
                     // Current page gives us a rough estimate (normalized to max 50 pages per forum)
-                    
+
                     public val maxPagesPerForum: Int = 50f
                     public val currentForumPageProgress = (currentPage.toFloat() / maxPagesPerForum).coerceIn(0f, 1f)
                     val currentForumContribution = currentForumPageProgress / totalForums.toFloat()

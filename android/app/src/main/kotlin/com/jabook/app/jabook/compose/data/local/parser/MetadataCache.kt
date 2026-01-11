@@ -110,7 +110,7 @@ public class MetadataCache
          * Clear all cached metadata.
          * Useful for forced rescans.
          */
-        public fun clearCache() : Unit {
+        public fun clearCache() {
             cache.evictAll()
             android.util.Log.i("MetadataCache", "Cache cleared")
         }

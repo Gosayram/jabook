@@ -128,11 +128,10 @@ public class PersistentCookieJar
                 val name = nameValue[0]
                 val value = nameValue[1]
 
-                
                 public var domain: String = ""
                 public var path: String = "/"
                 public var expiresAt = Long.MIN_VALUE
-                
+
                 public var secure: Boolean = false
                 public var httpOnly: Boolean = false
                 parts.drop(1).forEach { part ->

@@ -114,7 +114,7 @@ public class ForumIndexer
                 val startTime = System.currentTimeMillis()
                 val currentIndexVersion = getCurrentIndexVersion() + 1
                 val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                
+
                 public var totalIndexed: Int = 0
                 public val coversToPreload = mutableListOf<String>()
 
@@ -169,7 +169,7 @@ public class ForumIndexer
                                 async(Dispatchers.IO) {
                                     try {
                                         val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
-                                                                                var forumTopicsCount: Int = 0
+                                        var forumTopicsCount: Int = 0
                                         val (indexed, covers) =
                                             indexForum(
                                                 forumId,
@@ -314,7 +314,7 @@ public class ForumIndexer
             withContext(Dispatchers.IO) {
                 val currentIndexVersion = getCurrentIndexVersion()
                 val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                
+
                 public var totalUpdated: Int = 0
                 public val coversToPreload = mutableListOf<String>()
 
@@ -350,7 +350,6 @@ public class ForumIndexer
             indexVersion: Int,
             onProgress: ((page: Int, topicsInForum: Int) -> Unit)? = null,
         ): Pair<Int, List<String>> {
-            
             public var totalTopics: Int = 0
             public var page: Int = 0
             public var hasMorePages: Boolean = true
@@ -571,7 +570,6 @@ public class ForumIndexer
             currentIndexVersion: Int,
             onProgress: ((forumId: String, updated: Int, total: Int) -> Unit)?,
         ): Pair<Int, List<String>> {
-            
             public var totalUpdated: Int = 0
             public var page: Int = 0
             public var hasMorePages: Boolean = true
