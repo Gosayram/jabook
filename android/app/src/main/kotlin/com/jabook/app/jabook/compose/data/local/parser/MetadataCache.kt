@@ -39,6 +39,7 @@ public class MetadataCache
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("MetadataCache")
+
         /**
          * Cached metadata with file validation info.
          */

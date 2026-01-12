@@ -38,8 +38,8 @@ public class EncodingDetector
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("EncodingDetector")
-        public companion object {
 
+        public companion object {
             // Supported encodings for Russian text
             // CRITICAL: Order matters! windows-1252 MUST come before windows-1251
             // to avoid false positives (1252 files being detected as 1251)

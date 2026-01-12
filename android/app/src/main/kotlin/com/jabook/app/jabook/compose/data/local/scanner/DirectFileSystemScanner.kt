@@ -97,8 +97,8 @@ public class DirectFileSystemScanner
                     // PHASE 2: GROUP by directory
                     val groupedByDir = fastFiles.groupBy { it.directory }
                     logger.i {
-                        "📚 Grouped into ${groupedByDir.size} books (by directory)",
-                    )
+                        "📚 Grouped into ${groupedByDir.size} books (by directory)"
+                    }
 
                     // PHASE 3: Parse metadata for ALL files (Fix for missing duration)
                     logger.i { "⚡ Phase 3: Parsing metadata (Full Scan)" }
