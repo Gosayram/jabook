@@ -298,7 +298,7 @@ public class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
-                        logger.e(e) { "❌ Error parsing row $index: $errorDetails" }
+                        logger.e({ "❌ Error parsing row $index: $errorDetails" }, e)
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -567,7 +567,7 @@ public class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
-                        logger.e(e) { "❌ Error parsing row $index: $errorDetails" }
+                        logger.e({ "❌ Error parsing row $index: $errorDetails" }, e)
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -591,9 +591,7 @@ public class RutrackerParser
                         e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                         else -> e.javaClass.simpleName
                     }
-                logger.e(e) {
-                    "❌ Failed to parse forum page: $errorDetails (HTML size: ${rawBytes.size} bytes)"
-                }
+                logger.e({ "❌ Failed to parse forum page: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
                 errors.add(
                     ParsingError(
                         field = "document",
@@ -672,7 +670,7 @@ public class RutrackerParser
                     val decodedHtml = decoder.decode(rawBytes, contentType)
                     extractForumNameFromHTML(decodedHtml)
                 } catch (e: Exception) {
-                    logger.w(e) { "Failed to extract forum name for forum $forumId" }
+                    logger.e({ "Failed to extract forum name for forum $forumId" }, e)
                     "Аудиокниги" // Fallback
                 }
 
@@ -730,7 +728,7 @@ public class RutrackerParser
                         }
                     }
                 } catch (e: Exception) {
-                    logger.w(e) { "Failed to check pagination for forum $forumId" }
+                    logger.e({ "Failed to check pagination for forum $forumId" }, e)
                     // Fallback: if we got topics and count matches TOPICS_PER_PAGE, likely more pages
                     topics.size >= 50
                 }
@@ -842,14 +840,14 @@ public class RutrackerParser
                             }
                         }
                     } catch (e: Exception) {
-                        logger.w(e) { "✗ Failed to parse row $idx" }
+                        logger.e({ "✗ Failed to parse row $idx" }, e)
                     }
                 }
 
                 logger.d { "✅ Successfully parsed ${results.size}/${rows.size} results" }
                 return results
             } catch (e: Exception) {
-                logger.e(e) { "❌ Failed to parse search results" }
+                logger.e({ "❌ Failed to parse search results" }, e)
                 return emptyList()
             }
         }
@@ -1187,7 +1185,7 @@ public class RutrackerParser
                     allMetadata = metadata,
                 )
             } catch (e: Exception) {
-                logger.e(e) { "Failed to parse topic details" }
+                logger.e({ "Failed to parse topic details" }, e)
                 return null
             }
         }
@@ -1558,7 +1556,7 @@ public class RutrackerParser
                 logger.d { "No forum name found, using fallback: 'Аудиокниги'" }
                 return "Аудиокниги"
             } catch (e: Exception) {
-                logger.w(e) { "Failed to extract forum name from HTML" }
+                logger.e({ "Failed to extract forum name from HTML" }, e)
                 return "Аудиокниги"
             }
         }
@@ -1949,7 +1947,7 @@ public class RutrackerParser
                     }
                 }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to extract comments" }
+                logger.e({ "Failed to extract comments" }, e)
             }
 
             // Return last 50 comments (most recent)
@@ -2196,7 +2194,7 @@ public class RutrackerParser
                 return com.jabook.app.jabook.compose.domain.model
                     .CaptchaData(url, sid)
             } catch (e: Exception) {
-                logger.e(e) { "Failed to parse captcha" }
+                logger.e({ "Failed to parse captcha" }, e)
                 return null
             }
         }

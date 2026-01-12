@@ -51,7 +51,7 @@ public val MIGRATION_14_15: Migration =
                 val duration = System.currentTimeMillis() - startTime
                 logger.i { "✅ Migration 14→15 completed: updated $updatedCount topics (${duration}ms)" }
             } catch (e: Exception) {
-                logger.e(e) { "❌ Migration 14→15 failed: ${e.message}" }
+                logger.e({ "❌ Migration 14→15 failed: ${e.message}" }, e)
                 throw e
             }
         }

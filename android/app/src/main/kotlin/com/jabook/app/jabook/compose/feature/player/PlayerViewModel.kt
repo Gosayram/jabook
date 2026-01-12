@@ -131,7 +131,7 @@ public class PlayerViewModel
                         }
                     }
                 } catch (e: Exception) {
-                    logger.w(e) { "Error restoring position from database" }
+                    logger.e({ "Error restoring position from database" }, e)
                 }
             }
         }
@@ -253,7 +253,7 @@ public class PlayerViewModel
                     }
                     lyricsState.value = null
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to load lyrics" }
+                    logger.e({ "Failed to load lyrics" }, e)
                     lyricsState.value = null
                 }
             }
@@ -292,7 +292,7 @@ public class PlayerViewModel
                 }
             } catch (e: Exception) {
                 // Ignore errors, keep default theme
-                logger.e(e) { "Failed to extract dynamic colors" }
+                logger.e({ "Failed to extract dynamic colors" }, e)
             }
         }
 

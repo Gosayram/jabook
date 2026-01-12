@@ -47,7 +47,7 @@ public class Media3MetadataParser
                     // Try KTagLib first (better tag support)
                     parseWithKTagLib(file) ?: parseWithMediaMetadataRetriever(filePath)
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to parse: $filePath" }
+                    logger.e({ "Failed to parse: $filePath" }, e)
                     null
                 }
             }
@@ -87,7 +87,7 @@ public class Media3MetadataParser
                     )
                 }
             } catch (e: Exception) {
-                logger.w(e) { "KTagLib parsing failed" }
+                logger.e({ "KTagLib parsing failed" }, e)
                 null
             }
         }
@@ -170,7 +170,7 @@ public class Media3MetadataParser
                     retriever.release()
                 }
             } catch (e: Exception) {
-                logger.e(e) { "MediaMetadataRetriever failed" }
+                logger.e({ "MediaMetadataRetriever failed" }, e)
                 null
             }
     }

@@ -63,7 +63,7 @@ public class MediaInfoParser
                     text = text,
                 )
             } catch (e: Exception) {
-                logger.e(e) { "Failed to parse MediaInfo" }
+                logger.e({ "Failed to parse MediaInfo" }, e)
                 return null
             }
         }

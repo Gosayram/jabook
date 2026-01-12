@@ -83,10 +83,10 @@ public class AuthRepositoryImpl
                     try {
                         authService.validateAuth()
                     } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                        logger.w(e) { "Auth validation timeout - provider may be blocking" }
+                        logger.e({ "Auth validation timeout - provider may be blocking" }, e)
                         false
                     } catch (e: Exception) {
-                        logger.w(e) { "Auth validation error" }
+                        logger.e({ "Auth validation error" }, e)
                         false
                     }
 
@@ -118,7 +118,7 @@ public class AuthRepositoryImpl
                         try {
                             login(stored)
                         } catch (e: Exception) {
-                            logger.w(e) { "Auto-relogin failed" }
+                            logger.e({ "Auto-relogin failed" }, e)
                         }
                     }
                 }
@@ -130,7 +130,7 @@ public class AuthRepositoryImpl
                     try {
                         login(stored)
                     } catch (e: Exception) {
-                        logger.w(e) { "Auto-login failed" }
+                        logger.e({ "Auto-login failed" }, e)
                         _authStatus.value = AuthStatus.Unauthenticated
                     }
                 } else {
@@ -158,12 +158,12 @@ public class AuthRepositoryImpl
                                 try {
                                     authService.validateAuth(operationId)
                                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                                    logger.w(e) { "[$operationId] Validation timeout - provider may be blocking" }
+                                    logger.e({ "[$operationId] Validation timeout - provider may be blocking" }, e)
                                     _authStatus.value =
                                         AuthStatus.Error("Таймаут при проверке авторизации. Возможно, провайдер блокирует соединение.")
                                     return@withLock Result.failure(Exception("Authentication validation timeout"))
                                 } catch (e: Exception) {
-                                    logger.w(e) { "[$operationId] Validation error" }
+                                    logger.e({ "[$operationId] Validation error" }, e)
                                     false
                                 }
 
@@ -173,7 +173,7 @@ public class AuthRepositoryImpl
                                     cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
                                     logger.d { "[$operationId] Cookies persisted to all layers" }
                                 } catch (e: Exception) {
-                                    logger.w(e) { "[$operationId] Cookie persistence failed" }
+                                    logger.e({ "[$operationId] Cookie persistence failed" }, e)
                                 }
 
                                 _authStatus.value = AuthStatus.Authenticated(credentials.username)
@@ -199,7 +199,7 @@ public class AuthRepositoryImpl
                         }
                     }
                 } catch (e: Exception) {
-                    logger.e(e) { "Login exception" }
+                    logger.e({ "Login exception" }, e)
                     _authStatus.value = AuthStatus.Error(e.message ?: "Unknown error")
                     Result.failure(e)
                 }
@@ -233,7 +233,7 @@ public class AuthRepositoryImpl
                                     cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
                                     logger.d { "[$operationId] Cookies persisted to all layers" }
                                 } catch (e: Exception) {
-                                    logger.w(e) { "[$operationId] Cookie persistence failed" }
+                                    logger.e({ "[$operationId] Cookie persistence failed" }, e)
                                 }
 
                                 _authStatus.value = AuthStatus.Authenticated(credentials.username)
@@ -257,7 +257,7 @@ public class AuthRepositoryImpl
                         }
                     }
                 } catch (e: Exception) {
-                    logger.e(e) { "Captcha login exception" }
+                    logger.e({ "Captcha login exception" }, e)
                     Result.failure(e)
                 }
             }

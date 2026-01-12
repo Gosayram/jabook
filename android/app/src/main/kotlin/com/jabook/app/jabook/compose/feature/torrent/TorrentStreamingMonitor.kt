@@ -153,13 +153,13 @@ public class TorrentStreamingMonitor
                             mediaController = controller
                             logger.d { "MediaController initialized" }
                         } catch (e: Exception) {
-                            logger.w(e) { "Failed to initialize MediaController" }
+                            logger.e({ "Failed to initialize MediaController" }, e)
                         }
                     },
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
-                logger.w(e) { "Failed to create MediaController" }
+                logger.e({ "Failed to create MediaController" }, e)
             }
         }
 

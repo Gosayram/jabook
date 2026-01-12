@@ -67,7 +67,7 @@ public class TorrentDownloadRepository
                 dao.insert(entity)
                 logger.d { "Saved torrent: ${download.hash}" }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to save torrent: ${download.hash}" }
+                logger.e({ "Failed to save torrent: ${download.hash}" }, e)
             }
         }
 
@@ -80,7 +80,7 @@ public class TorrentDownloadRepository
                 dao.insertAll(entities)
                 logger.d { "Saved ${downloads.size} torrents" }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to save torrents" }
+                logger.e({ "Failed to save torrents" }, e)
             }
         }
 
@@ -92,7 +92,7 @@ public class TorrentDownloadRepository
                 dao.deleteByHash(hash)
                 logger.d { "Deleted torrent: $hash" }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to delete torrent: $hash" }
+                logger.e({ "Failed to delete torrent: $hash" }, e)
             }
         }
 
@@ -106,7 +106,7 @@ public class TorrentDownloadRepository
             try {
                 dao.updateState(hash, state)
             } catch (e: Exception) {
-                logger.e(e) { "Failed to update state for: $hash" }
+                logger.e({ "Failed to update state for: $hash" }, e)
             }
         }
 
@@ -121,7 +121,7 @@ public class TorrentDownloadRepository
             try {
                 dao.updateProgress(hash, progress, downloadedSize)
             } catch (e: Exception) {
-                logger.e(e) { "Failed to update progress for: $hash" }
+                logger.e({ "Failed to update progress for: $hash" }, e)
             }
         }
 
@@ -133,7 +133,7 @@ public class TorrentDownloadRepository
                 dao.deleteAllCompleted()
                 logger.d { "Deleted all completed torrents" }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to delete completed torrents" }
+                logger.e({ "Failed to delete completed torrents" }, e)
             }
         }
     }

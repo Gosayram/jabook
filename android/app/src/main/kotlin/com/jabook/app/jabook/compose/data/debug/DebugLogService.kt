@@ -231,7 +231,7 @@ public class DebugLogService
 
                     logs.toString()
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to collect logs" }
+                    logger.e({ "Failed to collect logs" }, e)
                     "Error collecting logs: ${e.message}"
                 }
             }
@@ -258,7 +258,7 @@ public class DebugLogService
                         logFile,
                     )
                 } catch (e: IllegalArgumentException) {
-                    logger.e(e) { "FileProvider not configured properly. Please check AndroidManifest.xml" }
+                    logger.e({ "FileProvider not configured properly. Please check AndroidManifest.xml" }, e)
                     throw Exception(
                         "FileProvider not configured. Please add FileProvider configuration to AndroidManifest.xml. " +
                             "See: https://developer.android.com/reference/androidx/core/content/FileProvider",
@@ -306,13 +306,13 @@ public class DebugLogService
 
                     logger.i { "Share dialog opened for logs" }
                 } catch (e: android.content.ActivityNotFoundException) {
-                    logger.e(e) { "No app available to share logs" }
+                    logger.e({ "No app available to share logs" }, e)
                     throw Exception("No app available to share logs. Please install a file sharing app.")
                 } catch (e: SecurityException) {
-                    logger.e(e) { "Security exception when sharing logs" }
+                    logger.e({ "Security exception when sharing logs" }, e)
                     throw Exception("Permission denied. Please check app permissions.")
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to share logs" }
+                    logger.e({ "Failed to share logs" }, e)
                     throw Exception("Failed to share logs: ${e.message}")
                 }
             }
@@ -342,7 +342,7 @@ public class DebugLogService
 
                     logger.d { "Cleared $deletedCount old log files" }
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to clear old log files" }
+                    logger.e({ "Failed to clear old log files" }, e)
                 }
             }
 

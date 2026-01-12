@@ -76,7 +76,7 @@ public class RutrackerHeadersInterceptor
                 logger.d { "Device User-Agent: $ua" }
                 ua
             } catch (e: Exception) {
-                logger.e(e) { "Failed to get device User-Agent, using fallback" }
+                logger.e({ "Failed to get device User-Agent, using fallback" }, e)
                 // Fallback to a generic Android User-Agent if WebView is not available
                 val androidVersion = android.os.Build.VERSION.RELEASE
                 val model = android.os.Build.MODEL

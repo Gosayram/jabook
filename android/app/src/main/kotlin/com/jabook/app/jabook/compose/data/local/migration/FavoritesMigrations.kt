@@ -62,7 +62,7 @@ public val MIGRATION_6_7: Migration =
                 val duration = System.currentTimeMillis() - startTime
                 logger.i { "✅ Migration 6→7 completed successfully (${duration}ms)" }
             } catch (e: Exception) {
-                logger.e(e) { "❌ Migration 6→7 failed: ${e.message}" }
+                logger.e({ "❌ Migration 6→7 failed: ${e.message}" }, e)
                 throw e
             }
         }

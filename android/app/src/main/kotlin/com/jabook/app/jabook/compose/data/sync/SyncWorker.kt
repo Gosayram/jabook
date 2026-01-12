@@ -66,7 +66,7 @@ public class SyncWorker
                 logger.d { "Sync completed successfully" }
                 Result.success()
             } catch (e: Exception) {
-                logger.e(e) { "Sync failed" }
+                logger.e({ "Sync failed" }, e)
                 if (runAttemptCount < 3) {
                     Result.retry()
                 } else {
@@ -154,7 +154,7 @@ public class SyncWorker
                         }
                     }
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to sync metadata for topic $topicId" }
+                    logger.e({ "Failed to sync metadata for topic $topicId" }, e)
                 }
             }
         }
@@ -200,7 +200,7 @@ public class SyncWorker
                         logger.i { "Downloaded cover for ${book.title}" }
                     }
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to download cover for ${book.title}" }
+                    logger.e({ "Failed to download cover for ${book.title}" }, e)
                 }
             }
         }

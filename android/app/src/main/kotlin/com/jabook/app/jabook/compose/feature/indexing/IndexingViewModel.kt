@@ -109,7 +109,7 @@ public class IndexingViewModel
                             message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
                         )
                 } catch (e: Exception) {
-                    logger.e(e) { "Indexing failed" }
+                    logger.e({ "Indexing failed" }, e)
                     _indexingProgress.value =
                         IndexingProgress.Error(
                             message = e.message ?: "Unknown error",
@@ -181,7 +181,7 @@ public class IndexingViewModel
                 _clearingInProgress.value = false
                 true
             } catch (e: Exception) {
-                logger.e(e) { "Failed to clear index" }
+                logger.e({ "Failed to clear index" }, e)
                 _clearingInProgress.value = false
                 false
             }

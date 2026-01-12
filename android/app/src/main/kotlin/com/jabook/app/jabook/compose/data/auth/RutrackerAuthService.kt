@@ -529,7 +529,7 @@ public class RutrackerAuthService
                     if (e !is java.io.IOException && e !is java.net.SocketTimeoutException) {
                         throw e
                     }
-                    logger.w(e) { "Operation failed, retrying in ${currentDelay}ms (attempt ${attempt + 1}/$times)" }
+                    logger.e({ "Operation failed, retrying in ${currentDelay}ms (attempt ${attempt + 1}/$times)" }, e)
                     kotlinx.coroutines.delay(currentDelay)
                     currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelay)
                 }

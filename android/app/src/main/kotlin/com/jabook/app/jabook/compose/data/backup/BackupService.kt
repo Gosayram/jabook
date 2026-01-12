@@ -97,7 +97,7 @@ public class BackupService
                         file,
                     )
                 } catch (e: Exception) {
-                    logger.e(e) { "Export failed" }
+                    logger.e({ "Export failed" }, e)
                     throw e
                 }
             }
@@ -158,7 +158,7 @@ public class BackupService
                     logger.d { "Import complete: $stats" }
                     stats
                 } catch (e: Exception) {
-                    logger.e(e) { "Import failed" }
+                    logger.e({ "Import failed" }, e)
                     throw e
                 }
             }
@@ -243,7 +243,7 @@ public class BackupService
                         }
                     }
                 } catch (e: Exception) {
-                    logger.w(e) { "Could not get BuildConfig.APPLICATION_ID, using versionName fallback" }
+                    logger.e({ "Could not get BuildConfig.APPLICATION_ID, using versionName fallback" }, e)
                     // Fallback: determine from versionName suffix
                     when {
                         versionName.endsWith("-dev") -> "dev"
@@ -406,7 +406,7 @@ public class BackupService
                     )
                 }
             } catch (e: Exception) {
-                logger.w(e) { "Failed to collect favorites" }
+                logger.e({ "Failed to collect favorites" }, e)
                 return emptyList()
             }
         }
@@ -497,7 +497,7 @@ public class BackupService
 
                 logger.d { "All settings restored successfully" }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to restore some settings" }
+                logger.e({ "Failed to restore some settings" }, e)
                 // Don't throw, allow partial restore
             }
         }
@@ -538,7 +538,7 @@ public class BackupService
                             ),
                         )
                     } catch (e: Exception) {
-                        logger.w(e) { "Failed to restore timestamps for ${backup.id}" }
+                        logger.e({ "Failed to restore timestamps for ${backup.id}" }, e)
                     }
                 } else {
                     // Insert new book (stub for history)
@@ -573,7 +573,7 @@ public class BackupService
                             ),
                         )
                     } catch (e: Exception) {
-                        logger.w(e) { "Failed to restore timestamps for new book ${backup.id}" }
+                        logger.e({ "Failed to restore timestamps for new book ${backup.id}" }, e)
                     }
                 }
             }

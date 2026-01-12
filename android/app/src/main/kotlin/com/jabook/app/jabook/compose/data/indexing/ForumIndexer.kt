@@ -198,7 +198,7 @@ public class ForumIndexer
                                         topicsIndexedAtomic.addAndGet(indexed)
                                         Pair(indexed, covers)
                                     } catch (e: Exception) {
-                                        logger.e(e) { "Failed to index forum $forumId" }
+                                        logger.e({ "Failed to index forum $forumId" }, e)
                                         onProgress?.invoke(
                                             IndexingProgress.Error(
                                                 message = "Failed to index forum $forumId: ${e.message}",

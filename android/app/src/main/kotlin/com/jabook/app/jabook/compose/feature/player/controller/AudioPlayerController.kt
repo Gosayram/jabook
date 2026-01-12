@@ -299,7 +299,7 @@ public class AudioPlayerController
                                 initializeFromExoPlayer()
                             }
                         } catch (e: Exception) {
-                            logger.e(e) { "Error initializing MediaController" }
+                            logger.e({ "Error initializing MediaController" }, e)
                             // Fallback: initialize from exoPlayer
                             initializeFromExoPlayer()
                         }
@@ -307,7 +307,7 @@ public class AudioPlayerController
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
-                logger.e(e) { "Failed to create MediaController" }
+                logger.e({ "Failed to create MediaController" }, e)
                 if (retryCount < maxRetries) {
                     // Retry after delay
                     scope.launch {
@@ -441,7 +441,7 @@ public class AudioPlayerController
                         }
                     }
                 } catch (e: Exception) {
-                    logger.e(e) { "Error in loadBook" }
+                    logger.e({ "Error in loadBook" }, e)
                 }
             }
         }

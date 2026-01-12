@@ -144,9 +144,7 @@ public class DynamicBaseUrlInterceptor
                         (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) ||
                         (e.message?.contains("No address associated with hostname", ignoreCase = true) == true)
 
-                logger.e(e) {
-                    "❌ Request failed with exception: ${e.javaClass.simpleName} - ${e.message} (${requestDuration}ms) - ${originalUrl.encodedPath}"
-                }
+                logger.e({ "❌ Request failed with exception: ${e.javaClass.simpleName} - ${e.message} (${requestDuration}ms) - ${originalUrl.encodedPath}" }, e)
 
                 // Check if auto-switch is enabled before attempting mirror switch
                 val autoSwitchEnabled =

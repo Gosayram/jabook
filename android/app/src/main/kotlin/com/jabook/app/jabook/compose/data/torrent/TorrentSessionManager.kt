@@ -115,7 +115,7 @@ public class TorrentSessionManager
                         }
                     } catch (e: Exception) {
                         // Catch any exceptions in alert handling to prevent crashes
-                        logger.e(e) { "Error handling alert: ${alert.type().name}" }
+                        logger.e({ "Error handling alert: ${alert.type().name}" }, e)
                     }
                 }
             }
@@ -138,19 +138,19 @@ public class TorrentSessionManager
                     Class.forName("org.libtorrent4j.swig.alert")
                     logger.d { "libtorrent4j classes are available" }
                 } catch (e: NoClassDefFoundError) {
-                    logger.e(e) { "libtorrent4j classes not available - version mismatch" }
+                    logger.e({ "libtorrent4j classes not available - version mismatch" }, e)
                     session = null
                     return
                 } catch (e: LinkageError) {
-                    logger.e(e) { "libtorrent4j linkage error during class check" }
+                    logger.e({ "libtorrent4j linkage error during class check" }, e)
                     session = null
                     return
                 } catch (e: NoSuchMethodError) {
-                    logger.e(e) { "libtorrent4j native method not found - version mismatch" }
+                    logger.e({ "libtorrent4j native method not found - version mismatch" }, e)
                     session = null
                     return
                 } catch (e: Exception) {
-                    logger.w(e) { "Could not verify libtorrent4j classes, proceeding anyway" }
+                    logger.e({ "Could not verify libtorrent4j classes, proceeding anyway" }, e)
                 }
 
                 // Log libtorrent version for debugging (as shown in examples)
@@ -158,7 +158,7 @@ public class TorrentSessionManager
                     val version = LibTorrent.version()
                     logger.i { "Using libtorrent version: $version" }
                 } catch (e: Exception) {
-                    logger.w(e) { "Could not get libtorrent version" }
+                    logger.e({ "Could not get libtorrent version" }, e)
                 }
 
                 val settings =
@@ -203,26 +203,26 @@ public class TorrentSessionManager
 
                 logger.i { "Torrent session initialized successfully" }
             } catch (e: NoClassDefFoundError) {
-                logger.e(e) { "libtorrent4j classes not available - version mismatch" }
+                logger.e({ "libtorrent4j classes not available - version mismatch" }, e)
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue without torrent functionality
                 // User will see error when trying to download
             } catch (e: LinkageError) {
-                logger.e(e) { "libtorrent4j linkage error - version mismatch" }
+                logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue without torrent functionality
                 // User will see error when trying to download
             } catch (e: NoSuchMethodError) {
-                logger.e(e) { "libtorrent4j version mismatch - native library incompatible" }
+                logger.e({ "libtorrent4j version mismatch - native library incompatible" }, e)
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue without torrent functionality
                 // User will see error when trying to download
             } catch (e: UnsatisfiedLinkError) {
-                logger.e(e) { "Failed to load libtorrent4j native library" }
+                logger.e({ "Failed to load libtorrent4j native library" }, e)
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue
             } catch (e: Exception) {
-                logger.e(e) { "Failed to initialize torrent session" }
+                logger.e({ "Failed to initialize torrent session" }, e)
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue
             }
@@ -243,7 +243,7 @@ public class TorrentSessionManager
                     try {
                         initSession()
                     } catch (e: Exception) {
-                        logger.e(e) { "Failed to initialize session for addTorrent" }
+                        logger.e({ "Failed to initialize session for addTorrent" }, e)
                     }
                     return@run this.session
                 } ?: return Result.failure(
@@ -1136,7 +1136,7 @@ public class TorrentSessionManager
                         ?.lowercase()
                 }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to parse magnet hash from: $magnetUri" }
+                logger.e({ "Failed to parse magnet hash from: $magnetUri" }, e)
                 null
             }
     }

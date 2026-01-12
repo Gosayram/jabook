@@ -61,7 +61,7 @@ public object DatabaseModule {
                     val duration = System.currentTimeMillis() - startTime
                     logger.i { "✅ Migration $startVersion→$endVersion completed successfully (${duration}ms)" }
                 } catch (e: Exception) {
-                    logger.e(e) { "❌ Migration $startVersion→$endVersion failed: ${e.message}" }
+                    logger.e({ "❌ Migration $startVersion→$endVersion failed: ${e.message}" }, e)
                     throw e
                 }
             }
@@ -384,7 +384,7 @@ public object DatabaseModule {
             }
         } catch (e: Exception) {
             // BuildConfig not available, skip query callback
-            logger.d(e) { "BuildConfig not available, skipping query callback" }
+            logger.e({ "BuildConfig not available, skipping query callback" }, e)
         }
 
         return builder.build()

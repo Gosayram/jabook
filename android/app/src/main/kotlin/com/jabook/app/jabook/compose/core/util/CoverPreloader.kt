@@ -158,7 +158,7 @@ private class CoverPreloader(
                     coverPreloaderLogger.v { "Preloaded cover for: ${book.title}" }
                 } catch (e: Exception) {
                     // Silently fail - covers will load on demand
-                    coverPreloaderLogger.d(e) { "Failed to preload cover for ${book.title}" }
+                    coverPreloaderLogger.e({ "Failed to preload cover for ${book.title}" }, e)
                 }
             }
 

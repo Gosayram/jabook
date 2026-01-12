@@ -85,7 +85,7 @@ public class AuthInterceptor
                                 null
                             }
                         } catch (e: Exception) {
-                            logger.e(e) { "Error during automatic re-authentication" }
+                            logger.e({ "Error during automatic re-authentication" }, e)
                             null
                         }
                     }

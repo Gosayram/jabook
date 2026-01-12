@@ -139,7 +139,7 @@ public class TorrentDownloadsViewModel
                         )
                     }
                 } catch (e: Exception) {
-                    logger.e(e) { "Error processing downloads" }
+                    logger.e({ "Error processing downloads" }, e)
                     TorrentDownloadsUiState.Error(e.message ?: "Unknown error")
                 }
             }.stateIn(

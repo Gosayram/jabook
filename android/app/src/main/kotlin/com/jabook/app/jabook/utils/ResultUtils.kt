@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.utils
 
-import com.jabook.app.jabook.compose.domain.model.Result
+import com.jabook.app.jabook.audio.core.result.Result
 
 /**
  * Result extension utilities (inspired by Flow pattern).

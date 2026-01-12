@@ -75,12 +75,12 @@ public class TorrentManager
                 // Start observing network constraints
                 observeNetworkConstraints()
             } catch (e: NoSuchMethodError) {
-                logger.e(e) { "libtorrent4j version mismatch - native library incompatible" }
+                logger.e({ "libtorrent4j version mismatch - native library incompatible" }, e)
                 // Don't throw - allow app to continue without torrent functionality
                 // User will see error when trying to download
                 isInitialized = false
             } catch (e: Exception) {
-                logger.e(e) { "Failed to initialize" }
+                logger.e({ "Failed to initialize" }, e)
                 // Don't throw - allow app to continue
                 isInitialized = false
             }
@@ -240,7 +240,7 @@ public class TorrentManager
                 isInitialized = false
                 logger.i { "TorrentManager shut down" }
             } catch (e: Exception) {
-                logger.e(e) { "Error during shutdown" }
+                logger.e({ "Error during shutdown" }, e)
             }
         }
 
@@ -253,7 +253,7 @@ public class TorrentManager
                         throw IllegalStateException("TorrentManager initialization failed - libtorrent4j may not be available")
                     }
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to ensure initialization" }
+                    logger.e({ "Failed to ensure initialization" }, e)
                     throw IllegalStateException("TorrentManager not initialized: ${e.message}", e)
                 }
             }
@@ -276,7 +276,7 @@ public class TorrentManager
                 // Service might already be running or context is invalid
                 logger.w { "Cannot start foreground service (may already be running): ${e.message}" }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to start download service" }
+                logger.e({ "Failed to start download service" }, e)
             }
         }
 
@@ -288,7 +288,7 @@ public class TorrentManager
                     }
                 context.startService(intent)
             } catch (e: Exception) {
-                logger.e(e) { "Failed to stop download service" }
+                logger.e({ "Failed to stop download service" }, e)
             }
         }
 

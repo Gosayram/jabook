@@ -206,9 +206,7 @@ public class LibraryScanWorker
                                                         }
                                                     }
                                                 } catch (e: Exception) {
-                                                    logger.w(e) {
-                                                        "Failed to extract embedded cover for ${book.title}"
-                                                    }
+                                                    logger.e({ "Failed to extract embedded cover for ${book.title}" }, e)
                                                 } finally {
                                                     retriever.release()
                                                 }
@@ -246,7 +244,7 @@ public class LibraryScanWorker
                                             },
                                         )
                                     } catch (e: Exception) {
-                                        logger.e(e) { "Error processing book ${book.title}" }
+                                        logger.e({ "Error processing book ${book.title}" }, e)
                                     }
                                 }
 
@@ -286,7 +284,7 @@ public class LibraryScanWorker
                         // Return failure so it doesn't retry automatically if cancelled by user/watchdog
                         return@withContext ListenableWorker.Result.failure()
                     }
-                    logger.e(e) { "Scan failed" }
+                    logger.e({ "Scan failed" }, e)
                     ListenableWorker.Result.failure(
                         workDataOf("error" to (e.message ?: applicationContext.getString(R.string.libraryUnknownError))),
                     )

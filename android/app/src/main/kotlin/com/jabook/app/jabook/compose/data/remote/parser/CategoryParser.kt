@@ -142,7 +142,7 @@ public class CategoryParser
                     else -> ParsingResult.Failure(errors, emptyList())
                 }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to parse categories" }
+                logger.e({ "Failed to parse categories" }, e)
                 errors.add(
                     ParsingError(
                         field = "document",

@@ -68,7 +68,7 @@ public class MediaStoreBookScanner
                     _scanProgress.value = ScanProgress.Saving
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {
-                    logger.e(e) { "Scan failed" }
+                    logger.e({ "Scan failed" }, e)
                     _scanProgress.value = ScanProgress.Error(e.message ?: "Unknown error")
                     Result.Error(e)
                 }
@@ -149,7 +149,7 @@ public class MediaStoreBookScanner
                 // Actually IS_AUDIOBOOK was added in API 29.
                 // If running on older API, this might throw IllegalArgumentException "Invalid column IS_AUDIOBOOK".
                 // We should safeguard the selection string.
-                logger.e(e) { "Error querying MediaStore" }
+                logger.e({ "Error querying MediaStore" }, e)
                 return emptyList()
             }
 

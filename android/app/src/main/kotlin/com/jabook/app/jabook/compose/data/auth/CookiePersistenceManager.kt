@@ -75,7 +75,7 @@ public class CookiePersistenceManager
                     )
                     logger.d { "✓ Cookies saved to database" }
                 } catch (e: Exception) {
-                    logger.e(e) { "✗ Failed to save to database" }
+                    logger.e({ "✗ Failed to save to database" }, e)
                 }
 
                 // Layer 2: Android WebView CookieManager
@@ -98,7 +98,7 @@ public class CookiePersistenceManager
                     cookieManager.flush()
                     logger.d { "✓ Cookies synced to WebView CookieManager" }
                 } catch (e: Exception) {
-                    logger.e(e) { "✗ Failed to sync to WebView" }
+                    logger.e({ "✗ Failed to sync to WebView" }, e)
                 }
 
                 // Layer 3: SecureStorage (encrypted)
@@ -107,7 +107,7 @@ public class CookiePersistenceManager
                     // If not, we'll skip this layer or add the method
                     logger.d { "◎ SecureStorage layer skipped (method not available)" }
                 } catch (e: Exception) {
-                    logger.e(e) { "✗ Failed to save to SecureStorage" }
+                    logger.e({ "✗ Failed to save to SecureStorage" }, e)
                 }
 
                 logger.i { "Multi-stage persist complete for $url" }
@@ -126,7 +126,7 @@ public class CookiePersistenceManager
                         return@withContext parseCookieHeader(url, entity.cookieHeader)
                     }
                 } catch (e: Exception) {
-                    logger.w(e) { "Failed to restore from database" }
+                    logger.e({ "Failed to restore from database" }, e)
                 }
 
                 // Layer 2: WebView CookieManager (skipped in favor of direct Database/CookieJar)
@@ -169,7 +169,7 @@ public class CookiePersistenceManager
                         logger.d { "No cookies in WebView for $url" }
                     }
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to sync from WebView" }
+                    logger.e({ "Failed to sync from WebView" }, e)
                 }
             }
 
@@ -189,7 +189,7 @@ public class CookiePersistenceManager
                         CookieManager.getInstance().flush()
                         logger.d { "Cleared WebView cookies" }
                     } catch (e: Exception) {
-                        logger.w(e) { "Failed to clear WebView cookies" }
+                        logger.e({ "Failed to clear WebView cookies" }, e)
                     }
 
                     // Clear CookieJar
@@ -198,7 +198,7 @@ public class CookiePersistenceManager
 
                     logger.i { "All cookies cleared from all layers" }
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to clear cookies" }
+                    logger.e({ "Failed to clear cookies" }, e)
                 }
             }
 
@@ -229,7 +229,7 @@ public class CookiePersistenceManager
                                 .build()
                         cookies.add(cookie)
                     } catch (e: Exception) {
-                        logger.w(e) { "Failed to parse cookie: $name=$value" }
+                        logger.e({ "Failed to parse cookie: $name=$value" }, e)
                     }
                 }
             }

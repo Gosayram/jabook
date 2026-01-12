@@ -49,7 +49,7 @@ public class CacheManager
                     val externalCache = context.externalCacheDir?.walkFileTree()?.sumOf { it.length() } ?: 0L
                     appCache + externalCache
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to calculate cache size" }
+                    logger.e({ "Failed to calculate cache size" }, e)
                     0L
                 }
             }
@@ -76,7 +76,7 @@ public class CacheManager
                         lastCleanup = getLastCleanupTimestamp(),
                     )
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to get cache statistics" }
+                    logger.e({ "Failed to get cache statistics" }, e)
                     CacheStatistics(
                         totalSize = 0L,
                         searchCacheSize = 0L,
@@ -103,7 +103,7 @@ public class CacheManager
                         imageLoader.memoryCache?.clear()
                         logger.d { "Coil memory cache cleared" }
                     } catch (e: Exception) {
-                        logger.w(e) { "Failed to clear Coil memory cache" }
+                        logger.e({ "Failed to clear Coil memory cache" }, e)
                     }
 
                     // Clear cache directories (includes Coil disk cache in image_cache/)
@@ -115,10 +115,10 @@ public class CacheManager
                     context.externalCacheDir?.mkdirs()
 
                     saveLastCleanupTimestamp()
-                    Log.d(TAG, "All cache cleared successfully")
+                    logger.d { "All cache cleared successfully" }
                     true
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to clear cache", e)
+                    logger.e({ "Failed to clear cache" }, e)
                     false
                 }
             }
@@ -138,10 +138,10 @@ public class CacheManager
             withContext(Dispatchers.IO) {
                 try {
                     rutrackerSearchCache.clear()
-                    Log.d(TAG, "Search cache cleared successfully")
+                    logger.d { "Search cache cleared successfully" }
                     true
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to clear search cache", e)
+                    logger.e({ "Failed to clear search cache" }, e)
                     false
                 }
             }
@@ -151,10 +151,10 @@ public class CacheManager
                 try {
                     database.offlineSearchDao().deleteAllTopics()
                     database.offlineSearchDao().deleteAllMappings()
-                    Log.d(TAG, "Topic cache cleared successfully")
+                    logger.d { "Topic cache cleared successfully" }
                     true
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to clear topic cache", e)
+                    logger.e({ "Failed to clear topic cache" }, e)
                     false
                 }
             }
@@ -165,10 +165,10 @@ public class CacheManager
                     val tempDir = File(context.cacheDir, "downloads")
                     val result = tempDir.deleteRecursively()
                     tempDir.mkdirs()
-                    Log.d(TAG, "Temp downloads cleared: $result")
+                    logger.d { "Temp downloads cleared: $result" }
                     result
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to clear temp downloads", e)
+                    logger.e({ "Failed to clear temp downloads" }, e)
                     false
                 }
             }
@@ -184,10 +184,10 @@ public class CacheManager
                     logFiles?.forEach { file ->
                         if (file.delete()) cleared++
                     }
-                    Log.d(TAG, "Log files cleared: $cleared")
+                    logger.d { "Log files cleared: $cleared" }
                     true
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to clear log files", e)
+                    logger.e({ "Failed to clear log files" }, e)
                     false
                 }
             }
@@ -249,7 +249,7 @@ public class CacheManager
                         0L
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to get image cache size", e)
+                    logger.e({ "Failed to get image cache size" }, e)
                     0L
                 }
             }
@@ -264,9 +264,6 @@ public class CacheManager
             prefs.edit().putLong("last_cleanup", System.currentTimeMillis()).apply()
         }
 
-        public companion object {
-            private const val TAG = "CacheManager"
-        }
     }
 
 /**

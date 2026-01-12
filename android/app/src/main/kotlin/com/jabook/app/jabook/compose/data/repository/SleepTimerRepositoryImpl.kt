@@ -111,13 +111,13 @@ public class SleepTimerRepositoryImpl
                             mediaController = controller
                             logger.d { "MediaController initialized" }
                         } catch (e: Exception) {
-                            logger.w(e) { "Failed to initialize MediaController" }
+                            logger.e({ "Failed to initialize MediaController" }, e)
                         }
                     },
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
-                logger.w(e) { "Failed to create MediaController" }
+                logger.e({ "Failed to create MediaController" }, e)
             }
         }
 
@@ -162,7 +162,7 @@ public class SleepTimerRepositoryImpl
                         }
                     }
                 } catch (e: Exception) {
-                    logger.w(e) { "Failed to get timer state via MediaController" }
+                    logger.e({ "Failed to get timer state via MediaController" }, e)
                     SleepTimerState.Idle
                 }
 
@@ -192,7 +192,7 @@ public class SleepTimerRepositoryImpl
                             _timerState.value = SleepTimerState.Active(durationMinutes * 60)
                         }
                     } catch (e: Exception) {
-                        logger.e(e) { "Failed to set sleep timer" }
+                        logger.e({ "Failed to set sleep timer" }, e)
                     }
                 } else {
                     logger.w { "MediaController not available for startTimer" }
@@ -217,7 +217,7 @@ public class SleepTimerRepositoryImpl
                             _timerState.value = SleepTimerState.EndOfChapter
                         }
                     } catch (e: Exception) {
-                        logger.e(e) { "Failed to set sleep timer end of chapter" }
+                        logger.e({ "Failed to set sleep timer end of chapter" }, e)
                     }
                 } else {
                     logger.w { "MediaController not available for startTimerEndOfChapter" }
@@ -242,7 +242,7 @@ public class SleepTimerRepositoryImpl
                             _timerState.value = SleepTimerState.Idle
                         }
                     } catch (e: Exception) {
-                        logger.e(e) { "Failed to cancel sleep timer" }
+                        logger.e({ "Failed to cancel sleep timer" }, e)
                     }
                 } else {
                     logger.w { "MediaController not available for cancelTimer" }

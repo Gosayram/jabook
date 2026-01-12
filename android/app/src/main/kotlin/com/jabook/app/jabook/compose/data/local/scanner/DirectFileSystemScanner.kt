@@ -207,7 +207,7 @@ public class DirectFileSystemScanner
                         logger.i { "Scan cancelled" }
                         throw e
                     }
-                    logger.e(e) { "Scan failed" }
+                    logger.e({ "Scan failed" }, e)
                     _scanProgress.value = ScanProgress.Error(e.message ?: "Unknown error")
                     Result.Error(e)
                 } finally {
@@ -243,7 +243,7 @@ public class DirectFileSystemScanner
                     }
                 }
             } catch (e: SecurityException) {
-                logger.w(e) { "Cannot access directory: ${directory.path}" }
+                logger.e({ "Cannot access directory: ${directory.path}" }, e)
             }
         }
 
@@ -319,7 +319,7 @@ public class DirectFileSystemScanner
                     scanDirectoryParallel(subdir, result, semaphore)
                 }
             } catch (e: SecurityException) {
-                logger.w(e) { "Cannot access directory: ${directory.path}" }
+                logger.e({ "Cannot access directory: ${directory.path}" }, e)
             }
         }
 
@@ -347,7 +347,7 @@ public class DirectFileSystemScanner
                     title = metadata?.title,
                 )
             } catch (e: Exception) {
-                logger.w(e) { "Failed to parse: ${file.name}" }
+                logger.e({ "Failed to parse: ${file.name}" }, e)
                 null
             }
 

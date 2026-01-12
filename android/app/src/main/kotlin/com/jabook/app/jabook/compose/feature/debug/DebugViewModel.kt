@@ -69,13 +69,13 @@ public class DebugViewModel
                         loadCacheStats()
                         refreshAuthDebugInfo()
                     } catch (e: Exception) {
-                        logger.e(e) { "Failed to initialize debug data" }
+                        logger.e({ "Failed to initialize debug data" }, e)
                         _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
                     }
                 }
             } catch (e: Exception) {
                 // Handle case when initialization fails
-                logger.e(e) { "Failed to post initialization" }
+                logger.e({ "Failed to post initialization" }, e)
                 _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
             }
         }
@@ -97,13 +97,13 @@ public class DebugViewModel
                         }
                     } catch (e: Exception) {
                         // Handle case when logger.withOperation itself throws an exception
-                        logger.e(e) { "Failed to initialize log loading operation" }
+                        logger.e({ "Failed to initialize log loading operation" }, e)
                         _uiState.value = DebugUiState.Error("Failed to initialize log loading: ${e.message}")
                     }
                 }
             } catch (e: Exception) {
                 // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
-                logger.e(e) { "Failed to launch loadLogs coroutine" }
+                logger.e({ "Failed to launch loadLogs coroutine" }, e)
                 _uiState.value = DebugUiState.Error("Failed to start log loading: ${e.message}")
             }
         }
@@ -131,7 +131,7 @@ public class DebugViewModel
                 try {
                     debugLogService.clearOldLogFiles()
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to clear old log files" }
+                    logger.e({ "Failed to clear old log files" }, e)
                 }
             }
         }
@@ -212,7 +212,7 @@ public class DebugViewModel
                         }
                     } catch (e: Exception) {
                         // Handle case when logger.withOperation itself throws an exception
-                        logger.e(e) { "Failed to initialize auth debug info operation" }
+                        logger.e({ "Failed to initialize auth debug info operation" }, e)
                         val errorInfo =
                             com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                                 isAuthenticated = false,
@@ -226,7 +226,7 @@ public class DebugViewModel
                 }
             } catch (e: Exception) {
                 // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
-                logger.e(e) { "Failed to launch refreshAuthDebugInfo coroutine" }
+                logger.e({ "Failed to launch refreshAuthDebugInfo coroutine" }, e)
                 val errorInfo =
                     com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
                         isAuthenticated = false,
@@ -251,7 +251,7 @@ public class DebugViewModel
                             // Re-throw cancellation to propagate timeout
                             throw e
                         } catch (e: Exception) {
-                            logger.w(e) { "Failed to get available mirrors from Flow, using defaults" }
+                            logger.e({ "Failed to get available mirrors from Flow, using defaults" }, e)
                             com.jabook.app.jabook.compose.data.network.MirrorManager.DEFAULT_MIRRORS
                         }
 
@@ -302,7 +302,7 @@ public class DebugViewModel
                 // Re-throw cancellation to allow proper cleanup
                 throw e
             } catch (e: Exception) {
-                logger.e(e) { "Unexpected error during mirror check" }
+                logger.e({ "Unexpected error during mirror check" }, e)
                 emptyMap()
             }
 
@@ -318,18 +318,16 @@ public class DebugViewModel
                         val stats = rutrackerRepository.getCacheStatistics()
                         _cacheStats.value = stats
                     } catch (e: NullPointerException) {
-                        logger.e(e) {
-                            "NullPointerException while loading cache stats - repository or cache may not be initialized"
-                        }
+                        logger.e({ "NullPointerException while loading cache stats - repository or cache may not be initialized" }, e)
                         _cacheStats.value = null
                     } catch (e: Exception) {
-                        logger.e(e) { "Failed to load cache stats" }
+                        logger.e({ "Failed to load cache stats" }, e)
                         _cacheStats.value = null
                     }
                 }
             } catch (e: Exception) {
                 // Handle case when viewModelScope.launch fails (e.g., viewModelScope not ready)
-                logger.e(e) { "Failed to launch loadCacheStats coroutine" }
+                logger.e({ "Failed to launch loadCacheStats coroutine" }, e)
                 _cacheStats.value = null
             }
         }
@@ -340,7 +338,7 @@ public class DebugViewModel
                     rutrackerRepository.clearSearchCache()
                     loadCacheStats()
                 } catch (e: Exception) {
-                    logger.e(e) { "Failed to clear cache" }
+                    logger.e({ "Failed to clear cache" }, e)
                 }
             }
         }

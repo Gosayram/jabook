@@ -129,7 +129,7 @@ public class LibTorrentDownloader
                     activeTorrents.remove(torrentUrl)
                     filePath
                 } catch (e: Exception) {
-                    logger.e(e) { "Download failed" }
+                    logger.e({ "Download failed" }, e)
                     activeTorrents.remove(torrentUrl)
                     throw e
                 }
@@ -181,7 +181,7 @@ public class LibTorrentDownloader
 
                 logger.d { "Streaming ready - can play immediately!" }
             } catch (e: Exception) {
-                logger.e(e) { "Failed to configure streaming" }
+                logger.e({ "Failed to configure streaming" }, e)
             }
         }
     }
