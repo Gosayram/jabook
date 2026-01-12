@@ -49,8 +49,8 @@ public class MirrorManager
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("MirrorManager")
-        public companion object {
 
+        public companion object {
             /**
              * Default list of RuTracker mirrors.
              */

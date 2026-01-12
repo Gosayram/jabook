@@ -50,8 +50,8 @@ public class RutrackerParser
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("RutrackerParser")
-        public companion object {
 
+        public companion object {
             // CSS Selectors for search results - UPDATED for 2025 based on robust Dart implementation
             // Primary and fallback selectors for rows
             // Note: Some forums may have td.vf-col-icon, so we need to handle parent tr

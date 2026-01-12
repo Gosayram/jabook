@@ -157,21 +157,21 @@ public class RutrackerRepository
                     val entities = offlineSearchDao.searchIndexedTopics(query, limit)
                     val dbDuration = System.currentTimeMillis() - searchStartTime
 
-                    logger.i { "DB query completed: ${entities.size} entities returned in ${dbDuration}ms")
+                    logger.i { "DB query completed: ${entities.size} entities returned in ${dbDuration}ms" }
 
                     // Diagnostic: if no results, check why
                     if (entities.isEmpty()) {
-                        logger.w { "⚠️ Zero results from DB - running diagnostics...")
+                        logger.w { "⚠️ Zero results from DB - running diagnostics..." }
                         val totalTopics = offlineSearchDao.getTopicCount()
                         val topicsWithCategory = offlineSearchDao.getTopicsWithNonEmptyCategory()
-                        logger.w { "Total topics in DB: $totalTopics")
-                        logger.w { "Topics with non-empty category: $topicsWithCategory")
-                        logger.w { "Topics filtered by category constraint: ${totalTopics - topicsWithCategory}")
+                        logger.w { "Total topics in DB: $totalTopics" }
+                        logger.w { "Topics with non-empty category: $topicsWithCategory" }
+                        logger.w { "Topics filtered by category constraint: ${totalTopics - topicsWithCategory}" }
 
                         // Sample a few topics to see what's in DB
                         val sampleTopics = offlineSearchDao.getSampleTopics(5)
                         sampleTopics.forEachIndexed { i, topic ->
-                            logger.d { "Sample[$i]: title='${topic.title.take(40)}', category='${topic.category}'")
+                            logger.d { "Sample[$i]: title='${topic.title.take(40)}', category='${topic.category}'" }
                         }
                     }
 
@@ -220,8 +220,11 @@ public class RutrackerRepository
 
                     domainResults
                 } catch (e: Exception) {
-                    logger.e { "❌ Indexed search EXCEPTION for query '$query': ${e.message}", e)
-                    logger.e { "Exception type: ${e.javaClass.simpleName}, stack trace below")
+                    logger.e(
+                        { "❌ Indexed search EXCEPTION for query '$query': ${e.message}" },
+                        e,
+                    )
+                    logger.e { "Exception type: ${e.javaClass.simpleName}, stack trace below" }
                     emptyList()
                 }
             }
@@ -243,8 +246,8 @@ public class RutrackerRepository
         ): Flow<Result<List<RutrackerSearchResult>>> =
             flow {
                 val currentMirror = mirrorManager.getCurrentMirrorDomain()
-                logger.i { "🔍 Index-only search started: query='$query', forumIds=$forumIds")
-                logger.i { "Using mirror: $currentMirror")
+                logger.i { "🔍 Index-only search started: query='$query', forumIds=$forumIds" }
+                logger.i { "Using mirror: $currentMirror" }
 
                 try {
                     // Check if index exists and has data
@@ -303,7 +306,7 @@ public class RutrackerRepository
                                 }
                         }
                     } else {
-                        logger.w { "⚠️ Index is empty ($indexSize topics). Returning empty results.")
+                        logger.w { "⚠️ Index is empty ($indexSize topics). Returning empty results." }
                         emit(Result.success(emptyList()))
                     }
                 } catch (e: Exception) {
@@ -328,11 +331,11 @@ public class RutrackerRepository
                     val details = result.getOrNull()
                     val coverUrl: String? = details?.coverUrl
                     if (!coverUrl.isNullOrBlank()) {
-                        logger.d { "Updating cover for $topicId: $coverUrl")
+                        logger.d { "Updating cover for $topicId: $coverUrl" }
                         offlineSearchDao.updateCoverUrl(topicId, coverUrl)
                         Result.success(Unit)
                     } else {
-                        logger.d { "No cover found for $topicId")
+                        logger.d { "No cover found for $topicId" }
                         Result.success(Unit)
                     }
                 } else {
@@ -353,18 +356,18 @@ public class RutrackerRepository
             logger.log(opId, "Fetching from network: query='$query', forumIds=$forumIds")
             logger.log(opId, "Current mirror: $currentMirror")
             // === HTTP REQUEST LOGGING ===
-            logger.w { "🔍 === SEARCH REQUEST ===")
-            logger.w { "Query: '$query'")
-            logger.w { "Mirror: $currentMirror")
+            logger.w { "🔍 === SEARCH REQUEST ===" }
+            logger.w { "Query: '$query'" }
+            logger.w { "Mirror: $currentMirror" }
             if (forumIds != null) {
-                logger.w { "Forum IDs: $forumIds")
+                logger.w { "Forum IDs: $forumIds" }
             }
 
             val response = api.searchTopics(query, forumIds)
 
             // Log request details
             val requestUrl = response.raw().request.url
-            logger.w { "Request URL: $requestUrl")
+            logger.w { "Request URL: $requestUrl" }
 
             // === HTTP RESPONSE LOGGING ===
             val networkDuration = System.currentTimeMillis() - networkStartTime
@@ -378,7 +381,7 @@ public class RutrackerRepository
                         403 -> RuTrackerError.Forbidden
                         404 -> RuTrackerError.NotFound
                         400 -> {
-                            logger.w { "⚠️ HTTP 400 Bad Request for query '$query' - returning empty list instead of error")
+                            logger.w { "⚠️ HTTP 400 Bad Request for query '$query' - returning empty list instead of error" }
                             // For bad request, return empty list instead of error
                             // This prevents showing confusing error to user
                             if (operationId == null) logger.endOperation(opId, success = false)
@@ -393,13 +396,13 @@ public class RutrackerRepository
 
             // Log important headers
             val headers = response.headers()
-            logger.w { "Headers:")
+            logger.w { "Headers:" }
             listOf("content-type", "content-encoding", "content-length", "location", "set-cookie").forEach { name ->
                 headers[name]?.let { value ->
                     if (name == "set-cookie") {
-                        logger.w { "  $name: ${value.take(50)}...")
+                        logger.w { "  $name: ${value.take(50)}..." }
                     } else {
-                        logger.w { "  $name: $value")
+                        logger.w { "  $name: $value" }
                     }
                 }
             }
@@ -408,9 +411,9 @@ public class RutrackerRepository
             // Note: BrotliInterceptor removes "Content-Encoding: br" header after decompression,
             // so if we see it here, BrotliInterceptor didn't process it (shouldn't happen)
             val contentEncoding = headers["Content-Encoding"]
-            logger.w { "🔍 Content-Encoding: $contentEncoding")
+            logger.w { "🔍 Content-Encoding: $contentEncoding" }
             if (contentEncoding != null && contentEncoding.contains("br", ignoreCase = true)) {
-                logger.w { "⚠️ WARNING: Content-Encoding still contains 'br' - BrotliInterceptor may not have processed it!")
+                logger.w { "⚠️ WARNING: Content-Encoding still contains 'br' - BrotliInterceptor may not have processed it!" }
             }
 
             // CRITICAL: ResponseBody can only be read once!
@@ -418,22 +421,22 @@ public class RutrackerRepository
             // Note: OkHttp BrotliInterceptor automatically decompresses Brotli responses
             // After decompression, we get raw bytes that need to be decoded with Windows-1251
             val rawBytes = response.body()?.bytes() ?: ByteArray(0)
-            logger.w { "📦 Response Size: ${rawBytes.size} bytes (should be decompressed if was Brotli)")
+            logger.w { "📦 Response Size: ${rawBytes.size} bytes (should be decompressed if was Brotli)" }
 
             // Check if bytes look like compressed data (Brotli magic bytes)
             if (rawBytes.isNotEmpty()) {
                 val firstBytes = rawBytes.take(4).toByteArray()
                 val hexPreview = firstBytes.joinToString(" ") { "%02x".format(it) }
-                logger.w { "🔍 First 4 bytes (hex): $hexPreview")
+                logger.w { "🔍 First 4 bytes (hex): $hexPreview" }
 
                 // Brotli magic bytes: 0x81, 0x1B (or similar)
                 // Gzip magic bytes: 0x1F, 0x8B
                 val looksLikeBrotli = rawBytes[0] == 0x81.toByte() && rawBytes[1] == 0x1B.toByte()
                 val looksLikeGzip = rawBytes[0] == 0x1F.toByte() && rawBytes[1] == 0x8B.toByte()
-                logger.w { "🔍 Looks like Brotli: $looksLikeBrotli, Gzip: $looksLikeGzip")
+                logger.w { "🔍 Looks like Brotli: $looksLikeBrotli, Gzip: $looksLikeGzip" }
 
                 if (looksLikeBrotli || looksLikeGzip) {
-                    logger.e { "⚠️ WARNING: Data appears to be compressed but OkHttp didn't decompress it!")
+                    logger.e { "⚠️ WARNING: Data appears to be compressed but OkHttp didn't decompress it!" }
                 }
 
                 // Check if bytes look like HTML (should start with < or whitespace before <)
@@ -444,12 +447,12 @@ public class RutrackerRepository
                             it == 0x09.toByte() ||
                             it == 0x0A.toByte()
                     }
-                logger.w { "🔍 Looks like HTML (contains '<' or whitespace): $startsWithHtml")
+                logger.w { "🔍 Looks like HTML (contains '<' or whitespace): $startsWithHtml" }
 
                 // Try to see if it's valid Windows-1251 (Cyrillic range)
                 val sample = rawBytes.take(1000)
                 val hasCyrillicBytes = sample.any { it.toInt() and 0xFF in 0xC0..0xFF } // Windows-1251 Cyrillic range
-                logger.w { "🔍 Has potential Cyrillic bytes (0xC0-0xFF): $hasCyrillicBytes")
+                logger.w { "🔍 Has potential Cyrillic bytes (0xC0-0xFF): $hasCyrillicBytes" }
             }
 
             // HTML preview (first 300 chars) - try both UTF-8 and Windows-1251
@@ -470,8 +473,8 @@ public class RutrackerRepository
                 } catch (e: Exception) {
                     "ERROR: ${e.message}"
                 }
-            logger.w { "📄 Response Start (UTF-8): $htmlPreviewUtf8...")
-            logger.w { "📄 Response Start (CP1251): $htmlPreviewCp1251...")
+            logger.w { "📄 Response Start (UTF-8): $htmlPreviewUtf8..." }
+            logger.w { "📄 Response Start (CP1251): $htmlPreviewCp1251..." }
 
             // Get Content-Type for encoding detection
             // Note: After BrotliInterceptor decompression, bytes are ready for charset decoding
@@ -553,9 +556,9 @@ public class RutrackerRepository
                         }
 
                     if (isBadRequest) {
-                        logger.w { "⚠️ Bad request or validation error detected in parsing result for query '$query'")
-                        logger.w { "   Returning empty list instead of error to prevent user confusion")
-                        logger.w { "   Error details: $errorMessage")
+                        logger.w { "⚠️ Bad request or validation error detected in parsing result for query '$query'" }
+                        logger.w { "   Returning empty list instead of error to prevent user confusion" }
+                        logger.w { "   Error details: $errorMessage" }
                         // Return empty list instead of error for bad request
                         // This prevents showing "bad request" error to user when it's just an empty/invalid result
                         if (operationId == null) logger.endOperation(opId, success = false, "Bad request - returning empty")
@@ -585,7 +588,7 @@ public class RutrackerRepository
                     val dbSaveStartTime = System.currentTimeMillis()
                     offlineSearchDao.saveSearchResults(query, entities)
                     val dbSaveDuration = System.currentTimeMillis() - dbSaveStartTime
-                    logger.d { "💾 Saved ${entities.size} results to DB cache (query: '$query', ${dbSaveDuration}ms)")
+                    logger.d { "💾 Saved ${entities.size} results to DB cache (query: '$query', ${dbSaveDuration}ms)" }
                 } catch (e: Exception) {
                     logger.e { "Failed to save to DB", e)
                 }

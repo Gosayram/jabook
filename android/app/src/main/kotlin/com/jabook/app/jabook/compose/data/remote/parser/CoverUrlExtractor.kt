@@ -35,8 +35,8 @@ public class CoverUrlExtractor
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("CoverUrlExtractor")
-        public companion object {
 
+        public companion object {
             // Icon/smiley blacklist patterns
             private val ICON_PATTERNS =
                 listOf(

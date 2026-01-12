@@ -35,6 +35,7 @@ public class RutrackerSimpleDecoder
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("RutrackerSimpleDecoder")
+
         public companion object {
             private val CP1251 = Charset.forName("windows-1251")
             private val UTF8 = Charsets.UTF_8

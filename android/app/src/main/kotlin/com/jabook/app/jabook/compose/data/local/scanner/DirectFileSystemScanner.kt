@@ -53,6 +53,7 @@ public class DirectFileSystemScanner
         private val loggerFactory: LoggerFactory,
     ) : LocalBookScanner {
         private val logger = loggerFactory.get("DirectFileSystemScanner")
+
         /**
          * Fast file info without metadata parsing.
          * Used for initial quick scan before metadata parsing.

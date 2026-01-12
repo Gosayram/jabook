@@ -46,6 +46,7 @@ public class HybridBookScanner
         private val loggerFactory: LoggerFactory,
     ) : LocalBookScanner {
         private val logger = loggerFactory.get("HybridBookScanner")
+
         // Merge progress from both scanners (one is active at a time)
         override val scanProgress: kotlinx.coroutines.flow.StateFlow<ScanProgress> =
             merge(mediaStoreScanner.scanProgress, directScanner.scanProgress)

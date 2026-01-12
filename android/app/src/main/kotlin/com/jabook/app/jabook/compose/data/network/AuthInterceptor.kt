@@ -34,6 +34,7 @@ public class AuthInterceptor
         private val loggerFactory: LoggerFactory,
     ) : Interceptor {
         private val logger = loggerFactory.get("AuthInterceptor")
+
         public companion object {
             private const val LOGIN_PAGE_MARKER = "login.php"
         }

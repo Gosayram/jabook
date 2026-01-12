@@ -35,6 +35,7 @@ public class DynamicBaseUrlInterceptor
         private val loggerFactory: LoggerFactory,
     ) : Interceptor {
         private val logger = loggerFactory.get("DynamicBaseUrlInterceptor")
+
         public companion object {
             private const val RUTRACKER_HOST_SUFFIX = "rutracker"
         }

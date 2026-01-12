@@ -47,6 +47,7 @@ public class RetryInterceptor
         private val loggerFactory: LoggerFactory,
     ) : Interceptor {
         private val logger = loggerFactory.get("RetryInterceptor")
+
         public companion object {
             private const val MAX_RETRIES = 3
             private const val INITIAL_DELAY_MS = 500L

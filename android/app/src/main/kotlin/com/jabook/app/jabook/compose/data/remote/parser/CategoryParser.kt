@@ -38,8 +38,8 @@ public class CategoryParser
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("CategoryParser")
-        public companion object {
 
+        public companion object {
             // RuTracker audiobooks category ID
             public const val AUDIOBOOKS_CATEGORY_ID: String = "33"
 

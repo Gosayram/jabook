@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.data.remote.mapper
 
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.model.Comment
 import com.jabook.app.jabook.compose.data.remote.model.RelatedBook
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
@@ -38,7 +37,9 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
  * Note: Extension functions cannot use dependency injection, so we create logger directly.
  */
 private val mapperLogger: com.jabook.app.jabook.compose.core.logger.Logger =
-    com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl().get("RutrackerMapper")
+    com.jabook.app.jabook.compose.core.logger
+        .LoggerFactoryImpl()
+        .get("RutrackerMapper")
 
 /**
  * Maps SearchResult DTO to RutrackerSearchResult domain model.

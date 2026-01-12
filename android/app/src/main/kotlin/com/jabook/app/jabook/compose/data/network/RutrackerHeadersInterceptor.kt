@@ -50,8 +50,8 @@ public class RutrackerHeadersInterceptor
         private val loggerFactory: LoggerFactory,
     ) : Interceptor {
         private val logger = loggerFactory.get("RutrackerHeaders")
-        public companion object {
 
+        public companion object {
             private const val ACCEPT =
                 "text/html,application/xhtml+xml,application/xml;q=0.9," +
                     "image/avif,image/webp,image/apng,*/*;q=0.8"
