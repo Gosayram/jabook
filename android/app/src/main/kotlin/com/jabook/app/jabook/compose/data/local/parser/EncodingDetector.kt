@@ -411,10 +411,8 @@ public class EncodingDetector
 
                         if (conf > 0.6 && conf > currentConf) { // Threshold 0.6
                             logger.e {
-                                "Fixed garbled text: $source -> $target (confidence: $conf | original: ${cleanText.take(
-                                    50,
-                                )})",
-                            )
+                                "Fixed garbled text: $source -> $target (confidence: $conf | original: ${cleanText.take(50)})"
+                            }
                             return Pair(fixed, "$source->$target")
                         }
                     } catch (e: Exception) {
