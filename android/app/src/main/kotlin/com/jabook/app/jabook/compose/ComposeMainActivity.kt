@@ -18,9 +18,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -28,7 +25,9 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /**
  * Compose UI Activity for testing parallel Compose implementation.

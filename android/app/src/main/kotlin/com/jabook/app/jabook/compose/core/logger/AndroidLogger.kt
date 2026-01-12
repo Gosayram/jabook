@@ -43,7 +43,10 @@ public class AndroidLogger(
         }
     }
 
-    override fun e(message: () -> String, throwable: Throwable?) {
+    override fun e(
+        message: () -> String,
+        throwable: Throwable?,
+    ) {
         if (minLevel <= LogLevel.ERROR) {
             if (throwable != null) {
                 Log.e(tag, message(), throwable)
@@ -77,9 +80,16 @@ public class AndroidLogger(
  */
 public object NoOpLogger : Logger {
     override fun d(message: () -> String) {}
-    override fun e(message: () -> String, throwable: Throwable?) {}
+
+    override fun e(
+        message: () -> String,
+        throwable: Throwable?,
+    ) {}
+
     override fun i(message: () -> String) {}
+
     override fun w(message: () -> String) {}
+
     override fun v(message: () -> String) {}
 }
 
@@ -88,6 +98,7 @@ public object NoOpLogger : Logger {
  */
 public object NoOpLoggerFactory : LoggerFactory {
     override fun get(tag: String): Logger = NoOpLogger
+
     override fun get(clazz: kotlin.reflect.KClass<*>): Logger = NoOpLogger
 }
 
@@ -99,13 +110,10 @@ public class LoggerFactoryImpl(
 ) : LoggerFactory {
     private val loggers = mutableMapOf<String, Logger>()
 
-    override fun get(tag: String): Logger {
-        return loggers.getOrPut(tag) {
+    override fun get(tag: String): Logger =
+        loggers.getOrPut(tag) {
             AndroidLogger(tag, minLevel)
         }
-    }
 
-    override fun get(clazz: kotlin.reflect.KClass<*>): Logger {
-        return get(clazz.simpleName ?: "Unknown")
-    }
+    override fun get(clazz: kotlin.reflect.KClass<*>): Logger = get(clazz.simpleName ?: "Unknown")
 }

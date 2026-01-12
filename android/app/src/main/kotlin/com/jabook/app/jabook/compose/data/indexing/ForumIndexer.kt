@@ -15,9 +15,9 @@
 package com.jabook.app.jabook.compose.data.indexing
 
 import android.content.Context
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
@@ -75,6 +75,7 @@ public class ForumIndexer
         @param:ApplicationContext private val context: Context,
     ) {
         private val logger = loggerFactory.get("ForumIndexer")
+
         // Background scope for non-blocking operations (cover preloading)
         private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

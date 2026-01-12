@@ -38,6 +38,7 @@ public class CacheManager
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("CacheManager")
+
         /**
          * Get total cache size in bytes.
          */

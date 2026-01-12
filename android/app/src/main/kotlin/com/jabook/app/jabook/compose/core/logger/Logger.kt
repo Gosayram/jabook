@@ -33,7 +33,10 @@ public interface Logger {
      *
      * @param throwable Optional throwable to log
      */
-    public fun e(message: () -> String, throwable: Throwable? = null)
+    public fun e(
+        message: () -> String,
+        throwable: Throwable? = null,
+    )
 
     /**
      * Log info message.

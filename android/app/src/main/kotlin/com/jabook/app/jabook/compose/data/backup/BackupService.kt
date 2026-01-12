@@ -55,6 +55,7 @@ public class BackupService
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("BackupService")
+
         public companion object {
             private const val CURRENT_VERSION = "1.0.0"
         }

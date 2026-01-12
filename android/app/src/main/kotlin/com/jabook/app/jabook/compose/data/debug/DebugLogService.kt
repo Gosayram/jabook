@@ -43,6 +43,7 @@ public class DebugLogService
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("DebugLogService")
+
         public companion object {
             private const val LOG_FILE_PREFIX = "jabook_logs"
             private const val MAX_LOG_LINES = 5000

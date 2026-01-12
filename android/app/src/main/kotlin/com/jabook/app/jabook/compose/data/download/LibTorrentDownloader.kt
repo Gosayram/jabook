@@ -48,6 +48,7 @@ public class LibTorrentDownloader
         private val loggerFactory: LoggerFactory,
     ) : TorrentDownloader {
         private val logger = loggerFactory.get("LibTorrentDownloader")
+
         public companion object {
             // Streaming configuration
             private const val PRIORITY_PIECES_PERCENT = 0.05f // First 5% = TOP_PRIORITY

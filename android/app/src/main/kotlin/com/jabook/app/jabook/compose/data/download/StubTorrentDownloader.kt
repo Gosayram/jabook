@@ -30,6 +30,7 @@ public class StubTorrentDownloader
         private val loggerFactory: LoggerFactory,
     ) : TorrentDownloader {
         private val logger = loggerFactory.get("StubTorrentDownloader")
+
         public companion object {
             private const val TOTAL_STEPS = 100
             private const val STEP_DELAY_MS = 50L // 5 seconds total for demo
