@@ -16,8 +16,8 @@ package com.jabook.app.jabook.compose.data.sync
 
 import android.content.Context
 import androidx.work.CoroutineWorker
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import androidx.work.WorkerParameters
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 
 /**
  * Worker for periodic data synchronization.
@@ -44,6 +44,7 @@ public class SyncWorker
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
         private val logger = loggerFactory.get("SyncWorker")
+
         public companion object {
             public const val WORK_NAME: String = "sync_work"
             private const val CACHE_TTL_DAYS = 7L

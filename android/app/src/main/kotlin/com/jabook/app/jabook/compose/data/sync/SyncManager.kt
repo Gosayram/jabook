@@ -16,11 +16,11 @@ package com.jabook.app.jabook.compose.data.sync
 
 import android.content.Context
 import androidx.work.Constraints
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -39,6 +39,7 @@ public class SyncManager
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("SyncManager")
+
         public companion object {
             private const val SYNC_INTERVAL_HOURS = 6L
         }

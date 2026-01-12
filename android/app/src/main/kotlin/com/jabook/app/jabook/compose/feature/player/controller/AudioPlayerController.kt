@@ -26,10 +26,10 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -326,7 +326,7 @@ public class AudioPlayerController
          * Fallback initialization from ExoPlayer during migration period.
          */
         private fun initializeFromExoPlayer() {
-            logger.w { "Using ExoPlayer fallback during MediaController initialization")
+            logger.w { "Using ExoPlayer fallback during MediaController initialization" }
             // Attach listener to singleton ExoPlayer as fallback
             exoPlayer.addListener(mediaControllerListener)
             // Initialize state
@@ -380,7 +380,7 @@ public class AudioPlayerController
                         // Retry loadBook with ready MediaController
                         loadBook(filePaths, initialChapterIndex, initialPosition, autoPlay, metadata, bookId)
                     } else {
-                        logger.e { "MediaController not available after retry")
+                        logger.e { "MediaController not available after retry" }
                     }
                 }
                 return
@@ -493,11 +493,11 @@ public class AudioPlayerController
             try {
                 // Check if MediaController is already connected (service is running)
                 if (mediaController != null) {
-                    logger.d { "MediaController connected, service already running")
+                    logger.d { "MediaController connected, service already running" }
                     return
                 }
 
-                logger.i { "Starting AudioPlayerService...")
+                logger.i { "Starting AudioPlayerService..." }
                 val intent = Intent(context, AudioPlayerService::class.java)
                 // Use startService instead of startForegroundService.
                 // Since the app is in the foreground, we are allowed to start the service.
@@ -509,12 +509,15 @@ public class AudioPlayerController
                 scope.launch {
                     kotlinx.coroutines.delay(500L) // Wait for service to initialize
                     if (mediaController == null) {
-                        logger.d { "Retrying MediaController initialization after service start")
+                        logger.d { "Retrying MediaController initialization after service start" }
                         initMediaController()
                     }
                 }
             } catch (e: Exception) {
-                logger.e { "Failed to start service", e)
+                logger.e(
+                    { "Failed to start service" },
+                    e,
+                )
             }
         }
 

@@ -23,9 +23,9 @@ import coil3.SingletonImageLoader
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCase
 import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
@@ -75,6 +75,7 @@ public class PlayerViewModel
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
         private val logger = loggerFactory.get("PlayerViewModel")
+
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
         private val bookId = args.bookId

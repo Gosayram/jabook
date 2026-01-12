@@ -96,6 +96,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
@@ -114,7 +115,6 @@ import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
-import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 
 /**
  * Logger for PlayerScreen Composable functions.

@@ -231,9 +231,10 @@ public class RutrackerRepositoryImpl
                 }
 
                 // Get raw bytes and decode as Windows-1251
-                val rawBytes = response.body()?.bytes() ?: return Result.Error(
-                    AppError.NetworkError("Empty response body"),
-                )
+                val rawBytes =
+                    response.body()?.bytes() ?: return Result.Error(
+                        AppError.NetworkError("Empty response body"),
+                    )
                 val html = String(rawBytes, charset("windows-1251"))
 
                 val dtoDetails =
@@ -299,9 +300,10 @@ public class RutrackerRepositoryImpl
                     )
                 }
 
-                val rawBytes = response.body()?.bytes() ?: return Result.Error(
-                    AppError.NetworkError("Empty response body"),
-                )
+                val rawBytes =
+                    response.body()?.bytes() ?: return Result.Error(
+                        AppError.NetworkError("Empty response body"),
+                    )
                 val html = String(rawBytes, charset("windows-1251"))
 
                 val dtoDetails =

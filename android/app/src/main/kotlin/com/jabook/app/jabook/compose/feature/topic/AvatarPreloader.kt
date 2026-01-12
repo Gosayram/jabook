@@ -17,11 +17,11 @@ package com.jabook.app.jabook.compose.feature.topic
 import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import androidx.compose.ui.graphics.Color
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import androidx.compose.ui.graphics.toArgb
 import coil3.SingletonImageLoader
 import coil3.asImage
 import coil3.request.ImageRequest
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.RutrackerComment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

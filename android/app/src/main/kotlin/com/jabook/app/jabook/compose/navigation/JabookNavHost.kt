@@ -27,6 +27,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
@@ -34,7 +35,6 @@ import com.jabook.app.jabook.compose.feature.search.SearchScreen
 import com.jabook.app.jabook.compose.feature.settings.SettingsScreen
 import com.jabook.app.jabook.compose.feature.topic.TopicScreen
 import com.jabook.app.jabook.compose.feature.webview.WebViewScreen
-import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 
 /**
  * Logger for Navigation.

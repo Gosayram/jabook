@@ -61,12 +61,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
-
-/**
- * Logger for SearchScreen Composable functions.
- */
-private val searchScreenLogger = LoggerFactoryImpl().get("SearchScreen")
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -75,12 +69,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
 import kotlinx.coroutines.launch
+
+/**
+ * Logger for SearchScreen Composable functions.
+ */
+private val searchScreenLogger = LoggerFactoryImpl().get("SearchScreen")
 
 /**
  * Search screen for finding audiobooks.

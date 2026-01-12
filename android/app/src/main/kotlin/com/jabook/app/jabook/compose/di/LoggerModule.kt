@@ -15,9 +15,9 @@
 package com.jabook.app.jabook.compose.di
 
 import com.jabook.app.jabook.BuildConfig
+import com.jabook.app.jabook.compose.core.logger.LogLevel
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
-import com.jabook.app.jabook.compose.core.logger.LogLevel
 import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
 import dagger.Module
 import dagger.Provides
@@ -36,11 +36,10 @@ import javax.inject.Singleton
 public object LoggerModule {
     @Provides
     @Singleton
-    public fun provideLoggerFactory(): LoggerFactory {
-        return if (BuildConfig.DEBUG) {
+    public fun provideLoggerFactory(): LoggerFactory =
+        if (BuildConfig.DEBUG) {
             LoggerFactoryImpl(LogLevel.DEBUG)
         } else {
             NoOpLoggerFactory
         }
-    }
 }

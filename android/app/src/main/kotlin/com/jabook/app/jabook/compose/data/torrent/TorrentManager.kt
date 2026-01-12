@@ -47,6 +47,7 @@ public class TorrentManager
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("TorrentManager")
+
         /** Current downloads */
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
             get() = sessionManager.downloadsFlow

@@ -256,7 +256,10 @@ public class RutrackerRepository
                             try {
                                 offlineSearchDao.getTopicCount()
                             } catch (e: Exception) {
-                                logger.e { "Failed to get topic count", e)
+                                logger.e(
+                                    { "Failed to get topic count" },
+                                    e,
+                                )
                                 0
                             }
                         }
@@ -310,11 +313,17 @@ public class RutrackerRepository
                         emit(Result.success(emptyList()))
                     }
                 } catch (e: Exception) {
-                    logger.e { "❌ Indexed search failed for query '$query'", e)
+                    logger.e(
+                        { "❌ Indexed search failed for query '$query'" },
+                        e,
+                    )
                     emit(Result.success(emptyList()))
                 }
             }.catch { e ->
-                logger.e { "Search flow error", e)
+                logger.e(
+                    { "Search flow error" },
+                    e,
+                )
                 emit(Result.success(emptyList()))
             }
 
@@ -540,8 +549,8 @@ public class RutrackerRepository
                     parsingResult.errors.take(5).forEachIndexed { index, error ->
                         logger.e {
                             "  Error[$index]: ${error.field} - ${error.reason} " +
-                                "(severity: ${error.severity})",
-                        )
+                                "(severity: ${error.severity})"
+                        }
                     }
                     if (parsingResult.errors.size > 5) {
                         logger.e { "  ... and ${parsingResult.errors.size - 5} more errors" }
@@ -590,7 +599,10 @@ public class RutrackerRepository
                     val dbSaveDuration = System.currentTimeMillis() - dbSaveStartTime
                     logger.d { "💾 Saved ${entities.size} results to DB cache (query: '$query', ${dbSaveDuration}ms)" }
                 } catch (e: Exception) {
-                    logger.e { "Failed to save to DB", e)
+                    logger.e(
+                        { "Failed to save to DB" },
+                        e,
+                    )
                 }
             }
         }
@@ -740,7 +752,10 @@ public class RutrackerRepository
                     val response = api.getProfile()
                     response.isSuccessful
                 } catch (e: Exception) {
-                    logger.w { "Auth check failed", e)
+                    logger.w(
+                        { "Auth check failed" },
+                        e,
+                    )
                     // Return false for any error - let caller handle specific error types if needed
                     false
                 }

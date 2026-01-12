@@ -56,6 +56,7 @@ public class TorrentSessionManager
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("TorrentSessionManager")
+
         // Use SessionManager(false) like libretorrent to avoid automatic alert listener issues
         private var session: SessionManager? = null
         private val torrents = mutableMapOf<String, TorrentHandle>()

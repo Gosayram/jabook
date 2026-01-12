@@ -31,17 +31,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
-
-/**
- * Logger for UnifiedBooksView Composable functions.
- */
-private val unifiedBooksViewLogger = LoggerFactoryImpl().get("UnifiedBooksView")
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloader
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloaderForGrid
 import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
+
+/**
+ * Logger for UnifiedBooksView Composable functions.
+ */
+private val unifiedBooksViewLogger = LoggerFactoryImpl().get("UnifiedBooksView")
 
 /**
  * Unified books view that displays books in either grid or list layout.

@@ -25,7 +25,7 @@ package com.jabook.app.jabook.compose.domain.model
  * @param T The type of data on success
  * @param E The type of error (defaults to AppError)
  */
-public sealed interface Result<out T, out E : AppError = AppError> {
+public sealed interface Result<out T, out E : AppError> {
     /**
      * Operation completed successfully with data.
      *
@@ -55,14 +55,20 @@ public sealed interface Result<out T, out E : AppError = AppError> {
 }
 
 /**
+ * Type alias for Result with AppError as default error type.
+ * This provides convenience for the common case where AppError is used.
+ */
+public typealias Result<T> = Result<T, AppError>
+
+/**
  * Legacy Result type for backward compatibility.
- * @deprecated Use Result<T, AppError> instead
+ * @deprecated Use Result<T> instead
  */
 @Deprecated(
-    message = "Use Result<T, AppError> instead",
-    replaceWith = ReplaceWith("Result<T, AppError>"),
+    message = "Use Result<T> instead",
+    replaceWith = ReplaceWith("Result<T>"),
 )
-public typealias LegacyResult<T> = Result<T, AppError>
+public typealias LegacyResult<T> = Result<T>
 
 /**
  * Maps a successful result to a new type.
@@ -207,4 +213,3 @@ public fun <E : AppError> Result<*, E>.getErrorMessageOrNull(): String? =
         is Result.Error -> error.message
         else -> null
     }
-

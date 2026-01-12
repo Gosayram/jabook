@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -23,7 +24,6 @@ import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.usecase.library.SearchBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.search.SearchRutrackerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -77,6 +77,7 @@ public class SearchViewModel
         loggerFactory: LoggerFactory,
     ) : ViewModel() {
         private val logger = loggerFactory.get("SearchViewModel")
+
         // Search query state
         private val _searchQuery = MutableStateFlow("")
         public val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()

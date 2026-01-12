@@ -31,6 +31,7 @@ public class TorrentDownloadRepository
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("TorrentDownloadRepository")
+
         /**
          * Get all downloads as Flow
          */
