@@ -59,9 +59,10 @@ public class SearchRutrackerUseCase
                             }
                         }
                         is Result.Error -> {
-                            logger.e(result.exception) {
-                                "❌ Search failed for query '$query': ${result.exception.message}"
-                            }
+                            logger.e(
+                                { "❌ Search failed for query '$query': ${result.error.message}" },
+                                result.error.cause,
+                            )
                         }
                         is Result.Loading -> {
                             logger.d { "⏳ Search in progress for query '$query'" }

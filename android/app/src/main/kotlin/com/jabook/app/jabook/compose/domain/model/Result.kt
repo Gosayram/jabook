@@ -208,24 +208,3 @@ public fun <E : AppError> Result<*, E>.getErrorMessageOrNull(): String? =
         else -> null
     }
 
-/**
- * Helper to convert old Result.Error (with Throwable) to new Result.Error (with AppError).
- * Used during gradual migration.
- */
-public fun <T> Result<T>.toTypedResult(): Result<T, AppError> =
-    when (this) {
-        is Result.Success -> Result.Success(data)
-        is Result.Error -> {
-            // Try to extract error from exception if it's already an AppError
-            val appError =
-                when (val cause = error.cause) {
-                    is AppError -> cause
-                    else -> error.cause?.toAppError() ?: AppError.Unknown(
-                        message = error.message ?: "Unknown error",
-                        cause = error.cause,
-                    )
-                }
-            Result.Error(appError)
-        }
-        is Result.Loading -> Result.Loading()
-    }

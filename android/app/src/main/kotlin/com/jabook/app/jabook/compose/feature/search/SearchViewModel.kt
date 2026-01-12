@@ -203,10 +203,9 @@ public class SearchViewModel
                             recalculateUiState()
                         }
                         is Result.Error -> {
-                            // Convert to typed result if needed and get error message
-                            val typedResult = result.toTypedResult()
-                            val errorMessage = typedResult.getErrorMessageOrNull() ?: "Unknown error"
-                            val errorCause = typedResult.getErrorOrNull()?.cause
+                            // Get error message from typed error
+                            val errorMessage = result.error.message ?: "Unknown error"
+                            val errorCause = result.error.cause
                             logger.e(
                                 { "❌ Search failed for query '$query': $errorMessage" },
                                 errorCause,
