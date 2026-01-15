@@ -51,6 +51,7 @@ public class AutoSaveManager
         loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("AutoSaveManager")
+
         public companion object {
             /** Interval between auto-saves in milliseconds (30 seconds) */
             public const val AUTO_SAVE_INTERVAL_MS: Long = 120_000L

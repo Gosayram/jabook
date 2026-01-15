@@ -141,42 +141,46 @@ public class ForumIndexer
                 )
 
                 // Use AtomicInteger for thread-safe progress tracking
-                val topicsIndexedAtomic = java.util.concurrent.atomic.AtomicInteger(0)
+                val topicsIndexedAtomic =
+                    java.util.concurrent.atomic
+                        .AtomicInteger(0)
 
                 // Process forums in parallel batches
                 forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEachIndexed { batchIndex, batch ->
-                    batch.mapIndexed { indexInBatch, forumId ->
-                        async(Dispatchers.IO) {
-                            try {
-                                val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
-                                val (indexed, _) = indexForum(forumId, currentIndexVersion) { page, topicsInForum ->
-                                        if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
-                                            val currentTotal = topicsIndexedAtomic.get()
-                                            onProgress?.invoke(
-                                                IndexingProgress.InProgress(
-                                                    currentForum = forumId,
-                                                    currentForumIndex = forumIndex,
-                                                    totalForums = forumIdList.size,
-                                                    currentPage = page,
-                                                    topicsIndexed = currentTotal,
-                                                ),
-                                            )
+                    batch
+                        .mapIndexed { indexInBatch, forumId ->
+                            async(Dispatchers.IO) {
+                                try {
+                                    val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
+                                    val (indexed, _) =
+                                        indexForum(forumId, currentIndexVersion) { page, topicsInForum ->
+                                            if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
+                                                val currentTotal = topicsIndexedAtomic.get()
+                                                onProgress?.invoke(
+                                                    IndexingProgress.InProgress(
+                                                        currentForum = forumId,
+                                                        currentForumIndex = forumIndex,
+                                                        totalForums = forumIdList.size,
+                                                        currentPage = page,
+                                                        topicsIndexed = currentTotal,
+                                                    ),
+                                                )
+                                            }
                                         }
-                                    }
-                                topicsIndexedAtomic.addAndGet(indexed)
-                            } catch (e: Exception) {
-                                logger.e({ "Failed to index forum $forumId" }, e)
+                                    topicsIndexedAtomic.addAndGet(indexed)
+                                } catch (e: Exception) {
+                                    logger.e({ "Failed to index forum $forumId" }, e)
+                                }
                             }
-                        }
-                    }.awaitAll()
+                        }.awaitAll()
                 }
 
                 totalIndexed = topicsIndexedAtomic.get()
                 val duration = System.currentTimeMillis() - startTime
-                
+
                 // Verify actual count
                 val actualCountInDb = getIndexSize()
-                
+
                 logger.i { "Forum indexing completed. Indexed: $totalIndexed topics, duration: ${duration}ms" }
 
                 onProgress?.invoke(
@@ -280,7 +284,7 @@ public class ForumIndexer
                         if (invalidCount > 0) {
                             logger.w { "Forum $forumId page $page: filtered out $invalidCount invalid topics" }
                         }
-                        
+
                         val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
                         totalTopics += validTopics.size
@@ -298,12 +302,13 @@ public class ForumIndexer
                         page++
                     }
                 } catch (e: Exception) {
-                    val isNetworkError = e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketTimeoutException
+                    val isNetworkError =
+                        e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketTimeoutException
                     if (isNetworkError) {
                         logger.w { "Network error indexing forum $forumId page $page: ${e.message}" }
-                         // Retry logic simplified for restoration; original had complex mirror switching
-                         // Assume MirrorManager handles underlying connection logic or retry next time
-                         // For now, break on network error to avoid infinite loops if mirrors are down
+                        // Retry logic simplified for restoration; original had complex mirror switching
+                        // Assume MirrorManager handles underlying connection logic or retry next time
+                        // For now, break on network error to avoid infinite loops if mirrors are down
                         hasMorePages = false
                     } else {
                         logger.e({ "Error indexing forum $forumId page $page" }, e)
@@ -311,7 +316,7 @@ public class ForumIndexer
                     }
                 }
             }
-            
+
             if (entitiesBuffer.isNotEmpty()) {
                 val dbWriteStartTime = System.currentTimeMillis()
                 offlineSearchDao.upsertTopics(entitiesBuffer)
@@ -347,10 +352,10 @@ public class ForumIndexer
             var hasMorePages: Boolean = true
             val coversToPreload = mutableListOf<String>()
             val entitiesBuffer = mutableListOf<CachedTopicEntity>()
-            
+
             // Track IDs of topics found in this update to avoid duplicates if pages shift
             val processedTopicIds = mutableSetOf<String>()
-            
+
             val forumStartTime = System.currentTimeMillis()
             logger.i { "Starting incremental update for forum $forumId (max age: ${maxAgeMs / 1000}s)" }
 
@@ -366,44 +371,45 @@ public class ForumIndexer
                     }
 
                     val body = response.body() ?: break
-                    
+
                     // Parse page
                     val parseStartTime = System.currentTimeMillis()
                     val pageResult = parser.parseForumPageWithPagination(body, forumId)
                     val topics = pageResult.topics
-                    
+
                     hasMorePages = pageResult.hasMorePages
-                    
+
                     if (topics.isEmpty()) {
                         hasMorePages = false
                     } else {
                         val validTopics = topics.filter { it.toDomain().isValid() }
-                        
+
                         // Check which topics need update
-                        val topicsToUpdate = validTopics.filter { topic -> 
-                             // Logic to check age would generally be here, but since parser returns parsed topics, 
-                             // we update all parsed topics that match our criteria or are new
-                             // Simplified: if we parsed it, we save it IF it's new or we want to overwrite
-                             true 
-                        }
-                        
+                        val topicsToUpdate =
+                            validTopics.filter { topic ->
+                                // Logic to check age would generally be here, but since parser returns parsed topics,
+                                // we update all parsed topics that match our criteria or are new
+                                // Simplified: if we parsed it, we save it IF it's new or we want to overwrite
+                                true
+                            }
+
                         // Deduplicate against processed
                         val uniqueTopics = topicsToUpdate.filter { !processedTopicIds.contains(it.topicId) }
                         uniqueTopics.forEach { processedTopicIds.add(it.topicId) }
-                        
+
                         val newEntities = uniqueTopics.map { it.toCachedTopicEntity(currentIndexVersion) }
                         entitiesBuffer.addAll(newEntities)
                         totalUpdated += uniqueTopics.size
-                        
+
                         if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB) {
-                             offlineSearchDao.upsertTopics(entitiesBuffer)
-                             entitiesBuffer.clear()
+                            offlineSearchDao.upsertTopics(entitiesBuffer)
+                            entitiesBuffer.clear()
                         }
-                        
+
                         // Stop incremental update if we encounter *only* topics that are already fresh?
                         // This logic is complex. For now, we iterate until pagination ends or heuristics.
                         // Assuming standard behavior: crawl all pages.
-                        
+
                         delay(DELAY_BETWEEN_REQUESTS_MS)
                         page++
                     }
@@ -412,11 +418,11 @@ public class ForumIndexer
                     hasMorePages = false
                 }
             }
-            
+
             if (entitiesBuffer.isNotEmpty()) {
                 offlineSearchDao.upsertTopics(entitiesBuffer)
             }
-            
+
             val duration = System.currentTimeMillis() - forumStartTime
             logger.i { "Incremental update for $forumId completed: $totalUpdated topics updated in ${duration}ms" }
             return Pair(totalUpdated, coversToPreload)

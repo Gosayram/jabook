@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.data.local.scanner
 
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.domain.model.AppError
+import com.jabook.app.jabook.compose.domain.model.Result
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -96,5 +98,5 @@ public interface LocalBookScanner {
      *
      * @return Result containing list of scanned books or error
      */
-    public suspend fun scanAudiobooks(): com.jabook.app.jabook.compose.domain.model.Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError>
+    public suspend fun scanAudiobooks(): Result<List<ScannedBook>, AppError>
 }

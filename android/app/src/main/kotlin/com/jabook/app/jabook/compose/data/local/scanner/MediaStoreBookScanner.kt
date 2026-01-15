@@ -70,7 +70,10 @@ public class MediaStoreBookScanner
                 } catch (e: Exception) {
                     logger.e(e) { "Scan failed" }
                     _scanProgress.value = ScanProgress.Error(e.message ?: "Unknown error")
-                    Result.Error(com.jabook.app.jabook.compose.domain.model.AppError.DataError.Generic(e.message ?: "Scan failed", e))
+                    Result.Error(
+                        com.jabook.app.jabook.compose.domain.model.AppError.DataError
+                            .Generic(e.message ?: "Scan failed", e),
+                    )
                 }
             }
 

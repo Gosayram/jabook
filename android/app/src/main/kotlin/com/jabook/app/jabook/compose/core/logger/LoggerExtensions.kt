@@ -27,7 +27,10 @@ import java.util.UUID
  * @param id Optional explicit ID. If null, a random UUID is generated.
  * @return The operation ID to be used in subsequent log calls.
  */
-public fun Logger.startOperation(name: String, id: String? = null): String {
+public fun Logger.startOperation(
+    name: String,
+    id: String? = null,
+): String {
     val opId = id ?: UUID.randomUUID().toString()
     d { "[$opId] START: $name" }
     return opId
@@ -36,7 +39,11 @@ public fun Logger.startOperation(name: String, id: String? = null): String {
 /**
  * Logs the end of an operation.
  */
-public fun Logger.endOperation(operationId: String, success: Boolean = true, message: String? = null) {
+public fun Logger.endOperation(
+    operationId: String,
+    success: Boolean = true,
+    message: String? = null,
+) {
     if (success) {
         d { "[$operationId] END: Success${if (message != null) " - $message" else ""}" }
     } else {
@@ -47,7 +54,11 @@ public fun Logger.endOperation(operationId: String, success: Boolean = true, mes
 /**
  * Logs a message associated with an operation.
  */
-public fun Logger.log(operationId: String, message: String, level: LogLevel = LogLevel.DEBUG) {
+public fun Logger.log(
+    operationId: String,
+    message: String,
+    level: LogLevel = LogLevel.DEBUG,
+) {
     when (level) {
         LogLevel.VERBOSE -> v { "[$operationId] $message" }
         LogLevel.DEBUG -> d { "[$operationId] $message" }
@@ -61,42 +72,63 @@ public fun Logger.log(operationId: String, message: String, level: LogLevel = Lo
 /**
  * Overload for simple log without level (defaults to DEBUG).
  */
-public fun Logger.log(operationId: String, message: String) {
+public fun Logger.log(
+    operationId: String,
+    message: String,
+) {
     d { "[$operationId] $message" }
 }
 
 /**
  * Logs a success message for an operation.
  */
-public fun Logger.logSuccess(operationId: String, message: String, durationMs: Long? = null) {
+public fun Logger.logSuccess(
+    operationId: String,
+    message: String,
+    durationMs: Long? = null,
+) {
     i { "[$operationId] ✅ $message${if (durationMs != null) " (${durationMs}ms)" else ""}" }
 }
 
 /**
  * Logs an error message for an operation.
  */
-public fun Logger.logError(operationId: String, message: String, throwable: Throwable? = null) {
+public fun Logger.logError(
+    operationId: String,
+    message: String,
+    throwable: Throwable? = null,
+) {
     e(throwable, { "[$operationId] ❌ $message" })
 }
 
 /**
  * Logs a warning message for an operation.
  */
-public fun Logger.logWarning(operationId: String, message: String) {
+public fun Logger.logWarning(
+    operationId: String,
+    message: String,
+) {
     w { "[$operationId] ⚠️ $message" }
 }
 
 /**
  * Logs a message with duration.
  */
-public fun Logger.logWithDuration(operationId: String, message: String, durationMs: Long) {
+public fun Logger.logWithDuration(
+    operationId: String,
+    message: String,
+    durationMs: Long,
+) {
     d { "[$operationId] $message (${durationMs}ms)" }
 }
 
 /**
  * Executes a block within a tracked operation scope.
  */
-public inline fun <T> Logger.withOperation(name: String, block: (String) -> T): T {
+public inline fun <T> Logger.withOperation(
+    name: String,
+    block: (String) -> T,
+): T {
     val opId = startOperation(name)
     val startTime = System.currentTimeMillis()
     return try {

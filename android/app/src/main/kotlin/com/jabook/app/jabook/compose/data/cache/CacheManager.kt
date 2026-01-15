@@ -263,7 +263,6 @@ public class CacheManager
             val prefs = context.getSharedPreferences("cache_prefs", Context.MODE_PRIVATE)
             prefs.edit().putLong("last_cleanup", System.currentTimeMillis()).apply()
         }
-
     }
 
 /**

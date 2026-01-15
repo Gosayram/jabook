@@ -14,8 +14,15 @@
 
 package com.jabook.app.jabook.compose.data.auth
 
+import com.jabook.app.jabook.compose.core.logger.LogLevel
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.core.logger.*
+import com.jabook.app.jabook.compose.core.logger.endOperation
+import com.jabook.app.jabook.compose.core.logger.log
+import com.jabook.app.jabook.compose.core.logger.logError
+import com.jabook.app.jabook.compose.core.logger.logSuccess
+import com.jabook.app.jabook.compose.core.logger.logWarning
+import com.jabook.app.jabook.compose.core.logger.logWithDuration
+import com.jabook.app.jabook.compose.core.logger.startOperation
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.model.CaptchaData

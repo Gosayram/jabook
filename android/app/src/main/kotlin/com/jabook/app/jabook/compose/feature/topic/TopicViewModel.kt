@@ -407,6 +407,7 @@ public class TopicViewModel
                 }
             }
         }
+
         /**
          * Download torrent file (.torrent) to device storage.
          */

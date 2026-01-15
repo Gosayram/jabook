@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.data.torrent
 
 import android.content.Context
-import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow

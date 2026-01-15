@@ -14,8 +14,16 @@
 
 package com.jabook.app.jabook.compose.data.remote.repository
 
+import com.jabook.app.jabook.compose.core.logger.LogLevel
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.core.logger.*
+import com.jabook.app.jabook.compose.core.logger.endOperation
+import com.jabook.app.jabook.compose.core.logger.log
+import com.jabook.app.jabook.compose.core.logger.logError
+import com.jabook.app.jabook.compose.core.logger.logSuccess
+import com.jabook.app.jabook.compose.core.logger.logWarning
+import com.jabook.app.jabook.compose.core.logger.logWithDuration
+import com.jabook.app.jabook.compose.core.logger.startOperation
+import com.jabook.app.jabook.compose.core.logger.withOperation
 import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
 import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao

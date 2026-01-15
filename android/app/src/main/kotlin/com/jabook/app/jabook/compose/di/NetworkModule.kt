@@ -114,8 +114,7 @@ public object NetworkModule {
     public fun provideDynamicBaseUrlInterceptor(
         mirrorManager: MirrorManager,
         loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
-    ): DynamicBaseUrlInterceptor =
-        DynamicBaseUrlInterceptor(mirrorManager, loggerFactory)
+    ): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(mirrorManager, loggerFactory)
 
     /**
      * Provide OkHttp client with cookie persistence, auto re-auth, dynamic base URL, proper headers, and logging.

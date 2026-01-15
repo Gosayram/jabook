@@ -17,7 +17,6 @@ package com.jabook.app.jabook.compose.feature.debug
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-// import com.jabook.app.jabook.compose.core.util.StructuredLogger (Removed)
 import com.jabook.app.jabook.compose.data.debug.DebugLogService
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import dagger.hilt.android.lifecycle.HiltViewModel
