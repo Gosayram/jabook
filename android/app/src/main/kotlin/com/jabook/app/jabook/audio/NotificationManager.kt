@@ -47,6 +47,7 @@ import android.app.NotificationManager as AndroidNotificationManager
  * This class creates and updates the notification that appears
  * in the notification panel during audio playback.
  */
+@Deprecated("Use Media3 MediaNotification.Provider (AudioPlayerNotificationProvider) instead.")
 public class NotificationManager(
     private val context: Context,
     private var player: ExoPlayer, // Changed to var to allow updating player reference

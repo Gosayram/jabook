@@ -71,6 +71,7 @@ public class PlayerViewModel
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
         private val playbackPositionRepository: PlaybackPositionRepository,
+        private val lyricsRepository: com.jabook.app.jabook.data.lyrics.LyricsRepository,
         private val loggerFactory: LoggerFactory,
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
@@ -236,26 +237,17 @@ public class PlayerViewModel
         }
 
         private suspend fun loadLyrics(audioPath: String) {
-            withContext(kotlinx.coroutines.Dispatchers.IO) {
-                try {
-                    val audioFile = java.io.File(audioPath)
-                    val lrcFile = java.io.File(audioFile.parent, "${audioFile.nameWithoutExtension}.lrc")
-
-                    if (lrcFile.exists()) {
-                        val content = lrcFile.readText()
-                        val parsed =
-                            com.jabook.app.jabook.compose.feature.player.lyrics.LrcParser
-                                .parse(content)
-                        if (parsed.isNotEmpty()) {
-                            lyricsState.value = parsed
-                            return@withContext
-                        }
-                    }
-                    lyricsState.value = null
-                } catch (e: Exception) {
-                    logger.e({ "Failed to load lyrics" }, e)
+            try {
+                // Use the repository to get lyrics (includes fallback to demo lyrics)
+                val lyrics = lyricsRepository.getLyrics(audioPath)
+                if (lyrics.isNotEmpty()) {
+                    lyricsState.value = lyrics
+                } else {
                     lyricsState.value = null
                 }
+            } catch (e: Exception) {
+                logger.e({ "Failed to load lyrics" }, e)
+                lyricsState.value = null
             }
         }
 
@@ -324,6 +316,45 @@ public class PlayerViewModel
          * Pitch correction state.
          */
         public val pitchCorrectionEnabled: StateFlow<Boolean> = playerController.pitchCorrectionEnabled
+
+        /**
+         * Audio Processing Settings to be exposed to UI.
+         * Maps UserPreferences to a UI-friendly data class or simply exposes necessary fields.
+         * For simplicity, exposing UserPreferences directly or a mapped state would work.
+         * Let's map to a local data class for cleaner UI usage.
+         */
+        public data class AudioSettingsState(
+            val volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel = com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
+            val skipSilence: Boolean = false,
+            val normalizeVolume: Boolean = true,
+            val speechEnhancer: Boolean = false,
+            val autoVolumeLeveling: Boolean = false
+        )
+
+        public val audioSettings: StateFlow<AudioSettingsState> =
+            settingsRepository.userPreferences
+                .map { prefs ->
+                     AudioSettingsState(
+                        volumeBoostLevel = try {
+                            if (prefs.volumeBoostLevel.isNotEmpty()) {
+                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.valueOf(prefs.volumeBoostLevel)
+                            } else {
+                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
+                            }
+                        } catch (e: Exception) {
+                            com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
+                        },
+                        skipSilence = prefs.skipSilence,
+                        normalizeVolume = prefs.normalizeVolume,
+                        speechEnhancer = prefs.speechEnhancer,
+                        autoVolumeLeveling = prefs.autoVolumeLeveling
+                    )
+                }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = AudioSettingsState(),
+                )
 
         /**
          * Current sleep timer state.
@@ -447,6 +478,24 @@ public class PlayerViewModel
         public fun resetBookSeekSettings() {
             viewModelScope.launch {
                 updateBookSettingsUseCase.resetForBook(bookId)
+            }
+        }
+
+        public fun updateAudioSettings(
+            volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel? = null,
+            skipSilence: Boolean? = null,
+            normalizeVolume: Boolean? = null,
+            speechEnhancer: Boolean? = null,
+            autoVolumeLeveling: Boolean? = null
+        ) {
+            viewModelScope.launch {
+                settingsRepository.updateAudioSettings(
+                    volumeBoost = volumeBoostLevel?.name,
+                    skipSilence = skipSilence,
+                    normalizeVolume = normalizeVolume,
+                    speechEnhancer = speechEnhancer,
+                    autoVolumeLeveling = autoVolumeLeveling
+                )
             }
         }
 

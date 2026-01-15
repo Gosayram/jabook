@@ -21,16 +21,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +50,7 @@ import com.jabook.app.jabook.compose.navigation.PlayerRoute
 import com.jabook.app.jabook.compose.navigation.TopLevelDestination
 import com.jabook.app.jabook.compose.navigation.rememberJabookAppState
 import com.jabook.app.jabook.ui.theme.JabookTheme
+import kotlinx.coroutines.launch
 
 /**
  * Root composable for the Jabook app.
@@ -206,82 +211,108 @@ public fun JabookApp(
             isMiniPlayerVisible = true
         }
 
-        // NavigationSuiteScaffold automatically adapts navigation to screen size
-        // - Compact: Bottom navigation bar
-        // - Medium/Expanded: Navigation rail
-        // - Large/Extra-large: Wide navigation rail or drawer
-        NavigationSuiteScaffold(
-            navigationSuiteItems = {
-                appState.topLevelDestinations.forEach { destination ->
-                    val selected = currentDestination.isTopLevelDestinationInHierarchy(destination)
+        // Drawer State
+        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+        val scope = rememberCoroutineScope()
 
-                    item(
-                        icon = {
-                            Icon(
-                                imageVector =
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                com.jabook.app.jabook.compose.navigation.JabookDrawerContent(
+                    destinations = appState.topLevelDestinations,
+                    currentDestination = currentDestination,
+                    onNavigateToDestination = { destination ->
+                        appState.navigateToTopLevelDestination(destination)
+                        scope.launch { drawerState.close() }
+                    },
+                    onNavigateToSettings = {
+                        appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
+                        scope.launch { drawerState.close() }
+                    },
+                    onNavigateToAbout = {
+                        // TODO: Navigate to About
+                        scope.launch { drawerState.close() }
+                    }
+                )
+            },
+        ) {
+            // NavigationSuiteScaffold automatically adapts navigation to screen size
+            // - Compact: Bottom navigation bar
+            // - Medium/Expanded: Navigation rail
+            // - Large/Extra-large: Wide navigation rail or drawer
+            NavigationSuiteScaffold(
+                navigationSuiteItems = {
+                    appState.topLevelDestinations.forEach { destination ->
+                        val selected = currentDestination.isTopLevelDestinationInHierarchy(destination)
+
+                        item(
+                            icon = {
+                                Icon(
+                                    imageVector =
                                     if (selected) {
                                         destination.selectedIcon
                                     } else {
                                         destination.unselectedIcon
                                     },
-                                contentDescription = stringResource(destination.iconTextId),
-                            )
-                        },
-                        label = { Text(stringResource(destination.titleTextId)) },
-                        selected = selected,
-                        onClick = { appState.navigateToTopLevelDestination(destination) },
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            // Main content area with mini player
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Navigation content
-                Box(
-                    modifier =
+                                    contentDescription = stringResource(destination.iconTextId),
+                                )
+                            },
+                            label = { Text(stringResource(destination.titleTextId)) },
+                            selected = selected,
+                            onClick = { appState.navigateToTopLevelDestination(destination) },
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                // Main content area with mini player
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Navigation content
+                    Box(
+                        modifier =
                         Modifier
                             .weight(1f)
                             .fillMaxSize(),
-                ) {
-                    @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
-                    androidx.compose.animation.SharedTransitionLayout {
-                        JabookNavHost(
-                            appState = appState,
-                            modifier = Modifier.fillMaxSize(),
-                            sharedTransitionScope = this,
-                        )
-                    }
+                    ) {
+                        @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+                        androidx.compose.animation.SharedTransitionLayout {
+                            JabookNavHost(
+                                appState = appState,
+                                modifier = Modifier.fillMaxSize(),
+                                sharedTransitionScope = this,
+                            )
+                        }
 
-                    // Snackbar host positioned above mini player
-                    androidx.compose.material3.SnackbarHost(
-                        hostState = appState.snackbarHostState,
-                        modifier =
+                        // Snackbar host positioned above mini player
+                        androidx.compose.material3.SnackbarHost(
+                            hostState = appState.snackbarHostState,
+                            modifier =
                             Modifier
                                 .align(androidx.compose.ui.Alignment.BottomCenter)
                                 .padding(bottom = if (currentBook != null && !isOnPlayerScreen) 72.dp else 16.dp),
-                    )
-                }
-
-                // Mini player (shown when book is playing, but hidden on player screen or when swiped away)
-                if (!isOnPlayerScreen && isMiniPlayerVisible) {
-                    currentBook?.let { book ->
-                        com.jabook.app.jabook.compose.feature.player.MiniPlayer(
-                            coverUrl = book.coverUrl,
-                            title = book.title,
-                            author = book.author,
-                            isPlaying = isPlaying,
-                            progress = if (duration > 0) currentPosition.toFloat() / duration else 0f,
-                            onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
-                            onNextClick = { miniPlayerViewModel.skipToNext() },
-                            onPreviousClick = { miniPlayerViewModel.skipToPrevious() },
-                            onMiniPlayerClick = {
-                                // Navigate to player screen
-                                appState.navController.navigate(PlayerRoute(bookId = book.id))
-                            },
-                            onDismiss = { isMiniPlayerVisible = false },
-                            modifier = Modifier.fillMaxWidth(),
                         )
+                    }
+
+                    // Mini player (shown when book is playing, but hidden on player screen or when swiped away)
+                    if (!isOnPlayerScreen && isMiniPlayerVisible) {
+                        currentBook?.let { book ->
+                            com.jabook.app.jabook.compose.feature.player.MiniPlayer(
+                                coverUrl = book.coverUrl,
+                                title = book.title,
+                                author = book.author,
+                                isPlaying = isPlaying,
+                                progress = if (duration > 0) currentPosition.toFloat() / duration else 0f,
+                                onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
+                                onNextClick = { miniPlayerViewModel.skipToNext() },
+                                onPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                                onMiniPlayerClick = {
+                                    // Navigate to player screen
+                                    appState.navController.navigate(PlayerRoute(bookId = book.id))
+                                },
+                                onDismiss = { isMiniPlayerVisible = false },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }

@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,8 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
-import com.mikepenz.hypnoticcanvas.shaderBackground
-import com.mikepenz.hypnoticcanvas.shaders.BlackCherryCosmos
+import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
@@ -40,40 +38,40 @@ public fun PremiumPlayerBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val useShader = !isPowerSaveMode && themeColors != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    val backgroundColors = themeColors?.let { colors ->
+        colors.gradientColors.ifEmpty {
+            listOf(colors.containerColor, colors.surfaceColor)
+        }
+    } ?: emptyList()
 
     val fallbackBackgroundModifier =
         if (themeColors != null) {
             Modifier.background(
                 brush =
                     Brush.verticalGradient(
-                        colors =
-                            themeColors.gradientColors.ifEmpty {
-                                listOf(themeColors.containerColor, themeColors.surfaceColor)
-                            },
+                        colors = backgroundColors,
                     ),
             )
         } else {
             Modifier.background(MaterialTheme.colorScheme.background)
         }
 
-    // Apply Haze if state is provided AND not in power save mode
     val finalModifier =
         modifier
             .fillMaxSize()
             .then(if (hazeState != null && !isPowerSaveMode) Modifier.hazeSource(state = hazeState) else Modifier)
 
     Box(modifier = finalModifier) {
-        if (useShader) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .shaderBackground(BlackCherryCosmos),
+        if (!isPowerSaveMode && backgroundColors.isNotEmpty()) {
+            HypnoticBackground(
+                colors = backgroundColors,
+                modifier = Modifier.fillMaxSize()
             )
         } else {
-            Box(
-                modifier = Modifier.fillMaxSize().then(fallbackBackgroundModifier),
+             Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(fallbackBackgroundModifier),
             )
         }
 

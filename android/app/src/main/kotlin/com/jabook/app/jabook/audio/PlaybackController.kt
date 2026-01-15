@@ -30,7 +30,15 @@ internal class PlaybackController(
     private val getActivePlayer: () -> ExoPlayer,
     private val playerServiceScope: CoroutineScope,
     private val resetInactivityTimer: () -> Unit,
+    private val getAutoRewindEnabled: () -> Boolean,
 ) {
+    /**
+     * Starts or resumes playback.
+     *
+     * Simplified implementation matching lissen-android approach.
+     */
+    private var lastPauseTime: Long = 0L
+
     /**
      * Starts or resumes playback.
      *
@@ -56,6 +64,31 @@ internal class PlaybackController(
                     player.prepare()
                 }
 
+                // Smart Rewind Logic (Audiobook tailored)
+                // Rewind based on how long we were paused
+                val autoRewindEnabled = try { getAutoRewindEnabled() } catch (e: Exception) { false }
+                
+                if (autoRewindEnabled) {
+                    val currentTime = System.currentTimeMillis()
+                    val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else Long.MAX_VALUE
+                
+                    // Only rewind if we're not at the very beginning
+                    // And if we're definitely resuming (not starting fresh with 0 duration)
+                    if (player.currentPosition > 5000) { 
+                        val rewindMs = when {
+                            pauseDurationMs < 60_000 -> 0L // < 1 min: No rewind
+                            pauseDurationMs < 600_000 -> 10_000L // 1-10 mins: 10s rewind
+                            else -> 30_000L // > 10 mins (or app restart): 30s rewind
+                        }
+                    
+                        if (rewindMs > 0) {
+                             val newPos = (player.currentPosition - rewindMs).coerceAtLeast(0L)
+                             player.seekTo(newPos)
+                             android.util.Log.d("AudioPlayerService", "Smart Rewind: Rewinding ${rewindMs/1000}s (pause: ${pauseDurationMs/1000}s)")
+                        }
+                    }
+                }
+
                 // Match lissen-android: simply set playWhenReady=true
                 // ExoPlayer manages AudioFocus automatically when handleAudioFocus=true
                 player.playWhenReady = true
@@ -76,30 +109,14 @@ internal class PlaybackController(
 
     /**
      * Pauses playback.
-     *
-     * Inspired by Easybook: rewinds 2 seconds on pause for better UX.
-     * This helps users resume from a slightly earlier position, which is useful
-     * for audiobooks where context is important.
      */
     public fun pause() {
         playerServiceScope.launch {
             try {
                 val player = getActivePlayer()
 
-                // Easybook feature: Rewind 2 seconds on pause (lines 286-294 in Easybook PlaybackService)
-                // This helps users resume from a slightly earlier position
-                if (player.playWhenReady &&
-                    player.playbackState != Player.STATE_ENDED &&
-                    player.playbackState != Player.STATE_IDLE
-                ) {
-                    val currentPos = player.currentPosition
-                    val newPos = (currentPos - 2000L).coerceAtLeast(0L)
-                    android.util.Log.d(
-                        "AudioPlayerService",
-                        "Pause: rewinding 2s for better resume (${currentPos}ms -> ${newPos}ms)",
-                    )
-                    player.seekTo(newPos)
-                }
+                // Update lastPauseTime for Smart Rewind
+                lastPauseTime = System.currentTimeMillis()
 
                 player.playWhenReady = false
                 // Note: We don't abandon AudioFocus on pause - we keep it for quick resume

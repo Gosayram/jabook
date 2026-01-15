@@ -69,6 +69,12 @@ public class JabookApplication :
     public override fun onCreate() {
         super.onCreate()
 
+        // Initialize Global Exception Handler
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler(
+            com.jabook.app.jabook.crash.GlobalExceptionHandler(this, defaultHandler)
+        )
+
         // Create notification channels for downloads and player
         NotificationHelper.createNotificationChannels(this)
 

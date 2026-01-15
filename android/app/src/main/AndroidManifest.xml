@@ -181,6 +181,15 @@
             android:theme="@style/Theme.Transparent"
             tools:ignore="LockedOrientationActivity" />
 
+        <!-- Crash Handler Activity -->
+        <!-- Runs in a separate process to ensure it can display even if the main app process is corrupted -->
+        <activity
+            android:name=".crash.CrashActivity"
+            android:process=":crash"
+            android:theme="@style/Theme.App.Starting"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true" />
+
         <!-- Native Media3 audio player service -->
         <service
             android:name=".audio.AudioPlayerService"

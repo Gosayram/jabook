@@ -38,9 +38,9 @@ import com.google.common.util.concurrent.ListenableFuture
 public class AudioPlayerNotificationProvider(
     private val service: AudioPlayerService,
 ) : MediaNotification.Provider {
-    // Use GlideBitmapLoader for better performance and caching (inspired by Easybook)
-    // Glide provides superior memory management and async loading compared to DataSourceBitmapLoader
-    private val glideBitmapLoader = GlideBitmapLoader(service)
+    // Use CoilBitmapLoader for better performance and caching (aligned with project stack)
+    // Coil provides superior memory management and async loading
+    private val coilBitmapLoader = CoilBitmapLoader(service)
 
     // Create a custom BitmapLoader that conditionally fails/skips loading for minimal mode
     // Note: BitmapLoader is deprecated in Media3 but still required for compatibility
@@ -53,26 +53,26 @@ public class AudioPlayerNotificationProvider(
                     // This causes DefaultMediaNotificationProvider to use fallback/no artwork
                     return Futures.immediateFailedFuture(Exception("Minimal mode"))
                 }
-                // Use Glide for better performance
-                return glideBitmapLoader.loadBitmap(uri)
+                // Use Coil for better performance
+                return coilBitmapLoader.loadBitmap(uri)
             }
 
-            override fun supportsMimeType(mimeType: String): Boolean = glideBitmapLoader.supportsMimeType(mimeType)
+            override fun supportsMimeType(mimeType: String): Boolean = coilBitmapLoader.supportsMimeType(mimeType)
 
             override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> {
                 if (service.isMinimalNotification) {
                     return Futures.immediateFailedFuture(Exception("Minimal mode"))
                 }
-                // Use Glide for better performance
-                return glideBitmapLoader.decodeBitmap(data)
+                // Use Coil for better performance
+                return coilBitmapLoader.decodeBitmap(data)
             }
 
             override fun loadBitmapFromMetadata(metadata: MediaMetadata): ListenableFuture<Bitmap>? {
                 if (service.isMinimalNotification) {
                     return Futures.immediateFailedFuture(Exception("Minimal mode"))
                 }
-                // Use Glide for better performance
-                return glideBitmapLoader.loadBitmapFromMetadata(metadata)
+                // Use Coil for better performance
+                return coilBitmapLoader.loadBitmapFromMetadata(metadata)
             }
         }
 
@@ -83,7 +83,6 @@ public class AudioPlayerNotificationProvider(
         DefaultMediaNotificationProvider
             .Builder(service)
             .setChannelId(NotificationHelper.CHANNEL_ID)
-            // .setBitmapLoader(minimalBitmapLoader) // Unresolved in Media3 1.8.0
             .build()
             .also {
                 android.util.Log.i(

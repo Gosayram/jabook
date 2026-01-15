@@ -116,30 +116,6 @@ internal class PlayerConfigurator(
                         }
                     },
                     getCurrentBookId = { service.currentGroupPath },
-                    getAutoRewindOnPause = {
-                        // Get auto rewind setting from preferences
-                        runBlocking {
-                            try {
-                                service.settingsRepository.userPreferences
-                                    .first()
-                                    .autoRewindOnPause
-                            } catch (e: Exception) {
-                                false // Default: disabled
-                            }
-                        }
-                    },
-                    getAutoRewindSeconds = {
-                        // Get auto rewind seconds from preferences (default: 2)
-                        runBlocking {
-                            try {
-                                val prefs = service.settingsRepository.userPreferences.first()
-                                val seconds = prefs.autoRewindSeconds.takeIf { it > 0 } ?: 2
-                                seconds.coerceIn(0, 10)
-                            } catch (e: Exception) {
-                                2 // Default: 2 seconds
-                            }
-                        }
-                    },
                     preloadNextTrack = { nextIndex ->
                         // Preload next track for smooth transition (inspired by Easybook)
                         service.playlistManager?.preloadNextTrack(nextIndex)
@@ -152,6 +128,7 @@ internal class PlayerConfigurator(
                         // Update audio visualizer when session ID changes (following Rhythm pattern)
                         service.audioVisualizerManager?.initialize(audioSessionId)
                     },
+                    getCrossfadeHandler = { service.crossfadeHandler },
                     coroutineScope = service.playerServiceScope, // Pass coroutine scope for debounce
                 )
 

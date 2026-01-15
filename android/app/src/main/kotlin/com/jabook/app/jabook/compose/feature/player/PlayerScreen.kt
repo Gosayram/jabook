@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -157,6 +158,7 @@ public fun PlayerScreen(
     val pitchCorrectionEnabled by viewModel.pitchCorrectionEnabled.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
+    val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
 
     // Auto-initialize player when book data is ready
     // Only initialize once when we have Success state with actual chapters
@@ -173,6 +175,8 @@ public fun PlayerScreen(
 
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
+    var showAudioSettingsSheet by remember { mutableStateOf(false) }
+    // Legacy settings sheet (if unused, we might want to consolidate or remove)
     var showSettingsSheet by remember { mutableStateOf(false) }
 
     // Vinyl Mode State
@@ -297,7 +301,7 @@ public fun PlayerScreen(
 
     // Removed Chapter Selector Sheet - using adaptive pane instead
 
-    // Player Settings Sheet
+    // Player Settings Sheet (Book Specific)
     if (showSettingsSheet && uiState is PlayerUiState.Success) {
         val state = uiState as PlayerUiState.Success
         PlayerSettingsSheet(
@@ -307,6 +311,15 @@ public fun PlayerScreen(
             onDismiss = { showSettingsSheet = false },
             isVinylMode = isVinylMode,
             onVinylModeChange = { isVinylMode = it },
+        )
+    }
+
+    // Audio Enhancements Sheet
+    if (showAudioSettingsSheet) {
+        AudioSettingsSheet(
+            state = audioSettings,
+            onUpdateSettings = viewModel::updateAudioSettings,
+            onDismiss = { showAudioSettingsSheet = false }
         )
     }
 
@@ -396,6 +409,7 @@ public fun PlayerScreen(
                                             }
                                         },
                                         onSpeedClick = { showSpeedSheet = true },
+                                        onAudioSettingsClick = { showAudioSettingsSheet = true },
                                         onSleepTimerClick = { showSleepTimerSheet = true },
                                         onChapterRepeatClick = {
                                             clickDebouncer.debounce {
@@ -468,6 +482,7 @@ private fun PlayerContent(
     onSelectChapter: (Int) -> Unit,
     onChapterClick: () -> Unit,
     onSpeedClick: () -> Unit,
+    onAudioSettingsClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onChapterRepeatClick: () -> Unit,
     onStatsClick: () -> Unit,
@@ -1037,7 +1052,7 @@ private fun PlayerContent(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        // First row: Speed & Repeat
+                        // First row: Speed, EQ & Repeat
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
@@ -1070,6 +1085,18 @@ private fun PlayerContent(
                                             "${formattedSpeed}x"
                                         },
                                     fontSize = controlButtonTextSize,
+                                )
+                            }
+
+                            // Audio Settings (EQ) Button
+                            FilledTonalButton(
+                                onClick = onAudioSettingsClick,
+                                modifier = Modifier.weight(1f).height(controlButtonHeight),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune, // Or Equalizer if available
+                                    contentDescription = "Audio Settings", // TODO: strings.xml
+                                    modifier = Modifier.size(controlButtonIconSize),
                                 )
                             }
 
@@ -1202,6 +1229,18 @@ private fun PlayerContent(
                                         "${formattedSpeed}x"
                                     },
                                 fontSize = controlButtonTextSize,
+                            )
+                        }
+
+                        // Audio Settings (EQ) Button
+                        FilledTonalButton(
+                            onClick = onAudioSettingsClick,
+                            modifier = Modifier.weight(1f).height(controlButtonHeight),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Tune,
+                                contentDescription = "Audio Settings", // TODO: strings.xml
+                                modifier = Modifier.size(controlButtonIconSize),
                             )
                         }
 

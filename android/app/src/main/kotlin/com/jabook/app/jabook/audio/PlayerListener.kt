@@ -60,11 +60,10 @@ internal class PlayerListener(
     private val updateLastPlayedTimestamp: ((String) -> Unit)? = null, // Callback to update last played timestamp
     private val markBookCompleted: ((String) -> Unit)? = null, // Callback to mark book as completed
     private val getCurrentBookId: (() -> String?)? = null, // Get current book ID
-    private val getAutoRewindOnPause: (() -> Boolean)? = null, // Get auto rewind on pause setting
-    private val getAutoRewindSeconds: (() -> Int)? = null, // Get auto rewind seconds setting
     private val preloadNextTrack: ((Int) -> Unit)? = null, // Callback to preload next track (inspired by Easybook)
     private val optimizeMemoryUsage: ((Int) -> Unit)? = null, // Callback to optimize memory usage (inspired by Easybook)
     private val updateAudioVisualizer: ((Int) -> Unit)? = null, // Callback to update audio visualizer (following Rhythm pattern)
+    private val getCrossfadeHandler: (() -> CrossfadeHandler?)? = null, // Callback to get crossfade handler (Phase 6)
     private val coroutineScope: kotlinx.coroutines.CoroutineScope? = null, // Coroutine scope for debounced operations (inspired by Rhythm)
 ) : Player.Listener {
     private var retryCount = 0
@@ -360,12 +359,6 @@ internal class PlayerListener(
                 // Save position to ensure it's preserved
                 android.util.Log.d("AudioPlayerService", "Playback stopped, saving position")
                 saveCurrentPosition()
-
-                // Auto rewind on pause (inspired by Easybook)
-                // This helps users not lose context when resuming playback
-                if (player is ExoPlayer) {
-                    handleAutoRewindOnPause(player)
-                }
             }
 
             // Save position when playback starts (critical event)
@@ -415,6 +408,13 @@ internal class PlayerListener(
                 if (!isLastTrack) {
                     stopPositionCheck()
                 }
+            }
+
+            // Start/Stop Crossfade Monitoring
+            if (isPlaying && playbackState == Player.STATE_READY) {
+                 getCrossfadeHandler?.invoke()?.startMonitoring()
+            } else {
+                 getCrossfadeHandler?.invoke()?.stopMonitoring()
             }
 
             // Don't reset playWhenReady automatically - let ExoPlayer handle AudioFocus
@@ -1608,34 +1608,7 @@ internal class PlayerListener(
         }
     }
 
-    /**
-     * Handles automatic rewind on pause (inspired by Easybook).
-     *
-     * When playback pauses, automatically rewinds by a few seconds to help users
-     * not lose context when resuming playback.
-     */
-    private fun handleAutoRewindOnPause(player: ExoPlayer) {
-        val autoRewindEnabled = getAutoRewindOnPause?.invoke() ?: false
-        if (!autoRewindEnabled) {
-            return
-        }
 
-        val rewindSeconds = (getAutoRewindSeconds?.invoke() ?: 2).coerceIn(0, 10)
-        if (rewindSeconds <= 0) {
-            return
-        }
-
-        val currentPosition = player.currentPosition
-        val newPosition = (currentPosition - rewindSeconds * 1000L).coerceAtLeast(0L)
-
-        if (newPosition < currentPosition) {
-            player.seekTo(newPosition)
-            android.util.Log.d(
-                "AudioPlayerService",
-                "Auto rewind on pause: ${rewindSeconds}s (from ${currentPosition}ms to ${newPosition}ms)",
-            )
-        }
-    }
 
     /**
      * Handles audio session ID changes (following Rhythm pattern).

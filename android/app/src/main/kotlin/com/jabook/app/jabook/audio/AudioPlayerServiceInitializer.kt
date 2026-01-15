@@ -22,6 +22,7 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import kotlinx.coroutines.flow.first
 
 /**
  * Handles initialization logic for AudioPlayerService.
@@ -63,6 +64,18 @@ public class AudioPlayerServiceInitializer(
                 getActivePlayer = { service.getActivePlayer() },
                 playerServiceScope = service.playerServiceScope,
                 resetInactivityTimer = { service.inactivityTimer?.resetTimer() },
+                getAutoRewindEnabled = {
+                    // Get auto rewind setting from preferences
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.userPreferences
+                                .first()
+                                .autoRewindOnPause
+                        }
+                    } catch (e: Exception) {
+                        false // Default: disabled
+                    }
+                },
             )
 
         // 4. PlaylistManager (Complex dependencies)
@@ -93,6 +106,17 @@ public class AudioPlayerServiceInitializer(
                 getActivePlayer = { service.getActivePlayer() },
                 packageName = service.packageName,
                 sendBroadcast = { service.sendBroadcast(it) },
+            )
+
+        // 6. CrossfadeHandler
+        // Initialize crossfade handler (requires playlistManager)
+        service.crossfadeHandler =
+            CrossfadeHandler(
+                service = service,
+                crossFadePlayer = service.crossFadePlayer
+                    ?: throw IllegalStateException("CrossFadePlayer must be initialized before CrossfadeHandler"),
+                playlistManager = service.playlistManager
+                    ?: throw IllegalStateException("PlaylistManager must be initialized before CrossfadeHandler"),
             )
 
         // 7. UnloadManager
@@ -272,12 +296,8 @@ public class AudioPlayerServiceInitializer(
                 )
 
             // Legacy NotificationManager is NO LONGER NEEDED for Media3 system notifications
-            // BUT it is used effectively by the app's player UI for artwork loading logic? No, only for notification.
-            // USER REQUEST: Implement async bitmap loading in NotificationManager.
-            // This implies NotificationManager IS used or intended to be used.
-            // Re-enabling it to support the refactored async loading logic.
-            // Potential specific use case: Custom in-app notifications or specialized handling not covered by Media3 default.
-
+            // Migration Phase 1: DISABLED to prevent conflicts with MediaNotification.Provider
+            /*
             service.notificationManager =
                 NotificationManager(
                     context = service,
@@ -290,6 +310,7 @@ public class AudioPlayerServiceInitializer(
                 )
             // Inject scope for async bitmap loading
             service.notificationManager?.setCoroutineScope(service.playerServiceScope)
+            */
 
             // Allow updating player reference if crossfade happens
             // service.crossFadePlayer?.onPlayerChanged will handle this via updatePlayer()

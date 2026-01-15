@@ -550,7 +550,7 @@ public class AudioPlayerService : MediaLibraryService() {
                         "MediaLibrarySession is null, cannot update player after crossfade",
                     )
                     // Update notification if needed (MediaLibrarySession should handle this automatically)
-                    notificationManager?.updateNotification()
+                    // notificationManager?.updateNotification()
                 } catch (e: Exception) {
                     android.util.Log.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
                 }
@@ -775,7 +775,7 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun setNotificationType() {
         // MediaLibraryService automatically manages notifications based on Player state
         // If we need custom notification types, we should configure MediaButtonPreferences instead
-        notificationManager?.setNotificationType(false)
+        // notificationManager?.setNotificationType(false)
         // MediaLibraryService automatically updates notification when Player state changes
     }
 
@@ -1043,7 +1043,7 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaSession = null
 
         // Cancel notification
-        notificationManager = null
+        // notificationManager = null
 
         android.util.Log.d("AudioPlayerService", "Player stopped and resources released")
     }
@@ -1063,10 +1063,10 @@ public class AudioPlayerService : MediaLibraryService() {
             forwardSeconds.toLong(),
         )
         // Update NotificationManager
-        notificationManager?.updateSkipDurations(
-            rewindSeconds.toLong(),
-            forwardSeconds.toLong(),
-        )
+        // notificationManager?.updateSkipDurations(
+        //     rewindSeconds.toLong(),
+        //     forwardSeconds.toLong(),
+        // )
         android.util.Log.d(
             "AudioPlayerService",
             "Updated skip durations: rewind=${rewindSeconds}s, forward=${forwardSeconds}s",
