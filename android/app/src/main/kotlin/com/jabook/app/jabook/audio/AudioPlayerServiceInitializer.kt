@@ -271,9 +271,28 @@ public class AudioPlayerServiceInitializer(
                     service.exoPlayer,
                 )
 
-            // Legacy NotificationManager is no longer needed - Media3 handles everything
-            // Keep reference null to prevent duplicate notifications
-            service.notificationManager = null
+            // Legacy NotificationManager is NO LONGER NEEDED for Media3 system notifications
+            // BUT it is used effectively by the app's player UI for artwork loading logic? No, only for notification.
+            // USER REQUEST: Implement async bitmap loading in NotificationManager.
+            // This implies NotificationManager IS used or intended to be used.
+            // Re-enabling it to support the refactored async loading logic.
+            // Potential specific use case: Custom in-app notifications or specialized handling not covered by Media3 default.
+
+            service.notificationManager =
+                NotificationManager(
+                    context = service,
+                    player = service.exoPlayer,
+                    mediaSession = service.mediaLibrarySession, // Use available session
+                    metadata = service.currentMetadata,
+                    embeddedArtworkPath = service.embeddedArtworkPath,
+                    rewindSeconds = 15, // Default
+                    forwardSeconds = 30, // Default
+                )
+            // Inject scope for async bitmap loading
+            service.notificationManager?.setCoroutineScope(service.playerServiceScope)
+
+            // Allow updating player reference if crossfade happens
+            // service.crossFadePlayer?.onPlayerChanged will handle this via updatePlayer()
 
             // Note: setMediaNotificationProvider must be called from AudioPlayerService.onCreate()
             // as it's a protected method in MediaSessionService

@@ -25,6 +25,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.ErrorHandler
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -104,10 +107,7 @@ internal class PlayerListener(
         }
     }
 
-    // Import kotlinx.coroutines.launch extension
-    private fun kotlinx.coroutines.CoroutineScope.launch(
-        block: suspend kotlinx.coroutines.CoroutineScope.() -> Unit,
-    ): kotlinx.coroutines.Job = kotlinx.coroutines.launch { block() }
+    // Import kotlinx.coroutines.launch extension removed - causing conflict with standard library
 
     /**
      * Sets a deferred to be completed when track switch occurs.
@@ -1296,7 +1296,7 @@ internal class PlayerListener(
         val scope = coroutineScope ?: return
         positionCheckJob =
             scope.launch {
-                while (kotlinx.coroutines.isActive) {
+                while (coroutineContext.isActive) {
                     if (getIsBookCompleted()) {
                         break
                     }

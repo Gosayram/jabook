@@ -26,11 +26,19 @@ import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.toBitmap
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.utils.appendFlavorSuffix
 import com.jabook.app.jabook.utils.capitalizeFirst
 import com.jabook.app.jabook.utils.formatFlavorSuffix
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.app.NotificationManager as AndroidNotificationManager
 
 /**
@@ -52,6 +60,89 @@ public class NotificationManager(
      * Whether to use minimal notification (Play/Pause only) or full notification (all controls).
      */
     private var isMinimalNotification: Boolean = false
+
+    /**
+     * Cached bitmap to avoid re-decoding on every notification update.
+     * Uses Coil3 for async loading to prevent main thread blocking.
+     */
+    private var cachedBitmap: android.graphics.Bitmap? = null
+    private var cachedArtworkPath: String? = null
+
+    /**
+     * Coroutine scope for async operations (passed from AudioPlayerService).
+     */
+    private var coroutineScope: kotlinx.coroutines.CoroutineScope? = null
+
+    /**
+     * Sets the coroutine scope for async bitmap loading.
+     */
+    public fun setCoroutineScope(scope: kotlinx.coroutines.CoroutineScope) {
+        coroutineScope = scope
+    }
+
+    /**
+     * Loads bitmap asynchronously using Coil3 to prevent main thread blocking.
+     * Returns cached bitmap if artwork path hasn't changed.
+     * Inspired by Rhythm's MusicWidgetProvider pattern.
+     */
+    private fun loadBitmapWithCoil(
+        artworkPath: String,
+        callback: (android.graphics.Bitmap?) -> Unit,
+    ) {
+        // Return cached bitmap if same artwork
+        if (artworkPath == cachedArtworkPath && cachedBitmap != null) {
+            callback(cachedBitmap)
+            return
+        }
+
+        val scope = coroutineScope
+        if (scope == null) {
+            // Fallback to sync loading if no scope (shouldn't happen)
+            android.util.Log.w("NotificationManager", "No coroutine scope for async bitmap loading, using sync fallback")
+            try {
+                val bitmap = BitmapFactory.decodeFile(artworkPath)
+                cachedBitmap = bitmap
+                cachedArtworkPath = artworkPath
+                callback(bitmap)
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationManager", "Sync bitmap load failed", e)
+                callback(null)
+            }
+            return
+        }
+
+        // Async loading with Coil3
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val loader = coil3.SingletonImageLoader.get(context)
+                val request =
+                    coil3.request.ImageRequest
+                        .Builder(context)
+                        .data(java.io.File(artworkPath))
+                        .build()
+
+                val result = loader.execute(request)
+                val bitmap =
+                    if (result is coil3.request.SuccessResult) {
+                        result.image.toBitmap()
+                    } else {
+                        null
+                    }
+
+                // Cache and callback on main thread
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    cachedBitmap = bitmap
+                    cachedArtworkPath = artworkPath
+                    callback(bitmap)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationManager", "Coil3 bitmap load failed", e)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    callback(null)
+                }
+            }
+        }
+    }
 
     /**
      * Updates the player reference. This is needed when the player is recreated.
@@ -227,122 +318,56 @@ public class NotificationManager(
         var largeIcon: android.graphics.Bitmap? = null
         val mediaMetadata = currentMediaItem?.mediaMetadata
 
-        // Method 0: Try embeddedArtworkPath first (saved by AudioPlayerService from embedded metadata)
-        android.util.Log.d("NotificationManager", "Checking embeddedArtworkPath: $embeddedArtworkPath")
-        if (largeIcon == null && embeddedArtworkPath != null) {
-            embeddedArtworkPath?.let { path ->
+        // Determine best artwork path (prioritize embedded path if set, then artworkUri)
+        val currentArtworkPath =
+            embeddedArtworkPath ?: mediaMetadata?.artworkUri?.let { uri ->
+                if (uri.scheme == "file") uri.path else null
+            }
+
+        if (currentArtworkPath != null) {
+            // Check cache
+            if (currentArtworkPath == cachedArtworkPath && cachedBitmap != null) {
+                largeIcon = cachedBitmap
+            } else {
+                // Not in cache or changed, trigger async load
+                android.util.Log.d("NotificationManager", "Triggering async bitmap load for: $currentArtworkPath")
+                loadBitmapWithCoil(currentArtworkPath) {
+                    // Start update on main thread when loaded
+                    updateNotification()
+                }
+            }
+        } else {
+            // Fallback: direct byte array decoding or content resolver stream (if strictly needed)
+            // Ideally avoid this on main thread too, but it's legacy/fallback
+            if (mediaMetadata != null) {
                 try {
-                    val artworkFile = java.io.File(path)
-                    android.util.Log.d(
-                        "NotificationManager",
-                        "Artwork file exists: ${artworkFile.exists()}, size: ${artworkFile.length()}",
-                    )
-                    if (artworkFile.exists() && artworkFile.length() > 0) {
-                        largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
-                        if (largeIcon != null) {
-                            android.util.Log.i(
-                                "NotificationManager",
-                                "Loaded cover image from embeddedArtworkPath: $embeddedArtworkPath (${largeIcon.width}x${largeIcon.height})",
-                            )
-                        } else {
-                            android.util.Log.w(
-                                "NotificationManager",
-                                "Failed to decode bitmap from embeddedArtworkPath: $embeddedArtworkPath",
-                            )
+                    if (largeIcon == null) {
+                        // Check content resolver for non-file URIs
+                        val artworkUri = mediaMetadata.artworkUri
+                        if (artworkUri != null && artworkUri.scheme != "file") {
+                            // We could use Coil for this too, but we need a path/key for caching logic above
+                            // For now, skip or left as is?
+                            // Let's rely on cachedBitmap if we can enable Coil for Uri too but loadBitmapWithCoil takes String path
                         }
-                    } else {
-                        android.util.Log.w(
-                            "NotificationManager",
-                            "Artwork file does not exist or is empty: $embeddedArtworkPath",
-                        )
+
+                        // Fallback to artworkData
+                        val artworkData = mediaMetadata.artworkData
+                        if (artworkData != null && artworkData.isNotEmpty()) {
+                            largeIcon = BitmapFactory.decodeByteArray(artworkData, 0, artworkData.size)
+                        }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e(
-                        "NotificationManager",
-                        "Failed to load cover image from embeddedArtworkPath: $path",
-                        e,
-                    )
+                    android.util.Log.w("NotificationManager", "Failed to load fallback cover image", e)
                 }
             }
-        } else if (embeddedArtworkPath == null) {
-            android.util.Log.d("NotificationManager", "embeddedArtworkPath is null")
         }
 
-        if (mediaMetadata != null) {
-            try {
-                // Inspired by lissen-android: prefer artworkUri over artworkData for better performance
-                // Method 1: Try artworkUri first (external cover file - better performance)
-                // This is set via setArtworkUri(uri) in AudioPlayerService.setPlaylist()
-                if (largeIcon == null) {
-                    val artworkUri = mediaMetadata.artworkUri
-                    if (artworkUri != null) {
-                        try {
-                            // Handle file:// URIs
-                            if (artworkUri.scheme == "file") {
-                                val filePath = artworkUri.path
-                                if (filePath != null) {
-                                    largeIcon = BitmapFactory.decodeFile(filePath)
-                                    if (largeIcon != null) {
-                                        android.util.Log.d(
-                                            "NotificationManager",
-                                            "Loaded cover image from artworkUri file: $filePath",
-                                        )
-                                    }
-                                }
-                            } else {
-                                // Try content resolver for other URI schemes (content://, http://, etc.)
-                                val inputStream = context.contentResolver.openInputStream(artworkUri)
-                                if (inputStream != null) {
-                                    largeIcon = BitmapFactory.decodeStream(inputStream)
-                                    inputStream.close()
-                                    if (largeIcon != null) {
-                                        android.util.Log.d(
-                                            "NotificationManager",
-                                            "Loaded cover image from artworkUri: $artworkUri",
-                                        )
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.w(
-                                "NotificationManager",
-                                "Failed to load cover image from artworkUri: $artworkUri",
-                                e,
-                            )
-                        }
-                    }
-                }
-
-                // Method 2: Fallback to artworkData if artworkUri is not available (embedded bytes)
-                // This is set via setArtworkData(bytes, PICTURE_TYPE_FRONT_COVER) in AudioPlayerService.setPlaylist()
-                if (largeIcon == null) {
-                    val artworkData = mediaMetadata.artworkData
-                    if (artworkData != null && artworkData.isNotEmpty()) {
-                        largeIcon = BitmapFactory.decodeByteArray(artworkData, 0, artworkData.size)
-                        if (largeIcon != null) {
-                            android.util.Log.d(
-                                "NotificationManager",
-                                "Loaded cover image from MediaMetadata.artworkData: ${artworkData.size} bytes",
-                            )
-                        } else {
-                            android.util.Log.w(
-                                "NotificationManager",
-                                "Failed to decode artworkData (${artworkData.size} bytes)",
-                            )
-                        }
-                    }
-                }
-
-                // Log if no artwork found
-                if (largeIcon == null) {
-                    android.util.Log.d(
-                        "NotificationManager",
-                        "No artwork found. artworkData=${mediaMetadata.artworkData?.isNotEmpty() == true}, artworkUri=${mediaMetadata.artworkUri}, embeddedArtworkPath=$embeddedArtworkPath",
-                    )
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("NotificationManager", "Failed to load embedded cover image", e)
-            }
+        // Log if no artwork found
+        if (largeIcon == null) {
+            android.util.Log.d(
+                "NotificationManager",
+                "No artwork available yet (or loading async). Path: $currentArtworkPath",
+            )
         } else {
             android.util.Log.d("NotificationManager", "MediaMetadata is null for current media item")
         }
@@ -942,41 +967,26 @@ public class NotificationManager(
         var largeIcon: android.graphics.Bitmap? = null
         val mediaMetadata = currentMediaItem?.mediaMetadata
 
-        if (largeIcon == null && embeddedArtworkPath != null) {
-            embeddedArtworkPath?.let { path ->
-                try {
-                    val artworkFile = java.io.File(path)
-                    if (artworkFile.exists() && artworkFile.length() > 0) {
-                        largeIcon = BitmapFactory.decodeFile(artworkFile.absolutePath)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("NotificationManager", "Failed to load cover from embeddedArtworkPath", e)
+        // Determine best artwork path (prioritize embedded path if set, then artworkUri)
+        val currentArtworkPath =
+            embeddedArtworkPath ?: mediaMetadata?.artworkUri?.let { uri ->
+                if (uri.scheme == "file") uri.path else null
+            }
+
+        if (currentArtworkPath != null) {
+            // Check cache
+            if (currentArtworkPath == cachedArtworkPath && cachedBitmap != null) {
+                largeIcon = cachedBitmap
+            } else {
+                // Not in cache or changed, trigger async load
+                // Note: we can trigger load from here too
+                loadBitmapWithCoil(currentArtworkPath) {
+                    updateNotification()
                 }
             }
-        }
-
-        if (largeIcon == null && mediaMetadata != null) {
+        } else if (mediaMetadata != null) {
+            // Fallback for non-file URIs or bytes
             try {
-                val artworkUri = mediaMetadata.artworkUri
-                if (artworkUri != null) {
-                    try {
-                        if (artworkUri.scheme == "file") {
-                            val filePath = artworkUri.path
-                            if (filePath != null) {
-                                largeIcon = BitmapFactory.decodeFile(filePath)
-                            }
-                        } else {
-                            val inputStream = context.contentResolver.openInputStream(artworkUri)
-                            if (inputStream != null) {
-                                largeIcon = BitmapFactory.decodeStream(inputStream)
-                                inputStream.close()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.w("NotificationManager", "Failed to load cover from artworkUri", e)
-                    }
-                }
-
                 if (largeIcon == null) {
                     val artworkData = mediaMetadata.artworkData
                     if (artworkData != null && artworkData.isNotEmpty()) {
@@ -984,7 +994,7 @@ public class NotificationManager(
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.w("NotificationManager", "Failed to load embedded cover", e)
+                android.util.Log.w("NotificationManager", "Failed to load fallback cover in minimal notification", e)
             }
         }
 
