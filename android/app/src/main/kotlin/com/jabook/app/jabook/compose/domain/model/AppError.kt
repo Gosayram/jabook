@@ -69,6 +69,14 @@ public sealed interface AppError {
             override val message: String = "DNS resolution failed",
             override val cause: Throwable? = null,
         ) : NetworkError
+
+        /**
+         * Generic network error.
+         */
+        public data class Generic(
+            override val message: String,
+            override val cause: Throwable? = null,
+        ) : NetworkError
     }
 
     /**
@@ -144,6 +152,14 @@ public sealed interface AppError {
         ) : ParsingError {
             override val message: String = "Partial parsing success with ${errors.size} errors"
         }
+
+        /**
+         * Generic parsing error.
+         */
+        public data class Generic(
+            override val message: String,
+            override val cause: Throwable? = null,
+        ) : ParsingError
     }
 
     /**
@@ -165,6 +181,14 @@ public sealed interface AppError {
             override val message: String = "No data available"
             override val cause: Throwable? = null
         }
+
+        /**
+         * Generic data error.
+         */
+        public data class Generic(
+            override val message: String,
+            override val cause: Throwable? = null,
+        ) : DataError
     }
 
     /**

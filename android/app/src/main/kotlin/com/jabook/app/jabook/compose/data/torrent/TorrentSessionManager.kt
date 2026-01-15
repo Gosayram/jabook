@@ -251,11 +251,11 @@ public class TorrentSessionManager
                 )
 
             return try {
-                Log.d(TAG, "addTorrent called: magnetUri=${magnetUri.take(100)}..., savePath=$savePath, topicId=$topicId")
+                logger.d { "addTorrent called: magnetUri=${magnetUri.take(100)}..., savePath=$savePath, topicId=$topicId" }
 
                 // Validate magnet URI format
                 if (!magnetUri.startsWith("magnet:", ignoreCase = true)) {
-                    Log.e(TAG, "Invalid magnet URI format: $magnetUri")
+                    logger.e { "Invalid magnet URI format: $magnetUri" }
                     return Result.failure(IllegalArgumentException("Invalid magnet URI format. Must start with 'magnet:'"))
                 }
 
@@ -264,11 +264,11 @@ public class TorrentSessionManager
                     parseMagnetHash(magnetUri)
                         ?: return Result.failure(IllegalArgumentException("Invalid magnet URI: cannot parse info hash"))
 
-                Log.d(TAG, "Parsed magnet URI: hash=$hash")
+                logger.d { "Parsed magnet URI: hash=$hash" }
 
                 // Check if already added
                 if (torrents.containsKey(hash)) {
-                    Log.w(TAG, "Torrent already added: $hash")
+                    logger.w { "Torrent already added: $hash" }
                     return Result.failure(IllegalStateException("Torrent already added"))
                 }
 
@@ -282,14 +282,14 @@ public class TorrentSessionManager
                 if (!saveDir.exists()) {
                     val created = saveDir.mkdirs()
                     if (!created && !saveDir.exists()) {
-                        Log.e(TAG, "Failed to create save directory: $savePath")
+                        logger.e { "Failed to create save directory: $savePath" }
                         return Result.failure(IllegalStateException("Failed to create save directory: $savePath"))
                     }
                 }
 
                 // Verify directory is writable
                 if (!saveDir.canWrite()) {
-                    Log.e(TAG, "Save directory is not writable: $savePath")
+                    logger.e { "Save directory is not writable: $savePath" }
                     return Result.failure(IllegalStateException("Save directory is not writable: $savePath"))
                 }
 
@@ -298,75 +298,75 @@ public class TorrentSessionManager
                 try {
                     val isRunning = session.isRunning()
                     if (!isRunning) {
-                        Log.e(TAG, "Cannot add torrent: session is not running")
+                        logger.e { "Cannot add torrent: session is not running" }
                         return Result.failure(IllegalStateException("Session is not running"))
                     }
-                    Log.d(TAG, "Session is running: $isRunning")
+                    logger.d { "Session is running: $isRunning" }
                 } catch (e: NoClassDefFoundError) {
-                    Log.e(TAG, "libtorrent4j classes not available when checking session", e)
+                    logger.e({ "libtorrent4j classes not available when checking session" }, e)
                     return Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
                 } catch (e: LinkageError) {
-                    Log.e(TAG, "libtorrent4j linkage error when checking session", e)
+                    logger.e({ "libtorrent4j linkage error when checking session" }, e)
                     return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: NoSuchMethodError) {
                     // isRunning() not available, assume session is running if no exception
-                    Log.d(TAG, "isRunning() not available, assuming session is running")
+                    logger.d { "isRunning() not available, assuming session is running" }
                 }
 
                 // Add torrent - download(String magnetUri, File saveDir, torrent_flags_t flags)
                 // Using empty flags (defaults) - SessionManager will handle magnet URI parsing
                 // Wrap in try-catch to handle any native exceptions
                 try {
-                    Log.d(TAG, "Calling session.download() for hash=$hash, savePath=$savePath")
+                    logger.d { "Calling session.download() for hash=$hash, savePath=$savePath" }
 
                     // Create flags - this may fail if libtorrent4j classes are not available
                     val flags =
                         try {
                             org.libtorrent4j.swig.torrent_flags_t()
                         } catch (e: NoClassDefFoundError) {
-                            Log.e(TAG, "libtorrent4j classes not available - version mismatch", e)
+                            logger.e({ "libtorrent4j classes not available - version mismatch" }, e)
                             return Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
                         } catch (e: LinkageError) {
-                            Log.e(TAG, "libtorrent4j linkage error - version mismatch", e)
+                            logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
                             return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                         }
 
                     session.download(magnetUri, saveDir, flags)
-                    Log.i(TAG, "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert...")
+                    logger.i { "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert..." }
                     // Note: The actual torrent handle will be available in ADD_TORRENT alert
                     // We return the hash now, but the torrent won't be in torrents map until alert fires
                     Result.success(hash)
                 } catch (e: NoClassDefFoundError) {
-                    Log.e(TAG, "Class not found error while adding torrent: hash=$hash", e)
+                    logger.e({ "Class not found error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
                 } catch (e: LinkageError) {
-                    Log.e(TAG, "Linkage error while adding torrent: hash=$hash", e)
+                    logger.e({ "Linkage error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: UnsatisfiedLinkError) {
-                    Log.e(TAG, "Native library error while adding torrent: hash=$hash", e)
+                    logger.e({ "Native library error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("Native library error: ${e.message}", e))
                 } catch (e: NoSuchMethodError) {
-                    Log.e(TAG, "Method not found error while adding torrent: hash=$hash", e)
+                    logger.e({ "Method not found error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("Library version mismatch: ${e.message}", e))
                 } catch (e: RuntimeException) {
                     // libtorrent4j may throw RuntimeException for various errors
-                    Log.e(TAG, "Runtime error while adding torrent: hash=$hash, error=${e.message}", e)
+                    logger.e({ "Runtime error while adding torrent: hash=$hash, error=${e.message}" }, e)
                     Result.failure(IllegalStateException("Failed to add torrent: ${e.message}", e))
                 }
             } catch (e: NoClassDefFoundError) {
-                Log.e(TAG, "Class not found error while adding torrent", e)
+                logger.e({ "Class not found error while adding torrent" }, e)
                 Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
             } catch (e: LinkageError) {
-                Log.e(TAG, "Linkage error while adding torrent", e)
+                logger.e({ "Linkage error while adding torrent" }, e)
                 Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
             } catch (e: IllegalStateException) {
-                Log.e(TAG, "Illegal state while adding torrent", e)
+                logger.e({ "Illegal state while adding torrent" }, e)
                 Result.failure(e)
             } catch (e: IllegalArgumentException) {
-                Log.e(TAG, "Invalid argument while adding torrent", e)
+                logger.e({ "Invalid argument while adding torrent" }, e)
                 Result.failure(e)
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error while adding torrent", e)
+                logger.e({ "Unexpected error while adding torrent" }, e)
                 Result.failure(e)
             }
         }
@@ -390,9 +390,9 @@ public class TorrentSessionManager
                 }
 
                 updateDownloads()
-                Log.i(TAG, "Removed torrent: $hash (deleteFiles=$deleteFiles)")
+                logger.i { "Removed torrent: $hash (deleteFiles=$deleteFiles)" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to remove torrent", e)
+                logger.e({ "Failed to remove torrent" }, e)
             }
         }
 
@@ -405,9 +405,9 @@ public class TorrentSessionManager
             try {
                 handle.pause()
                 updateDownloads()
-                Log.i(TAG, "Paused torrent: $hash")
+                logger.i { "Paused torrent: $hash" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to pause torrent", e)
+                logger.e({ "Failed to pause torrent" }, e)
             }
         }
 
@@ -420,9 +420,9 @@ public class TorrentSessionManager
             try {
                 handle.resume()
                 updateDownloads()
-                Log.i(TAG, "Resumed torrent: $hash")
+                logger.i { "Resumed torrent: $hash" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to resume torrent", e)
+                logger.e({ "Failed to resume torrent" }, e)
             }
         }
 
@@ -441,9 +441,9 @@ public class TorrentSessionManager
 
             try {
                 handle.moveStorage(newPath)
-                Log.i(TAG, "Moving storage for $hash to $newPath")
+                logger.i { "Moving storage for $hash to $newPath" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to move storage", e)
+                logger.e({ "Failed to move storage" }, e)
             }
         }
 
@@ -467,9 +467,9 @@ public class TorrentSessionManager
                     }
                 val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
                 handle.setFlags(flags, mask)
-                Log.i(TAG, "Set sequential download for $hash: $enabled")
+                logger.i { "Set sequential download for $hash: $enabled" }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to set sequential download", e)
+                logger.e({ "Failed to set sequential download" }, e)
             }
         }
 
@@ -502,9 +502,9 @@ public class TorrentSessionManager
                 torrents.clear()
                 session?.stop()
                 session = null
-                Log.i(TAG, "Session stopped")
+                logger.i { "Session stopped" }
             } catch (e: Exception) {
-                Log.e(TAG, "Error stopping session", e)
+                logger.e({ "Error stopping session" }, e)
             }
         }
 
@@ -514,7 +514,7 @@ public class TorrentSessionManager
             try {
                 val handle = alert.handle()
                 if (!handle.isValid) {
-                    Log.e(TAG, "Invalid torrent handle in ADD_TORRENT alert")
+                    logger.e { "Invalid torrent handle in ADD_TORRENT alert" }
                     return
                 }
 
@@ -522,14 +522,13 @@ public class TorrentSessionManager
                 val status = handle.status()
                 val torrentInfo = handle.torrentFile()
 
-                Log.i(
-                    TAG,
+                logger.i {
                     "Torrent added: hash=$hash, " +
                         "name='${torrentInfo?.name() ?: "unknown"}', " +
                         "state=${status.state()}, " +
                         "files=${torrentInfo?.numFiles() ?: 0}, " +
-                        "size=${torrentInfo?.totalSize() ?: 0} bytes",
-                )
+                        "size=${torrentInfo?.totalSize() ?: 0} bytes"
+                }
 
                 torrents[hash] = handle
 
@@ -549,26 +548,26 @@ public class TorrentSessionManager
 
                         if (sessionRunning) {
                             handle.resume()
-                            Log.d(TAG, "Torrent resumed after add: $hash")
+                            logger.d { "Torrent resumed after add: $hash" }
                         } else {
-                            Log.w(TAG, "Cannot resume torrent: session is not running")
+                            logger.w { "Cannot resume torrent: session is not running" }
                         }
                     } else {
-                        Log.w(TAG, "Cannot resume torrent: handle is invalid")
+                        logger.w { "Cannot resume torrent: handle is invalid" }
                     }
                 } catch (e: UnsatisfiedLinkError) {
-                    Log.e(TAG, "Native library error resuming torrent: $hash", e)
+                    logger.e({ "Native library error resuming torrent: $hash" }, e)
                 } catch (e: NoSuchMethodError) {
-                    Log.e(TAG, "Method not found error resuming torrent: $hash", e)
+                    logger.e({ "Method not found error resuming torrent: $hash" }, e)
                 } catch (e: RuntimeException) {
-                    Log.e(TAG, "Runtime error resuming torrent: $hash, error=${e.message}", e)
+                    logger.e({ "Runtime error resuming torrent: $hash, error=${e.message}" }, e)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to resume torrent after add: $hash, error=${e.message}", e)
+                    logger.e({ "Failed to resume torrent after add: $hash, error=${e.message}" }, e)
                 }
 
                 updateDownloads()
             } catch (e: Exception) {
-                Log.e(TAG, "Error in handleAddTorrent: ${e.message}", e)
+                logger.e({ "Error in handleAddTorrent: ${e.message}" }, e)
             }
         }
 
@@ -582,17 +581,16 @@ public class TorrentSessionManager
                     val newState = status.state()
 
                     if (oldState != newState) {
-                        Log.d(
-                            TAG,
+                        logger.d {
                             "State changed for $hash: " +
                                 "$oldState -> $newState, " +
-                                "progress=${(status.progress() * 100).toInt()}%",
-                        )
+                                "progress=${(status.progress() * 100).toInt()}%"
+                        }
                     }
                 }
                 updateDownloads()
             } catch (e: Exception) {
-                Log.e(TAG, "Error handling state changed alert", e)
+                logger.e({ "Error handling state changed alert" }, e)
             }
         }
 
@@ -602,17 +600,16 @@ public class TorrentSessionManager
                 if (handle.isValid) {
                     val hash = handle.infoHash().toHex()
                     val status = handle.status()
-                    Log.i(
-                        TAG,
+                    logger.i {
                         "Torrent finished: hash=$hash, " +
                             "downloaded=${status.totalDone()} bytes, " +
                             "uploaded=${status.totalUpload()} bytes, " +
-                            "downloadRate=${status.downloadRate()} bytes/s",
-                    )
+                            "downloadRate=${status.downloadRate()} bytes/s"
+                    }
                 }
                 updateDownloads()
             } catch (e: Exception) {
-                Log.e(TAG, "Error handling torrent finished alert", e)
+                logger.e({ "Error handling torrent finished alert" }, e)
             }
         }
 
@@ -620,7 +617,7 @@ public class TorrentSessionManager
             try {
                 val handle = alert.handle()
                 if (!handle.isValid) {
-                    Log.e(TAG, "Torrent error alert with invalid handle")
+                    logger.e { "Torrent error alert with invalid handle" }
                     return
                 }
 
@@ -628,8 +625,7 @@ public class TorrentSessionManager
                 val error = alert.error()
                 val status = handle.status()
 
-                Log.e(
-                    TAG,
+                logger.e {
                     "Torrent error for $hash: " +
                         "error='${error.message}', " +
                         "state=${status.state()}, " +
@@ -637,11 +633,11 @@ public class TorrentSessionManager
                         "downloadRate=${status.downloadRate()} bytes/s, " +
                         "uploadRate=${status.uploadRate()} bytes/s, " +
                         "numPeers=${status.numPeers()}, " +
-                        "numSeeds=${status.numSeeds()}",
-                )
+                        "numSeeds=${status.numSeeds()}"
+                }
                 updateDownloads()
             } catch (e: Exception) {
-                Log.e(TAG, "Error handling torrent error alert", e)
+                logger.e({ "Error handling torrent error alert" }, e)
             }
         }
 
@@ -652,17 +648,16 @@ public class TorrentSessionManager
                     val hash = handle.infoHash().toHex()
                     val torrentInfo = handle.torrentFile()
                     if (torrentInfo != null) {
-                        Log.i(
-                            TAG,
-                            "Metadata received for $hash: name='${torrentInfo.name()}', files=${torrentInfo.numFiles()}, size=${torrentInfo.totalSize()} bytes",
-                        )
+                        logger.i {
+                            "Metadata received for $hash: name='${torrentInfo.name()}', files=${torrentInfo.numFiles()}, size=${torrentInfo.totalSize()} bytes"
+                        }
                     } else {
-                        Log.i(TAG, "Metadata received for $hash (torrent info not yet available)")
+                        logger.i { "Metadata received for $hash (torrent info not yet available)" }
                     }
                 }
                 updateDownloads()
             } catch (e: Exception) {
-                Log.e(TAG, "Error handling metadata received alert", e)
+                logger.e({ "Error handling metadata received alert" }, e)
             }
         }
 
@@ -680,31 +675,31 @@ public class TorrentSessionManager
                     val hash = handle.infoHash().toHex()
                     val progress = (handle.status().progress() * 100).toInt()
                     val pieceIndex = alert.pieceIndex()
-                    Log.d(TAG, "Piece finished: hash=$hash, piece=$pieceIndex, progress=$progress%")
+                    logger.d { "Piece finished: hash=$hash, piece=$pieceIndex, progress=$progress%" }
                 }
                 // Update downloads less frequently for performance
                 if (System.currentTimeMillis() % 2000 < 200) {
                     updateDownloads()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error handling piece finished alert", e)
+                logger.e({ "Error handling piece finished alert" }, e)
             }
         }
 
         private fun handleDhtError(alert: DhtErrorAlert) {
             val error = alert.error()
-            Log.w(TAG, "DHT error: ${error.message}")
+            logger.w { "DHT error: ${error.message}" }
             // DHT errors are usually non-critical, just log them
         }
 
         private fun handleStateUpdate(alert: StateUpdateAlert) {
             try {
                 val message = alert.message()
-                Log.d(TAG, "State update: $message")
+                logger.d { "State update: $message" }
                 // State updates can be frequent, so we don't update downloads on every one
                 // The state changed alert will handle that
             } catch (e: Exception) {
-                Log.e(TAG, "Error handling state update alert", e)
+                logger.e({ "Error handling state update alert" }, e)
             }
         }
 
@@ -718,19 +713,19 @@ public class TorrentSessionManager
                             try {
                                 // Verify handle is still valid before creating download info
                                 if (!handle.isValid) {
-                                    Log.w(TAG, "Handle invalid for torrent $hash, skipping update")
+                                    logger.w { "Handle invalid for torrent $hash, skipping update" }
                                     null
                                 } else {
                                     hash to createTorrentDownload(hash, handle)
                                 }
                             } catch (e: Exception) {
-                                Log.e(TAG, "Failed to create download info for torrent $hash", e)
+                                logger.e({ "Failed to create download info for torrent $hash" }, e)
                                 null
                             }
                         }.toMap()
                 _downloadsFlow.value = downloads
             } catch (e: Exception) {
-                Log.e(TAG, "Critical error updating downloads", e)
+                logger.e({ "Critical error updating downloads" }, e)
                 // Don't clear downloads on error, keep last known state
             }
         }
@@ -753,7 +748,7 @@ public class TorrentSessionManager
                             torrentInfo?.name()?.takeIf { it.isNotBlank() } ?: hash
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get name for torrent $hash, using hash as fallback", e)
+                        logger.w(e) { "Failed to get name for torrent $hash, using hash as fallback" }
                         hash
                     }
 
@@ -762,7 +757,7 @@ public class TorrentSessionManager
                     try {
                         handle.savePath()
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get save path for torrent $hash", e)
+                        logger.w(e) { "Failed to get save path for torrent $hash" }
                         ""
                     }
 
@@ -774,7 +769,7 @@ public class TorrentSessionManager
                     try {
                         status.downloadRate().toLong().coerceAtLeast(0L)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get download speed for torrent $hash", e)
+                        logger.w(e) { "Failed to get download speed for torrent $hash" }
                         0L
                     }
 
@@ -782,7 +777,7 @@ public class TorrentSessionManager
                     try {
                         status.uploadRate().toLong().coerceAtLeast(0L)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get upload speed for torrent $hash", e)
+                        logger.w(e) { "Failed to get upload speed for torrent $hash" }
                         0L
                     }
 
@@ -791,7 +786,7 @@ public class TorrentSessionManager
                     try {
                         status.totalWanted().coerceAtLeast(0L)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get total size for torrent $hash", e)
+                        logger.w(e) { "Failed to get total size for torrent $hash" }
                         0L
                     }
 
@@ -799,7 +794,7 @@ public class TorrentSessionManager
                     try {
                         status.totalWantedDone().coerceAtLeast(0L)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get downloaded size for torrent $hash", e)
+                        logger.w(e) { "Failed to get downloaded size for torrent $hash" }
                         0L
                     }
 
@@ -807,24 +802,24 @@ public class TorrentSessionManager
                     try {
                         status.allTimeUpload().coerceAtLeast(0L)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get uploaded size for torrent $hash", e)
+                        logger.w(e) { "Failed to get uploaded size for torrent $hash" }
                         0L
                     }
 
                 // Get peer counts with error handling
                 val numPeers =
                     try {
-                        status.numPeers().coerceAtLeast(0)
+                        status.numPeers()
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get num peers for torrent $hash", e)
+                        logger.w(e) { "Failed to get num peers for torrent $hash" }
                         0
                     }
 
                 val numSeeds =
                     try {
-                        status.numSeeds().coerceAtLeast(0)
+                        status.numSeeds()
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get num seeds for torrent $hash", e)
+                        logger.w(e) { "Failed to get num seeds for torrent $hash" }
                         0
                     }
 
@@ -833,8 +828,18 @@ public class TorrentSessionManager
                     try {
                         calculateEta(status)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to calculate ETA for torrent $hash", e)
+                        logger.w(e) { "Failed to calculate ETA for torrent $hash" }
                         -1L
+                    }
+
+                // val state = mapTorrentStatus(status) // Unused and unresolved
+
+                val dateAdded =
+                    try {
+                        torrentInfo?.creationDate?.let { it * 1000L } ?: System.currentTimeMillis()
+                    } catch (e: Exception) {
+                        logger.w(e) { "Failed to get creation date for torrent $hash" }
+                        System.currentTimeMillis()
                     }
 
                 // Get files with error handling
@@ -846,7 +851,7 @@ public class TorrentSessionManager
                             emptyList()
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to map files for torrent $hash", e)
+                        logger.w(e) { "Failed to map files for torrent $hash" }
                         emptyList()
                     }
 
@@ -870,7 +875,7 @@ public class TorrentSessionManager
                 )
             } catch (e: Exception) {
                 // If anything goes wrong, return a minimal valid TorrentDownload
-                Log.e(TAG, "Critical error creating TorrentDownload for $hash", e)
+                logger.e({ "Critical error creating TorrentDownload for $hash" }, e)
                 return TorrentDownload(
                     hash = hash,
                     name = hash, // Fallback to hash
@@ -915,7 +920,7 @@ public class TorrentSessionManager
                 handle.filePriority(fileIndex, org.libtorrent4j.Priority.fromSwig(priority))
                 updateDownloads()
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to prioritize file", e)
+                logger.e(e) { "Failed to prioritize file" }
             }
         }
 
@@ -931,7 +936,7 @@ public class TorrentSessionManager
             val numFiles = torrentInfo.numFiles()
 
             if (priorities.size != numFiles) {
-                Log.w(TAG, "Priority list size mismatch: ${priorities.size} != $numFiles")
+                logger.w { "Priority list size mismatch: ${priorities.size} != $numFiles" }
                 return
             }
 
@@ -941,7 +946,7 @@ public class TorrentSessionManager
                 handle.prioritizeFiles(priorityArray)
                 updateDownloads()
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to set file priorities", e)
+                logger.e(e) { "Failed to set file priorities" }
             }
         }
 
@@ -954,7 +959,7 @@ public class TorrentSessionManager
                 val numFiles = fileStorage.numFiles()
 
                 if (numFiles <= 0) {
-                    Log.w(TAG, "Torrent has no files")
+                    logger.w { "Torrent has no files" }
                     return emptyList()
                 }
 
@@ -963,7 +968,7 @@ public class TorrentSessionManager
                     try {
                         handle.filePriorities() // Returns Priority[]
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get file priorities", e)
+                        logger.w(e) { "Failed to get file priorities" }
                         emptyArray()
                     }
 
@@ -973,7 +978,7 @@ public class TorrentSessionManager
                         // Use empty flags to get progress in bytes, not pieces
                         handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to get file progress", e)
+                        logger.w(e) { "Failed to get file progress" }
                         longArrayOf()
                     }
 
@@ -984,7 +989,7 @@ public class TorrentSessionManager
                                 try {
                                     priorities[index].swig().toInt().coerceIn(0, 7)
                                 } catch (e: Exception) {
-                                    Log.w(TAG, "Failed to get priority for file $index", e)
+                                    logger.w(e) { "Failed to get priority for file $index" }
                                     4 // Default priority
                                 }
                             } else {
@@ -995,7 +1000,7 @@ public class TorrentSessionManager
                             try {
                                 fileStorage.fileSize(index).coerceAtLeast(0L)
                             } catch (e: Exception) {
-                                Log.w(TAG, "Failed to get size for file $index", e)
+                                logger.w(e) { "Failed to get size for file $index" }
                                 0L
                             }
 
@@ -1004,7 +1009,7 @@ public class TorrentSessionManager
                                 try {
                                     progress[index].coerceAtLeast(0L)
                                 } catch (e: Exception) {
-                                    Log.w(TAG, "Failed to get downloaded bytes for file $index", e)
+                                    logger.w(e) { "Failed to get downloaded bytes for file $index" }
                                     0L
                                 }
                             } else {
@@ -1017,7 +1022,7 @@ public class TorrentSessionManager
                             try {
                                 fileStorage.filePath(index) ?: "file_$index"
                             } catch (e: Exception) {
-                                Log.w(TAG, "Failed to get path for file $index", e)
+                                logger.w(e) { "Failed to get path for file $index" }
                                 "file_$index"
                             }
 
@@ -1030,12 +1035,12 @@ public class TorrentSessionManager
                             isSelected = priority != 0,
                         )
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to map file $index", e)
+                        logger.e(e) { "Failed to map file $index" }
                         null // Skip this file
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Critical error mapping files", e)
+                logger.e(e) { "Critical error mapping files" }
                 emptyList()
             }
         }

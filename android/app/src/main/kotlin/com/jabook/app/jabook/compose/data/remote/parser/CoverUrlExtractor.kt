@@ -167,7 +167,7 @@ public class CoverUrlExtractor
             }
 
             // No cover found - this is OK
-            Log.d(TAG, "No cover URL found (this is acceptable)")
+            logger.d { "No cover URL found (this is acceptable)" }
             return null
         }
 

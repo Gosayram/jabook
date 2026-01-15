@@ -94,6 +94,7 @@ android {
     // Enable Jetpack Compose
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     // Compose Compiler configuration moved to plugin (line 16)

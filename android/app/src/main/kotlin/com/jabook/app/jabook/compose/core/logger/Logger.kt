@@ -23,38 +23,38 @@ package com.jabook.app.jabook.compose.core.logger
 public interface Logger {
     /**
      * Log debug message.
-     * Message is evaluated lazily (only if logging is enabled).
      */
     public fun d(message: () -> String)
+    public fun d(message: () -> String, throwable: Throwable?)
+    public fun d(throwable: Throwable?, message: () -> String)
 
     /**
      * Log error message.
-     * Message is evaluated lazily (only if logging is enabled).
-     *
-     * @param throwable Optional throwable to log
      */
-    public fun e(
-        message: () -> String,
-        throwable: Throwable? = null,
-    )
+    public fun e(message: () -> String)
+    public fun e(message: () -> String, throwable: Throwable?)
+    public fun e(throwable: Throwable?, message: () -> String)
 
     /**
      * Log info message.
-     * Message is evaluated lazily (only if logging is enabled).
      */
     public fun i(message: () -> String)
+    public fun i(message: () -> String, throwable: Throwable?)
+    public fun i(throwable: Throwable?, message: () -> String)
 
     /**
      * Log warning message.
-     * Message is evaluated lazily (only if logging is enabled).
      */
     public fun w(message: () -> String)
+    public fun w(message: () -> String, throwable: Throwable?)
+    public fun w(throwable: Throwable?, message: () -> String)
 
     /**
      * Log verbose message.
-     * Message is evaluated lazily (only if logging is enabled).
      */
     public fun v(message: () -> String)
+    public fun v(message: () -> String, throwable: Throwable?)
+    public fun v(throwable: Throwable?, message: () -> String)
 }
 
 /**

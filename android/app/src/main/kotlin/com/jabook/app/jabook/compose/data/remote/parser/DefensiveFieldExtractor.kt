@@ -203,7 +203,7 @@ public class DefensiveFieldExtractor
             }
 
             // All strategies failed
-            Log.d(TAG, "Failed to extract leechers for topic $topicId")
+            logger.d { "Failed to extract leechers for topic $topicId" }
             return 0
         }
 
@@ -256,7 +256,7 @@ public class DefensiveFieldExtractor
                 return regexMatch.value
             }
 
-            Log.w(TAG, "Failed to extract size for topic $topicId")
+            logger.w { "Failed to extract size for topic $topicId" }
             return "Unknown"
         }
 

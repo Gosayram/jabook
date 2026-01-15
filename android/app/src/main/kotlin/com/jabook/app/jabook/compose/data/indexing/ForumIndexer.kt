@@ -139,14 +139,14 @@ public class ForumIndexer
                     logger.w { "Only audiobook forums will be indexed. Allowed forums: ${allowedForums.size}" }
                 }
 
-                logger.i { "Starting full forum indexing for ${forumIdList.size} forums (version $currentIndexVersion)" }
-                logger.i { "Forums to index: ${forumIdList.joinToString(", ")}" }
+                logger.i { "Starting full forum indexing for ${forumIdList.size} forums (version $currentIndexVersion }" }
+                logger.i { "Forums to index: ${forumIdList.joinToString(", " }}" }
 
                 // Clear old indexed data before starting new index to ensure only audiobook forums are indexed
                 logger.i { "Clearing old indexed data before new index..." }
                 val oldCount = getIndexSize()
                 clearIndex()
-                logger.i { "Old indexed data cleared (was $oldCount topics)" }
+                logger.i { "Old indexed data cleared (was $oldCount topics }" }
 
                 onProgress?.invoke(
                     IndexingProgress.InProgress(
@@ -198,36 +198,12 @@ public class ForumIndexer
                                         topicsIndexedAtomic.addAndGet(indexed)
                                         Pair(indexed, covers)
                                     } catch (e: Exception) {
-                                        logger.e({ "Failed to index forum $forumId" }, e)
-                                        onProgress?.invoke(
-                                            IndexingProgress.Error(
-                                                message = "Failed to index forum $forumId: ${e.message}",
-                                                forumId = forumId,
-                                            ),
-                                        )
+                                        logger.e(e) { "Failed to index forum $forumId" }
                                         Pair(0, emptyList<String>())
                                     }
                                 }
                             }.awaitAll()
 
-                    // Aggregate results and update progress after batch completion
-                    batchResults.forEach { (indexed, covers) ->
-                        totalIndexed += indexed
-                        coversToPreload.addAll(covers)
-                    }
-
-                    // Update progress after batch completion with accurate count
-                    val currentTotal = topicsIndexedAtomic.get()
-                    val nextBatchStartIndex = ((batchIndex + 1) * MAX_CONCURRENT_FORUMS).coerceAtMost(forumIdList.size)
-                    onProgress?.invoke(
-                        IndexingProgress.InProgress(
-                            currentForum = batch.lastOrNull() ?: "",
-                            currentForumIndex = nextBatchStartIndex,
-                            totalForums = forumIdList.size,
-                            currentPage = 0, // Reset page for next batch
-                            topicsIndexed = currentTotal,
-                        ),
-                    )
                 }
 
                 // Cover preloading is disabled (optimization: covers not stored in index)
@@ -259,29 +235,27 @@ public class ForumIndexer
                     }
                 }
 
-                Log.i(
-                    TAG,
+                logger.i {
                     "Forum indexing completed. Indexed: $totalIndexed topics, database: $actualCountInDb topics, " +
                         "duration: ${duration}ms (${duration / 1000}s), " +
                         "speed: $topicsPerSecond topics/s, memory: +${memoryUsed}MB, " +
-                        "mirror: $finalMirror",
-                )
+                        "mirror: $finalMirror"
+                }
 
                 // Log sample topics to verify index content (AUTOMATIC VERIFICATION)
                 try {
                     val sampleTopics = offlineSearchDao.getSampleTopics(5)
-                    Log.i(TAG, "🔍 === AUTOMATIC INDEX VERIFICATION: DATABASE CONTENT CHECK ===")
-                    Log.i(TAG, "Found ${sampleTopics.size} sample topics in database:")
+                    logger.i { "🔍 === AUTOMATIC INDEX VERIFICATION: DATABASE CONTENT CHECK ===" }
+                    logger.i { "Found ${sampleTopics.size} sample topics in database:" }
                     sampleTopics.forEachIndexed { index, topic ->
-                        Log.i(
-                            TAG,
+                        logger.i {
                             "  [$index] ID: ${topic.topicId} | Title: ${topic.title.take(50)}... | " +
-                                "Author: ${topic.author} | Cat: ${topic.category} | Size: ${topic.size}",
-                        )
+                                "Author: ${topic.author} | Cat: ${topic.category} | Size: ${topic.size}"
+                        }
                     }
-                    Log.i(TAG, "✅ === DATABASE CONTENT VERIFIED: ${sampleTopics.size} ITEMS RETRIEVED ===")
+                    logger.i { "✅ === DATABASE CONTENT VERIFIED: ${sampleTopics.size} ITEMS RETRIEVED ===" }
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Failed to perform automatic index verification", e)
+                    logger.e({ "❌ Failed to perform automatic index verification" }, e)
                 }
 
                 // Use database count as single source of truth for completion
@@ -295,6 +269,36 @@ public class ForumIndexer
 
                 finalCount // Return database count as single source of truth
             }
+
+        /**
+         * Get current index size (number of topics).
+         */
+        public suspend fun getIndexSize(): Int = offlineSearchDao.getTopicCount()
+
+        /**
+         * Get index metadata/statistics.
+         */
+        public suspend fun getIndexMetadata(): IndexMetadata? = offlineSearchDao.getIndexMetadata()
+
+        /**
+         * Clear the entire index.
+         */
+        public suspend fun clearIndex() {
+            offlineSearchDao.deleteAllTopics()
+            offlineSearchDao.deleteAllMappings()
+        }
+
+        /**
+         * Check if index needs update.
+         */
+        public suspend fun needsUpdate(): Boolean {
+            val metadata = getIndexMetadata() ?: return true
+            if (metadata.count == 0) return true
+
+            val oldestUpdated = metadata.oldestUpdated ?: return true
+            val age = System.currentTimeMillis() - oldestUpdated
+            return age > MAX_AGE_FOR_UPDATE_MS
+        }
 
         /**
          * Incremental update: only update topics that are old or missing.
@@ -318,22 +322,22 @@ public class ForumIndexer
                 var totalUpdated: Int = 0
                 val coversToPreload = mutableListOf<String>()
 
-                Log.i(TAG, "Starting incremental update (max age: ${maxAgeMs / (1000 * 60 * 60)} hours)")
+                logger.i { "Starting incremental update (max age: ${maxAgeMs / (1000 * 60 * 60)} hours)" }
 
                 for (forumId in forumIdList) {
                     try {
                         val (updated, covers) = updateForumIncremental(forumId, maxAgeMs, currentIndexVersion, onProgress)
                         totalUpdated += updated
                         coversToPreload.addAll(covers)
-                        Log.i(TAG, "Updated forum $forumId: $updated topics")
+                        logger.i { "Updated forum $forumId: $updated topics" }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to update forum $forumId", e)
+                        logger.e({ "Failed to update forum $forumId" }, e)
                     }
                 }
 
                 // Cover preloading is disabled (optimization: covers not stored in index)
 
-                Log.i(TAG, "Incremental update completed. Updated: $totalUpdated topics")
+                logger.i { "Incremental update completed. Updated: $totalUpdated topics" }
                 totalUpdated
             }
 
@@ -358,7 +362,7 @@ public class ForumIndexer
 
             val forumStartTime = System.currentTimeMillis()
             val initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
-            Log.i(TAG, "Starting indexing forum $forumId (version $indexVersion)")
+            logger.i { "Starting indexing forum $forumId (version $indexVersion)" }
 
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {
@@ -367,7 +371,7 @@ public class ForumIndexer
                     val fetchTime = System.currentTimeMillis() - pageStartTime
 
                     if (!response.isSuccessful) {
-                        Log.w(TAG, "Failed to fetch forum $forumId page $page: HTTP ${response.code()} (took ${fetchTime}ms)")
+                        logger.w { "Failed to fetch forum $forumId page $page: HTTP ${response.code()} (took ${fetchTime}ms)" }
                         break
                     }
 
@@ -383,7 +387,7 @@ public class ForumIndexer
                     hasMorePages = pageResult.hasMorePages
 
                     if (topics.isEmpty()) {
-                        Log.d(TAG, "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)")
+                        logger.d { "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)" }
                         hasMorePages = false
                     } else {
                         val dbStartTime = System.currentTimeMillis()
@@ -395,18 +399,16 @@ public class ForumIndexer
                             }
                         val invalidCount = topics.size - validTopics.size
                         if (invalidCount > 0) {
-                            Log.w(
-                                TAG,
+                            logger.w {
                                 "Forum $forumId page $page: filtered out $invalidCount invalid topics " +
-                                    "(out of ${topics.size} parsed)",
-                            )
+                                    "(out of ${topics.size} parsed)"
+                            }
                         }
-                        Log.d(
-                            TAG,
+                        logger.d {
                             "Forum $forumId page $page: parsed ${topics.size} topics, " +
                                 "${validTopics.size} valid (total: $totalTopics, " +
-                                "body: ${bodySize / 1024}KB, fetch: ${fetchTime}ms, parse: ${parseTime}ms)",
-                        )
+                                "body: ${bodySize / 1024}KB, fetch: ${fetchTime}ms, parse: ${parseTime}ms)"
+                        }
                         // Add only valid topics to buffer with current index version
                         // Note: magnetUrl, torrentUrl, coverUrl are NOT saved (optimization)
                         val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
@@ -422,7 +424,7 @@ public class ForumIndexer
                             offlineSearchDao.upsertTopics(entitiesBuffer)
                             val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
                             val writtenCount = entitiesBuffer.size
-                            Log.d(TAG, "Forum $forumId: wrote $writtenCount topics to DB in ${dbWriteTime}ms")
+                            logger.d { "Forum $forumId: wrote $writtenCount topics to DB in ${dbWriteTime}ms" }
                             entitiesBuffer.clear()
                         }
 
@@ -443,23 +445,23 @@ public class ForumIndexer
                             (e.message?.contains("No address associated with hostname", ignoreCase = true) == true)
 
                     if (isNetworkError) {
-                        Log.w(TAG, "Network error indexing forum $forumId page $page (${e.javaClass.simpleName}): ${e.message}")
+                        logger.w { "Network error indexing forum $forumId page $page (${e.javaClass.simpleName}): ${e.message}" }
 
                         // Check if auto-switch is enabled before attempting mirror switch
                         val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabled()
 
                         if (!autoSwitchEnabled) {
-                            Log.w(TAG, "Auto-switch is disabled, not attempting mirror switch. User must switch mirror manually.")
+                            logger.w { "Auto-switch is disabled, not attempting mirror switch. User must switch mirror manually." }
                             hasMorePages = false
                         } else {
                             // Try switching mirror and retry once
                             var retrySucceeded: Boolean = false
                             try {
-                                Log.i(TAG, "Auto-switch enabled, attempting to switch mirror...")
+                                logger.i { "Auto-switch enabled, attempting to switch mirror..." }
                                 val switched = mirrorManager.switchToNextMirror()
                                 if (switched) {
                                     val newMirror = mirrorManager.currentMirror.value
-                                    Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
+                                    logger.i { "Switched to mirror $newMirror, retrying forum $forumId page $page" }
                                     delay(500L) // Brief delay before retry
                                     // Retry the request
                                     val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
@@ -480,10 +482,9 @@ public class ForumIndexer
 
                                                 // Cover URLs are no longer collected (optimization)
 
-                                                Log.i(
-                                                    TAG,
-                                                    "Retry succeeded after mirror switch: parsed ${retryTopics.size} topics (parse: ${retryParseTime}ms)",
-                                                )
+                                                logger.i {
+                                                    "Retry succeeded after mirror switch: parsed ${retryTopics.size} topics (parse: ${retryParseTime}ms)"
+                                                }
                                                 retrySucceeded = true
 
                                                 // Flush if needed
@@ -491,10 +492,9 @@ public class ForumIndexer
                                                     val dbWriteStartTime = System.currentTimeMillis()
                                                     offlineSearchDao.upsertTopics(entitiesBuffer)
                                                     val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
-                                                    Log.d(
-                                                        TAG,
-                                                        "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms",
-                                                    )
+                                                    logger.d {
+                                                        "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms"
+                                                    }
                                                     entitiesBuffer.clear()
                                                 }
 
@@ -502,23 +502,23 @@ public class ForumIndexer
                                                 delay(DELAY_BETWEEN_REQUESTS_MS)
                                                 page++
                                             } else {
-                                                Log.d(TAG, "Retry succeeded but no topics found, ending")
+                                                logger.d { "Retry succeeded but no topics found, ending" }
                                                 hasMorePages = false
                                             }
                                         } else {
-                                            Log.w(TAG, "Retry response body is null, stopping forum indexing")
+                                            logger.w { "Retry response body is null, stopping forum indexing" }
                                             hasMorePages = false
                                         }
                                     } else {
-                                        Log.w(TAG, "Retry failed with HTTP ${retryResponse.code()}, stopping forum indexing")
+                                        logger.w { "Retry failed with HTTP ${retryResponse.code()}, stopping forum indexing" }
                                         hasMorePages = false
                                     }
                                 } else {
-                                    Log.e(TAG, "Failed to switch mirror, stopping forum indexing")
+                                    logger.e { "Failed to switch mirror, stopping forum indexing" }
                                     hasMorePages = false
                                 }
                             } catch (retryException: Exception) {
-                                Log.e(TAG, "Error during mirror switch retry for forum $forumId page $page", retryException)
+                                logger.e(retryException) { "Error during mirror switch retry for forum $forumId page $page" }
                                 hasMorePages = false
                             }
 
@@ -527,7 +527,7 @@ public class ForumIndexer
                             }
                         }
                     } else {
-                        Log.e(TAG, "Error indexing forum $forumId page $page", e)
+                        logger.e(e) { "Error indexing forum $forumId page $page" }
                         hasMorePages = false
                     }
                 }
@@ -538,7 +538,7 @@ public class ForumIndexer
                 val dbWriteStartTime = System.currentTimeMillis()
                 offlineSearchDao.upsertTopics(entitiesBuffer)
                 val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
-                Log.d(TAG, "Forum $forumId: flushed ${entitiesBuffer.size} remaining topics to DB in ${dbWriteTime}ms")
+                logger.d { "Forum $forumId: flushed ${entitiesBuffer.size} remaining topics to DB in ${dbWriteTime}ms" }
             }
 
             val forumDuration = System.currentTimeMillis() - forumStartTime
@@ -546,12 +546,11 @@ public class ForumIndexer
             val memoryUsed = (finalMemory - initialMemory) / (1024 * 1024) // MB
             val avgTimePerTopic = if (totalTopics > 0) forumDuration / totalTopics else 0
 
-            Log.i(
-                TAG,
+            logger.i {
                 "Forum $forumId indexing completed: $totalTopics topics, " +
                     "duration: ${forumDuration}ms (${forumDuration / 1000}s), " +
-                    "avg: ${avgTimePerTopic}ms/topic, memory: +${memoryUsed}MB",
-            )
+                    "avg: ${avgTimePerTopic}ms/topic, memory: +${memoryUsed}MB"
+            }
             return Pair(totalTopics, coversToPreload)
         }
 
@@ -601,11 +600,10 @@ public class ForumIndexer
                             }
                         val invalidCount = topics.size - validTopics.size
                         if (invalidCount > 0) {
-                            Log.w(
-                                TAG,
+                            logger.w {
                                 "Forum $forumId page $page incremental: filtered out $invalidCount invalid topics " +
-                                    "(out of ${topics.size} parsed)",
-                            )
+                                    "(out of ${topics.size} parsed)"
+                            }
                         }
                         // Filter: only update new topics or topics that need updating
                         val topicsToUpdate =
@@ -623,7 +621,7 @@ public class ForumIndexer
                             val dbWriteStartTime = System.currentTimeMillis()
                             offlineSearchDao.upsertTopics(entities)
                             val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
-                            Log.d(TAG, "Forum $forumId incremental: updated ${entities.size} topics in DB (${dbWriteTime}ms)")
+                            logger.d { "Forum $forumId incremental: updated ${entities.size} topics in DB (${dbWriteTime}ms)" }
                             totalUpdated += topicsToUpdate.size
 
                             // Cover URLs are no longer collected (optimization)
@@ -645,22 +643,22 @@ public class ForumIndexer
                             (e.message?.contains("No address associated with hostname", ignoreCase = true) == true)
 
                     if (isNetworkError) {
-                        Log.w(TAG, "Network error updating forum $forumId page $page (${e.javaClass.simpleName}): ${e.message}")
+                        logger.w { "Network error updating forum $forumId page $page (${e.javaClass.simpleName}): ${e.message}" }
 
                         // Check if auto-switch is enabled before attempting mirror switch
                         val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabled()
 
                         if (!autoSwitchEnabled) {
-                            Log.w(TAG, "Auto-switch is disabled, not attempting mirror switch. User must switch mirror manually.")
+                            logger.w { "Auto-switch is disabled, not attempting mirror switch. User must switch mirror manually." }
                             hasMorePages = false
                         } else {
                             // Try switching mirror and retry once
                             try {
-                                Log.i(TAG, "Auto-switch enabled, attempting to switch mirror...")
+                                logger.i { "Auto-switch enabled, attempting to switch mirror..." }
                                 val switched = mirrorManager.switchToNextMirror()
                                 if (switched) {
                                     val newMirror = mirrorManager.currentMirror.value
-                                    Log.i(TAG, "Switched to mirror $newMirror, retrying forum $forumId page $page")
+                                    logger.i { "Switched to mirror $newMirror, retrying forum $forumId page $page" }
                                     delay(500L) // Brief delay before retry
                                     // Retry the request - will continue in next iteration if successful
                                     val retryResponse = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
@@ -695,28 +693,28 @@ public class ForumIndexer
                                                 page++
                                                 continue // Continue to next iteration
                                             } else {
-                                                Log.d(TAG, "Retry succeeded but no topics found, ending")
+                                                logger.d { "Retry succeeded but no topics found, ending" }
                                                 hasMorePages = false
                                             }
                                         } else {
-                                            Log.w(TAG, "Retry response body is null, stopping forum update")
+                                            logger.w { "Retry response body is null, stopping forum update" }
                                             hasMorePages = false
                                         }
                                     } else {
-                                        Log.w(TAG, "Retry failed with HTTP ${retryResponse.code()}, stopping forum update")
+                                        logger.w { "Retry failed with HTTP ${retryResponse.code()}, stopping forum update" }
                                         hasMorePages = false
                                     }
                                 } else {
-                                    Log.e(TAG, "Failed to switch mirror, stopping forum update")
+                                    logger.e { "Failed to switch mirror, stopping forum update" }
                                     hasMorePages = false
                                 }
                             } catch (retryException: Exception) {
-                                Log.e(TAG, "Error during mirror switch retry for forum $forumId page $page", retryException)
+                                logger.e(retryException) { "Error during mirror switch retry for forum $forumId page $page" }
                                 hasMorePages = false
                             }
                         }
                     } else {
-                        Log.e(TAG, "Error updating forum $forumId page $page", e)
+                        logger.e(e) { "Error updating forum $forumId page $page" }
                         hasMorePages = false
                     }
                 }
@@ -735,7 +733,7 @@ public class ForumIndexer
                 val imageLoader = SingletonImageLoader.get(context)
                 val uniqueUrls = coverUrls.distinct().take(500) // Limit to 500 covers per batch
 
-                Log.d(TAG, "Preloading ${uniqueUrls.size} cover images...")
+                logger.d { "Preloading ${uniqueUrls.size} cover images..." }
 
                 // Preload in batches to avoid overwhelming the system
                 uniqueUrls.chunked(PRELOAD_COVERS_BATCH_SIZE).forEach { batch ->
@@ -758,7 +756,7 @@ public class ForumIndexer
                     delay(PRELOAD_COVERS_DELAY_MS)
                 }
 
-                Log.d(TAG, "Cover preloading completed")
+                logger.d { "Cover preloading completed" }
             }
 
         /**
@@ -818,6 +816,6 @@ public class ForumIndexer
             withContext(Dispatchers.IO) {
                 offlineSearchDao.deleteAllTopics()
                 offlineSearchDao.deleteAllMappings()
-                Log.i(TAG, "Index cleared")
+                logger.i { "Index cleared" }
             }
     }

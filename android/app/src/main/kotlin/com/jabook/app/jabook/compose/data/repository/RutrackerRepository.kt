@@ -201,7 +201,7 @@ public class RutrackerRepositoryImpl
                     is Result.Error -> {
                         Result.Error(result.error)
                     }
-                    is Result.Loading -> Result.Loading
+                    is Result.Loading -> Result.Loading()
                 }
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
@@ -224,8 +224,9 @@ public class RutrackerRepositoryImpl
 
                 if (!response.isSuccessful) {
                     return Result.Error(
-                        AppError.NetworkError(
-                            "HTTP ${response.code()}: ${response.message()}",
+                        AppError.NetworkError.HttpError(
+                            code = response.code(),
+                            response = response.message(),
                         ),
                     )
                 }
@@ -233,14 +234,14 @@ public class RutrackerRepositoryImpl
                 // Get raw bytes and decode as Windows-1251
                 val rawBytes =
                     response.body()?.bytes() ?: return Result.Error(
-                        AppError.NetworkError("Empty response body"),
+                        AppError.NetworkError.Generic("Empty response body"),
                     )
                 val html = String(rawBytes, charset("windows-1251"))
 
                 val dtoDetails =
                     parser.parseTopicDetails(html, topicId)
                         ?: return Result.Error(
-                            AppError.ParsingError("Failed to parse topic details"),
+                            AppError.ParsingError.Generic("Failed to parse topic details"),
                         )
 
                 // Map DTO to domain model
@@ -249,7 +250,7 @@ public class RutrackerRepositoryImpl
                     Result.Success(domainDetails)
                 } else {
                     Result.Error(
-                        AppError.ParsingError("Topic details failed validation"),
+                        AppError.ParsingError.Generic("Topic details failed validation"),
                     )
                 }
             } catch (e: Exception) {
@@ -273,7 +274,7 @@ public class RutrackerRepositoryImpl
 
                 if (!response.isSuccessful) {
                     return Result.Error(
-                        AppError.NetworkError("Login failed: HTTP ${response.code()}"),
+                        AppError.NetworkError.Generic("Login failed: HTTP ${response.code()}"),
                     )
                 }
 
@@ -296,28 +297,32 @@ public class RutrackerRepositoryImpl
 
                 if (!response.isSuccessful) {
                     return Result.Error(
-                        AppError.NetworkError("HTTP ${response.code()}: ${response.message()}"),
+                        AppError.NetworkError.HttpError(
+                            code = response.code(),
+                            response = response.message(),
+                        ),
                     )
                 }
 
                 val rawBytes =
                     response.body()?.bytes() ?: return Result.Error(
-                        AppError.NetworkError("Empty response body"),
+                        AppError.NetworkError.Generic("Empty response body"),
                     )
                 val html = String(rawBytes, charset("windows-1251"))
 
                 val dtoDetails =
                     parser.parseTopicDetails(html, topicId)
                         ?: return Result.Error(
-                            AppError.ParsingError("Failed to parse topic details"),
+                            AppError.ParsingError.Generic("Failed to parse topic details"),
                         )
 
                 val domainDetails = dtoDetails.toDomain()
+
                 if (domainDetails.isValid() || (page > 1 && domainDetails.isValidForPagination())) {
                     Result.Success(domainDetails)
                 } else {
                     Result.Error(
-                        AppError.ParsingError("Topic details failed validation"),
+                        AppError.ParsingError.Generic("Topic details failed validation"),
                     )
                 }
             } catch (e: Exception) {

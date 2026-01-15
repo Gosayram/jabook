@@ -17,7 +17,7 @@ package com.jabook.app.jabook.compose.feature.debug
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.core.util.StructuredLogger
+// import com.jabook.app.jabook.compose.core.util.StructuredLogger (Removed)
 import com.jabook.app.jabook.compose.data.debug.DebugLogService
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,7 +46,6 @@ public class DebugViewModel
         private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
-        private val structuredLogger = StructuredLogger("DebugViewModel")
         private val logger = loggerFactory.get("DebugViewModel")
         private val _uiState = MutableStateFlow<DebugUiState>(DebugUiState.Initial)
         public val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
@@ -84,16 +83,16 @@ public class DebugViewModel
             try {
                 viewModelScope.launch {
                     try {
-                        structuredLogger.withOperation("loadLogs") { operationId ->
-                            try {
-                                _uiState.value = DebugUiState.Loading
-                                val logContent = debugLogService.collectLogs()
-                                _logs.value = logContent
-                                _uiState.value = DebugUiState.Success
-                            } catch (e: Exception) {
-                                structuredLogger.logError(operationId, "Failed to load logs", e)
-                                _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
-                            }
+                        // Standard logging
+                        val operationId = "loadLogs_${System.currentTimeMillis()}"
+                        try {
+                            _uiState.value = DebugUiState.Loading
+                            val logContent = debugLogService.collectLogs()
+                            _logs.value = logContent
+                            _uiState.value = DebugUiState.Success
+                        } catch (e: Exception) {
+                            logger.e(e) { "Failed to load logs (Op: $operationId)" }
+                            _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
                         }
                     } catch (e: Exception) {
                         // Handle case when logger.withOperation itself throws an exception
@@ -158,57 +157,57 @@ public class DebugViewModel
             try {
                 viewModelScope.launch {
                     try {
-                        structuredLogger.withOperation("refreshAuthDebugInfo") { operationId ->
-                            try {
-                                // Get fresh auth status by validating (with timeout protection)
-                                val isAuthenticated =
-                                    try {
-                                        kotlinx.coroutines.withTimeout(20000L) {
-                                            authService.validateAuth(operationId)
-                                        }
-                                    } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                                        logger.w { "Auth validation timed out" }
-                                        false
+                        // Standard logging instead of StructuredLogger
+                        val operationId = "refreshAuthDebugInfo_${System.currentTimeMillis()}"
+                        try {
+                            // Get fresh auth status by validating (with timeout protection)
+                            val isAuthenticated =
+                                try {
+                                    kotlinx.coroutines.withTimeout(20000L) {
+                                        authService.validateAuth(operationId)
                                     }
+                                } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                                    logger.w { "Auth validation timed out" }
+                                    false
+                                }
 
-                                // Check mirrors (already has timeout protection)
-                                val connectivity = checkAllMirrors()
+                            // Check mirrors (already has timeout protection)
+                            val connectivity = checkAllMirrors()
 
-                                // Get last auth error from service
-                                val lastError = authService.lastAuthError
+                            // Get last auth error from service
+                            val lastError = authService.lastAuthError
 
-                                // Create debug info with fresh validation results
-                                val info =
-                                    com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                                        isAuthenticated = isAuthenticated,
-                                        lastAuthAttempt = System.currentTimeMillis(),
-                                        lastAuthError = lastError,
-                                        mirrorConnectivity = connectivity,
-                                        validationResults =
-                                            com.jabook.app.jabook.compose.data.debug.ValidationResults(
-                                                profilePageCheck = isAuthenticated,
-                                                searchPageCheck = isAuthenticated,
-                                                indexPageCheck = connectivity.isNotEmpty() && connectivity.values.any { it },
-                                                lastValidation = System.currentTimeMillis(),
-                                            ),
-                                    )
-                                _authDebugInfo.value = info
-                                structuredLogger.logSuccess(operationId, "Auth debug info refreshed")
-                            } catch (e: Exception) {
-                                // Handle errors gracefully - update authDebugInfo with error state
-                                // Use WARNING for individual failures, not ERROR
-                                logger.w { "Auth debug info refresh incomplete: ${e.message}" }
-                                structuredLogger.logError(operationId, "Auth debug info refresh incomplete", e)
-                                val errorInfo =
-                                    com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
-                                        isAuthenticated = false,
-                                        lastAuthAttempt = System.currentTimeMillis(),
-                                        lastAuthError = e.message ?: "Unknown error",
-                                        mirrorConnectivity = emptyMap(),
-                                        validationResults = null,
-                                    )
-                                _authDebugInfo.value = errorInfo
-                            }
+                            // Create debug info with fresh validation results
+                            val info =
+                                com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                                    isAuthenticated = isAuthenticated,
+                                    lastAuthAttempt = System.currentTimeMillis(),
+                                    lastAuthError = lastError,
+                                    mirrorConnectivity = connectivity,
+                                    validationResults =
+                                        com.jabook.app.jabook.compose.data.debug.ValidationResults(
+                                            profilePageCheck = isAuthenticated,
+                                            searchPageCheck = isAuthenticated,
+                                            indexPageCheck = connectivity.isNotEmpty() && connectivity.values.any { it },
+                                            lastValidation = System.currentTimeMillis(),
+                                        ),
+                                )
+                            _authDebugInfo.value = info
+                            logger.i { "Auth debug info refreshed (Op: $operationId)" }
+                        } catch (e: Exception) {
+                            // Handle errors gracefully - update authDebugInfo with error state
+                            // Use WARNING for individual failures, not ERROR
+                            logger.w { "Auth debug info refresh incomplete: ${e.message} (Op: $operationId)" }
+                            logger.e(e) { "Auth debug info refresh incomplete" }
+                            val errorInfo =
+                                com.jabook.app.jabook.compose.data.debug.AuthDebugInfo(
+                                    isAuthenticated = false,
+                                    lastAuthAttempt = System.currentTimeMillis(),
+                                    lastAuthError = e.message ?: "Unknown error",
+                                    mirrorConnectivity = emptyMap(),
+                                    validationResults = null,
+                                )
+                            _authDebugInfo.value = errorInfo
                         }
                     } catch (e: Exception) {
                         // Handle case when logger.withOperation itself throws an exception

@@ -56,7 +56,7 @@ public class HybridBookScanner
                     initialValue = ScanProgress.Idle,
                 )
 
-        override suspend fun scanAudiobooks(): Result<List<ScannedBook>> {
+        override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> {
             // CRITICAL FIX: Validate and clean up non-existent folders before scanning
             // Remove folders that were deleted from filesystem
             val customPaths = scanPathDao.getAllPathsList()

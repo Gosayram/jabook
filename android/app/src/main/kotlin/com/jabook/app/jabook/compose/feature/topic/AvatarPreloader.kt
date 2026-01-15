@@ -76,7 +76,7 @@ public class AvatarPreloader
                         imageLoader.enqueue(request)
                         successCount++
                     } catch (e: Exception) {
-                        logger.e({ "Failed to preload avatar for ${comment.author}" }, e)
+                        logger.e(e) { "Failed to preload avatar for ${comment.author}" }
                     }
                 }
 

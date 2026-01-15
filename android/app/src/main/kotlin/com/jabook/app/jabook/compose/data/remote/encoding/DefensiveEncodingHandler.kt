@@ -129,11 +129,10 @@ public class DefensiveEncodingHandler
                 val result = tryDecode(cleanBytes, charset)
                 if (result.isValid && !result.hasMojibake) {
                     val duration = System.currentTimeMillis() - startTime
-                    Log.i(
-                        TAG,
+                    logger.i {
                         "✅ Decoded with fallback '${charset.name()}' " +
-                            "(${result.text.length} chars, ${duration}ms)",
-                    )
+                            "(${result.text.length} chars, ${duration}ms)"
+                    }
                     return result
                 }
             }
@@ -150,16 +149,15 @@ public class DefensiveEncodingHandler
                         hasMojibake = hasMojibake,
                     )
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Emergency CP1251 fallback failed", e)
+                    logger.e({ "❌ Emergency CP1251 fallback failed" }, e)
                     DecodingResult.invalid()
                 }
 
             val duration = System.currentTimeMillis() - startTime
-            Log.w(
-                TAG,
+            logger.w {
                 "⚠️ All decoding strategies failed, using emergency fallback " +
-                    "(confidence: ${emergencyResult.confidence}, ${duration}ms)",
-            )
+                    "(confidence: ${emergencyResult.confidence}, ${duration}ms)"
+            }
 
             return emergencyResult
         }
@@ -201,7 +199,7 @@ public class DefensiveEncodingHandler
                     isValid = isValid,
                 )
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to decode with ${charset.name()}", e)
+                logger.e({ "Failed to decode with ${charset.name()}" }, e)
                 DecodingResult.invalid()
             }
 
@@ -223,7 +221,7 @@ public class DefensiveEncodingHandler
                 bytes[1] == 0xBB.toByte() &&
                 bytes[2] == 0xBF.toByte()
             ) {
-                Log.d(TAG, "Removed UTF-8 BOM")
+                logger.d { "Removed UTF-8 BOM" }
                 return bytes.copyOfRange(3, bytes.size)
             }
 
@@ -232,7 +230,7 @@ public class DefensiveEncodingHandler
                 bytes[0] == 0xFE.toByte() &&
                 bytes[1] == 0xFF.toByte()
             ) {
-                Log.d(TAG, "Removed UTF-16 BE BOM")
+                logger.d { "Removed UTF-16 BE BOM" }
                 return bytes.copyOfRange(2, bytes.size)
             }
 
@@ -241,7 +239,7 @@ public class DefensiveEncodingHandler
                 bytes[0] == 0xFF.toByte() &&
                 bytes[1] == 0xFE.toByte()
             ) {
-                Log.d(TAG, "Removed UTF-16 LE BOM")
+                logger.d { "Removed UTF-16 LE BOM" }
                 return bytes.copyOfRange(2, bytes.size)
             }
 
@@ -263,10 +261,9 @@ public class DefensiveEncodingHandler
             if (hasMojibake) {
                 val foundPatterns =
                     MOJIBAKE_PATTERNS.filter { pattern -> text.contains(pattern) }
-                Log.w(
-                    TAG,
-                    "🔍 Mojibake detected! Found patterns: $foundPatterns",
-                )
+                logger.w {
+                    "🔍 Mojibake detected! Found patterns: $foundPatterns"
+                }
             }
 
             return hasMojibake
@@ -297,7 +294,7 @@ public class DefensiveEncodingHandler
                 charsetName.contains("utf-8") || charsetName.contains("utf8") -> UTF8
                 charsetName.contains("iso-8859-1") || charsetName.contains("latin1") -> LATIN1
                 else -> {
-                    Log.d(TAG, "Unknown charset in Content-Type: $charsetName")
+                    logger.d { "Unknown charset in Content-Type: $charsetName" }
                     null
                 }
             }
@@ -340,24 +337,23 @@ public class DefensiveEncodingHandler
                 i++
             }
 
-            Log.d(
-                TAG,
+            logger.d {
                 "Statistical detection: CP1251 Cyrillic=$cp1251CyrillicCount, " +
-                    "UTF-8 Cyrillic=$utf8CyrillicCount",
-            )
+                    "UTF-8 Cyrillic=$utf8CyrillicCount"
+            }
 
             // Heuristic: if significant Cyrillic detected, choose based on counts
             return when {
                 cp1251CyrillicCount > bytes.size / 10 && cp1251CyrillicCount > utf8CyrillicCount * 2 -> {
-                    Log.d(TAG, "Detected: Windows-1251 (based on byte patterns)")
+                    logger.d { "Detected: Windows-1251 (based on byte patterns)" }
                     CP1251
                 }
                 utf8CyrillicCount > bytes.size / 20 -> {
-                    Log.d(TAG, "Detected: UTF-8 (based on multi-byte sequences)")
+                    logger.d { "Detected: UTF-8 (based on multi-byte sequences)" }
                     UTF8
                 }
                 else -> {
-                    Log.d(TAG, "Statistical detection inconclusive")
+                    logger.d { "Statistical detection inconclusive" }
                     null
                 }
             }

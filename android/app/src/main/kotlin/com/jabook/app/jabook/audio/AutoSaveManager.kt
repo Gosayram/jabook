@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
-import android.util.Log
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,10 +48,10 @@ public class AutoSaveManager
     @Inject
     public constructor(
         private val persistenceManager: PlayerPersistenceManager,
+        loggerFactory: LoggerFactory,
     ) {
+        private val logger = loggerFactory.get("AutoSaveManager")
         public companion object {
-            private const val TAG = "AutoSaveManager"
-
             /** Interval between auto-saves in milliseconds (30 seconds) */
             public const val AUTO_SAVE_INTERVAL_MS: Long = 120_000L
 
@@ -74,17 +74,17 @@ public class AutoSaveManager
 
             autoSaveJob =
                 scope.launch {
-                    Log.d(TAG, "Auto-save started")
+                    logger.d { "Auto-save started" }
                     while (isActive) {
                         delay(AUTO_SAVE_INTERVAL_MS)
                         try {
                             val snapshot = stateProvider()
                             if (snapshot != null) {
                                 saveSnapshot(snapshot)
-                                Log.v(TAG, "Auto-saved state: ${snapshot.mediaId}, position=${snapshot.positionMs}ms")
+                                logger.v { "Auto-saved state: ${snapshot.mediaId}, position=${snapshot.positionMs}ms" }
                             }
                         } catch (e: Exception) {
-                            Log.w(TAG, "Auto-save failed", e)
+                            logger.e({ "Auto-save failed" }, e)
                         }
                     }
                 }
@@ -97,7 +97,7 @@ public class AutoSaveManager
         public fun stopAutoSave() {
             autoSaveJob?.cancel()
             autoSaveJob = null
-            Log.d(TAG, "Auto-save stopped")
+            logger.d { "Auto-save stopped" }
         }
 
         /**
@@ -113,13 +113,13 @@ public class AutoSaveManager
         ) {
             val now = System.currentTimeMillis()
             if (!force && (now - lastSaveTime) < MIN_SAVE_INTERVAL_MS) {
-                Log.v(TAG, "Save skipped (debounced)")
+                logger.v { "Save skipped (debounced)" }
                 return
             }
 
             saveSnapshot(snapshot)
             lastSaveTime = now
-            Log.d(TAG, "Saved state immediately: ${snapshot.mediaId}, position=${snapshot.positionMs}ms")
+            logger.d { "Saved state immediately: ${snapshot.mediaId}, position=${snapshot.positionMs}ms" }
         }
 
         private suspend fun saveSnapshot(snapshot: PlaybackSnapshot) {

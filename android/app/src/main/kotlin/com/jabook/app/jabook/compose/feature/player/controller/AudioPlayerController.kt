@@ -299,7 +299,7 @@ public class AudioPlayerController
                                 initializeFromExoPlayer()
                             }
                         } catch (e: Exception) {
-                            logger.e({ "Error initializing MediaController" }, e)
+                            logger.e(e) { "Error initializing MediaController" }
                             // Fallback: initialize from exoPlayer
                             initializeFromExoPlayer()
                         }
@@ -307,7 +307,7 @@ public class AudioPlayerController
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
-                logger.e({ "Failed to create MediaController" }, e)
+                logger.e(e) { "Failed to create MediaController" }
                 if (retryCount < maxRetries) {
                     // Retry after delay
                     scope.launch {
@@ -515,8 +515,8 @@ public class AudioPlayerController
                 }
             } catch (e: Exception) {
                 logger.e(
-                    { "Failed to start service" },
                     e,
+                    { "Failed to start service" },
                 )
             }
         }

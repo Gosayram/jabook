@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.compose.data.remote.repository
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.core.util.StructuredLogger
+import com.jabook.app.jabook.compose.core.logger.*
 import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
 import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
@@ -70,7 +70,6 @@ public class RutrackerRepository
             private const val TAG = "RutrackerRepository"
         }
 
-        private val structuredLogger = StructuredLogger(TAG)
         private val logger = loggerFactory.get(TAG)
 
         /**
@@ -91,9 +90,9 @@ public class RutrackerRepository
             forumIds: String? = null,
         ): Result<List<RutrackerSearchResult>> =
             withContext(Dispatchers.IO) {
-                structuredLogger.withOperation("searchAudiobooks") { operationId ->
+                logger.withOperation("searchAudiobooks") { operationId ->
                     try {
-                        structuredLogger.log(operationId, "Index-only search started: query='$query', forumIds=$forumIds")
+                        logger.log(operationId, "Index-only search started: query='$query', forumIds=$forumIds")
 
                         // Use ONLY indexed search
                         val indexSize = offlineSearchDao.getTopicCount()
@@ -381,7 +380,7 @@ public class RutrackerRepository
             // === HTTP RESPONSE LOGGING ===
             val networkDuration = System.currentTimeMillis() - networkStartTime
             logger.logWithDuration(opId, "Response received: HTTP ${response.code()} ${response.message()}", networkDuration)
-            logger.log(opId, "Final URL: ${response.raw().request.url}", StructuredLogger.LogLevel.DEBUG)
+            logger.log(opId, "Final URL: ${response.raw().request.url}", LogLevel.DEBUG)
 
             if (!response.isSuccessful) {
                 val error =

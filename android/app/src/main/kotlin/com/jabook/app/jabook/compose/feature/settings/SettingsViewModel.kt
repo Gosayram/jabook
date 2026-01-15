@@ -466,7 +466,7 @@ public class SettingsViewModel
                                         .valueOf(type.uppercase())
                                 cacheManager.clearCacheType(cacheType)
                             } catch (e: IllegalArgumentException) {
-                                logger.e({ "Invalid cache type: $type" }, e)
+                                logger.e(e) { "Invalid cache type: $type" }
                                 false
                             }
                         } else {

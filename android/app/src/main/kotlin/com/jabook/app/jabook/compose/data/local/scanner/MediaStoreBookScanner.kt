@@ -47,7 +47,7 @@ public class MediaStoreBookScanner
         private val _scanProgress = kotlinx.coroutines.flow.MutableStateFlow<ScanProgress>(ScanProgress.Idle)
         override val scanProgress: kotlinx.coroutines.flow.StateFlow<ScanProgress> = _scanProgress.asStateFlow()
 
-        override suspend fun scanAudiobooks(): Result<List<ScannedBook>> =
+        override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
             withContext(Dispatchers.IO) {
                 try {
                     _scanProgress.value = ScanProgress.Discovery(0)
@@ -68,9 +68,9 @@ public class MediaStoreBookScanner
                     _scanProgress.value = ScanProgress.Saving
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {
-                    logger.e({ "Scan failed" }, e)
+                    logger.e(e) { "Scan failed" }
                     _scanProgress.value = ScanProgress.Error(e.message ?: "Unknown error")
-                    Result.Error(e)
+                    Result.Error(com.jabook.app.jabook.compose.domain.model.AppError.DataError.Generic(e.message ?: "Scan failed", e))
                 }
             }
 

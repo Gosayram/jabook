@@ -41,14 +41,14 @@ public class SearchRutrackerUseCase
          * @param query Search query
          * @return Result with list of search results
          */
-        public suspend operator fun invoke(query: String): Flow<Result<List<RutrackerSearchResult>>> {
+        public suspend operator fun invoke(query: String): Flow<Result<List<RutrackerSearchResult>, com.jabook.app.jabook.compose.domain.model.AppError>> {
             if (query.isBlank()) {
                 logger.d { "Empty query provided, returning empty results" }
-                // We need to return a Flow, so we use repository's search which handles empty query internally
-                // OR construct a flow here. Repository handles it.
+                return kotlinx.coroutines.flow.flowOf(Result.Success(emptyList()))
             }
 
             logger.d { "🔍 Invoking search for query: '$query'" }
+            // Direct call to repository search (returns compatible type Result<List<RutrackerSearchResult>, AppError>)
             return rutrackerRepository
                 .search(query)
                 .onEach { result ->

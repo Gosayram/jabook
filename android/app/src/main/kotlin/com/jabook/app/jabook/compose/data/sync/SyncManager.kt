@@ -83,7 +83,7 @@ public class SyncManager
          * Cancel sync.
          */
         public fun cancelSync() {
-            Log.d(TAG, "Cancelling sync")
+            logger.d { "Cancelling sync" }
             WorkManager.getInstance(context).cancelUniqueWork(SyncWorker.WORK_NAME)
         }
 
@@ -91,7 +91,7 @@ public class SyncManager
          * Trigger immediate sync.
          */
         public fun syncNow() {
-            Log.d(TAG, "Triggering immediate sync")
+            logger.d { "Triggering immediate sync" }
             val syncRequest = androidx.work.OneTimeWorkRequestBuilder<SyncWorker>().build()
             WorkManager.getInstance(context).enqueueUniqueWork(
                 "sync_work_immediate",

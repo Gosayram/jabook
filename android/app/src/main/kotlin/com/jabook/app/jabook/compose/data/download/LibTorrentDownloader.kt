@@ -164,7 +164,7 @@ public class LibTorrentDownloader
                 val torrentInfo = torrentHandle.torrentFile() ?: return
 
                 val numPieces = torrentInfo.numPieces()
-                Log.d(TAG, "Configuring streaming for $numPieces pieces")
+                logger.d { "Configuring streaming for $numPieces pieces" }
 
                 // Sequential download
                 torrentHandle.setSequentialRange(0, numPieces - 1)

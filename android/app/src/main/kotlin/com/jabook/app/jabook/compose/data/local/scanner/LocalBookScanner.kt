@@ -96,5 +96,5 @@ public interface LocalBookScanner {
      *
      * @return Result containing list of scanned books or error
      */
-    public suspend fun scanAudiobooks(): com.jabook.app.jabook.compose.domain.model.Result<List<ScannedBook>>
+    public suspend fun scanAudiobooks(): com.jabook.app.jabook.compose.domain.model.Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError>
 }

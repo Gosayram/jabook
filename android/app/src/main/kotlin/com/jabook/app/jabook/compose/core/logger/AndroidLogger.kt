@@ -37,40 +37,37 @@ public class AndroidLogger(
     private val tag: String,
     private val minLevel: LogLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.ERROR,
 ) : Logger {
-    override fun d(message: () -> String) {
-        if (minLevel <= LogLevel.DEBUG) {
-            Log.d(tag, message())
-        }
-    }
+    override fun d(message: () -> String) = log(LogLevel.DEBUG, message, null)
+    override fun d(message: () -> String, throwable: Throwable?) = log(LogLevel.DEBUG, message, throwable)
+    override fun d(throwable: Throwable?, message: () -> String) = log(LogLevel.DEBUG, message, throwable)
 
-    override fun e(
-        message: () -> String,
-        throwable: Throwable?,
-    ) {
-        if (minLevel <= LogLevel.ERROR) {
-            if (throwable != null) {
-                Log.e(tag, message(), throwable)
-            } else {
-                Log.e(tag, message())
+    override fun e(message: () -> String) = log(LogLevel.ERROR, message, null)
+    override fun e(message: () -> String, throwable: Throwable?) = log(LogLevel.ERROR, message, throwable)
+    override fun e(throwable: Throwable?, message: () -> String) = log(LogLevel.ERROR, message, throwable)
+
+    override fun i(message: () -> String) = log(LogLevel.INFO, message, null)
+    override fun i(message: () -> String, throwable: Throwable?) = log(LogLevel.INFO, message, throwable)
+    override fun i(throwable: Throwable?, message: () -> String) = log(LogLevel.INFO, message, throwable)
+
+    override fun w(message: () -> String) = log(LogLevel.WARN, message, null)
+    override fun w(message: () -> String, throwable: Throwable?) = log(LogLevel.WARN, message, throwable)
+    override fun w(throwable: Throwable?, message: () -> String) = log(LogLevel.WARN, message, throwable)
+
+    override fun v(message: () -> String) = log(LogLevel.VERBOSE, message, null)
+    override fun v(message: () -> String, throwable: Throwable?) = log(LogLevel.VERBOSE, message, throwable)
+    override fun v(throwable: Throwable?, message: () -> String) = log(LogLevel.VERBOSE, message, throwable)
+
+    private fun log(level: LogLevel, message: () -> String, throwable: Throwable?) {
+        if (minLevel <= level) {
+            val msg = message()
+            when (level) {
+                LogLevel.DEBUG -> if (throwable != null) Log.d(tag, msg, throwable) else Log.d(tag, msg)
+                LogLevel.INFO -> if (throwable != null) Log.i(tag, msg, throwable) else Log.i(tag, msg)
+                LogLevel.WARN -> if (throwable != null) Log.w(tag, msg, throwable) else Log.w(tag, msg)
+                LogLevel.ERROR -> if (throwable != null) Log.e(tag, msg, throwable) else Log.e(tag, msg)
+                LogLevel.VERBOSE -> if (throwable != null) Log.v(tag, msg, throwable) else Log.v(tag, msg)
+                LogLevel.NONE -> {}
             }
-        }
-    }
-
-    override fun i(message: () -> String) {
-        if (minLevel <= LogLevel.INFO) {
-            Log.i(tag, message())
-        }
-    }
-
-    override fun w(message: () -> String) {
-        if (minLevel <= LogLevel.WARN) {
-            Log.w(tag, message())
-        }
-    }
-
-    override fun v(message: () -> String) {
-        if (minLevel <= LogLevel.VERBOSE) {
-            Log.v(tag, message())
         }
     }
 }
@@ -80,17 +77,24 @@ public class AndroidLogger(
  */
 public object NoOpLogger : Logger {
     override fun d(message: () -> String) {}
+    override fun d(message: () -> String, throwable: Throwable?) {}
+    override fun d(throwable: Throwable?, message: () -> String) {}
 
-    override fun e(
-        message: () -> String,
-        throwable: Throwable?,
-    ) {}
+    override fun e(message: () -> String) {}
+    override fun e(message: () -> String, throwable: Throwable?) {}
+    override fun e(throwable: Throwable?, message: () -> String) {}
 
     override fun i(message: () -> String) {}
+    override fun i(message: () -> String, throwable: Throwable?) {}
+    override fun i(throwable: Throwable?, message: () -> String) {}
 
     override fun w(message: () -> String) {}
+    override fun w(message: () -> String, throwable: Throwable?) {}
+    override fun w(throwable: Throwable?, message: () -> String) {}
 
     override fun v(message: () -> String) {}
+    override fun v(message: () -> String, throwable: Throwable?) {}
+    override fun v(throwable: Throwable?, message: () -> String) {}
 }
 
 /**

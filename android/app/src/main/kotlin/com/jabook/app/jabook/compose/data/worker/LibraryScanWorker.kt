@@ -271,7 +271,7 @@ public class LibraryScanWorker
                         }
                         is DomainResult.Error -> {
                             ListenableWorker.Result.failure(
-                                workDataOf("error" to (result.message ?: applicationContext.getString(R.string.libraryUnknownError))),
+                                workDataOf("error" to (result.error.message ?: applicationContext.getString(R.string.libraryUnknownError))),
                             )
                         }
                         is DomainResult.Loading -> {

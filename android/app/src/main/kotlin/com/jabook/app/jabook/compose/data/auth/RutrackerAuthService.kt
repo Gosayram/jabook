@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.compose.data.auth
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.core.util.StructuredLogger
+import com.jabook.app.jabook.compose.core.logger.*
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
@@ -54,7 +54,6 @@ public class RutrackerAuthService
         public val lastAuthError: String?
             get() = _lastAuthError
 
-        private val structuredLogger = StructuredLogger(TAG)
         private val logger = loggerFactory.get(TAG)
 
         /**
@@ -68,12 +67,12 @@ public class RutrackerAuthService
             captchaCode: String? = null,
             captchaData: CaptchaData? = null,
         ): AuthResult {
-            val operationId = structuredLogger.startOperation("login", "auth_login_${System.currentTimeMillis()}")
+            val operationId = logger.startOperation("login", "auth_login_${System.currentTimeMillis()}")
             val startTime = System.currentTimeMillis()
 
             return withContext(Dispatchers.IO) {
                 try {
-                    structuredLogger.log(operationId, "Authentication started for user: ${credentials.username}")
+                    logger.log(operationId, "Authentication started for user: ${credentials.username}")
 
                     // Step 1: Encode credentials to CP1251
                     val encodeStart = System.currentTimeMillis()
@@ -165,7 +164,7 @@ public class RutrackerAuthService
                             AuthResult.Error(result.message)
                         }
                         is com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser.LoginResult.Captcha -> {
-                            logger.log(operationId, "Captcha required", StructuredLogger.LogLevel.INFO)
+                            logger.log(operationId, "Captcha required", LogLevel.INFO)
                             logger.logWithDuration(operationId, "Captcha required", totalDuration)
                             AuthResult.Captcha(result.data)
                         }
@@ -357,13 +356,13 @@ public class RutrackerAuthService
                     }
 
                 if (!response.isSuccessful) {
-                    logger.log(operationId, "Profile check: HTTP ${response.code()}", StructuredLogger.LogLevel.DEBUG)
+                    logger.log(operationId, "Profile check: HTTP ${response.code()}", LogLevel.DEBUG)
                     return false
                 }
 
                 val rawBody =
                     response.body()?.bytes() ?: run {
-                        logger.log(operationId, "Profile check: empty body", StructuredLogger.LogLevel.DEBUG)
+                        logger.log(operationId, "Profile check: empty body", LogLevel.DEBUG)
                         return false
                     }
                 val bodyString = String(rawBody, CP1251).lowercase()
@@ -375,13 +374,13 @@ public class RutrackerAuthService
 
                 // Check for redirect to login
                 if (finalUrl.contains("login.php")) {
-                    logger.log(operationId, "Profile check: redirected to login", StructuredLogger.LogLevel.DEBUG)
+                    logger.log(operationId, "Profile check: redirected to login", LogLevel.DEBUG)
                     return false
                 }
 
                 // Check for login form presence (not authenticated)
                 if (bodyString.contains("name=\"login_username\"")) {
-                    logger.log(operationId, "Profile check: login form present", StructuredLogger.LogLevel.DEBUG)
+                    logger.log(operationId, "Profile check: login form present", LogLevel.DEBUG)
                     return false
                 }
 
@@ -395,7 +394,7 @@ public class RutrackerAuthService
                         bodyString.contains("личные данные")
 
                 val isAuthenticated = hasLogout || hasProfile
-                logger.log(operationId, "Profile check: logout=$hasLogout, profile=$hasProfile", StructuredLogger.LogLevel.DEBUG)
+                logger.log(operationId, "Profile check: logout=$hasLogout, profile=$hasProfile", LogLevel.DEBUG)
 
                 isAuthenticated
             } catch (e: Exception) {
@@ -421,7 +420,7 @@ public class RutrackerAuthService
                     }
 
                 if (!response.isSuccessful) {
-                    logger.log(operationId, "Search check: HTTP ${response.code()}", StructuredLogger.LogLevel.DEBUG)
+                    logger.log(operationId, "Search check: HTTP ${response.code()}", LogLevel.DEBUG)
                     return false
                 }
 
@@ -431,7 +430,7 @@ public class RutrackerAuthService
                     if (rawBytes != null) {
                         String(rawBytes, charset("windows-1251")).lowercase()
                     } else {
-                        logger.log(operationId, "Search check: empty body", StructuredLogger.LogLevel.DEBUG)
+                        logger.log(operationId, "Search check: empty body", LogLevel.DEBUG)
                         return false
                     }
                 val finalUrl =
@@ -442,7 +441,7 @@ public class RutrackerAuthService
 
                 // Check for redirect to login
                 if (finalUrl.contains("login.php")) {
-                    logger.log(operationId, "Search check: redirected to login", StructuredLogger.LogLevel.DEBUG)
+                    logger.log(operationId, "Search check: redirected to login", LogLevel.DEBUG)
                     return false
                 }
 
@@ -453,7 +452,7 @@ public class RutrackerAuthService
                         bodyString.contains("войдите в систему")
 
                 if (requiresAuth) {
-                    logger.log(operationId, "Search check: auth required message found", StructuredLogger.LogLevel.DEBUG)
+                    logger.log(operationId, "Search check: auth required message found", LogLevel.DEBUG)
                     return false
                 }
 
@@ -467,7 +466,7 @@ public class RutrackerAuthService
                 logger.log(
                     operationId,
                     "Search check: hasElements=$hasSearchElements, size=${bodyString.length}",
-                    StructuredLogger.LogLevel.DEBUG,
+                    LogLevel.DEBUG,
                 )
 
                 hasSearchElements
@@ -494,7 +493,7 @@ public class RutrackerAuthService
                     logger.log(
                         operationId,
                         "Index check: HTTP ${response.code()}, validContent=$isValidIndex",
-                        StructuredLogger.LogLevel.DEBUG,
+                        LogLevel.DEBUG,
                     )
                     return isValidIndex
                 } else {

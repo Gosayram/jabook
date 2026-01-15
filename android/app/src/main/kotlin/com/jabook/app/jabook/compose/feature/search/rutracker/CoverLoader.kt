@@ -98,7 +98,7 @@ public class CoverLoader
                 }
             } catch (e: Exception) {
                 // Log error
-                logger.e({ "Error loading cover for $topicId" }, e)
+                logger.e(e) { "Error loading cover for $topicId" }
             } finally {
                 activeLoads.remove(topicId)
             }

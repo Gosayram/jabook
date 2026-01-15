@@ -297,7 +297,7 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onTopicClick = { topicId ->
-                    Log.d(TAG, "🧭 Navigating to Topic: topicId=$topicId")
+                    navigationLogger.d { "🧭 Navigating to Topic: topicId=$topicId" }
                     navController.navigate(TopicRoute(topicId = topicId))
                 },
             )

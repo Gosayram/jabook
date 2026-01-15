@@ -322,11 +322,7 @@ public class RutrackerParser
                         e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                         else -> e.javaClass.simpleName
                     }
-                Log.e(
-                    TAG,
-                    "❌ Failed to parse search results: $errorDetails (HTML size: ${rawBytes.size} bytes)",
-                    e,
-                )
+                logger.e({ "❌ Failed to parse search results: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
                 errors.add(
                     ParsingError(
                         field = "document",
@@ -545,11 +541,10 @@ public class RutrackerParser
                                 val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
                                 val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
 
-                                Log.w(
-                                    TAG,
+                                logger.w {
                                     "⚠️ Row $index failed to parse: tag=$rowTag, " +
-                                        "classes='$rowClasses', hasTitle=$hasTitle, topicId='$topicId'",
-                                )
+                                        "classes='$rowClasses', hasTitle=$hasTitle, topicId='$topicId'"
+                                }
 
                                 errors.add(
                                     ParsingError(
@@ -881,11 +876,10 @@ public class RutrackerParser
             // Extract title - use updated selector
             val titleElement = row.selectFirst(TITLE_SELECTOR)
             if (titleElement == null) {
-                Log.w(
-                    TAG,
+                logger.w {
                     "⚠️ No title element found for topic $topicId. " +
-                        "Row HTML: ${row.html().take(200)}",
-                )
+                        "Row HTML: ${row.html().take(200)}"
+                }
                 return null
             }
             val title = titleElement.toStr()
@@ -897,13 +891,12 @@ public class RutrackerParser
 
                 val finalTitle = titleFromHref ?: titleFromText ?: titleFromOwnText
                 if (finalTitle == null) {
-                    Log.w(
-                        TAG,
+                    logger.w {
                         "⚠️ Empty title for topic $topicId: " +
                             "href='${titleElement.attr("href")}', " +
                             "html='${titleElement.html().take(100)}', " +
-                            "outerHtml='${titleElement.outerHtml().take(150)}'",
-                    )
+                            "outerHtml='${titleElement.outerHtml().take(150)}'"
+                    }
                     return null
                 }
                 // Use the found title

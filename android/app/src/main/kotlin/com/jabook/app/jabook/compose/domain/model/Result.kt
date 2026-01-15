@@ -58,7 +58,7 @@ public sealed interface Result<out T, out E : AppError> {
  * Type alias for Result with AppError as default error type.
  * This provides convenience for the common case where AppError is used.
  */
-public typealias Result<T> = Result<T, AppError>
+public typealias AppResult<T> = Result<T, AppError>
 
 /**
  * Legacy Result type for backward compatibility.
@@ -68,7 +68,7 @@ public typealias Result<T> = Result<T, AppError>
     message = "Use Result<T> instead",
     replaceWith = ReplaceWith("Result<T>"),
 )
-public typealias LegacyResult<T> = Result<T>
+public typealias LegacyResult<T> = AppResult<T>
 
 /**
  * Maps a successful result to a new type.

@@ -81,6 +81,7 @@ public object NetworkModule {
     public fun provideMirrorManager(
         settingsRepository: SettingsRepository,
         cookieJar: PersistentCookieJar,
+        loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
         val healthCheckClient =
@@ -91,7 +92,7 @@ public object NetworkModule {
                 .readTimeout(10, TimeUnit.SECONDS)
                 .build()
 
-        return MirrorManager(settingsRepository, healthCheckClient)
+        return MirrorManager(settingsRepository, healthCheckClient, loggerFactory)
     }
 
     /**
@@ -99,17 +100,22 @@ public object NetworkModule {
      */
     @Provides
     @Singleton
-    public fun provideRetryInterceptor(): com.jabook.app.jabook.compose.data.network.RetryInterceptor =
+    public fun provideRetryInterceptor(
+        loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
+    ): com.jabook.app.jabook.compose.data.network.RetryInterceptor =
         com.jabook.app.jabook.compose.data.network
-            .RetryInterceptor()
+            .RetryInterceptor(loggerFactory)
 
     /**
      * Provide DynamicBaseUrlInterceptor.
      */
     @Provides
     @Singleton
-    public fun provideDynamicBaseUrlInterceptor(mirrorManager: MirrorManager): DynamicBaseUrlInterceptor =
-        DynamicBaseUrlInterceptor(mirrorManager)
+    public fun provideDynamicBaseUrlInterceptor(
+        mirrorManager: MirrorManager,
+        loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
+    ): DynamicBaseUrlInterceptor =
+        DynamicBaseUrlInterceptor(mirrorManager, loggerFactory)
 
     /**
      * Provide OkHttp client with cookie persistence, auto re-auth, dynamic base URL, proper headers, and logging.

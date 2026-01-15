@@ -373,7 +373,7 @@ public class TopicViewModel
                         try {
                             torrentManager.initialize()
                         } catch (e: Exception) {
-                            logger.e({ "TorrentManager already initialized or error: ${e.message}" }, e)
+                            logger.e(e) { "TorrentManager already initialized or error: ${e.message}" }
                         }
 
                         val result =
@@ -390,7 +390,7 @@ public class TopicViewModel
                         } else {
                             val exception = result.exceptionOrNull()
                             val error = exception?.message ?: context.getString(R.string.unknownError)
-                            logger.e({ "Failed to start torrent download: $error" }, exception)
+                            logger.e(exception) { "Failed to start torrent download: $error" }
                             _message.value = context.getString(R.string.failedToStartDownloadWithError, error)
                         }
                     }
@@ -398,16 +398,15 @@ public class TopicViewModel
                     logger.w { "Download requires authentication" }
                     _message.value = context.getString(R.string.authenticationRequired)
                 } catch (e: IllegalStateException) {
-                    logger.e({ "Illegal state during torrent download" }, e)
+                    logger.e(e) { "Illegal state during torrent download" }
                     _message.value = context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
                 } catch (e: Exception) {
-                    logger.e({ "Unexpected error starting torrent download" }, e)
+                    logger.e(e) { "Unexpected error starting torrent download" }
                     _message.value =
                         context.getString(R.string.failedToStartDownloadWithError, e.message ?: context.getString(R.string.unknownError))
                 }
             }
         }
-
         /**
          * Download torrent file (.torrent) to device storage.
          */
@@ -450,7 +449,7 @@ public class TopicViewModel
                     logger.w { "Download torrent file requires authentication" }
                     _message.value = context.getString(R.string.authenticationRequired)
                 } catch (e: Exception) {
-                    logger.e({ "Error downloading torrent file" }, e)
+                    logger.e(e) { "Error downloading torrent file" }
                 }
             }
         }

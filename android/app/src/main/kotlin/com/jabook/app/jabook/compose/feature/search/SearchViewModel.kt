@@ -208,8 +208,8 @@ public class SearchViewModel
                             val errorMessage = result.error.message ?: "Unknown error"
                             val errorCause = result.error.cause
                             logger.e(
-                                { "❌ Search failed for query '$query': $errorMessage" },
                                 errorCause,
+                                { "❌ Search failed for query '$query': $errorMessage" },
                             )
                             rawOnlineResults.value = emptyList()
                             _uiState.value = SearchUiState.Error(errorMessage)
