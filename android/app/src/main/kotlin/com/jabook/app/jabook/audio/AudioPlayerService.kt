@@ -783,6 +783,16 @@ public class AudioPlayerService : MediaLibraryService() {
         get() = getActivePlayer().isPlaying
 
     public fun play() {
+        // Reset book completion flag on play (user wants to restart)
+        if (isBookCompleted) {
+            android.util.Log.i(
+                "AudioPlayerService",
+                "play() called after book completion, resetting completion flag",
+            )
+            isBookCompleted = false
+            lastCompletedTrackIndex = -1
+        }
+
         playbackController?.play() ?: run {
             android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
             return
