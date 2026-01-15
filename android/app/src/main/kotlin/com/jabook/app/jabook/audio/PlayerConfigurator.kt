@@ -152,6 +152,7 @@ internal class PlayerConfigurator(
                         // Update audio visualizer when session ID changes (following Rhythm pattern)
                         service.audioVisualizerManager?.initialize(audioSessionId)
                     },
+                    coroutineScope = service.playerServiceScope, // Pass coroutine scope for debounce
                 )
 
             playerListener?.let {

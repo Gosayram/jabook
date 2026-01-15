@@ -62,6 +62,7 @@ internal class PlayerListener(
     private val preloadNextTrack: ((Int) -> Unit)? = null, // Callback to preload next track (inspired by Easybook)
     private val optimizeMemoryUsage: ((Int) -> Unit)? = null, // Callback to optimize memory usage (inspired by Easybook)
     private val updateAudioVisualizer: ((Int) -> Unit)? = null, // Callback to update audio visualizer (following Rhythm pattern)
+    private val coroutineScope: kotlinx.coroutines.CoroutineScope? = null, // Coroutine scope for debounced operations (inspired by Rhythm)
 ) : Player.Listener {
     private var retryCount = 0
     private val maxRetries = 3
@@ -77,6 +78,36 @@ internal class PlayerListener(
     // This allows PlaylistManager to wait for onMediaItemTransition instead of polling
     @Volatile
     private var pendingTrackSwitchDeferred: CompletableDeferred<Int>? = null
+
+    // Debounce mechanism for notification updates (inspired by Rhythm)
+    // Prevents multiple rapid updates that can cause UI jank
+    private var notificationUpdateJob: kotlinx.coroutines.Job? = null
+    private val notificationDebounceMs = 150L
+
+    /**
+     * Schedules a debounced notification update.
+     * Cancels any pending update and schedules a new one after delay.
+     * Inspired by Rhythm's scheduleCustomLayoutUpdate().
+     */
+    private fun scheduleNotificationUpdate() {
+        notificationUpdateJob?.cancel()
+        val scope = coroutineScope
+        if (scope != null) {
+            notificationUpdateJob =
+                scope.launch {
+                    kotlinx.coroutines.delay(notificationDebounceMs)
+                    getNotificationManager()?.updateNotification()
+                }
+        } else {
+            // Fallback: immediate update if no scope available
+            getNotificationManager()?.updateNotification()
+        }
+    }
+
+    // Import kotlinx.coroutines.launch extension
+    private fun kotlinx.coroutines.CoroutineScope.launch(
+        block: suspend kotlinx.coroutines.CoroutineScope.() -> Unit,
+    ): kotlinx.coroutines.Job = kotlinx.coroutines.launch { block() }
 
     /**
      * Sets a deferred to be completed when track switch occurs.
@@ -101,9 +132,9 @@ internal class PlayerListener(
         android.util.Log.d("AudioPlayerService", "Cleared pendingTrackSwitchDeferred")
     }
 
-    // Handler for periodic position checks to detect end of file when duration is incorrect
-    private val positionCheckHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var positionCheckRunnable: Runnable? = null
+    // Coroutine-based position check (inspired by Rhythm's crossfade monitoring)
+    // Uses Job instead of Handler for better performance and cancellation
+    private var positionCheckJob: kotlinx.coroutines.Job? = null
     private var lastPosition: Long = -1L // Track last position to detect when playback stops advancing
     private var positionStoppedCount: Int = 0 // Count how many times position hasn't changed
     private var positionStoppedStartTime: Long = -1L // When position first stopped advancing
@@ -139,7 +170,7 @@ internal class PlayerListener(
 
             // Update notification when state changes
             // MediaSession automatically updates from ExoPlayer state
-            getNotificationManager()?.updateNotification()
+            scheduleNotificationUpdate()
 
             // Update widget when playback state changes
             com.jabook.app.jabook.widget.PlayerWidgetProvider
@@ -250,7 +281,7 @@ internal class PlayerListener(
                     saveCurrentPosition()
 
                     // Update notification to show completion
-                    getNotificationManager()?.updateNotification()
+                    scheduleNotificationUpdate()
 
                     // Send broadcast to UI to show completion message
                     val intent =
@@ -288,9 +319,7 @@ internal class PlayerListener(
                 )
                 player.playWhenReady = false
                 // Post notification update and return early
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    getNotificationManager()?.updateNotification()
-                }
+                scheduleNotificationUpdate()
                 return
             }
 
@@ -300,9 +329,7 @@ internal class PlayerListener(
             )
             // Match lissen-android: just log, don't interfere with ExoPlayer's AudioFocus handling
             // Post notification update to main thread to ensure player state is fully updated
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                getNotificationManager()?.updateNotification()
-            }
+            scheduleNotificationUpdate()
         }
 
         // Handle playing state changes
@@ -394,9 +421,7 @@ internal class PlayerListener(
             // The previous check was too aggressive and was preventing playback from starting
 
             // Post notification update to main thread to ensure player state is fully updated
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                getNotificationManager()?.updateNotification()
-            }
+            scheduleNotificationUpdate()
         }
 
         // Handle media item transitions
@@ -459,7 +484,7 @@ internal class PlayerListener(
 
             // Track changed - update notification to show new track's embedded artwork
             // MediaSession automatically updates from ExoPlayer
-            getNotificationManager()?.updateNotification()
+            scheduleNotificationUpdate()
 
             // Update widget when track changes
             com.jabook.app.jabook.widget.PlayerWidgetProvider
@@ -619,7 +644,7 @@ internal class PlayerListener(
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         // This is also handled in onEvents, but kept for explicit handling
-        getNotificationManager()?.updateNotification()
+        scheduleNotificationUpdate()
     }
 
     /**
@@ -817,7 +842,7 @@ internal class PlayerListener(
             "AudioPlayerService",
             "❌ Playback error (user-friendly): $userFriendlyMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries, bookId=$bookId, bookName=$bookName)",
         )
-        getNotificationManager()?.updateNotification()
+        scheduleNotificationUpdate()
 
         // Store error for retrieval via MethodChannel if needed
         // Error will be automatically propagated through state stream
@@ -1267,20 +1292,20 @@ internal class PlayerListener(
             "Starting position check: index=$currentIndex/$totalTracks (actual=${getActualPlaylistSize?.invoke()}, player=${player.mediaItemCount}), isPlaying=${player.isPlaying}, state=${player.playbackState}",
         )
 
-        positionCheckRunnable =
-            object : Runnable {
-                override fun run() {
+        // Use coroutine instead of Handler for better performance (inspired by Rhythm)
+        val scope = coroutineScope ?: return
+        positionCheckJob =
+            scope.launch {
+                while (kotlinx.coroutines.isActive) {
                     if (getIsBookCompleted()) {
-                        stopPositionCheck()
-                        return
+                        break
                     }
 
                     val player = getActivePlayer()
 
                     // Stop check if book is already completed or player is in ENDED state
                     if (player.playbackState == Player.STATE_ENDED) {
-                        stopPositionCheck()
-                        return
+                        break
                     }
 
                     // Don't stop check immediately if isPlaying is false - file might have just ended
@@ -1291,8 +1316,7 @@ internal class PlayerListener(
                     val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
                     if (!player.isPlaying && currentIndex < totalTracks - 1) {
                         // Not playing and not on last track - stop check
-                        stopPositionCheck()
-                        return
+                        break
                     }
 
                     // Get current state (currentIndex and totalTracks already defined above)
@@ -1317,8 +1341,7 @@ internal class PlayerListener(
                                     "Detected end of last track: position reached/exceeded duration (position=$currentPosition, duration=$duration)",
                                 )
                                 handleBookCompletion(player, currentIndex)
-                                stopPositionCheck()
-                                return
+                                break
                             }
 
                             // Check 2: Smart completion detection (inspired by Easybook)
@@ -1333,8 +1356,7 @@ internal class PlayerListener(
                                     "Smart completion: within 3 minutes of end (remaining=${remaining}ms, ${remaining / 1000}s)",
                                 )
                                 handleBookCompletion(player, currentIndex)
-                                stopPositionCheck()
-                                return
+                                break
                             }
 
                             // Check 3: Position is very close to duration (within threshold)
@@ -1344,8 +1366,7 @@ internal class PlayerListener(
                                     "Detected end of last track by position check: position=$currentPosition, duration=$duration, remaining=$remaining",
                                 )
                                 handleBookCompletion(player, currentIndex)
-                                stopPositionCheck()
-                                return
+                                break
                             }
                         }
 
@@ -1394,8 +1415,7 @@ internal class PlayerListener(
                                         "Detected end of last track: position stopped advancing (position=$currentPosition, duration=$duration, stopped for $positionStoppedCount checks/${stoppedTimeMs}ms, isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady})",
                                     )
                                     handleBookCompletion(player, currentIndex)
-                                    stopPositionCheck()
-                                    return
+                                    break
                                 }
                             } else {
                                 // Not playing and not near end - might be paused, reset counter
@@ -1444,29 +1464,26 @@ internal class PlayerListener(
                                 "Detected end of last track: playback stopped near end (position=$currentPosition, duration=$duration, nearEnd=$isNearEnd, positionStopped=$positionStopped)",
                             )
                             handleBookCompletion(player, currentIndex)
-                            stopPositionCheck()
-                            return
+                            break
                         }
                     }
 
-                    // Schedule next check
-                    positionCheckHandler.postDelayed(this, positionCheckIntervalMs)
+                    // Wait for next check interval
+                    kotlinx.coroutines.delay(positionCheckIntervalMs)
                 }
+                // Reset tracking when loop ends
+                lastPosition = -1L
+                positionStoppedCount = 0
+                positionStoppedStartTime = -1L
             }
-
-        positionCheckRunnable?.let {
-            positionCheckHandler.postDelayed(it, positionCheckIntervalMs)
-        }
     }
 
     /**
      * Stops periodic position checking.
      */
     private fun stopPositionCheck() {
-        positionCheckRunnable?.let {
-            positionCheckHandler.removeCallbacks(it)
-            positionCheckRunnable = null
-        }
+        positionCheckJob?.cancel()
+        positionCheckJob = null
         // Reset tracking when stopping
         lastPosition = -1L
         positionStoppedCount = 0
@@ -1579,7 +1596,7 @@ internal class PlayerListener(
             saveCurrentPosition()
 
             // Update notification to show completion
-            getNotificationManager()?.updateNotification()
+            scheduleNotificationUpdate()
 
             // Send broadcast to UI to show completion message
             val intent =
