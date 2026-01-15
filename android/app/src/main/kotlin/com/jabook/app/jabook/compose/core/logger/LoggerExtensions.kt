@@ -54,6 +54,7 @@ public fun Logger.log(operationId: String, message: String, level: LogLevel = Lo
         LogLevel.INFO -> i { "[$operationId] $message" }
         LogLevel.WARN -> w { "[$operationId] $message" }
         LogLevel.ERROR -> e { "[$operationId] $message" }
+        LogLevel.NONE -> {}
     }
 }
 

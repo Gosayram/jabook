@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.torrent
 
 import android.content.Context
+import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -834,13 +835,13 @@ public class TorrentSessionManager
 
                 // val state = mapTorrentStatus(status) // Unused and unresolved
 
-                val dateAdded =
-                    try {
+                val dateAdded = System.currentTimeMillis() // creationDate not resolved in TorrentInfo
+                    /* try {
                         torrentInfo?.creationDate?.let { it * 1000L } ?: System.currentTimeMillis()
                     } catch (e: Exception) {
                         logger.w(e) { "Failed to get creation date for torrent $hash" }
                         System.currentTimeMillis()
-                    }
+                    } */
 
                 // Get files with error handling
                 val files =

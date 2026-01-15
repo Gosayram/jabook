@@ -26,6 +26,7 @@ public enum class LogLevel {
     INFO,
     WARN,
     ERROR,
+    NONE,
 }
 
 /**
@@ -37,25 +38,25 @@ public class AndroidLogger(
     private val tag: String,
     private val minLevel: LogLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.ERROR,
 ) : Logger {
-    override fun d(message: () -> String) = log(LogLevel.DEBUG, message, null)
-    override fun d(message: () -> String, throwable: Throwable?) = log(LogLevel.DEBUG, message, throwable)
-    override fun d(throwable: Throwable?, message: () -> String) = log(LogLevel.DEBUG, message, throwable)
+    override fun d(message: () -> String): Unit = log(LogLevel.DEBUG, message, null)
+    override fun d(message: () -> String, throwable: Throwable?): Unit = log(LogLevel.DEBUG, message, throwable)
+    override fun d(throwable: Throwable?, message: () -> String): Unit = log(LogLevel.DEBUG, message, throwable)
 
-    override fun e(message: () -> String) = log(LogLevel.ERROR, message, null)
-    override fun e(message: () -> String, throwable: Throwable?) = log(LogLevel.ERROR, message, throwable)
-    override fun e(throwable: Throwable?, message: () -> String) = log(LogLevel.ERROR, message, throwable)
+    override fun e(message: () -> String): Unit = log(LogLevel.ERROR, message, null)
+    override fun e(message: () -> String, throwable: Throwable?): Unit = log(LogLevel.ERROR, message, throwable)
+    override fun e(throwable: Throwable?, message: () -> String): Unit = log(LogLevel.ERROR, message, throwable)
 
-    override fun i(message: () -> String) = log(LogLevel.INFO, message, null)
-    override fun i(message: () -> String, throwable: Throwable?) = log(LogLevel.INFO, message, throwable)
-    override fun i(throwable: Throwable?, message: () -> String) = log(LogLevel.INFO, message, throwable)
+    override fun i(message: () -> String): Unit = log(LogLevel.INFO, message, null)
+    override fun i(message: () -> String, throwable: Throwable?): Unit = log(LogLevel.INFO, message, throwable)
+    override fun i(throwable: Throwable?, message: () -> String): Unit = log(LogLevel.INFO, message, throwable)
 
-    override fun w(message: () -> String) = log(LogLevel.WARN, message, null)
-    override fun w(message: () -> String, throwable: Throwable?) = log(LogLevel.WARN, message, throwable)
-    override fun w(throwable: Throwable?, message: () -> String) = log(LogLevel.WARN, message, throwable)
+    override fun w(message: () -> String): Unit = log(LogLevel.WARN, message, null)
+    override fun w(message: () -> String, throwable: Throwable?): Unit = log(LogLevel.WARN, message, throwable)
+    override fun w(throwable: Throwable?, message: () -> String): Unit = log(LogLevel.WARN, message, throwable)
 
-    override fun v(message: () -> String) = log(LogLevel.VERBOSE, message, null)
-    override fun v(message: () -> String, throwable: Throwable?) = log(LogLevel.VERBOSE, message, throwable)
-    override fun v(throwable: Throwable?, message: () -> String) = log(LogLevel.VERBOSE, message, throwable)
+    override fun v(message: () -> String): Unit = log(LogLevel.VERBOSE, message, null)
+    override fun v(message: () -> String, throwable: Throwable?): Unit = log(LogLevel.VERBOSE, message, throwable)
+    override fun v(throwable: Throwable?, message: () -> String): Unit = log(LogLevel.VERBOSE, message, throwable)
 
     private fun log(level: LogLevel, message: () -> String, throwable: Throwable?) {
         if (minLevel <= level) {

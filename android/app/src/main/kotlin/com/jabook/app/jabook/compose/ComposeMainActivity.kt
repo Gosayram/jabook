@@ -46,7 +46,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 public class ComposeMainActivity : ComponentActivity() {
     @Inject
-    lateinit var loggerFactory: LoggerFactory
+    public lateinit var loggerFactory: LoggerFactory
 
     private val logger by lazy { loggerFactory.get("ComposeMainActivity") }
 
