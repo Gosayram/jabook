@@ -21,8 +21,11 @@ import android.os.Build
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
 import androidx.core.app.TaskStackBuilder
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaController
@@ -506,7 +509,19 @@ public class AudioPlayerService : MediaLibraryService() {
             LogUtils.e("JABOOK_SERVICE", "Initializing CrossFadePlayer...")
             crossFadePlayer =
                 CrossFadePlayer(this) { context ->
-                    ExoPlayer.Builder(context).build()
+                    ExoPlayer
+                        .Builder(context)
+                        .setRenderersFactory(DefaultRenderersFactory(context))
+                        .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
+                        .setHandleAudioBecomingNoisy(true)
+                        .setAudioAttributes(
+                            AudioAttributes
+                                .Builder()
+                                .setUsage(C.USAGE_MEDIA)
+                                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                                .build(),
+                            true, // handleAudioFocus=true
+                        ).build()
                 }
             crossFadePlayer?.onPlayerChanged = { newPlayer ->
                 // CRITICAL: Update MediaSession player when crossfade swaps players (following Rhythm pattern)

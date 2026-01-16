@@ -157,6 +157,7 @@ public object MediaModule {
                     .Builder(context)
                     .setLoadControl(loadControl)
                     .setHandleAudioBecomingNoisy(true)
+                    .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
                     .setAudioAttributes(
                         AudioAttributes
                             .Builder()
@@ -225,6 +226,7 @@ public object MediaModule {
                         .setRenderersFactory(renderersFactory)
                         .setLoadControl(createOptimizedLoadControl(context))
                         .setHandleAudioBecomingNoisy(true)
+                        .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
                         .setAudioAttributes(
                             AudioAttributes
                                 .Builder()
