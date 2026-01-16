@@ -31,9 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 
@@ -60,7 +58,7 @@ public fun AudioSettingsSheet(
         skipSilence: Boolean?,
         normalizeVolume: Boolean?,
         speechEnhancer: Boolean?,
-        autoVolumeLeveling: Boolean?
+        autoVolumeLeveling: Boolean?,
     ) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -88,34 +86,34 @@ public fun AudioSettingsSheet(
             // Volume Boost Chips
             // Arranged in rows to fit
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                     VolumeBoostChip(
-                         label = "Off",
-                         selected = state.volumeBoostLevel == VolumeBoostLevel.Off,
-                         onClick = { onUpdateSettings(VolumeBoostLevel.Off, null, null, null, null) }
-                     )
-                     VolumeBoostChip(
-                         label = "+50%",
-                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost50,
-                         onClick = { onUpdateSettings(VolumeBoostLevel.Boost50, null, null, null, null) }
-                     )
-                     VolumeBoostChip(
-                         label = "+100%",
-                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost100,
-                         onClick = { onUpdateSettings(VolumeBoostLevel.Boost100, null, null, null, null) }
-                     )
-                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VolumeBoostChip(
+                        label = "Off",
+                        selected = state.volumeBoostLevel == VolumeBoostLevel.Off,
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Off, null, null, null, null) },
+                    )
+                    VolumeBoostChip(
+                        label = "+50%",
+                        selected = state.volumeBoostLevel == VolumeBoostLevel.Boost50,
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost50, null, null, null, null) },
+                    )
+                    VolumeBoostChip(
+                        label = "+100%",
+                        selected = state.volumeBoostLevel == VolumeBoostLevel.Boost100,
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost100, null, null, null, null) },
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     VolumeBoostChip(
                         label = "+200%",
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost200,
-                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost200, null, null, null, null) }
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost200, null, null, null, null) },
                     )
-                     VolumeBoostChip(
-                         label = "Auto",
-                         selected = state.volumeBoostLevel == VolumeBoostLevel.Auto,
-                         onClick = { onUpdateSettings(VolumeBoostLevel.Auto, null, null, null, null) }
-                     )
+                    VolumeBoostChip(
+                        label = "Auto",
+                        selected = state.volumeBoostLevel == VolumeBoostLevel.Auto,
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Auto, null, null, null, null) },
+                    )
                 }
             }
 
@@ -133,7 +131,7 @@ public fun AudioSettingsSheet(
                 title = "Skip Silence", // TODO: strings.xml
                 description = "Automatically skip silent parts",
                 checked = state.skipSilence,
-                onCheckedChange = { onUpdateSettings(null, it, null, null, null) }
+                onCheckedChange = { onUpdateSettings(null, it, null, null, null) },
             )
 
             // Normalize Volume
@@ -141,7 +139,7 @@ public fun AudioSettingsSheet(
                 title = "Normalize Volume", // TODO: strings.xml
                 description = "Keep consistent volume across tracks",
                 checked = state.normalizeVolume,
-                onCheckedChange = { onUpdateSettings(null, null, it, null, null) }
+                onCheckedChange = { onUpdateSettings(null, null, it, null, null) },
             )
 
             // Speech Enhancer
@@ -149,7 +147,7 @@ public fun AudioSettingsSheet(
                 title = "Speech Enhancer", // TODO: strings.xml
                 description = "Clarify voices and reduce background noise",
                 checked = state.speechEnhancer,
-                onCheckedChange = { onUpdateSettings(null, null, null, it, null) }
+                onCheckedChange = { onUpdateSettings(null, null, null, it, null) },
             )
 
             // Auto Volume Leveling
@@ -157,11 +155,12 @@ public fun AudioSettingsSheet(
                 title = "Auto Leveling", // TODO: strings.xml
                 description = "Adjust volume dynamically",
                 checked = state.autoVolumeLeveling,
-                onCheckedChange = { onUpdateSettings(null, null, null, null, it) }
+                onCheckedChange = { onUpdateSettings(null, null, null, null, it) },
             )
-            
+
             // Bottom padding for navigation bar
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(24.dp))
+            androidx.compose.foundation.layout
+                .Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -175,7 +174,7 @@ private fun VolumeBoostChip(
     FilterChip(
         selected = selected,
         onClick = onClick,
-        label = { Text(label) }
+        label = { Text(label) },
     )
 }
 
@@ -189,7 +188,7 @@ private fun AudioSettingSwitch(
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -206,7 +205,7 @@ private fun AudioSettingSwitch(
         }
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
         )
     }
 }

@@ -31,7 +31,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
-
 /**
  * A hypnotic, animated background effect for the player.
  * Uses extracted palette colors from the artwork to create a dynamic,
@@ -59,98 +58,107 @@ public fun HypnoticBackground(
     val phase1 by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "Phase1"
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(20000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "Phase1",
     )
 
     val phase2 by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(25000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Phase2"
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(25000, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "Phase2",
     )
-    
-     val phase3 by infiniteTransition.animateFloat(
+
+    val phase3 by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(18000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Phase3"
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(18000, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "Phase3",
     )
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black) // Base
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(Color.Black), // Base
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
-            
+
             // Draw a base gradient
-             drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(color1.copy(alpha=0.4f), color2.copy(alpha = 0.8f))
-                )
+            drawRect(
+                brush =
+                    Brush.verticalGradient(
+                        colors = listOf(color1.copy(alpha = 0.4f), color2.copy(alpha = 0.8f)),
+                    ),
             )
 
             // Draw moving "blobs" or gradients
             // Blob 1
             drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(color3.copy(alpha = 0.6f), Color.Transparent),
-                    center = Offset(width * 0.2f + (width * 0.6f * phase1), height * 0.3f),
-                    radius = width * 0.8f
-                ),
+                brush =
+                    Brush.radialGradient(
+                        colors = listOf(color3.copy(alpha = 0.6f), Color.Transparent),
+                        center = Offset(width * 0.2f + (width * 0.6f * phase1), height * 0.3f),
+                        radius = width * 0.8f,
+                    ),
                 center = Offset(width * 0.2f + (width * 0.6f * phase1), height * 0.3f),
-                radius = width * 0.8f
+                radius = width * 0.8f,
             )
 
             // Blob 2
             drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(color2.copy(alpha = 0.5f), Color.Transparent),
-                    center = Offset(width * 0.8f - (width * 0.6f * phase2), height * 0.7f),
-                    radius = width * 0.7f
-                ),
+                brush =
+                    Brush.radialGradient(
+                        colors = listOf(color2.copy(alpha = 0.5f), Color.Transparent),
+                        center = Offset(width * 0.8f - (width * 0.6f * phase2), height * 0.7f),
+                        radius = width * 0.7f,
+                    ),
                 center = Offset(width * 0.8f - (width * 0.6f * phase2), height * 0.7f),
-                radius = width * 0.7f
+                radius = width * 0.7f,
             )
-            
-             // Blob 3
+
+            // Blob 3
             drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(color4.copy(alpha = 0.4f), Color.Transparent),
-                    center = Offset(width * 0.5f, height * 0.5f + (height * 0.3f * phase3)),
-                    radius = width * 0.9f
-                ),
+                brush =
+                    Brush.radialGradient(
+                        colors = listOf(color4.copy(alpha = 0.4f), Color.Transparent),
+                        center = Offset(width * 0.5f, height * 0.5f + (height * 0.3f * phase3)),
+                        radius = width * 0.9f,
+                    ),
                 center = Offset(width * 0.5f, height * 0.5f + (height * 0.3f * phase3)),
-                radius = width * 0.9f
+                radius = width * 0.9f,
             )
 
             // Overlay a blur if possible, or use a scrim to soften
             // Since Blur on Canvas isn't directly supported in Compose without render effects (Android 12+),
             // we rely on the large radial gradients to create softness.
-            
+
             // Vignette
             drawRect(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
-                    center = center,
-                    radius = size.minDimension
-                )
+                brush =
+                    Brush.radialGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
+                        center = center,
+                        radius = size.minDimension,
+                    ),
             )
         }
-        
-        // Add a blur layer using RenderEffect if on Android 12+ 
+
+        // Add a blur layer using RenderEffect if on Android 12+
         // For now, we stick to standard Canvas drawing for compatibility.
         // If we wanted to use RenderEffect, we would use .graphicsLayer { renderEffect = ... }
     }

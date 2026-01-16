@@ -412,9 +412,9 @@ internal class PlayerListener(
 
             // Start/Stop Crossfade Monitoring
             if (isPlaying && playbackState == Player.STATE_READY) {
-                 getCrossfadeHandler?.invoke()?.startMonitoring()
+                getCrossfadeHandler?.invoke()?.startMonitoring()
             } else {
-                 getCrossfadeHandler?.invoke()?.stopMonitoring()
+                getCrossfadeHandler?.invoke()?.stopMonitoring()
             }
 
             // Don't reset playWhenReady automatically - let ExoPlayer handle AudioFocus
@@ -772,7 +772,10 @@ internal class PlayerListener(
                         // Retry after delay with exponential backoff
                         val backoffDelay = retryDelayMs * retryCount
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            getActivePlayer().prepare()
+                            val player = getActivePlayer()
+                            player.prepare()
+                            // Following RiMusic pattern: set playWhenReady after prepare to resume playback
+                            player.playWhenReady = true
                             android.util.Log.d(
                                 "AudioPlayerService",
                                 "Retry attempt $retryCount after network error (delay: ${backoffDelay}ms)",
@@ -792,7 +795,10 @@ internal class PlayerListener(
                         )
                         val backoffDelay = retryDelayMs * retryCount
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            getActivePlayer().prepare()
+                            val player = getActivePlayer()
+                            player.prepare()
+                            // Following RiMusic pattern: set playWhenReady after prepare to resume playback
+                            player.playWhenReady = true
                         }, backoffDelay)
                         return
                     }
@@ -1607,8 +1613,6 @@ internal class PlayerListener(
             context.sendBroadcast(intent)
         }
     }
-
-
 
     /**
      * Handles audio session ID changes (following Rhythm pattern).

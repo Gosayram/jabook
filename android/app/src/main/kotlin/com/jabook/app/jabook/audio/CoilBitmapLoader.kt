@@ -33,7 +33,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import java.io.File
 
 /**
  * Custom BitmapLoader using Coil3 for optimized artwork loading.
@@ -73,10 +72,12 @@ public class CoilBitmapLoader(
                 android.util.Log.d("CoilBitmapLoader", "Loading bitmap from URI: $uri")
 
                 val loader = SingletonImageLoader.get(context)
-                val request = ImageRequest.Builder(context)
-                    .data(uri)
-                    .size(maxArtworkWidth, maxArtworkHeight)
-                    .build()
+                val request =
+                    ImageRequest
+                        .Builder(context)
+                        .data(uri)
+                        .size(maxArtworkWidth, maxArtworkHeight)
+                        .build()
 
                 val result = loader.execute(request)
 
@@ -104,9 +105,7 @@ public class CoilBitmapLoader(
      * Checks if Coil supports the given MIME type.
      * Coil supports most common image formats.
      */
-    override fun supportsMimeType(mimeType: String): Boolean {
-        return mimeType.startsWith("image/") || mimeType == "application/octet-stream"
-    }
+    override fun supportsMimeType(mimeType: String): Boolean = mimeType.startsWith("image/") || mimeType == "application/octet-stream"
 
     /**
      * Decodes bitmap from raw byte data using Coil.
@@ -120,10 +119,12 @@ public class CoilBitmapLoader(
                 android.util.Log.d("CoilBitmapLoader", "Decoding bitmap from byte array: ${data.size} bytes")
 
                 val loader = SingletonImageLoader.get(context)
-                val request = ImageRequest.Builder(context)
-                    .data(data)
-                    .size(maxArtworkWidth, maxArtworkHeight)
-                    .build()
+                val request =
+                    ImageRequest
+                        .Builder(context)
+                        .data(data)
+                        .size(maxArtworkWidth, maxArtworkHeight)
+                        .build()
 
                 val result = loader.execute(request)
 

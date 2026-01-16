@@ -38,11 +38,12 @@ public fun PremiumPlayerBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val backgroundColors = themeColors?.let { colors ->
-        colors.gradientColors.ifEmpty {
-            listOf(colors.containerColor, colors.surfaceColor)
-        }
-    } ?: emptyList()
+    val backgroundColors =
+        themeColors?.let { colors ->
+            colors.gradientColors.ifEmpty {
+                listOf(colors.containerColor, colors.surfaceColor)
+            }
+        } ?: emptyList()
 
     val fallbackBackgroundModifier =
         if (themeColors != null) {
@@ -65,13 +66,14 @@ public fun PremiumPlayerBackground(
         if (!isPowerSaveMode && backgroundColors.isNotEmpty()) {
             HypnoticBackground(
                 colors = backgroundColors,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             )
         } else {
-             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(fallbackBackgroundModifier),
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .then(fallbackBackgroundModifier),
             )
         }
 

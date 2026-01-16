@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package com.jabook.app.jabook.crash
 
 import android.content.ClipData
@@ -47,28 +46,26 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.ui.theme.JabookTheme
-import kotlin.system.exitProcess
 
 /**
  * Activity displayed when the app crashes.
  * Shows the stack trace and allows restarting or copying the logs.
  */
 public class CrashActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val stackTrace = intent.getStringExtra(EXTRA_STACK_TRACE) ?: "No stack trace available."
 
         setContent {
-            JabookTheme(darkTheme = true) { // Force dark theme for crash screen usually looks better/safer
+            JabookTheme(darkTheme = true) {
+                // Force dark theme for crash screen usually looks better/safer
                 CrashScreen(
                     stackTrace = stackTrace,
                     onRestartClick = {
@@ -79,16 +76,17 @@ public class CrashActivity : ComponentActivity() {
                     },
                     onShareClick = {
                         shareStackTrace(stackTrace)
-                    }
+                    },
                 )
             }
         }
     }
 
     private fun restartApp() {
-        val intent = Intent(this, ComposeMainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-        }
+        val intent =
+            Intent(this, ComposeMainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
         startActivity(intent)
         finish()
         Runtime.getRuntime().exit(0)
@@ -101,11 +99,12 @@ public class CrashActivity : ComponentActivity() {
     }
 
     private fun shareStackTrace(text: String) {
-        val sendIntent: Intent = Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, "Jabook Crash Log:\n\n$text")
-            type = "text/plain"
-        }
+        val sendIntent: Intent =
+            Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_TEXT, "Jabook Crash Log:\n\n$text")
+                type = "text/plain"
+            }
         val shareIntent = Intent.createChooser(sendIntent, "Share Crash Log")
         startActivity(shareIntent)
     }
@@ -120,18 +119,19 @@ public fun CrashScreen(
     stackTrace: String,
     onRestartClick: () -> Unit,
     onCopyClick: () -> Unit,
-    onShareClick: () -> Unit
+    onShareClick: () -> Unit,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.errorContainer
+        containerColor = MaterialTheme.colorScheme.errorContainer,
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -139,7 +139,7 @@ public fun CrashScreen(
                 imageVector = Icons.Filled.Warning,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.height(64.dp).fillMaxWidth()
+                modifier = Modifier.height(64.dp).fillMaxWidth(),
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -147,36 +147,37 @@ public fun CrashScreen(
             Text(
                 text = "Jabook Crashed",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onErrorContainer
+                color = MaterialTheme.colorScheme.onErrorContainer,
             )
 
             Text(
                 text = "We apologize for the inconvenience.",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Stack Trace Box
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .background(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .padding(12.dp)
-                    .verticalScroll(rememberScrollState())
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .background(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(8.dp),
+                        ).padding(12.dp)
+                        .verticalScroll(rememberScrollState()),
             ) {
                 Text(
                     text = stackTrace,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 12.sp,
+                        ),
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
@@ -185,24 +186,26 @@ public fun CrashScreen(
             // Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 OutlinedButton(
                     onClick = onCopyClick,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                    )
+                    colors =
+                        ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        ),
                 ) {
                     Text("Copy Log")
                 }
-                
+
                 OutlinedButton(
                     onClick = onShareClick,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                    )
+                    colors =
+                        ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        ),
                 ) {
                     Text("Share")
                 }
@@ -213,10 +216,11 @@ public fun CrashScreen(
             Button(
                 onClick = onRestartClick,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
-                )
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
             ) {
                 Text("Restart App")
             }

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package com.jabook.app.jabook.crash
 
 import android.app.Application
@@ -27,19 +26,22 @@ import kotlin.system.exitProcess
  */
 public class GlobalExceptionHandler(
     private val application: Application,
-    private val defaultHandler: Thread.UncaughtExceptionHandler?
+    private val defaultHandler: Thread.UncaughtExceptionHandler?,
 ) : Thread.UncaughtExceptionHandler {
-
-    override fun uncaughtException(thread: Thread, throwable: Throwable) {
+    override fun uncaughtException(
+        thread: Thread,
+        throwable: Throwable,
+    ) {
         try {
             // Log the exception
             android.util.Log.e("GlobalExceptionHandler", "Uncaught exception", throwable)
 
             // Launch CrashActivity
-            val intent = Intent(application, CrashActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                putExtra(CrashActivity.EXTRA_STACK_TRACE, getStackTrace(throwable))
-            }
+            val intent =
+                Intent(application, CrashActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    putExtra(CrashActivity.EXTRA_STACK_TRACE, getStackTrace(throwable))
+                }
             application.startActivity(intent)
 
             // Kill the process

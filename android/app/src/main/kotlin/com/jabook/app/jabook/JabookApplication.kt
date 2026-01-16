@@ -72,7 +72,8 @@ public class JabookApplication :
         // Initialize Global Exception Handler
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(
-            com.jabook.app.jabook.crash.GlobalExceptionHandler(this, defaultHandler)
+            com.jabook.app.jabook.crash
+                .GlobalExceptionHandler(this, defaultHandler),
         )
 
         // Create notification channels for downloads and player

@@ -40,7 +40,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -324,33 +323,35 @@ public class PlayerViewModel
          * Let's map to a local data class for cleaner UI usage.
          */
         public data class AudioSettingsState(
-            val volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel = com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
+            val volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel =
+                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
             val skipSilence: Boolean = false,
             val normalizeVolume: Boolean = true,
             val speechEnhancer: Boolean = false,
-            val autoVolumeLeveling: Boolean = false
+            val autoVolumeLeveling: Boolean = false,
         )
 
         public val audioSettings: StateFlow<AudioSettingsState> =
             settingsRepository.userPreferences
                 .map { prefs ->
-                     AudioSettingsState(
-                        volumeBoostLevel = try {
-                            if (prefs.volumeBoostLevel.isNotEmpty()) {
-                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.valueOf(prefs.volumeBoostLevel)
-                            } else {
+                    AudioSettingsState(
+                        volumeBoostLevel =
+                            try {
+                                if (prefs.volumeBoostLevel.isNotEmpty()) {
+                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel
+                                        .valueOf(prefs.volumeBoostLevel)
+                                } else {
+                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
+                                }
+                            } catch (e: Exception) {
                                 com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
-                            }
-                        } catch (e: Exception) {
-                            com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
-                        },
+                            },
                         skipSilence = prefs.skipSilence,
                         normalizeVolume = prefs.normalizeVolume,
                         speechEnhancer = prefs.speechEnhancer,
-                        autoVolumeLeveling = prefs.autoVolumeLeveling
+                        autoVolumeLeveling = prefs.autoVolumeLeveling,
                     )
-                }
-                .stateIn(
+                }.stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = AudioSettingsState(),
@@ -486,7 +487,7 @@ public class PlayerViewModel
             skipSilence: Boolean? = null,
             normalizeVolume: Boolean? = null,
             speechEnhancer: Boolean? = null,
-            autoVolumeLeveling: Boolean? = null
+            autoVolumeLeveling: Boolean? = null,
         ) {
             viewModelScope.launch {
                 settingsRepository.updateAudioSettings(
@@ -494,7 +495,7 @@ public class PlayerViewModel
                     skipSilence = skipSilence,
                     normalizeVolume = normalizeVolume,
                     speechEnhancer = speechEnhancer,
-                    autoVolumeLeveling = autoVolumeLeveling
+                    autoVolumeLeveling = autoVolumeLeveling,
                 )
             }
         }

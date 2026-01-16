@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package com.jabook.app.jabook.compose.navigation
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -56,7 +52,7 @@ public fun JabookDrawerContent(
     onNavigateToSettings: () -> Unit,
     onNavigateToAbout: () -> Unit,
     accountProfile: AccountProfile = AccountProfile("Guest User", "guest@jabook.app"), // TODO: Real user data
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     ModalDrawerSheet(
         modifier = modifier.fillMaxWidth(0.85f), // Slightly wider than default
@@ -65,52 +61,55 @@ public fun JabookDrawerContent(
         // Sticky Header
         AccountHeader(
             selectedAccount = accountProfile,
-            onAccountClick = { /* TODO: Account switching */ }
+            onAccountClick = { /* TODO: Account switching */ },
         )
 
         // Scrollable Content
         Column(
-            modifier = Modifier
-                .weight(1f) // Takes remaining space
-                .verticalScroll(rememberScrollState())
-                .padding(vertical = 12.dp)
+            modifier =
+                Modifier
+                    .weight(1f) // Takes remaining space
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 12.dp),
         ) {
-             // Main Destinations
-             destinations.forEach { destination ->
-                 val selected = currentDestination?.hierarchy?.any {
-                     it.route?.contains(destination.name, ignoreCase = true) == true
-                 } == true
-                 
-                 NavigationDrawerItem(
-                     label = { Text(stringResource(destination.titleTextId)) },
-                     icon = {
-                         Icon(
-                             imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
-                             contentDescription = null
-                         )
-                     },
-                     selected = selected,
-                     onClick = { onNavigateToDestination(destination) },
-                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                 )
-             }
+            // Main Destinations
+            destinations.forEach { destination ->
+                val selected =
+                    currentDestination?.hierarchy?.any {
+                        it.route?.contains(destination.name, ignoreCase = true) == true
+                    } == true
+
+                NavigationDrawerItem(
+                    label = { Text(stringResource(destination.titleTextId)) },
+                    icon = {
+                        Icon(
+                            imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
+                            contentDescription = null,
+                        )
+                    },
+                    selected = selected,
+                    onClick = { onNavigateToDestination(destination) },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+                )
+            }
         }
 
         // Sticky Footer (Divider + Secondary Items)
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
         ) {
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-            
+
             // Settings
             NavigationDrawerItem(
                 label = { Text("Settings") }, // TODO: strings.xml
                 icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
                 selected = false,
                 onClick = onNavigateToSettings,
-                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
 
             // About
@@ -119,7 +118,7 @@ public fun JabookDrawerContent(
                 icon = { Icon(Icons.Filled.Info, contentDescription = null) },
                 selected = false,
                 onClick = onNavigateToAbout,
-                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
         }
     }

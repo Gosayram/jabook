@@ -72,8 +72,8 @@ public fun LyricsView(
                 // However, animateScrollToItem with generous padding usually works well.
                 listState.animateScrollToItem(
                     index = currentIndex,
-                     // 150dp offset is roughly half of the container height (300dp-ish usually)
-                    scrollOffset = -with(density) { 100.dp.toPx() }.roundToInt()
+                    // 150dp offset is roughly half of the container height (300dp-ish usually)
+                    scrollOffset = -with(density) { 100.dp.toPx() }.roundToInt(),
                 )
             } catch (e: Exception) {
                 // Ignore scroll errors
@@ -90,17 +90,17 @@ public fun LyricsView(
         ) {
             itemsIndexed(lyrics) { index, line ->
                 val isCurrent = index == currentIndex
-                
+
                 // Animate properties for smooth transition
                 val alpha by androidx.compose.animation.core.animateFloatAsState(
                     targetValue = if (isCurrent) 1f else 0.5f,
-                    label = "alpha"
+                    label = "alpha",
                 )
                 val scale by androidx.compose.animation.core.animateFloatAsState(
                     targetValue = if (isCurrent) 1.1f else 1.0f,
-                    label = "scale"
+                    label = "scale",
                 )
-                
+
                 // Highlight color
                 val color = if (isCurrent) Color.White else Color.White.copy(alpha = 0.6f)
 
@@ -121,46 +121,57 @@ public fun LyricsView(
                             fontSize = 24.sp,
                             fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                             textAlign = TextAlign.Center,
-                            shadow = if (isCurrent) androidx.compose.ui.graphics.Shadow(
-                                color = Color.Black.copy(alpha = 0.5f),
-                                blurRadius = 12f
-                            ) else null
+                            shadow =
+                                if (isCurrent) {
+                                    androidx.compose.ui.graphics.Shadow(
+                                        color = Color.Black.copy(alpha = 0.5f),
+                                        blurRadius = 12f,
+                                    )
+                                } else {
+                                    null
+                                },
                         ),
                     color = color,
                 )
             }
         }
-        
+
         // Top Fade Gradient
         Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(60.dp)
-                .background(
-                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), // Matching container bg
-                            Color.Transparent
-                        )
-                    )
-                )
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .background(
+                        brush =
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors =
+                                    listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), // Matching container bg
+                                        Color.Transparent,
+                                    ),
+                            ),
+                    ),
         )
-        
+
         // Bottom Fade Gradient
         Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(60.dp)
-                .background(
-                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
-                    )
-                )
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .background(
+                        brush =
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors =
+                                    listOf(
+                                        Color.Transparent,
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    ),
+                            ),
+                    ),
         )
     }
 }

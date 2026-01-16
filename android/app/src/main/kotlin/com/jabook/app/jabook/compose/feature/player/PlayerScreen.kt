@@ -319,7 +319,7 @@ public fun PlayerScreen(
         AudioSettingsSheet(
             state = audioSettings,
             onUpdateSettings = viewModel::updateAudioSettings,
-            onDismiss = { showAudioSettingsSheet = false }
+            onDismiss = { showAudioSettingsSheet = false },
         )
     }
 

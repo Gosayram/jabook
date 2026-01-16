@@ -58,33 +58,43 @@ internal class PlaybackController(
         // ExoPlayer will handle AudioFocus automatically
         playerServiceScope.launch(Dispatchers.Main) {
             try {
-                // Only call prepare() if player is in IDLE state
-                if (player.playbackState == Player.STATE_IDLE) {
-                    android.util.Log.d("AudioPlayerService", "play() - player is IDLE, calling prepare()")
+                // Call prepare() if player is in IDLE or ENDED state (following RiMusic pattern)
+                // This ensures player restarts properly after book completion or errors
+                if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+                    android.util.Log.d("AudioPlayerService", "play() - player is IDLE/ENDED, calling prepare()")
                     player.prepare()
                 }
 
                 // Smart Rewind Logic (Audiobook tailored)
                 // Rewind based on how long we were paused
-                val autoRewindEnabled = try { getAutoRewindEnabled() } catch (e: Exception) { false }
-                
+                val autoRewindEnabled =
+                    try {
+                        getAutoRewindEnabled()
+                    } catch (e: Exception) {
+                        false
+                    }
+
                 if (autoRewindEnabled) {
                     val currentTime = System.currentTimeMillis()
                     val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else Long.MAX_VALUE
-                
+
                     // Only rewind if we're not at the very beginning
                     // And if we're definitely resuming (not starting fresh with 0 duration)
-                    if (player.currentPosition > 5000) { 
-                        val rewindMs = when {
-                            pauseDurationMs < 60_000 -> 0L // < 1 min: No rewind
-                            pauseDurationMs < 600_000 -> 10_000L // 1-10 mins: 10s rewind
-                            else -> 30_000L // > 10 mins (or app restart): 30s rewind
-                        }
-                    
+                    if (player.currentPosition > 5000) {
+                        val rewindMs =
+                            when {
+                                pauseDurationMs < 60_000 -> 0L // < 1 min: No rewind
+                                pauseDurationMs < 600_000 -> 10_000L // 1-10 mins: 10s rewind
+                                else -> 30_000L // > 10 mins (or app restart): 30s rewind
+                            }
+
                         if (rewindMs > 0) {
-                             val newPos = (player.currentPosition - rewindMs).coerceAtLeast(0L)
-                             player.seekTo(newPos)
-                             android.util.Log.d("AudioPlayerService", "Smart Rewind: Rewinding ${rewindMs/1000}s (pause: ${pauseDurationMs/1000}s)")
+                            val newPos = (player.currentPosition - rewindMs).coerceAtLeast(0L)
+                            player.seekTo(newPos)
+                            android.util.Log.d(
+                                "AudioPlayerService",
+                                "Smart Rewind: Rewinding ${rewindMs / 1000}s (pause: ${pauseDurationMs / 1000}s)",
+                            )
                         }
                     }
                 }
@@ -271,6 +281,11 @@ internal class PlaybackController(
 
         if (nextAvailableIndex != null && nextAvailableIndex != currentIndex) {
             player.seekTo(nextAvailableIndex, 0L)
+            // Following RiMusic pattern: prepare() + playWhenReady after seek
+            if (player.playbackState != Player.STATE_READY && player.playbackState != Player.STATE_BUFFERING) {
+                player.prepare()
+            }
+            player.playWhenReady = true
             android.util.Log.d("AudioPlayerService", "Skipping to next available track: $nextAvailableIndex")
         } else if (nextAvailableIndex == null) {
             android.util.Log.w("AudioPlayerService", "No available tracks found, stopping playback")
@@ -278,6 +293,11 @@ internal class PlaybackController(
         } else {
             // Already on available track, use default behavior
             player.seekToNextMediaItem()
+            // Following RiMusic pattern: prepare() + playWhenReady after seek
+            if (player.playbackState != Player.STATE_READY && player.playbackState != Player.STATE_BUFFERING) {
+                player.prepare()
+            }
+            player.playWhenReady = true
             android.util.Log.d("AudioPlayerService", "Skipping to next track (default)")
         }
 
@@ -304,6 +324,11 @@ internal class PlaybackController(
 
         if (prevAvailableIndex != null && prevAvailableIndex != currentIndex) {
             player.seekTo(prevAvailableIndex, 0L)
+            // Following RiMusic pattern: prepare() + playWhenReady after seek
+            if (player.playbackState != Player.STATE_READY && player.playbackState != Player.STATE_BUFFERING) {
+                player.prepare()
+            }
+            player.playWhenReady = true
             android.util.Log.d("AudioPlayerService", "Skipping to previous available track: $prevAvailableIndex")
         } else if (prevAvailableIndex == null) {
             android.util.Log.w("AudioPlayerService", "No available tracks found, stopping playback")
@@ -311,6 +336,11 @@ internal class PlaybackController(
         } else {
             // Already on available track, use default behavior
             player.seekToPreviousMediaItem()
+            // Following RiMusic pattern: prepare() + playWhenReady after seek
+            if (player.playbackState != Player.STATE_READY && player.playbackState != Player.STATE_BUFFERING) {
+                player.prepare()
+            }
+            player.playWhenReady = true
             android.util.Log.d("AudioPlayerService", "Skipping to previous track (default)")
         }
 

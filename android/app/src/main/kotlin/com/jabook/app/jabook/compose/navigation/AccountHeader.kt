@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 package com.jabook.app.jabook.compose.navigation
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,7 +26,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -41,12 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jabook.app.jabook.R
 
 /**
  * Account Header for the Navigation Drawer.
@@ -63,54 +56,60 @@ import com.jabook.app.jabook.R
 public fun AccountHeader(
     selectedAccount: AccountProfile,
     onAccountClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(170.dp) // Standard Material Drawer Header Height
-            .background(MaterialTheme.colorScheme.primaryContainer)
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(170.dp) // Standard Material Drawer Header Height
+                .background(MaterialTheme.colorScheme.primaryContainer),
     ) {
         // Background Image (if any, typically a gradient or image)
         // For now, using a gradient overlay
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                        )
-                    )
-                )
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush =
+                            Brush.verticalGradient(
+                                colors =
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                                    ),
+                            ),
+                    ),
         )
 
         // Content
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.Start
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+            horizontalAlignment = Alignment.Start,
         ) {
             Spacer(modifier = Modifier.weight(1f))
 
             // Avatar
             Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(2.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), CircleShape)
-                    .clickable { onAccountClick() },
-                contentAlignment = Alignment.Center
+                modifier =
+                    Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .border(2.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), CircleShape)
+                        .clickable { onAccountClick() },
+                contentAlignment = Alignment.Center,
             ) {
-                 // Placeholder or Coil Image
-                 Text(
-                     text = selectedAccount.name.take(1).uppercase(),
-                     style = MaterialTheme.typography.titleLarge,
-                     color = MaterialTheme.colorScheme.primary
-                 )
+                // Placeholder or Coil Image
+                Text(
+                    text = selectedAccount.name.take(1).uppercase(),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -118,26 +117,26 @@ public fun AccountHeader(
             // User Info with Dropdown
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = selectedAccount.name,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                     Text(
                         text = selectedAccount.email,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     )
                 }
-                
+
                 IconButton(onClick = onAccountClick) {
                     Icon(
                         imageVector = Icons.Filled.ArrowDropDown,
                         contentDescription = "Switch Account",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
@@ -148,5 +147,5 @@ public fun AccountHeader(
 public data class AccountProfile(
     val name: String,
     val email: String,
-    val iconUrl: String? = null
+    val iconUrl: String? = null,
 )

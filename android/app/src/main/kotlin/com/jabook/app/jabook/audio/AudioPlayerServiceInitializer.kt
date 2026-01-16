@@ -20,9 +20,9 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import kotlinx.coroutines.flow.first
 
 /**
  * Handles initialization logic for AudioPlayerService.
@@ -113,10 +113,12 @@ public class AudioPlayerServiceInitializer(
         service.crossfadeHandler =
             CrossfadeHandler(
                 service = service,
-                crossFadePlayer = service.crossFadePlayer
-                    ?: throw IllegalStateException("CrossFadePlayer must be initialized before CrossfadeHandler"),
-                playlistManager = service.playlistManager
-                    ?: throw IllegalStateException("PlaylistManager must be initialized before CrossfadeHandler"),
+                crossFadePlayer =
+                    service.crossFadePlayer
+                        ?: throw IllegalStateException("CrossFadePlayer must be initialized before CrossfadeHandler"),
+                playlistManager =
+                    service.playlistManager
+                        ?: throw IllegalStateException("PlaylistManager must be initialized before CrossfadeHandler"),
             )
 
         // 7. UnloadManager
@@ -310,7 +312,7 @@ public class AudioPlayerServiceInitializer(
                 )
             // Inject scope for async bitmap loading
             service.notificationManager?.setCoroutineScope(service.playerServiceScope)
-            */
+             */
 
             // Allow updating player reference if crossfade happens
             // service.crossFadePlayer?.onPlayerChanged will handle this via updatePlayer()

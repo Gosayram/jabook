@@ -111,9 +111,12 @@ public class TvPlaybackFragment : PlaybackSupportFragment() {
         controlsRow.primaryActionsAdapter = primaryActionsAdapter
 
         // Create rows adapter
-        val rowsAdapter = ArrayObjectAdapter(ClassPresenterSelector().apply {
-            addClassPresenter(PlaybackControlsRow::class.java, PlaybackControlsRowPresenter())
-        })
+        val rowsAdapter =
+            ArrayObjectAdapter(
+                ClassPresenterSelector().apply {
+                    addClassPresenter(PlaybackControlsRow::class.java, PlaybackControlsRowPresenter())
+                },
+            )
         rowsAdapter.add(controlsRow)
         adapter = rowsAdapter
 

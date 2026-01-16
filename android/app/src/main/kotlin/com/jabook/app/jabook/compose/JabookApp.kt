@@ -232,7 +232,7 @@ public fun JabookApp(
                     onNavigateToAbout = {
                         // TODO: Navigate to About
                         scope.launch { drawerState.close() }
-                    }
+                    },
                 )
             },
         ) {
@@ -249,11 +249,11 @@ public fun JabookApp(
                             icon = {
                                 Icon(
                                     imageVector =
-                                    if (selected) {
-                                        destination.selectedIcon
-                                    } else {
-                                        destination.unselectedIcon
-                                    },
+                                        if (selected) {
+                                            destination.selectedIcon
+                                        } else {
+                                            destination.unselectedIcon
+                                        },
                                     contentDescription = stringResource(destination.iconTextId),
                                 )
                             },
@@ -270,9 +270,9 @@ public fun JabookApp(
                     // Navigation content
                     Box(
                         modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxSize(),
+                            Modifier
+                                .weight(1f)
+                                .fillMaxSize(),
                     ) {
                         @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
                         androidx.compose.animation.SharedTransitionLayout {
@@ -287,9 +287,9 @@ public fun JabookApp(
                         androidx.compose.material3.SnackbarHost(
                             hostState = appState.snackbarHostState,
                             modifier =
-                            Modifier
-                                .align(androidx.compose.ui.Alignment.BottomCenter)
-                                .padding(bottom = if (currentBook != null && !isOnPlayerScreen) 72.dp else 16.dp),
+                                Modifier
+                                    .align(androidx.compose.ui.Alignment.BottomCenter)
+                                    .padding(bottom = if (currentBook != null && !isOnPlayerScreen) 72.dp else 16.dp),
                         )
                     }
 
