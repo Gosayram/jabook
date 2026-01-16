@@ -24,6 +24,7 @@ import android.widget.Toast
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -124,7 +125,7 @@ internal class SleepTimerManager(
         timerOption = TimerOption.FIXED_DURATION
         _sleepTimerRemainingSeconds = minutes * 60
 
-        android.util.Log.d("AudioPlayerService", "Sleep timer set: $minutes minutes")
+        LogUtils.d("AudioPlayerService", "Sleep timer set: $minutes minutes")
 
         // Create and start SuspendableCountDownTimer
         suspendableTimer =
@@ -133,10 +134,10 @@ internal class SleepTimerManager(
                 intervalMillis = 500L, // Update every 500ms
                 onTickSeconds = { seconds ->
                     _sleepTimerRemainingSeconds = seconds.toInt()
-                    android.util.Log.v("AudioPlayerService", "Sleep timer tick: ${seconds}s remaining")
+                    LogUtils.v("AudioPlayerService", "Sleep timer tick: ${seconds}s remaining")
                 },
                 onFinished = {
-                    android.util.Log.d("AudioPlayerService", "Sleep timer expired, pausing playback")
+                    LogUtils.d("AudioPlayerService", "Sleep timer expired, pausing playback")
                     val player = getActivePlayer()
                     player.playWhenReady = false
                     cancelSleepTimer()
@@ -150,7 +151,7 @@ internal class SleepTimerManager(
             suspendableTimer?.start()
         } else {
             // Timer will be started when playback resumes
-            android.util.Log.d("AudioPlayerService", "Sleep timer created but paused (player not playing)")
+            LogUtils.d("AudioPlayerService", "Sleep timer created but paused (player not playing)")
         }
 
         // Add player listener for pause/resume
@@ -176,7 +177,7 @@ internal class SleepTimerManager(
         _sleepTimerRemainingSeconds = null
         suspendableTimer = null
 
-        android.util.Log.d("AudioPlayerService", "Sleep timer set: end of chapter")
+        LogUtils.d("AudioPlayerService", "Sleep timer set: end of chapter")
         saveTimerState()
         // Note: For "end of chapter" mode, timer will be triggered in onMediaItemTransition
     }
@@ -189,7 +190,7 @@ internal class SleepTimerManager(
         sleepTimerEndTime = 0
         sleepTimerEndOfChapter = false
         _sleepTimerRemainingSeconds = null
-        android.util.Log.d("AudioPlayerService", "Sleep timer cancelled")
+        LogUtils.d("AudioPlayerService", "Sleep timer cancelled")
         saveTimerState()
     }
 
@@ -238,7 +239,7 @@ internal class SleepTimerManager(
                 setPackage(packageName) // Set package for explicit broadcast
             }
         sendBroadcast(intent)
-        android.util.Log.d("AudioPlayerService", "Sleep timer expired event sent")
+        LogUtils.d("AudioPlayerService", "Sleep timer expired event sent")
         // Clear saved timer state when expired
         saveTimerState()
     }
@@ -265,12 +266,12 @@ internal class SleepTimerManager(
                             true -> {
                                 // Resume timer when playback resumes
                                 suspendableTimer = currentTimer.resume()
-                                android.util.Log.d("AudioPlayerService", "Sleep timer resumed (playback resumed)")
+                                LogUtils.d("AudioPlayerService", "Sleep timer resumed (playback resumed)")
                             }
                             false -> {
                                 // Pause timer when playback pauses
                                 currentTimer.pause()
-                                android.util.Log.d("AudioPlayerService", "Sleep timer paused (playback paused)")
+                                LogUtils.d("AudioPlayerService", "Sleep timer paused (playback paused)")
                             }
                         }
                     }
@@ -294,13 +295,13 @@ internal class SleepTimerManager(
     private fun setupShakeListener() {
         if (accelerometer != null) {
             sensorManager.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_UI)
-            android.util.Log.d("AudioPlayerService", "Shake listener registered")
+            LogUtils.d("AudioPlayerService", "Shake listener registered")
         }
     }
 
     private fun removeShakeListener() {
         sensorManager.unregisterListener(shakeListener)
-        android.util.Log.d("AudioPlayerService", "Shake listener unregistered")
+        LogUtils.d("AudioPlayerService", "Shake listener unregistered")
     }
 
     private fun extendTimer() {
@@ -310,7 +311,7 @@ internal class SleepTimerManager(
         // Extend by 5 minutes
         val newDurationMinutes = (remainingSeconds / 60) + 5
 
-        android.util.Log.d("AudioPlayerService", "Shake detected! Extending timer to $newDurationMinutes minutes")
+        LogUtils.d("AudioPlayerService", "Shake detected! Extending timer to $newDurationMinutes minutes")
 
         // Show toast on Main thread
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
@@ -330,12 +331,12 @@ internal class SleepTimerManager(
             editor.putLong("sleepTimerEndTime", sleepTimerEndTime)
             editor.putBoolean("sleepTimerEndOfChapter", sleepTimerEndOfChapter)
             editor.apply()
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Sleep timer state saved: endTime=$sleepTimerEndTime, endOfChapter=$sleepTimerEndOfChapter",
             )
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to save sleep timer state", e)
+            LogUtils.e("AudioPlayerService", "Failed to save sleep timer state", e)
         }
     }
 
@@ -351,7 +352,7 @@ internal class SleepTimerManager(
             val savedEndOfChapter = prefs.getBoolean("sleepTimerEndOfChapter", false)
 
             if (savedEndTime > 0 || savedEndOfChapter) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Restoring sleep timer state: endTime=$savedEndTime, endOfChapter=$savedEndOfChapter",
                 )
@@ -361,7 +362,7 @@ internal class SleepTimerManager(
                     sleepTimerEndTime = 0
                     sleepTimerEndOfChapter = true
                     _sleepTimerRemainingSeconds = null
-                    android.util.Log.d("AudioPlayerService", "Sleep timer restored: end of chapter mode")
+                    LogUtils.d("AudioPlayerService", "Sleep timer restored: end of chapter mode")
                 } else {
                     // Restore fixed duration timer
                     val currentTime = System.currentTimeMillis()
@@ -383,7 +384,7 @@ internal class SleepTimerManager(
                                     _sleepTimerRemainingSeconds = seconds.toInt()
                                 },
                                 onFinished = {
-                                    android.util.Log.d("AudioPlayerService", "Restored sleep timer expired, pausing playback")
+                                    LogUtils.d("AudioPlayerService", "Restored sleep timer expired, pausing playback")
                                     val player = getActivePlayer()
                                     player.playWhenReady = false
                                     cancelSleepTimer()
@@ -400,10 +401,10 @@ internal class SleepTimerManager(
                         setupPlayerListener()
                         setupShakeListener()
 
-                        android.util.Log.d("AudioPlayerService", "Sleep timer restored: $remaining seconds remaining")
+                        LogUtils.d("AudioPlayerService", "Sleep timer restored: $remaining seconds remaining")
                     } else {
                         // Timer already expired, clear it
-                        android.util.Log.d("AudioPlayerService", "Sleep timer expired while app was closed, clearing")
+                        LogUtils.d("AudioPlayerService", "Sleep timer expired while app was closed, clearing")
                         sleepTimerEndTime = 0
                         sleepTimerEndOfChapter = false
                         _sleepTimerRemainingSeconds = null
@@ -411,10 +412,10 @@ internal class SleepTimerManager(
                     }
                 }
             } else {
-                android.util.Log.d("AudioPlayerService", "No saved sleep timer state to restore")
+                LogUtils.d("AudioPlayerService", "No saved sleep timer state to restore")
             }
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to restore sleep timer state", e)
+            LogUtils.e("AudioPlayerService", "Failed to restore sleep timer state", e)
         }
     }
 }

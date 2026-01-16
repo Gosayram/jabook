@@ -24,6 +24,7 @@ import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.ErrorHandler
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -107,7 +108,7 @@ internal class PlayerListener(
      */
     public fun setPendingTrackSwitchDeferred(deferred: CompletableDeferred<Int>) {
         this.pendingTrackSwitchDeferred = deferred
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Set pendingTrackSwitchDeferred: waiting for track switch event",
         )
@@ -119,7 +120,7 @@ internal class PlayerListener(
     public fun clearPendingTrackSwitchDeferred() {
         pendingTrackSwitchDeferred?.cancel()
         pendingTrackSwitchDeferred = null
-        android.util.Log.d("AudioPlayerService", "Cleared pendingTrackSwitchDeferred")
+        LogUtils.d("AudioPlayerService", "Cleared pendingTrackSwitchDeferred")
     }
 
     // Coroutine-based position check (inspired by Rhythm's crossfade monitoring)
@@ -140,7 +141,7 @@ internal class PlayerListener(
         events: Player.Events,
     ) {
         // Log all events for debugging
-        android.util.Log.d("AudioPlayerService", "onEvents called: $events")
+        LogUtils.d("AudioPlayerService", "onEvents called: $events")
 
         // Handle playback state changes
         if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
@@ -153,7 +154,7 @@ internal class PlayerListener(
                     Player.STATE_ENDED -> "ENDED"
                     else -> "UNKNOWN($playbackState)"
                 }
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "EVENT_PLAYBACK_STATE_CHANGED: $stateName, playWhenReady=${player.playWhenReady}, isPlaying=${player.isPlaying}, mediaItemCount=${player.mediaItemCount}",
             )
@@ -185,7 +186,7 @@ internal class PlayerListener(
 
                 // Check sleep timer "end of chapter" mode (inspired by EasyBook)
                 if (getSleepTimerEndOfChapter()) {
-                    android.util.Log.d("AudioPlayerService", "Sleep timer expired (end of chapter), pausing playback")
+                    LogUtils.d("AudioPlayerService", "Sleep timer expired (end of chapter), pausing playback")
                     player.playWhenReady = false
                     cancelSleepTimer()
                     sendTimerExpiredEvent()
@@ -197,7 +198,7 @@ internal class PlayerListener(
                     if ((currentIndex == 0 || currentIndex < 0 || currentIndex >= totalTracks) && totalTracks > 0) {
                         val savedIndex = getLastCompletedTrackIndex?.invoke() ?: -1
                         if (savedIndex >= 0 && savedIndex < totalTracks) {
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "STATE_ENDED: Index is invalid ($currentIndex), using saved index $savedIndex",
                             )
@@ -206,7 +207,7 @@ internal class PlayerListener(
                             // If no saved index, check if we should use last track
                             // This happens when last track ended and ExoPlayer tried to go to next (index >= totalTracks)
                             val lastTrackIndex = totalTracks - 1
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "STATE_ENDED: Index is invalid ($currentIndex), using calculated last track $lastTrackIndex (total=$totalTracks)",
                             )
@@ -222,7 +223,7 @@ internal class PlayerListener(
                     val lastIndex = actualIndex
                     val lastPosition = player.currentPosition
 
-                    android.util.Log.i(
+                    LogUtils.i(
                         "AudioPlayerService",
                         "Book completed: last track finished (track $lastIndex of ${totalTracks - 1}, position=${lastPosition}ms)",
                     )
@@ -237,7 +238,7 @@ internal class PlayerListener(
 
                     // Save last track index so getState() can return correct index even if ExoPlayer resets it
                     setLastCompletedTrackIndex?.invoke(lastIndex)
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Saved last completed track index: $lastIndex",
                     )
@@ -256,13 +257,13 @@ internal class PlayerListener(
                             // Seek to the end of the last track (or current position if near end)
                             val seekPosition = if (lastPosition > 0) lastPosition else Long.MAX_VALUE
                             player.seekTo(lastIndex, seekPosition)
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "Seeked to last track $lastIndex at position $seekPosition to preserve index",
                             )
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Error handling book completion", e)
+                        LogUtils.e("AudioPlayerService", "Error handling book completion", e)
                         // Fallback to just pausing
                         player.playWhenReady = false
                     }
@@ -282,7 +283,7 @@ internal class PlayerListener(
                     context.sendBroadcast(intent)
                 } else {
                     // Not last track - ExoPlayer will auto-advance (normal behavior)
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Track ended, will auto-advance to next (track $currentIndex of ${totalTracks - 1})",
                     )
@@ -293,7 +294,7 @@ internal class PlayerListener(
             if (playbackState == Player.STATE_IDLE) {
                 val error = player.playerError
                 if (error != null) {
-                    android.util.Log.e("AudioPlayerService", "Playback error: ${error.message}", error)
+                    LogUtils.e("AudioPlayerService", "Playback error: ${error.message}", error)
                     handlePlayerError(error)
                 }
             }
@@ -305,7 +306,7 @@ internal class PlayerListener(
             // This allows users to re-play completed books while preventing auto-resume from system
             if (getIsBookCompleted() && player.playWhenReady) {
                 // User explicitly started playback - reset completion flag to allow it
-                android.util.Log.i(
+                LogUtils.i(
                     "AudioPlayerService",
                     "User manually started playback after book completion, resetting completion flag",
                 )
@@ -314,7 +315,7 @@ internal class PlayerListener(
                 // Continue with playback instead of blocking
             }
 
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "EVENT_PLAY_WHEN_READY_CHANGED: playWhenReady=${player.playWhenReady}, isPlaying=${player.isPlaying}, playbackState=${player.playbackState}, mediaItemCount=${player.mediaItemCount}",
             )
@@ -335,7 +336,7 @@ internal class PlayerListener(
                     Player.STATE_ENDED -> "ENDED"
                     else -> "UNKNOWN($playbackState)"
                 }
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "EVENT_IS_PLAYING_CHANGED: isPlaying=$isPlaying, playWhenReady=${player.playWhenReady}, playbackState=$stateName, mediaItemCount=${player.mediaItemCount}",
             )
@@ -349,7 +350,7 @@ internal class PlayerListener(
             if (!isPlaying && !player.playWhenReady && playbackState == Player.STATE_READY) {
                 // Playback stopped but player is still ready (not ended)
                 // Save position to ensure it's preserved
-                android.util.Log.d("AudioPlayerService", "Playback stopped, saving position")
+                LogUtils.d("AudioPlayerService", "Playback stopped, saving position")
                 saveCurrentPosition()
             }
 
@@ -358,7 +359,7 @@ internal class PlayerListener(
             // Save position when playback starts (critical event)
             // This ensures position is saved immediately when user resumes playback
             if (isPlaying && playbackState == Player.STATE_READY) {
-                android.util.Log.v("AudioPlayerService", "Playback started, position will be saved periodically")
+                LogUtils.v("AudioPlayerService", "Playback started, position will be saved periodically")
                 // Update last played timestamp for activity sorting
                 getCurrentBookId?.invoke()?.let { bookId ->
                     updateLastPlayedTimestamp?.invoke(bookId)
@@ -377,21 +378,21 @@ internal class PlayerListener(
             // Always start position check on last track if playing (even if not READY yet)
             // This ensures we catch the end of file even if state changes
             if (isLastTrack && isPlaying && !getIsBookCompleted()) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "EVENT_IS_PLAYING_CHANGED: starting position check on last track (index=$currentIndex/$totalTracks, state=$playbackState)",
                 )
                 startPositionCheck()
             } else if (isPlaying && !getIsBookCompleted() && playbackState == Player.STATE_READY) {
                 // Start check on any track when playing and ready
-                android.util.Log.v(
+                LogUtils.v(
                     "AudioPlayerService",
                     "EVENT_IS_PLAYING_CHANGED: starting position check (index=$currentIndex/$totalTracks)",
                 )
                 startPositionCheck()
             } else {
                 if (isLastTrack) {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "EVENT_IS_PLAYING_CHANGED: NOT starting position check (isPlaying=$isPlaying, completed=${getIsBookCompleted()}, state=$playbackState, index=$currentIndex/$totalTracks)",
                     )
@@ -427,13 +428,13 @@ internal class PlayerListener(
                 val isLoading = isPlaylistLoading?.invoke() ?: false
                 if (!isLoading || currentIndex != 0) {
                     updateActualTrackIndex?.invoke(currentIndex)
-                    android.util.Log.v(
+                    LogUtils.v(
                         "AudioPlayerService",
                         "Updated actualTrackIndex to $currentIndex from EVENT_MEDIA_ITEM_TRANSITION " +
                             "(isLoading=$isLoading)",
                     )
                 } else {
-                    android.util.Log.v(
+                    LogUtils.v(
                         "AudioPlayerService",
                         "Skipped updating actualTrackIndex to 0 during playlist loading " +
                             "(isLoading=$isLoading, currentIndex=$currentIndex)",
@@ -448,12 +449,12 @@ internal class PlayerListener(
                 pendingTrackSwitchDeferred?.let { deferred ->
                     try {
                         deferred.complete(currentIndex)
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Completed pendingTrackSwitchDeferred with index $currentIndex",
                         )
                     } catch (e: Exception) {
-                        android.util.Log.w(
+                        LogUtils.w(
                             "AudioPlayerService",
                             "Failed to complete pendingTrackSwitchDeferred: ${e.message}",
                         )
@@ -502,13 +503,13 @@ internal class PlayerListener(
                     }
 
                 if (!nextTrackLoaded) {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Next track $nextIndex not loaded yet, preloading for smooth transition",
                     )
                     preloadNextTrack?.invoke(nextIndex)
                 } else {
-                    android.util.Log.v(
+                    LogUtils.v(
                         "AudioPlayerService",
                         "Next track $nextIndex already loaded, no preload needed",
                     )
@@ -527,7 +528,7 @@ internal class PlayerListener(
                 player.playbackState == Player.STATE_READY &&
                 currentIndex >= totalTracks - 1
             ) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Media item transition to last track: starting position check (index=$currentIndex/$totalTracks)",
                 )
@@ -535,10 +536,10 @@ internal class PlayerListener(
             }
             val currentItem = player.currentMediaItem
             val title = currentItem?.mediaMetadata?.title?.toString() ?: "Unknown"
-            android.util.Log.d("AudioPlayerService", "Media item transition:")
-            android.util.Log.d("AudioPlayerService", "  - Index: $currentIndex")
-            android.util.Log.d("AudioPlayerService", "  - Title: $title")
-            android.util.Log.d("AudioPlayerService", "  - Total items: ${player.mediaItemCount}")
+            LogUtils.d("AudioPlayerService", "Media item transition:")
+            LogUtils.d("AudioPlayerService", "  - Index: $currentIndex")
+            LogUtils.d("AudioPlayerService", "  - Title: $title")
+            LogUtils.d("AudioPlayerService", "  - Total items: ${player.mediaItemCount}")
 
             // Check sleep timer "end of chapter" mode (inspired by EasyBook)
             // Trigger when track transitions automatically (not manual seek)
@@ -558,7 +559,7 @@ internal class PlayerListener(
         // Handle playback parameters changes (speed, pitch, etc.)
         if (events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {
             val params = player.playbackParameters
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Playback parameters changed: speed=${params.speed}, pitch=${params.pitch}",
             )
@@ -566,12 +567,12 @@ internal class PlayerListener(
 
         // Handle repeat mode changes
         if (events.contains(Player.EVENT_REPEAT_MODE_CHANGED)) {
-            android.util.Log.d("AudioPlayerService", "Repeat mode changed: ${player.repeatMode}")
+            LogUtils.d("AudioPlayerService", "Repeat mode changed: ${player.repeatMode}")
         }
 
         // Handle shuffle mode changes
         if (events.contains(Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED)) {
-            android.util.Log.d("AudioPlayerService", "Shuffle mode changed: ${player.shuffleModeEnabled}")
+            LogUtils.d("AudioPlayerService", "Shuffle mode changed: ${player.shuffleModeEnabled}")
         }
     }
 
@@ -603,7 +604,7 @@ internal class PlayerListener(
                     parseAndSetReplayGain(entry, normalizer)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Error processing metadata entry", e)
+                LogUtils.e("AudioPlayerService", "Error processing metadata entry", e)
             }
         }
     }
@@ -625,12 +626,12 @@ internal class PlayerListener(
                 val dbString = valueMatch.groupValues[1]
                 val db = dbString.toFloatOrNull()
                 if (db != null) {
-                    android.util.Log.i("AudioPlayerService", "Found ReplayGain: ${db}dB")
+                    LogUtils.i("AudioPlayerService", "Found ReplayGain: ${db}dB")
                     normalizer.setReplayGain(db)
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Failed to parse ReplayGain: ${e.message}")
+            LogUtils.w("AudioPlayerService", "Failed to parse ReplayGain: ${e.message}")
         }
     }
 
@@ -657,7 +658,7 @@ internal class PlayerListener(
                 Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE -> "REMOTE"
                 else -> "UNKNOWN($reason)"
             }
-        android.util.Log.i(
+        LogUtils.i(
             "AudioPlayerService",
             "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reasonText",
         )
@@ -669,21 +670,21 @@ internal class PlayerListener(
         // - Phone call interrupts playback
         // - Other system events
         if (!playWhenReady) {
-            android.util.Log.d("AudioPlayerService", "Playback paused (reason=$reasonText), saving position")
+            LogUtils.d("AudioPlayerService", "Playback paused (reason=$reasonText), saving position")
             saveCurrentPosition()
 
             when (reason) {
                 Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> {
-                    android.util.Log.i("AudioPlayerService", "Audio focus lost, position saved")
+                    LogUtils.i("AudioPlayerService", "Audio focus lost, position saved")
                 }
                 Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> {
-                    android.util.Log.i("AudioPlayerService", "Audio becoming noisy (e.g., headphones unplugged), position saved")
+                    LogUtils.i("AudioPlayerService", "Audio becoming noisy (e.g., headphones unplugged), position saved")
                 }
                 Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> {
-                    android.util.Log.d("AudioPlayerService", "User paused playback, position saved")
+                    LogUtils.d("AudioPlayerService", "User paused playback, position saved")
                 }
                 else -> {
-                    android.util.Log.d("AudioPlayerService", "Playback paused for reason: $reasonText, position saved")
+                    LogUtils.d("AudioPlayerService", "Playback paused for reason: $reasonText, position saved")
                 }
             }
         }
@@ -702,11 +703,12 @@ internal class PlayerListener(
         val chapterUrl = mediaId
         val chapterIdx = currentIndex
 
-        android.util.Log.e(
+        LogUtils.e(
             "AudioPlayerService",
             "❌ Playback error: track=$currentIndex, mediaId=$mediaId, code=${error.errorCode}, message=${error.message}",
+            error,
         )
-        android.util.Log.e(
+        LogUtils.e(
             "AudioPlayerService",
             "❌ Error context: bookId=$bookId, bookName=$bookName, chapterIdx=$chapterIdx, chapterUrl=$chapterUrl",
         )
@@ -714,23 +716,23 @@ internal class PlayerListener(
         // Log HTTP-specific error details (inspired by Easybook)
         val cause = error.cause
         if (cause is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
-            android.util.Log.e(
+            LogUtils.e(
                 "AudioPlayerService",
                 "❌ HTTP error: responseCode=${cause.responseCode}, responseMessage=${cause.responseMessage}",
             )
             if (!cause.headerFields.isEmpty()) {
-                android.util.Log.e(
+                LogUtils.e(
                     "AudioPlayerService",
                     "❌ HTTP headers: ${cause.headerFields}",
                 )
             }
         } else if (cause is androidx.media3.datasource.HttpDataSource.HttpDataSourceException) {
-            android.util.Log.e(
+            LogUtils.e(
                 "AudioPlayerService",
                 "❌ HTTP data source error: type=${cause.type}",
             )
         } else if (cause is java.io.IOException) {
-            android.util.Log.e(
+            LogUtils.e(
                 "AudioPlayerService",
                 "❌ IO error: ${cause.message}",
             )
@@ -756,7 +758,7 @@ internal class PlayerListener(
                     // Network errors - try to retry automatically
                     if (retryCount < maxRetries) {
                         retryCount++
-                        android.util.Log.w(
+                        LogUtils.w(
                             "AudioPlayerService",
                             "Network connection failed, retrying ($retryCount/$maxRetries)...",
                         )
@@ -768,7 +770,7 @@ internal class PlayerListener(
                             player.prepare()
                             // Following RiMusic pattern: set playWhenReady after prepare to resume playback
                             player.playWhenReady = true
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "Retry attempt $retryCount after network error (delay: ${backoffDelay}ms)",
                             )
@@ -781,7 +783,7 @@ internal class PlayerListener(
                 androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> {
                     if (retryCount < maxRetries) {
                         retryCount++
-                        android.util.Log.w(
+                        LogUtils.w(
                             "AudioPlayerService",
                             "Network timeout, retrying ($retryCount/$maxRetries)...",
                         )
@@ -836,7 +838,7 @@ internal class PlayerListener(
         val bookId = getCurrentBookId?.invoke() ?: "unknown"
         val bookName = metadata?.get("title") ?: "unknown"
 
-        android.util.Log.e(
+        LogUtils.e(
             "AudioPlayerService",
             "❌ Playback error (user-friendly): $userFriendlyMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries, bookId=$bookId, bookName=$bookName)",
         )
@@ -859,13 +861,13 @@ internal class PlayerListener(
 
         if (totalTracks <= 1) {
             // Only one track or no tracks, can't skip
-            android.util.Log.w("AudioPlayerService", "Cannot skip: only one track or no tracks available")
+            LogUtils.w("AudioPlayerService", "Cannot skip: only one track or no tracks available")
             return
         }
 
         // Don't advance if we're at the last track
         if (currentIndex >= totalTracks - 1) {
-            android.util.Log.w("AudioPlayerService", "Last track, cannot skip forward")
+            LogUtils.w("AudioPlayerService", "Last track, cannot skip forward")
             player.playWhenReady = false
             return
         }
@@ -873,7 +875,7 @@ internal class PlayerListener(
         // Try to skip to next track (not using modulo to prevent circular navigation)
         val nextIndex = currentIndex + 1
         if (nextIndex < totalTracks) {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "File not found at index $currentIndex, skipping to next track $nextIndex",
             )
@@ -885,16 +887,16 @@ internal class PlayerListener(
                     player.playWhenReady = true
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Failed to skip to next track", e)
+                LogUtils.e("AudioPlayerService", "Failed to skip to next track", e)
                 // Don't rethrow - log and continue
             }
         } else {
             // No more tracks available, pause playback
-            android.util.Log.w("AudioPlayerService", "No more tracks available, pausing playback")
+            LogUtils.w("AudioPlayerService", "No more tracks available, pausing playback")
             try {
                 player.playWhenReady = false
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Failed to pause playback", e)
+                LogUtils.e("AudioPlayerService", "Failed to pause playback", e)
             }
         }
     }
@@ -916,7 +918,7 @@ internal class PlayerListener(
                 else -> "UNKNOWN($reason)"
             }
         val mediaId = mediaItem?.mediaId ?: "unknown"
-        android.util.Log.i(
+        LogUtils.i(
             "AudioPlayerService",
             "🎵 Track switch: index=$currentIndex, reason=$reasonName, mediaId=$mediaId",
         )
@@ -929,13 +931,13 @@ internal class PlayerListener(
             val isLoading = isPlaylistLoading?.invoke() ?: false
             if (!isLoading || currentIndex != 0) {
                 updateActualTrackIndex?.invoke(currentIndex)
-                android.util.Log.v(
+                LogUtils.v(
                     "AudioPlayerService",
                     "Updated actualTrackIndex to $currentIndex from onMediaItemTransition " +
                         "(isLoading=$isLoading)",
                 )
             } else {
-                android.util.Log.v(
+                LogUtils.v(
                     "AudioPlayerService",
                     "Skipped updating actualTrackIndex to 0 during playlist loading " +
                         "(isLoading=$isLoading, currentIndex=$currentIndex)",
@@ -947,12 +949,12 @@ internal class PlayerListener(
             pendingTrackSwitchDeferred?.let { deferred ->
                 try {
                     deferred.complete(currentIndex)
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Completed pendingTrackSwitchDeferred with index $currentIndex (explicit handler)",
                     )
                 } catch (e: Exception) {
-                    android.util.Log.w(
+                    LogUtils.w(
                         "AudioPlayerService",
                         "Failed to complete pendingTrackSwitchDeferred: ${e.message}",
                     )
@@ -965,7 +967,7 @@ internal class PlayerListener(
         // Check sleep timer "end of chapter" mode (inspired by EasyBook)
         // Trigger when track transitions automatically (not manual seek)
         if (getSleepTimerEndOfChapter() && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Sleep timer expired (end of chapter on auto transition), pausing playback",
             )
@@ -990,7 +992,7 @@ internal class PlayerListener(
         // Check track availability for automatic transitions (inspired by lissen-android)
         if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
             if (!TrackAvailabilityChecker.isTrackAvailable(player, currentIndex)) {
-                android.util.Log.w(
+                LogUtils.w(
                     "AudioPlayerService",
                     "Track $currentIndex is not available, searching for next available track",
                 )
@@ -1012,10 +1014,10 @@ internal class PlayerListener(
 
                 if (nextAvailableIndex != null && nextAvailableIndex != currentIndex) {
                     player.seekTo(nextAvailableIndex, 0L)
-                    android.util.Log.d("AudioPlayerService", "Switched to available track: $nextAvailableIndex")
+                    LogUtils.d("AudioPlayerService", "Switched to available track: $nextAvailableIndex")
                 } else {
                     // No available tracks found, pause playback
-                    android.util.Log.w("AudioPlayerService", "No available tracks found, pausing playback")
+                    LogUtils.w("AudioPlayerService", "No available tracks found, pausing playback")
                     player.playWhenReady = false
                 }
                 return // Skip further processing for this discontinuity
@@ -1034,7 +1036,7 @@ internal class PlayerListener(
         if (getIsBookCompleted()) {
             if (isManualSeek && currentIndex != previousIndex) {
                 // Manual track switch - reset completion flag to allow navigation
-                android.util.Log.i(
+                LogUtils.i(
                     "AudioPlayerService",
                     "Manual track switch detected after book completion: $previousIndex -> $currentIndex, resetting completion flag",
                 )
@@ -1042,7 +1044,7 @@ internal class PlayerListener(
                 setLastCompletedTrackIndex?.invoke(-1) // Clear saved index
             } else if (isAutoTransition) {
                 // Block automatic transitions after completion
-                android.util.Log.w(
+                LogUtils.w(
                     "AudioPlayerService",
                     "Automatic transition detected after book completion, ignoring",
                 )
@@ -1054,7 +1056,7 @@ internal class PlayerListener(
         // Handle position discontinuities (e.g., track changes, seeks)
         // Inspired by lissen-android: handle unavailable tracks gracefully
         if (currentIndex != previousIndex) {
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Position discontinuity: $previousIndex -> $currentIndex, reason=$reason, totalTracks=$totalTracks (actual=${getActualPlaylistSize?.invoke()}, player=${player.mediaItemCount})",
             )
@@ -1070,7 +1072,7 @@ internal class PlayerListener(
                 (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION || reason == 4)
             ) {
                 // Last track ended, ExoPlayer tried to go to next (doesn't exist), index reset to 0
-                android.util.Log.i(
+                LogUtils.i(
                     "AudioPlayerService",
                     "Detected end of book: transition from last track $previousIndex to invalid index $currentIndex (total=$totalTracks)",
                 )
@@ -1083,12 +1085,12 @@ internal class PlayerListener(
                         player.seekTo(previousIndex, lastPosition.coerceAtLeast(0L))
                         player.pause()
                         player.playWhenReady = false
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Prevented invalid transition, seeked back to track $previousIndex at position $lastPosition",
                         )
                     } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Error preventing invalid transition", e)
+                        LogUtils.e("AudioPlayerService", "Error preventing invalid transition", e)
                     }
                 }
                 return
@@ -1111,7 +1113,7 @@ internal class PlayerListener(
                     if (uri.scheme == "file") {
                         val file = File(uri.path ?: "")
                         if (!file.exists() || !file.canRead()) {
-                            android.util.Log.w(
+                            LogUtils.w(
                                 "AudioPlayerService",
                                 "Current track file not accessible: ${uri.path}, trying to skip",
                             )
@@ -1139,7 +1141,7 @@ internal class PlayerListener(
 
         if (player.mediaItemCount <= 1) {
             // Only one track or no tracks, can't skip
-            android.util.Log.w("AudioPlayerService", "Cannot skip: only one track or no tracks available")
+            LogUtils.w("AudioPlayerService", "Cannot skip: only one track or no tracks available")
             return
         }
 
@@ -1164,7 +1166,7 @@ internal class PlayerListener(
                             nextIndex + 1
                         } else {
                             // Reached end, can't go forward
-                            android.util.Log.w("AudioPlayerService", "Reached last track, cannot skip forward")
+                            LogUtils.w("AudioPlayerService", "Reached last track, cannot skip forward")
                             player.playWhenReady = false
                             return
                         }
@@ -1191,7 +1193,7 @@ internal class PlayerListener(
                     }
 
                 if (isAvailable) {
-                    android.util.Log.d("AudioPlayerService", "Found available track at index $nextIndex, seeking to it")
+                    LogUtils.d("AudioPlayerService", "Found available track at index $nextIndex, seeking to it")
                     try {
                         player.seekTo(nextIndex, 0L)
                         // Restore playWhenReady if was playing
@@ -1200,7 +1202,7 @@ internal class PlayerListener(
                         }
                         return
                     } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Failed to seek to available track", e)
+                        LogUtils.e("AudioPlayerService", "Failed to seek to available track", e)
                     }
                 }
             }
@@ -1209,11 +1211,11 @@ internal class PlayerListener(
         }
 
         // No available tracks found, pause playback
-        android.util.Log.w("AudioPlayerService", "No available tracks found, pausing playback")
+        LogUtils.w("AudioPlayerService", "No available tracks found, pausing playback")
         try {
             player.playWhenReady = false
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to pause playback", e)
+            LogUtils.e("AudioPlayerService", "Failed to pause playback", e)
         }
     }
 
@@ -1226,7 +1228,7 @@ internal class PlayerListener(
         val album = mediaMetadata.albumTitle?.toString()
 
         // Log metadata extraction for debugging
-        android.util.Log.d("AudioPlayerService", "Metadata changed: title=$title, artist=$artist, album=$album")
+        LogUtils.d("AudioPlayerService", "Metadata changed: title=$title, artist=$artist, album=$album")
 
         // Check if artwork is available (prefer URI, then data)
         val artworkUri = mediaMetadata.artworkUri
@@ -1235,37 +1237,37 @@ internal class PlayerListener(
         val hasArtworkUri = artworkUri != null
 
         if (artworkUri != null) {
-            android.util.Log.d("AudioPlayerService", "Artwork URI available: $artworkUri")
+            LogUtils.d("AudioPlayerService", "Artwork URI available: $artworkUri")
             // Clear embedded artwork path if external URI is available
             setEmbeddedArtworkPath(null)
         } else if (hasArtworkData) {
-            android.util.Log.d("AudioPlayerService", "Embedded artwork data available: ${artworkData?.size ?: 0} bytes")
+            LogUtils.d("AudioPlayerService", "Embedded artwork data available: ${artworkData?.size ?: 0} bytes")
             // Save embedded artwork to temporary file for Flutter access
             try {
                 val cacheDir = context.cacheDir
                 val artworkFile = File(cacheDir, "embedded_artwork_${System.currentTimeMillis()}.jpg")
                 artworkFile.outputStream().use { it.write(artworkData) }
                 setEmbeddedArtworkPath(artworkFile.absolutePath)
-                android.util.Log.i("AudioPlayerService", "Saved embedded artwork to: ${artworkFile.absolutePath}")
+                LogUtils.i("AudioPlayerService", "Saved embedded artwork to: ${artworkFile.absolutePath}")
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Failed to save embedded artwork", e)
+                LogUtils.e("AudioPlayerService", "Failed to save embedded artwork", e)
                 setEmbeddedArtworkPath(null)
             }
         } else {
-            android.util.Log.d("AudioPlayerService", "No artwork available")
+            LogUtils.d("AudioPlayerService", "No artwork available")
             setEmbeddedArtworkPath(null)
         }
 
-        android.util.Log.d("AudioPlayerService", "Media metadata changed:")
-        android.util.Log.d("AudioPlayerService", "  Title: $title")
-        android.util.Log.d("AudioPlayerService", "  Artist: $artist")
-        android.util.Log.d("AudioPlayerService", "  Has artworkData: $hasArtworkData (${artworkData?.size ?: 0} bytes)")
-        android.util.Log.d("AudioPlayerService", "  Has artworkUri: $hasArtworkUri (${mediaMetadata.artworkUri})")
+        LogUtils.d("AudioPlayerService", "Media metadata changed:")
+        LogUtils.d("AudioPlayerService", "  Title: $title")
+        LogUtils.d("AudioPlayerService", "  Artist: $artist")
+        LogUtils.d("AudioPlayerService", "  Has artworkData: $hasArtworkData (${artworkData?.size ?: 0} bytes)")
+        LogUtils.d("AudioPlayerService", "  Has artworkUri: $hasArtworkUri (${mediaMetadata.artworkUri})")
 
         if (hasArtworkData || hasArtworkUri) {
-            android.util.Log.i("AudioPlayerService", "Artwork found! Updating notification...")
+            LogUtils.i("AudioPlayerService", "Artwork found! Updating notification...")
         } else {
-            android.util.Log.w("AudioPlayerService", "No artwork found in metadata")
+            LogUtils.w("AudioPlayerService", "No artwork found in metadata")
         }
 
         // Update notification to show artwork
@@ -1285,7 +1287,7 @@ internal class PlayerListener(
         val currentIndex = player.currentMediaItemIndex
         // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
         val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
-        android.util.Log.i(
+        LogUtils.i(
             "AudioPlayerService",
             "Starting position check: index=$currentIndex/$totalTracks (actual=${getActualPlaylistSize?.invoke()}, player=${player.mediaItemCount}), isPlaying=${player.isPlaying}, state=${player.playbackState}",
         )
@@ -1323,7 +1325,7 @@ internal class PlayerListener(
 
                     // Log position check for debugging (only on last track to reduce spam)
                     if (currentIndex >= totalTracks - 1) {
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Position check: index=$currentIndex/$totalTracks, position=${currentPosition}ms (${currentPosition / 1000}s), duration=${duration}ms (${duration / 1000}s), isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady}, state=${player.playbackState}",
                         )
@@ -1334,7 +1336,7 @@ internal class PlayerListener(
                         // Check 1: Position reached or exceeded duration (if duration is valid)
                         if (duration != C.TIME_UNSET && duration > 0) {
                             if (currentPosition >= duration) {
-                                android.util.Log.i(
+                                LogUtils.i(
                                     "AudioPlayerService",
                                     "Detected end of last track: position reached/exceeded duration (position=$currentPosition, duration=$duration)",
                                 )
@@ -1349,7 +1351,7 @@ internal class PlayerListener(
                             val smartCompletionThresholdMs = 180000L // 3 minutes
 
                             if (remaining <= smartCompletionThresholdMs && remaining > endOfFileThresholdMs) {
-                                android.util.Log.i(
+                                LogUtils.i(
                                     "AudioPlayerService",
                                     "Smart completion: within 3 minutes of end (remaining=${remaining}ms, ${remaining / 1000}s)",
                                 )
@@ -1359,7 +1361,7 @@ internal class PlayerListener(
 
                             // Check 3: Position is very close to duration (within threshold)
                             if (remaining <= endOfFileThresholdMs) {
-                                android.util.Log.i(
+                                LogUtils.i(
                                     "AudioPlayerService",
                                     "Detected end of last track by position check: position=$currentPosition, duration=$duration, remaining=$remaining",
                                 )
@@ -1397,7 +1399,7 @@ internal class PlayerListener(
                             // This works even if duration metadata is wrong!
                             if (wasPlayingRecently || isNearEnd || stoppedTimeMs >= maxPositionStoppedTimeMs) {
                                 positionStoppedCount++
-                                android.util.Log.d(
+                                LogUtils.d(
                                     "AudioPlayerService",
                                     "Position not advancing on last track: position=$currentPosition, stopped for $positionStoppedCount checks (${stoppedTimeMs}ms), isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady}, duration=$duration, nearEnd=$isNearEnd",
                                 )
@@ -1408,7 +1410,7 @@ internal class PlayerListener(
                                 ) {
                                     // Position hasn't changed for multiple checks or max time - file definitely ended
                                     // This works even if duration is incorrect!
-                                    android.util.Log.i(
+                                    LogUtils.i(
                                         "AudioPlayerService",
                                         "Detected end of last track: position stopped advancing (position=$currentPosition, duration=$duration, stopped for $positionStoppedCount checks/${stoppedTimeMs}ms, isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady})",
                                     )
@@ -1423,7 +1425,7 @@ internal class PlayerListener(
                         } else if (lastPosition >= 0 && currentPosition != lastPosition) {
                             // Position changed, reset counter
                             if (positionStoppedCount > 0) {
-                                android.util.Log.v(
+                                LogUtils.v(
                                     "AudioPlayerService",
                                     "Position resumed advancing: was stopped for $positionStoppedCount checks, new position=$currentPosition",
                                 )
@@ -1457,7 +1459,7 @@ internal class PlayerListener(
                                 positionStoppedCount >= 1
 
                         if (isNearEnd || positionStopped) {
-                            android.util.Log.i(
+                            LogUtils.i(
                                 "AudioPlayerService",
                                 "Detected end of last track: playback stopped near end (position=$currentPosition, duration=$duration, nearEnd=$isNearEnd, positionStopped=$positionStopped)",
                             )
@@ -1509,7 +1511,7 @@ internal class PlayerListener(
                 // by checking if we were just playing and position is near end
                 val savedIndex = getLastCompletedTrackIndex?.invoke() ?: -1
                 if (savedIndex >= 0 && savedIndex < totalTracks) {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Index is invalid ($currentIndex), using saved index $savedIndex for book completion",
                     )
@@ -1520,7 +1522,7 @@ internal class PlayerListener(
                     // Only use this if we're sure we're at the end
                     if (player.currentPosition > 0 && player.duration > 0) {
                         val lastTrackIndex = totalTracks - 1
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Using calculated last track index $lastTrackIndex (total=$totalTracks, originalIndex=$currentIndex)",
                         )
@@ -1530,7 +1532,7 @@ internal class PlayerListener(
                         // This handles the case when ExoPlayer sets index to >= totalTracks
                         if (currentIndex >= totalTracks) {
                             val lastTrackIndex = totalTracks - 1
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "Index out of bounds ($currentIndex >= $totalTracks), using last track index $lastTrackIndex",
                             )
@@ -1550,7 +1552,7 @@ internal class PlayerListener(
             val lastIndex = actualIndex
             val lastPosition = player.currentPosition
 
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "Book completed: last track finished (track $lastIndex of ${totalTracks - 1}, position=${lastPosition}ms, originalIndex=$currentIndex) - detected by position check",
             )
@@ -1560,7 +1562,7 @@ internal class PlayerListener(
 
             // Save last track index so getState() can return correct index even if ExoPlayer resets it
             setLastCompletedTrackIndex?.invoke(lastIndex)
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Saved last completed track index: $lastIndex",
             )
@@ -1579,13 +1581,13 @@ internal class PlayerListener(
                     // Seek to the end of the last track (or current position if near end)
                     val seekPosition = if (lastPosition > 0) lastPosition else Long.MAX_VALUE
                     player.seekTo(lastIndex, seekPosition)
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Seeked to last track $lastIndex at position $seekPosition to preserve index",
                     )
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Error handling book completion", e)
+                LogUtils.e("AudioPlayerService", "Error handling book completion", e)
                 // Fallback to just pausing
                 player.playWhenReady = false
             }
@@ -1611,14 +1613,14 @@ internal class PlayerListener(
      * Reinitializes audio visualizer when audio session changes.
      */
     override fun onAudioSessionIdChanged(audioSessionId: Int) {
-        android.util.Log.d("AudioPlayerService", "Audio session ID changed: $audioSessionId")
+        LogUtils.d("AudioPlayerService", "Audio session ID changed: $audioSessionId")
 
         // Update audio visualizer with new session ID (following Rhythm pattern)
         if (audioSessionId != 0) {
             updateAudioVisualizer?.invoke(audioSessionId)
-            android.util.Log.d("AudioPlayerService", "AudioVisualizerManager updated with new session ID: $audioSessionId")
+            LogUtils.d("AudioPlayerService", "AudioVisualizerManager updated with new session ID: $audioSessionId")
         } else {
-            android.util.Log.w("AudioPlayerService", "Invalid audio session ID (0), skipping visualizer update")
+            LogUtils.w("AudioPlayerService", "Invalid audio session ID (0), skipping visualizer update")
         }
     }
 }

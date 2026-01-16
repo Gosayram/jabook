@@ -31,6 +31,7 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.capitalizeFirst
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -450,10 +451,10 @@ public class AudioPlayerService : MediaLibraryService() {
     @OptIn(UnstableApi::class) // MediaSessionService.setListener
     override fun onCreate() {
         // CRITICAL: Use Log.e (ERROR) level - ProGuard won't strip these
-        android.util.Log.e("JABOOK_SERVICE", "============================================")
-        android.util.Log.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() START")
-        android.util.Log.e("JABOOK_SERVICE", "PID: ${android.os.Process.myPid()}, Instance: ${System.identityHashCode(this)}")
-        android.util.Log.e("JABOOK_SERVICE", "============================================")
+        LogUtils.e("JABOOK_SERVICE", "============================================")
+        LogUtils.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() START")
+        LogUtils.e("JABOOK_SERVICE", "PID: ${android.os.Process.myPid()}, Instance: ${System.identityHashCode(this)}")
+        LogUtils.e("JABOOK_SERVICE", "============================================")
 
         try {
             PlayerPerformanceLogger.start("service_onCreate")
@@ -465,7 +466,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
             super.onCreate()
             instance = this
-            android.util.Log.e("JABOOK_SERVICE", "[OK] super.onCreate() completed")
+            LogUtils.e("JABOOK_SERVICE", "[OK] super.onCreate() completed")
 
             PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
 
@@ -479,16 +480,16 @@ public class AudioPlayerService : MediaLibraryService() {
                     notificationHelper?.createMinimalNotification()
                         ?: NotificationHelper(this).createFallbackNotification()
                 startForeground(NotificationHelper.NOTIFICATION_ID, initialNotification)
-                android.util.Log.e("JABOOK_SERVICE", "[OK] startForeground() called immediately")
+                LogUtils.e("JABOOK_SERVICE", "[OK] startForeground() called immediately")
             } catch (e: Exception) {
-                android.util.Log.e("JABOOK_SERVICE", "[ERROR] Failed to start foreground immediately", e)
+                LogUtils.e("JABOOK_SERVICE", "[ERROR] Failed to start foreground immediately", e)
                 // Try fallback notification
                 try {
                     val fallbackNotification = NotificationHelper(this).createFallbackNotification()
                     startForeground(NotificationHelper.NOTIFICATION_ID, fallbackNotification)
-                    android.util.Log.e("JABOOK_SERVICE", "[OK] startForeground() called with fallback notification")
+                    LogUtils.e("JABOOK_SERVICE", "[OK] startForeground() called with fallback notification")
                 } catch (e2: Exception) {
-                    android.util.Log.e("JABOOK_SERVICE", "[CRITICAL] Failed to start foreground even with fallback", e2)
+                    LogUtils.e("JABOOK_SERVICE", "[CRITICAL] Failed to start foreground even with fallback", e2)
                     // Continue anyway - MediaLibraryService might handle it
                 }
             }
@@ -496,13 +497,13 @@ public class AudioPlayerService : MediaLibraryService() {
             // Set MediaSessionService.Listener for handling foreground service start exceptions
             // This is required for Android 12+ when system doesn't allow foreground service start
             setListener(MediaSessionServiceListener(this))
-            android.util.Log.e("JABOOK_SERVICE", "[OK] setListener completed")
+            LogUtils.e("JABOOK_SERVICE", "[OK] setListener completed")
 
             PlayerPerformanceLogger.log("Service", "listener set")
 
             // CRITICAL: Initialize CrossFadePlayer BEFORE AudioPlayerServiceInitializer
             // CrossfadeHandler (created in initializer) requires CrossFadePlayer to be initialized
-            android.util.Log.e("JABOOK_SERVICE", "Initializing CrossFadePlayer...")
+            LogUtils.e("JABOOK_SERVICE", "Initializing CrossFadePlayer...")
             crossFadePlayer =
                 CrossFadePlayer(this) { context ->
                     ExoPlayer.Builder(context).build()
@@ -513,33 +514,33 @@ public class AudioPlayerService : MediaLibraryService() {
                 try {
                     mediaLibrarySession?.let { session ->
                         session.player = newPlayer
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
                         )
-                    } ?: android.util.Log.w(
+                    } ?: LogUtils.w(
                         "AudioPlayerService",
                         "MediaLibrarySession is null, cannot update player after crossfade",
                     )
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
+                    LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
                 }
             }
-            android.util.Log.e("JABOOK_SERVICE", "[OK] CrossFadePlayer initialized")
+            LogUtils.e("JABOOK_SERVICE", "[OK] CrossFadePlayer initialized")
 
             // Initialize service components using extracted initializer
             // Media3 automatically manages notifications via MediaLibrarySession
-            android.util.Log.e("JABOOK_SERVICE", "Starting AudioPlayerServiceInitializer...")
+            LogUtils.e("JABOOK_SERVICE", "Starting AudioPlayerServiceInitializer...")
             AudioPlayerServiceInitializer(this).initialize()
-            android.util.Log.e("JABOOK_SERVICE", "[OK] AudioPlayerServiceInitializer completed")
+            LogUtils.e("JABOOK_SERVICE", "[OK] AudioPlayerServiceInitializer completed")
 
             // Set MediaNotificationProvider for MediaLibrarySession (system media player)
             // This ensures system media player notification has priority
             if (mediaLibrarySession != null) {
                 setMediaNotificationProvider(AudioPlayerNotificationProvider(this))
-                android.util.Log.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
+                LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
             } else {
-                android.util.Log.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
+                LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
             }
 
             // Initialize PlayerNotificationManager (androidx.media3.ui) ONLY as fallback
@@ -547,43 +548,43 @@ public class AudioPlayerService : MediaLibraryService() {
             // CRITICAL: Disable PlayerNotificationManager when MediaLibrarySession is active
             // to prevent duplicate notifications and ensure system media player has priority
             if (mediaLibrarySession == null) {
-                android.util.Log.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
+                LogUtils.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
                 setupPlayerNotificationManager()
             } else {
-                android.util.Log.i(
+                LogUtils.i(
                     "AudioPlayerService",
                     "MediaLibrarySession active, skipping PlayerNotificationManager to ensure system media player priority",
                 )
             }
 
             // Initialize AudioOutputManager for proximity sensor handling (Speaker/Earpiece switching)
-            android.util.Log.e("JABOOK_SERVICE", "Setting up AudioOutputManager...")
+            LogUtils.e("JABOOK_SERVICE", "Setting up AudioOutputManager...")
             setupAudioOutputManager()
-            android.util.Log.e("JABOOK_SERVICE", "[OK] AudioOutputManager setup completed")
+            LogUtils.e("JABOOK_SERVICE", "[OK] AudioOutputManager setup completed")
 
             // Initialize PlaybackEnhancerService for volume boost (LoudnessEnhancer)
-            android.util.Log.e("JABOOK_SERVICE", "Initializing PlaybackEnhancerService...")
+            LogUtils.e("JABOOK_SERVICE", "Initializing PlaybackEnhancerService...")
             playbackEnhancerService.initialize()
-            android.util.Log.e("JABOOK_SERVICE", "[OK] PlaybackEnhancerService initialized")
+            LogUtils.e("JABOOK_SERVICE", "[OK] PlaybackEnhancerService initialized")
 
             // CrossFadePlayer already initialized above (before AudioPlayerServiceInitializer)
 
             // Initialize AudioVisualizerManager
-            android.util.Log.e("JABOOK_SERVICE", "Initializing AudioVisualizerManager...")
+            LogUtils.e("JABOOK_SERVICE", "Initializing AudioVisualizerManager...")
             audioVisualizerManager = AudioVisualizerManager(this)
             // Visualizer will be enabled when playback starts (requires audio session)
-            android.util.Log.e("JABOOK_SERVICE", "[OK] AudioVisualizerManager initialized")
+            LogUtils.e("JABOOK_SERVICE", "[OK] AudioVisualizerManager initialized")
 
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
 
-            android.util.Log.e("JABOOK_SERVICE", "============================================")
-            android.util.Log.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() COMPLETE")
-            android.util.Log.e("JABOOK_SERVICE", "============================================")
+            LogUtils.e("JABOOK_SERVICE", "============================================")
+            LogUtils.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() COMPLETE")
+            LogUtils.e("JABOOK_SERVICE", "============================================")
         } catch (e: Exception) {
-            android.util.Log.e("JABOOK_SERVICE", "[CRASH] in onCreate()!", e)
-            android.util.Log.e("JABOOK_SERVICE", "Exception: ${e.message}")
-            android.util.Log.e("JABOOK_SERVICE", "Stack trace: ${e.stackTraceToString()}")
+            LogUtils.e("JABOOK_SERVICE", "[CRASH] in onCreate()!", e)
+            LogUtils.e("JABOOK_SERVICE", "Exception: ${e.message}")
+            LogUtils.e("JABOOK_SERVICE", "Stack trace: ${e.stackTraceToString()}")
             throw e // Re-throw to crash properly
         }
     }
@@ -642,7 +643,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     internal fun configurePlayer() {
         playerConfigurator?.configurePlayer() ?: run {
-            android.util.Log.e("AudioPlayerService", "PlayerConfigurator not initialized")
+            LogUtils.e("AudioPlayerService", "PlayerConfigurator not initialized")
         }
     }
 
@@ -658,7 +659,7 @@ public class AudioPlayerService : MediaLibraryService() {
     @OptIn(UnstableApi::class)
     public fun configureExoPlayer(settings: com.jabook.app.jabook.audio.processors.AudioProcessingSettings) {
         playerConfigurator?.configureExoPlayer(settings) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlayerConfigurator not initialized")
+            LogUtils.e("AudioPlayerService", "PlayerConfigurator not initialized")
         }
     }
 
@@ -703,7 +704,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     internal fun updateActualTrackIndex(index: Int) {
         playlistManager?.actualTrackIndex = index
-        android.util.Log.d("AudioPlayerService", "Updated actualTrackIndex to $index")
+        LogUtils.d("AudioPlayerService", "Updated actualTrackIndex to $index")
     }
 
     /**
@@ -741,7 +742,7 @@ public class AudioPlayerService : MediaLibraryService() {
             groupPath,
             callback,
         ) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaylistManager not initialized")
+            LogUtils.e("AudioPlayerService", "PlaylistManager not initialized")
             callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
         }
     }
@@ -759,7 +760,7 @@ public class AudioPlayerService : MediaLibraryService() {
     ) {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "Manual seekToTrackAndPosition($trackIndex, $positionMs) called after book completion, resetting completion flag",
             )
@@ -767,13 +768,13 @@ public class AudioPlayerService : MediaLibraryService() {
             lastCompletedTrackIndex = -1
         }
         playbackController?.seekToTrackAndPosition(trackIndex, positionMs) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
     }
 
     public fun updateMetadata(metadata: Map<String, String>): Unit =
         metadataManager?.updateMetadata(metadata) ?: run {
-            android.util.Log.e("AudioPlayerService", "MetadataManager not initialized")
+            LogUtils.e("AudioPlayerService", "MetadataManager not initialized")
         }
 
     /**
@@ -795,7 +796,7 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun play() {
         // Reset book completion flag on play (user wants to restart)
         if (isBookCompleted) {
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "play() called after book completion, resetting completion flag",
             )
@@ -804,7 +805,7 @@ public class AudioPlayerService : MediaLibraryService() {
         }
 
         playbackController?.play() ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
 
@@ -816,7 +817,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun pause() {
         playbackController?.pause() ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
 
@@ -827,7 +828,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun stop() {
         playbackController?.stop() ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
             return
         }
 
@@ -848,7 +849,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun stopAndCleanup() {
         lifecycleManager?.stopAndCleanup() ?: run {
-            android.util.Log.e("AudioPlayerService", "ServiceLifecycleManager not initialized for stopAndCleanup")
+            LogUtils.e("AudioPlayerService", "ServiceLifecycleManager not initialized for stopAndCleanup")
             // Fallback manual cleanup if needed, or just log error
         }
 
@@ -857,7 +858,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal fun saveCurrentPosition() {
         positionManager?.saveCurrentPosition() ?: run {
-            android.util.Log.e(
+            LogUtils.e(
                 "AudioPlayerService",
                 "PositionManager not initialized",
             )
@@ -875,17 +876,17 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun seekTo(positionMs: Long): Unit =
         playbackController?.seekTo(positionMs) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
     public fun setSpeed(speed: Float): Unit =
         playbackController?.setSpeed(speed) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
     public fun setRepeatMode(repeatMode: Int): Unit =
         playbackController?.setRepeatMode(repeatMode) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
     public fun getRepeatMode(): Int = playbackController?.getRepeatMode() ?: Player.REPEAT_MODE_OFF
@@ -894,7 +895,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean): Unit =
         playbackController?.setShuffleModeEnabled(shuffleModeEnabled) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
     public fun getShuffleModeEnabled(): Boolean = playbackController?.getShuffleModeEnabled() ?: false
@@ -977,7 +978,7 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun next() {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "Manual next() called after book completion, resetting completion flag",
             )
@@ -985,14 +986,14 @@ public class AudioPlayerService : MediaLibraryService() {
             lastCompletedTrackIndex = -1
         }
         playbackController?.next() ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
     }
 
     public fun previous() {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "Manual previous() called after book completion, resetting completion flag",
             )
@@ -1000,14 +1001,14 @@ public class AudioPlayerService : MediaLibraryService() {
             lastCompletedTrackIndex = -1
         }
         playbackController?.previous() ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
     }
 
     public fun seekToTrack(index: Int) {
         // Reset book completion flag on manual track switch
         if (isBookCompleted) {
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "Manual seekToTrack($index) called after book completion, resetting completion flag",
             )
@@ -1015,7 +1016,7 @@ public class AudioPlayerService : MediaLibraryService() {
             lastCompletedTrackIndex = -1
         }
         playbackController?.seekToTrack(index) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
     }
 
@@ -1024,17 +1025,17 @@ public class AudioPlayerService : MediaLibraryService() {
         progressSeconds: Double?,
     ): Unit =
         positionManager?.setPlaybackProgress(filePaths, progressSeconds) ?: run {
-            android.util.Log.e("AudioPlayerService", "PositionManager not initialized")
+            LogUtils.e("AudioPlayerService", "PositionManager not initialized")
         }
 
     public fun rewind(seconds: Int = 15): Unit =
         playbackController?.rewind(seconds) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
     public fun forward(seconds: Int = 30): Unit =
         playbackController?.forward(seconds) ?: run {
-            android.util.Log.e("AudioPlayerService", "PlaybackController not initialized")
+            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
     /**
@@ -1055,7 +1056,7 @@ public class AudioPlayerService : MediaLibraryService() {
         // Cancel notification
         // notificationManager = null
 
-        android.util.Log.d("AudioPlayerService", "Player stopped and resources released")
+        LogUtils.d("AudioPlayerService", "Player stopped and resources released")
     }
 
     /**
@@ -1077,7 +1078,7 @@ public class AudioPlayerService : MediaLibraryService() {
         //     rewindSeconds.toLong(),
         //     forwardSeconds.toLong(),
         // )
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Updated skip durations: rewind=${rewindSeconds}s, forward=${forwardSeconds}s",
         )
@@ -1109,7 +1110,7 @@ public class AudioPlayerService : MediaLibraryService() {
                 if (rewindSeconds == lastRewindSeconds &&
                     forwardSeconds == lastForwardSeconds
                 ) {
-                    android.util.Log.d("AudioPlayerService", "Custom layout state unchanged, skipping update")
+                    LogUtils.d("AudioPlayerService", "Custom layout state unchanged, skipping update")
                     return
                 }
 
@@ -1142,12 +1143,12 @@ public class AudioPlayerService : MediaLibraryService() {
 
                 session.setCustomLayout(listOf(rewindCommandButton, forwardCommandButton))
 
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Smart updated custom layout - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s",
                 )
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Error in smart custom layout update", e)
+                LogUtils.e("AudioPlayerService", "Error in smart custom layout update", e)
             }
         }
     }
@@ -1234,12 +1235,12 @@ public class AudioPlayerService : MediaLibraryService() {
                 lastRewindSeconds = defaultRewindSeconds
                 lastForwardSeconds = defaultForwardSeconds
 
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Initial CustomLayout set - Rewind: ${defaultRewindSeconds}s, Forward: ${defaultForwardSeconds}s",
                 )
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Error setting initial CustomLayout", e)
+                LogUtils.e("AudioPlayerService", "Error setting initial CustomLayout", e)
             }
         }
     }
@@ -1255,7 +1256,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun setInactivityTimeoutMinutes(minutes: Int) {
         inactivityTimer?.setInactivityTimeoutMinutes(minutes)
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Inactivity timeout set",
         )
@@ -1271,7 +1272,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun unloadPlayerDueToInactivity(): Unit =
         unloadManager?.unloadPlayerDueToInactivity() ?: run {
-            android.util.Log.e("AudioPlayerService", "UnloadManager not initialized")
+            LogUtils.e("AudioPlayerService", "UnloadManager not initialized")
         }
 
     // Periodic position saving methods removed (delegated to PlaybackPositionSaver)
@@ -1284,14 +1285,14 @@ public class AudioPlayerService : MediaLibraryService() {
     private fun setupPlayerNotificationManager() {
         // Guard: Prevent duplicate initialization
         if (playerNotificationManager != null) {
-            android.util.Log.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
+            LogUtils.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
             return
         }
 
         // CRITICAL: Only use PlayerNotificationManager as fallback when MediaLibrarySession is not available
         // If MediaLibrarySession is active, it should handle notifications via MediaNotificationProvider
         if (mediaLibrarySession != null) {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "MediaLibrarySession is active, PlayerNotificationManager should not be used. " +
                     "This may cause duplicate notifications. Disabling PlayerNotificationManager.",
@@ -1302,7 +1303,7 @@ public class AudioPlayerService : MediaLibraryService() {
         // CRITICAL: Create notification channel BEFORE PlayerNotificationManager
         // Otherwise Android will crash with "invalid channel for service notification"
         notificationHelper?.ensureNotificationChannel(NotificationHelper.CHANNEL_ID)
-            ?: android.util.Log.e("AudioPlayerService", "NotificationHelper is null, channel may not be created!")
+            ?: LogUtils.e("AudioPlayerService", "NotificationHelper is null, channel may not be created!")
 
         playerNotificationManager =
             PlayerNotificationManager
@@ -1395,7 +1396,7 @@ public class AudioPlayerService : MediaLibraryService() {
                             // USER REQUEST: Prevent notification dismissal by swipe
                             // Always restore notification, never stop service when dismissed
                             // This ensures player continues working even if user accidentally swipes notification
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "Notification cancelled (dismissedByUser=$dismissedByUser), restoring notification",
                             )
@@ -1417,7 +1418,7 @@ public class AudioPlayerService : MediaLibraryService() {
                             // This keeps notification visible like quality music apps (Spotify, YouTube Music)
                             // Previously: stopForeground(DETACH) when ongoing==false (paused) → notification disappeared
                             // Now: Always startForeground → notification persists
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "onNotificationPosted: ongoing=$ongoing, staying in foreground",
                             )
@@ -1483,7 +1484,7 @@ public class AudioPlayerService : MediaLibraryService() {
                                                     }
                                                 }
                                             } catch (e: Exception) {
-                                                android.util.Log.w("AudioPlayerService", "Failed to get large icon", e)
+                                                LogUtils.w("AudioPlayerService", "Failed to get large icon", e)
                                             }
                                         }
 
@@ -1586,7 +1587,7 @@ public class AudioPlayerService : MediaLibraryService() {
                     notificationUpdateJob =
                         service.playerServiceScope.launch {
                             kotlinx.coroutines.delay(debounceDelayMs)
-                            android.util.Log.d("PlayerNotification", "onMediaMetadataChanged: invalidating notification (debounced)")
+                            LogUtils.d("PlayerNotification", "onMediaMetadataChanged: invalidating notification (debounced)")
                             service.playerNotificationManager?.invalidate()
                         }
                 }
@@ -1601,7 +1602,7 @@ public class AudioPlayerService : MediaLibraryService() {
                     notificationUpdateJob =
                         service.playerServiceScope.launch {
                             kotlinx.coroutines.delay(debounceDelayMs)
-                            android.util.Log.d("PlayerNotification", "onMediaItemTransition: invalidating notification (debounced)")
+                            LogUtils.d("PlayerNotification", "onMediaItemTransition: invalidating notification (debounced)")
                             service.playerNotificationManager?.invalidate()
                         }
                 }
@@ -1609,14 +1610,14 @@ public class AudioPlayerService : MediaLibraryService() {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
                         // Immediate update for READY state (important for initial load)
-                        android.util.Log.d("PlayerNotification", "onPlaybackStateChanged: READY, invalidating immediately")
+                        LogUtils.d("PlayerNotification", "onPlaybackStateChanged: READY, invalidating immediately")
                         this@AudioPlayerService.playerNotificationManager?.invalidate()
                     }
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     // Immediate update for play/pause (user expects instant feedback)
-                    android.util.Log.d("PlayerNotification", "onIsPlayingChanged: $isPlaying, invalidating immediately")
+                    LogUtils.d("PlayerNotification", "onIsPlayingChanged: $isPlaying, invalidating immediately")
                     this@AudioPlayerService.playerNotificationManager?.invalidate()
                 }
             },
@@ -1631,7 +1632,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
         // CRITICAL: Force immediate invalidate to ensure startForeground() is called within 5 seconds
         // This prevents ForegroundServiceDidNotStartInTimeException crash
-        android.util.Log.d("PlayerNotification", "Forcing immediate invalidate for foreground state")
+        LogUtils.d("PlayerNotification", "Forcing immediate invalidate for foreground state")
         playerNotificationManager?.invalidate()
     }
 
@@ -1666,7 +1667,7 @@ public class AudioPlayerService : MediaLibraryService() {
     private fun cleanupExistingComponents() {
         // Only cleanup if components already exist (onCreate called multiple times)
         if (mediaLibrarySession != null || serviceMediaController != null || crossFadePlayer != null) {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "onCreate() called multiple times, cleaning up existing components",
             )
@@ -1715,7 +1716,7 @@ public class AudioPlayerService : MediaLibraryService() {
             // Reset initialization flag
             isFullyInitializedFlag = false
 
-            android.util.Log.i("AudioPlayerService", "Existing components cleaned up")
+            LogUtils.i("AudioPlayerService", "Existing components cleaned up")
         }
     }
 

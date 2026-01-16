@@ -32,6 +32,7 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.jabook.app.jabook.audio.ErrorHandler
 import com.jabook.app.jabook.audio.SavedPlaybackState
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -117,20 +118,20 @@ internal class PlaylistManager(
     ) {
         // CRITICAL: Use mutex to prevent race conditions when multiple setPlaylist calls happen simultaneously
         // This ensures only one playlist loads at a time and prevents state corruption
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "setPlaylist called: ${filePaths.size} items, initialTrackIndex=$initialTrackIndex, initialPosition=$initialPosition",
         )
         playerServiceScope.launch {
             try {
                 playlistLoadMutex.withLock {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Acquired playlistLoadMutex lock for setPlaylist",
                     )
                     // Prevent duplicate calls - if playlist is already loading, ignore
                     if (isPlaylistLoading) {
-                        android.util.Log.w(
+                        LogUtils.w(
                             "AudioPlayerService",
                             "Playlist already loading, ignoring duplicate setPlaylist call: ${filePaths.size} items, initialTrackIndex=$initialTrackIndex",
                         )
@@ -154,14 +155,14 @@ internal class PlaylistManager(
                         isPlaylistLoading = false
                         currentLoadingPlaylist = null
                         activeLoadingJob = null
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Released playlistLoadMutex lock after setPlaylist",
                         )
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e(
+                LogUtils.e(
                     "AudioPlayerService",
                     "Error in setPlaylist mutex block: ${e.message}",
                     e,
@@ -197,7 +198,7 @@ internal class PlaylistManager(
         // Initialize actualTrackIndex from initialTrackIndex or default to 0
         // Initialize actualTrackIndex from initialTrackIndex or default to 0
         actualTrackIndex = initialTrackIndex?.coerceIn(0, filePaths.size - 1) ?: 0
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Initialized actualTrackIndex to $actualTrackIndex (from initialTrackIndex=$initialTrackIndex)",
         )
@@ -212,7 +213,7 @@ internal class PlaylistManager(
         val sortedFilePaths = sortFilesByNumericPrefix(filePaths)
         currentFilePaths = sortedFilePaths
 
-        android.util.Log.i(
+        LogUtils.i(
             "AudioPlayerService",
             "Sorted ${sortedFilePaths.size} files by numeric prefix. " +
                 "Original[0]: ${filePaths.firstOrNull()?.substringAfterLast('/')}, " +
@@ -222,7 +223,7 @@ internal class PlaylistManager(
         currentGroupPath = groupPath
 
         // Log file paths order for debugging
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Stored filePaths (first 5): ${sortedFilePaths.take(5).mapIndexed {
                 i: Int,
@@ -237,14 +238,14 @@ internal class PlaylistManager(
             playerPersistenceManager.saveGroupPathToSharedPreferences(groupPath)
         }
 
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Setting playlist with ${filePaths.size} items, initialTrackIndex=$initialTrackIndex, initialPosition=$initialPosition, groupPath=$groupPath",
         )
 
         try {
             preparePlaybackOptimized(sortedFilePaths, metadata, initialTrackIndex, initialPosition)
-            android.util.Log.d("AudioPlayerService", "Playlist prepared successfully")
+            LogUtils.d("AudioPlayerService", "Playlist prepared successfully")
 
             // Call callback first to unblock Flutter
             withContext(Dispatchers.Main) {
@@ -255,7 +256,7 @@ internal class PlaylistManager(
             if (initialTrackIndex != null && initialPosition != null && initialPosition > 0) {
                 val firstTrackIndex = initialTrackIndex.coerceIn(0, filePaths.size - 1)
                 if (firstTrackIndex != initialTrackIndex) {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Target track ($initialTrackIndex) differs from first loaded track ($firstTrackIndex), scheduling position application",
                     )
@@ -263,14 +264,14 @@ internal class PlaylistManager(
                         playbackController.applyInitialPosition(initialTrackIndex, initialPosition, filePaths.size)
                     }
                 } else {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Target track ($initialTrackIndex) is first loaded track, position already applied in preparePlaybackOptimized",
                     )
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to prepare playback", e)
+            LogUtils.e("AudioPlayerService", "Failed to prepare playback", e)
             ErrorHandler.handleGeneralError("AudioPlayerService", e, "preparePlayback failed")
             withContext(Dispatchers.Main) {
                 callback?.invoke(false, e)
@@ -300,7 +301,7 @@ internal class PlaylistManager(
         val playlistSize = filePaths.size
         val isSmallPlaylist = playlistSize < 50
 
-        android.util.Log.i(
+        LogUtils.i(
             "AudioPlayerService",
             "📥 Starting playlist load: totalTracks=$playlistSize, targetTrack=$initialTrackIndex, " +
                 "targetPosition=${initialPosition}ms, strategy=${if (isSmallPlaylist) "SYNC" else "ASYNC"}",
@@ -315,7 +316,7 @@ internal class PlaylistManager(
                 preparePlaybackAsync(filePaths, metadata, initialTrackIndex, initialPosition, playlistLoadStartTime)
             }
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to prepare playback", e)
+            LogUtils.e("AudioPlayerService", "Failed to prepare playback", e)
             throw e
         }
     }
@@ -334,7 +335,7 @@ internal class PlaylistManager(
         initialPosition: Long?,
         loadStartTime: Long,
     ) = withContext(mediaItemDispatcher) {
-        android.util.Log.d("AudioPlayerService", "Using synchronous loading for small playlist (${filePaths.size} tracks)")
+        LogUtils.d("AudioPlayerService", "Using synchronous loading for small playlist (${filePaths.size} tracks)")
         val dataSourceFactory = SimpleMediaDataSourceFactory()
 
         // Create all MediaItems synchronously (fast for small playlists)
@@ -356,7 +357,7 @@ internal class PlaylistManager(
             val startIndex = (initialTrackIndex ?: 0).coerceIn(0, mediaItems.size - 1)
             val startPosition = (initialPosition ?: 0).coerceAtLeast(0)
 
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Setting ${mediaItems.size} MediaItems synchronously: startIndex=$startIndex, startPosition=${startPosition}ms",
             )
@@ -368,7 +369,7 @@ internal class PlaylistManager(
             // getNotificationManager()?.updateNotification()
 
             val loadDuration = System.currentTimeMillis() - loadStartTime
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "✅ Synchronous playlist loaded: ${mediaItems.size} tracks in ${loadDuration}ms " +
                     "(startIndex=$startIndex, startPosition=${startPosition}ms)",
@@ -391,14 +392,14 @@ internal class PlaylistManager(
         loadStartTime: Long,
     ) = withContext(Dispatchers.IO) {
         try {
-            android.util.Log.d("AudioPlayerService", "Using async loading for large playlist (${filePaths.size} tracks)")
+            LogUtils.d("AudioPlayerService", "Using async loading for large playlist (${filePaths.size} tracks)")
             val dataSourceFactory = SimpleMediaDataSourceFactory()
 
             // Determine which track to load first
             // CRITICAL: Always load track 0 first, then switch to target track after all tracks are loaded
             // This ensures ExoPlayer has a valid playlist structure before switching tracks
             val firstTrackIndex = 0
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Loading first track: index=$firstTrackIndex (target=$initialTrackIndex, total=${filePaths.size})",
             )
@@ -429,7 +430,7 @@ internal class PlaylistManager(
                 // CRITICAL: Position will be applied after all tracks are loaded
                 // This prevents ExoPlayer from switching to another track when MediaItems are added
                 if (initialTrackIndex != null && initialPosition != null && initialPosition > 0) {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "Target track is $initialTrackIndex (first loaded: $firstTrackIndex), " +
                             "will apply position ${initialPosition}ms after all tracks are loaded",
@@ -441,7 +442,7 @@ internal class PlaylistManager(
                 // MediaSession handles notification updates automatically - manual update removed
                 // getNotificationManager()?.updateNotification()
 
-                android.util.Log.i(
+                LogUtils.i(
                     "AudioPlayerService",
                     "First MediaItem loaded and prepared: index=$firstTrackIndex, " +
                         "state=${activePlayer.playbackState}, " +
@@ -458,14 +459,14 @@ internal class PlaylistManager(
             activeLoadingJob =
                 playerServiceScope.launch(mediaItemDispatcher) {
                     try {
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Starting async MediaItems loading (previous job cancelled if existed)",
                         )
                         val remainingIndices = filePaths.indices.filter { it != firstTrackIndex }
                         val totalItems = filePaths.size
                         val isLargePlaylist = totalItems > 100
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Loading ${remainingIndices.size} remaining MediaItems asynchronously in parallel (large playlist: $isLargePlaylist)",
                         )
@@ -502,7 +503,7 @@ internal class PlaylistManager(
                         // Other tracks sorted by index to maintain order
                         otherIndices.sort()
 
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Loading priority: ${criticalPrevious.size} previous (target-2 to target-1), " +
                                 "${criticalNext.size} next (target+1 to target+2), ${otherIndices.size} others",
@@ -523,7 +524,7 @@ internal class PlaylistManager(
                             val filePath = filePaths[index]
                             val fileName = filePath.substringAfterLast('/')
                             try {
-                                android.util.Log.d(
+                                LogUtils.d(
                                     "AudioPlayerService",
                                     "📥 Loading track $index: $fileName (priority: $priority)",
                                 )
@@ -557,7 +558,7 @@ internal class PlaylistManager(
                                     addMutex.withLock {
                                         // CRITICAL: Check if already added BEFORE getting player (prevent duplicates)
                                         if (index in addedIndices) {
-                                            android.util.Log.w(
+                                            LogUtils.w(
                                                 "AudioPlayerService",
                                                 "MediaItem at index $index already added, skipping duplicate",
                                             )
@@ -574,7 +575,7 @@ internal class PlaylistManager(
                                             try {
                                                 val existingItem = activePlayer.getMediaItemAt(index)
                                                 if (existingItem.localConfiguration?.uri?.path == filePaths[index]) {
-                                                    android.util.Log.w(
+                                                    LogUtils.w(
                                                         "AudioPlayerService",
                                                         "MediaItem at index $index already exists in player, skipping duplicate",
                                                     )
@@ -590,7 +591,7 @@ internal class PlaylistManager(
                                         activePlayer.addMediaSource(index, mediaSource)
                                         addedIndices.add(index)
                                         val loadDuration = System.currentTimeMillis() - loadStartTime
-                                        android.util.Log.i(
+                                        LogUtils.i(
                                             "AudioPlayerService",
                                             "✅ Loaded track $index: $fileName (${loadDuration}ms, priority: $priority, playlist size: ${activePlayer.mediaItemCount})",
                                         )
@@ -598,7 +599,7 @@ internal class PlaylistManager(
                                 }
                             } catch (e: Exception) {
                                 val loadDuration = System.currentTimeMillis() - loadStartTime
-                                android.util.Log.e(
+                                LogUtils.e(
                                     "AudioPlayerService",
                                     "❌ Failed to load track $index: $fileName (${loadDuration}ms, priority: $priority): ${e.message}",
                                     e,
@@ -628,7 +629,7 @@ internal class PlaylistManager(
                         // This allows us to verify completion if needed
                         if (isLargePlaylist) {
                             // For large playlists, don't wait - let them load in background
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "Large playlist: ${jobs.size} MediaItems loading in parallel background",
                             )
@@ -637,17 +638,17 @@ internal class PlaylistManager(
                             kotlinx.coroutines.delay(100L) // Small delay to let priority tracks start
                         }
 
-                        android.util.Log.i(
+                        LogUtils.i(
                             "AudioPlayerService",
                             "All ${filePaths.size} MediaItems scheduled for parallel loading " +
                                 "(critical previous: ${criticalPrevious.size}, " +
                                 "critical next: ${criticalNext.size}, others: ${otherIndices.size})",
                         )
                     } catch (e: kotlinx.coroutines.CancellationException) {
-                        android.util.Log.d("AudioPlayerService", "MediaItems loading job cancelled")
+                        LogUtils.d("AudioPlayerService", "MediaItems loading job cancelled")
                         throw e
                     } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Error loading remaining MediaItems asynchronously", e)
+                        LogUtils.e("AudioPlayerService", "Error loading remaining MediaItems asynchronously", e)
                         // Don't throw - player is already working with first item
                     } finally {
                         // Apply initial position after all tracks are loaded
@@ -683,37 +684,37 @@ internal class PlaylistManager(
                                 val actualPath = item.localConfiguration?.uri?.path
                                 if (actualPath != expectedPath) {
                                     orderMismatchCount++
-                                    android.util.Log.w(
+                                    LogUtils.w(
                                         "AudioPlayerService",
                                         "Playlist order mismatch at index $i: expected $expectedPath, got $actualPath",
                                     )
                                 }
                             }
                             if (orderMismatchCount == 0) {
-                                android.util.Log.d(
+                                LogUtils.d(
                                     "AudioPlayerService",
                                     "Playlist order verified: all ${activePlayer.mediaItemCount} items are in correct order",
                                 )
                             } else {
-                                android.util.Log.w(
+                                LogUtils.w(
                                     "AudioPlayerService",
                                     "Playlist order verification found $orderMismatchCount mismatches out of ${activePlayer.mediaItemCount} items",
                                 )
                             }
                         } else {
-                            android.util.Log.w(
+                            LogUtils.w(
                                 "AudioPlayerService",
                                 "Playlist size mismatch: expected ${filePaths.size}, got ${activePlayer.mediaItemCount}",
                             )
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioPlayerService", "Error loading remaining MediaItems asynchronously", e)
+                    LogUtils.e("AudioPlayerService", "Error loading remaining MediaItems asynchronously", e)
                     // Don't throw - player is already working with first item
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to prepare playback", e)
+            LogUtils.e("AudioPlayerService", "Failed to prepare playback", e)
             throw e
         }
     }
@@ -730,14 +731,14 @@ internal class PlaylistManager(
     ) {
         val activePlayer = getActivePlayer()
 
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Applying initial position: track=$initialTrackIndex, position=${initialPosition}ms, expectedCount=$expectedTrackCount",
         )
 
         // Wait for all tracks to be loaded with stability check
         if (!waitForAllTracksLoaded(activePlayer, expectedTrackCount, playlistLoadStartTime)) {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "Not all tracks loaded, skipping position application",
             )
@@ -750,7 +751,7 @@ internal class PlaylistManager(
         // Apply position with validation
         try {
             if (!validateTrackIndex(initialTrackIndex, expectedTrackCount, activePlayer)) {
-                android.util.Log.e(
+                LogUtils.e(
                     "AudioPlayerService",
                     "Track index validation failed, skipping position application",
                 )
@@ -768,7 +769,7 @@ internal class PlaylistManager(
             // Verify final state
             verifyPositionApplied(activePlayer, initialTrackIndex, initialPosition)
         } catch (e: Exception) {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "Failed to apply initial position after all tracks loaded: ${e.message}",
             )
@@ -801,14 +802,14 @@ internal class PlaylistManager(
                 if (unchangedCount >= 10 && attempts >= 10) {
                     // Count hasn't changed for 1 second - likely a mock in tests
                     if (currentCount == expectedCount) {
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Early exit: mediaItemCount stable at $currentCount (expected $expectedCount) - likely test mock",
                         )
                         return true
                     } else if (currentCount > 0) {
                         // Some tracks loaded, but not all - accept it for tests
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Early exit: mediaItemCount stable at $currentCount (expected $expectedCount) - accepting for test",
                         )
@@ -824,7 +825,7 @@ internal class PlaylistManager(
                     stableCount++
                     if (stableCount >= 5) { // Stable for 500ms
                         val duration = System.currentTimeMillis() - loadStartTime
-                        android.util.Log.i(
+                        LogUtils.i(
                             "AudioPlayerService",
                             "✅ Playlist loaded: $currentCount tracks (expected $expectedCount, ${duration}ms)",
                         )
@@ -843,7 +844,7 @@ internal class PlaylistManager(
 
         val finalCount = player.mediaItemCount
         if (finalCount < expectedCount) {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "Not all tracks loaded: mediaItemCount=$finalCount (expected $expectedCount). Skipping position application.",
             )
@@ -851,7 +852,7 @@ internal class PlaylistManager(
         }
 
         val duration = System.currentTimeMillis() - loadStartTime
-        android.util.Log.i(
+        LogUtils.i(
             "AudioPlayerService",
             "✅ Playlist confirmed loaded: $finalCount tracks (expected $expectedCount, ${duration}ms)",
         )
@@ -882,7 +883,7 @@ internal class PlaylistManager(
         player: ExoPlayer,
     ): Boolean {
         if (trackIndex >= expectedCount) {
-            android.util.Log.e(
+            LogUtils.e(
                 "AudioPlayerService",
                 "ERROR: Target track $trackIndex is out of bounds (expected count=$expectedCount)!",
             )
@@ -890,7 +891,7 @@ internal class PlaylistManager(
         }
 
         if (trackIndex >= player.mediaItemCount) {
-            android.util.Log.e(
+            LogUtils.e(
                 "AudioPlayerService",
                 "ERROR: Target track $trackIndex >= mediaItemCount=${player.mediaItemCount}!",
             )
@@ -913,7 +914,7 @@ internal class PlaylistManager(
             return // Already on target track
         }
 
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Switching from track $currentIndex to target track $targetIndex",
         )
@@ -922,7 +923,7 @@ internal class PlaylistManager(
         try {
             player.seekToDefaultPosition(targetIndex)
         } catch (e: Exception) {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "seekToDefaultPosition failed, trying seekTo: ${e.message}",
             )
@@ -933,7 +934,7 @@ internal class PlaylistManager(
         // If not available (e.g., in tests), fall back to polling immediately
         val useDeferred = setPendingTrackSwitchDeferred != null
         if (!useDeferred) {
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "setPendingTrackSwitchDeferred is null, will use polling fallback for track switch",
             )
@@ -943,12 +944,12 @@ internal class PlaylistManager(
                 CompletableDeferred<Int>().also { deferred ->
                     try {
                         setPendingTrackSwitchDeferred?.invoke(deferred)
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Set pendingTrackSwitchDeferred for track switch to $targetIndex",
                         )
                     } catch (e: Exception) {
-                        android.util.Log.w(
+                        LogUtils.w(
                             "AudioPlayerService",
                             "Failed to set pendingTrackSwitchDeferred: ${e.message}",
                         )
@@ -967,26 +968,26 @@ internal class PlaylistManager(
                         // 5 second timeout
                         trackSwitchDeferred.await()
                     }
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Successfully switched to track $actualIndex (expected $targetIndex) via deferred",
                 )
                 if (actualIndex != targetIndex) {
-                    android.util.Log.w(
+                    LogUtils.w(
                         "AudioPlayerService",
                         "Track switch returned index $actualIndex instead of expected $targetIndex",
                     )
                 }
                 return // Successfully switched via deferred
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                android.util.Log.w(
+                LogUtils.w(
                     "AudioPlayerService",
                     "Timeout waiting for track switch event (5s), falling back to polling",
                 )
                 // Cancel deferred to clean up
                 trackSwitchDeferred.cancel()
             } catch (e: Exception) {
-                android.util.Log.w(
+                LogUtils.w(
                     "AudioPlayerService",
                     "Failed to wait for track switch event: ${e.message}, falling back to polling",
                 )
@@ -994,7 +995,7 @@ internal class PlaylistManager(
         }
 
         // Fallback to polling (used when deferred is not available or failed)
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Using polling fallback to verify track switch to $targetIndex",
         )
@@ -1007,7 +1008,7 @@ internal class PlaylistManager(
                     player.playbackState == Player.STATE_BUFFERING
 
             if (newIndex == targetIndex && isReady) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Successfully switched to track $targetIndex after $attempts attempts (polling fallback)",
                 )
@@ -1019,7 +1020,7 @@ internal class PlaylistManager(
 
         // If we get here, track switch didn't complete in time
         val finalIndex = player.currentMediaItemIndex
-        android.util.Log.w(
+        LogUtils.w(
             "AudioPlayerService",
             "Track switch to $targetIndex did not complete after $maxPollingAttempts attempts (current: $finalIndex)",
         )
@@ -1037,14 +1038,14 @@ internal class PlaylistManager(
         val finalIndex = player.currentMediaItemIndex
         val finalPosition = player.currentPosition
 
-        android.util.Log.i(
+        LogUtils.i(
             "AudioPlayerService",
             "Initial position applied: targetTrack=$targetIndex, targetPosition=${targetPosition}ms, " +
                 "finalIndex=$finalIndex, finalPosition=${finalPosition}ms",
         )
 
         if (finalIndex != targetIndex) {
-            android.util.Log.e(
+            LogUtils.e(
                 "AudioPlayerService",
                 "ERROR: Final index ($finalIndex) differs from target ($targetIndex) after seekTo!",
             )
@@ -1055,10 +1056,10 @@ internal class PlaylistManager(
                 player.seekTo(targetIndex, targetPosition)
                 delay(500L)
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Retry failed: ${e.message}")
+                LogUtils.e("AudioPlayerService", "Retry failed: ${e.message}")
             }
             val lastIndex = player.currentMediaItemIndex
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "After retry: currentMediaItemIndex=$lastIndex (expected=$targetIndex)",
             )
@@ -1096,7 +1097,7 @@ internal class PlaylistManager(
         } else {
             val file = File(path)
             if (!file.exists()) {
-                android.util.Log.w("AudioPlayerService", "File does not exist: $path")
+                LogUtils.w("AudioPlayerService", "File does not exist: $path")
             }
             Uri.fromFile(file)
         }
@@ -1151,7 +1152,7 @@ internal class PlaylistManager(
                 val artworkUri = android.net.Uri.parse(artworkUriString)
                 metadataBuilder.setArtworkUri(artworkUri)
             } catch (e: Exception) {
-                android.util.Log.w("AudioPlayerService", "Failed to parse artwork URI: $artworkUriString", e)
+                LogUtils.w("AudioPlayerService", "Failed to parse artwork URI: $artworkUriString", e)
             }
         }
 
@@ -1172,7 +1173,7 @@ internal class PlaylistManager(
         val uri = createUriForPath(path)
         val mediaMetadata = createMediaMetadata(path, index, metadata)
 
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Creating MediaSource $index from ${if (path.startsWith("http")) "URL" else "file"}: ${path.substringAfterLast('/')}",
         )
@@ -1307,12 +1308,12 @@ internal class PlaylistManager(
     public fun preloadNextTrack(nextTrackIndex: Int) {
         val filePaths =
             this.currentFilePaths ?: run {
-                android.util.Log.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: no file paths available")
+                LogUtils.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: no file paths available")
                 return
             }
 
         if (nextTrackIndex < 0 || nextTrackIndex >= filePaths.size) {
-            android.util.Log.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: index out of bounds (size=${filePaths.size})")
+            LogUtils.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: index out of bounds (size=${filePaths.size})")
             return
         }
 
@@ -1331,14 +1332,14 @@ internal class PlaylistManager(
             }
 
         if (alreadyLoaded) {
-            android.util.Log.v("AudioPlayerService", "Track $nextTrackIndex already loaded, skipping preload")
+            LogUtils.v("AudioPlayerService", "Track $nextTrackIndex already loaded, skipping preload")
             return
         }
 
         // Preload in background to avoid blocking
         playerServiceScope.launch(mediaItemDispatcher) {
             try {
-                android.util.Log.d("AudioPlayerService", "🔄 Preloading next track: $nextTrackIndex")
+                LogUtils.d("AudioPlayerService", "🔄 Preloading next track: $nextTrackIndex")
                 val dataSourceFactory = SimpleMediaDataSourceFactory()
                 val currentMetadata = currentMetadata
 
@@ -1365,13 +1366,13 @@ internal class PlaylistManager(
 
                     if (stillNeeded) {
                         player.addMediaSource(nextTrackIndex, mediaSource)
-                        android.util.Log.i("AudioPlayerService", "✅ Preloaded track $nextTrackIndex for smooth transition")
+                        LogUtils.i("AudioPlayerService", "✅ Preloaded track $nextTrackIndex for smooth transition")
                     } else {
-                        android.util.Log.v("AudioPlayerService", "Track $nextTrackIndex was loaded by another process, skipping")
+                        LogUtils.v("AudioPlayerService", "Track $nextTrackIndex was loaded by another process, skipping")
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.w("AudioPlayerService", "Failed to preload track $nextTrackIndex", e)
+                LogUtils.w("AudioPlayerService", "Failed to preload track $nextTrackIndex", e)
             }
         }
     }
@@ -1427,7 +1428,7 @@ internal class PlaylistManager(
         // Remove tracks in reverse order to maintain indices
         tracksToRemove.sortDescending()
 
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "🧹 Memory optimization: removing ${tracksToRemove.size} distant tracks " +
                 "(keeping window: $keepStart-$keepEnd around track $currentTrackIndex)",
@@ -1438,13 +1439,13 @@ internal class PlaylistManager(
         for (index in tracksToRemove) {
             try {
                 player.removeMediaItem(index)
-                android.util.Log.v("AudioPlayerService", "Removed track $index from memory")
+                LogUtils.v("AudioPlayerService", "Removed track $index from memory")
             } catch (e: Exception) {
-                android.util.Log.w("AudioPlayerService", "Failed to remove track $index", e)
+                LogUtils.w("AudioPlayerService", "Failed to remove track $index", e)
             }
         }
 
-        android.util.Log.i(
+        LogUtils.i(
             "AudioPlayerService",
             "✅ Memory optimized: removed ${tracksToRemove.size} tracks, " +
                 "keeping ${keepEnd - keepStart + 1} tracks around current position",

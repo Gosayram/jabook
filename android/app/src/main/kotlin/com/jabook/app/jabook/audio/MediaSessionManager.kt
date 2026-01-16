@@ -21,6 +21,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CommandButton
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Manages MediaSession for system integration.
@@ -111,7 +112,7 @@ public class MediaSessionManager(
                             Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE -> "REMOTE"
                             else -> "UNKNOWN($reason)"
                         }
-                    android.util.Log.d(
+                    LogUtils.d(
                         "MediaSessionManager",
                         "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reasonText, " +
                             "lastPlayWhenReady=$lastPlayWhenReady, playbackState=${player.playbackState}",
@@ -123,26 +124,26 @@ public class MediaSessionManager(
                     if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
                         if (playWhenReady && !lastPlayWhenReady) {
                             // User requested play via MediaSession (Quick Settings, notification, etc.)
-                            android.util.Log.i(
+                            LogUtils.i(
                                 "MediaSessionManager",
                                 "Play command detected from MediaSession (USER_REQUEST), calling playCallback",
                             )
                             playCallback?.invoke()
                         } else if (!playWhenReady && lastPlayWhenReady) {
                             // User requested pause via MediaSession (Quick Settings, notification, etc.)
-                            android.util.Log.i(
+                            LogUtils.i(
                                 "MediaSessionManager",
                                 "Pause command detected from MediaSession (USER_REQUEST), calling pauseCallback",
                             )
                             pauseCallback?.invoke()
                         } else {
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "MediaSessionManager",
                                 "PlayWhenReady changed but no callback needed: playWhenReady=$playWhenReady, lastPlayWhenReady=$lastPlayWhenReady",
                             )
                         }
                     } else {
-                        android.util.Log.d(
+                        LogUtils.d(
                             "MediaSessionManager",
                             "PlayWhenReady changed but not from user request (reason=$reasonText), skipping callbacks",
                         )
@@ -180,7 +181,7 @@ public class MediaSessionManager(
         this.rewindSeconds = rewindSeconds.coerceAtLeast(1L)
         this.forwardSeconds = forwardSeconds.coerceAtLeast(1L)
 
-        android.util.Log.d(
+        LogUtils.d(
             "MediaSessionManager",
             "Updated skip durations: rewind=${this.rewindSeconds}s, forward=${this.forwardSeconds}s",
         )
@@ -206,7 +207,7 @@ public class MediaSessionManager(
         val currentPosition = player.currentPosition
         val newPosition = (currentPosition - rewindSeconds * 1000).coerceAtLeast(0L)
         player.seekTo(newPosition)
-        android.util.Log.d("MediaSessionManager", "Rewind: ${rewindSeconds}s")
+        LogUtils.d("MediaSessionManager", "Rewind: ${rewindSeconds}s")
     }
 
     /**
@@ -218,7 +219,7 @@ public class MediaSessionManager(
         if (duration != C.TIME_UNSET) {
             val newPosition = (currentPosition + forwardSeconds * 1000).coerceAtMost(duration)
             player.seekTo(newPosition)
-            android.util.Log.d("MediaSessionManager", "Forward: ${forwardSeconds}s")
+            LogUtils.d("MediaSessionManager", "Forward: ${forwardSeconds}s")
         }
     }
 
@@ -238,9 +239,9 @@ public class MediaSessionManager(
         try {
             // mediaSession?.release()
             // mediaSession = null
-            android.util.Log.d("MediaSessionManager", "MediaSession released successfully")
+            LogUtils.d("MediaSessionManager", "MediaSession released successfully")
         } catch (e: Exception) {
-            android.util.Log.e("MediaSessionManager", "Failed to release MediaSession", e)
+            LogUtils.e("MediaSessionManager", "Failed to release MediaSession", e)
         }
     }
 }

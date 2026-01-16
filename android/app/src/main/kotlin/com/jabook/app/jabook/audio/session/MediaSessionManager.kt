@@ -22,6 +22,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.util.LogUtils
 import javax.inject.Inject
 
 /**
@@ -83,7 +84,7 @@ public class MediaSessionManager
                     .setSessionActivity(sessionActivityPendingIntent)
                     .build()
 
-            android.util.Log.d("MediaSessionManager", "MediaSession initialized")
+            LogUtils.d("MediaSessionManager", "MediaSession initialized")
         }
 
         /**
@@ -94,7 +95,7 @@ public class MediaSessionManager
         public fun updateMetadata(metadata: androidx.media3.common.MediaMetadata) {
             // MediaMetadata is read-only in Player - it's automatically updated from MediaItem
             // MediaSession automatically reflects metadata from Player's current MediaItem
-            android.util.Log.d("MediaSessionManager", "Metadata update requested: ${metadata.title}")
+            LogUtils.d("MediaSessionManager", "Metadata update requested: ${metadata.title}")
         }
 
         /**
@@ -107,7 +108,7 @@ public class MediaSessionManager
         ) {
             // PlaybackState is automatically managed by MediaSession through the Player
             // This method can be used for custom state updates if needed
-            android.util.Log.v("MediaSessionManager", "Playback state: $state, position: $position, speed: $speed")
+            LogUtils.v("MediaSessionManager", "Playback state: $state, position: $position, speed: $speed")
         }
 
         /**
@@ -122,6 +123,6 @@ public class MediaSessionManager
             mediaSession?.release()
             mediaSession = null
             callback = null
-            android.util.Log.d("MediaSessionManager", "MediaSession released")
+            LogUtils.d("MediaSessionManager", "MediaSession released")
         }
     }

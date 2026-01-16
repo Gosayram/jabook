@@ -18,6 +18,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.ErrorHandler
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -45,11 +46,11 @@ internal class PlaybackController(
      * Simplified implementation matching lissen-android approach.
      */
     public fun play() {
-        android.util.Log.i("AudioPlayerService", "play() called")
+        LogUtils.i("AudioPlayerService", "play() called")
 
         val player = getActivePlayer()
         if (player.mediaItemCount == 0) {
-            android.util.Log.w("AudioPlayerService", "Cannot play: no media items loaded")
+            LogUtils.w("AudioPlayerService", "Cannot play: no media items loaded")
             // Service might have been unloaded - state will be restored when playlist is set
             return
         }
@@ -61,7 +62,7 @@ internal class PlaybackController(
                 // Call prepare() if player is in IDLE or ENDED state (following RiMusic pattern)
                 // This ensures player restarts properly after book completion or errors
                 if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
-                    android.util.Log.d("AudioPlayerService", "play() - player is IDLE/ENDED, calling prepare()")
+                    LogUtils.d("AudioPlayerService", "play() - player is IDLE/ENDED, calling prepare()")
                     player.prepare()
                 }
 
@@ -91,7 +92,7 @@ internal class PlaybackController(
                         if (rewindMs > 0) {
                             val newPos = (player.currentPosition - rewindMs).coerceAtLeast(0L)
                             player.seekTo(newPos)
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "Smart Rewind: Rewinding ${rewindMs / 1000}s (pause: ${pauseDurationMs / 1000}s)",
                             )
@@ -102,7 +103,7 @@ internal class PlaybackController(
                 // Match lissen-android: simply set playWhenReady=true
                 // ExoPlayer manages AudioFocus automatically when handleAudioFocus=true
                 player.playWhenReady = true
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "play() - set playWhenReady=true, letting ExoPlayer handle AudioFocus",
                 )
@@ -110,7 +111,7 @@ internal class PlaybackController(
                 // Reset inactivity timer (user action)
                 resetInactivityTimer()
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Failed to start playback", e)
+                LogUtils.e("AudioPlayerService", "Failed to start playback", e)
                 e.printStackTrace()
                 ErrorHandler.handleGeneralError("AudioPlayerService", e, "Play method execution")
             }
@@ -149,7 +150,7 @@ internal class PlaybackController(
     public fun stop() {
         val player = getActivePlayer()
         try {
-            android.util.Log.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
+            LogUtils.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
             player.stop()
             // ExoPlayer manages AudioFocus automatically, no need to abandon manually
         } catch (e: Exception) {
@@ -167,12 +168,12 @@ internal class PlaybackController(
 
         try {
             if (positionMs < 0) {
-                android.util.Log.w("AudioPlayerService", "Seek position cannot be negative: $positionMs")
+                LogUtils.w("AudioPlayerService", "Seek position cannot be negative: $positionMs")
                 return
             }
 
             if (player.mediaItemCount == 0) {
-                android.util.Log.w("AudioPlayerService", "Cannot seek: no media items loaded")
+                LogUtils.w("AudioPlayerService", "Cannot seek: no media items loaded")
                 return
             }
 
@@ -201,7 +202,7 @@ internal class PlaybackController(
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to seek to position: $positionMs", e)
+            LogUtils.e("AudioPlayerService", "Failed to seek to position: $positionMs", e)
         }
     }
 
@@ -231,7 +232,7 @@ internal class PlaybackController(
      */
     public fun setRepeatMode(repeatMode: Int) {
         getActivePlayer().repeatMode = repeatMode
-        android.util.Log.d("AudioPlayerService", "Repeat mode set to: $repeatMode")
+        LogUtils.d("AudioPlayerService", "Repeat mode set to: $repeatMode")
         // Reset inactivity timer (user action)
         resetInactivityTimer()
     }
@@ -250,7 +251,7 @@ internal class PlaybackController(
      */
     public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
         getActivePlayer().shuffleModeEnabled = shuffleModeEnabled
-        android.util.Log.d("AudioPlayerService", "Shuffle mode set to: $shuffleModeEnabled")
+        LogUtils.d("AudioPlayerService", "Shuffle mode set to: $shuffleModeEnabled")
         // Reset inactivity timer (user action)
         resetInactivityTimer()
     }
@@ -286,9 +287,9 @@ internal class PlaybackController(
                 player.prepare()
             }
             player.playWhenReady = true
-            android.util.Log.d("AudioPlayerService", "Skipping to next available track: $nextAvailableIndex")
+            LogUtils.d("AudioPlayerService", "Skipping to next available track: $nextAvailableIndex")
         } else if (nextAvailableIndex == null) {
-            android.util.Log.w("AudioPlayerService", "No available tracks found, stopping playback")
+            LogUtils.w("AudioPlayerService", "No available tracks found, stopping playback")
             player.playWhenReady = false
         } else {
             // Already on available track, use default behavior
@@ -298,7 +299,7 @@ internal class PlaybackController(
                 player.prepare()
             }
             player.playWhenReady = true
-            android.util.Log.d("AudioPlayerService", "Skipping to next track (default)")
+            LogUtils.d("AudioPlayerService", "Skipping to next track (default)")
         }
 
         // Reset inactivity timer (user action)
@@ -329,9 +330,9 @@ internal class PlaybackController(
                 player.prepare()
             }
             player.playWhenReady = true
-            android.util.Log.d("AudioPlayerService", "Skipping to previous available track: $prevAvailableIndex")
+            LogUtils.d("AudioPlayerService", "Skipping to previous available track: $prevAvailableIndex")
         } else if (prevAvailableIndex == null) {
-            android.util.Log.w("AudioPlayerService", "No available tracks found, stopping playback")
+            LogUtils.w("AudioPlayerService", "No available tracks found, stopping playback")
             player.playWhenReady = false
         } else {
             // Already on available track, use default behavior
@@ -341,7 +342,7 @@ internal class PlaybackController(
                 player.prepare()
             }
             player.playWhenReady = true
-            android.util.Log.d("AudioPlayerService", "Skipping to previous track (default)")
+            LogUtils.d("AudioPlayerService", "Skipping to previous track (default)")
         }
 
         // Reset inactivity timer (user action)
@@ -388,7 +389,7 @@ internal class PlaybackController(
         val player = getActivePlayer()
 
         if (trackIndex < 0 || trackIndex >= player.mediaItemCount) {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "Invalid track index: $trackIndex (mediaItemCount: ${player.mediaItemCount})",
             )
@@ -396,7 +397,7 @@ internal class PlaybackController(
         }
 
         if (positionMs < 0) {
-            android.util.Log.w("AudioPlayerService", "Seek position cannot be negative: $positionMs")
+            LogUtils.w("AudioPlayerService", "Seek position cannot be negative: $positionMs")
             return
         }
 
@@ -418,7 +419,7 @@ internal class PlaybackController(
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e(
+            LogUtils.e(
                 "AudioPlayerService",
                 "Failed to seek to track and position: trackIndex=$trackIndex, positionMs=$positionMs",
                 e,
@@ -436,7 +437,7 @@ internal class PlaybackController(
         val currentPosition = player.currentPosition
         val newPosition = (currentPosition - seconds * 1000L).coerceAtLeast(0L)
         player.seekTo(newPosition)
-        android.util.Log.d("AudioPlayerService", "Rewind: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)")
+        LogUtils.d("AudioPlayerService", "Rewind: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)")
         // Reset inactivity timer (user action)
         resetInactivityTimer()
     }
@@ -453,7 +454,7 @@ internal class PlaybackController(
         if (duration != C.TIME_UNSET) {
             val newPosition = (currentPosition + seconds * 1000L).coerceAtMost(duration)
             player.seekTo(newPosition)
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Forward: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)",
             )
@@ -475,7 +476,7 @@ internal class PlaybackController(
         positionMs: Long,
         expectedTrackCount: Int?,
     ) {
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Waiting for player to be ready and track loaded before applying initial position: track=$trackIndex, position=${positionMs}ms",
         )
@@ -486,7 +487,7 @@ internal class PlaybackController(
         val isTargetTrackAlreadyCurrent = currentIndex == trackIndex
 
         if (isTargetTrackAlreadyCurrent) {
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Target track $trackIndex is already current track, applying position immediately for smooth resume",
             )
@@ -505,7 +506,7 @@ internal class PlaybackController(
             val currentMediaItemIndex = checkPlayer.currentMediaItemIndex
 
             if (attempts % 10 == 0) { // Log every second
-                android.util.Log.v(
+                LogUtils.v(
                     "AudioPlayerService",
                     "Waiting for player ready and track loaded: attempt=$attempts, state=$state, mediaItemCount=$mediaItemCount, currentIndex=$currentMediaItemIndex, needTrack=$trackIndex",
                 )
@@ -525,7 +526,7 @@ internal class PlaybackController(
             if (isPlayerReady && isTrackLoaded && allTracksLoaded) {
                 playerReady = true
                 trackLoaded = true
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Player is ready, track $trackIndex is loaded (current=$currentMediaItemIndex, mediaItemCount=$mediaItemCount), applying initial position immediately",
                 )
@@ -534,7 +535,7 @@ internal class PlaybackController(
 
             // Log progress every second
             if (attempts % 10 == 0) {
-                android.util.Log.v(
+                LogUtils.v(
                     "AudioPlayerService",
                     "Waiting: ready=$isPlayerReady, trackLoaded=$isTrackLoaded, allTracksLoaded=$allTracksLoaded, currentIndex=$currentMediaItemIndex",
                 )
@@ -545,7 +546,7 @@ internal class PlaybackController(
         }
 
         if (!playerReady || !trackLoaded) {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "Player not ready or track not loaded after $maxAttempts attempts: playerReady=$playerReady, trackLoaded=$trackLoaded, will try to apply position anyway",
             )
@@ -555,7 +556,7 @@ internal class PlaybackController(
             val finalPlayer = getActivePlayer()
             val finalCount = finalPlayer.mediaItemCount
             if (finalCount != expectedTrackCount) {
-                android.util.Log.w(
+                LogUtils.w(
                     "AudioPlayerService",
                     "Track count mismatch: expected=$expectedTrackCount, actual=$finalCount (possible duplicates detected)",
                 )
@@ -570,7 +571,7 @@ internal class PlaybackController(
         // OPTIMIZATION: If target track is already current, apply position immediately
         // This provides instant, smooth resume without waiting for all tracks
         if (currentMediaItemIndex == trackIndex) {
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Target track $trackIndex is already current, applying position immediately for smooth resume",
             )
@@ -579,7 +580,7 @@ internal class PlaybackController(
         } else {
             // If target track is not current, we need to wait a bit more and potentially
             // wait for all tracks to prevent playlist resets during seekTo
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Target track $trackIndex is not current (current=$currentMediaItemIndex), waiting for stability",
             )
@@ -587,7 +588,7 @@ internal class PlaybackController(
 
             // Only wait for all tracks if target is not the first loaded track
             if (expectedTrackCount != null && currentMediaItemCount < expectedTrackCount) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Waiting for all tracks to load: current=$currentMediaItemCount, expected=$expectedTrackCount",
                 )
@@ -598,7 +599,7 @@ internal class PlaybackController(
                     val checkPlayer = getActivePlayer()
                     val newCount = checkPlayer.mediaItemCount
                     if (newCount >= expectedTrackCount) {
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "All tracks loaded: $newCount/$expectedTrackCount",
                         )
@@ -610,19 +611,19 @@ internal class PlaybackController(
             }
         }
 
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerService",
             "Attempting to apply initial position: track=$trackIndex, position=${positionMs}ms, currentIndex=$currentMediaItemIndex, mediaItemCount=$currentMediaItemCount",
         )
 
         if (currentMediaItemCount > trackIndex) {
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "Applying initial position: track=$trackIndex, position=${positionMs}ms (all tracks loaded: $currentMediaItemCount)",
             )
             seekToTrackAndPosition(trackIndex, positionMs)
         } else {
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "Cannot apply initial position: track index $trackIndex not yet loaded (mediaItemCount=$currentMediaItemCount), waiting for track to load...",
             )
@@ -633,7 +634,7 @@ internal class PlaybackController(
                 delay(200L)
                 val retryPlayer = getActivePlayer()
                 if (retryPlayer.mediaItemCount > trackIndex) {
-                    android.util.Log.i(
+                    LogUtils.i(
                         "AudioPlayerService",
                         "Track $trackIndex loaded after waiting, applying initial position: position=${positionMs}ms",
                     )
@@ -642,13 +643,13 @@ internal class PlaybackController(
                 }
                 retryAttempts++
                 if (retryAttempts % 10 == 0) {
-                    android.util.Log.v(
+                    LogUtils.v(
                         "AudioPlayerService",
                         "Waiting for track load: $retryAttempts",
                     )
                 }
             }
-            android.util.Log.e(
+            LogUtils.e(
                 "AudioPlayerService",
                 "Failed to apply initial position: track $trackIndex never loaded",
             )
