@@ -364,8 +364,8 @@ internal class PlaylistManager(
             activePlayer.setMediaItems(mediaItems, startIndex, startPosition)
             activePlayer.prepare()
 
-                // MediaSession handles notification updates automatically - manual update removed
-                // getNotificationManager()?.updateNotification()
+            // MediaSession handles notification updates automatically - manual update removed
+            // getNotificationManager()?.updateNotification()
 
             val loadDuration = System.currentTimeMillis() - loadStartTime
             android.util.Log.i(
