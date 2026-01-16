@@ -1230,7 +1230,7 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaLibrarySession?.let { session ->
             try {
                 // Use default durations for initial layout (will be updated when user changes settings)
-                val defaultRewindSeconds = 15
+                val defaultRewindSeconds = 10
                 val defaultForwardSeconds = 30
 
                 val rewindCommand =

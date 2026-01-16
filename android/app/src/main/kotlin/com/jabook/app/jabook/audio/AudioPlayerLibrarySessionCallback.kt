@@ -186,7 +186,7 @@ public class AudioPlayerLibrarySessionCallback(
                 return true
             }
             KEYCODE_MEDIA_PREVIOUS -> {
-                val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 15
+                val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
                 service.rewind(rewindSeconds)
                 android.util.Log.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
                 return true
@@ -223,7 +223,7 @@ public class AudioPlayerLibrarySessionCallback(
     ): ListenableFuture<SessionResult> =
         when (customCommand.customAction) {
             CUSTOM_COMMAND_REWIND -> {
-                val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 15
+                val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
                 service.rewind(rewindSeconds)
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
