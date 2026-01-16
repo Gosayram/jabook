@@ -301,16 +301,17 @@ internal class PlayerListener(
 
         // Handle playWhenReady changes (important for AudioFocus debugging)
         if (events.contains(Player.EVENT_PLAY_WHEN_READY_CHANGED)) {
-            // Prevent auto-resume if book is completed
+            // If book is completed and user manually starts playback, reset the completion flag
+            // This allows users to re-play completed books while preventing auto-resume from system
             if (getIsBookCompleted() && player.playWhenReady) {
-                android.util.Log.w(
+                // User explicitly started playback - reset completion flag to allow it
+                android.util.Log.i(
                     "AudioPlayerService",
-                    "Attempted to resume playback after book completion, preventing",
+                    "User manually started playback after book completion, resetting completion flag",
                 )
-                player.playWhenReady = false
-                // Post notification update and return early
-                scheduleNotificationUpdate()
-                return
+                setIsBookCompleted(false)
+                setLastCompletedTrackIndex?.invoke(-1) // Clear saved index
+                // Continue with playback instead of blocking
             }
 
             android.util.Log.i(
