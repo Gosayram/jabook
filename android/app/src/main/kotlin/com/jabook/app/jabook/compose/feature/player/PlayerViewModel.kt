@@ -366,6 +366,7 @@ public class PlayerViewModel
         // Player control methods delegated to controller
 
         public fun play() {
+            logger.d { "Action: Play requested" }
             val state = uiState.value
             if (state is PlayerUiState.Success) {
                 // Ensure book is loaded before playing
@@ -395,22 +396,27 @@ public class PlayerViewModel
         }
 
         public fun pause() {
+            logger.d { "Action: Pause requested" }
             playerController.pause()
         }
 
         public fun seekTo(positionMs: Long) {
+            logger.d { "Action: Seek requested to ${positionMs}ms" }
             playerController.seekTo(positionMs)
         }
 
         public fun skipToNext() {
+            logger.d { "Action: Skip Next requested" }
             playerController.skipToNext()
         }
 
         public fun skipToPrevious() {
+            logger.d { "Action: Skip Previous requested" }
             playerController.skipToPrevious()
         }
 
         public fun skipToChapter(chapterIndex: Int) {
+            logger.d { "Action: Skip to Chapter index $chapterIndex requested" }
             playerController.skipToChapter(chapterIndex)
             // Reset repeat flag when manually changing chapters
             onChapterChanged()
@@ -423,6 +429,7 @@ public class PlayerViewModel
         }
 
         public fun seekForward() {
+            logger.d { "Action: Seek Forward requested" }
             val state = uiState.value
             if (state is PlayerUiState.Success && state.currentChapter != null) {
                 val interval: Long = state.forwardInterval.toLong()
@@ -434,6 +441,7 @@ public class PlayerViewModel
         }
 
         public fun seekBackward() {
+            logger.d { "Action: Seek Backward requested" }
             val state = uiState.value
             if (state is PlayerUiState.Success) {
                 val interval: Long = state.rewindInterval.toLong()

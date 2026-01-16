@@ -194,27 +194,41 @@ public fun PlayerScreen(
         mutableStateOf(powerManager?.isPowerSaveMode == true)
     }
 
-    // Request notification permission on Android 13+
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-        val permissionLauncher =
-            androidx.activity.compose.rememberLauncherForActivityResult(
-                contract =
-                    androidx.activity.result.contract.ActivityResultContracts
-                        .RequestPermission(),
-                onResult = { isGranted ->
-                    if (!isGranted) {
-                        // Show rationale explaining why notification permission is needed
+    // Request permissions (Notifications + Audio Visualizer) immediately on entry
+    // Bundling them ensures the user is prompted as soon as they enter the player screen
+    val permissionsToRequest =
+        remember {
+            mutableListOf<String>()
+                .apply {
+                    // Notifications for Android 13+
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        add(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    // Record Audio for Visualizer
+                    add(android.Manifest.permission.RECORD_AUDIO)
+                }.toTypedArray()
+        }
+
+    val multiplePermissionsLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .RequestMultiplePermissions(),
+            onResult = { result ->
+                // Handle Notification permission result
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    val notificationGranted = result[android.Manifest.permission.POST_NOTIFICATIONS] ?: false
+                    if (!notificationGranted) {
+                        // Show rationale via snackbar if denied
                         playerScreenLogger.w { "Notification permission denied" }
                         scope.launch {
-                            val result =
+                            val snackResult =
                                 snackbarHostState.showSnackbar(
                                     message = "Notifications help control playback from the notification bar",
                                     actionLabel = "Settings",
                                     duration = androidx.compose.material3.SnackbarDuration.Long,
                                 )
-
-                            // If user clicks "Settings", open app settings
-                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                            if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                                 try {
                                     val intent =
                                         android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -227,22 +241,11 @@ public fun PlayerScreen(
                             }
                         }
                     }
-                },
-            )
+                }
 
-        androidx.compose.runtime.LaunchedEffect(Unit) {
-            permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
-    // Request RECORD_AUDIO permission for audio visualizer
-    val recordAudioPermissionLauncher =
-        androidx.activity.compose.rememberLauncherForActivityResult(
-            contract =
-                androidx.activity.result.contract.ActivityResultContracts
-                    .RequestPermission(),
-            onResult = { isGranted ->
-                if (isGranted) {
+                // Handle Audio permission result
+                val audioGranted = result[android.Manifest.permission.RECORD_AUDIO] ?: false
+                if (audioGranted) {
                     playerScreenLogger.d { "RECORD_AUDIO permission granted, visualizer enabled" }
                 } else {
                     playerScreenLogger.w { "RECORD_AUDIO permission denied, visualizer disabled" }
@@ -250,16 +253,16 @@ public fun PlayerScreen(
             },
         )
 
-    // Check and request RECORD_AUDIO permission
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        val hasPermission =
-            androidx.core.content.ContextCompat.checkSelfPermission(
-                context,
-                android.Manifest.permission.RECORD_AUDIO,
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val permissionsMissing =
+            permissionsToRequest.filter {
+                androidx.core.content.ContextCompat
+                    .checkSelfPermission(context, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
 
-        if (!hasPermission) {
-            recordAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+        if (permissionsMissing.isNotEmpty()) {
+            playerScreenLogger.d { "Requesting permissions: $permissionsMissing" }
+            multiplePermissionsLauncher.launch(permissionsMissing.toTypedArray())
         }
     }
 

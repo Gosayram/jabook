@@ -28,8 +28,8 @@ public object LogUtils {
     private const val FLAVOR_BETA = "beta"
 
     // Check if we should log debug/info/verbose messages
-    // Enabled for all flavors EXCEPT prod
-    private val isDebugLoggingEnabled: Boolean = BuildConfig.FLAVOR != FLAVOR_PROD
+    // Rely on DEBUG flag which is true for dev, beta, stage types usually
+    private val isDebugLoggingEnabled: Boolean = BuildConfig.DEBUG
 
     /**
      * Log a VERBOSE message
