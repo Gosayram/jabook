@@ -278,6 +278,8 @@ dependencies {
     // HypnoticCanvas for Procedural Animated Backgrounds (Shaders)
     implementation(libs.hypnoticcanvas)
     implementation(libs.hypnoticcanvas.shaders)
+    // Leanback for Android TV support
+    implementation(libs.leanback)
 
     // Coil3 for async image loading in Compose
     implementation(libs.coil3.compose)

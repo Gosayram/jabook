@@ -75,6 +75,7 @@ ktaglib = "1.6.1"
 # UI Libraries
 haze = "1.7.1"
 hypnoticcanvas = "0.4.1"
+leanback = "1.2.0"
 
 # Firebase
 firebaseBom = "34.7.0"
@@ -194,6 +195,7 @@ ktaglib = { group = "com.github.timusus", name = "KTagLib", version.ref = "ktagl
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 hypnoticcanvas = { group = "com.mikepenz.hypnoticcanvas", name = "hypnoticcanvas", version.ref = "hypnoticcanvas" }
 hypnoticcanvas-shaders = { group = "com.mikepenz.hypnoticcanvas", name = "hypnoticcanvas-shaders", version.ref = "hypnoticcanvas" }
+leanback = { group = "androidx.leanback", name = "leanback", version.ref = "leanback" }
 
 # Firebase
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
