@@ -96,62 +96,70 @@ public class MediaSessionManager(
      *
      * CRITICAL: Enhanced logging for Play/Pause diagnostics, especially for Samsung devices.
      */
-    private fun setupPlayerListener() {
-        player.addListener(
-            object : Player.Listener {
-                override fun onPlayWhenReadyChanged(
-                    playWhenReady: Boolean,
-                    reason: Int,
-                ) {
-                    // Enhanced logging for diagnostics
-                    val reasonText =
-                        when (reason) {
-                            Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> "USER_REQUEST"
-                            Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> "AUDIO_FOCUS_LOSS"
-                            Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> "AUDIO_BECOMING_NOISY"
-                            Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE -> "REMOTE"
-                            else -> "UNKNOWN($reason)"
-                        }
-                    LogUtils.d(
-                        "MediaSessionManager",
-                        "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reasonText, " +
-                            "lastPlayWhenReady=$lastPlayWhenReady, playbackState=${player.playbackState}",
-                    )
+    private val playerListener =
+        object : Player.Listener {
+            override fun onPlayWhenReadyChanged(
+                playWhenReady: Boolean,
+                reason: Int,
+            ) {
+                // Enhanced logging for diagnostics
+                val reasonText =
+                    when (reason) {
+                        Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> "USER_REQUEST"
+                        Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> "AUDIO_FOCUS_LOSS"
+                        Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> "AUDIO_BECOMING_NOISY"
+                        Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE -> "REMOTE"
+                        else -> "UNKNOWN($reason)"
+                    }
+                LogUtils.d(
+                    "MediaSessionManager",
+                    "onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reasonText, " +
+                        "lastPlayWhenReady=$lastPlayWhenReady, playbackState=${player.playbackState}",
+                )
 
-                    // Only call callbacks if the change was triggered by user action
-                    // PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST = 1 means user explicitly requested play/pause
-                    // This happens when user clicks button in Quick Settings, notification, or lockscreen
-                    if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
-                        if (playWhenReady && !lastPlayWhenReady) {
-                            // User requested play via MediaSession (Quick Settings, notification, etc.)
-                            LogUtils.i(
-                                "MediaSessionManager",
-                                "Play command detected from MediaSession (USER_REQUEST), calling playCallback",
-                            )
-                            playCallback?.invoke()
-                        } else if (!playWhenReady && lastPlayWhenReady) {
-                            // User requested pause via MediaSession (Quick Settings, notification, etc.)
-                            LogUtils.i(
-                                "MediaSessionManager",
-                                "Pause command detected from MediaSession (USER_REQUEST), calling pauseCallback",
-                            )
-                            pauseCallback?.invoke()
-                        } else {
-                            LogUtils.d(
-                                "MediaSessionManager",
-                                "PlayWhenReady changed but no callback needed: playWhenReady=$playWhenReady, lastPlayWhenReady=$lastPlayWhenReady",
-                            )
-                        }
+                // Only call callbacks if the change was triggered by user action
+                // PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST = 1 means user explicitly requested play/pause
+                // This happens when user clicks button in Quick Settings, notification, or lockscreen
+                if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
+                    if (playWhenReady && !lastPlayWhenReady) {
+                        // User requested play via MediaSession (Quick Settings, notification, etc.)
+                        LogUtils.i(
+                            "MediaSessionManager",
+                            "Play command detected from MediaSession (USER_REQUEST), calling playCallback",
+                        )
+                        playCallback?.invoke()
+                    } else if (!playWhenReady && lastPlayWhenReady) {
+                        // User requested pause via MediaSession (Quick Settings, notification, etc.)
+                        LogUtils.i(
+                            "MediaSessionManager",
+                            "Pause command detected from MediaSession (USER_REQUEST), calling pauseCallback",
+                        )
+                        pauseCallback?.invoke()
                     } else {
                         LogUtils.d(
                             "MediaSessionManager",
-                            "PlayWhenReady changed but not from user request (reason=$reasonText), skipping callbacks",
+                            "PlayWhenReady changed but no callback needed: playWhenReady=$playWhenReady, lastPlayWhenReady=$lastPlayWhenReady",
                         )
                     }
-                    lastPlayWhenReady = playWhenReady
+                } else {
+                    LogUtils.d(
+                        "MediaSessionManager",
+                        "PlayWhenReady changed but not from user request (reason=$reasonText), skipping callbacks",
+                    )
                 }
-            },
-        )
+                lastPlayWhenReady = playWhenReady
+            }
+        }
+
+    /**
+     * Sets up Player listener to intercept play/pause commands from MediaSession.
+     * When playWhenReady changes due to user action (Quick Settings, notification, etc.),
+     * we call our callbacks to ensure notification is updated and timers are reset.
+     *
+     * CRITICAL: Enhanced logging for Play/Pause diagnostics, especially for Samsung devices.
+     */
+    private fun setupPlayerListener() {
+        player.addListener(playerListener)
     }
 
     /**
@@ -237,6 +245,7 @@ public class MediaSessionManager(
 
     public fun release() {
         try {
+            player.removeListener(playerListener)
             // mediaSession?.release()
             // mediaSession = null
             LogUtils.d("MediaSessionManager", "MediaSession released successfully")

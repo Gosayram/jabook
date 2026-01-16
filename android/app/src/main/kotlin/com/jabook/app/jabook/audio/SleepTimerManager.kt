@@ -418,4 +418,13 @@ internal class SleepTimerManager(
             LogUtils.e("AudioPlayerService", "Failed to restore sleep timer state", e)
         }
     }
+
+    /**
+     * Releases all resources (listeners, sensors, timers).
+     * Should be called when service is destroyed.
+     */
+    public fun release() {
+        stopTimer()
+        LogUtils.d("AudioPlayerService", "SleepTimerManager released")
+    }
 }

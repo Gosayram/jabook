@@ -1729,6 +1729,15 @@ public class AudioPlayerService : MediaLibraryService() {
 
             playbackEnhancerService.release()
 
+            sleepTimerManager?.release()
+            sleepTimerManager = null
+
+            inactivityTimer?.release()
+            inactivityTimer = null
+
+            playbackTimer?.release()
+            playbackTimer = null
+
             audioVisualizerManager?.release()
             audioVisualizerManager = null
 
@@ -1741,9 +1750,6 @@ public class AudioPlayerService : MediaLibraryService() {
             // Cancel jobs
             updateLayoutJob?.cancel()
             updateLayoutJob = null
-
-            positionSaveJob?.cancel()
-            positionSaveJob = null
 
             // Reset initialization flag
             isFullyInitializedFlag = false
@@ -1762,6 +1768,18 @@ public class AudioPlayerService : MediaLibraryService() {
 
         // Release PlaybackEnhancerService resources
         playbackEnhancerService.release()
+
+        // Release SleepTimerManager (listeners/sensors)
+        sleepTimerManager?.release()
+        sleepTimerManager = null
+
+        // Release InactivityTimer
+        inactivityTimer?.release()
+        inactivityTimer = null
+
+        // Release PlaybackTimer
+        playbackTimer?.release()
+        playbackTimer = null
 
         // Release audio visualizer
         audioVisualizerManager?.release()

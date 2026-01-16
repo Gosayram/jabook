@@ -88,20 +88,21 @@ public class PlaybackEnhancerService
                 mapVolumeBoostLevel(preferences.volumeBoostLevel)
             }
 
+        private val playerListener =
+            object : Player.Listener {
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    // Get current value from flow (synchronous read)
+                    val currentBoost = getCurrentVolumeBoost()
+                    attachEnhancer(audioSessionId, currentBoost)
+                }
+            }
+
         /**
          * Initializes the enhancer service.
          * Should be called once in AudioPlayerService.onCreate().
          */
         public fun initialize() {
-            player.addListener(
-                object : Player.Listener {
-                    override fun onAudioSessionIdChanged(audioSessionId: Int) {
-                        // Get current value from flow (synchronous read)
-                        val currentBoost = getCurrentVolumeBoost()
-                        attachEnhancer(audioSessionId, currentBoost)
-                    }
-                },
-            )
+            player.addListener(playerListener)
 
             // Attach to current audio session
             val currentBoost = getCurrentVolumeBoost()
@@ -195,6 +196,7 @@ public class PlaybackEnhancerService
          * Should be called when service is destroyed.
          */
         public fun release() {
+            player.removeListener(playerListener)
             enhancer?.release()
             enhancer = null
             android.util.Log.d("PlaybackEnhancerService", "LoudnessEnhancer released")
