@@ -71,6 +71,10 @@ internal class PlayerListener(
     private val maxRetries = 3
     private val retryDelayMs = 2000L // 2 seconds
 
+    // Error skipping mechanism (Auxio pattern)
+    private var skipCount = 0
+    private val maxSkips = 5 // Prevent infinite skip loops for bad playlists
+
     /**
      * Active LoudnessNormalizer for ReplayGain application.
      * Injected by PlayerConfigurator when processor chain is created.
@@ -167,9 +171,10 @@ internal class PlayerListener(
             com.jabook.app.jabook.widget.PlayerWidgetProvider
                 .requestUpdate(context)
 
-            // Reset retry count on successful playback
+            // Reset retry and skip counts on successful playback
             if (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING) {
                 retryCount = 0
+                skipCount = 0
             }
 
             // Stop position check when playback state changes to ENDED
@@ -803,27 +808,50 @@ internal class PlayerListener(
                 }
                 androidx.media3.common.PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> {
                     // File not found - try to skip to next available track
-                    handleFileNotFound()
-                    "File not found: Audio file is missing or has been moved."
+                    if (attemptSkipOnError()) {
+                        "File not found, skipping to next track..."
+                    } else {
+                        "File not found: Audio file is missing or has been moved."
+                    }
                 }
                 androidx.media3.common.PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> {
-                    "Permission denied: Cannot access audio file. Please check file permissions."
+                    if (attemptSkipOnError()) {
+                        "Permission denied, skipping..."
+                    } else {
+                        "Permission denied: Cannot access audio file."
+                    }
                 }
                 androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
                 androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED,
                 -> {
-                    "Format error: Audio file is corrupted or in an unsupported format."
+                    if (attemptSkipOnError()) {
+                        "Format error, skipping..."
+                    } else {
+                        "Format error: Audio file is corrupted or in an unsupported format."
+                    }
                 }
                 androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
                 androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED,
                 -> {
-                    "Decoder error: Unable to decode audio. The format may not be supported on this device."
+                    if (attemptSkipOnError()) {
+                        "Decoder error, skipping..."
+                    } else {
+                        "Decoder error: Unable to decode audio."
+                    }
                 }
                 androidx.media3.common.PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED -> {
-                    "Audio error: Unable to initialize audio playback. Please try again."
+                    if (attemptSkipOnError()) {
+                        "Audio track error, skipping..."
+                    } else {
+                        "Audio error: Unable to initialize audio playback."
+                    }
                 }
                 androidx.media3.common.PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED -> {
-                    "Audio error: Failed to write audio data. Please try again."
+                    if (attemptSkipOnError()) {
+                        "Audio write error, skipping..."
+                    } else {
+                        "Audio error: Failed to write audio data."
+                    }
                 }
                 else -> {
                     val errorMessage = error.message ?: "Unknown error"
@@ -846,6 +874,28 @@ internal class PlayerListener(
 
         // Store error for retrieval via MethodChannel if needed
         // Error will be automatically propagated through state stream
+    }
+
+    /**
+     * Attempts to skip to the next track if an error occurs.
+     * Returns true if skip was initiated, false if max skips reached or cannot skip.
+     */
+    private fun attemptSkipOnError(): Boolean {
+        if (skipCount < maxSkips) {
+            skipCount++
+            LogUtils.w(
+                "AudioPlayerService",
+                "Attempting to skip track due to error (skip $skipCount/$maxSkips)",
+            )
+            handleFileNotFound() // Reuse existing skip logic
+            return true
+        } else {
+            LogUtils.e(
+                "AudioPlayerService",
+                "Max skips reached ($maxSkips), stopping playback to prevent loop.",
+            )
+            return false
+        }
     }
 
     /**

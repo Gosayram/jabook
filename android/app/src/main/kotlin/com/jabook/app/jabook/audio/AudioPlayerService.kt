@@ -41,6 +41,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Cache
@@ -93,6 +94,9 @@ public class AudioPlayerService : MediaLibraryService() {
 
     @Inject
     public lateinit var playbackEnhancerService: PlaybackEnhancerService
+
+    @Inject
+    public lateinit var audioPreferences: com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences
 
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
@@ -548,6 +552,19 @@ public class AudioPlayerService : MediaLibraryService() {
             LogUtils.e("JABOOK_SERVICE", "Starting AudioPlayerServiceInitializer...")
             AudioPlayerServiceInitializer(this).initialize()
             LogUtils.e("JABOOK_SERVICE", "[OK] AudioPlayerServiceInitializer completed")
+
+            // Restore playback speed (lissen-android pattern)
+            playerServiceScope.launch {
+                try {
+                    val savedSpeed = audioPreferences.playbackSpeed.first()
+                    withContext(Dispatchers.Main) {
+                        LogUtils.d("JABOOK_SERVICE", "Restoring playback speed: ${savedSpeed}x")
+                        exoPlayer.setPlaybackSpeed(savedSpeed)
+                    }
+                } catch (e: Exception) {
+                    LogUtils.e("JABOOK_SERVICE", "Failed to restore playback speed", e)
+                }
+            }
 
             // Set MediaNotificationProvider for MediaLibrarySession (system media player)
             // This ensures system media player notification has priority

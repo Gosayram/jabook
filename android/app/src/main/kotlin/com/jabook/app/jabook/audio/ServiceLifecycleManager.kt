@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import androidx.annotation.OptIn
+import androidx.core.app.ServiceCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.cancel
@@ -36,6 +37,9 @@ internal class ServiceLifecycleManager(
                 player.playbackState == Player.STATE_ENDED
             ) {
                 android.util.Log.i("AudioPlayerService", "Stopping service onTaskRemoved because not playing")
+                // CRITICAL: Explicitly cancel notification to prevent it from getting stuck
+                // This mimics the behavior of Rhythm and other well-behaved players
+                ServiceCompat.stopForeground(service, ServiceCompat.STOP_FOREGROUND_REMOVE)
                 service.stopSelf()
             } else {
                 android.util.Log.i("AudioPlayerService", "Ignoring onTaskRemoved because playing")
