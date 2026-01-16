@@ -51,7 +51,7 @@ public class AudioPlayerServiceInitializer(
             MetadataManager(
                 context = service,
                 getActivePlayer = { service.getActivePlayer() },
-                getNotificationManager = { service.notificationManager },
+                // getNotificationManager callback removed - MediaSession handles updates automatically
                 getEmbeddedArtworkPath = { service.embeddedArtworkPath },
                 setEmbeddedArtworkPath = { service.embeddedArtworkPath = it },
                 getCurrentMetadata = { service.currentMetadata },
@@ -84,7 +84,7 @@ public class AudioPlayerServiceInitializer(
                 context = service,
                 mediaCache = service.media3Cache,
                 getActivePlayer = { service.getActivePlayer() },
-                getNotificationManager = { service.notificationManager },
+                // getNotificationManager callback removed - MediaSession handles updates automatically
                 playerServiceScope = service.playerServiceScope,
                 mediaItemDispatcher = service.mediaItemDispatcher,
                 getFlavorSuffix = { AudioPlayerService.getFlavorSuffix(service) },

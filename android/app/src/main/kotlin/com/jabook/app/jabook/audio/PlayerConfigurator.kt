@@ -82,7 +82,7 @@ internal class PlayerConfigurator(
                 PlayerListener(
                     context = service,
                     getActivePlayer = { service.getActivePlayer() },
-                    getNotificationManager = { service.notificationManager },
+                    // getNotificationManager callback removed - MediaSession handles updates automatically
                     getIsBookCompleted = { service.playlistManager?.isBookCompleted ?: false },
                     setIsBookCompleted = { service.playlistManager?.isBookCompleted = it },
                     getSleepTimerEndOfChapter = { service.sleepTimerManager?.sleepTimerEndOfChapter ?: false },
@@ -238,9 +238,9 @@ internal class PlayerConfigurator(
                 android.util.Log.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
             }
 
-            // Update NotificationManager with new player reference
-            service.notificationManager?.updatePlayer(service.getActivePlayer())
-            android.util.Log.d("AudioPlayerService", "Updated NotificationManager with new player reference")
+            // NotificationManager removed - MediaSession handles notification updates automatically
+            // service.notificationManager?.updatePlayer(service.getActivePlayer())
+            android.util.Log.d("AudioPlayerService", "Player recreation complete (MediaSession handles notifications)")
 
             // Restore playlist and position if we had a playlist before
             // BUT only if we're not already loading a playlist (prevent conflicts)

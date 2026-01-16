@@ -57,7 +57,7 @@ internal class PlaylistManager(
     private val context: Context,
     private val mediaCache: Cache,
     private val getActivePlayer: () -> ExoPlayer,
-    private val getNotificationManager: () -> NotificationManager?,
+    // getNotificationManager callback removed - MediaSession handles notification updates automatically
     private val playerServiceScope: CoroutineScope,
     private val mediaItemDispatcher: kotlinx.coroutines.CoroutineDispatcher,
     private val getFlavorSuffix: () -> String,
@@ -364,7 +364,8 @@ internal class PlaylistManager(
             activePlayer.setMediaItems(mediaItems, startIndex, startPosition)
             activePlayer.prepare()
 
-            getNotificationManager()?.updateNotification()
+                // MediaSession handles notification updates automatically - manual update removed
+                // getNotificationManager()?.updateNotification()
 
             val loadDuration = System.currentTimeMillis() - loadStartTime
             android.util.Log.i(
@@ -437,7 +438,8 @@ internal class PlaylistManager(
                     // This is handled in the async loading coroutine after all MediaItems are added
                 }
 
-                getNotificationManager()?.updateNotification()
+                // MediaSession handles notification updates automatically - manual update removed
+                // getNotificationManager()?.updateNotification()
 
                 android.util.Log.i(
                     "AudioPlayerService",

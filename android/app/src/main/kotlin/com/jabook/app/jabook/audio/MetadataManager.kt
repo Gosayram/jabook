@@ -27,7 +27,7 @@ import java.io.File
 internal class MetadataManager(
     private val context: Context,
     private val getActivePlayer: () -> ExoPlayer,
-    private val getNotificationManager: () -> NotificationManager?,
+    // getNotificationManager callback removed - MediaSession handles notification updates automatically
     private val getEmbeddedArtworkPath: () -> String?,
     private val setEmbeddedArtworkPath: (String?) -> Unit,
     private val getCurrentMetadata: () -> Map<String, String>?,
@@ -42,10 +42,9 @@ internal class MetadataManager(
      */
     public fun updateMetadata(metadata: Map<String, String>) {
         setCurrentMetadata(metadata)
-        // Just update notification - ExoPlayer already has the embedded artwork in MediaItem
-        // Don't replace MediaItem to avoid losing embedded artwork
-        // MediaSession automatically updates metadata from ExoPlayer, no manual update needed
-        getNotificationManager()?.updateMetadata(metadata, getEmbeddedArtworkPath())
+        // MediaSession automatically updates metadata from ExoPlayer
+        // Manual notification update removed - no longer needed with MediaLibraryService
+        // getNotificationManager()?.updateMetadata(metadata, getEmbeddedArtworkPath())
     }
 
     /**

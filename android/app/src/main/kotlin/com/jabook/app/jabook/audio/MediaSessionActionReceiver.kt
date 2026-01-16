@@ -118,12 +118,12 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
         } catch (e: TimeoutException) {
             android.util.Log.w(TAG, "MediaController creation timeout, using service intent fallback", e)
             // Fallback to service intent (faster and more reliable)
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PLAY)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: ExecutionException) {
             android.util.Log.w(TAG, "Failed to create MediaController, using service intent fallback", e)
             // Fallback to service intent
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PLAY)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: Exception) {
             android.util.Log.w(
@@ -132,7 +132,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
                 e,
             )
             // Fallback to service intent
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PLAY)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         }
     }
@@ -185,12 +185,12 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
         } catch (e: TimeoutException) {
             android.util.Log.w(TAG, "MediaController creation timeout, using service intent fallback", e)
             // Fallback to service intent (faster and more reliable)
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PAUSE)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: ExecutionException) {
             android.util.Log.w(TAG, "Failed to create MediaController, using service intent fallback", e)
             // Fallback to service intent
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PAUSE)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: Exception) {
             android.util.Log.w(
@@ -199,7 +199,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
                 e,
             )
             // Fallback to service intent
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PAUSE)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         }
     }

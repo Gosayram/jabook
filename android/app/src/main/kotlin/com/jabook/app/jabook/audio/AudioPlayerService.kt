@@ -118,7 +118,8 @@ public class AudioPlayerService : MediaLibraryService() {
     // Replaces MediaNotification.Provider which doesn't work with background service warmup
     private var playerNotificationManager: PlayerNotificationManager? = null
 
-    internal var notificationManager: NotificationManager? = null
+    // notificationManager removed - MediaSession handles notifications automatically via AudioPlayerNotificationProvider
+    // internal var notificationManager: NotificationManager? = null
     internal var notificationHelper: NotificationHelper? = null
     internal var mediaSessionManager: MediaSessionManager? = null
     internal var playbackTimer: PlaybackTimer? = null
@@ -322,6 +323,15 @@ public class AudioPlayerService : MediaLibraryService() {
     public companion object {
         public const val ACTION_EXIT_APP: String = "com.jabook.app.jabook.audio.EXIT_APP"
 
+        // Playback action constants (migrated from deprecated NotificationManager)
+        public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.PLAY"
+        public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.PAUSE"
+        public const val ACTION_NEXT: String = "com.jabook.app.jabook.audio.NEXT"
+        public const val ACTION_PREVIOUS: String = "com.jabook.app.jabook.audio.PREVIOUS"
+        public const val ACTION_REWIND: String = "com.jabook.app.jabook.audio.REWIND"
+        public const val ACTION_FORWARD: String = "com.jabook.app.jabook.audio.FORWARD"
+        public const val ACTION_STOP: String = "com.jabook.app.jabook.audio.STOP"
+
         @Volatile
         private var instance: AudioPlayerService? = null
 
@@ -490,6 +500,33 @@ public class AudioPlayerService : MediaLibraryService() {
 
             PlayerPerformanceLogger.log("Service", "listener set")
 
+            // CRITICAL: Initialize CrossFadePlayer BEFORE AudioPlayerServiceInitializer
+            // CrossfadeHandler (created in initializer) requires CrossFadePlayer to be initialized
+            android.util.Log.e("JABOOK_SERVICE", "Initializing CrossFadePlayer...")
+            crossFadePlayer =
+                CrossFadePlayer(this) { context ->
+                    ExoPlayer.Builder(context).build()
+                }
+            crossFadePlayer?.onPlayerChanged = { newPlayer ->
+                // CRITICAL: Update MediaSession player when crossfade swaps players (following Rhythm pattern)
+                // This ensures MediaSessionLegacyStub always has the correct player reference
+                try {
+                    mediaLibrarySession?.let { session ->
+                        session.player = newPlayer
+                        android.util.Log.d(
+                            "AudioPlayerService",
+                            "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
+                        )
+                    } ?: android.util.Log.w(
+                        "AudioPlayerService",
+                        "MediaLibrarySession is null, cannot update player after crossfade",
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
+                }
+            }
+            android.util.Log.e("JABOOK_SERVICE", "[OK] CrossFadePlayer initialized")
+
             // Initialize service components using extracted initializer
             // Media3 automatically manages notifications via MediaLibrarySession
             android.util.Log.e("JABOOK_SERVICE", "Starting AudioPlayerServiceInitializer...")
@@ -529,34 +566,7 @@ public class AudioPlayerService : MediaLibraryService() {
             playbackEnhancerService.initialize()
             android.util.Log.e("JABOOK_SERVICE", "[OK] PlaybackEnhancerService initialized")
 
-            // Initialize CrossFadePlayer
-            android.util.Log.e("JABOOK_SERVICE", "Initializing CrossFadePlayer...")
-            crossFadePlayer =
-                CrossFadePlayer(this) { context ->
-                    ExoPlayer.Builder(context).build()
-                }
-            crossFadePlayer?.onPlayerChanged = { newPlayer ->
-                // CRITICAL: Update MediaSession player when crossfade swaps players (following Rhythm pattern)
-                // This ensures MediaSessionLegacyStub always has the correct player reference
-                try {
-                    mediaLibrarySession?.let { session ->
-                        session.player = newPlayer
-                        android.util.Log.d(
-                            "AudioPlayerService",
-                            "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
-                        )
-                    } ?: android.util.Log.w(
-                        "AudioPlayerService",
-                        "MediaLibrarySession is null, cannot update player after crossfade",
-                    )
-                    // Update notification if needed (MediaLibrarySession should handle this automatically)
-                    // notificationManager?.updateNotification()
-                } catch (e: Exception) {
-                    android.util.Log.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
-                }
-            }
-            // Initialize CrossfadeHandler (requires playlistManager which is set in initializer)
-            // Deferred initialization of handler to setListener/Initializer completion
+            // CrossFadePlayer already initialized above (before AudioPlayerServiceInitializer)
 
             // Initialize AudioVisualizerManager
             android.util.Log.e("JABOOK_SERVICE", "Initializing AudioVisualizerManager...")

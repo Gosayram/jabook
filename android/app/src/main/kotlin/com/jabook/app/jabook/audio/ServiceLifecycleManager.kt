@@ -70,16 +70,15 @@ internal class ServiceLifecycleManager(
         service.playerServiceScope.cancel()
 
         // Setting player to null ensures notification updates stop
+        // notificationManager removed - MediaSession handles notifications automatically
         try {
-            service.notificationManager?.let { notifManager ->
-                android.util.Log.d("AudioPlayerService", "Cleaning up notification manager")
-                // Cancel any pending notifications
-                val androidNotifManager =
-                    service.getSystemService(android.content.Context.NOTIFICATION_SERVICE)
-                        as? android.app.NotificationManager
-                androidNotifManager?.cancel(NotificationHelper.NOTIFICATION_ID)
-                android.util.Log.d("AudioPlayerService", "Notification cancelled")
-            }
+            android.util.Log.d("AudioPlayerService", "Cleaning up notification")
+            // Cancel any pending notifications directly via Android NotificationManager
+            val androidNotifManager =
+                service.getSystemService(android.content.Context.NOTIFICATION_SERVICE)
+                    as? android.app.NotificationManager
+            androidNotifManager?.cancel(NotificationHelper.NOTIFICATION_ID)
+            android.util.Log.d("AudioPlayerService", "Notification cancelled")
         } catch (e: Exception) {
             android.util.Log.w("AudioPlayerService", "Error cleaning up notifications", e)
         }
@@ -170,8 +169,8 @@ internal class ServiceLifecycleManager(
                 android.util.Log.w("AudioPlayerService", "Error cancelling notification", e)
             }
 
-            // Clear notification manager reference
-            service.notificationManager = null
+            // notificationManager removed - MediaSession handles notifications automatically
+            // service.notificationManager = null
 
             android.util.Log.d("AudioPlayerService", "Player stopped and resources released")
         } catch (e: Exception) {

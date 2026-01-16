@@ -39,7 +39,7 @@ import java.io.File
 internal class PlayerListener(
     private val context: Context,
     private val getActivePlayer: () -> ExoPlayer,
-    private val getNotificationManager: () -> NotificationManager?,
+    // getNotificationManager callback removed - MediaSession handles notification updates automatically
     private val getIsBookCompleted: () -> Boolean,
     private val setIsBookCompleted: (Boolean) -> Unit,
     private val getSleepTimerEndOfChapter: () -> Boolean,
@@ -90,20 +90,11 @@ internal class PlayerListener(
      * Schedules a debounced notification update.
      * Cancels any pending update and schedules a new one after delay.
      * Inspired by Rhythm's scheduleCustomLayoutUpdate().
+     * NOTE: Now a no-op since MediaSession handles notification updates automatically.
      */
     private fun scheduleNotificationUpdate() {
-        notificationUpdateJob?.cancel()
-        val scope = coroutineScope
-        if (scope != null) {
-            notificationUpdateJob =
-                scope.launch {
-                    kotlinx.coroutines.delay(notificationDebounceMs)
-                    getNotificationManager()?.updateNotification()
-                }
-        } else {
-            // Fallback: immediate update if no scope available
-            getNotificationManager()?.updateNotification()
-        }
+        // No-op: MediaSession + MediaLibraryService handle notification updates automatically
+        // via ExoPlayer state changes. Manual updates are no longer needed.
     }
 
     // Import kotlinx.coroutines.launch extension removed - causing conflict with standard library
@@ -1277,8 +1268,8 @@ internal class PlayerListener(
         }
 
         // Update notification to show artwork
-        // MediaSession automatically updates from ExoPlayer
-        getNotificationManager()?.updateMetadata(getCurrentMetadata(), getEmbeddedArtworkPath())
+        // MediaSession automatically updates from ExoPlayer - manual update removed
+        // getNotificationManager()?.updateMetadata(getCurrentMetadata(), getEmbeddedArtworkPath())
     }
 
     /**
