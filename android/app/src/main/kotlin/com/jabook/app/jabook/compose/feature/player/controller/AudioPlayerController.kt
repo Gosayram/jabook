@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.player.controller
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -99,6 +100,12 @@ public class AudioPlayerController
         // Current Book ID for isolation - ensures we don't mix data between books
         private val _currentBookId = MutableStateFlow<String?>(null)
         public val currentBookId: StateFlow<String?> = _currentBookId.asStateFlow()
+
+        // Connection state for debugging - tracks MediaController connection status
+        public enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, FAILED_USING_FALLBACK }
+
+        private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
+        public val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
         // Callback for chapter end handling (e.g., repeat logic)
         private var onChapterEndedCallback: (() -> Boolean)? = null
@@ -243,8 +250,12 @@ public class AudioPlayerController
          * Uses retry logic to handle cases when service is not yet ready.
          */
         private fun initMediaController(retryCount: Int = 0) {
-            val maxRetries = 3
-            val retryDelayMs = 500L
+            val maxRetries = 5 // Increased from 3 for better resilience
+            val retryDelayMs = 1000L // Increased from 500ms for service startup
+
+            // CRITICAL: Use Log.e to bypass LogUtils filtering for debugging
+            Log.e("JABOOK_CONTROLLER", "initMediaController START (attempt ${retryCount + 1}/$maxRetries)")
+            _connectionState.value = ConnectionState.CONNECTING
 
             try {
                 val sessionToken =
@@ -252,12 +263,15 @@ public class AudioPlayerController
                         context,
                         ComponentName(context, AudioPlayerService::class.java),
                     )
+                Log.e("JABOOK_CONTROLLER", "SessionToken created: ${sessionToken.packageName}/${sessionToken.serviceName}")
 
                 mediaControllerFuture =
                     MediaController
                         .Builder(context, sessionToken)
                         .setApplicationLooper(context.mainLooper)
                         .buildAsync()
+
+                Log.e("JABOOK_CONTROLLER", "MediaController.Builder.buildAsync() called, waiting for result...")
 
                 mediaControllerFuture?.addListener(
                     {
@@ -278,8 +292,14 @@ public class AudioPlayerController
                                 _duration.value = ctrl.duration.coerceAtLeast(0)
                                 _currentChapterIndex.value = ctrl.currentMediaItemIndex
                                 updateStats(ctrl)
+                                _connectionState.value = ConnectionState.CONNECTED
+                                Log.e(
+                                    "JABOOK_CONTROLLER",
+                                    "✅ MediaController CONNECTED! isPlaying=${ctrl.isPlaying}, mediaItemCount=${ctrl.mediaItemCount}",
+                                )
                                 logger.i { "MediaController initialized successfully" }
                             } ?: run {
+                                Log.e("JABOOK_CONTROLLER", "❌ MediaController is null after get()!")
                                 throw IllegalStateException("MediaController is null after get()")
                             }
                         } catch (e: java.util.concurrent.TimeoutException) {
@@ -293,30 +313,38 @@ public class AudioPlayerController
                                     initMediaController(retryCount + 1)
                                 }
                             } else {
+                                Log.e("JABOOK_CONTROLLER", "❌ TIMEOUT after $maxRetries retries, using ExoPlayer fallback")
                                 logger.e {
                                     "MediaController initialization failed after $maxRetries retries, using fallback"
                                 }
+                                _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
                                 initializeFromExoPlayer()
                             }
                         } catch (e: Exception) {
+                            Log.e("JABOOK_CONTROLLER", "❌ Exception in MediaController init: ${e.message}", e)
                             logger.e(e) { "Error initializing MediaController" }
                             // Fallback: initialize from exoPlayer
+                            _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
                             initializeFromExoPlayer()
                         }
                     },
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
+                Log.e("JABOOK_CONTROLLER", "❌ Failed to create SessionToken/MediaController: ${e.message}", e)
                 logger.e(e) { "Failed to create MediaController" }
                 if (retryCount < maxRetries) {
+                    Log.e("JABOOK_CONTROLLER", "Retry ${retryCount + 1}/$maxRetries in ${retryDelayMs}ms...")
                     // Retry after delay
                     scope.launch {
                         kotlinx.coroutines.delay(retryDelayMs)
                         initMediaController(retryCount + 1)
                     }
                 } else {
+                    Log.e("JABOOK_CONTROLLER", "❌ FAILED after $maxRetries retries, using ExoPlayer fallback")
                     logger.e { "MediaController creation failed after $maxRetries retries, using fallback" }
                     // Fallback: initialize from exoPlayer
+                    _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
                     initializeFromExoPlayer()
                 }
             }
@@ -326,6 +354,13 @@ public class AudioPlayerController
          * Fallback initialization from ExoPlayer during migration period.
          */
         private fun initializeFromExoPlayer() {
+            Log.e("JABOOK_CONTROLLER", "⚠️ FALLBACK: Using direct ExoPlayer (service may not be connected!)")
+            Log.e(
+                "JABOOK_CONTROLLER",
+                "ExoPlayer instance: ${System.identityHashCode(
+                    exoPlayer,
+                )}, isPlaying=${exoPlayer.isPlaying}, mediaItemCount=${exoPlayer.mediaItemCount}",
+            )
             logger.w { "Using ExoPlayer fallback during MediaController initialization" }
             // Attach listener to singleton ExoPlayer as fallback
             exoPlayer.addListener(mediaControllerListener)
@@ -335,6 +370,7 @@ public class AudioPlayerController
             _duration.value = exoPlayer.duration.coerceAtLeast(0)
             _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
             updateStats(exoPlayer)
+            Log.e("JABOOK_CONTROLLER", "Fallback initialized: isPlaying=${_isPlaying.value}, position=${_currentPosition.value}")
         }
 
         public fun setPitchCorrectionEnabled(enabled: Boolean) {

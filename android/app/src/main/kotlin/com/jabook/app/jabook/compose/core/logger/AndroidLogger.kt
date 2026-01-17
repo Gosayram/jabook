@@ -33,10 +33,21 @@ public enum class LogLevel {
  * Android implementation of Logger using android.util.Log.
  *
  * Provides lazy evaluation - messages are only evaluated if logging is enabled.
+ * Enables DEBUG level logging for all non-prod flavors (dev, stage, beta).
  */
 public class AndroidLogger(
     private val tag: String,
-    private val minLevel: LogLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.ERROR,
+    private val minLevel: LogLevel =
+        if (
+            BuildConfig.DEBUG ||
+            BuildConfig.APPLICATION_ID.endsWith(".dev") ||
+            BuildConfig.APPLICATION_ID.endsWith(".stage") ||
+            BuildConfig.APPLICATION_ID.endsWith(".beta")
+        ) {
+            LogLevel.DEBUG
+        } else {
+            LogLevel.ERROR
+        },
 ) : Logger {
     override fun d(message: () -> String): Unit = log(LogLevel.DEBUG, message, null)
 
@@ -193,9 +204,20 @@ public object NoOpLoggerFactory : LoggerFactory {
 
 /**
  * Android implementation of LoggerFactory.
+ * Enables DEBUG level logging for all non-prod flavors (dev, stage, beta).
  */
 public class LoggerFactoryImpl(
-    private val minLevel: LogLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.ERROR,
+    private val minLevel: LogLevel =
+        if (
+            BuildConfig.DEBUG ||
+            BuildConfig.APPLICATION_ID.endsWith(".dev") ||
+            BuildConfig.APPLICATION_ID.endsWith(".stage") ||
+            BuildConfig.APPLICATION_ID.endsWith(".beta")
+        ) {
+            LogLevel.DEBUG
+        } else {
+            LogLevel.ERROR
+        },
 ) : LoggerFactory {
     private val loggers = mutableMapOf<String, Logger>()
 

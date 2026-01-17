@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Metadata
@@ -144,6 +145,14 @@ internal class PlayerListener(
         player: Player,
         events: Player.Events,
     ) {
+        // CRITICAL: Use Log.e to bypass LogUtils filtering for debugging
+        Log.e("JABOOK_LISTENER", "=== onEvents START ===")
+        Log.e("JABOOK_LISTENER", "Events: $events")
+        Log.e(
+            "JABOOK_LISTENER",
+            "Player state: playbackState=${player.playbackState}, isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady}, mediaItemCount=${player.mediaItemCount}",
+        )
+
         // Log all events for debugging
         LogUtils.d("AudioPlayerService", "onEvents called: $events")
 
