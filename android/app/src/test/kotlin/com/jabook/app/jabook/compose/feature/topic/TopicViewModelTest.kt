@@ -55,6 +55,7 @@ class TopicViewModelTest {
     private val mirrorManager: MirrorManager = mock()
     private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase = mock()
     private val avatarPreloader: AvatarPreloader = mock()
+    private val loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory = mock()
     private val context: Context = mock()
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(mapOf("topicId" to "12345"))
 
@@ -67,6 +68,9 @@ class TopicViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         whenever(authRepository.authStatus).thenReturn(authStatusFlow)
+        whenever(loggerFactory.get(org.mockito.kotlin.any<String>())).thenReturn(
+            com.jabook.app.jabook.compose.core.logger.NoOpLogger,
+        )
     }
 
     @After
@@ -117,6 +121,7 @@ class TopicViewModelTest {
                     mirrorManager,
                     withAuthorisedCheckUseCase,
                     avatarPreloader,
+                    loggerFactory,
                     context,
                     savedStateHandle,
                 )
@@ -202,6 +207,7 @@ class TopicViewModelTest {
                     mirrorManager,
                     withAuthorisedCheckUseCase,
                     avatarPreloader,
+                    loggerFactory,
                     context,
                     savedStateHandle,
                 )
@@ -319,6 +325,7 @@ class TopicViewModelTest {
                     mirrorManager,
                     withAuthorisedCheckUseCase,
                     avatarPreloader,
+                    loggerFactory,
                     context,
                     savedStateHandle,
                 )

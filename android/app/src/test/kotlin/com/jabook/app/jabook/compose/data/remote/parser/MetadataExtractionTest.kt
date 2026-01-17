@@ -39,10 +39,14 @@ class MetadataExtractionTest {
         mockDecoder = mock()
         mockMediaInfoParser = mock()
         mirrorManager = mock()
-        fieldExtractor = DefensiveFieldExtractor()
+        val mockLoggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory = mock()
+        whenever(mockLoggerFactory.get(org.mockito.kotlin.any<String>())).thenReturn(
+            com.jabook.app.jabook.compose.core.logger.NoOpLogger,
+        )
+        fieldExtractor = DefensiveFieldExtractor(mockLoggerFactory)
         // Mock getBaseUrl behavior
         whenever(mirrorManager.getBaseUrl()).thenReturn("https://rutracker.org")
-        coverExtractor = CoverUrlExtractor(mirrorManager)
+        coverExtractor = CoverUrlExtractor(mirrorManager, mockLoggerFactory)
         parser =
             RutrackerParser(
                 mockMediaInfoParser,
@@ -50,6 +54,7 @@ class MetadataExtractionTest {
                 fieldExtractor,
                 coverExtractor,
                 mirrorManager,
+                mockLoggerFactory,
             )
     }
 

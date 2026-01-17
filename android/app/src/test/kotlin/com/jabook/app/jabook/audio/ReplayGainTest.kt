@@ -40,7 +40,6 @@ class ReplayGainTest {
             PlayerListener(
                 context = ApplicationProvider.getApplicationContext(),
                 getActivePlayer = { mock() },
-                getNotificationManager = { null },
                 getIsBookCompleted = { false },
                 setIsBookCompleted = { },
                 getSleepTimerEndOfChapter = { false },
@@ -52,6 +51,11 @@ class ReplayGainTest {
                 getEmbeddedArtworkPath = { null },
                 setEmbeddedArtworkPath = { },
                 getCurrentMetadata = { null },
+                setLastCompletedTrackIndex = { },
+                getLastCompletedTrackIndex = { -1 },
+                getActualPlaylistSize = { 0 },
+                updateActualTrackIndex = { },
+                isPlaylistLoading = { false },
             )
 
         // Inject the mock normalizer

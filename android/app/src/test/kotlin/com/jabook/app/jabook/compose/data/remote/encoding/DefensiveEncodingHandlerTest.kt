@@ -40,7 +40,11 @@ class DefensiveEncodingHandlerTest {
 
     @Before
     fun setup() {
-        handler = DefensiveEncodingHandler()
+        val mockLoggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory = org.mockito.kotlin.mock()
+        org.mockito.kotlin.whenever(mockLoggerFactory.get(org.mockito.kotlin.any<String>())).thenReturn(
+            com.jabook.app.jabook.compose.core.logger.NoOpLogger,
+        )
+        handler = DefensiveEncodingHandler(mockLoggerFactory)
     }
 
     // ============ CP1251 Decoding Tests ============

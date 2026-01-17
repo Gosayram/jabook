@@ -52,7 +52,11 @@ class AutoSaveManagerTest {
     @Before
     fun setup() {
         persistenceManager = mock()
-        autoSaveManager = AutoSaveManager(persistenceManager)
+        val mockLoggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory = mock()
+        org.mockito.kotlin.whenever(mockLoggerFactory.get(org.mockito.kotlin.any<String>())).thenReturn(
+            com.jabook.app.jabook.compose.core.logger.NoOpLogger,
+        )
+        autoSaveManager = AutoSaveManager(persistenceManager, mockLoggerFactory)
     }
 
     // ============ saveNow Tests ============

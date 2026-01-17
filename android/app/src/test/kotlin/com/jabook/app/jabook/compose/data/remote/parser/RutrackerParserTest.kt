@@ -60,7 +60,11 @@ class RutrackerParserTest {
         mockDecoder = mock()
         mockMediaInfoParser = mock()
         mirrorManager = mock()
-        fieldExtractor = DefensiveFieldExtractor()
+        val mockLoggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory = mock()
+        org.mockito.kotlin.whenever(mockLoggerFactory.get(any<String>())).thenReturn(
+            com.jabook.app.jabook.compose.core.logger.NoOpLogger,
+        )
+        fieldExtractor = DefensiveFieldExtractor(mockLoggerFactory)
 
         // Mock getBaseUrl behavior
         org.mockito.kotlin
@@ -68,7 +72,7 @@ class RutrackerParserTest {
             .thenReturn("https://rutracker.org")
 
         // CoverUrlExtractor requires MirrorManager
-        coverExtractor = CoverUrlExtractor(mirrorManager)
+        coverExtractor = CoverUrlExtractor(mirrorManager, mockLoggerFactory)
 
         parser =
             RutrackerParser(
@@ -77,6 +81,7 @@ class RutrackerParserTest {
                 fieldExtractor,
                 coverExtractor,
                 mirrorManager,
+                mockLoggerFactory,
             )
     }
 

@@ -87,7 +87,7 @@ class PlaybackControllerTest {
         val resetTimer: () -> Unit = { resetTimerCallCount++ }
 
         val getActivePlayer = { exoPlayer }
-        playbackController = PlaybackController(getActivePlayer, testScope, resetTimer)
+        playbackController = PlaybackController(getActivePlayer, testScope, resetTimer, { false })
     }
 
     @After

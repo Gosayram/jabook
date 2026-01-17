@@ -74,13 +74,13 @@ class GaplessPlaybackTest {
                 context = context,
                 mediaCache = mock(),
                 getActivePlayer = { exoPlayer },
-                getNotificationManager = { null },
                 playerServiceScope = testScope,
                 mediaItemDispatcher = testDispatcher,
                 getFlavorSuffix = { "" },
                 durationManager = durationManager,
                 playerPersistenceManager = playerPersistenceManager,
                 playbackController = playbackController,
+                getCurrentTrackIndex = { 0 },
             )
     }
 

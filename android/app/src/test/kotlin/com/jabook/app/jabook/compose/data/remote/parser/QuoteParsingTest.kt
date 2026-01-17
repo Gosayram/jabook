@@ -48,15 +48,20 @@ class QuoteParsingTest {
     @Before
     fun setup() {
         mockDecoder = mock()
+        val mockLoggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory = mock()
+        whenever(mockLoggerFactory.get(org.mockito.kotlin.any<String>())).thenReturn(
+            com.jabook.app.jabook.compose.core.logger.NoOpLogger,
+        )
         whenever(mirrorManager.getBaseUrl()).thenReturn("https://rutracker.org")
 
         parser =
             RutrackerParser(
                 decoder = mockDecoder,
-                fieldExtractor = DefensiveFieldExtractor(),
+                fieldExtractor = DefensiveFieldExtractor(mockLoggerFactory),
                 mediaInfoParser = mock(),
                 mirrorManager = mirrorManager,
-                coverExtractor = CoverUrlExtractor(mirrorManager),
+                coverExtractor = CoverUrlExtractor(mirrorManager, mockLoggerFactory),
+                loggerFactory = mockLoggerFactory,
             )
     }
 
