@@ -1340,9 +1340,28 @@ public class RutrackerParser
                             label.contains("Codec", ignoreCase = true) -> {
                             metadata["codec"] = value
                         }
+                        // Bitrate mode (must not overwrite actual numeric bitrate)
+                        label.contains("Вид битрейта", ignoreCase = true) ||
+                            label.contains("Bitrate mode", ignoreCase = true) -> {
+                            metadata["bitrateMode"] = value
+                        }
                         // Bitrate
                         label.contains("Битрейт", ignoreCase = true) || label.contains("Bitrate", ignoreCase = true) -> {
-                            metadata["bitrate"] = value
+                            val current = metadata["bitrate"]
+                            val valueLooksLikeNumericBitrate =
+                                value.contains(Regex("\\d")) &&
+                                    value.contains(Regex("(kbps|mbps|kbit|кбит|бит)", RegexOption.IGNORE_CASE))
+                            val currentLooksLikeNumericBitrate =
+                                current
+                                    ?.contains(Regex("\\d"))
+                                    ?.let { hasDigits ->
+                                        hasDigits &&
+                                            current.contains(Regex("(kbps|mbps|kbit|кбит|бит)", RegexOption.IGNORE_CASE))
+                                    } == true
+
+                            if (current.isNullOrBlank() || (!currentLooksLikeNumericBitrate && valueLooksLikeNumericBitrate)) {
+                                metadata["bitrate"] = value
+                            }
                         }
                         // Year/Date
                         label.contains("Год выпуска", ignoreCase = true) || label.contains("Year", ignoreCase = true) -> {
@@ -1591,6 +1610,31 @@ public class RutrackerParser
             val doc = org.jsoup.Jsoup.parse(rawHtml, getBaseUrl())
             val body = doc.body()
 
+            // Truncate anything after "Доп. информация" marker, including the marker itself.
+            val additionalInfoMarker =
+                body
+                    .select("span.post-b")
+                    .firstOrNull { span ->
+                        val label =
+                            span
+                                .text()
+                                .trim()
+                                .removeSuffix(":")
+                                .trim()
+                                .lowercase()
+                        label.startsWith("доп. информация") ||
+                            label.startsWith("доп информация") ||
+                            label.startsWith("additional info")
+                    }
+            if (additionalInfoMarker != null) {
+                var current: org.jsoup.nodes.Node? = additionalInfoMarker
+                while (current != null) {
+                    val next = current.nextSibling()
+                    current.remove()
+                    current = next
+                }
+            }
+
             // 1. Remove metadata blocks
             // Iterate over span.post-b to find metadata labels
             val metadataLabels =
@@ -1601,6 +1645,8 @@ public class RutrackerParser
                     "Author",
                     "Авторы",
                     "Authors",
+                    "Фамилия автора",
+                    "Имя автора",
                     "Исполнитель",
                     "Narrator",
                     "Жанр",
@@ -1625,12 +1671,6 @@ public class RutrackerParser
                     "Poster",
                     "Музыка",
                     "Music",
-                    "Цикл",
-                    "Серия",
-                    "Series",
-                    "Cycle",
-                    "Номер книги",
-                    "Book number",
                 )
 
             // Find all potential metadata labels

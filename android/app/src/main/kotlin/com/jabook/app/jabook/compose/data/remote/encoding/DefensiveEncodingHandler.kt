@@ -58,7 +58,6 @@ public class DefensiveEncodingHandler
                     "в„–", // № symbol corrupted
                     "Р°", // а decoded as UTF-8
                     "РІ", // в decoded as UTF-8
-                    "Р", // Common mojibake prefix
                     "�", // Unicode replacement character
                 )
         }
@@ -89,6 +88,11 @@ public class DefensiveEncodingHandler
             logger.d {
                 "Decoding ${cleanBytes.size} bytes (original: ${bytes.size}), " +
                     "contentType: ${contentType ?: "null"}"
+            }
+
+            if (cleanBytes.isEmpty()) {
+                logger.w { "⚠️ Empty byte array after BOM removal, returning invalid result" }
+                return DecodingResult.invalid()
             }
 
             // Step 2: Try encoding from Content-Type header
@@ -178,17 +182,19 @@ public class DefensiveEncodingHandler
 
                 // Validation checks
                 val hasMojibake = detectMojibake(text)
+                val hasReadableText = hasMostlyReadableText(text)
                 val hasHtmlStructure =
                     text.contains("<html", ignoreCase = true) ||
                         text.contains("<body", ignoreCase = true) ||
                         text.contains("<!doctype", ignoreCase = true)
 
-                val isValid = hasHtmlStructure && text.isNotBlank()
+                val isValid = text.isNotBlank() && (hasHtmlStructure || hasReadableText)
                 val confidence =
                     when {
                         !isValid -> 0.0f
                         hasMojibake -> 0.3f
-                        else -> 0.9f
+                        hasHtmlStructure -> 0.95f
+                        else -> 0.8f
                     }
 
                 DecodingResult(
@@ -202,6 +208,18 @@ public class DefensiveEncodingHandler
                 logger.e({ "Failed to decode with ${charset.name()}" }, e)
                 DecodingResult.invalid()
             }
+
+        private fun hasMostlyReadableText(text: String): Boolean {
+            if (text.isBlank()) return false
+
+            val sample = text.take(2000)
+            val suspiciousChars =
+                sample.count { ch ->
+                    ch == '\u0000' || (ch.isISOControl() && ch != '\n' && ch != '\r' && ch != '\t')
+                }
+
+            return suspiciousChars.toFloat() / sample.length.toFloat() < 0.1f
+        }
 
         /**
          * Remove BOM (Byte Order Mark) from bytes if present.

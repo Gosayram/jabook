@@ -129,6 +129,12 @@ internal class PlaybackController(
                 // Update lastPauseTime for Smart Rewind
                 lastPauseTime = System.currentTimeMillis()
 
+                // Small rewind on pause improves context retention for audiobooks.
+                if (player.playbackState != Player.STATE_ENDED) {
+                    val rewindPosition = (player.currentPosition - 2_000L).coerceAtLeast(0L)
+                    player.seekTo(rewindPosition)
+                }
+
                 player.playWhenReady = false
                 // Note: We don't abandon AudioFocus on pause - we keep it for quick resume
                 // AudioFocus will be abandoned when service is stopped

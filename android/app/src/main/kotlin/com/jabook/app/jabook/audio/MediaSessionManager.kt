@@ -65,7 +65,7 @@ public class MediaSessionManager(
     public companion object {
         private const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
         private const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
-        private const val DEFAULT_REWIND_SECONDS = 10L
+        private const val DEFAULT_REWIND_SECONDS = 15L
         private const val DEFAULT_FORWARD_SECONDS = 30L
 
         /**
@@ -79,14 +79,6 @@ public class MediaSessionManager(
          * Inspired by lissen-android implementation.
          */
         private fun provideForwardCommand(): Int = CommandButton.ICON_SKIP_FORWARD
-    }
-
-    init {
-        rewindSeconds = DEFAULT_REWIND_SECONDS
-        forwardSeconds = DEFAULT_FORWARD_SECONDS
-        lastPlayWhenReady = player.playWhenReady
-        setupPlayerListener()
-        // initializeMediaSession() // Removed duplicate session creation
     }
 
     /**
@@ -150,6 +142,14 @@ public class MediaSessionManager(
                 lastPlayWhenReady = playWhenReady
             }
         }
+
+    init {
+        rewindSeconds = DEFAULT_REWIND_SECONDS
+        forwardSeconds = DEFAULT_FORWARD_SECONDS
+        lastPlayWhenReady = player.playWhenReady
+        setupPlayerListener()
+        // initializeMediaSession() // Removed duplicate session creation
+    }
 
     /**
      * Sets up Player listener to intercept play/pause commands from MediaSession.
