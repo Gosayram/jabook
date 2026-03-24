@@ -18,8 +18,31 @@ plugins {
     id("com.google.protobuf") version "0.9.5"
     // JaCoCo for test coverage
     id("jacoco")
-    // Google services Gradle plugin for Firebase
-    id("com.google.gms.google-services")
+}
+
+val googleServicesCandidates =
+    listOf(
+        "google-services.json",
+        "src/debug/google-services.json",
+        "src/beta/google-services.json",
+        "src/prod/google-services.json",
+        "src/beta/debug/google-services.json",
+        "src/debug/beta/google-services.json",
+        "src/prod/debug/google-services.json",
+        "src/debug/prod/google-services.json",
+        "src/betaDebug/google-services.json",
+        "src/prodDebug/google-services.json",
+    )
+
+val hasGoogleServicesJson = googleServicesCandidates.any { relativePath -> file(relativePath).exists() }
+
+if (hasGoogleServicesJson) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle(
+        "google-services.json was not found in app module. " +
+            "Skipping com.google.gms.google-services plugin for this build.",
+    )
 }
 
 android {
