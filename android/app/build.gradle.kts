@@ -15,7 +15,7 @@ plugins {
     // Compose Compiler (required for Kotlin 2.0+)
     id("org.jetbrains.kotlin.plugin.compose")
     // Protobuf for Proto DataStore
-    id("com.google.protobuf") version "0.9.5"
+    id("com.google.protobuf") version "0.9.6"
     // JaCoCo for test coverage
     id("jacoco")
 }
