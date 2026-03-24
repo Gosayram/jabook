@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Task priority levels for coroutine tasks.
  */
-enum class TaskPriority {
+public enum class TaskPriority {
     /** Light tasks: caching, UI updates */
     LIGHT,
 
@@ -44,7 +44,7 @@ enum class TaskPriority {
  * - Task monitoring and statistics
  * - Energy efficiency support (pause/resume)
  */
-object CoroutineTaskManager {
+public object CoroutineTaskManager {
     private const val TAG = "CoroutineTaskManager"
 
     // Number of CPU cores (defaults to 2 if detection fails)
@@ -80,7 +80,7 @@ object CoroutineTaskManager {
     private val lightDispatcher: CoroutineDispatcher = lightExecutor.asCoroutineDispatcher()
 
     // Limited parallelism dispatchers (for MediaItem creation, etc.)
-    val mediaItemDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(4)
+    public val mediaItemDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(4)
 
     // Task counters for monitoring
     private val activeHeavyTasks = AtomicInteger(0)
@@ -97,7 +97,7 @@ object CoroutineTaskManager {
      * @param priority Task priority
      * @return Coroutine dispatcher for the priority
      */
-    fun getDispatcher(priority: TaskPriority): CoroutineDispatcher =
+    public fun getDispatcher(priority: TaskPriority): CoroutineDispatcher =
         when (priority) {
             TaskPriority.HEAVY -> heavyDispatcher
             TaskPriority.MEDIUM -> mediumDispatcher
@@ -135,7 +135,7 @@ object CoroutineTaskManager {
      *
      * @return Map with statistics
      */
-    fun getStatistics(): Map<String, Any> =
+    public fun getStatistics(): Map<String, Any> =
         mapOf(
             "active_heavy" to activeHeavyTasks.get(),
             "active_medium" to activeMediumTasks.get(),
@@ -150,7 +150,7 @@ object CoroutineTaskManager {
      *
      * This is useful when the app goes to background or battery is low.
      */
-    fun pauseNonCritical() {
+    public fun pauseNonCritical() {
         paused = true
         Log.i(TAG, "Paused non-critical tasks")
     }
@@ -158,7 +158,7 @@ object CoroutineTaskManager {
     /**
      * Resume non-critical tasks.
      */
-    fun resume() {
+    public fun resume() {
         paused = false
         Log.i(TAG, "Resumed non-critical tasks")
     }
@@ -168,12 +168,12 @@ object CoroutineTaskManager {
      *
      * @return True if paused
      */
-    fun isPaused(): Boolean = paused
+    public fun isPaused(): Boolean = paused
 
     /**
      * Shutdown all executors (for cleanup).
      */
-    fun shutdown() {
+    public fun shutdown() {
         heavyExecutor.shutdown()
         mediumExecutor.shutdown()
         lightExecutor.shutdown()

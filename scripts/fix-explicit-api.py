@@ -1,0 +1,428 @@
+#!/usr/bin/env python3
+"""
+Script to automatically fix Explicit API mode violations in Kotlin files.
+
+This script:
+1. Collects compilation errors
+2. Groups them by file
+3. Automatically fixes violations by adding 'public' modifiers and return types
+"""
+
+import os
+import re
+import subprocess
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).parent.parent
+ANDROID_DIR = PROJECT_ROOT / "android"
+SRC_DIR = ANDROID_DIR / "app" / "src" / "main" / "kotlin"
+
+
+def collect_violations():
+    """Collect all Explicit API violations from compilation."""
+    print("🔍 Collecting Explicit API violations...")
+    
+    os.chdir(ANDROID_DIR)
+    
+    try:
+        result = subprocess.run(
+            ["./gradlew", ":app:compileBetaDebugKotlin", "--no-daemon"],
+            capture_output=True,
+            text=True,
+            timeout=600  # Increased timeout to 10 minutes
+        )
+    except subprocess.TimeoutExpired:
+        print("⚠️  Compilation timed out (10 minutes)")
+        return {}
+    
+    violations = defaultdict(list)
+    
+    for line in result.stderr.split('\n'):
+        if "Visibility must be specified" in line or "Return type must be specified" in line:
+            # Parse: e: file:///full/path/to/file.kt:123:45 Error message
+            # Extract relative path from src/main/kotlin
+            match = re.search(r'file://.*?/src/main/kotlin/([^:]+):(\d+):', line)
+            if match:
+                file_path = match.group(1)
+                line_num = int(match.group(2))
+                violations[file_path].append(line_num)
+    
+    print(f"📝 Found violations in {len(violations)} files")
+    return violations
+
+
+def fix_file(file_path: Path):
+    """Fix Explicit API violations in a single file."""
+    if not file_path.exists():
+        print(f"⚠️  File not found: {file_path}")
+        return False
+    
+    # Create backup
+    backup_path = file_path.with_suffix(file_path.suffix + '.bak')
+    file_path.rename(backup_path)
+    
+    try:
+        with open(backup_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        fixed = False
+        new_lines = []
+        
+        for i, line in enumerate(lines):
+            original = line
+            new_line = line
+            
+            # Pre-fix: Remove public from local variables inside function bodies
+            # Check if we're inside a function body by looking for function declaration above
+            is_inside_function_body = False
+            brace_count = 0
+            in_class = False
+            class_indent = 0
+            
+            # First, check if we're inside a class
+            for j in range(max(0, i - 50), i):
+                prev_line = lines[j]
+                # Check for class declaration
+                if re.match(r'^(\s*)(class|object|interface|enum class|data class|sealed class)\s+\w+', prev_line):
+                    class_indent = len(re.match(r'^(\s*)', prev_line).group(1))
+                    in_class = True
+                    break
+            
+            # Then check if we're inside a function
+            for j in range(max(0, i - 30), i):
+                prev_line = lines[j]
+                # Count braces to track nesting
+                brace_count += prev_line.count('{') - prev_line.count('}')
+                # Check if we found a function declaration
+                if re.match(r'^\s*(public\s+)?(suspend\s+)?(private\s+)?(internal\s+)?fun\s+\w+', prev_line.strip()):
+                    # Found function, check if we're inside its body
+                    if '{' in prev_line or any('{' in lines[k] for k in range(j + 1, min(len(lines), j + 5))):
+                        is_inside_function_body = True
+                        break
+                # Also check for lambda or block
+                if prev_line.strip().endswith('{') or prev_line.strip().endswith('->'):
+                    is_inside_function_body = True
+            
+            # Remove public from local variables inside functions (but keep for class properties)
+            current_indent = len(re.match(r'^(\s*)', line).group(1)) if re.match(r'^\s*', line) else 0
+            # If we're inside a function AND the indent is deeper than class level, it's a local variable
+            if is_inside_function_body and re.match(r'^\s+public\s+(var|val)\s+\w+', line):
+                # Only remove if it's clearly inside a function body (indented more than class)
+                if in_class and current_indent > class_indent + 4:
+                    new_line = re.sub(r'^(\s+)public\s+(var|val)', r'\1\2', line)
+                    fixed = True
+                elif not in_class:
+                    # Not in a class, definitely a local variable
+                    new_line = re.sub(r'^(\s+)public\s+(var|val)', r'\1\2', line)
+                    fixed = True
+            
+            # Also remove stray "public" at the end of lines (fix for broken formatting)
+            # Pattern: "value" public or value public
+            if re.search(r'["\']\s*public\s*$', new_line.rstrip()) or re.search(r'\w+\s+public\s*$', new_line.rstrip()):
+                new_line = re.sub(r'\s+public\s*$', '', new_line.rstrip()) + '\n'
+                fixed = True
+            
+            # Fix: Split multiple statements on the same line
+            # Pattern: val x = y        when/return/val/etc or public var x = 0        public var y = 0
+            # Also handle: var x = 0        logFiles.forEach or var x = 0        try {
+            # EXCEPTION: Don't split if it's a string continuation or method chaining
+            # Pattern to detect: val x = "value"            x.method() - this should be split
+            # But: val x = value.method() - this should NOT be split
+            if re.search(r'[=:]\s+[^=:]*\s{4,}(when|return|val|var|if|for|while|public|try|catch|finally|[a-z]\w+\.)', new_line):
+                # Check if it's a continuation pattern (variable name followed by method call)
+                # Pattern: val name = value            name.method()
+                continuation_match = re.search(r'(\w+)\s*[=:]\s+[^=:]*\s{4,}(\1\.)', new_line)
+                if continuation_match:
+                    # This is a continuation, split it
+                    var_name = continuation_match.group(1)
+                    # Split by 4+ spaces before the variable name followed by dot
+                    parts = re.split(rf'(\s{{4,}})(?={re.escape(var_name)}\.)', new_line)
+                else:
+                    # Split by 4+ spaces followed by a keyword, public, try/catch, or method call
+                    parts = re.split(r'(\s{4,})(?=(?:when|return|public\s+(?:val|var)|val|var|if|for|while|try|catch|finally)\s)', new_line)
+                    # If that didn't work, try splitting by 4+ spaces before any word (method calls, etc)
+                    if len(parts) == 1:
+                        parts = re.split(r'(\s{4,})(?=[a-zA-Z])', new_line)
+                
+                if len(parts) > 1:
+                    indent = re.match(r'^(\s*)', new_line).group(1) if re.match(r'^\s*', new_line) else ''
+                    new_statements = []
+                    current_statement = parts[0].rstrip()
+                    for idx in range(1, len(parts), 2):
+                        if idx + 1 < len(parts):
+                            next_statement = parts[idx + 1].strip()
+                            if next_statement:
+                                # Remove public from local variables
+                                if is_inside_function_body and next_statement.startswith('public '):
+                                    next_statement = next_statement.replace('public ', '', 1)
+                                new_statements.append(f"{indent}{current_statement}")
+                                current_statement = next_statement
+                    if current_statement:
+                        # Remove public from local variables
+                        if is_inside_function_body and current_statement.startswith('public '):
+                            current_statement = current_statement.replace('public ', '', 1)
+                        new_statements.append(f"{indent}{current_statement}")
+                    if len(new_statements) > 1:
+                        new_line = '\n'.join(new_statements) + '\n'
+                        fixed = True
+            
+            # Fix 1: Add public to top-level functions
+            if re.match(r'^\s*fun\s+\w+', line):
+                if not re.search(r'\b(public|private|internal|protected)\s+fun', line):
+                    new_line = re.sub(r'^(\s*)fun', r'\1public fun', new_line)
+                    fixed = True
+            
+            # Fix 2: Add public to top-level classes/objects/interfaces
+            if re.match(r'^\s*(class|object|interface|enum class|data class|sealed class|sealed interface)\s+\w+', line):
+                if not re.search(r'\b(public|private|internal|protected)\s+(class|object|interface|enum class|data class|sealed class|sealed interface)', line):
+                    new_line = re.sub(
+                        r'^(\s*)(class|object|interface|enum class|data class|sealed class|sealed interface)',
+                        r'\1public \2',
+                        new_line
+                    )
+                    fixed = True
+            
+            # Fix 3: Add public to companion objects
+            if re.match(r'^\s*companion\s+object', line):
+                if not re.search(r'\b(public|private|internal|protected)\s+companion', line):
+                    new_line = re.sub(r'^(\s*)companion', r'\1public companion', new_line)
+                    fixed = True
+            
+            # Fix 4: Split multiple const val declarations on the same line
+            # Pattern: public const val NAME1 = "value1"        public const val NAME2 = "value2"
+            # EXCEPTION: Only split if there are actually multiple const val on the same line
+            if re.search(r'public\s+const\s+val.*public\s+const\s+val', line):
+                # Split by multiple spaces (4+) followed by "public const val"
+                indent = re.match(r'^(\s*)', line).group(1) if re.match(r'^\s*', line) else ''
+                # Split by 4+ spaces before "public const val"
+                parts = re.split(r'\s{4,}(?=public\s+const\s+val)', line)
+                
+                if len(parts) > 1:
+                    new_const_lines = []
+                    for part in parts:
+                        part = part.strip()
+                        if part.startswith('public const val'):
+                            new_const_lines.append(f"{indent}{part}")
+                        elif part and not part.startswith('public'):
+                            # This might be closing brace or other content
+                            if new_const_lines:
+                                # Append to last line if it's just closing brace
+                                if part.strip() == '}':
+                                    new_const_lines[-1] += f" {part}"
+                                else:
+                                    new_const_lines.append(f"{indent}{part}")
+                            else:
+                                new_const_lines.append(f"{indent}{part}")
+                    
+                    if len(new_const_lines) > 1:
+                        new_line = '\n'.join(new_const_lines)
+                        if not new_line.endswith('\n'):
+                            new_line += '\n'
+                        fixed = True
+            
+            # Fix 4a: Add public to const val and return type (only if not already split)
+            if re.match(r'^\s*(public\s+)?const\s+val', new_line) and 'public const val' not in new_line.split('\n')[0]:
+                # Add public if missing
+                if not re.search(r'\b(public|private|internal|protected)\s+const', new_line):
+                    new_line = re.sub(r'^(\s*)const', r'\1public const', new_line)
+                    fixed = True
+                
+                # Add return type if missing (e.g., const val NAME = "value" -> const val NAME: String = "value")
+                # Handle both "const val" and "public const val"
+                if ': ' not in new_line and '=' in new_line:
+                    # Extract name and value - handle both with and without public
+                    match = re.match(r'^(\s*(?:public\s+)?const\s+val\s+)(\w+)(\s*=\s*)(.+)$', new_line)
+                    if match:
+                        prefix, name, equals, value = match.groups()
+                        # Try to infer type from value
+                        value_stripped = value.strip().rstrip('\n').rstrip(')').rstrip('(')
+                        
+                        # Check for Long (ends with L)
+                        if value_stripped.upper().endswith('L') or value_stripped.upper().endswith('L)'):
+                            type_name = "Long"
+                        # Check for String
+                        elif value_stripped.startswith('"') or value_stripped.startswith("'"):
+                            type_name = "String"
+                        # Check for Boolean
+                        elif value_stripped.lower() in ('true', 'false'):
+                            type_name = "Boolean"
+                        # Check for numeric types
+                        elif re.match(r'^-?\d+\.?\d*', value_stripped):
+                            if '.' in value_stripped:
+                                type_name = "Float" if 'f' in value_stripped.lower() else "Double"
+                            else:
+                                type_name = "Int"
+                        else:
+                            type_name = None
+                        
+                        if type_name:
+                            new_line = f"{prefix}{name}: {type_name}{equals}{value}"
+                            fixed = True
+            
+            # Fix 5: Add public to var/val properties inside classes (indented, but not private/internal)
+            # BUT: Skip if it's inside a function body - use is_inside_function_body from above
+            # EXCEPTION: Never add public to local variables inside functions
+            if re.match(r'^\s+(public\s+)?(var|val)\s+\w+', line) and not is_inside_function_body:
+                # Remove public from local variables inside functions
+                if is_inside_function and re.search(r'\bpublic\s+(var|val)', line):
+                    new_line = re.sub(r'\bpublic\s+(var|val)', r'\1', new_line)
+                    fixed = True
+                # Add public if missing (only for class members, not local variables)
+                elif not re.search(r'\b(public|private|internal|protected)\s+(var|val)', line):
+                    # Only add public if it's not already private/internal
+                    if not re.search(r'\b(private|internal)\s+(var|val)', line):
+                        # Check if it's a class member (indented) or top-level
+                        indent_match = re.match(r'^(\s+)(var|val)', line)
+                        if indent_match:
+                            indent = indent_match.group(1)
+                            new_line = re.sub(r'^(\s+)(var|val)', r'\1public \2', new_line)
+                            fixed = True
+                
+                # Add return type if missing for public properties
+                if re.search(r'\bpublic\s+(var|val)', new_line) and ': ' not in new_line and '=' in new_line:
+                    # Pattern: public var/val name = value
+                    match = re.match(r'^(\s+public\s+(?:lateinit\s+)?(?:@\w+\s+)?(?:@\w+\([^)]+\)\s+)?)(var|val)\s+(\w+)(\s*=\s*)(.+)$', new_line)
+                    if match:
+                        prefix, var_or_val, name, equals, value = match.groups()
+                        value_stripped = value.strip().rstrip('\n')
+                        
+                        # Try to infer type
+                        if value_stripped.upper().endswith('L'):
+                            type_name = "Long"
+                        elif value_stripped.startswith('"') or value_stripped.startswith("'"):
+                            type_name = "String"
+                        elif value_stripped.lower() in ('true', 'false'):
+                            type_name = "Boolean"
+                        elif re.match(r'^-?\d+\.?\d*', value_stripped):
+                            if '.' in value_stripped:
+                                type_name = "Float" if 'f' in value_stripped.lower() else "Double"
+                            else:
+                                type_name = "Int"
+                        else:
+                            type_name = None
+                        
+                        if type_name:
+                            new_line = f"{prefix}{var_or_val} {name}: {type_name}{equals}{value}"
+                            fixed = True
+            
+            # Fix 6: Add public to functions inside classes (indented, but not private/internal)
+            if re.match(r'^\s+fun\s+\w+', line):
+                if not re.search(r'\b(public|private|internal|protected)\s+fun', line):
+                    # Only add public if it's not already private/internal
+                    if not re.search(r'\b(private|internal)\s+fun', line):
+                        new_line = re.sub(r'^(\s+)fun', r'\1public fun', new_line)
+                        fixed = True
+            
+            # Fix 7: Add return type : Unit to functions ending with {
+            if re.match(r'^(\s*(public\s+)?fun\s+\w+.*\))\s*{\s*$', line.rstrip()):
+                if ': Unit' not in line and ': ' not in line:
+                    new_line = re.sub(r'(\s*)\{\s*$', r'\1: Unit {', line.rstrip()) + '\n'
+                    fixed = True
+            
+            # Fix 8: Add return type to expression body functions (simple cases)
+            if re.match(r'^(\s*(public\s+)?fun\s+\w+.*\))\s*=\s*run\s*{', line):
+                if ': Unit' not in line and ': ' not in line:
+                    new_line = re.sub(r'\)\s*=\s*run\s*{', r') : Unit = run {', new_line)
+                    fixed = True
+            
+            # Fix 9: Add return type to simple expression functions
+            # Pattern: fun name(...) = expression (where expression is simple)
+            if re.match(r'^(\s*(public\s+)?fun\s+\w+.*\))\s*=\s*[^=]+$', line.rstrip()):
+                if ': ' not in line and not re.search(r':\s*(Boolean|Int|Long|String|Float|Double|Unit|List|Map|Set)', line):
+                    # Try to infer type from expression
+                    expr = line.split('=')[1].strip() if '=' in line else ''
+                    if expr.startswith('run') or expr.startswith('if') or expr.startswith('when'):
+                        new_line = re.sub(r'\)\s*=\s*', r') : Unit = ', new_line)
+                        fixed = True
+            
+            # Fix 10: Add return type to property getters
+            # Pattern: val/var name: Type get() = ...
+            if re.match(r'^\s+(val|var)\s+\w+.*get\(\)\s*=', line):
+                if ': ' not in line.split('get()')[0]:
+                    # Try to infer from context or add Unit
+                    new_line = re.sub(r'(get\(\)\s*=\s*)', r'get(): Unit = ', new_line)
+                    fixed = True
+            
+            # Fix 11: Add return type to extension functions
+            # Pattern: fun Type.name(...) = ...
+            if re.match(r'^\s*(public\s+)?fun\s+\w+\.\w+', line):
+                if not re.search(r'\b(public|private|internal|protected)\s+fun', line):
+                    new_line = re.sub(r'^(\s*)fun', r'\1public fun', new_line)
+                    fixed = True
+                # Add return type if missing
+                if ': ' not in line and '=' in line:
+                    expr = line.split('=')[1].strip() if '=' in line else ''
+                    if expr.startswith('run') or expr.startswith('if') or expr.startswith('when') or expr.startswith('{'):
+                        new_line = re.sub(r'\)\s*=\s*', r') : Unit = ', new_line)
+                        fixed = True
+            
+            new_lines.append(new_line)
+        
+        if fixed:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(new_lines)
+            backup_path.unlink()  # Remove backup if successful
+            return True
+        else:
+            # Restore backup if no changes
+            backup_path.rename(file_path)
+            return False
+    
+    except Exception as e:
+        print(f"❌ Error fixing {file_path}: {e}")
+        # Restore backup on error
+        if backup_path.exists():
+            backup_path.rename(file_path)
+        return False
+
+
+def main():
+    """Main function."""
+    violations = collect_violations()
+    
+    if not violations:
+        print("✨ No violations found!")
+        return
+    
+    print(f"\n🔧 Processing {len(violations)} files...\n")
+    
+    total_fixed = 0
+    skipped = 0
+    for file_path_str, line_nums in violations.items():
+        file_path = SRC_DIR / file_path_str
+        try:
+            if fix_file(file_path):
+                print(f"  ✅ Fixed: {file_path_str} ({len(line_nums)} violations)")
+                total_fixed += 1
+            else:
+                print(f"  ⚠️  Skipped (may need manual fix): {file_path_str} ({len(line_nums)} violations)")
+                skipped += 1
+        except Exception as e:
+            print(f"  ❌ Error processing {file_path_str}: {e}")
+            skipped += 1
+    
+    print(f"\n✨ Fixed {total_fixed} files")
+    if skipped > 0:
+        print(f"⚠️  Skipped {skipped} files (may need manual fixes)")
+    
+    # Check remaining errors
+    print("\n🧪 Checking remaining violations...")
+    remaining = collect_violations()
+    remaining_count = sum(len(lines) for lines in remaining.values())
+    
+    print(f"📊 Remaining violations: {remaining_count} in {len(remaining)} files")
+    
+    if remaining_count == 0:
+        print("🎉 All Explicit API violations fixed!")
+    else:
+        print(f"⚠️  {remaining_count} violations remain. Run the script again or fix manually.")
+        if remaining_count < 100:
+            print("\n📋 Files with remaining violations:")
+            for file_path_str, line_nums in sorted(remaining.items())[:20]:
+                print(f"  - {file_path_str}: {len(line_nums)} violations")
+
+
+if __name__ == "__main__":
+    main()

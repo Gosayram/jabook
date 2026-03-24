@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ import kotlin.math.pow
  *   - If level > -16 LUFS (loud): apply soft limiter
  * - Smooth gain changes (slew rate: 0.5 dB/s) to avoid artifacts
  */
-@OptIn(UnstableApi::class)
-class AutoVolumeLeveler : AudioProcessor {
+@UnstableApi
+public class AutoVolumeLeveler : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
     private var outputAudioFormat: AudioProcessor.AudioFormat? = null
     private var isActive = false
@@ -281,7 +281,7 @@ class AutoVolumeLeveler : AudioProcessor {
         isActive = false
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

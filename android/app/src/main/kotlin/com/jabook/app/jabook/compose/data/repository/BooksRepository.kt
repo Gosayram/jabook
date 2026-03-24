@@ -1,0 +1,151 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose.data.repository
+
+import com.jabook.app.jabook.compose.data.model.BookSortOrder
+import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.Chapter
+import kotlinx.coroutines.flow.Flow
+
+/**
+ * Repository interface for books data.
+ *
+ * Follows the Repository pattern from Android Architecture Components.
+ * Provides a clean API for data access to ViewModels.
+ */
+public interface BooksRepository {
+    /**
+     * Get all books as a Flow.
+     * The Flow will emit whenever the underlying data changes.
+     */
+    public fun getAllBooks(sortOrder: BookSortOrder = BookSortOrder.BY_ACTIVITY): Flow<List<Book>>
+
+    /**
+     * Get a single book by ID.
+     * Returns null if the book doesn't exist.
+     */
+    public fun getBook(bookId: String): Flow<Book?>
+
+    /**
+     * Get chapters for a specific book.
+     */
+    public fun getChapters(bookId: String): Flow<List<Chapter>>
+
+    /**
+     * Search books by title or author.
+     */
+    public fun searchBooks(query: String): Flow<List<Book>>
+
+    /**
+     * Add a new book with its chapters.
+     */
+    public suspend fun addBook(book: Book)
+
+    /**
+     * Add multiple books with their chapters efficiently.
+     */
+    public suspend fun addBooks(booksWithChapters: List<Pair<Book, List<Chapter>>>)
+
+    /**
+     * Update an existing book.
+     */
+    public suspend fun updateBook(book: Book)
+
+    /**
+     * Update playback position for a book.
+     */
+    public suspend fun updatePlaybackPosition(
+        bookId: String,
+        position: Long,
+        chapterIndex: Int,
+    )
+
+    /**
+     * Update download progress for a book.
+     */
+    public suspend fun updateDownloadProgress(
+        bookId: String,
+        progress: Float,
+        isComplete: Boolean,
+    )
+
+    /**
+     * Delete a book.
+     */
+    public suspend fun deleteBook(bookId: String)
+
+    /**
+     * Refresh books from remote source (if applicable).
+     * For now, this is a no-op as books are managed locally.
+     */
+    public suspend fun refresh()
+
+    /**
+     * Update per-book playback settings (seek intervals).
+     */
+    public suspend fun updateBookSettings(
+        bookId: String,
+        rewindDuration: Int?,
+        forwardDuration: Int?,
+    )
+
+    /**
+     * Reset all per-book playback settings to global defaults.
+     */
+    public suspend fun resetAllBookSettings()
+
+    /**
+     * Get allowed scan paths.
+     */
+    public fun getScanPaths(): Flow<List<String>>
+
+    /**
+     * Get real-time progress of library scanning.
+     */
+    public fun getScanProgress(): Flow<com.jabook.app.jabook.compose.data.model.ScanProgress>
+
+    /**
+     * Add a directory to the scan paths.
+     */
+    public suspend fun addScanPath(path: String)
+
+    /**
+     * Remove a directory from the scan paths.
+     */
+    public suspend fun removeScanPath(path: String)
+
+    /**
+     * Normalize chapter titles for all books in the library.
+     * E.g. "01 - Chapter" -> "Chapter 1", preserving "Prologue" etc.
+     */
+    public suspend fun normalizeAllChapters()
+
+    /**
+     * Update the order of chapters for a specific book.
+     * @param bookId The ID of the book.
+     * @param newOrderedIds List of chapter IDs in the desired order.
+     */
+    public suspend fun updateChapterOrder(
+        bookId: String,
+        newOrderedIds: List<String>,
+    )
+
+    /**
+     * Checks if a book exists by its source URL.
+     */
+    public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?>
+
+    public suspend fun getBookBySourceUrl(sourceUrl: String): Book?
+}

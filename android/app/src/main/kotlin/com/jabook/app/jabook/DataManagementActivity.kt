@@ -1,3 +1,17 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package com.jabook.app.jabook
 
 import android.content.Intent
@@ -9,6 +23,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.ComposeMainActivity
 import java.io.File
 
 /**
@@ -20,7 +36,7 @@ import java.io.File
  *
  * The activity shows storage information and allows clearing cache.
  */
-class DataManagementActivity : AppCompatActivity() {
+public class DataManagementActivity : AppCompatActivity() {
     private lateinit var cacheSizeText: TextView
     private lateinit var dataSizeText: TextView
     private lateinit var totalSizeText: TextView
@@ -49,7 +65,7 @@ class DataManagementActivity : AppCompatActivity() {
         }
 
         openAppButton.setOnClickListener {
-            val intent = Intent(this, MainActivity::class.java)
+            val intent = Intent(this, ComposeMainActivity::class.java)
             startActivity(intent)
             finish()
         }
@@ -74,9 +90,9 @@ class DataManagementActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 android.util.Log.e("DataManagementActivity", "Error loading storage info", e)
                 runOnUiThread {
-                    cacheSizeText.text = "Cache: Error"
-                    dataSizeText.text = "Data: Error"
-                    totalSizeText.text = "Total: Error"
+                    cacheSizeText.text = getString(R.string.cacheError)
+                    dataSizeText.text = getString(R.string.dataError)
+                    totalSizeText.text = getString(R.string.totalError)
                     progressBar.visibility = View.GONE
                 }
             }
@@ -173,11 +189,11 @@ class DataManagementActivity : AppCompatActivity() {
     private fun showClearCacheDialog() {
         AlertDialog
             .Builder(this)
-            .setTitle("Clear Cache")
-            .setMessage("This will clear all cached data. Downloaded audiobooks will not be affected. Continue?")
-            .setPositiveButton("Clear") { _, _ ->
+            .setTitle(getString(R.string.clearCache))
+            .setMessage(getString(R.string.thisWillClearAllCachedDataDownloadedAudiobooksWill))
+            .setPositiveButton(getString(R.string.clearButton)) { _, _ ->
                 clearCache()
-            }.setNegativeButton("Cancel", null)
+            }.setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
@@ -213,7 +229,7 @@ class DataManagementActivity : AppCompatActivity() {
                     Toast
                         .makeText(
                             this@DataManagementActivity,
-                            "Cache cleared: $clearedSizeFormatted",
+                            getString(R.string.cacheClearedSuccessMessage),
                             Toast.LENGTH_SHORT,
                         ).show()
 

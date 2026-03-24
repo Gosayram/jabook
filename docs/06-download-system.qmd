@@ -1,0 +1,378 @@
+---
+title: "Система загрузок"
+format: html
+---
+
+# Система загрузок
+
+State diagrams и flow diagrams для Download Engine.
+
+## 1. Download Service Lifecycle
+
+```{mermaid}
+%%| label: fig-01
+%%| fig-cap: "Diagram 1"
+stateDiagram-v2
+    [*] --> NotStarted
+    
+    NotStarted --> Starting: startForeground()
+    Starting --> Running: Service started
+    
+    state Running {
+        [*] --> Idle
+        Idle --> Processing: Download added
+        Processing --> Idle: Queue empty
+        
+        state Processing {
+            [*] --> CheckingQueue
+            CheckingQueue --> StartingDownload: Has downloads
+            StartingDownload --> Downloading: Torrent added
+            Downloading --> CheckingQueue: Download complete/failed
+        }
+    }
+    
+    Running --> Stopping: All downloads complete
+    Stopping --> Stopped: onDestroy()
+    Stopped --> [*]
+```
+
+## 2. Single Download State Machine
+
+```{mermaid}
+%%| label: fig-02
+%%| fig-cap: "Diagram 2"
+stateDiagram-v2
+    [*] --> Queued
+    
+    Queued --> Checking: Worker started
+    Checking --> Downloading: Magnet valid
+    Checking --> Failed: Invalid magnet
+    
+    state Downloading {
+        [*] --> Connecting
+        Connecting --> FetchingMetadata: Peers found
+        Connecting --> Retrying: No peers (attempt < 3)
+        
+        FetchingMetadata --> Transferring: Metadata received
+        
+        state Transferring {
+            [*] --> Active
+            Active --> Active: Progress update
+            Active --> Seeding: 100% complete
+        }
+        
+        Transferring --> Paused: Network lost
+        Paused --> Transferring: Network restored
+    }
+    
+    Downloading --> Failed: Max retries
+    Downloading --> Cancelled: User cancelled
+    
+    state Downloading {
+        Seeding --> Finalizing: Torrent complete
+        Finalizing --> [*]: Files verified
+    }
+    
+    Downloading --> Completed: Success
+    Completed --> [*]
+    Failed --> [*]
+    Cancelled --> [*]
+```
+
+## 3. Queue Management
+
+```{mermaid}
+%%| label: fig-03
+%%| fig-cap: "Diagram 3"
+stateDiagram-v2
+    [*] --> Empty
+    
+    Empty --> HasItems: Item added
+    
+    state HasItems {
+        [*] --> Checking
+        Checking --> BelowLimit: Active < 3
+        Checking --> AtLimit: Active >= 3
+        
+        BelowLimit --> Starting: Start next
+        Starting --> BelowLimit: Started
+        
+        AtLimit --> Waiting: Queue item
+        Waiting --> BelowLimit: Download completed
+    }
+    
+    HasItems --> Empty: All items removed
+```
+
+## 4. Download Flow Diagram
+
+```{mermaid}
+%%| label: fig-04
+%%| fig-cap: "Diagram 4"
+graph TB
+    Start([User clicks magnet link]) --> Intent[ComposeMainActivity<br/>handleMagnetLink]
+    
+    Intent --> Validate{Valid<br/>magnet?}
+    Validate -->|No| Error[Show error]
+    Validate -->|Yes| StartService[Start DownloadForegroundService]
+    
+    StartService --> Queue[DownloadQueueManager<br/>enqueue]
+    
+    Queue --> CheckLimit{Active<br/>< 3?}
+    CheckLimit -->|No| Wait[Add to pending queue]
+    CheckLimit -->|Yes| Schedule[Schedule DownloadWorker]
+    
+    Schedule --> Worker[DownloadWorker<br/>doWork]
+    
+    Worker --> Torrent[TorrentManager<br/>addTorrent]
+    Torrent --> Download[LibTorrent<br/>Download]
+    
+    Download --> Progress{Progress<br/>Loop}
+    Progress --> UpdateNotif[Update Notification]
+    Progress --> UpdateDB[Update Room DB]
+    Progress --> Complete{100%?}
+    
+    Complete -->|No| Progress
+    Complete -->|Yes| Save[Save to File System]
+    
+    Save --> Notify[Show completed notification]
+    Notify --> AddBook[Add to library]
+    AddBook --> End([Success])
+    
+    Wait -.Active download completed.-> Schedule
+    
+    Error --> End
+    
+    style Start fill:#e3f2fd
+    style End fill:#c8e6c9
+    style Download fill:#fff3e0
+```
+
+## 5. WorkManager Integration
+
+```{mermaid}
+%%| label: fig-05
+%%| fig-cap: "Diagram 5"
+stateDiagram-v2
+    [*] --> Enqueued
+    
+    Enqueued --> Running: Constraints met
+    Enqueued --> Blocked: Constraints not met
+    
+    state Running {
+        [*] --> Executing
+        Executing --> UpdatingProgress: Progress update
+        UpdatingProgress --> Executing: Continue
+        Executing --> [*]: Work complete
+    }
+    
+    Blocked --> Running: Constraints met
+    Blocked --> Cancelled: Timeout/User cancel
+    
+    Running --> Succeeded: Result.success()
+    Running --> Failed: Result.failure()
+    Running --> Retry: Result.retry()
+    
+    Retry --> Enqueued: Backoff delay
+    
+    Failed --> [*]
+    Succeeded --> [*]
+    Cancelled --> [*]
+    
+    state Constraints {
+        Network: Wi-Fi preferred
+        Battery: > 15%
+        Storage: Sufficient space
+    }
+```
+
+## 6. Torrent Session States
+
+```{mermaid}
+%%| label: fig-06
+%%| fig-cap: "Diagram 6"
+stateDiagram-v2
+    [*] --> NotInitialized
+    
+    NotInitialized --> Initializing: TorrentManager created
+    Initializing --> Active: Session started
+    
+    state Active {
+        [*] --> CheckingDHT
+        CheckingDHT --> DHTReady: DHT bootstrapped
+        
+        state DHTReady {
+            [*] --> Idle
+            Idle --> HasTorrents: Torrent added
+            HasTorrents --> Idle: All torrents removed
+            
+            state HasTorrents {
+                [*] --> Downloading
+                Downloading --> Seeding: Download complete
+                Seeding --> Downloading: New torrent
+            }
+        }
+    }
+    
+    Active --> Pausing: pauseSession()
+    Pausing --> Paused: Session paused
+    Paused --> Active: resumeSession()
+    
+    Active --> Destroying: destroy()
+    Paused --> Destroying: destroy()
+    Destroying --> [*]
+```
+
+## 7. Notification States for Downloads
+
+```{mermaid}
+%%| label: fig-07
+%%| fig-cap: "Diagram 7"
+stateDiagram-v2
+    [*] --> NoDownloads
+    
+    NoDownloads --> ShowingProgress: Download started
+    
+    state ShowingProgress {
+        [*] --> Connecting
+        Connecting --> Downloading: Connected
+        Downloading --> Downloading: Progress update (every 1s)
+        Downloading --> Paused: Paused
+        Paused --> Downloading: Resumed
+    }
+    
+    ShowingProgress --> ShowingCompleted: Download finished
+    ShowingProgress --> ShowingError: Download failed
+    ShowingProgress --> Dismissed: User cancelled
+    
+    ShowingCompleted --> NoDownloads: Auto-dismiss (5s)
+    ShowingError --> NoDownloads: User dismissed
+    Dismissed --> NoDownloads
+```
+
+## 8. Error Handling Flow
+
+```{mermaid}
+%%| label: fig-08
+%%| fig-cap: "Diagram 8"
+graph TB
+    Error[Error Occurred] --> Type{Error Type}
+    
+    Type -->|Network Error| NetErr[Network Error]
+    Type -->|Storage Full| StorageErr[Storage Error]
+    Type -->|Invalid Magnet| MagnetErr[Magnet Error]
+    Type -->|Torrent Error| TorrentErr[Torrent Error]
+    
+    NetErr --> CheckRetry{Retry<br/>count < 3?}
+    CheckRetry -->|Yes| Wait[Exponential backoff]
+    Wait --> Retry[Retry download]
+    CheckRetry -->|No| Failed[Mark as FAILED]
+    
+    StorageErr --> Notify1[Show notification]
+    Notify1 --> Cancel[Cancel download]
+    
+    MagnetErr --> Validate[Invalid magnet URI]
+    Validate --> Notify2[Show error notification]
+    Notify2 --> Failed
+    
+    TorrentErr --> CheckRetry
+    
+    Failed --> UpdateDB[Update status in DB]
+    Cancel --> UpdateDB
+    Retry --> Resume[Resume download]
+    
+    style Error fill:#ffcdd2
+    style Failed fill:#ef5350
+    style Resume fill:#c8e6c9
+```
+
+## Component Relationships
+
+### DownloadForegroundService
+
+**Responsibilities:**
+
+- Maintain foreground status podczas active downloads
+- Display progress notification
+- Coordinate queue manager and workers
+
+**Lifecycle:**
+
+- Created when first download starts
+- Stopped when all downloads complete or cancelled
+
+### TorrentManager
+
+**Responsibilities:**
+-Wrapper around LibTorrent4j
+
+- Session management (DHT, trackers)
+- Progress tracking via AlertListener
+- Settings configuration
+
+**Key Methods:**
+
+```kotlin
+fun addTorrent(magnetUri: String, savePath: String): String
+fun removeTorrent(downloadId: String)
+fun pauseTorrent(downloadId: String)
+fun resumeTorrent(downloadId: String)
+fun getProgress(downloadId: String): DownloadProgress
+```
+
+### DownloadQueueManager
+
+**Responsibilities:**
+
+- Limit concurrent downloads (max 3)
+- Queue management (FIFO)
+- Retry logic
+- Persistence in Room
+
+**States:**
+
+- `QUEUED`: Waiting in queue
+- `ACTIVE`: Currently downloading
+- `PAUSED`: User paused or network lost
+- `COMPLETED`: Successfully finished
+- `FAILED`: Failed after retries
+- `CANCELLED`: User cancelled
+
+### DownloadWorker
+
+**Responsibilities:**
+
+- Background execution via WorkManager
+- Constraints checking (network, battery)
+- Progress reporting
+- Error handling and retry
+
+**Constraints:**
+
+```kotlin
+Constraints(
+    requiredNetworkType = CONNECTED,
+    requiresBatteryNotLow = true,
+    requiresStorageNotLow = true
+)
+```
+
+### DownloadRepository
+
+**Responsibilities:**
+
+- Abstract data access for downloads
+- Observe download states via Flow
+- WorkManager orchestration
+
+**Interface:**
+
+```kotlin
+interface DownloadRepository {
+    fun getDownloads(): Flow<List<Download>>
+    suspend fun addDownload(download: Download)
+    suspend fun cancelDownload(id: String)
+    suspend fun pauseDownload(id: String)
+    suspend fun resumeDownload(id: String)
+}
+```

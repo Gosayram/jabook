@@ -28,7 +28,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 OUTPUT_FILE="${1:-${REPO_ROOT}/CHANGELOG.md}"
 
 # Get repository URL for links
-REPO_URL=$(git -C "${REPO_ROOT}" remote get-url origin 2>/dev/null || echo "https://github.com/jabook/jabook")
+REPO_URL=$(git -C "${REPO_ROOT}" remote get-url origin 2>/dev/null || echo "https://github.com/Gosayram/jabook")
 # Convert SSH URL to HTTPS if needed
 if [[ "${REPO_URL}" =~ ^git@ ]]; then
     # Convert git@github.com:user/repo.git to https://github.com/user/repo
@@ -167,7 +167,71 @@ clean_commit_message() {
     fi
     # Remove trailing period if present
     msg=$(echo "$msg" | sed 's/\.$//')
+    
     echo "$msg"
+}
+
+# Function to wrap long line for markdown output
+wrap_long_line() {
+    local msg="$1"
+    local max_len=200
+    
+    # If message is short enough, return as-is
+    if (( ${#msg} <= max_len )); then
+        echo "- ${msg}"
+        return
+    fi
+    
+    # Wrap long lines with proper markdown continuation (2-space indent)
+    local result="- "
+    local remaining="$msg"
+    local first_line=true
+    
+    while (( ${#remaining} > 0 )); do
+        local available=$((max_len - 2))  # Account for "- " prefix
+        if [ "$first_line" != true ]; then
+            available=$((max_len - 2))  # Account for "  " continuation indent
+        fi
+        
+        if (( ${#remaining} <= available )); then
+            # Last chunk
+            if [ "$first_line" = true ]; then
+                result="${result}${remaining}"
+            else
+                result="${result}"$'\n'"  ${remaining}"
+            fi
+            break
+        fi
+        
+        # Find last space before position for word boundary
+        local chunk="${remaining:0:$available}"
+        local last_space_pos
+        last_space_pos=$(echo "$chunk" | awk '{for(i=length($0);i>0;i--) if(substr($0,i,1)==" ") {print i; exit}}')
+        
+        if [ -n "$last_space_pos" ] && (( last_space_pos > available / 2 )); then
+            # Found a good break point
+            chunk="${remaining:0:$last_space_pos}"
+            remaining="${remaining:$last_space_pos}"
+            # Trim leading space from remaining
+            remaining=$(echo "$remaining" | sed 's/^[[:space:]]*//')
+        else
+            # No good break point, hard break
+            chunk="${remaining:0:$available}"
+            remaining="${remaining:$available}"
+        fi
+        
+        # Trim trailing spaces from chunk
+        chunk=$(echo "$chunk" | sed 's/[[:space:]]*$//')
+        
+        if [ "$first_line" = true ]; then
+            result="${result}${chunk}"
+            first_line=false
+        else
+            result="${result}"$'\n'"  ${chunk}"
+        fi
+    done
+    
+    echo "$result"
 }
 
 # Function to get commits between two refs
@@ -244,48 +308,54 @@ format_version_section() {
     # (Keep a Changelog standard order)
     if [ -s "$added_file" ]; then
         echo "### Added"
+        echo ""
         sort -u "$added_file" | while read -r item; do
-            echo "- ${item}"
+            wrap_long_line "$item"
         done
         echo ""
     fi
     
     if [ -s "$changed_file" ]; then
         echo "### Changed"
+        echo ""
         sort -u "$changed_file" | while read -r item; do
-            echo "- ${item}"
+            wrap_long_line "$item"
         done
         echo ""
     fi
     
     if [ -s "$deprecated_file" ]; then
         echo "### Deprecated"
+        echo ""
         sort -u "$deprecated_file" | while read -r item; do
-            echo "- ${item}"
+            wrap_long_line "$item"
         done
         echo ""
     fi
     
     if [ -s "$removed_file" ]; then
         echo "### Removed"
+        echo ""
         sort -u "$removed_file" | while read -r item; do
-            echo "- ${item}"
+            wrap_long_line "$item"
         done
         echo ""
     fi
     
     if [ -s "$fixed_file" ]; then
         echo "### Fixed"
+        echo ""
         sort -u "$fixed_file" | while read -r item; do
-            echo "- ${item}"
+            wrap_long_line "$item"
         done
         echo ""
     fi
     
     if [ -s "$security_file" ]; then
         echo "### Security"
+        echo ""
         sort -u "$security_file" | while read -r item; do
-            echo "- ${item}"
+            wrap_long_line "$item"
         done
         echo ""
     fi
@@ -395,48 +465,54 @@ EOF
             # Output unreleased sections
             if [ -s "$added_file" ]; then
                 echo "### Added"
+                echo ""
                 sort -u "$added_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$changed_file" ]; then
                 echo "### Changed"
+                echo ""
                 sort -u "$changed_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$deprecated_file" ]; then
                 echo "### Deprecated"
+                echo ""
                 sort -u "$deprecated_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$removed_file" ]; then
                 echo "### Removed"
+                echo ""
                 sort -u "$removed_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$fixed_file" ]; then
                 echo "### Fixed"
+                echo ""
                 sort -u "$fixed_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$security_file" ]; then
                 echo "### Security"
+                echo ""
                 sort -u "$security_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
@@ -504,48 +580,54 @@ EOF
             # Output unreleased sections
             if [ -s "$added_file" ]; then
                 echo "### Added"
+                echo ""
                 sort -u "$added_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$changed_file" ]; then
                 echo "### Changed"
+                echo ""
                 sort -u "$changed_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$deprecated_file" ]; then
                 echo "### Deprecated"
+                echo ""
                 sort -u "$deprecated_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$removed_file" ]; then
                 echo "### Removed"
+                echo ""
                 sort -u "$removed_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$fixed_file" ]; then
                 echo "### Fixed"
+                echo ""
                 sort -u "$fixed_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
             
             if [ -s "$security_file" ]; then
                 echo "### Security"
+                echo ""
                 sort -u "$security_file" | while read -r item; do
-                    echo "- ${item}"
+                    wrap_long_line "$item"
                 done
                 echo ""
             fi
@@ -616,7 +698,10 @@ EOF
             fi
         fi
     done
-    
 } > "${OUTPUT_FILE}"
+
+# Post-process: Remove multiple consecutive blank lines (fix MD012)
+# Use perl for better macOS compatibility
+perl -i -0pe 's/\n\n\n+/\n\n/g' "${OUTPUT_FILE}"
 
 echo "Generated CHANGELOG.md at ${OUTPUT_FILE}"

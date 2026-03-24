@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,8 +24,17 @@ import androidx.media3.common.util.UnstableApi
  * for ExoPlayer. Processors are applied in a specific order to ensure
  * optimal audio quality.
  */
-@OptIn(UnstableApi::class)
-object AudioProcessorFactory {
+@UnstableApi
+public object AudioProcessorFactory {
+    /**
+     * Result of creating a processor chain.
+     * Contains the list of processors and a reference to the LoudnessNormalizer if created.
+     */
+    public data class ProcessorChainResult(
+        val processors: List<AudioProcessor>,
+        val loudnessNormalizer: LoudnessNormalizer? = null,
+    )
+
     /**
      * Creates a chain of AudioProcessors based on the provided settings.
      *
@@ -37,10 +46,11 @@ object AudioProcessorFactory {
      * 5. AutoVolumeLeveler (if enabled) - maintains consistent volume
      *
      * @param settings Audio processing settings
-     * @return List of AudioProcessors to apply, or empty list if none enabled
+     * @return Result containing list of AudioProcessors and optional LoudnessNormalizer
      */
-    fun createProcessorChain(settings: AudioProcessingSettings): List<AudioProcessor> {
+    public fun createProcessorChain(settings: AudioProcessingSettings): ProcessorChainResult {
         val processors = mutableListOf<AudioProcessor>()
+        var loudnessNormalizer: LoudnessNormalizer? = null
 
         try {
             // 1. Loudness Normalization (applied first for baseline volume)
@@ -48,6 +58,7 @@ object AudioProcessorFactory {
                 try {
                     val normalizer = LoudnessNormalizer(settings)
                     processors.add(normalizer)
+                    loudnessNormalizer = normalizer
                     android.util.Log.d("AudioProcessorFactory", "Added LoudnessNormalizer to chain")
                 } catch (e: Exception) {
                     android.util.Log.e("AudioProcessorFactory", "Failed to create LoudnessNormalizer", e)
@@ -59,7 +70,10 @@ object AudioProcessorFactory {
                 try {
                     val boostProcessor = VolumeBoostProcessor(settings.volumeBoostLevel)
                     processors.add(boostProcessor)
-                    android.util.Log.d("AudioProcessorFactory", "Added VolumeBoostProcessor (${settings.volumeBoostLevel}) to chain")
+                    android.util.Log.d(
+                        "AudioProcessorFactory",
+                        "Added VolumeBoostProcessor (${settings.volumeBoostLevel}) to chain",
+                    )
                 } catch (e: Exception) {
                     android.util.Log.e("AudioProcessorFactory", "Failed to create VolumeBoostProcessor", e)
                 }
@@ -70,7 +84,10 @@ object AudioProcessorFactory {
                 try {
                     val compressor = DynamicRangeCompressor(settings.drcLevel)
                     processors.add(compressor)
-                    android.util.Log.d("AudioProcessorFactory", "Added DynamicRangeCompressor (${settings.drcLevel}) to chain")
+                    android.util.Log.d(
+                        "AudioProcessorFactory",
+                        "Added DynamicRangeCompressor (${settings.drcLevel}) to chain",
+                    )
                 } catch (e: Exception) {
                     android.util.Log.e("AudioProcessorFactory", "Failed to create DynamicRangeCompressor", e)
                 }
@@ -98,6 +115,22 @@ object AudioProcessorFactory {
                 }
             }
 
+            // 6. Skip Silence (applied at the very end to remove silent parts)
+            if (settings.skipSilence) {
+                try {
+                    val silenceSkippingProcessor =
+                        androidx.media3.exoplayer.audio
+                            .SilenceSkippingAudioProcessor()
+                    // Enable the processor immediately
+                    silenceSkippingProcessor.setEnabled(true)
+                    processors.add(silenceSkippingProcessor)
+
+                    android.util.Log.d("AudioProcessorFactory", "Added SilenceSkippingAudioProcessor to chain")
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioProcessorFactory", "Failed to create SilenceSkippingAudioProcessor", e)
+                }
+            }
+
             android.util.Log.i(
                 "AudioProcessorFactory",
                 "Created processor chain with ${processors.size} processors: " +
@@ -107,7 +140,7 @@ object AudioProcessorFactory {
             android.util.Log.e("AudioProcessorFactory", "Error creating processor chain", e)
         }
 
-        return processors
+        return ProcessorChainResult(processors, loudnessNormalizer)
     }
 }
 
@@ -117,24 +150,30 @@ object AudioProcessorFactory {
  * This class holds all settings needed to configure audio processors.
  * Settings can come from global AudioSettingsManager or book-specific BookAudioSettings.
  */
-data class AudioProcessingSettings(
+public data class AudioProcessingSettings(
     val normalizeVolume: Boolean = true,
     val volumeBoostLevel: VolumeBoostLevel = VolumeBoostLevel.Off,
     val drcLevel: DRCLevel = DRCLevel.Off,
     val speechEnhancer: Boolean = false,
     val autoVolumeLeveling: Boolean = false,
+    val skipSilence: Boolean = false,
+    val isCrossfadeEnabled: Boolean = false,
+    val crossfadeDurationMs: Long = 0L,
 ) {
-    companion object {
+    public companion object {
         /**
          * Creates default settings (all features disabled).
          */
-        fun defaults(): AudioProcessingSettings =
+        public fun defaults(): AudioProcessingSettings =
             AudioProcessingSettings(
                 normalizeVolume = true, // Enabled by default for consistent volume
                 volumeBoostLevel = VolumeBoostLevel.Off,
                 drcLevel = DRCLevel.Off,
                 speechEnhancer = false,
                 autoVolumeLeveling = false,
+                skipSilence = false,
+                isCrossfadeEnabled = false,
+                crossfadeDurationMs = 2000L,
             )
     }
 }
@@ -142,7 +181,7 @@ data class AudioProcessingSettings(
 /**
  * Volume boost level enum.
  */
-enum class VolumeBoostLevel {
+public enum class VolumeBoostLevel {
     Off,
     Boost50, // +50% gain
     Boost100, // +100% gain
@@ -153,7 +192,7 @@ enum class VolumeBoostLevel {
 /**
  * Dynamic Range Compression level enum.
  */
-enum class DRCLevel {
+public enum class DRCLevel {
     Off,
     Gentle, // Gentle compression for subtle effect
     Medium, // Medium compression for balanced effect

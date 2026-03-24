@@ -15,8 +15,8 @@ while IFS= read -r -d '' file; do
         # Check if year needs updating
         if ! grep -q "$NEW_COPYRIGHT" "$file" 2>/dev/null; then
             # Update copyright year (handle both // and # comment styles)
-            if [[ "$file" == *.dart ]]; then
-                # Dart files use // comments
+            if [[ "$file" == *.kt ]]; then
+                # Kotlin files use // comments
                 if [[ "$(uname)" == "Darwin" ]]; then
                     sed -i '' "s|// Copyright [0-9]\{4\} Jabook|// Copyright $CURRENT_YEAR Jabook|g" "$file"
                 else
@@ -34,14 +34,11 @@ while IFS= read -r -d '' file; do
             UPDATED=$((UPDATED + 1))
         fi
     fi
-done < <(find . -type f \( -name "*.dart" -o -name "*.sh" -o -name "*.yaml" -o -name "*.yml" -o -name "Dockerfile" -o -name "Makefile" \) \
-    -not -path "./.dart_tool/*" \
+done < <(find . -type f \( -name "*.kt" -o -name "*.sh" -o -name "*.yaml" -o -name "*.yml" -o -name "Dockerfile" -o -name "Makefile" \) \
     -not -path "./.git/*" \
     -not -path "./hack/*" \
     -not -path "./build/*" \
-    -not -path "./.flutter-plugins*" \
-    -not -path "./.packages" \
-    -not -path "./pubspec.lock" \
+    -not -path "./test_results/*" \
     -print0)
 
 if [ $UPDATED -eq 0 ]; then

@@ -1,0 +1,2603 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appTitle">JaBook</string>
+    <!-- Заголовок экрана поиска -->
+    <string name="searchAudiobooks">Поиск аудиокниг</string>
+    <!-- Текст-заполнитель для поля поиска -->
+    <string name="searchPlaceholder">Введите запрос</string>
+    <!-- Заголовок экрана библиотеки -->
+    <string name="libraryTitle">Библиотека</string>
+    <!-- Заголовок экрана плеера -->
+    <string name="playerTitle">Плеер</string>
+    <!-- Описание кнопки навигации назад -->
+    <string name="navigateBack">Назад</string>
+    <!-- Заголовок экрана настроек -->
+    <string name="settingsTitle">Настройки</string>
+    <!-- Заголовок экрана отладки -->
+    <string name="debugTitle">Отладка</string>
+    <!-- Заголовок экрана зеркал -->
+    <string name="mirrorsTitle">Зеркала</string>
+    <!-- Заголовок экрана топика -->
+    <string name="topicTitle">Топик</string>
+    <!-- Сообщение при отсутствии результатов поиска -->
+    <string name="noResults">Результатов не найдено</string>
+    <!-- Сообщение когда нет результатов соответствующих выбранным фильтрам категорий -->
+    <string name="noResultsForFilters">Нет результатов для выбранных фильтров</string>
+    <!-- Текст индикатора загрузки -->
+    <string name="loading">Загрузка...</string>
+    <!-- Заголовок сообщения об ошибке -->
+    <string name="error">Ошибка</string>
+    <!-- Текст кнопки повтора -->
+    <string name="retry">Повторить</string>
+    <!-- Надпись настройки языка -->
+    <string name="language">Язык</string>
+    <!-- Опция английского языка -->
+    <string name="english">Английский</string>
+    <!-- Опция русского языка -->
+    <string name="russian">Русский</string>
+    <!-- Использовать системные настройки языка -->
+    <string name="systemDefault">Системный (по умолчанию)</string>
+    <!-- Сообщение об ошибке при неудачном поиске -->
+    <string name="failedToSearch">Не удалось выполнить поиск</string>
+    <!-- Индикатор что результаты из кэша -->
+    <string name="resultsFromCache">Результаты из кэша</string>
+    <!-- Индикатор что результаты из локальной базы данных -->
+    <string name="resultsFromLocalDb">Результаты из локальной базы данных</string>
+    <!-- Приглашение начать поиск -->
+    <string name="enterSearchTerm">Введите поисковый запрос чтобы начать</string>
+    <!-- Метка для поля автора -->
+    <string name="authorLabel">Автор</string>
+    <string name="performerLabel">Исполнитель</string>
+    <string name="seriesLabel">Цикл/серия</string>
+    <string name="commentsLabel">Комментарии (%d)</string>
+    <!-- Метка для поля размера -->
+    <string name="sizeLabel">Размер</string>
+    <string name="durationLabel">Длительность</string>
+    <string name="bitrateLabel">Битрейт</string>
+    <!-- Метка для количества сидеров -->
+    <string name="seedersLabel"> сидеров</string>
+    <!-- Метка для количества личеров -->
+    <string name="leechersLabel"> личеров</string>
+    <string name="seeders">Сидеры</string>
+    <string name="leechers">Личеры</string>
+    <string name="registeredLabel">Зарегистрирован</string>
+    <string name="downloadedLabel">Скачан</string>
+    <string name="downloadedTimes"> %1$s раз</string>
+    <string name="pageOfPages">Страница %1$d из %2$d</string>
+    <string name="loadMoreComments">Загрузить ещё (%1$d стр. осталось)</string>
+    <!-- Запасной вариант для отсутствующего названия -->
+    <string name="unknownTitle">Неизвестное название</string>
+    <!-- Запасной вариант для отсутствующего автора -->
+    <string name="unknownAuthor">Неизвестный автор</string>
+    <!-- Запасной вариант для отсутствующего размера -->
+    <string name="unknownSize">Неизвестный размер</string>
+    <!-- Сообщение о предстоящей функции добавления книг -->
+    <string name="addBookComingSoon">Функция добавления книг скоро появится!</string>
+    <!-- Текст-заполнитель для экрана библиотеки -->
+    <string name="libraryContentPlaceholder">Содержимое библиотеки будет отображаться здесь</string>
+    <!-- Заголовок диалога аутентификации -->
+    <string name="authenticationRequired">Требуется аутентификация</string>
+    <!-- Сообщение о необходимости входа в поиск -->
+    <string name="loginRequiredForSearch">Пожалуйста, войдите в RuTracker для доступа к функции поиска.</string>
+    <!-- Текст кнопки отмены -->
+    <string name="finishAt">Финиш %1$s</string>
+    <string name="chapterOf">Гл %1$d из %2$d</string>
+    <string name="cancel">Отмена</string>
+    <!-- Подпись кнопки для действия сброса -->
+    <string name="reset">Сбросить</string>
+    <string name="statsForNerds">Статистика для гиков</string>
+    <string name="audioFormat">Формат аудио</string>
+    <string name="bitrate">Битрейт</string>
+    <string name="bufferHealth">Здоровье буфера</string>
+    <string name="audioSessionId">ID аудиосессии</string>
+    <string name="decoder">Декодер</string>
+
+    <string name="sleepTimerExtended">Таймер сна продлен на 5 минут</string>
+    <string name="shakeToExtendEnabled">Встряхните чтобы продлить</string>
+    <string name="pitchCorrection">Коррекция тона</string>
+    <string name="pitchCorrectionDesc">Сохранять естественность голоса</string>
+    <!-- Пункт меню для сброса настроек книги до глобальных -->
+    <string name="resetToGlobalSettings">Сбросить до глобальных настроек</string>
+    <!-- Подпись кнопки для сброса всех индивидуальных настроек книг -->
+    <string name="resetAllBookSettings">Сбросить настройки всех книг</string>
+    <!-- Описание действия сброса всех настроек книг -->
+    <string name="resetAllBookSettingsDescription">Удалить индивидуальные настройки для всех книг</string>
+    <!-- Сообщение подтверждения для сброса всех настроек книг -->
+    <string name="resetAllBookSettingsConfirmation">Это удалит индивидуальные аудио-настройки для всех книг. Все книги будут использовать глобальные настройки. Это действие нельзя отменить.</string>
+    <!-- Сообщение, показываемое при сбросе настроек книги -->
+    <string name="settingsResetToGlobal">Настройки сброшены до глобальных</string>
+    <!-- Сообщение, показываемое при сбросе всех настроек книг -->
+    <string name="allBookSettingsReset">Все настройки книг сброшены до глобальных</string>
+    <!-- Сообщение об ошибке при неудачном сбросе настроек -->
+    <string name="errorResettingSettings">Ошибка при сбросе настроек</string>
+    <!-- Текст кнопки входа -->
+    <string name="login">Войти</string>
+    <!-- Пользовательское сообщение об ошибке сетевого подключения -->
+    <string name="networkConnectionError">Не удалось подключиться. Проверьте интернет или выберите другое зеркало в Настройках → Источники.</string>
+    <!-- Общее сообщение о сбое соединения -->
+    <string name="connectionFailed">Соединение не установлено. Проверьте интернет-подключение или попробуйте другое зеркало.</string>
+    <!-- Текст кнопки для выбора зеркала -->
+    <string name="chooseMirror">Выбрать зеркало</string>
+    <!-- Пользовательский заголовок сетевой ошибки -->
+    <string name="networkErrorUser">Проблема с сетевым подключением</string>
+    <!-- Сообщение об ошибке разрешения DNS -->
+    <string name="dnsError">Не удалось разрешить домен. Это может быть связано с сетевыми ограничениями или неактивным зеркалом.</string>
+    <!-- Сообщение об ошибке таймаута -->
+    <string name="timeoutError">Запрос занял слишком много времени. Проверьте соединение и попробуйте снова.</string>
+    <!-- Сообщение об ошибке сервера -->
+    <string name="serverError">Сервер временно недоступен. Попробуйте позже или выберите другое зеркало.</string>
+    <!-- Заголовок раздела недавних поисков -->
+    <string name="recentSearches">Недавние поиски</string>
+    <!-- Заголовок раздела примеров поиска -->
+    <string name="searchExamples">Попробуйте эти примеры</string>
+    <!-- Заголовок раздела быстрых действий -->
+    <string name="quickActions">Быстрые действия</string>
+    <!-- Метка для действия сканирования локальных файлов -->
+    <string name="scanLocalFiles">Сканировать локальные файлы</string>
+    <!-- Сообщение о предстоящих функциях -->
+    <string name="featureComingSoon">Функция скоро появится</string>
+    <!-- Метка для нормализации названий глав -->
+    <string name="normalizeChapterTitles">Нормализация названий глав</string>
+    <!-- Описание действия нормализации -->
+    <string name="normalizeChapterTitlesDesc">Переименовать все главы в единый формат (например: Глава 1, Пролог)</string>
+    <!-- Подтверждение нормализации -->
+    <string name="normalizeChapterTitlesConfirmation">Это действие переименует главы в базе данных для всех книг. Физические файлы НЕ будут изменены. Это действие нельзя отменить.</string>
+    <!-- Текст кнопки нормализации -->
+    <string name="normalizeButton">Нормализовать</string>
+    <!-- Метка для действия смены зеркала -->
+    <string name="changeMirror">Сменить зеркало</string>
+    <!-- Метка для действия проверки соединения -->
+    <string name="checkConnection">Проверить соединение</string>
+    <!-- Заголовок диалога требуемых разрешений -->
+    <string name="permissionsRequired">Требуются разрешения</string>
+    <!-- Объяснение необходимости разрешений -->
+    <string name="permissionExplanation">Это приложение требует разрешения на хранение для загрузки и сохранения аудиофайлов. Пожалуйста, предоставьте необходимые разрешения для продолжения.</string>
+    <!-- Текст кнопки предоставления разрешений -->
+    <string name="grantPermissions">Предоставить разрешения</string>
+    <!-- Заголовок диалога отказа в разрешении -->
+    <string name="permissionDeniedTitle">В разрешении отказано</string>
+    <!-- Сообщение для диалога отказа в разрешении -->
+    <string name="permissionDeniedMessage">Для загрузки файлов требуется разрешение на хранение. Пожалуйста, включите его в настройках приложения.</string>
+    <!-- Текст кнопки для открытия настроек -->
+    <string name="permissionDeniedButton">Открыть настройки</string>
+    <!-- Метка навигации для библиотеки -->
+    <string name="navLibrary">Библиотека</string>
+    <!-- Метка навигации для аутентификации -->
+    <string name="navAuth">Аутентификация</string>
+    <!-- Метка навигации для поиска -->
+    <string name="navSearch">Поиск</string>
+    <!-- Метка навигации для настроек -->
+    <string name="navSettings">Настройки</string>
+    <!-- Метка навигации для отладки -->
+    <string name="navDebug">Отладка</string>
+    <!-- Заголовок экрана аутентификации -->
+    <string name="authTitle">Вход</string>
+    <!-- Метка для поля имени пользователя -->
+    <string name="usernameLabel">Имя пользователя</string>
+    <!-- Метка для поля пароля -->
+    <string name="passwordLabel">Пароль</string>
+    <!-- Метка для чекбокса запоминания -->
+    <string name="rememberMeLabel">Запомнить меня</string>
+    <!-- Текст кнопки входа -->
+    <string name="loginButton">Войти</string>
+    <!-- Текст кнопки проверки соединения -->
+    <string name="testConnectionButton">Проверить соединение</string>
+    <!-- Текст кнопки выхода -->
+    <string name="logoutButton">Выйти</string>
+    <!-- Сообщение об успешной очистке кэша -->
+    <string name="cacheClearedSuccessfully">Кэш успешно очищен</string>
+    <!-- Сообщение о неизвестном статусе загрузки -->
+    <string name="downloadStatusUnknown">Статус загрузки неизвестен</string>
+    <!-- Сообщение об ошибке экспорта логов -->
+    <string name="failedToExportLogs">Не удалось экспортировать логи</string>
+    <!-- Сообщение об успешном экспорте логов -->
+    <string name="logsExportedSuccessfully">Логи успешно экспортированы</string>
+    <!-- Сообщение о завершении проверки зеркал -->
+    <string name="mirrorHealthCheckCompleted">Проверка здоровья зеркал завершена</string>
+    <!-- Текст кнопки проверки всех зеркал -->
+    <string name="testAllMirrors">Проверить все зеркала</string>
+    <!-- Метка для статуса -->
+    <string name="statusLabel">Статус:</string>
+    <!-- Метка для времени последнего успеха -->
+    <string name="lastOkLabel">Последний OK:</string>
+    <!-- Метка для времени отклика -->
+    <string name="rttLabel">RTT:</string>
+    <!-- Сокращение для миллисекунд -->
+    <string name="milliseconds">мс</string>
+    <!-- Метка для загрузки -->
+    <string name="downloadLabel">Загрузка</string>
+    <!-- Метка статуса без двоеточия -->
+    <string name="statusLabelNoColon">Статус</string>
+    <!-- Метка для прогресса загрузки -->
+    <string name="downloadProgressLabel">Прогресс</string>
+    <!-- Заголовок статистики кэша -->
+    <string name="cacheStatistics">Статистика кэша</string>
+    <!-- Метка для общего количества записей -->
+    <string name="totalEntries">Всего записей</string>
+    <!-- Метка для кэша поиска -->
+    <string name="searchCache">Кэш поиска</string>
+    <!-- Метка для кэша топиков -->
+    <string name="topicCache">Кэш топиков</string>
+    <!-- Метка для использования памяти -->
+    <string name="memoryUsage">Использование памяти</string>
+    <!-- Текст кнопки очистки кэша -->
+    <string name="clearAllCache">Очистить весь кэш</string>
+    <!-- Заголовок экрана зеркал -->
+    <string name="mirrorsScreenTitle">Зеркала</string>
+    <!-- Сообщение об ошибке загрузки аудио -->
+    <string name="failedToLoadAudio">Не удалось загрузить аудио</string>
+    <!-- Метка для глав -->
+    <string name="chaptersLabel">Главы</string>
+    <!-- Подсказка для поля поиска глав -->
+    <string name="searchChaptersHint">Поиск по номеру или названию...</string>
+    <!-- Фильтр для показа всех глав -->
+    <string name="allFilter">Все</string>
+    <!-- Фильтр для показа текущей главы -->
+    <string name="currentFilter">Текущая</string>
+    <!-- Сообщение когда главы не найдены при поиске/фильтрации -->
+    <string name="noChaptersFoundInSearch">Главы не найдены</string>
+    <!-- Сообщение о предстоящей функции загрузки -->
+    <string name="downloadFunctionalityComingSoon">Функция загрузки скоро появится</string>
+    <!-- Сообщение об истечении времени запроса -->
+    <string name="requestTimedOut">Время запроса истекло</string>
+    <!-- Сообщение о сетевой ошибке -->
+    <string name="networkError">Сетевая ошибка</string>
+    <!-- Статус отключенного зеркала -->
+    <string name="mirrorStatusDisabled">Отключено</string>
+    <!-- Метка для времени отклика зеркала -->
+    <string name="mirrorResponseTime">Время отклика</string>
+    <!-- Метка для времени последней проверки -->
+    <string name="mirrorLastCheck">Последняя проверка</string>
+    <!-- Текст кнопки проверки отдельного зеркала -->
+    <string name="mirrorTestIndividual">Проверить отдельное зеркало</string>
+    <!-- Статус активного зеркала -->
+    <string name="activeStatus">Активно</string>
+    <!-- Статус отключенного зеркала -->
+    <string name="disabledStatus">Отключено</string>
+    <!-- Описание настройки языка -->
+    <string name="languageDescription">Выберите язык</string>
+    <!-- Заголовок настройки темы -->
+    <string name="themeTitle">Тема</string>
+    <!-- Описание настройки темы -->
+    <string name="themeDescription">Выберите тему приложения</string>
+    <!-- Метка для темного режима -->
+    <string name="darkMode">Темный режим</string>
+    <!-- Метка для высокой контрастности -->
+    <string name="highContrast">Высокая контрастность</string>
+    <string name="themeAmoled">AMOLED / Чистый черный</string>
+    <string name="vinylMode">Режим винила</string>
+    <string name="lyrics">Текст песни</string>
+    <!-- Заголовок настройки аудио -->
+    <string name="audioTitle">Аудио</string>
+    <!-- Описание настройки аудио -->
+    <string name="audioDescription">Настройки аудио</string>
+    <string name="audioSettingsTitle">Настройки аудио</string>
+
+    <string name="playback_general">Общие настройки</string>
+    <string name="auto_rewind_title">Перемотка при паузе</string>
+    <string name="auto_rewind_desc">Перематывать на 2 секунды назад при возобновлении после долгой паузы</string>
+
+    <string name="audio_quality_title">Качество аудио</string>
+    <string name="crossfade_title">Плавный переход (Crossfade)</string>
+    <string name="crossfade_desc">Плавное затухание текущего трека при начале следующего</string>
+    <string name="crossfade_duration">Длительность перехода</string>
+
+    <string name="skip_silence_title">Пропуск тишины</string>
+    <string name="skip_silence_desc">Пропускать тихие участки в аудио</string>
+    <!-- Заголовок настроек улучшения звука -->
+    <string name="audioEnhancementTitle">Улучшение звука</string>
+    <!-- Описание настроек улучшения звука -->
+    <string name="audioEnhancementDescription">Улучшение качества звука и стабильности громкости</string>
+    <!-- Заголовок настройки нормализации громкости -->
+    <string name="normalizeVolumeTitle">Нормализация громкости</string>
+    <!-- Описание настройки нормализации громкости -->
+    <string name="normalizeVolumeDescription">Поддержание стабильной громкости для разных аудиокниг</string>
+    <!-- Заголовок настройки усиления громкости -->
+    <string name="volumeBoostTitle">Усиление громкости</string>
+    <!-- Заголовок настройки уровня компрессии -->
+    <string name="drcLevelTitle">Компрессия динамического диапазона</string>
+    <!-- Заголовок настройки улучшения речи -->
+    <string name="speechEnhancerTitle">Улучшение речи</string>
+    <!-- Описание настройки улучшения речи -->
+    <string name="speechEnhancerDescription">Улучшение четкости речи и уменьшение шипящих звуков</string>
+    <!-- Заголовок настройки автоматического выравнивания громкости -->
+    <string name="autoVolumeLevelingTitle">Автоматическое выравнивание громкости</string>
+    <!-- Описание настройки автоматического выравнивания громкости -->
+    <string name="autoVolumeLevelingDescription">Автоматическая регулировка громкости для поддержания стабильного уровня</string>
+    <!-- Метка для скорости воспроизведения -->
+    <string name="playbackSpeed">Скорость воспроизведения</string>
+    <!-- Метка для длительности пропуска -->
+    <string name="skipDuration">Длительность пропуска</string>
+    <!-- Заголовок настройки загрузок -->
+    <string name="downloadsTitle">Загрузки</string>
+    <!-- Описание настройки загрузок -->
+    <string name="downloadsDescription">Настройки загрузки</string>
+    <!-- Метка для места загрузки -->
+    <string name="downloadLocation">Место загрузки</string>
+    <!-- Метка для загрузок только по Wi-Fi -->
+    <string name="wifiOnlyDownloads">Загрузки только по Wi-Fi</string>
+    <!-- Сообщение о загрузке данных из кэша -->
+    <string name="dataLoadedFromCache">Данные загружены из кэша</string>
+    <!-- Сообщение об ошибке загрузки топика -->
+    <string name="failedToLoadTopic">Не удалось загрузить топик</string>
+    <!-- Метка для magnet-ссылки -->
+    <string name="magnetLinkLabel">Magnet-ссылка</string>
+    <!-- Запасной вариант для отсутствующей главы -->
+    <string name="unknownChapter">Неизвестная глава</string>
+    <!-- Сообщение о копировании magnet-ссылки -->
+    <string name="magnetLinkCopied">Magnet-ссылка скопирована</string>
+    <!-- Метка для копирования в буфер -->
+    <string name="copyToClipboardLabel">Скопировать в буфер</string>
+    <!-- Заголовок экрана отладки -->
+    <string name="debugToolsTitle">Инструменты отладки</string>
+    <!-- Текст вкладки для раздела логов -->
+    <string name="logsTab">Логи</string>
+    <!-- Текст вкладки для раздела зеркал -->
+    <string name="mirrorsTab">Зеркала</string>
+    <!-- Текст вкладки для раздела загрузок -->
+    <string name="downloadsTab">Загрузки</string>
+    <!-- Текст вкладки для раздела кэша -->
+    <string name="cacheTab">Кэш</string>
+    <!-- Текст кнопки проверки всех зеркал -->
+    <string name="testAllMirrorsButton">Проверить все зеркала</string>
+    <!-- Метка для отображения статуса -->
+    <string name="statusLabelText">Статус: </string>
+    <!-- Метка для времени последнего успеха -->
+    <string name="lastOkLabelText">Последний OK: </string>
+    <!-- Метка для времени отклика -->
+    <string name="rttLabelText">RTT: </string>
+    <!-- Сокращение для миллисекунд -->
+    <string name="millisecondsText">мс</string>
+    <!-- Метка для загрузки -->
+    <string name="downloadLabelText">Загрузка</string>
+    <!-- Метка статуса без двоеточия -->
+    <string name="statusLabelNoColonText">Статус</string>
+    <!-- Метка для прогресса загрузки -->
+    <string name="downloadProgressLabelText">Прогресс</string>
+    <!-- Заголовок раздела статистики кэша -->
+    <string name="cacheStatisticsTitle">Статистика кэша</string>
+    <!-- Метка для общего количества записей -->
+    <string name="totalEntriesText">Всего записей: </string>
+    <!-- Метка для размера кэша поиска -->
+    <string name="searchCacheText">Кэш поиска: </string>
+    <!-- Метка для размера кэша топиков -->
+    <string name="topicCacheText">Кэш топиков: </string>
+    <!-- Метка для использования памяти -->
+    <string name="memoryUsageText">Использование памяти: </string>
+    <!-- Текст кнопки очистки кэша -->
+    <string name="clearAllCacheButton">Очистить весь кэш</string>
+    <!-- Сообщение при пустом кэше -->
+    <string name="cacheIsEmptyMessage">Кэш пуст</string>
+    <!-- Текст кнопки обновления данных отладки -->
+    <string name="refreshDebugDataButton">Обновить данные отладки</string>
+    <!-- Текст кнопки экспорта логов -->
+    <string name="exportLogsButton">Экспортировать логи</string>
+    <!-- Текст кнопки удаления загрузки -->
+    <string name="deleteDownloadButton">Удалить загрузку</string>
+    <!-- Текст кнопки завершения -->
+    <string name="doneButtonText">Готово</string>
+    <!-- Заголовок экрана вебвью -->
+    <string name="webViewTitle">RuTracker</string>
+    <!-- Текст баннера-инструкции для экрана WebView логина -->
+    <string name="webViewLoginInstruction">Войдите в RuTracker. После успешного входа нажмите «Готово», чтобы извлечь cookie для клиента.</string>
+    <!-- Сообщение, показываемое при проверке Cloudflare -->
+    <string name="cloudflareMessage">Этот сайт использует проверки безопасности Cloudflare. Пожалуйста, дождитесь завершения проверки и взаимодействуйте с открывшейся страницей при необходимости.</string>
+    <!-- Текст кнопки повтора -->
+    <string name="retryButtonText">Повторить</string>
+    <!-- Текст кнопки перехода на главную -->
+    <string name="goHomeButtonText">Перейти на главную</string>
+    <!-- Сообщение, показываемое при проверке браузера -->
+    <string name="browserCheckMessage">Сайт проверяет ваш браузер - пожалуйста, дождитесь завершения проверки на этой странице.</string>
+    <!-- Заголовок диалога скачивания торрента -->
+    <string name="downloadTorrentTitle">Скачать торрент</string>
+    <!-- Содержимое диалога скачивания торрента -->
+    <string name="selectActionText">Выберите действие:</string>
+    <!-- Текст кнопки открытия -->
+    <string name="openButtonText">Открыть</string>
+    <!-- Текст кнопки скачивания -->
+    <string name="downloadButtonText">Скачать</string>
+    <!-- Сообщение для открытия ссылки в браузере -->
+    <string name="downloadInBrowserMessage">Чтобы скачать файл, пожалуйста, откройте ссылку в браузере</string>
+    <!-- Заголовок диалога импорта аудиокниг -->
+    <string name="importAudiobooksTitle">Импортировать аудиокниги</string>
+    <!-- Содержимое диалога импорта аудиокниг -->
+    <string name="selectFilesMessage">Выберите файлы аудиокниг с вашего устройства для добавления в библиотеку</string>
+    <!-- Текст кнопки импорта -->
+    <string name="importButtonText">Импортировать</string>
+    <!-- Сообщение об успешном импорте аудиокниг -->
+    <string name="importedSuccess">Импортировано %1$s аудиокнига(и)</string>
+    <!-- Сообщение при отсутствии выбранных файлов -->
+    <string name="noFilesSelectedMessage">Файлы не выбраны</string>
+    <!-- Сообщение об ошибке импорта -->
+    <string name="importFailedMessage">Не удалось импортировать: %1$s</string>
+    <!-- Заголовок диалога сканирования папки -->
+    <string name="scanFolderTitle">Сканировать папку</string>
+    <!-- Содержимое диалога сканирования папки -->
+    <string name="scanFolderMessage">Сканируйте папку на вашем устройстве в поисках файлов аудиокниг</string>
+    <!-- Текст кнопки сканирования -->
+    <string name="scanButtonText">Сканировать</string>
+    <!-- Сообщение об успешном сканировании папки -->
+    <string name="scanSuccessMessage">Найдено и импортировано %1$s аудиокнига(и)</string>
+    <!-- Сообщение при отсутствии аудиокниг в папке -->
+    <string name="noAudiobooksFoundMessage">В выбранной папке не найдено файлов аудиокниг</string>
+    <!-- Сообщение при отсутствии выбранной папки -->
+    <string name="noFolderSelectedMessage">Папка не выбрана</string>
+    <!-- Сообщение об ошибке сканирования папки -->
+    <string name="scanFailedMessage">Не удалось просканировать папку: %1$s</string>
+    <!-- Заголовок экрана аутентификации -->
+    <string name="authScreenTitle">Подключение к RuTracker</string>
+    <!-- Метка для поля имени пользователя -->
+    <string name="usernameLabelText">Имя пользователя</string>
+    <!-- Метка для поля пароля -->
+    <string name="passwordLabelText">Пароль</string>
+    <!-- Метка для чекбокса запоминания -->
+    <string name="rememberMeLabelText">Запомнить меня</string>
+    <!-- Текст кнопки входа -->
+    <string name="loginButtonText">Войти</string>
+    <!-- Текст кнопки проверки соединения -->
+    <string name="testConnectionButtonText">Проверить соединение</string>
+    <!-- Текст кнопки выхода -->
+    <string name="logoutButtonText">Выйти</string>
+    <!-- Запрос для ввода учетных данных -->
+
+    <!-- Сообщение во время входа в систему -->
+    <string name="loggingInText">Вход в систему...</string>
+    <!-- Сообщение об успешном входе -->
+    <string name="loginSuccessMessage">Вход выполнен успешно!</string>
+    <!-- Сообщение об ошибке входа -->
+    <string name="loginFailedMessage">Вход не удался. Пожалуйста, проверьте учетные данные</string>
+    <!-- Сообщение об ошибке входа -->
+    <string name="loginErrorMessage">Ошибка входа: %1$s</string>
+    <!-- Сообщение во время проверки соединения -->
+    <string name="testingConnectionText">Проверка соединения...</string>
+    <!-- Сообщение об успешной проверке соединения -->
+    <string name="connectionSuccessMessage">Соединение установлено! Используется: %1$s</string>
+    <!-- Сообщение об ошибке проверки соединения -->
+    <string name="connectionFailedMessage">Проверка соединения не удалась: %1$s</string>
+    <!-- Сообщение во время выхода из системы -->
+    <string name="loggingOutText">Выход из системы...</string>
+    <!-- Сообщение об успешном выходе -->
+    <string name="logoutSuccessMessage">Выполнен выход из системы</string>
+    <!-- Сообщение об ошибке выхода -->
+    <string name="logoutErrorMessage">Ошибка выхода: %1$s</string>
+    <!-- Подзаголовок для настройки зеркал -->
+    <string name="configureMirrorsSubtitle">Настройте и проверьте зеркала RuTracker</string>
+    <!-- Заголовок настройки скорости воспроизведения -->
+    <string name="playbackSpeedTitle">Скорость воспроизведения</string>
+    <!-- Заголовок настройки длительности пропуска -->
+    <string name="skipDurationTitle">Длительность пропуска</string>
+    <!-- Заголовок настройки места загрузки -->
+    <string name="downloadLocationTitle">Место загрузки</string>
+    <!-- Заголовок настройки темного режима -->
+    <string name="darkModeTitle">Темный режим</string>
+    <!-- Заголовок настройки высокой контрастности -->
+    <string name="highContrastTitle">Высокая контрастность</string>
+    <!-- Заголовок настройки загрузок только по Wi-Fi -->
+    <string name="wifiOnlyDownloadsTitle">Загрузки только по Wi-Fi</string>
+    <!-- Сообщение об ошибке загрузки зеркал -->
+    <string name="failedToLoadMirrorsMessage">Не удалось загрузить зеркала: %1$s</string>
+    <!-- Сообщение об успешной проверке зеркала -->
+    <string name="mirrorTestSuccessMessage">Зеркало %1$s проверено успешно</string>
+    <!-- Сообщение об ошибке проверки зеркала -->
+    <string name="mirrorTestFailedMessage">Не удалось проверить зеркало %2$s: %1$s</string>
+    <!-- Статус зеркала -->
+    <string name="mirrorStatusText">Зеркало %1$s</string>
+    <!-- Сообщение об ошибке обновления зеркала -->
+    <string name="failedToUpdateMirrorMessage">Не удалось обновить зеркало: %1$s</string>
+    <!-- Заголовок диалога добавления зеркала -->
+    <string name="addCustomMirrorTitle">Добавить зеркало</string>
+    <!-- Метка для поля URL зеркала -->
+    <string name="mirrorUrlLabelText">URL зеркала</string>
+    <!-- Подсказка для поля URL зеркала -->
+    <string name="mirrorUrlHintText">https://rutracker.example.com</string>
+    <!-- Метка для поля приоритета -->
+    <string name="priorityLabelText">Приоритет (1-10)</string>
+    <!-- Подсказка для поля приоритета -->
+    <string name="priorityHintText">5</string>
+    <!-- Текст кнопки добавления -->
+    <string name="addMirrorButtonText">Добавить</string>
+    <!-- Сообщение об успешном добавлении зеркала -->
+    <string name="mirrorAddedMessage">Зеркало %1$s добавлено</string>
+    <!-- Сообщение об ошибке добавления зеркала -->
+    <string name="failedToAddMirrorMessage">Не удалось добавить зеркало: %1$s</string>
+    <!-- Заголовок экрана настроек зеркал -->
+    <string name="mirrorSettingsTitle">Настройки зеркал</string>
+    <!-- Описание экрана настроек зеркал -->
+    <string name="mirrorSettingsDescription">Настройте зеркала RuTracker для оптимальной производительности поиска. Включенные зеркала будут использоваться автоматически.</string>
+    <!-- Текст кнопки добавления зеркала -->
+    <string name="addCustomMirrorButtonText">Добавить зеркало</string>
+    <!-- Текст показа приоритета зеркала -->
+    <string name="priorityText">Приоритет: %1$s</string>
+    <!-- Текст показа времени отклика зеркала -->
+    <string name="responseTimeText">Время отклика: %1$s мс</string>
+    <!-- Текст показа времени последней проверки зеркала -->
+    <string name="lastCheckedText">Последняя проверка: %1$s</string>
+    <!-- Текст кнопки проверки зеркала -->
+    <string name="testMirrorButtonText">Проверить это зеркало</string>
+    <!-- Статус активного зеркала -->
+    <string name="activeStatusText">Активно</string>
+    <!-- Статус отключенного зеркала -->
+    <string name="disabledStatusText">Отключено</string>
+    <!-- Текст для никогда -->
+    <string name="neverDateText">Никогда</string>
+    <!-- Текст для неверной даты -->
+    <string name="invalidDateText">Неверная дата</string>
+    <!-- Заголовок экрана плеера -->
+    <string name="playerScreenTitle">Плеер</string>
+    <!-- Сообщение об ошибке загрузки аудиокниги -->
+    <string name="failedToLoadAudioMessage">Не удалось загрузить аудиокнигу</string>
+    <!-- Текст показа автора -->
+    <string name="byAuthorText">автор: %1$s</string>
+    <!-- Метка для раздела глав -->
+    <string name="chaptersLabelText">Главы</string>
+    <!-- Текст кнопки редактирования -->
+    <string name="edit">Изменить</string>
+    <!-- Инструкция по изменению порядка глав -->
+    <string name="reorderChaptersInstruction">Используйте стрелки для изменения порядка</string>
+    <!-- Примечание по выбору главы -->
+    <string name="selectChapterNote">Нажмите на главу для начала воспроизведения</string>
+    <!-- Сообщение о предстоящей функции загрузки -->
+    <string name="downloadFunctionalityComingSoonMessage">Функция загрузки скоро появится!</string>
+    <!-- Пример названия аудиокниги -->
+    <string name="sampleTitleText">Пример аудиокниги</string>
+    <!-- Пример автора аудиокниги -->
+    <string name="sampleAuthorText">Пример автора</string>
+    <!-- Пример категории аудиокниги -->
+    <string name="sampleCategoryText">Художественная</string>
+    <!-- Пример размера аудиокниги -->
+    <string name="sampleSizeText">150 МБ</string>
+    <!-- Пример названия главы 1 -->
+    <string name="sampleChapter1Text">Глава 1</string>
+    <!-- Пример названия главы 2 -->
+    <string name="sampleChapter2Text">Глава 2</string>
+    <!-- Chapter number label with number parameter -->
+    <string name="chapterNumber">Глава {number}</string>
+    <!-- Заголовок экрана топика -->
+    <string name="topicScreenTitle">Топик</string>
+    <!-- Сообщение о таймауте запроса -->
+    <string name="requestTimedOutMessage">Время запроса истекло. Проверьте соединение.</string>
+    <!-- Сообщение о сетевой ошибке -->
+    <string name="networkErrorMessage">Сетевая ошибка: %1$s</string>
+    <!-- Сообщение об ошибке загрузки топика -->
+    <string name="errorLoadingTopicMessage">Ошибка загрузки топика: %1$s</string>
+    <!-- Сообщение об ошибке загрузки топика -->
+    <string name="failedToLoadTopicMessage">Не удалось загрузить топик</string>
+    <!-- Сообщение о загрузке данных из кэша -->
+    <string name="dataLoadedFromCacheMessage">Данные загружены из кэша</string>
+    <!-- Запасной вариант для отсутствующей главы -->
+    <string name="unknownChapterText">Неизвестная глава</string>
+    <!-- Метка для magnet-ссылки -->
+    <string name="magnetLinkLabelText">Magnet-ссылка</string>
+    <!-- Сообщение о копировании magnet-ссылки -->
+    <string name="magnetLinkCopiedMessage">Magnet-ссылка скопирована в буфер обмена</string>
+    <!-- Сообщение о копировании в буфер обмена -->
+    <string name="copyToClipboardMessage">%1$s скопирован в буфер обмена</string>
+    <!-- Метка навигации для библиотеки -->
+    <string name="navLibraryText">Библиотека</string>
+    <!-- Метка навигации для подключения -->
+    <string name="navAuthText">Подключение</string>
+    <!-- Метка навигации для поиска -->
+    <string name="navSearchText">Поиск</string>
+    <!-- Метка навигации для настроек -->
+    <string name="navSettingsText">Настройки</string>
+    <!-- Метка навигации для отладки -->
+    <string name="navDebugText">Отладка</string>
+    <!-- Заголовок экрана входа -->
+    <string name="authDialogTitle">Вход</string>
+    <!-- Текст помощи для аутентификации -->
+    <string name="authHelpText">Войдите в RuTracker для доступа к поиску и загрузке аудиокниг. Ваши учетные данные хранятся в безопасности.</string>
+    <!-- Сообщение об успешной очистке кэша -->
+    <string name="cacheClearedSuccessfullyMessage">Кэш успешно очищен</string>
+    <!-- Сообщение о неизвестном статусе загрузки -->
+    <string name="downloadStatusUnknownMessage">Статус загрузки неизвестен</string>
+    <!-- Сообщение об ошибке экспорта логов -->
+    <string name="failedToExportLogsMessage">Не удалось экспортировать логи</string>
+    <!-- Сообщение об успешном экспорте логов -->
+    <string name="logsExportedSuccessfullyMessage">Логи успешно экспортированы</string>
+    <!-- Сообщение о завершении проверки зеркал -->
+    <string name="mirrorHealthCheckCompletedMessage">Проверка завершена: %1$s/%2$s зеркал</string>
+    <!-- Сообщение когда нет активных зеркал для проверки -->
+    <string name="noActiveMirrorsMessage">Нет активных зеркал для проверки</string>
+    <!-- Сообщение когда активное зеркало установлено -->
+    <string name="activeMirrorSetMessage">Активное зеркало установлено: %1$s</string>
+    <!-- Сообщение когда не удалось установить активное зеркало -->
+    <string name="failedToSetActiveMirrorMessage">Не удалось установить активное зеркало: %1$s</string>
+    <!-- Текст показывающий активное зеркало -->
+    <string name="activeMirrorText">Активное зеркало: %1$s</string>
+    <!-- Сообщение когда не удалось установить лучшее зеркало -->
+    <string name="failedToSetBestMirrorMessage">Не удалось установить лучшее зеркало: %1$s</string>
+    <!-- Сообщение когда активное зеркало отключено и переключено -->
+    <string name="activeMirrorDisabledMessage">Активное зеркало отключено. Переключено на: %1$s</string>
+    <!-- Предупреждение когда не удалось выбрать новое активное зеркало -->
+    <string name="warningFailedToSelectNewActiveMirrorMessage">Предупреждение: не удалось выбрать новое активное зеркало: %1$s</string>
+    <!-- Сообщение когда URL скопирован в буфер обмена -->
+    <string name="urlCopiedToClipboardMessage">URL скопирован в буфер обмена</string>
+    <!-- Заголовок диалога изменения приоритета -->
+    <string name="editPriorityTitle">Изменить приоритет</string>
+    <!-- Вспомогательный текст для ввода приоритета -->
+    <string name="priorityHelperText">Меньше число = выше приоритет</string>
+    <!-- Текст кнопки сохранения -->
+    <string name="saveButtonText">Сохранить</string>
+    <!-- Сообщение когда приоритет обновлен -->
+    <string name="priorityUpdatedMessage">Приоритет обновлен: %1$s</string>
+    <!-- Сообщение когда не удалось обновить приоритет -->
+    <string name="failedToUpdatePriorityMessage">Не удалось обновить приоритет: %1$s</string>
+    <!-- Заголовок диалога удаления зеркала -->
+    <string name="deleteMirrorTitle">Удалить зеркало?</string>
+    <!-- Предупреждение при удалении зеркала по умолчанию -->
+    <string name="defaultMirrorWarningMessage">Внимание: это зеркало по умолчанию. Оно будет удалено из списка, но может быть добавлено снова.</string>
+    <!-- Сообщение подтверждения удаления зеркала -->
+    <string name="confirmDeleteMirrorMessage">Вы уверены, что хотите удалить это зеркало?</string>
+    <!-- Текст кнопки удаления -->
+    <string name="deleteButtonText">Удалить</string>
+    <!-- Сообщение когда зеркало удалено -->
+    <string name="mirrorDeletedMessage">Зеркало удалено: %1$s</string>
+    <!-- Сообщение когда не удалось удалить зеркало -->
+    <string name="failedToDeleteMirrorMessage">Не удалось удалить зеркало: %1$s</string>
+    <!-- Сообщение когда формат URL неверный -->
+    <string name="urlMustStartWithHttpMessage">URL должен начинаться с http:// или https://</string>
+    <!-- Сообщение о неверном формате URL -->
+    <string name="invalidUrlFormatMessage">Неверный формат URL</string>
+    <!-- Сообщение когда зеркало уже существует -->
+    <string name="mirrorAlreadyExistsMessage">Это зеркало уже существует в списке</string>
+    <!-- Текст фильтра для показа только активных зеркал -->
+    <string name="onlyActiveFilterText">Только активные</string>
+    <!-- Текст фильтра для показа только здоровых зеркал -->
+    <string name="onlyHealthyFilterText">Только здоровые</string>
+    <!-- Текст опции сортировки по приоритету -->
+    <string name="sortByPriorityText">По приоритету</string>
+    <!-- Текст опции сортировки по здоровью -->
+    <string name="sortByHealthText">По здоровью</string>
+    <!-- Текст опции сортировки по скорости -->
+    <string name="sortBySpeedText">По скорости</string>
+    <!-- Сообщение когда нет зеркал соответствующих фильтрам -->
+    <string name="noMirrorsMatchFiltersMessage">Нет зеркал, соответствующих фильтрам</string>
+    <!-- Текст кнопки для установки лучшего зеркала -->
+    <string name="setBestMirrorButtonText">Установить лучшее зеркало</string>
+    <!-- Текст показывающий здоровье -->
+    <string name="healthScoreText">Здоровье: %1$s%</string>
+    <!-- Подсказка для кнопки установки как активное -->
+    <string name="setAsActiveTooltip">Установить как активное</string>
+    <!-- Подсказка для кнопки копирования URL -->
+    <string name="copyUrlTooltip">Копировать URL</string>
+    <!-- Подсказка для кнопки удаления зеркала -->
+    <string name="deleteMirrorTooltip">Удалить зеркало</string>
+    <!-- Текст метки для активного статуса -->
+    <string name="activeLabelText">Активно</string>
+    <!-- Сообщение об ошибке очистки кэша -->
+    <string name="failedToClearCacheMessage">Не удалось очистить кэш: %1$s</string>
+    <!-- Сообщение об ошибке проверки зеркал -->
+    <string name="failedToTestMirrorsMessage">Не удалось проверить зеркала: %1$s</string>
+    <!-- Статус деградированного зеркала -->
+    <string name="mirrorStatusDegraded">Деградировано</string>
+    <!-- Статус неисправного зеркала -->
+    <string name="mirrorStatusUnhealthy">Неисправно</string>
+    <!-- Запрос для ввода учетных данных -->
+    <string name="pleaseEnterCredentials">Пожалуйста, введите имя пользователя и пароль</string>
+    <!-- Заголовок экрана избранного -->
+    <string name="favoritesTitle">Избранное</string>
+    <!-- Подсказка для кнопки обновления -->
+    <string name="refreshTooltip">Обновить</string>
+    <!-- Сообщение при отсутствии избранного -->
+    <string name="noFavoritesMessage">Нет избранных аудиокниг</string>
+    <!-- Подсказка для пустого избранного -->
+    <string name="addFavoritesHint">Добавьте аудиокниги в избранное из результатов поиска</string>
+    <!-- Кнопка для перехода к поиску -->
+    <string name="goToSearchButton">Перейти к поиску</string>
+    <!-- Сообщение при добавлении в избранное -->
+    <string name="addedToFavorites">Добавлено в избранное</string>
+    <!-- Сообщение при удалении из избранного -->
+    <string name="removedFromFavorites">Удалено из избранного</string>
+    <!-- Сообщение об ошибке удаления -->
+    <string name="failedToRemoveFromFavorites">Не удалось удалить из избранного</string>
+    <!-- Подсказка для кнопки избранного -->
+    <string name="favoritesTooltip">Избранное</string>
+    <!-- Подсказка для кнопки фильтра -->
+    <string name="filterLibraryTooltip">Фильтр библиотеки</string>
+    <!-- Подсказка для кнопки добавления -->
+    <string name="addAudiobookTooltip">Добавить аудиокнигу</string>
+    <!-- Сообщение при пустой библиотеке -->
+    <string name="libraryEmptyMessage">Ваша библиотека пуста</string>
+    <!-- Подсказка для пустой библиотеки -->
+    <string name="addAudiobooksHint">Добавьте аудиокниги в библиотеку, чтобы начать прослушивание</string>
+    <!-- Метка кнопки для поиска -->
+    <string name="searchForAudiobooksButton">Поиск аудиокниг</string>
+    <!-- Метка кнопки для импорта файлов -->
+    <string name="importFromFilesButton">Импорт из файлов</string>
+    <!-- Сообщение во время биометрической аутентификации -->
+    <string name="biometricAuthInProgress">Подождите, выполняется биометрическая аутентификация...</string>
+    <!-- Сообщение об успешной авторизации -->
+    <string name="authorizationSuccessful">Авторизация успешна</string>
+    <!-- Заголовок диалога авторизации -->
+    <string name="authorizationTitle">Авторизация</string>
+    <!-- Сообщение когда биометрическая аутентификация недоступна -->
+    <string name="biometricUnavailableMessage">Биометрическая аутентификация недоступна или не удалась. Открыть WebView для входа?</string>
+    <!-- Кнопка для открытия WebView входа -->
+    <string name="openWebViewButton">Открыть WebView</string>
+    <!-- Сообщение об ошибке проверки авторизации -->
+    <string name="authorizationCheckError">Ошибка при проверке авторизации: %1$s</string>
+    <!-- Сообщение о неудачной авторизации -->
+    <string name="authorizationFailedMessage">Авторизация не удалась. Проверьте логин и пароль</string>
+    <!-- Сообщение об ошибке страницы авторизации -->
+    <string name="authorizationPageError">Ошибка открытия страницы авторизации: %1$s</string>
+    <!-- Метка для раздела фильтров -->
+    <string name="filtersLabel">Фильтры:</string>
+    <!-- Кнопка для сброса фильтров -->
+    <string name="resetButton">Сбросить</string>
+    <!-- Запасное название категории -->
+    <string name="otherCategory">Другое</string>
+    <!-- Заголовок раздела истории поиска -->
+    <string name="searchHistoryTitle">История поиска</string>
+    <!-- Кнопка для очистки истории -->
+    <string name="clearButton">Очистить</string>
+    <!-- Сообщение об ошибке добавления в избранное -->
+    <string name="failedToAddToFavorites">Не удалось добавить в избранное</string>
+    <!-- Кнопка для загрузки дополнительных результатов -->
+    <string name="loadMoreButton">Загрузить еще</string>
+    <!-- Кнопка для разрешения доступа -->
+    <string name="allowButton">Разрешить</string>
+    <!-- Пункт меню для копирования magnet-ссылки -->
+    <string name="copyMagnetLink">Скопировать Magnet-ссылку</string>
+    <!-- Пункт меню для скачивания торрента -->
+    <string name="downloadTorrentMenu">Скачать торрент</string>
+    <!-- Скачать раздачу (контент) -->
+    <string name="downloadTorrentRelease">Скачать раздачу</string>
+    <!-- Скачать файл торрента (.torrent) -->
+    <string name="downloadTorrentFile">Скачать файл торрента</string>
+    <!-- Подзаголовок для скачивания торрента -->
+    <string name="openTorrentInExternalApp">Открыть файл торрента во внешнем приложении</string>
+    <!-- Сообщение об ошибке открытия торрента -->
+    <string name="failedToOpenTorrent">Не удалось открыть торрент: %1$s</string>
+    <!-- Сообщение об ошибке недоступного URL -->
+    <string name="urlUnavailable">URL недоступен</string>
+    <!-- Сообщение об ошибке неверного URL -->
+    <string name="invalidUrlFormat">Неверный формат URL: %1$s</string>
+    <!-- Общее сообщение об ошибке -->
+    <string name="genericError">Ошибка: %1$s</string>
+    <!-- Сообщение о повторной попытке подключения -->
+    <string name="retryConnectionMessage">Повторная попытка подключения (%1$s/%2$s)...</string>
+    <!-- Сообщение об ошибке загрузки -->
+    <string name="loadError">Ошибка загрузки: %1$s</string>
+    <!-- Сообщение об ошибке загрузки страницы -->
+    <string name="pageLoadError">Произошла ошибка при загрузке страницы</string>
+    <!-- Сообщение во время проверки безопасности -->
+    <string name="securityVerificationInProgress">Проверка безопасности выполняется - пожалуйста, подождите...</string>
+    <!-- Кнопка для открытия в браузере -->
+    <string name="openInBrowserButton">Открыть в браузере</string>
+    <!-- Сообщение для загрузки файла в браузере -->
+    <string name="fileWillOpenInBrowser">Для загрузки файл будет открыт в браузере</string>
+    <!-- Кнопка для сброса фильтров -->
+    <string name="resetFiltersButton">Сбросить фильтры</string>
+    <!-- Сообщение при изменении языка -->
+    <string name="languageChangedMessage">Язык изменен на {languageName}</string>
+    <!-- Заголовок настройки следования системной теме -->
+    <string name="followSystemTheme">Следовать системной теме</string>
+    <!-- Описание раздела сессии RuTracker -->
+    <string name="rutrackerSessionDescription">Управление сессией RuTracker (cookie)</string>
+    <!-- Текст кнопки входа через WebView -->
+    <string name="loginViaWebViewButton">Войти в RuTracker через WebView</string>
+    <!-- Подзаголовок для кнопки входа через WebView -->
+    <string name="loginViaWebViewSubtitle">Пройти Cloudflare/капчу и сохранить cookie для клиента</string>
+    <!-- Сообщение при сохранении cookie -->
+    <string name="cookiesSavedForHttpClient">Cookie сохранены для HTTP-клиента</string>
+    <!-- Текст кнопки очистки сессии -->
+    <string name="clearSessionButton">Очистить сессию RuTracker (cookie)</string>
+    <!-- Подзаголовок для кнопки очистки сессии -->
+    <string name="clearSessionSubtitle">Удалить сохранённые cookie и выйти из аккаунта</string>
+    <!-- Сообщение при очистке сессии -->
+    <string name="sessionClearedMessage">Сессия RuTracker очищена</string>
+    <!-- Заголовок раздела метаданных -->
+    <string name="metadataSectionTitle">Метаданные аудиокниг</string>
+    <!-- Описание раздела метаданных -->
+    <string name="metadataSectionDescription">Управление локальной базой метаданных аудиокниг</string>
+    <!-- Метка для общего количества записей -->
+    <string name="totalRecordsLabel">Всего записей</string>
+    <!-- Метка для последнего обновления -->
+    <string name="lastUpdateLabel">Последнее обновление</string>
+    <!-- Текст во время обновления -->
+    <string name="updatingText">Обновление...</string>
+    <!-- Текст кнопки обновления метаданных -->
+    <string name="updateMetadataButton">Обновить метаданные</string>
+    <!-- Сообщение при начале обновления метаданных -->
+    <string name="metadataUpdateStartedMessage">Начато обновление метаданных...</string>
+    <!-- Сообщение при завершении обновления метаданных -->
+    <string name="metadataUpdateCompletedMessage">Обновление завершено: собрано %1$s записей</string>
+    <!-- Сообщение об ошибке обновления метаданных -->
+    <string name="metadataUpdateError">Ошибка обновления: %1$s</string>
+    <!-- Текст для никогда -->
+    <string name="neverDate">Никогда</string>
+    <!-- Текст для дней назад -->
+    <string name="daysAgo">%1$s дн. назад</string>
+    <!-- Текст для часов назад -->
+    <string name="hoursAgo">%1$s ч. назад</string>
+    <!-- Текст для минут назад -->
+    <string name="minutesAgo">%1$s мин. назад</string>
+    <!-- Текст для только что -->
+    <string name="justNow">Только что</string>
+    <!-- Текст для неизвестной даты -->
+    <string name="unknownDate">Неизвестно</string>
+    <!-- Скорость воспроизведения по умолчанию -->
+    <string name="playbackSpeedDefault">1.0x</string>
+    <!-- Длительность пропуска по умолчанию -->
+    <string name="skipDurationDefault">15 секунд</string>
+    <!-- Текст кнопки очистки устаревшего кэша -->
+    <string name="clearExpiredCacheButton">Очистить устаревший кэш</string>
+    <!-- Заголовок раздела разрешений -->
+    <string name="appPermissionsTitle">Разрешения приложения</string>
+    <!-- Название разрешения на хранилище -->
+    <string name="storagePermissionName">Хранилище</string>
+    <!-- Описание разрешения на хранилище -->
+    <string name="storagePermissionDescription">Сохранять файлы аудиокниг и данные кэша</string>
+    <!-- Название разрешения на уведомления -->
+    <string name="notificationsPermissionName">Уведомления</string>
+    <!-- Описание разрешения на уведомления -->
+    <string name="notificationsPermissionDescription">Показывать элементы управления воспроизведением и обновления</string>
+    <!-- Текст кнопки предоставления всех разрешений -->
+    <string name="grantAllPermissionsButton">Предоставить все разрешения</string>
+    <!-- Сообщение когда все разрешения предоставлены -->
+    <string name="allPermissionsGranted">Все разрешения предоставлены</string>
+    <!-- Сообщение когда доступ к файлам доступен -->
+    <string name="fileAccessAvailable">Доступ к файлам доступен</string>
+    <!-- Сообщение когда доступ к файлам недоступен -->
+    <string name="fileAccessUnavailable">Доступ к файлам недоступен</string>
+    <!-- Заголовок диалога инструкций по разрешениям хранения -->
+    <string name="storagePermissionGuidanceTitle">Разрешение на доступ к файлам</string>
+    <!-- Сообщение диалога инструкций по разрешениям хранения -->
+    <string name="storagePermissionGuidanceMessage">Для доступа к аудиофайлам необходимо предоставить разрешение на доступ к файлам.</string>
+    <!-- Шаг 1 инструкций по разрешениям хранения -->
+    <string name="storagePermissionGuidanceStep1">1. Откройте настройки приложения JaBook</string>
+    <!-- Шаг 2 инструкций по разрешениям хранения -->
+    <!-- Шаг 3 инструкций по разрешениям хранения -->
+    <!-- Заголовок диалога инструкций по разрешениям хранения для MIUI -->
+    <string name="storagePermissionGuidanceMiuiTitle">Разрешение на доступ к файлам (MIUI)</string>
+    <!-- Сообщение диалога инструкций по разрешениям хранения для MIUI -->
+    <string name="storagePermissionGuidanceMiuiMessage">На устройствах Xiaomi/Redmi/Poco (MIUI) необходимо предоставить разрешение на доступ к файлам:</string>
+    <!-- Шаг 1 инструкций по разрешениям хранения для MIUI -->
+    <string name="storagePermissionGuidanceMiuiStep1">1. Откройте Настройки → Приложения → JaBook → Разрешения</string>
+    <!-- Шаг 2 инструкций по разрешениям хранения для MIUI -->
+    <!-- Шаг 3 инструкций по разрешениям хранения для MIUI -->
+    <!-- Примечание для инструкций по разрешениям хранения для MIUI -->
+    <string name="storagePermissionGuidanceMiuiNote">Примечание: В некоторых версиях MIUI может потребоваться дополнительно включить \"Управление всеми файлами\" в Настройки → Безопасность → Управление разрешениями.</string>
+    <!-- Заголовок диалога инструкций по разрешениям хранения для ColorOS/RealmeUI -->
+    <string name="storagePermissionGuidanceColorosTitle">Разрешение на доступ к файлам (ColorOS/RealmeUI)</string>
+    <!-- Сообщение диалога инструкций по разрешениям хранения для ColorOS/RealmeUI -->
+    <string name="storagePermissionGuidanceColorosMessage">На устройствах Oppo/Realme (ColorOS/RealmeUI) необходимо предоставить разрешение на доступ к файлам:</string>
+    <!-- Шаг 1 инструкций по разрешениям хранения для ColorOS/RealmeUI -->
+    <string name="storagePermissionGuidanceColorosStep1">1. Откройте Настройки → Приложения → JaBook → Разрешения</string>
+    <!-- Шаг 2 инструкций по разрешениям хранения для ColorOS/RealmeUI -->
+    <!-- Шаг 3 инструкций по разрешениям хранения для ColorOS/RealmeUI -->
+    <!-- Примечание для инструкций по разрешениям хранения для ColorOS/RealmeUI -->
+    <string name="storagePermissionGuidanceColorosNote">Примечание: В некоторых версиях ColorOS может потребоваться дополнительно разрешить доступ к файлам в настройках безопасности.</string>
+    <!-- Текст кнопки для открытия настроек -->
+    <string name="openSettings">Открыть настройки</string>
+    <!-- Заголовок диалога SAF fallback -->
+    <string name="safFallbackTitle">Альтернативный метод доступа к файлам</string>
+    <!-- Сообщение диалога SAF fallback -->
+    <string name="safFallbackMessage">Разрешения на доступ к файлам не работают должным образом на вашем устройстве. Вы можете использовать Storage Access Framework (SAF) для выбора папок вручную. Этот метод работает без специальных разрешений.</string>
+    <!-- Сообщение, когда пользователь не отметил чекбокс разрешения в диалоге выбора папки SAF -->
+    <string name="safPermissionCheckboxMessage">Пожалуйста, отметьте чекбокс \'Разрешить доступ к этой папке\' в диалоге выбора папки и попробуйте снова. Без этого чекбокса приложение не сможет получить доступ к выбранной папке.</string>
+    <!-- Сообщение, когда проверка доступа к папке не удалась после выбора -->
+    <string name="safNoAccessMessage">Нет доступа к выбранной папке. Пожалуйста, отметьте чекбокс \'Разрешить доступ к этой папке\' в диалоге выбора папки и попробуйте снова.</string>
+    <!-- Заголовок для диалога-подсказки перед выбором папки -->
+    <string name="safFolderPickerHintTitle">Важно: Отметьте чекбокс</string>
+    <!-- Сообщение для диалога-подсказки перед выбором папки -->
+    <string name="safFolderPickerHintMessage">При выборе папки обязательно отметьте чекбокс \'Разрешить доступ к этой папке\' в диалоге выбора папки. Без этого чекбокса приложение не сможет получить доступ к выбранной папке.</string>
+    <!-- Предупреждение о заблокированных папках Android/data и Android/obb -->
+    <string name="safAndroidDataObbWarning">Примечание: Доступ к папкам Android/data и Android/obb заблокирован на устройствах Android 11+ с обновлениями безопасности от марта 2024 года. Пожалуйста, выберите другую папку.</string>
+    <!-- Преимущества использования SAF fallback -->
+    <string name="safFallbackBenefits">Преимущества использования SAF:\n• Работает на всех Android устройствах\n• Не требует специальных разрешений\n• Вы выбираете, к каким папкам предоставить доступ</string>
+    <!-- Кнопка для использования метода SAF -->
+    <string name="useSafMethod">Использовать выбор папок</string>
+    <!-- Кнопка для повторной попытки разрешений -->
+    <string name="tryPermissionsAgain">Попробовать разрешения снова</string>
+    <!-- Сообщение когда уведомления доступны -->
+    <string name="notificationsAvailable">Уведомления доступны</string>
+    <!-- Сообщение когда уведомления недоступны -->
+    <string name="notificationsUnavailable">Уведомления недоступны</string>
+    <!-- Сообщение о статусе возможностей -->
+    <string name="capabilitiesStatus">Возможности: %1$s/%2$s</string>
+    <!-- Заголовок раздела резервного копирования и восстановления -->
+    <string name="backupRestoreTitle">Резервное копирование и восстановление</string>
+    <!-- Описание раздела резервного копирования и восстановления -->
+    <string name="backupRestoreDescription">Экспорт и импорт ваших данных (избранное, история, метаданные)</string>
+    <!-- Текст кнопки экспорта данных -->
+    <string name="exportDataButton">Экспортировать данные</string>
+    <!-- Подзаголовок для кнопки экспорта данных -->
+    <string name="exportDataSubtitle">Сохранить все ваши данные в файл резервной копии</string>
+    <!-- Текст кнопки импорта данных -->
+    <string name="importDataButton">Импортировать данные</string>
+    <!-- Подзаголовок для кнопки импорта данных -->
+    <string name="importDataSubtitle">Восстановить данные из файла резервной копии</string>
+    <!-- Сообщение при экспорте данных -->
+    <string name="exportingDataMessage">Экспорт данных...</string>
+    <!-- Сообщение при успешном экспорте данных -->
+    <string name="dataExportedSuccessfullyMessage">Данные успешно экспортированы</string>
+    <!-- Сообщение об ошибке при неудачном экспорте -->
+    <string name="failedToExportMessage">Не удалось экспортировать: %1$s</string>
+    <!-- Заголовок диалога импорта резервной копии -->
+    <string name="importBackupTitle">Импорт резервной копии</string>
+    <!-- Сообщение подтверждения для импорта резервной копии -->
+    <string name="importBackupConfirmationMessage">Это импортирует данные из файла резервной копии. Существующие данные могут быть объединены или заменены. Продолжить?</string>
+    <!-- Текст кнопки импорта -->
+    <string name="importButton">Импортировать</string>
+    <!-- Сообщение при импорте данных -->
+    <string name="importingDataMessage">Импорт данных...</string>
+    <!-- Сообщение об ошибке при неудачном импорте -->
+    <string name="failedToImportMessage">Не удалось импортировать: %1$s</string>
+    <!-- Подсказка для кнопки входа в RuTracker -->
+    <string name="rutrackerLoginTooltip">Вход в RuTracker</string>
+    <!-- Подсказка для кнопки зеркал -->
+    <string name="mirrorsTooltip">Зеркала</string>
+    <!-- Метка показывающая текущее активное зеркало -->
+    <string name="currentMirrorLabel">Текущее зеркало: {host}</string>
+    <!-- Сообщение об ошибке когда все зеркала недоступны -->
+    <string name="allMirrorsFailedMessage">Все зеркала недоступны</string>
+    <!-- Сообщение для неизвестной ошибки -->
+    <string name="unknownError">Неизвестная ошибка</string>
+    <!-- Сообщение об ошибке когда не удается подключиться к зеркалам RuTracker -->
+    <string name="mirrorConnectionError">Не удалось подключиться к зеркалам RuTracker. Проверьте подключение к интернету или попробуйте выбрать другое зеркало в настройках</string>
+    <!-- Краткое сообщение об ошибке когда не удается подключиться к зеркалам RuTracker -->
+    <string name="mirrorConnectionFailed">Не удалось подключиться к зеркалам RuTracker</string>
+    <!-- Текст кнопки обновления -->
+    <string name="refresh">Обновить</string>
+    <!-- Пункт меню для обновления текущего поиска -->
+    <string name="refreshCurrentSearch">Обновить текущий поиск</string>
+    <!-- Пункт меню для очистки кэша поиска -->
+    <string name="clearSearchCache">Очистить кэш поиска</string>
+    <!-- Сообщение об успешной очистке кэша -->
+    <string name="cacheCleared">Кэш очищен</string>
+    <!-- Сообщение об успешной очистке всего кэша -->
+    <string name="allCacheCleared">Весь кэш очищен</string>
+    <!-- Пункт меню для скачивания через magnet-ссылку -->
+    <string name="downloadViaMagnet">Скачать через Magnet</string>
+    <!-- Сообщение о начале загрузки -->
+    <string name="downloadStarted">Загрузка начата</string>
+    <string name="refreshChaptersFromTorrent">Обновить главы из торрента</string>
+    <string name="chaptersRefreshed">Главы обновлены из торрента</string>
+    <string name="failedToRefreshChapters">Не удалось обновить главы</string>
+    <string name="noChaptersFound">Главы в торренте не найдены</string>
+    <!-- Сообщение об ошибке при начале загрузки -->
+    <string name="failedToStartDownload">Не удалось начать загрузку</string>
+    <!-- Файл торрента сохранен в папку Загрузки -->
+    <string name="torrentFileSaved">Файл торрента сохранен в папку Загрузки</string>
+    <!-- Не удалось скачать файл торрента -->
+    <string name="failedToDownloadTorrentFile">Не удалось скачать файл торрента</string>
+    <!-- Не удалось скачать файл торрента с кодом ошибки -->
+    <string name="failedToDownloadTorrentFileWithCode">Не удалось скачать файл торрента: %1$d</string>
+    <!-- Сообщение когда нет активных загрузок -->
+    <string name="noActiveDownloads">Нет активных загрузок</string>
+    <!-- Текст перед временем истечения кэша -->
+    <string name="cacheExpires">Истекает через</string>
+    <!-- Текст когда кэш истек -->
+    <string name="cacheExpired">Истек</string>
+    <!-- Текст когда кэш скоро истечет -->
+    <string name="cacheExpiresSoon">Скоро истечет</string>
+    <!-- Сокращение для дней -->
+    <string name="days">дн.</string>
+    <!-- Сокращение для часов -->
+    <string name="hours">ч.</string>
+    <!-- Сокращение для минут -->
+    <string name="minutes">мин.</string>
+    <!-- Кнопка для разворачивания текста -->
+    <string name="showMore">Показать больше</string>
+    <!-- Кнопка для сворачивания текста -->
+    <string name="showLess">Показать меньше</string>
+    <!-- Заголовок диалога выбора папки -->
+    <string name="selectFolderDialogTitle">Выбор папки для загрузок</string>
+    <!-- Инструкции по выбору папки на Android 13+ -->
+    <string name="selectFolderDialogMessage">Пожалуйста, выберите папку, в которую будут сохраняться загруженные аудиокниги. В файловом менеджере перейдите к нужной папке и нажмите \"Использовать эту папку\" для подтверждения.</string>
+    <!-- Сообщение при успешном выборе папки -->
+    <string name="folderSelectedSuccessMessage">Папка для загрузок выбрана успешно</string>
+    <!-- Сообщение при отмене выбора папки -->
+    <string name="folderSelectionCancelledMessage">Выбор папки отменен</string>
+    <!-- Путь к текущей папке загрузок -->
+    <string name="currentDownloadFolder">Текущая папка: {path}</string>
+    <string name="defaultDownloadFolder">Папка по умолчанию</string>
+    <!-- Сообщение при нажатии кнопки назад, просьба нажать еще раз для выхода -->
+    <string name="pressBackAgainToExit">Нажмите еще раз для выхода</string>
+    <!-- Сообщение в диалоге фильтров о том, что фильтры скоро появятся -->
+    <string name="filterOptionsComingSoon">Фильтры будут доступны в ближайшее время. Вы сможете фильтровать по:</string>
+    <!-- Опция фильтрации по категории -->
+    <string name="filterByCategory">Категория</string>
+    <!-- Опция фильтрации по автору -->
+    <string name="filterByAuthor">Автор</string>
+    <!-- Опция фильтрации по дате добавления -->
+    <string name="filterByDate">Дата добавления</string>
+    <!-- Текст кнопки закрытия -->
+    <string name="close">Закрыть</string>
+    <!-- Кнопка для открытия торрента во внешнем клиенте -->
+    <string name="openInExternalClient">Открыть во внешнем клиенте</string>
+    <!-- Описание для скачивания торрента в приложении -->
+    <string name="downloadTorrentInApp">Скачать через встроенный клиент</string>
+    <!-- Сообщение при открытии торрента во внешнем клиенте -->
+    <string name="openedInExternalClient">Открыто во внешнем торрент-клиенте</string>
+    <!-- Сообщение при ошибке открытия во внешнем клиенте -->
+    <string name="failedToOpenExternalClient">Не удалось открыть во внешнем клиенте</string>
+    <!-- Сообщение когда magnet-ссылка недоступна -->
+    <string name="noMagnetLinkAvailable">Magnet-ссылка недоступна</string>
+    <!-- Заголовок раздела рекомендуемых аудиокниг -->
+    <string name="recommended">Рекомендуем</string>
+    <!-- Сообщение когда ничего не найдено по конкретному запросу -->
+    <string name="noResultsForQuery">Ничего не найдено по запросу: \"{query}\"</string>
+    <!-- Предложение попробовать другие ключевые слова для поиска -->
+    <string name="tryDifferentKeywords">Попробуйте изменить ключевые слова</string>
+    <!-- Кнопка для очистки поля поиска -->
+    <string name="clearSearch">Очистить поиск</string>
+    <!-- Заголовок секции папок библиотеки -->
+    <string name="libraryFolderTitle">Папки библиотеки</string>
+    <!-- Описание секции папок библиотеки -->
+    <string name="libraryFolderDescription">Выберите папки, где хранятся ваши аудиокниги</string>
+    <!-- Текст папки библиотеки по умолчанию -->
+    <string name="defaultLibraryFolder">Папка по умолчанию</string>
+    <!-- Заголовок кнопки добавления папки библиотеки -->
+    <string name="addLibraryFolderTitle">Добавить папку библиотеки</string>
+    <!-- Подзаголовок кнопки добавления папки библиотеки -->
+    <string name="addLibraryFolderSubtitle">Добавить дополнительную папку для сканирования аудиокниг</string>
+    <!-- Заголовок раскрывающегося списка всех папок библиотеки -->
+    <string name="allLibraryFoldersTitle">Все папки библиотеки</string>
+    <!-- Текст, указывающий основную папку библиотеки -->
+    <string name="primaryLibraryFolder">Основная папка</string>
+    <!-- Заголовок диалога выбора папки библиотеки -->
+    <string name="selectLibraryFolderDialogTitle">Выбрать папку библиотеки</string>
+    <!-- Сообщение диалога выбора папки библиотеки -->
+    <string name="selectLibraryFolderDialogMessage">Чтобы выбрать папку библиотеки:\n\n1. Перейдите к нужной папке в файловом менеджере\n2. Нажмите кнопку \"Использовать эту папку\" в правом верхнем углу\n\nВыбранная папка будет использоваться для сканирования аудиокниг.</string>
+    <!-- Заголовок диалога переноса папки библиотеки -->
+    <string name="migrateLibraryFolderTitle">Перенести файлы?</string>
+    <!-- Сообщение диалога переноса папки библиотеки -->
+    <string name="migrateLibraryFolderMessage">Хотите переместить существующие аудиокниги из старой папки в новую?</string>
+    <!-- Текст кнопки Да -->
+    <string name="yes">Да</string>
+    <!-- Текст кнопки Нет -->
+    <string name="no">Нет</string>
+    <!-- Сообщение об успехе при выборе папки библиотеки -->
+    <string name="libraryFolderSelectedSuccessMessage">Папка библиотеки успешно выбрана</string>
+    <!-- Сообщение когда папка библиотеки уже существует -->
+    <string name="libraryFolderAlreadyExistsMessage">Эта папка уже есть в списке папок библиотеки</string>
+    <!-- Сообщение об успехе при добавлении папки библиотеки -->
+    <string name="libraryFolderAddedSuccessMessage">Папка библиотеки успешно добавлена</string>
+    <!-- Заголовок диалога удаления папки библиотеки -->
+    <string name="removeLibraryFolderTitle">Удалить папку?</string>
+    <!-- Сообщение диалога удаления папки библиотеки -->
+    <string name="removeLibraryFolderMessage">Вы уверены, что хотите удалить эту папку из библиотеки? Это не удалит файлы, только прекратит сканирование этой папки.</string>
+    <!-- Текст кнопки Удалить -->
+    <string name="remove">Удалить</string>
+    <!-- Сообщение об успехе при удалении папки библиотеки -->
+    <string name="libraryFolderRemovedSuccessMessage">Папка библиотеки успешно удалена</string>
+    <!-- Сообщение об ошибке при неудачном удалении папки библиотеки -->
+    <string name="libraryFolderRemoveFailedMessage">Не удалось удалить папку библиотеки</string>
+    <!-- Сообщение, показываемое во время переноса папки библиотеки -->
+    <string name="migratingLibraryFolderMessage">Перенос файлов...</string>
+    <!-- Сообщение об успехе при завершении переноса -->
+    <string name="migrationCompletedSuccessMessage">Перенос успешно завершен</string>
+    <!-- Сообщение об ошибке при неудачном переносе -->
+    <string name="migrationFailedMessage">Перенос не удался</string>
+    <!-- Заголовок диалога подтверждения удаления -->
+    <string name="deleteConfirmationTitle">Удалить аудиокнигу?</string>
+    <!-- Сообщение диалога подтверждения удаления -->
+    <string name="deleteConfirmationMessage">Вы уверены, что хотите удалить эту аудиокнигу?</string>
+    <!-- Предупреждение о безвозвратном удалении -->
+    <string name="deleteWarningMessage">Файлы будут безвозвратно удалены и не могут быть восстановлены.</string>
+    <!-- Кнопка для физического удаления файлов -->
+    <string name="deleteFilesButton">Удалить файлы</string>
+    <!-- Кнопка для удаления из библиотеки (логическое удаление) -->
+    <string name="removeFromLibraryButton">Удалить из библиотеки</string>
+    <!-- Заголовок диалога удаления из библиотеки -->
+    <string name="removeFromLibraryTitle">Удалить из библиотеки?</string>
+    <!-- Сообщение диалога удаления из библиотеки -->
+    <string name="removeFromLibraryMessage">Это удалит аудиокнигу из вашей библиотеки, но не удалит файлы. Вы можете добавить её обратно, выполнив повторное сканирование.</string>
+    <!-- Сообщение, показываемое при удалении из библиотеки -->
+    <string name="removingFromLibraryMessage">Удаление...</string>
+    <!-- Сообщение об успехе при удалении из библиотеки -->
+    <string name="removedFromLibrarySuccessMessage">Успешно удалено из библиотеки</string>
+    <!-- Сообщение об ошибке при неудачном удалении из библиотеки -->
+    <string name="removeFromLibraryFailedMessage">Не удалось удалить из библиотеки</string>
+    <!-- Сообщение, показываемое при удалении файлов -->
+    <string name="deletingMessage">Удаление...</string>
+    <!-- Сообщение об успехе при удалении файлов -->
+    <string name="deletedSuccessMessage">Файлы успешно удалены</string>
+    <!-- Сообщение об ошибке при неудачном удалении -->
+    <string name="deleteFailedMessage">Не удалось удалить файлы</string>
+    <!-- Сообщение об ошибке при попытке удалить воспроизводимый файл -->
+    <string name="fileInUseMessage">Нельзя удалить: файл сейчас воспроизводится</string>
+    <!-- Кнопка для показа информации об аудиокниге -->
+    <string name="showInfoButton">Показать информацию</string>
+    <!-- Метка для пути к файлу -->
+    <string name="path">Путь</string>
+    <!-- Метка для количества файлов -->
+    <string name="fileCount">Файлы</string>
+    <!-- Метка для общего размера -->
+    <string name="totalSize">Общий размер</string>
+    <!-- Метка для названия группы аудиокниг -->
+    <string name="audiobookGroupName">Группа</string>
+    <!-- Заголовок экрана управления хранилищем -->
+    <string name="storageManagementTitle">Управление хранилищем</string>
+    <!-- Кнопка для удаления выбранных элементов -->
+    <string name="deleteSelectedButton">Удалить выбранные</string>
+    <!-- Заголовок секции сводки хранилища -->
+    <string name="storageSummaryTitle">Сводка хранилища</string>
+    <!-- Метка для общего размера библиотеки -->
+    <string name="totalLibrarySize">Общий размер библиотеки</string>
+    <!-- Метка для количества групп аудиокниг -->
+    <string name="audiobookGroupsCount">Группы аудиокниг</string>
+    <!-- Метка для размера кэша -->
+    <string name="cacheSize">Размер кэша</string>
+    <!-- Заголовок секции папок библиотеки -->
+    <string name="libraryFoldersTitle">Папки библиотеки</string>
+    <!-- Заголовок секции кэша -->
+    <string name="cacheSectionTitle">Кэш</string>
+    <!-- Метка для общего размера кэша -->
+    <string name="totalCacheSize">Общий кэш</string>
+    <!-- Кнопка для очистки кэша воспроизведения -->
+    <string name="clearPlaybackCacheButton">Очистить кэш воспроизведения</string>
+    <!-- Заголовок секции групп аудиокниг -->
+    <string name="audiobookGroupsTitle">Группы аудиокниг</string>
+    <!-- Кнопка для снятия выделения со всех элементов -->
+    <string name="deselectAllButton">Снять выделение</string>
+    <!-- Кнопка для выбора всех элементов -->
+    <string name="selectAllButton">Выбрать все</string>
+    <!-- Сообщение, когда аудиокниги не найдены -->
+    <string name="noAudiobooksMessage">Аудиокниги не найдены</string>
+    <!-- Заголовок диалога удаления выбранных -->
+    <string name="deleteSelectedTitle">Удалить выбранные?</string>
+    <!-- Сообщение диалога удаления выбранных -->
+    <string name="deleteSelectedMessage">Вы уверены, что хотите удалить {count} выбранную(ых) аудиокнигу(и)?</string>
+    <!-- Сообщение о результате удаления выбранных элементов -->
+    <string name="deleteSelectedResultMessage">Удалено: {success}, Не удалось: {failed}</string>
+    <!-- Заголовок диалога очистки кэша воспроизведения -->
+    <string name="clearPlaybackCacheTitle">Очистить кэш воспроизведения?</string>
+    <!-- Сообщение диалога очистки кэша воспроизведения -->
+    <string name="clearPlaybackCacheMessage">Это очистит кэш воспроизведения. Воспроизведение может быть медленнее, пока кэш не будет восстановлен.</string>
+    <!-- Сообщение, показываемое при очистке кэша -->
+    <string name="clearingCacheMessage">Очистка кэша...</string>
+    <!-- Сообщение об успехе при очистке кэша -->
+    <string name="cacheClearedSuccessMessage">Кэш успешно очищен</string>
+    <!-- Заголовок диалога очистки всего кэша -->
+    <string name="clearAllCacheTitle">Очистить весь кэш?</string>
+    <!-- Сообщение диалога очистки всего кэша -->
+    <string name="clearAllCacheMessage">Это очистит весь кэш, включая кэш воспроизведения, временные файлы и старые логи.</string>
+    <!-- Описание секции управления хранилищем -->
+    <string name="storageManagementDescription">Управление размером библиотеки, кэшем и файлами</string>
+    <!-- Кнопка для открытия экрана управления хранилищем -->
+    <string name="openStorageManagementButton">Открыть управление хранилищем</string>
+    <!-- Сообщение, когда некоторые файлы были успешно удалены -->
+    <string name="partialDeletionSuccessMessage">Частично удалено: {deleted}/{total} файлов</string>
+    <!-- Кнопка для показа деталей -->
+    <string name="showDetailsButton">Детали</string>
+    <!-- Сообщение об ошибке при отказе в доступе для удаления файла -->
+    <string name="permissionDeniedDeletionMessage">Доступ запрещен: Нельзя удалить файл</string>
+    <!-- Заголовок диалога деталей удаления -->
+    <string name="deletionDetailsTitle">Детали удаления</string>
+    <!-- Сводное сообщение для деталей удаления -->
+    <string name="deletionSummaryMessage">Удалено: {deleted}/{total} файлов</string>
+    <!-- Заголовок секции ошибок -->
+    <string name="errorsTitle">Ошибки:</string>
+    <!-- Кнопка для повтора операции -->
+    <string name="retryButton">Повторить</string>
+    <!-- Заголовок экрана совместимости фоновых задач -->
+    <string name="backgroundWorkTitle">Фоновая работа</string>
+    <!-- Подсказка для кнопки обновления -->
+    <string name="refreshDiagnostics">Обновить диагностику</string>
+    <!-- Заголовок секции информации об устройстве -->
+    <string name="deviceInformation">Информация об устройстве</string>
+    <!-- Метка для производителя устройства -->
+    <string name="manufacturer">Производитель</string>
+    <!-- Метка для кастомной оболочки -->
+    <string name="customRom">Оболочка</string>
+    <!-- Метка для версии Android -->
+    <string name="androidVersion">Версия Android</string>
+    <!-- Метка для App Standby Bucket -->
+    <string name="backgroundActivityMode">Режим фоновой активности</string>
+    <!-- Статус когда совместимость в порядке -->
+    <string name="compatibilityOk">Совместимость: ОК</string>
+    <!-- Статус когда обнаружены проблемы -->
+    <string name="issuesDetected">Обнаружены проблемы</string>
+    <!-- Заголовок секции обнаруженных проблем -->
+    <string name="detectedIssues">Обнаруженные проблемы:</string>
+    <!-- Заголовок секции рекомендаций -->
+    <string name="recommendations">Рекомендации</string>
+    <!-- Заголовок секции настроек производителя -->
+    <string name="manufacturerSettings">Настройки производителя</string>
+    <!-- Описание секции настроек производителя -->
+    <string name="manufacturerSettingsDescription">Для стабильной работы приложения в фоне необходимо настроить параметры производителя устройства.</string>
+    <!-- Заголовок настроек автозапуска -->
+    <string name="autostartApp">Автозапуск приложения</string>
+    <!-- Подзаголовок настроек автозапуска -->
+    <string name="enableAutostart">Включите автозапуск для стабильной работы</string>
+    <!-- Заголовок настроек оптимизации батареи -->
+    <string name="batteryOptimization">Оптимизация батареи</string>
+    <!-- Подзаголовок настроек оптимизации батареи -->
+    <string name="disableBatteryOptimization">Отключите оптимизацию батареи для приложения</string>
+    <!-- Заголовок настроек фоновой активности -->
+    <string name="backgroundActivity">Фоновая активность</string>
+    <!-- Подзаголовок настроек фоновой активности -->
+    <string name="allowBackgroundActivity">Разрешите фоновую активность</string>
+    <!-- Кнопка для показа инструкций -->
+    <string name="showInstructions">Показать инструкции</string>
+    <!-- Заголовок секции диагностики WorkManager -->
+    <string name="workManagerDiagnostics">Диагностика WorkManager</string>
+    <!-- Заголовок списка последних выполнений -->
+    <string name="lastExecutions">Последние выполнения:</string>
+    <!-- Сообщение когда история выполнения пуста -->
+    <string name="executionHistoryEmpty">История выполнения задач пока пуста</string>
+    <!-- Метка для общего количества выполнений -->
+    <string name="total">Всего</string>
+    <!-- Метка для успешных выполнений -->
+    <string name="successful">Успешно</string>
+    <!-- Метка для неудачных выполнений -->
+    <string name="errors">Ошибок</string>
+    <!-- Метка для средней задержки -->
+    <string name="avgDelay">Ср. задержка</string>
+    <!-- Сокращение для минут -->
+    <string name="minutesAbbr">мин</string>
+    <!-- Информация о задержке -->
+    <string name="delay">Задержка: {minutes} мин</string>
+    <!-- Информация об ошибке -->
+    <string name="errorLabel">Ошибка: {reason}</string>
+    <!-- Сообщение о проблеме для ограниченного standby bucket -->
+    <string name="appStandbyBucketRestricted">Приложение находится в режиме ограниченной фоновой активности (Standby Bucket: {bucket})</string>
+    <!-- Рекомендация использовать приложение чаще -->
+    <string name="useAppMoreFrequently">Используйте приложение чаще, чтобы система перевела его в активный режим</string>
+    <!-- Сообщение о проблеме агрессивной оптимизации батареи -->
+    <string name="aggressiveBatteryOptimization">Обнаружено устройство от производителя с агрессивной оптимизацией батареи ({manufacturer}, {rom})</string>
+    <!-- Рекомендация настроить автозапуск и батарею -->
+    <string name="configureAutostartAndBattery">Рекомендуется настроить автозапуск и отключить оптимизацию батареи для приложения</string>
+    <!-- Рекомендация открыть настройки производителя -->
+    <string name="openManufacturerSettings">Откройте настройки производителя через меню приложения</string>
+    <!-- Рекомендация для Android 14+ -->
+    <string name="android14ForegroundServices">На Android 14+ убедитесь, что Foreground Services запускаются корректно</string>
+    <!-- Сообщение события когда обнаружены проблемы совместимости -->
+    <string name="compatibilityIssuesDetected">Обнаружены проблемы с фоновой работой приложения</string>
+    <!-- Сообщение события когда задача WorkManager задержана -->
+    <string name="workManagerTaskDelayed">Задача WorkManager \"{taskName}\" задержана на {hours} часов (ожидалось: {minutes} минут)</string>
+    <!-- Сообщение события когда foreground service завершен -->
+    <string name="foregroundServiceKilled">Foreground Service \"{serviceName}\" был неожиданно завершён системой</string>
+    <!-- Статус App Standby Bucket: Активно -->
+    <string name="standbyBucketActive">Активно</string>
+    <!-- Статус App Standby Bucket: Часто используется -->
+    <string name="standbyBucketWorkingSet">Часто используется</string>
+    <!-- Статус App Standby Bucket: Регулярно -->
+    <string name="standbyBucketFrequent">Регулярно</string>
+    <!-- Статус App Standby Bucket: Редко -->
+    <string name="standbyBucketRare">Редко</string>
+    <!-- Статус App Standby Bucket: Никогда -->
+    <string name="standbyBucketNever">Никогда (ограничено)</string>
+    <!-- Статус App Standby Bucket: Неизвестно -->
+    <string name="standbyBucketUnknown">Неизвестно ({bucket})</string>
+    <!-- Описание App Standby Bucket: Активно -->
+    <string name="standbyBucketActiveUsed">Активно используется</string>
+    <!-- Описание App Standby Bucket: Часто -->
+    <string name="standbyBucketFrequentlyUsed">Часто используется</string>
+    <!-- Описание App Standby Bucket: Регулярно -->
+    <string name="standbyBucketRegularlyUsed">Регулярно используется</string>
+    <!-- Описание App Standby Bucket: Редко -->
+    <string name="standbyBucketRarelyUsed">Редко используется</string>
+    <!-- Описание App Standby Bucket: Никогда -->
+    <string name="standbyBucketNeverUsed">Никогда не используется (ограничено)</string>
+    <!-- Заголовок диалога настроек производителя -->
+    <string name="manufacturerSettingsTitle">Настройки для стабильной работы</string>
+    <!-- Описание диалога настроек производителя -->
+    <string name="manufacturerSettingsDialogDescription">Для стабильной работы приложения необходимо настроить следующие параметры:</string>
+    <!-- Шаг 1: Включить автозапуск -->
+    <string name="enableAutostartStep">1. Включите автозапуск приложения</string>
+    <!-- Шаг 2: Отключить оптимизацию батареи -->
+    <string name="disableBatteryOptimizationStep">2. Отключите оптимизацию батареи для приложения</string>
+    <!-- Шаг 3: Разрешить фоновую активность -->
+    <string name="allowBackgroundActivityStep">3. Разрешите фоновую активность</string>
+    <!-- Сообщение показывающее обнаруженную оболочку -->
+    <string name="detectedRom">Обнаружена оболочка: {rom}</string>
+    <!-- Кнопка пропустить -->
+    <string name="skip">Пропустить</string>
+    <!-- Кнопка подтверждения -->
+    <string name="gotIt">Понятно</string>
+    <!-- Заголовок баннера совместимости фоновой работы -->
+    <string name="backgroundCompatibilityBannerTitle">Настройки фоновой работы</string>
+    <!-- Сообщение баннера совместимости фоновой работы -->
+    <string name="backgroundCompatibilityBannerMessage">Для стабильной работы приложения в фоне может потребоваться настройка параметров устройства.</string>
+    <!-- Кнопка закрытия баннера или диалога -->
+    <string name="dismiss">Закрыть</string>
+    <!-- Сообщение об успешной авторизации -->
+    <string name="loginSuccessfulMessage">Авторизация успешна!</string>
+    <!-- Кнопка для открытия настроек -->
+    <string name="openSettingsButton">Открыть настройки</string>
+    <!-- Заголовок раздела совместимости и диагностики -->
+    <string name="compatibilityDiagnosticsTitle">Совместимость и диагностика</string>
+    <!-- Подзаголовок раздела совместимости и диагностики -->
+    <string name="compatibilityDiagnosticsSubtitle">Проверка совместимости и настройка параметров производителя</string>
+    <!-- Кнопка для выбора папки -->
+    <string name="selectFolderButton">Выбрать папку</string>
+    <!-- Кнопка для продолжения -->
+    <string name="continueButton">Продолжить</string>
+    <!-- Сообщение об ошибке при добавлении папки -->
+    <string name="errorAddingFolder">Ошибка добавления папки: %1$s</string>
+    <!-- Сообщение об ошибке когда группа аудиокниг отсутствует -->
+    <string name="noAudiobookGroupProvided">Группа аудиокниг не предоставлена</string>
+    <!-- Сообщение уведомления когда таймер сна приостанавливает воспроизведение -->
+    <string name="sleepTimerPaused">Таймер сна: Воспроизведение приостановлено</string>
+    <!-- Сообщение об ошибке при неудачном изменении скорости -->
+    <string name="failedToChangeSpeed">Не удалось изменить скорость: %1$s</string>
+    <!-- Кнопка для отмены таймера -->
+    <string name="cancelTimerButton">Отменить таймер</string>
+    <!-- Метка для конца главы -->
+    <string name="endOfChapterLabel">Конец главы</string>
+    <!-- Метка для конца главы -->
+    <string name="atEndOfChapterLabel">В конце главы</string>
+    <!-- Подсказка для таймера сна с указанием времени -->
+    <string name="sleepTimerTooltip">Таймер сна: {duration}</string>
+    <!-- Подсказка для установки таймера сна -->
+    <string name="setSleepTimerTooltip">Установить таймер сна</string>
+    <!-- Время таймера в минутах -->
+    <string name="sleepTimerMinutes">{minutes} мин.</string>
+    <!-- Время таймера - 1 час -->
+    <string name="sleepTimerHour">1 ч.</string>
+    <!-- Сообщение о том, что приложение закроется по таймеру -->
+    <string name="sleepTimerAppWillExit">Таймер сна: Приложение закроется</string>
+    <!-- Метка для элементов в корзине -->
+    <string name="itemsInTrashLabel">Элементы в корзине</string>
+    <!-- Метка для размера корзины -->
+    <string name="trashSizeLabel">Размер корзины</string>
+    <!-- Кнопка для управления корзиной -->
+    <string name="manageTrashButton">Управление корзиной</string>
+    <!-- Единственное число файла -->
+    <string name="fileLabel">файл</string>
+    <!-- Множественное число файла -->
+    <string name="filesLabel">файлов</string>
+    <!-- Сообщение об ошибке при неудачной загрузке корзины -->
+    <string name="failedToLoadTrash">Не удалось загрузить корзину: %1$s</string>
+    <!-- Сообщение когда элемент восстановлен -->
+    <string name="itemRestoredSuccessfully">Элемент успешно восстановлен</string>
+    <!-- Сообщение об ошибке при неудачном восстановлении -->
+    <string name="failedToRestoreItem">Не удалось восстановить элемент</string>
+    <!-- Сообщение об ошибке при неудачном восстановлении элемента -->
+    <string name="errorRestoringItem">Ошибка восстановления элемента: %1$s</string>
+    <!-- Заголовок диалога безвозвратного удаления -->
+    <string name="permanentlyDeleteTitle">Удалить навсегда</string>
+    <!-- Сообщение подтверждения для безвозвратного удаления -->
+    <string name="permanentlyDeleteMessage">Вы уверены, что хотите безвозвратно удалить \"{name}\"? Это действие нельзя отменить.</string>
+    <!-- Сообщение когда элемент безвозвратно удален -->
+    <string name="itemPermanentlyDeleted">Элемент безвозвратно удален</string>
+    <!-- Сообщение об ошибке при неудачном удалении -->
+    <string name="failedToDeleteItem">Не удалось удалить элемент</string>
+    <!-- Сообщение об ошибке при неудачном удалении элемента -->
+    <string name="errorDeletingItem">Ошибка удаления элемента: %1$s</string>
+    <!-- Заголовок диалога очистки всей корзины -->
+    <string name="clearAllTrashTitle">Очистить всю корзину</string>
+    <!-- Сообщение подтверждения для очистки всей корзины -->
+    <string name="clearAllTrashMessage">Вы уверены, что хотите безвозвратно удалить все элементы в корзине? Это действие нельзя отменить.</string>
+    <!-- Сообщение об ошибке когда файловый менеджер уже открыт -->
+    <string name="filePickerAlreadyOpen">Файловый менеджер уже открыт. Пожалуйста, закройте его сначала.</string>
+    <!-- Кнопка для применения изменений -->
+    <string name="applyButton">Применить</string>
+    <!-- Опция сортировки по последнему сообщению -->
+    <string name="lastMessageSort">Посл. сообщение</string>
+    <!-- Опция сортировки по названию темы -->
+    <string name="topicNameSort">Название темы</string>
+    <!-- Опция сортировки по времени размещения -->
+    <string name="postingTimeSort">Время размещения</string>
+    <!-- Сообщение об ошибке когда операция превысила время ожидания -->
+    <string name="operationTimedOut">Операция превысила время ожидания. Пожалуйста, попробуйте снова.</string>
+    <!-- Сообщение об ошибке когда доступ запрещен для загрузок -->
+    <string name="permissionDeniedDownloads">Доступ запрещен. Пожалуйста, проверьте разрешения приложения в настройках.</string>
+    <!-- Сообщение об ошибке когда загрузка не найдена -->
+    <string name="downloadNotFound">Загрузка не найдена. Возможно, она была удалена.</string>
+    <!-- Общее сообщение об ошибке -->
+    <string name="anErrorOccurred">Произошла ошибка. Пожалуйста, попробуйте снова.</string>
+    <!-- Сообщение об ошибке во время инициализации -->
+    <string name="initializationError">Ошибка инициализации: %1$s</string>
+    <!-- Сообщение о критической ошибке -->
+    <string name="criticalError">Критическая ошибка: %1$s</string>
+    <!-- Сообщение об ошибке при проверке возможностей -->
+    <string name="capabilityCheckError">Ошибка проверки возможностей: %1$s</string>
+    <!-- Сообщение когда файлы выбраны -->
+    <string name="filesSelected">Выбрано файлов: %1$s</string>
+    <!-- Сообщение об ошибке при выборе файлов -->
+    <string name="fileSelectionError">Ошибка выбора файлов: %1$s</string>
+    <!-- Сообщение когда изображения выбраны -->
+    <string name="imagesSelected">Выбрано изображений: %1$s</string>
+    <!-- Сообщение об ошибке при выборе изображений -->
+    <string name="imageSelectionError">Ошибка выбора изображений: %1$s</string>
+    <!-- Заголовок тестового уведомления -->
+    <string name="testNotificationTitle">Тест уведомления</string>
+    <!-- Текст тестового уведомления -->
+    <string name="testNotificationBody">Это тестовое уведомление от JaBook</string>
+    <!-- Сообщение когда уведомление отправлено -->
+    <string name="notificationSent">Уведомление отправлено</string>
+    <!-- Сообщение об ошибке при неудачной отправке уведомления -->
+    <string name="failedToSendNotification">Не удалось отправить уведомление (канал не реализован)</string>
+    <!-- Сообщение о доступности Bluetooth -->
+    <string name="bluetoothAvailable">Bluetooth доступен: %1$s</string>
+    <!-- Сообщение о количестве сопряженных устройств -->
+    <string name="pairedDevicesCount">Сопряженных устройств: %1$s</string>
+    <!-- Сообщение об ошибке при проверке Bluetooth -->
+    <string name="bluetoothCheckError">Ошибка проверки Bluetooth: %1$s</string>
+    <!-- Заголовок раздела системных возможностей -->
+    <string name="systemCapabilitiesTitle">Системные возможности</string>
+    <!-- Название возможности доступа к файлам -->
+    <string name="fileAccessCapability">Доступ к файлам</string>
+    <!-- Название возможности доступа к изображениям -->
+    <string name="imageAccessCapability">Доступ к изображениям</string>
+    <!-- Название возможности камеры -->
+    <string name="cameraCapability">Камера</string>
+    <!-- Сообщение когда фото сделано -->
+    <string name="photoTaken">Фото сделано: %1$s</string>
+    <!-- Сообщение когда фото не сделано -->
+    <string name="photoNotTaken">Фото не сделано</string>
+    <!-- Сообщение об ошибке камеры -->
+    <string name="cameraError">Ошибка камеры: %1$s</string>
+    <!-- Название возможности уведомлений -->
+    <string name="notificationsCapability">Уведомления</string>
+    <!-- Кнопка для объяснения возможностей -->
+    <string name="capabilityExplanationButton">Объяснение возможностей</string>
+    <!-- Кнопка для тестирования возможности -->
+    <string name="testButton">Тест</string>
+    <!-- Заголовок диалога разрешений при первом запуске -->
+    <string name="permissionsForJaBookTitle">Разрешения для JaBook</string>
+    <!-- Заголовок разрешения доступа к файлам -->
+    <string name="fileAccessPermissionTitle">Доступ к файлам</string>
+    <!-- Описание разрешения доступа к файлам -->
+    <string name="fileAccessPermissionDescription">Нужен для сохранения и воспроизведения аудиокниг. На Android 11+ потребуется включить \"Доступ ко всем файлам\" в настройках системы.</string>
+    <!-- Заголовок разрешения уведомлений -->
+    <string name="notificationsPermissionTitle">Уведомления</string>
+    <!-- Заголовок разрешения оптимизации батареи -->
+    <string name="batteryOptimizationPermissionTitle">Оптимизация батареи</string>
+    <!-- Описание разрешения оптимизации батареи -->
+    <string name="batteryOptimizationPermissionDescription">Чтобы приложение работало в фоне для воспроизведения.</string>
+    <!-- Сообщение объясняющее зачем нужны разрешения -->
+    <string name="permissionsHelpMessage">Эти разрешения помогут обеспечить лучший опыт использования приложения.</string>
+    <!-- Метка для отображения URL -->
+    <string name="urlLabel">URL: %1$s</string>
+    <!-- Заголовок секции RuTracker -->
+    <string name="rutrackerTitle">RuTracker</string>
+    <!-- Текст кнопки входа через WebView -->
+    <string name="webViewLoginButton">Войти в RuTracker через WebView</string>
+    <!-- Подзаголовок кнопки входа через WebView -->
+    <string name="webViewLoginSubtitle">Пройти Cloudflare/капчу и сохранить cookie для клиента</string>
+    <!-- Сообщение об успешном сохранении cookie -->
+    <string name="cookieSavedMessage">Cookie сохранены для HTTP-клиента</string>
+    <!-- Сообщение об ошибке при неудачном парсинге результатов поиска из-за проблемы с кодировкой -->
+    <string name="failedToParseSearchResultsEncoding">Не удалось распарсить результаты поиска из-за проблемы с кодировкой. Это может быть временная проблема сервера. Пожалуйста, попробуйте снова. Если проблема сохраняется, попробуйте изменить зеркало в Настройках → Источники.</string>
+    <!-- Сообщение об ошибке при неудачном парсинге результатов поиска из-за изменения структуры страницы -->
+    <string name="failedToParseSearchResultsStructure">Не удалось распарсить результаты поиска. Структура страницы могла измениться. Пожалуйста, попробуйте снова. Если проблема сохраняется, попробуйте изменить зеркало в Настройках → Источники.</string>
+    <!-- Сообщение об ошибке при неудачном поиске -->
+    <string name="searchFailedMessage">Поиск не удался: {errorType}</string>
+    <!-- Метка опции сортировки по названию темы -->
+    <string name="topicTitleSort">Название темы</string>
+    <!-- Метка опции сортировки по времени размещения -->
+    <string name="postTimeSort">Время размещения</string>
+    <!-- Сообщение об успешном запуске локального сервера потоковой передачи -->
+    <string name="localStreamServerStarted">Локальный сервер потоковой передачи запущен на http://{host}:{port}</string>
+    <!-- Title for access required dialog -->
+    <string name="accessRequired">Требуется доступ</string>
+    <!-- Message when feature requires authentication -->
+    <string name="featureRequiresAuth">Функция \"{feature}\" требует авторизации</string>
+    <!-- Message to sign in for feature access -->
+    <string name="signInToAccessFeature">Войдите в аккаунт, чтобы получить доступ к этой функции</string>
+    <!-- Button text for upgrading to full access -->
+    <string name="upgradeToFull">Полный доступ</string>
+    <!-- Title for restricted feature screen -->
+    <string name="restrictedFeature">Ограниченная функция</string>
+    <!-- Message when feature is restricted in demo mode -->
+    <string name="featureRestricted">Эта функция недоступна в демо-режиме</string>
+    <!-- Description for restricted feature -->
+    <string name="featureRestrictedDescription">Для доступа к этой функции необходимо войти в аккаунт</string>
+    <!-- Button text to sign in and unlock -->
+    <string name="signInToUnlock">Войти, чтобы разблокировать</string>
+    <!-- Предупреждающее сообщение, показываемое на экране поиска в гостевом режиме -->
+    <string name="searchGuestModeWarning">Поиск ограничен в гостевом режиме. Некоторые функции могут не работать. Войдите для полного доступа.</string>
+    <!-- Предупреждающее сообщение, показываемое на экране загрузок в гостевом режиме -->
+    <string name="downloadsGuestModeWarning">Загрузки доступны только для просмотра в гостевом режиме. Войдите для управления загрузками.</string>
+    <!-- Button text to continue as guest -->
+    <string name="continueAsGuest">Продолжить как гость</string>
+    <!-- Title for session expired dialog -->
+    <string name="sessionExpired">Сессия истекла</string>
+    <!-- Button text to sign in again -->
+    <string name="signInAgain">Войти снова</string>
+    <!-- Title for authorization required -->
+    <string name="authorizationRequired">Требуется авторизация</string>
+    <!-- Demo mode label -->
+    <string name="demoMode">Демо-режим</string>
+    <!-- Description for demo mode -->
+    <string name="demoModeDescription">Вы используете демо-режим с ограниченной функциональностью</string>
+    <!-- Button text to upgrade to full access -->
+    <string name="upgradeToFullAccess">Получить полный доступ</string>
+    <!-- Message when search is restricted in demo mode -->
+    <string name="searchRestricted">Поиск недоступен в демо-режиме</string>
+    <!-- Message when downloads are restricted in demo mode -->
+    <string name="downloadRestricted">Загрузки недоступны в демо-режиме</string>
+    <!-- Message when browsing topics is restricted in demo mode -->
+    <string name="browseRestricted">Просмотр топиков недоступен в демо-режиме</string>
+    <!-- Account label -->
+    <string name="account">Аккаунт</string>
+    <!-- Sign in button text -->
+
+    <!-- Sign out button text -->
+
+    <!-- Compact player layout option -->
+    <string name="compactPlayerLayout">Компактный плеер</string>
+    <!-- Standard player layout option -->
+    <string name="standardPlayerLayout">Стандартный плеер</string>
+    <!-- Adaptive navigation option -->
+    <string name="adaptiveNavigation">Адаптивная навигация</string>
+    <!-- Small screen optimizations option -->
+    <string name="smallScreenOptimizations">Оптимизации для маленьких экранов</string>
+    <!-- Сообщение об ошибке при неудачном запуске сервера потоковой передачи -->
+    <string name="failedToStartStreamServer">Не удалось запустить сервер потоковой передачи: {error}</string>
+    <!-- Сообщение об успешной остановке локального сервера потоковой передачи -->
+    <string name="localStreamServerStopped">Локальный сервер потоковой передачи остановлен</string>
+    <!-- Сообщение об ошибке при неудачной остановке сервера потоковой передачи -->
+    <string name="failedToStopStreamServer">Не удалось остановить сервер потоковой передачи: {error}</string>
+    <!-- Сообщение об ошибке при отсутствии параметра ID книги -->
+    <string name="missingBookIdParameter">Отсутствует параметр ID книги</string>
+    <!-- Сообщение об ошибке при неверном параметре индекса файла -->
+    <string name="invalidFileIndexParameter">Неверный параметр индекса файла</string>
+    <!-- Сообщение об ошибке, когда файл не найден -->
+    <string name="fileNotFound">Файл не найден</string>
+    <!-- Сообщение об ошибке потоковой передачи -->
+    <string name="streamingError">Ошибка потоковой передачи</string>
+    <!-- Сообщение об ошибке при неверном заголовке диапазона -->
+    <string name="invalidRangeHeader">Неверный заголовок диапазона</string>
+    <!-- Сообщение об ошибке, когда запрошенный диапазон не может быть выполнен -->
+    <string name="requestedRangeNotSatisfiable">Запрошенный диапазон не может быть выполнен</string>
+    <!-- Сообщение об ошибке запроса диапазона -->
+    <string name="rangeRequestError">Ошибка запроса диапазона</string>
+    <!-- Сообщение об ошибке статического файла -->
+    <string name="staticFileError">Ошибка статического файла</string>
+    <!-- Сообщение об ошибке при неудачном запуске аудио сервиса -->
+    <string name="failedToStartAudioService">Не удалось запустить аудио сервис: {error}</string>
+    <!-- Сообщение об ошибке при неудачном воспроизведении медиа -->
+    <string name="failedToPlayMedia">Не удалось воспроизвести медиа: {error}</string>
+    <!-- Сообщение об ошибке при неудачной приостановке медиа -->
+    <string name="failedToPauseMedia">Не удалось приостановить медиа: {error}</string>
+    <!-- Сообщение об ошибке при неудачной остановке медиа -->
+    <string name="failedToStopMedia">Не удалось остановить медиа: {error}</string>
+    <!-- Сообщение об ошибке при неудачной операции перехода к позиции -->
+    <string name="failedToSeek">Не удалось перейти к позиции: {error}</string>
+    <!-- Сообщение об ошибке при неудачной установке скорости воспроизведения -->
+    <string name="failedToSetSpeed">Не удалось установить скорость: {error}</string>
+    <!-- Сообщение об ошибке при неудачной инициализации логгера -->
+    <string name="failedToInitializeLogger">Не удалось инициализировать логгер</string>
+    <!-- Сообщение об ошибке при неверном формате URL для скачивания -->
+    <string name="invalidDownloadUrl">Неверный формат URL для скачивания</string>
+    <!-- Сообщение об ошибке когда директория загрузок недоступна -->
+    <string name="downloadsDirectoryNotAvailable">Директория загрузок недоступна</string>
+    <!-- Сообщение об ошибке при неудачной записи лога -->
+    <string name="failedToWriteLog">Не удалось записать лог</string>
+    <!-- Сообщение об ошибке при неудачной ротации логов -->
+    <string name="logRotationFailed">Не удалось выполнить ротацию логов</string>
+    <!-- Сообщение об ошибке при неудачной ротации логов -->
+    <string name="failedToRotateLogs">Не удалось выполнить ротацию логов</string>
+    <!-- Сообщение об ошибке при неудачной очистке старых логов -->
+    <string name="failedToCleanOldLogs">Не удалось очистить старые логи</string>
+    <!-- Сообщение об ошибке при неудачной отправке логов -->
+    <string name="errorSharingLogs">Ошибка при отправке логов: {error}</string>
+    <!-- Сообщение об ошибке при неудачной отправке логов -->
+    <string name="failedToShareLogs">Не удалось отправить логи</string>
+    <!-- Сообщение об ошибке при неудачном чтении логов -->
+    <string name="failedToReadLogs">Не удалось прочитать логи</string>
+    <!-- Сообщение об ошибке, когда CacheManager не инициализирован -->
+    <string name="cacheManagerNotInitialized">CacheManager не инициализирован</string>
+    <!-- Сообщение об ошибке при неудачном парсинге результатов поиска -->
+    <string name="failedToParseSearchResults">Не удалось распарсить результаты поиска: {error}</string>
+    <!-- Сообщение об ошибке при неудачном парсинге деталей темы -->
+    <string name="failedToParseTopicDetails">Не удалось распарсить детали темы: {error}</string>
+    <!-- Сообщение об ошибке при неудачном парсинге категорий -->
+    <string name="failedToParseCategories">Не удалось распарсить категории</string>
+    <!-- Сообщение об ошибке при неудачном парсинге тем категории -->
+    <string name="failedToParseCategoryTopics">Не удалось распарсить темы категории</string>
+    <!-- Название категории для радиоспектаклей -->
+    <string name="radioPlayCategory">Радиоспектакль</string>
+    <!-- Название категории для аудиокниг -->
+    <string name="audiobookCategory">Аудиокнига</string>
+    <!-- Название категории для биографий -->
+    <string name="biographyCategory">Биография</string>
+    <!-- Название категории для мемуаров -->
+    <string name="memoirsCategory">Мемуары</string>
+    <!-- Название категории для истории -->
+    <string name="historyCategory">История</string>
+    <!-- Метка для даты добавления -->
+    <string name="addedLabel">Добавлено</string>
+    <!-- Сообщение об ошибке, когда в magnet URL отсутствует info hash -->
+    <string name="invalidMagnetUrlMissingHash">Неверный magnet URL: отсутствует info hash</string>
+    <!-- Сообщение об ошибке, когда info hash имеет неверную длину -->
+    <string name="invalidInfoHashLength">Неверная длина info hash</string>
+    <!-- Сообщение об ошибке при неудачном начале загрузки с деталями ошибки -->
+    <string name="failedToStartDownloadWithError">Не удалось начать загрузку: %1$s</string>
+    <!-- Сообщение об ошибке, когда загрузка не найдена -->
+    <string name="downloadNotFoundTorrent">Загрузка не найдена</string>
+    <!-- Сообщение об ошибке при неудачной приостановке загрузки -->
+    <string name="failedToPauseDownload">Не удалось приостановить загрузку: {error}</string>
+    <!-- Сообщение об ошибке при неудачном возобновлении загрузки -->
+    <string name="failedToResumeDownload">Не удалось возобновить загрузку: {error}</string>
+    <!-- Сообщение об ошибке при неудачном удалении загрузки -->
+    <string name="failedToRemoveDownload">Не удалось удалить загрузку: {error}</string>
+    <!-- Сообщение об ошибке при неудачном получении активных загрузок -->
+    <string name="failedToGetActiveDownloads">Не удалось получить активные загрузки: {error}</string>
+    <!-- Сообщение об ошибке при неудачной остановке менеджера торрентов -->
+    <string name="failedToShutdownTorrentManager">Не удалось остановить менеджер торрентов: {error}</string>
+    <!-- Сообщение об ошибке, когда нет доступных здоровых конечных точек -->
+    <string name="noHealthyEndpointsAvailable">Нет доступных здоровых конечных точек</string>
+    <!-- Сообщение об ошибке, когда AuthRepositoryProvider не настроен правильно -->
+    <string name="authRepositoryProviderMustBeOverridden">AuthRepositoryProvider должен быть переопределен с правильным контекстом</string>
+    <!-- Устаревшее сообщение для использования EndpointManager.getActiveEndpoint() -->
+    <string name="useEndpointManagerGetActiveEndpoint">Используйте EndpointManager.getActiveEndpoint() для динамического выбора зеркала</string>
+    <!-- Сообщение об ошибке, когда CacheManager не инициализирован в конфигурации -->
+    <string name="cacheManagerNotInitializedConfig">CacheManager не инициализирован</string>
+    <!-- Сообщение об ошибке при неудачном поиске с конкретным сообщением -->
+    <string name="searchFailedWithMessage">Поиск не удался: {message}</string>
+    <!-- Сообщение об ошибке при неудачном поиске аудиокниг -->
+    <string name="failedToSearchAudiobooks">Не удалось выполнить поиск аудиокниг</string>
+    <!-- Сообщение об ошибке при неудачном получении категорий -->
+    <string name="failedToFetchCategories">Не удалось получить категории: {message}</string>
+    <!-- Сообщение об ошибке при неудачном получении категорий -->
+    <string name="failedToGetCategories">Не удалось получить категории</string>
+    <!-- Сообщение об ошибке при неудачном получении аудиокниг категории с сообщением -->
+    <string name="failedToGetCategoryAudiobooksWithMessage">Не удалось получить аудиокниги категории: {message}</string>
+    <!-- Сообщение об ошибке при неудачном получении аудиокниг категории -->
+    <string name="failedToGetCategoryAudiobooks">Не удалось получить аудиокниги категории</string>
+    <!-- Сообщение об ошибке при неудачном получении деталей аудиокниги -->
+    <string name="failedToFetchAudiobookDetails">Не удалось получить детали аудиокниги: {message}</string>
+    <!-- Сообщение об ошибке при неудачном получении деталей аудиокниги -->
+    <string name="failedToGetAudiobookDetails">Не удалось получить детали аудиокниги</string>
+    <!-- Сообщение об ошибке при неудачном получении новых релизов -->
+    <string name="failedToFetchNewReleases">Не удалось получить новые релизы: {message}</string>
+    <!-- Сообщение об ошибке при неудачном сохранении учетных данных -->
+    <string name="failedToSaveCredentials">Не удалось сохранить учетные данные: {error}</string>
+    <!-- Сообщение об ошибке при неудачном получении учетных данных -->
+    <string name="failedToRetrieveCredentials">Не удалось получить учетные данные: {error}</string>
+    <!-- Сообщение об ошибке при неудачной очистке учетных данных -->
+    <string name="failedToClearCredentials">Не удалось очистить учетные данные: {error}</string>
+    <!-- Сообщение об ошибке, когда нет учетных данных для экспорта -->
+    <string name="noCredentialsToExport">Нет учетных данных для экспорта</string>
+    <!-- Сообщение об ошибке, когда формат экспорта не поддерживается -->
+    <string name="unsupportedExportFormat">Неподдерживаемый формат экспорта: {format}</string>
+    <!-- Сообщение об ошибке, когда формат CSV неверен -->
+    <string name="invalidCsvFormat">Неверный формат CSV</string>
+    <!-- Сообщение об ошибке, когда данные CSV неверны -->
+    <string name="invalidCsvData">Неверные данные CSV</string>
+    <!-- Сообщение об ошибке, когда формат JSON неверен -->
+    <string name="invalidJsonFormat">Неверный формат JSON</string>
+    <!-- Сообщение об ошибке, когда формат импорта не поддерживается -->
+    <string name="unsupportedImportFormat">Неподдерживаемый формат импорта: {format}</string>
+    <!-- Сообщение об ошибке при неудачном импорте учетных данных -->
+    <string name="failedToImportCredentials">Не удалось импортировать учетные данные: {error}</string>
+    <!-- Общее сообщение об ошибке с деталями ошибки -->
+    <string name="errorWithDetails">Ошибка: {error}</string>
+    <!-- Единственное число слова 'файл' -->
+    <string name="fileSingular">файл</string>
+    <!-- Множественное число слова 'файл' -->
+    <string name="filePlural">файлов</string>
+    <!-- Сообщение подтверждения для удаления выбранных аудиокниг -->
+    <string name="deleteSelectedAudiobooksConfirmation">Вы уверены, что хотите удалить {count} выбранную(ых) аудиокнигу(и)?</string>
+    <!-- Описание того, что делает очистка кэша воспроизведения -->
+    <string name="clearPlaybackCacheDescription">Это очистит кэш воспроизведения. Воспроизведение может быть медленнее, пока кэш не будет восстановлен.</string>
+    <!-- Описание того, что делает очистка всего кэша -->
+    <string name="clearAllCacheDescription">Это очистит весь кэш, включая кэш воспроизведения, временные файлы и старые логи.</string>
+    <!-- Заголовок диалога об ошибке истечения сессии -->
+    <string name="sessionExpiredTitle">Сессия истекла</string>
+    <!-- Сообщение об ошибке истечения сессии -->
+    <string name="sessionExpiredMessage">Ваша сессия истекла. Пожалуйста, войдите в систему снова.</string>
+    <!-- Заголовок диалога об ошибке неверных учетных данных -->
+    <string name="invalidCredentialsTitle">Ошибка авторизации</string>
+    <!-- Сообщение об ошибке неверных учетных данных -->
+    <string name="invalidCredentialsMessage">Неверный логин или пароль. Проверьте введенные данные.</string>
+    <!-- Заголовок диалога о необходимости входа -->
+    <string name="loginRequiredTitle">Требуется авторизация</string>
+    <!-- Сообщение о необходимости входа -->
+    <string name="loginRequiredMessage">Для выполнения этого действия необходимо войти в систему.</string>
+    <!-- Заголовок диалога об общей ошибке авторизации -->
+    <string name="authorizationErrorTitle">Ошибка авторизации</string>
+    <!-- Сообщение об ошибке отказа в доступе -->
+    <string name="accessDeniedMessage">Доступ запрещен. Проверьте правильность учетных данных или войдите снова.</string>
+    <!-- Заголовок диалога об ошибке сети -->
+    <string name="networkErrorTitle">Ошибка сети</string>
+    <!-- Сообщение об ошибке неудачного сетевого запроса -->
+    <string name="networkRequestFailedMessage">Не удалось выполнить запрос. Проверьте подключение к интернету.</string>
+    <!-- Общее сообщение об ошибке -->
+    <string name="errorOccurredMessage">Произошла ошибка при выполнении операции.</string>
+    <!-- Сообщение snackbar об истечении сессии -->
+    <string name="sessionExpiredSnackBar">Сессия истекла. Пожалуйста, войдите снова.</string>
+    <!-- Сообщение snackbar о неверных учетных данных -->
+    <string name="invalidCredentialsSnackBar">Неверный логин или пароль.</string>
+    <!-- Сообщение snackbar об ошибке авторизации -->
+    <string name="authorizationErrorSnackBar">Ошибка авторизации. Проверьте учетные данные.</string>
+    <!-- Сообщение snackbar об ошибке сети -->
+    <string name="networkErrorSnackBar">Ошибка сети. Проверьте подключение.</string>
+    <!-- Сообщение, когда требуется проверка капчи -->
+    <string name="captchaVerificationRequired">Требуется проверка капчи. Пожалуйста, попробуйте позже.</string>
+    <!-- Сообщение об ошибке сети с просьбой проверить подключение -->
+    <string name="networkErrorCheckConnection">Ошибка сети. Пожалуйста, проверьте подключение и попробуйте снова.</string>
+    <!-- Сообщение при неудачной аутентификации -->
+    <string name="authenticationFailedMessage">Ошибка аутентификации. Пожалуйста, проверьте учетные данные и попробуйте снова.</string>
+    <!-- Сообщение о неудачном входе с деталями ошибки -->
+    <string name="loginFailedWithError">Вход не удался: {error}</string>
+    <!-- Сообщение об ошибке, когда не найдено доступных аудиофайлов -->
+    <string name="noAccessibleAudioFiles">Не найдено доступных аудиофайлов</string>
+    <!-- Заголовок экрана О приложении -->
+    <string name="aboutTitle">О приложении</string>
+    <!-- Слоган приложения -->
+    <string name="aboutAppSlogan">Современный аудиоплеер для торрентов</string>
+    <!-- Метка для версии приложения -->
+    <string name="appVersion">Версия приложения</string>
+    <!-- Метка для номера сборки -->
+    <string name="buildNumber">Сборка</string>
+    <!-- Метка для ID пакета -->
+    <string name="packageId">ID пакета</string>
+    <!-- Заголовок секции лицензии -->
+    <string name="licenseTitle">Лицензия</string>
+    <!-- Описание лицензии -->
+    <string name="licenseDescription">Приложение JaBook распространяется по лицензии Apache 2.0. Нажмите, чтобы посмотреть полный текст лицензии и список сторонних библиотек.</string>
+    <!-- Пункт меню для основной лицензии -->
+    <string name="mainLicense">Основная лицензия</string>
+    <!-- Пункт меню для сторонних библиотек -->
+    <string name="thirdPartyLicenses">Сторонние библиотеки</string>
+    <!-- Пункт меню для Telegram канала -->
+    <string name="telegramChannel">Telegram канал</string>
+    <!-- Подпись для Telegram канала -->
+    <string name="openTelegramChannel">Открыть канал в Telegram</string>
+    <!-- Пункт меню для связи с разработчиком -->
+    <string name="contactDeveloper">Написать разработчику</string>
+    <!-- Подпись для почтового клиента -->
+    <string name="openEmailClient">Открыть почтовый клиент</string>
+    <!-- Пункт меню для поддержки проекта -->
+    <string name="supportProject">Поддержать проект</string>
+    <!-- Подпись для поддержки проекта -->
+    <string name="supportProjectDescription">Пожертвовать или поддержать разработку</string>
+    <!-- Пункт меню для GitHub репозитория -->
+    <string name="githubRepository">GitHub</string>
+    <!-- Подпись для GitHub репозитория -->
+    <string name="githubRepositoryDescription">Исходный код и список изменений</string>
+    <!-- Пункт меню для списка изменений -->
+    <string name="changelog">Список изменений</string>
+    <!-- Подпись для списка изменений -->
+    <string name="changelogDescription">История версий и обновлений</string>
+    <!-- Menu item for GitHub issues -->
+    <string name="issues">Issues</string>
+    <!-- Subtitle for issues -->
+    <string name="issuesDescription">Сообщить об ошибках и запросить функции</string>
+    <!-- Заголовок секции о разработчике -->
+    <string name="aboutDeveloper">О разработчике</string>
+    <!-- Текст о разработчике -->
+    <string name="aboutDeveloperText">JaBook разработан командой Jabook Contributors. Это open source проект, созданный для удобного прослушивания аудиокниг из открытых источников и торрентов. Без рекламы, без регистрации — простое прослушивание.</string>
+    <!-- Кнопка для копирования информации -->
+    <string name="copyInfo">Скопировать</string>
+    <!-- Сообщение после копирования -->
+    <string name="infoCopied">Информация скопирована</string>
+    <!-- Сообщение об ошибке при открытии ссылки -->
+    <string name="failedToOpenLink">Не удалось открыть ссылку</string>
+    <!-- Сообщение об ошибке при открытии почтового клиента -->
+    <string name="failedToOpenEmail">Не удалось открыть почтовый клиент</string>
+    <!-- Подпись для просмотра лицензии в приложении -->
+    <string name="viewInApp">Просмотр в приложении</string>
+    <!-- Подпись для просмотра лицензий -->
+    <string name="viewLicenses">Просмотр лицензий</string>
+    <!-- Пункт меню для просмотра лицензии на GitHub -->
+    <string name="licenseOnGitHub">Лицензия на GitHub</string>
+    <!-- Подпись для просмотра файла лицензии -->
+    <string name="viewLicenseFile">Просмотр файла LICENSE</string>
+    <!-- Подпись для форума 4PDA -->
+    <string name="appDiscussionQuestionsReviews">Обсуждение приложения, вопросы и отзывы</string>
+    <!-- Название команды разработчиков -->
+    <string name="jabookContributors">Jabook Contributors</string>
+    <!-- Название сервиса GitHub -->
+    <string name="github">GitHub</string>
+    <!-- Метка для доступности блока версии -->
+    <string name="versionInformationLongPress">Информация о версии. Долгое нажатие для копирования.</string>
+    <!-- Значение по умолчанию для неизвестных данных -->
+    <string name="unknown">Неизвестно</string>
+    <!-- Тема письма для обратной связи -->
+    <string name="emailFeedbackSubject">JaBook – обратная связь</string>
+    <!-- Метка приложения в письме -->
+    <string name="emailFeedbackApp">Приложение: JaBook</string>
+    <!-- Метка версии в письме -->
+    <string name="emailFeedbackVersion">Версия:</string>
+    <!-- Метка устройства в письме -->
+    <string name="emailFeedbackDevice">Устройство:</string>
+    <!-- Метка версии Android в письме -->
+    <string name="emailFeedbackAndroid">Android:</string>
+    <!-- Метка описания в письме -->
+    <string name="emailFeedbackDescription">Описание проблемы / предложения:</string>
+    <!-- Описание секции О приложении в настройках -->
+    <string name="aboutSectionDescription">Информация о приложении и ссылки</string>
+    <!-- Подпись для секции О приложении в настройках -->
+    <string name="aboutSectionSubtitle">Версия, лицензия и информация о разработчике</string>
+    <!-- Название форума 4PDA -->
+    <string name="forum4Pda">4PDA</string>
+    <!-- Заголовок настройки длительности перемотки назад -->
+    <string name="rewindDurationTitle">Длительность перемотки назад</string>
+    <!-- Заголовок настройки длительности перемотки вперед -->
+    <string name="forwardDurationTitle">Длительность перемотки вперед</string>
+    <!-- Заголовок настройки таймаута неактивности -->
+    <string name="inactivityTimeoutTitle">Таймаут неактивности</string>
+    <!-- Метка для настройки таймаута неактивности -->
+    <string name="inactivityTimeoutLabel">Установить таймаут неактивности</string>
+    <!-- Единственное число слова минута -->
+    <string name="minute">минута</string>
+    <!-- Метка для действия перемотки назад -->
+    <string name="rewind">Назад</string>
+    <!-- Метка для действия перемотки вперед -->
+    <string name="forward">Вперед</string>
+    <!-- Метка для текущей позиции воспроизведения -->
+    <string name="currentPosition">Текущая</string>
+    <!-- Метка для новой позиции воспроизведения после перемотки -->
+    <string name="newPosition">Новая</string>
+    <!-- Метка для единицы времени секунды -->
+    <string name="secondsLabel">секунд</string>
+    <!-- Метка доступности для секции настроек языка -->
+    <string name="languageSettingsLabel">Настройки языка</string>
+    <!-- Метка доступности для секции настроек зеркал -->
+    <string name="mirrorSourceSettingsLabel">Настройки зеркал и источников</string>
+    <!-- Метка доступности для секции сессии RuTracker -->
+    <string name="rutrackerSessionLabel">Управление сессией RuTracker</string>
+    <!-- Метка доступности для секции метаданных -->
+    <string name="metadataManagementLabel">Управление метаданными</string>
+    <!-- Метка доступности для секции настроек темы -->
+    <string name="themeSettingsLabel">Настройки темы</string>
+    <!-- Метка доступности для секции настроек аудио -->
+    <string name="audioPlaybackSettingsLabel">Настройки воспроизведения аудио</string>
+    <!-- Метка доступности для секции настроек загрузки -->
+    <string name="downloadSettingsLabel">Настройки загрузки</string>
+    <!-- Метка доступности для секции настроек папки библиотеки -->
+    <string name="libraryFolderSettingsLabel">Настройки папки библиотеки</string>
+    <!-- Метка доступности для секции управления хранилищем -->
+    <string name="storageManagementLabel">Управление хранилищем</string>
+    <!-- Метка доступности для секции настроек кэша -->
+    <string name="cacheSettingsLabel">Настройки кэша</string>
+    <!-- Метка доступности для секции разрешений приложения -->
+    <string name="appPermissionsLabel">Разрешения приложения</string>
+    <!-- Метка доступности для секции о приложении -->
+    <string name="aboutAppLabel">О приложении</string>
+    <!-- Метка доступности для секции совместимости фоновых задач -->
+    <string name="backgroundTaskCompatibilityLabel">Совместимость фоновых задач</string>
+    <!-- Метка доступности для секции резервного копирования -->
+    <string name="backupRestoreLabel">Резервное копирование и восстановление</string>
+    <!-- Кнопка для входа в режим выбора закладок -->
+    <string name="selectFavorites">Выбрать</string>
+    <!-- Кнопка для удаления выбранных закладок -->
+    <string name="clearSelectedFavorites">Удалить выбранные</string>
+    <!-- Кнопка для очистки всех закладок -->
+    <string name="clearAllFavorites">Очистить все</string>
+    <!-- Заголовок диалога подтверждения очистки всех закладок -->
+    <string name="clearAllFavoritesTitle">Очистить все закладки?</string>
+    <!-- Сообщение в диалоге подтверждения очистки всех закладок -->
+    <string name="clearAllFavoritesMessage">Это удалит все избранные аудиокниги. Это действие нельзя отменить.</string>
+    <!-- Сообщение когда закладки очищены -->
+    <string name="favoritesCleared">Закладки очищены</string>
+    <!-- Сообщение когда закладки удалены -->
+    <string name="favoritesDeleted">Удалено закладок: {count}</string>
+    <!-- Сообщение при попытке удалить, но закладки не выбраны -->
+    <string name="noFavoritesSelected">Закладки не выбраны</string>
+    <!-- Метка для количества выбранных элементов -->
+    <string name="selected">выбрано</string>
+    <!-- Метка для секции опций сортировки в диалоге фильтра библиотеки -->
+    <string name="sortByLabel">Сортировать по:</string>
+    <!-- Метка для секции опций группировки в диалоге фильтра библиотеки -->
+    <string name="groupByLabel">Группировать по:</string>
+    <!-- Опция сортировки: имя по возрастанию -->
+    <string name="sortByNameAsc">Имя (А-Я)</string>
+    <!-- Опция сортировки: имя по убыванию -->
+    <string name="sortByNameDesc">Имя (Я-А)</string>
+    <!-- Опция сортировки: размер по возрастанию -->
+    <string name="sortBySizeAsc">Размер (Меньший)</string>
+    <!-- Опция сортировки: размер по убыванию -->
+    <string name="sortBySizeDesc">Размер (Больший)</string>
+    <!-- Опция сортировки: дата по возрастанию -->
+    <string name="sortByDateAsc">Дата (Старые)</string>
+    <!-- Опция сортировки: дата по убыванию -->
+    <string name="sortByDateDesc">Дата (Новые)</string>
+    <!-- Опция сортировки: файлы по возрастанию -->
+    <string name="sortByFilesAsc">Файлы (Меньше)</string>
+    <!-- Опция сортировки: файлы по убыванию -->
+    <string name="sortByFilesDesc">Файлы (Больше)</string>
+    <!-- Опция группировки: без группировки -->
+    <string name="groupByNone">Нет</string>
+    <!-- Опция группировки: группировать по первой букве -->
+    <string name="groupByFirstLetter">Первая буква</string>
+    <!-- Сообщение, показываемое при сканировании библиотеки аудиокниг -->
+    <string name="scanningLibrary">Сканирование библиотеки...</string>
+    <!-- Заголовок когда настройки производителя недоступны -->
+    <string name="manufacturerSettingsNotAvailable">Настройки недоступны</string>
+    <!-- Сообщение когда настройки производителя недоступны -->
+    <string name="manufacturerSettingsNotAvailableMessage">Настройки производителя доступны только на устройствах Android.</string>
+    <!-- Заголовок по умолчанию для инструкций настроек производителя -->
+    <string name="manufacturerSettingsDefaultTitle">Настройки для стабильной работы</string>
+    <!-- Сообщение по умолчанию для инструкций настроек производителя -->
+    <string name="manufacturerSettingsDefaultMessage">Для стабильной работы приложения необходимо настроить следующие параметры:</string>
+    <!-- Шаг 1 по умолчанию для настроек производителя -->
+    <string name="manufacturerSettingsDefaultStep1">1. Включите автозапуск приложения</string>
+    <!-- Шаг 2 по умолчанию для настроек производителя -->
+    <!-- Шаг 3 по умолчанию для настроек производителя -->
+    <!-- Заголовок для настроек производителя MIUI -->
+    <string name="manufacturerSettingsMiuiTitle">Настройки MIUI для стабильной работы</string>
+    <!-- Сообщение для настроек производителя MIUI -->
+    <string name="manufacturerSettingsMiuiMessage">На устройствах Xiaomi/Redmi/Poco необходимо настроить следующие параметры:</string>
+    <!-- Шаг 1 для настроек MIUI -->
+    <string name="manufacturerSettingsMiuiStep1">1. Автозапуск: Настройки → Приложения → Управление разрешениями → Автозапуск → Включите для {appName}</string>
+    <!-- Шаг 2 для настроек MIUI -->
+    <!-- Шаг 3 для настроек MIUI -->
+    <!-- Заголовок для настроек производителя EMUI -->
+    <string name="manufacturerSettingsEmuiTitle">Настройки EMUI для стабильной работы</string>
+    <!-- Сообщение для настроек производителя EMUI -->
+    <string name="manufacturerSettingsEmuiMessage">На устройствах Huawei/Honor необходимо настроить следующие параметры:</string>
+    <!-- Шаг 1 для настроек EMUI -->
+    <string name="manufacturerSettingsEmuiStep1">1. Защита приложений: Настройки → Приложения → Защита приложений → {appName} → Включите автозапуск</string>
+    <!-- Шаг 2 для настроек EMUI -->
+    <!-- Шаг 3 для настроек EMUI -->
+    <!-- Заголовок для настроек производителя ColorOS/RealmeUI -->
+    <string name="manufacturerSettingsColorosTitle">Настройки ColorOS/RealmeUI для стабильной работы</string>
+    <!-- Сообщение для настроек производителя ColorOS/RealmeUI -->
+    <string name="manufacturerSettingsColorosMessage">На устройствах Oppo/Realme необходимо настроить следующие параметры:</string>
+    <!-- Шаг 1 для настроек ColorOS/RealmeUI -->
+    <string name="manufacturerSettingsColorosStep1">1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}</string>
+    <!-- Шаг 2 для настроек ColorOS/RealmeUI -->
+    <!-- Шаг 3 для настроек ColorOS/RealmeUI -->
+    <!-- Заголовок для настроек производителя OxygenOS -->
+    <string name="manufacturerSettingsOxygenosTitle">Настройки OxygenOS для стабильной работы</string>
+    <!-- Сообщение для настроек производителя OxygenOS -->
+    <string name="manufacturerSettingsOxygenosMessage">На устройствах OnePlus необходимо настроить следующие параметры:</string>
+    <!-- Шаг 1 для настроек OxygenOS -->
+    <string name="manufacturerSettingsOxygenosStep1">1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}</string>
+    <!-- Шаг 2 для настроек OxygenOS -->
+    <!-- Шаг 3 для настроек OxygenOS -->
+    <!-- Заголовок для настроек производителя FuntouchOS/OriginOS -->
+    <string name="manufacturerSettingsFuntouchosTitle">Настройки FuntouchOS/OriginOS для стабильной работы</string>
+    <!-- Сообщение для настроек производителя FuntouchOS/OriginOS -->
+    <string name="manufacturerSettingsFuntouchosMessage">На устройствах Vivo необходимо настроить следующие параметры:</string>
+    <!-- Шаг 1 для настроек FuntouchOS/OriginOS -->
+    <string name="manufacturerSettingsFuntouchosStep1">1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}</string>
+    <!-- Шаг 2 для настроек FuntouchOS/OriginOS -->
+    <!-- Шаг 3 для настроек FuntouchOS/OriginOS -->
+    <!-- Заголовок для настроек производителя Flyme -->
+    <string name="manufacturerSettingsFlymeTitle">Настройки Flyme для стабильной работы</string>
+    <!-- Сообщение для настроек производителя Flyme -->
+    <string name="manufacturerSettingsFlymeMessage">На устройствах Meizu необходимо настроить следующие параметры:</string>
+    <!-- Шаг 1 для настроек Flyme -->
+    <string name="manufacturerSettingsFlymeStep1">1. Автозапуск: Настройки → Приложения → Автозапуск → Включите для {appName}</string>
+    <!-- Шаг 2 для настроек Flyme -->
+    <!-- Шаг 3 для настроек Flyme -->
+    <!-- Заголовок для настроек производителя One UI -->
+    <string name="manufacturerSettingsOneuiTitle">Настройки One UI для стабильной работы</string>
+    <!-- Сообщение для настроек производителя One UI -->
+    <string name="manufacturerSettingsOneuiMessage">На устройствах Samsung рекомендуется настроить следующие параметры:</string>
+    <!-- Шаг 1 для настроек One UI -->
+    <string name="manufacturerSettingsOneuiStep1">1. Оптимизация батареи: Настройки → Приложения → {appName} → Батарея → Не оптимизировать</string>
+    <!-- Шаг 2 для настроек One UI -->
+    <!-- Шаг 3 для настроек One UI -->
+    <!-- Индикатор позиции трека -->
+    <string name="trackOfTotal">Трек {currentTrack} из {totalTracks}</string>
+    <!-- Заголовок секции треков с множественным числом -->
+    <string name="tracksTitle">{count, plural, =0{Нет треков} =1{Трек} other{Треки}}</string>
+    <!-- Режим без повтора -->
+    <string name="noRepeat">Без повтора</string>
+    <!-- Режим повтора текущего трека -->
+    <string name="repeatTrack">Повторять трек</string>
+    <!-- Режим повтора всего плейлиста -->
+    <string name="repeatPlaylist">Повторять плейлист</string>
+    <!-- Метка таймера сна -->
+    <string name="timerLabel">Таймер</string>
+    <!-- Метка скорости воспроизведения -->
+    <string name="speedLabel">Скорость</string>
+    <!-- Метка кнопки перемотки назад -->
+    <string name="rewindButton">Назад</string>
+    <!-- Метка кнопки перемотки вперёд -->
+    <string name="forwardButton">Вперёд</string>
+    <!-- Метка кнопки воспроизведения -->
+    <string name="playButton">Воспроизвести</string>
+    <!-- Метка кнопки паузы -->
+    <string name="pauseButton">Пауза</string>
+    <!-- Метка кнопки следующего трека -->
+    <string name="nextButton">Следующий</string>
+    <!-- Метка кнопки предыдущего трека -->
+    <string name="previousButton">Предыдущий</string>
+    <!-- Навигация и строки UI -->
+    <string name="back">Назад</string>
+    <string name="sort">Сортировка</string>
+    <string name="filters">Фильтры</string>
+    <string name="searchOnlineRutracker">Поиск онлайн на Rutracker</string>
+    <string name="noLocalBooksFound">Локальные книги для "%1$s" не найдены</string>
+    <string name="clearAll">Очистить всё</string>
+    <string name="delete">Удалить</string>
+    <string name="addToFavorites">Добавить в избранное</string>
+    <string name="removeFromFavorites">Удалить из избранного</string>
+    <string name="errorWithMessage">Ошибка: %1$s</string>
+    <!-- Строки экрана аутентификации -->
+    <string name="rutrackerAuth">Rutracker Auth</string>
+    <string name="username">Имя пользователя</string>
+    <string name="password">Пароль</string>
+    <string name="rememberMe">Запомнить меня</string>
+    <string name="loginViaWebView">Войти через WebView</string>
+    <string name="hidePassword">Скрыть пароль</string>
+    <string name="showPassword">Показать пароль</string>
+    <string name="captchaRequired">Требуется капча</string>
+    <string name="captchaImage">Изображение капчи</string>
+    <string name="enterCode">Введите код</string>
+    <string name="verify">Подтвердить</string>
+    <!-- Строки экрана библиотеки -->
+    <string name="library">Библиотека</string>
+    <string name="search">Поиск</string>
+    <string name="downloads">Загрузки</string>
+    <string name="scanLibrary">Сканировать библиотеку</string>
+    <string name="loadingLibrary">Загрузка библиотеки...</string>
+    <string name="noBooksInLibrary">В вашей библиотеке пока нет книг.\nДобавьте книги, чтобы начать!</string>
+    <string name="storagePermissionRequired">Для сканирования книг требуется разрешение на доступ к хранилищу</string>
+    <string name="foundBooksMessage">Найдено книг: %1$d</string>
+    <!-- Выбрать -->
+    <string name="select">Выбрать</string>
+    <!-- Это приведет к удалению всех любимых аудиокниг. Это действие невозможно отменить. -->
+    <string name="thisWillRemoveAllFavoriteAudiobooksThisActionCanno">Это приведет к удалению всех любимых аудиокниг. Это действие невозможно отменить.</string>
+    <!-- Доступный -->
+    <string name="available">Доступный</string>
+    <!-- Статистика кэша – скоро появится -->
+    <string name="cacheStatisticsComingSoon">Статистика кэша – скоро появится</string>
+    <!-- Отменить загрузку -->
+    <string name="cancelDownload">Отменить загрузку</string>
+    <!-- Очистить всю историю -->
+    <string name="clearAllHistory">Очистить всю историю</string>
+    <!-- Очистить кэш? -->
+    <string name="clearCache">Очистить кэш?</string>
+    <!-- Освободить размер кэша -->
+    <string name="freeUpCacheSize">Освободить %s</string>
+    <!-- Подтверждение очистки кэша -->
+    <string name="clearCacheConfirmation">Это удалит %s кэшированных данных. Продолжить?</string>
+    <!-- Нажмите на главу для перехода и воспроизведения -->
+    <!-- Видео -->
+    <string name="videoLabel">Видео</string>
+    <!-- Аудио -->
+    <string name="audioLabel">Аудио</string>
+    <!-- Кодек: %s -->
+    <string name="codecLabel">Кодек: %s</string>
+    <!-- Разрешение: %s -->
+    <string name="resolutionLabel">Разрешение: %s</string>
+    <!-- Битрейт: %s -->
+    <!-- Каналы: %s -->
+    <string name="channelsLabel">Каналы: %s</string>
+    <!-- Язык: %s -->
+    <string name="languageLabel">Язык: %s</string>
+    <!-- Введите номер главы -->
+    <string name="searchChapterPlaceholder">Введите номер главы</string>
+    <!-- Считать -->
+    <string name="count">Считать</string>
+    <!-- Удалить старое (>30 дней) -->
+    <string name="deleteOld30Days">Удалить старое (&gt;30 дней)</string>
+    <!-- История загрузки -->
+    <string name="downloadHistory">История загрузки</string>
+    <!-- Пустой -->
+    <string name="empty">Пустой</string>
+    <!-- Предоставить доступ к хранилищу -->
+    <string name="grantStorageAccess">Предоставить доступ к хранилищу</string>
+    <!-- Импортировать резервную копию? -->
+    <string name="importBackup">Импортировать резервную копию?</string>
+    <!-- Инициализация... -->
+    <string name="initializing">Инициализация...</string>
+    <!-- Инициализация аудиоплеера... -->
+    <string name="initializingAudioPlayer">Инициализация аудиоплеера...</string>
+    <!-- Самый большой первый -->
+    <string name="largestFirst">Самый большой первый</string>
+    <!-- $личеры -->
+    <!-- Пиявки -->
+    <!-- Загрузка журналов... -->
+    <string name="loadingLogs">Загрузка журналов...</string>
+    <!-- Тестирование зеркал - Скоро -->
+    <string name="mirrorsTestingComingSoon">Тестирование зеркал - Скоро</string>
+    <!-- Новейшие сначала -->
+    <string name="newestFirst">Новейшие сначала</string>
+    <!-- Следующая глава -->
+    <string name="nextChapter">Следующая глава</string>
+    <!-- Нет доступных журналов -->
+    <string name="noLogsAvailable">Нет доступных журналов</string>
+    <!-- Сначала самый старый -->
+    <string name="oldestFirst">Сначала самый старый</string>
+    <!-- Воспроизведение не может быть возобновлено автоматически. Пожалуйста, откройте приложение, чтобы продолжить. -->
+    <string name="playbackCannotBeResumedAutomaticallyPleaseOpenTheA">Воспроизведение не может быть возобновлено автоматически. Пожалуйста, откройте приложение, чтобы продолжить.</string>
+    <!-- Предыдущая глава -->
+    <string name="previousChapter">Предыдущая глава</string>
+    <!-- Приоритет: ${downloadInfo.priority.name} -->
+    <string name="priorityDownloadinfopriorityname">Приоритет: ${downloadInfo.priority.name}</string>
+    <!-- Приоритетное меню -->
+    <string name="priorityMenu">Приоритетное меню</string>
+    <!-- Поиск книг... -->
+    <string name="searchBooks">Поиск книг...</string>
+    <!-- Сиды -->
+    <!-- Поделиться журналами -->
+    <string name="shareLogs">Поделиться журналами</string>
+    <!-- Таймер сна -->
+    <string name="sleepTimer">Таймер сна</string>
+    <!-- Самый маленький первый -->
+    <string name="smallestFirst">Самый маленький первый</string>
+    <string name="tapToOpenAppAndResumePlayback">Нажмите, чтобы открыть приложение и возобновить воспроизведение.</string>
+    <string name="titleAz">Название от А до Я</string>
+    <string name="titleZa">Название Z-A</string>
+    <string name="unavailable">Недоступно</string>
+    <!-- Детали книги -->
+    <string name="bookDetails">Детали книги</string>
+    <!-- Добавить -->
+    <string name="add">Добавить</string>
+    <!-- Добавить зеркало -->
+    <string name="addMirror">Добавить зеркало</string>
+    <!-- Домен -->
+    <string name="domain">Домен</string>
+    <!-- Отмена -->
+    <string name="cancelAction">Отмена</string>
+    <!-- Отменить таймер -->
+    <string name="cancelTimer">Отменить таймер</string>
+    <!-- Повторить -->
+
+    <!-- Добавьте аудиокниги, чтобы начать -->
+    <string name="addAudiobooksToGetStarted">Добавьте аудиокниги, чтобы начать</string>
+    <!-- Все книги -->
+    <string name="allBooks">Все книги</string>
+    <!-- Оформление (внешний вид приложения) -->
+    <string name="appearance">Оформление</string>
+    <!-- Автоматически воспроизводить следующую главу, когда текущая заканчивается -->
+    <string name="automaticallyPlayNextChapterWhenCurrentEnds">Автовоспроизведение следующей главы</string>
+    <!-- Автоматическое воспроизведение следующей главы -->
+    <string name="autoplayNextChapter">Автоматическое воспроизведение следующей главы</string>
+    <!-- Резервное копирование настроек и данных Jabook -->
+    <string name="backupOfJabookSettingsAndData">Резервное копирование настроек и данных Jabook</string>
+    <!-- Кэш очищен: $clearedSizeFormatted -->
+
+    <!-- Кэш: Ошибка -->
+    <string name="cacheError">Кэш: Ошибка</string>
+    <!-- Управление кэшем -->
+    <string name="cacheManagement">Управление кэшем</string>
+    <!-- Расчет... -->
+    <string name="calculating">Расчет...</string>
+    <!-- Требуется капча -->
+    <!-- Глава $номер -->
+    <!-- Выберите тему приложения -->
+    <string name="chooseAppTheme">Выберите тему приложения</string>
+    <!-- Настройки шрифта -->
+    <string name="fontTitle">Шрифт</string>
+    <!-- Выберите шрифт -->
+    <string name="chooseFontFamily">Выберите шрифт</string>
+    <!-- Шрифт по умолчанию -->
+    <string name="defaultFont">По умолчанию</string>
+    <!-- Системный шрифт -->
+    <string name="systemFont">Системный</string>
+    <!-- Очистка кеша... -->
+    <!-- Завершенный -->
+    <string name="completed">Завершенный</string>
+    <!-- Завершенные загрузки появятся здесь. -->
+    <string name="completedDownloadsWillAppearHere">Завершенные загрузки появятся здесь.</string>
+    <!-- ComposeMainActivity -->
+    <string name="composemainactivity">ComposeMainActivity</string>
+    <!-- Одновременные загрузки -->
+    <string name="concurrentDownloads">Одновременные загрузки</string>
+    <!-- Продолжить прослушивание -->
+    <string name="continueListening">Продолжить прослушивание</string>
+    <!-- Темный -->
+    <string name="dark">Темный</string>
+    <!-- Темная тема -->
+    <string name="darkTheme">Темная тема</string>
+    <!-- Данные: Ошибка -->
+    <string name="dataError">Данные: Ошибка</string>
+
+    <!-- Удалить выбранное -->
+    <string name="deleteSelected">Удалить выбранное</string>
+    <!-- Разработчик -->
+    <string name="developer">Разработчик</string>
+    <!-- Загрузка только через Wi-Fi -->
+    <string name="downloadOnlyViaWifi">Загрузка только через Wi-Fi</string>
+
+    <!-- Экспортировать резервную копию -->
+    <string name="exportBackup">Экспортировать резервную копию</string>
+    <!-- Импорт выполнен успешно! $статистика -->
+    <string name="importSuccessfulStats">Импорт выполнен успешно! $статистика</string>
+    <!-- В ходе выполнения -->
+    <string name="inProgress">В ходе выполнения</string>
+    <!-- Внутреннее хранилище приложений (по умолчанию) -->
+    <string name="internalAppStorageDefault">Внутреннее хранилище приложений (по умолчанию)</string>
+    <!-- Резервное копирование Jabook -->
+    <string name="jabookBackup">Резервное копирование Jabook</string>
+    <!-- Jabook необходим доступ к вашим файлам для загрузки книг, управления торрентами и сканирования вашей местной библиотеки. -->
+    <string name="jabookNeedsAccessToYourFilesToDownloadBooksManageT">Jabook необходим доступ к вашим файлам для загрузки книг, управления торрентами и сканирования вашей местной библиотеки.</string>
+    <!-- Jetpack Compose работает! 🎉 -->
+    <string name="jetpackComposeWorks">Jetpack Compose работает! 🎉</string>
+    <!-- Последняя очистка -->
+    <string name="lastCleanup">Последняя очистка</string>
+    <!-- Заполнитель экрана лицензии -->
+    <string name="licenseScreenPlaceholder">Заполнитель экрана лицензии</string>
+    <!-- Светлый -->
+    <string name="light">Светлый</string>
+    <!-- Светлая тема -->
+    <string name="lightTheme">Светлая тема</string>
+    <!-- Ограничить скорость загрузки -->
+    <string name="limitDownloadSpeed">Ограничить скорость загрузки</string>
+    <!-- Загрузка -->
+    <!-- Ошибка входа -->
+    <string name="loginFailed">Ошибка входа</string>
+    <!-- Вход на Рутрекер -->
+    <string name="loginToRutracker">Вход на Рутрекер</string>
+    <!-- Максимальная скорость -->
+    <string name="maxSpeed">Максимальная скорость</string>
+    <!-- Минимальные сеялки -->
+    <string name="minimumSeeders">Минимальные сеялки</string>
+    <!-- Более -->
+    <string name="more">Более</string>
+    <!-- Нет аудиокниг -->
+    <string name="noAudiobooks">Нет аудиокниг</string>
+    <!-- Нет истории загрузок -->
+    <string name="noDownloadHistory">Нет истории загрузок</string>
+    <!-- Сейчас играет -->
+    <string name="nowPlaying">Сейчас играет</string>
+    <!-- } кэшированных данных. Продолжать? -->
+
+    <!-- Лицензии с открытым исходным кодом -->
+    <string name="openSourceLicenses">Лицензии с открытым исходным кодом</string>
+    <!-- Параметры -->
+    <string name="options">Параметры</string>
+    <!-- Воспроизведение -->
+    <string name="playback">Воспроизведение</string>
+    <!-- политика конфиденциальности -->
+    <string name="privacyPolicy">Политика конфиденциальности</string>
+    <!-- Заполнитель Политики конфиденциальности -->
+    <string name="privacyPolicyPlaceholder">Заполнитель Политики конфиденциальности</string>
+    <!-- Требуется для скачивания торрентов -->
+    <string name="requiredToDownloadTorrents">Требуется для скачивания торрентов</string>
+    <!-- Восстановление настроек и библиотеки из резервной копии -->
+    <string name="restoreSettingsAndLibraryFromBackup">Восстановление настроек и библиотеки из резервной копии</string>
+    <!-- Сохраните настройки и библиотеку в файл резервной копии. -->
+    <string name="saveSettingsAndLibraryToBackupFile">Сохраните настройки и библиотеку в файл резервной копии.</string>
+    <!-- Поиск книг -->
+    <!-- Установить максимальную скорость загрузки -->
+    <string name="setMaximumDownloadSpeed">Установить максимальную скорость загрузки</string>
+    <!-- Сид -->
+    <string name="sid">Сид</string>
+    <!-- Требуется доступ к хранилищу -->
+    <string name="storageAccessRequired">Требуется доступ к хранилищу</string>
+    <!-- Система по умолчанию -->
+    <!-- Нажмите, чтобы выйти -->
+    <string name="tapToLogout">Нажмите, чтобы выйти</string>
+    <!-- Вход выполнен как %s -->
+    <string name="loggedInAs">Вход выполнен как %s</string>
+    <!-- Это очистит все кэшированные данные. Загруженные аудиокниги не будут затронуты. Продолжать? -->
+    <string name="thisWillClearAllCachedDataDownloadedAudiobooksWill">Это очистит все кэшированные данные. Загруженные аудиокниги не будут затронуты. Продолжать?</string>
+    <!-- Это заменит ваши текущие настройки. Вы уверены, что хотите продолжить? -->
+    <string name="thisWillReplaceYourCurrentSettingsAreYouSureYouWan">Это заменит ваши текущие настройки. Вы уверены, что хотите продолжить?</string>
+    <!-- Общий размер кэша -->
+    <!-- Итого: Ошибка -->
+    <string name="totalError">Итого: Ошибка</string>
+    <!-- Версия -->
+    <string name="version">Версия</string>
+    <!-- Просмотр логов, тестирование зеркал, проверка кеша -->
+    <string name="viewLogsTestMirrorsCheckCache">Просмотр логов, тестирование зеркал, проверка кеша</string>
+    <!-- Веб-представление -->
+    <string name="webview">Веб-представление</string>
+    <!-- Только Wi-Fi -->
+    <string name="wifiOnly">Только Wi-Fi</string>
+    <!-- Автоматически переключаться на рабочем зеркале при ошибках -->
+    <string name="autoSwitchToWorkingMirrorOnError">Автопереключение зеркала при ошибке</string>
+    <!-- Автоматически проигрывать эту главу при текущем завершении -->
+    <string name="autoPlayNextChapter">Автоматически проигрывать эту главу при текущем завершении</string>
+    <!-- Автопереключение -->
+    <string name="autoSwitching">Автопереключение</string>
+    <!-- Автопроигрывание настоящей главы -->
+    <string name="autoPlayNextChapterTitle">Автопроигрывание настоящей главы</string>
+    <!-- Библиотека -->
+    <!-- Битрейт: $it -->
+    <string name="bitrateFormat">Битрейт: %s</string>
+    <!-- Браузер -->
+    <string name="browser">Браузер</string>
+    <!-- Введите URL-адрес зеркала -->
+    <string name="enterMirrorUrl">Введите URL-адрес зеркала</string>
+    <!-- Введите домен зеркала RuTracker -->
+    <string name="enterRutrackerMirrorDomain">Введите домен зеркала RuTracker</string>
+    <!-- Версия -->
+    <string name="versionTitle">Версия</string>
+    <!-- Внешний вид -->
+    <string name="appearanceTitle">Внешний вид</string>
+    <!-- Воспроизведение -->
+    <string name="playbackTitle">Воспроизведение</string>
+    <!-- Воспроизведение автоматически останавливается -->
+    <string name="playbackWillStopAutomatically">Воспроизведение автоматически останавливается</string>
+    <!-- Выберите тему приложения -->
+    <string name="chooseAppThemeTitle">Выберите тему приложения</string>
+    <!-- Глава $номер -->
+    <string name="chapterNumberFormat">Глава $номер</string>
+    <!-- Длительность: $it -->
+    <string name="durationFormat">Длительность: %s</string>
+    <!-- Добавить свое зеркало -->
+    <string name="addCustomMirror">Добавить свое зеркало</string>
+    <!-- добавьте аудиокниги, чтобы начать -->
+    <string name="addAudiobooksToStart">добавьте аудиокниги, чтобы начать</string>
+    <!-- Загрузка... -->
+    <string name="loadingEllipsis">Загрузка...</string>
+    <!-- Загрузка -->
+    <!-- Закрыть -->
+    <!-- Зеркало $domain добавлено -->
+    <string name="mirrorAddedFormat">Зеркало $domain добавлено</string>
+    <!-- Играть -->
+    <string name="play">Играть</string>
+    <!-- Назад -->
+    <string name="backButton">Назад</string>
+    <!-- Настройки -->
+    <string name="settings">Настройки</string>
+    <!-- Неверный URL. Используйте формат: rutracker.example -->
+    <string name="invalidUrlFormatError">Неверный URL. Используйте формат: rutracker.example</string>
+    <!-- Неизвестно -->
+    <string name="unknownStat">Неизвестно</string>
+    <!-- Нет аудиокнига -->
+    <string name="noAudiobooksFound">Нет аудиокнига</string>
+    <!-- О приложении -->
+    <string name="aboutApp">О приложении</string>
+    <string name="description">Описание</string>
+    <string name="errorMessageFormat">Ошибка: $message</string>
+    <string name="pause">Пауза</string>
+    <string name="searchBooksTitle">Поиск книг</string>
+    <string name="previousChapterTitle">Предыдущая глава</string>
+    <string name="check">Проверить</string>
+    <string name="expand">Развернуть</string>
+    <string name="collapse">Свернуть</string>
+    <string name="lightThemeName">Светлая</string>
+    <string name="nowPlayingTitle">Сейчас играет</string>
+    <string name="networkAndMirrors">Сеть и Зеркала</string>
+    <string name="systemThemeName">Системная</string>
+    <string name="nextChapterTitle">Следующая глава</string>
+    <string name="timerActive">Таймер активен</string>
+    <string name="sleepTimerTitle">Таймер сна</string>
+    <string name="currentMirror">Текущее зеркало</string>
+    <string name="theme">Тема</string>
+    <string name="darkThemeName">Тёмная</string>
+    <string name="deleteAction">Удалить</string>
+    <string name="files">Файлы</string>
+    <string name="formatFormat">Формат: %s</string>
+    <string name="mirrorAlreadyAddedError">Это зеркало уже добавлено</string>
+    <!-- Раздел отладки - RuTracker -->
+    <string name="rutrackerTab">RuTracker</string>
+    <string name="authStatusTitle">Статус авторизации</string>
+    <string name="authenticated">✅ Авторизован</string>
+    <string name="notAuthenticated">❌ Не авторизован</string>
+    <string name="lastErrorPrefix">Последняя ошибка: %s</string>
+    <string name="validationResultsTitle">Результаты проверки</string>
+    <string name="profilePageCheck">Страница профиля: %s</string>
+    <string name="searchPageCheck">Страница поиска: %s</string>
+    <string name="indexPageCheck">Главная страница: %s</string>
+    <string name="mirrorConnectivityTitle">Доступность зеркал</string>
+    
+    <!-- Сообщения об ошибках -->
+    <string name="error_title">Ошибка</string>
+    <string name="error_something_goes_wrong">Что-то пошло не так</string>
+    <string name="noDataAvailable">Данные недоступны</string>
+    <string name="noConnection">Нет сетевого подключения</string>
+    <string name="notFound">Ресурс не найден</string>
+    <string name="badRequest">Неверный запрос</string>
+    <string name="forbidden">Доступ запрещен</string>
+    <string name="parsingError">Ошибка парсинга</string>
+
+    <!-- View Mode Strings -->
+    <string name="viewModeList">Список</string>
+    <string name="viewModeGrid">Сетка</string>
+    <string name="viewModeGrouped">Группировка</string>
+    <!-- Лицензия с открытым исходным кодом Apache 2.0 -->
+    <string name="apache20OpenSourceLicense">Лицензия с открытым исходным кодом Apache 2.0</string>
+    <!-- Компактный просмотр списка -->
+    <string name="compactListView">Компактный просмотр списка</string>
+    <!-- Прокрутить назад на 10 секунд -->
+    <string name="seekBackward10s">Прокрутить назад на 10 секунд</string>
+    <!-- Прокрутить вперед на 30 секунд -->
+    <string name="seekForward30s">Прокрутить вперед на 30 секунд</string>
+    <!-- Сбросить настройки для всех книг -->
+    <!-- Подтверждение сброса настроек -->
+    <!-- Суффикс секунд -->
+    <string name="secondsSuffix">%d с</string>
+    <!-- Описание кнопки вперед -->
+    <string name="seekForwardDescription">Вперед на %d секунд</string>
+    <!-- Описание кнопки назад -->
+    <string name="seekBackwardDescription">Назад на %d секунд</string>
+    <!-- Настройки книги -->
+    <string name="overrideBookSettings">Настройки книги</string>
+    <!-- Использовать общие настройки -->
+    <string name="useGlobalSettings">Использовать общие настройки</string>
+    <!-- Свои настройки -->
+    <string name="customSettings">Свои настройки</string>
+    <!-- Добавить папку -->
+    <string name="addFolder">Добавить папку</string>
+    <!-- Управление папками для сканирования аудиокниг -->
+    <string name="manageFoldersToScanForAudiobooks">Управление папками для сканирования аудиокниг</string>
+    <!-- \п -->
+    <string name="n">\п</string>
+    <!-- Пользовательские папки не добавлены -->
+    <string name="noCustomFoldersAdded">Пользовательские папки не добавлены</string>
+    <!-- Сканирование папок по умолчанию: аудиокниги, подкасты. -->
+    <string name="scanningDefaultFoldersAudiobooksPodcasts">Сканирование папок по умолчанию: аудиокниги, подкасты.</string>
+    <!-- Строки уведомлений -->
+    <string name="notification_title">JaBook Аудио</string>
+    <string name="notification_channel_name">Воспроизведение JaBook</string>
+    <!-- Widget strings -->
+    <string name="no_book_playing">Нет воспроизведения</string>
+    <string name="widget_description">Быстрый доступ к управлению аудиоплеером</string>
+    <string name="notification_channel_description">Управление воспроизведением аудио</string>
+    
+    <!-- Переопределение канала Media3 по умолчанию -->
+    <string name="media3_notification_channel_name">@string/notification_channel_name</string>
+    <string name="media3_notification_channel_description">@string/notification_channel_description</string>
+    
+    <!-- Строки библиотеки Media3 -->
+    <string name="media3_library_root_title">Библиотека</string>
+    <string name="media3_completion_not_started">Не начато</string>
+    <string name="media3_completion_in_progress">В процессе</string>
+    <string name="media3_completion_completed">Завершено</string>
+    <!-- Опции сортировки библиотеки -->
+    <string name="sort_by">Сортировка</string>
+    <string name="sort_by_title">По названию</string>
+    <string name="sort_by_author">По автору</string>
+    <string name="sort_by_date_added">По дате добавления</string>
+    <!-- Book Properties Dialog -->
+    <string name="bookProperties">Свойства книги</string>
+    <string name="title">Название</string>
+    <string name="author">Автор</string>
+    <string name="dateAdded">Дата добавления</string>
+    <string name="directory">Директория</string>
+    <string name="duration">Длительность</string>
+    <string name="size">Размер</string>
+    <string name="progress">Прогресс</string>
+    <!-- Опции сортировки -->
+    <string name="sort_by_activity">По активности</string>
+    <string name="sort_title_asc">Название (А-Я)</string>
+    <string name="sort_title_desc">Название (Я-А)</string>
+    <string name="sort_author_asc">Автор (А-Я)</string>
+    <string name="sort_author_desc">Автор (Я-А)</string>
+    <string name="sort_recently_added">Недавно добавленные</string>
+    <string name="sort_oldest_first">Сначала старые</string>
+    <string name="share">Поделиться</string>
+    <string name="addToPlaylist">Добавить в плейлист</string>
+    <string name="bookInfo">Инфо о книге</string>
+    <string name="scan_library">Сканировать библиотеку</string>
+    <string name="tap_to_scan_now">Нажмите для поиска новых книг</string>
+    <string name="scan_status_discovery">Поиск файлов (%d)...</string>
+    <string name="scan_status_parsing">Парсинг: %1$s (%2$d/%3$d)</string>
+    <string name="scan_status_saving">Сохранение в базу данных...</string>
+    <string name="scan_status_complete">Сканирование завершено. Добавлено книг: %1$d.</string>
+    <string name="scan_status_error">Ошибка: %1$s</string>
+    <!-- Описание кнопки перемещения главы вверх -->
+    <string name="moveUp">Переместить вверх</string>
+    <!-- Описание кнопки перемещения главы вниз -->
+    <string name="moveDown">Переместить вниз</string>
+    <!-- Описание ошибки загрузки обложки -->
+    <string name="failedToLoadCover">Не удалось загрузить обложку</string>
+    <!-- Префикс главы, например Глава 1 -->
+    <string name="chapter_prefix">Глава</string>
+    <!-- Сообщения статуса сканирования библиотеки -->
+    <string name="scan_status_starting">Начало сканирования...</string>
+    <string name="scan_status_preparing">Подготовка %1$d книг для базы данных...</string>
+    <string name="scan_status_processing_covers">Обработка обложек...</string>
+    <string name="scan_status_completed_saving">Завершено сохранение %1$d книг</string>
+    <string name="libraryUnknownError">Неизвестная ошибка</string>
+    <!-- Строки панели деталей книги -->
+    <string name="selectBookToViewDetails">Выберите книгу для просмотра деталей</string>
+    <string name="favorite">Избранное</string>
+    <string name="unfavorite">Удалить из избранного</string>
+    <string name="totalDuration">Общая длительность</string>
+    <string name="downloadStatus">Статус загрузки</string>
+    <string name="downloaded">Загружено</string>
+    <!-- Строки панели глав плеера -->
+    <string name="currentlyPlaying">Сейчас играет</string>
+    <string name="jumpToChapterNumber">Перейти к главе №...</string>
+    <!-- Строки панели фильтров поиска -->
+    <string name="sizeRange">Диапазон размера</string>
+    <!-- Помощники форматирования длительности - не отображаются напрямую, а используются в коде -->
+    <string name="durationHoursMinutes">%1$dч %2$dм</string>
+    <string name="durationMinutes">%1$dм</string>
+    <string name="durationSeconds">%1$dс</string>
+    <!-- Поиск в RuTracker-->
+    <string name="search_rutracker">Поиск в RuTracker</string>
+    <string name="search_query">Поиск запроса</string>
+    <string name="enter_search_query">Введите поисковый запрос чтобы начать</string>
+
+    <!-- Фильтры и сортировка -->
+    <string name="filters_and_sort">Фильтры и сортировка</string>
+    <string name="apply_filters">Применить</string>
+    <string name="reset_filters">Сбросить</string>
+    <string name="filter_by">Фильтр:</string>
+    <string name="min_seeders">Мин. сидеров</string>
+    <string name="min_size_mb">Мин. размер (МБ)</string>
+    <string name="max_size_mb">Макс. размер (МБ)</string>
+    <string name="sort_relevance">По релевантности</string>
+    <string name="sort_seeders_desc">По сидерам (больше)</string>
+    <string name="sort_size_desc">По размеру (больше)</string>
+    <string name="sort_size_asc">По размеру (меньше)</string>
+    <string name="filters_active">Активно фильтров: %d</string>
+    <!-- Торрент-загрузки -->
+    <string name="torrent_downloads">Торрент-загрузки</string>
+    <string name="torrent_downloads_channel_description">Уведомления о прогрессе загрузки торрентов</string>
+    <string name="torrent_service_running">Служба загрузки работает</string>
+    <string name="tap_to_manage_downloads">Нажмите для управления загрузками</string>
+    <string name="downloading_n_torrents">Загружается торрентов: %1$d</string>
+
+    <!-- Действия с торрентами -->
+    <string name="torrent_pause">Приостановить торрент</string>
+    <string name="torrent_resume">Возобновить торрент</string>
+    <string name="torrent_stop">Остановить торрент</string>
+
+    <!-- Действия -->
+    <string name="pause_download">Пауза</string>
+    <string name="resume_download">Продолжить</string>
+    <string name="delete_download">Удалить</string>
+
+    <!-- Статусы торрента -->
+    <string name="downloading_state">Загружается</string>
+    <string name="paused_state">На паузе</string>
+    <string name="completed_state">Завершено</string>
+    <string name="error_state">Ошибка</string>
+    <string name="seeding_state">Раздается</string>
+    <string name="streaming_state">Стриминг</string>
+    <string name="checking_state">Проверка</string>
+    <string name="metadata_state">Получение инфо</string>
+    <string name="queued_state">В очереди</string>
+    <string name="stopped_state">Остановлен</string>
+    <string name="seeding_paused_state">Раздача (На паузе)</string>
+    <string name="in_library">В библиотеке</string>
+    <!-- Settings: Active Downloads -->
+    <string name="active_downloads">Активные загрузки</string>
+    <string name="downloading_count_speed">%1$d загружается • %2$s</string>
+    <string name="downloads_paused_or_queued">%1$d загрузок активно</string>
+
+    <!-- Диалог добавления торрента -->
+    <string name="add_torrent_title">Добавить торрент</string>
+    <string name="magnet_link_label">Magnet-ссылка</string>
+    <string name="download_location_label">Место загрузки</string>
+    <string name="change_folder">Изменить папку</string>
+    <string name="add_button">Добавить</string>
+
+    <!-- Статистика -->
+    <string name="size_gb">%.1f ГБ</string>
+    <string name="size_mb">%.1f МБ</string>
+    <string name="size_kb">%.0f КБ</string>
+    <string name="size_bytes">%d Б</string>
+    <string name="duration_hm">%1$dч %2$dм</string>
+    <string name="duration_m">%1$dм</string>
+    <string name="duration_less_minute">&lt;1м</string>
+    
+    <string name="peers_seeds">Пиры: %1$d (сидов: %2$d)</string>
+    <string name="no_downloads">Нет загрузок</string>
+    <string name="more_options">Еще опции</string>
+    <string name="select_files">Выбрать файлы</string>
+    <string name="selected_size_format">Выбрано: %s</string>
+    <string name="download">Скачать</string>
+
+    <!-- Title for storage usage -->
+    <string name="storageUsage">Использование хранилища</string>
+    <!-- Label for delete all downloads -->
+    <string name="deleteAllDownloads">Удалить все загрузки</string>
+    <!-- Description for delete all buttons -->
+    <string name="deleteAllDownloadsDesc">Удаляет все торренты и загруженные файлы</string>
+    <!-- Confirmation message for delete all -->
+    <string name="deleteAllConfirmation">Вы уверены, что хотите удалить все загрузки? Это действие нельзя отменить.</string>
+    <!-- Button to confirm delete -->
+    <string name="deleteButton">Удалить</string>
+    <string name="results_from_cache">Из кэша</string>
+    <!-- Строки экрана отладки -->
+    <string name="mirrorsHealthTitle">Здоровье зеркал</string>
+    <string name="reachable">Доступно</string>
+    <string name="unreachable">Недоступно</string>
+    <string name="testingMirrors">Проверка зеркал...</string>
+    <string name="startTest">Начать тест</string>
+    <string name="entriesCount">Количество записей</string>
+    <string name="totalResults">Всего результатов</string>
+    <string name="estimatedSize">Примерный размер</string>
+    <string name="loadingStats">Загрузка статистики...</string>
+    <string name="noFoldersConfiguredPleaseAddInSettings">Папки не настроены. Добавьте папку в настройках</string>
+    <string name="scanCompleteNoBooks">Сканирование завершено. Найдено 0 книг</string>
+    <string name="downloadsStorage">Хранилище загрузок</string>
+    <string name="storageUsedFormat">Занято %s</string>
+    <!-- Описание-заполнитель для экрана входа -->
+    <string name="login_description_placeholder">Войдите, чтобы получить доступ к библиотеке</string>
+    <!-- Разделительный текст 'или' -->
+    <string name="or">Или</string>
+
+    <!-- Onboarding -->
+    <string name="onboardingWelcomeTitle">Добро пожаловать в JaBook</string>
+    <string name="onboardingWelcomeSubtitle">Ваше премиальное убежище для аудиокниг с RuTracker. Наслаждайтесь качественным контентом с современными функциями.</string>
+    <string name="onboardingGetStarted">Начать</string>
+    <string name="onboardingNext">Далее</string>
+    <string name="onboardingBack">Назад</string>
+    <string name="onboardingSkip">Пропустить</string>
+    <string name="onboardingFinish">Готово</string>
+    <string name="onboardingFeatureDiscoveryTitle">Бесконечные открытия</string>
+    <string name="onboardingFeatureDiscoveryDesc">Доступ к тысячам аудиокниг напрямую с RuTracker. Ищите, открывайте и скачивайте с легкостью.</string>
+    <string name="onboardingFeatureThemesTitle">Динамические темы</string>
+    <string name="onboardingFeatureThemesDesc">Плеер адаптирует свои цвета под обложку текущей книги для полного погружения.</string>
+    <string name="onboardingFeatureAdvancedTitle">Продвинутые функции</string>
+    <string name="onboardingFeatureAdvancedDesc">Наслаждайтесь бесшовным воспроизведением, пропуском тишины и точным контролем скорости.</string>
+    <string name="onboardingPermissionsTitle">Будьте на связи и сохраняйте</string>
+    <string name="onboardingPermissionsDesc">Нам нужен доступ к хранилищу для сохранения книг и к уведомлениям для управления плеером.</string>
+    <string name="onboardingGrantAccess">Предоставить доступ</string>
+</resources>

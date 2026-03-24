@@ -1,0 +1,39 @@
+project:
+  type: website
+  output-dir: _output
+
+website:
+  title: "Jabook Architecture Documentation"
+  navbar:
+    left:
+      - text: "Home"
+        file: index.qmd
+      - text: "Architecture"
+        menu:
+          - text: "System Overview"
+            file: 01-app-overview.qmd
+          - text: "State Diagrams"
+            file: 02-navigation-flow.qmd
+          - text: "MVVM Screens"
+            file: 03-screen-hierarchy.qmd
+          - text: "Database Schema"
+            file: 04-data-layer.qmd
+          - text: "Audio Player"
+            file: 05-audio-player.qmd
+          - text: "Download System"
+            file: 06-download-system.qmd
+          - text: "Dependency Injection"
+            file: 07-dependency-injection.qmd
+          - text: "Feature Modules"
+            file: 08-feature-modules.qmd
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    toc-depth: 3
+    code-fold: false
+    code-tools: true
+    mermaid:
+      theme: default

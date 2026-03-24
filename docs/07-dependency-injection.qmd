@@ -1,0 +1,402 @@
+---
+title: "Dependency Injection"
+format: html
+---
+
+# Dependency Injection граф
+
+Структура зависимостей через Dagger Hilt.
+
+## Hilt Dependency Graph
+
+```{mermaid}
+%%| label: fig-01
+%%| fig-cap: "Diagram 1"
+graph TB
+    subgraph "Application Scope"
+        App[JabookApplication<br/>@HiltAndroidApp]
+        
+        subgraph "Singleton Dependencies"
+            DB[(Room Database)]
+            DS[(DataStore)]
+            HTTP[OkHttp Client]
+            Retrofit[Retrofit]
+            ExoPlayer[ExoPlayer]
+            Torrent[TorrentManager]
+        end
+    end
+    
+    subgraph "Activity Scope"
+        Activity[ComposeMainActivity<br/>@AndroidEntryPoint]
+    end
+    
+    subgraph "ViewModel Scope"
+        LibVM[LibraryViewModel<br/>@HiltViewModel]
+        PlayerVM[PlayerViewModel<br/>@HiltViewModel]
+        DownloadsVM[DownloadViewModel<br/>@HiltViewModel]
+        SearchVM[SearchViewModel<br/>@HiltViewModel]
+        SettingsVM[SettingsViewModel<br/>@HiltViewModel]
+    end
+    
+    subgraph "Service Scope"
+        AudioService[AudioPlayerService<br/>@AndroidEntryPoint]
+        DownloadService[DownloadForegroundService<br/>@AndroidEntryPoint]
+    end
+    
+    subgraph "Worker Scope"
+        DownloadWorker[DownloadWorker<br/>@HiltWorker]
+        SyncWorker[SyncWorker<br/>@HiltWorker]
+    end
+    
+    subgraph "Repository Layer"
+        BooksRepo[BooksRepository]
+        AuthRepo[AuthRepository]
+        DownloadRepo[DownloadRepository]
+        PrefsRepo[UserPreferencesRepository]
+    end
+    
+    %% Application provides Singletons
+    App -.provides.-> DB
+    App -.provides.-> DS
+    App -.provides.-> HTTP
+    App -.provides.-> Retrofit
+    App -.provides.-> ExoPlayer
+    App -.provides.-> Torrent
+    
+    %% Repositories depend on Singletons
+    BooksRepo -.@Inject.-> DB
+    AuthRepo -.@Inject.-> DS
+    AuthRepo -.@Inject.-> Retrofit
+    DownloadRepo -.@Inject.-> Torrent
+    PrefsRepo -.@Inject.-> DS
+    
+    %% ViewModels depend on Repositories
+    LibVM -.@Inject.-> BooksRepo
+    LibVM -.@Inject.-> PrefsRepo
+    PlayerVM -.@Inject.-> AudioService
+    DownloadsVM -.@Inject.-> DownloadRepo
+    SearchVM -.@Inject.-> BooksRepo
+    SettingsVM -.@Inject.-> PrefsRepo
+    
+    %% Services depend on Singletons
+    AudioService -.@Inject.-> ExoPlayer
+    AudioService -.@Inject.-> DB
+    DownloadService -.@Inject.-> Torrent
+    
+    %% Workers depend on Repositories
+    DownloadWorker -.@Inject.-> DownloadRepo
+    SyncWorker -.@Inject.-> BooksRepo
+    
+    style App fill:#e1f5ff
+    style DB fill:#fff3e0
+    style ExoPlayer fill:#f3e5f5
+    style Torrent fill:#e8f5e9
+```
+
+## Hilt Modules
+
+### 1. NetworkModule
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+    
+    @Provides
+    @Singleton
+    fun provideCache(@ApplicationContext context: Context): Cache {
+        return Cache(
+            directory = File(context.cacheDir, "http_cache"),
+            maxSize = 50L * 1024 * 1024 // 50 MB
+        )
+    }
+    
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(cache: Cache): OkHttpClient {
+        return OkHttpClient.Builder()
+            .cache(cache)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://rutracker.org/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideRutrackerApi(retrofit: Retrofit): RutrackerApiService {
+        return retrofit.create(RutrackerApiService::class.java)
+    }
+}
+```
+
+### 2. DatabaseModule
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object DatabaseModule {
+    
+    @Provides
+    @Singleton
+    fun provideDatabase(
+        @ApplicationContext context: Context
+    ): AudioDatabase {
+        return Room.databaseBuilder(
+            context,
+            AudioDatabase::class.java,
+            "audio_database"
+        )
+        .fallbackToDestructiveMigration()
+        .build()
+    }
+    
+    @Provides
+    fun provideBooksDao(database: AudioDatabase): BooksDao {
+        return database.booksDao()
+    }
+    
+    @Provides
+    fun providePlaylistDao(database: AudioDatabase): PlaylistDao {
+        return database.playlistDao()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideDataStore(
+        @ApplicationContext context: Context
+    ): DataStore<Preferences> {
+        return context.createDataStore("user_preferences")
+    }
+}
+```
+
+### 3. MediaModule
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object MediaModule {
+    
+    @Provides
+    @Singleton
+    fun provideExoPlayer(
+        @ApplicationContext context: Context,
+        loadControl: LoadControl,
+        audioAttributes: AudioAttributes
+    ): ExoPlayer {
+        return ExoPlayer.Builder(context)
+            .setLoadControl(loadControl)
+            .setAudioAttributes(audioAttributes, true)
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .build()
+    }
+    
+    @Provides
+    fun provideLoadControl(): LoadControl {
+        return DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                minBufferMs = 15000,
+                maxBufferMs = 50000,
+                bufferForPlaybackMs = 2500,
+                bufferForPlaybackAfterRebufferMs = 5000
+            )
+            .build()
+    }
+    
+    @Provides
+    fun provideAudioAttributes(): AudioAttributes {
+        return AudioAttributes.Builder()
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .setUsage(C.USAGE_MEDIA)
+            .build()
+    }
+}
+```
+
+### 4. DataModule
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DataModule {
+    
+    @Binds
+    abstract fun bindBooksRepository(
+        impl: OfflineFirstBooksRepository
+    ): BooksRepository
+    
+    @Binds
+    abstract fun bindAuthRepository(
+        impl: AuthRepositoryImpl
+    ): AuthRepository
+    
+    @Binds
+    abstract fun bindUserPreferencesRepository(
+        impl: DataStoreUserPreferencesRepository
+    ): UserPreferencesRepository
+    
+    @Binds
+    abstract fun bindSleepTimerRepository(
+        impl: SleepTimerRepositoryImpl
+    ): SleepTimerRepository
+}
+```
+
+### 5. DownloadModule
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object DownloadModule {
+    
+    @Provides
+    @Singleton
+    fun provideTorrentManager(
+        @ApplicationContext context: Context
+    ): TorrentManager {
+        return TorrentManager(context)
+    }
+    
+    @Provides
+    fun provideDownloadQueueManager(
+        torrentManager: TorrentManager,
+        database: AudioDatabase
+    ): DownloadQueueManager {
+        return DownloadQueueManager(torrentManager, database)
+    }
+    
+    @Binds
+    abstract fun bindDownloadRepository(
+        impl: WorkManagerDownloadRepository
+    ): DownloadRepository
+}
+```
+
+## Dependency Flow (ERD-style)
+
+```{mermaid}
+%%| label: fig-02
+%%| fig-cap: "Diagram 2"
+erDiagram
+    APPLICATION ||--o{ SINGLETON : provides
+    SINGLETON ||--o{ REPOSITORY : injects
+    REPOSITORY ||--o{ VIEWMODEL : injects
+    REPOSITORY ||--o{ SERVICE : injects
+    REPOSITORY ||--o{ WORKER : injects
+    
+    APPLICATION {
+        component HiltAndroidApp
+        scope SingletonComponent
+    }
+    
+    SINGLETON {
+        database RoomDatabase
+        datastore DataStore
+        http OkHttpClient
+        api Retrofit
+        player ExoPlayer
+        torrent TorrentManager
+    }
+    
+    REPOSITORY {
+        interface BooksRepository
+        interface AuthRepository
+        interface DownloadRepository
+        interface UserPreferencesRepository
+    }
+    
+    VIEWMODEL {
+        class LibraryViewModel
+        class PlayerViewModel
+        class DownloadViewModel
+        class SearchViewModel
+        class SettingsViewModel
+    }
+    
+    SERVICE {
+        class AudioPlayerService
+        class DownloadForegroundService
+    }
+    
+    WORKER {
+        class DownloadWorker
+        class SyncWorker
+    }
+```
+
+## Scopes Hierarchy
+
+```{mermaid}
+%%| label: fig-03
+%%| fig-cap: "Diagram 3"
+graph TD
+    AppScope[Application Scope<br/>@Singleton]
+    
+    AppScope --> ActivityScope[Activity Scope<br/>@ActivityScoped]
+    AppScope --> ServiceScope[Service Scope<br/>@ServiceScoped]
+    AppScope --> WorkerScope[Worker Scope<br/>@WorkerScoped]
+    
+    ActivityScope --> VMScope[ViewModel Scope<br/>@ViewModelScoped]
+    
+    AppScope -.provides.-> DB[(Database)]
+    AppScope -.provides.-> Network[Network]
+    AppScope -.provides.-> Player[ExoPlayer]
+    
+    VMScope -.uses.-> DB
+    VMScope -.uses.-> Network
+    
+    ServiceScope -.uses.-> Player
+    ServiceScope -.uses.-> DB
+    
+    WorkerScope -.uses.-> DB
+    WorkerScope -.uses.-> Network
+    
+    style AppScope fill:#e1f5ff
+    style VMScope fill:#fff3e0
+    style ServiceScope fill:#f3e5f5
+    style WorkerScope fill:#e8f5e9
+```
+
+## Injection Types
+
+### Constructor Injection
+
+```kotlin
+@HiltViewModel
+class LibraryViewModel @Inject constructor(
+    private val booksRepository: BooksRepository,
+    private val preferencesRepository: UserPreferencesRepository
+) : ViewModel()
+```
+
+### Field Injection
+
+```kotlin
+@AndroidEntryPoint
+class AudioPlayerService : MediaLibraryService() {
+    @Inject lateinit var exoPlayer: ExoPlayer
+    @Inject lateinit var database: AudioDatabase
+}
+```
+
+### Assisted Injection (Workers)
+
+```kotlin
+@HiltWorker
+class DownloadWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val torrentManager: TorrentManager
+) : CoroutineWorker(context, params)
+```

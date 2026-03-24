@@ -1,0 +1,260 @@
+---
+title: "Архитектура системы Jabook"
+format: html
+---
+
+# Архитектура системы Jabook
+
+Architecture diagram показывающий структуру компонентов и их взаимодействие.
+
+```{mermaid}
+%%| label: fig-system-arch
+%%| fig-cap: "Архитектура системы Jabook"
+graph TB
+    subgraph "Android App"
+        App[JabookApplication]
+        MainActivity[ComposeMainActivity]
+        
+        subgraph "Presentation Layer"
+            Library[Library Feature]
+            Player[Player Feature]
+            Search[Search Feature]
+            Downloads[Downloads Feature]
+            Settings[Settings Feature]
+        end
+        
+        subgraph "Domain Layer"
+            UseCases[Use Cases]
+            Models[Domain Models]
+        end
+        
+        subgraph "Data Layer"
+            Repos[Repositories]
+            RoomDB[(Room Database)]
+            DataStore[(DataStore)]
+            Network[Retrofit API]
+        end
+        
+        subgraph "Services"
+            AudioService[AudioPlayerService]
+            DownloadService[DownloadService]
+            SyncManager[SyncManager]
+        end
+    end
+    
+    subgraph "External"
+        ExoPlayer[Media3 ExoPlayer]
+        Torrent[LibTorrent]
+        Rutracker[Rutracker API]
+    end
+    
+    App --> MainActivity
+    MainActivity --> Library
+    MainActivity --> Player
+    MainActivity --> Search
+    MainActivity --> Downloads
+    MainActivity --> Settings
+    
+    Library --> UseCases
+    Player --> UseCases
+    Search --> UseCases
+    Downloads --> UseCases
+    Settings --> UseCases
+    
+    UseCases --> Repos
+    
+    Repos --> RoomDB
+    Repos --> DataStore
+    Repos --> Network
+    
+    Player --> AudioService
+    Downloads --> DownloadService
+    
+    AudioService --> ExoPlayer
+    AudioService --> RoomDB
+    DownloadService --> Torrent
+    
+    SyncManager --> Repos
+    Network --> Rutracker
+    
+    style Library fill:#e3f2fd
+    style Player fill:#e3f2fd
+    style Search fill:#e3f2fd
+    style Downloads fill:#e3f2fd
+    style Settings fill:#e3f2fd
+    style UseCases fill:#fff3e0
+    style Repos fill:#ffecb3
+    style RoomDB fill:#c8e6c9
+    style DataStore fill:#c8e6c9
+    style AudioService fill:#f3e5f5
+    style DownloadService fill:#e8f5e9
+```
+
+## Структура архитектуры
+
+### Android App Layer
+- **JabookApplication**: Точка входа, инициализация Hilt DI
+- **ComposeMainActivity**: Main UI activity с Compose
+
+### Presentation Layer (10 Feature Modules)
+1. **Library**: Список аудиокниг
+2. **Player**: Аудио-плеер с управлением
+3. **Search**: Поиск локальных и онлайн книг
+4. **Downloads**: Управление загрузками
+5. **Settings**: Настройки приложения
+6. **Auth**: Авторизация
+7. **Topic**: Детали раздачи
+8. **WebView**: Встроенный браузер
+9. **Migration**: Миграция данных
+10. **Permissions**: Управление разрешениями
+
+### Domain Layer
+- **Use Cases**: Бизнес-логика (GetBooks, PlayAudio, DownloadTorrent, etc.)
+- **Domain Models**: Чистые модели данных (Book, Chapter, Playlist, User)
+
+### Data Layer
+- **Repositories**: Абстракция доступа к данным (11 repositories)
+- **Room Database**: Локальное хранилище (Books, Playlists, Positions, etc.)
+- **DataStore**: Preferences хранилище
+- **Retrofit API**: HTTP клиент для сети
+
+### Services
+- **AudioPlayerService**: Media3-based аудио-плеер (29 компонентов)
+- **DownloadForegroundService**: Торрент-загрузки
+- **SyncManager**: Периодическая синхронизация
+
+### External Dependencies
+- **Media3 ExoPlayer**: Медиа-движок для воспроизведения
+- **LibTorrent**: Торрент-клиент
+- **Rutracker API**: Внешний API для поиска книг
+
+---
+
+## Альтернативная диаграмма: C4 Model - Container Level
+
+```{mermaid}
+%%| label: fig-c4-container
+%%| fig-cap: "C4 Container Level диаграмма"
+graph TB
+    subgraph "Android Device"
+        subgraph "Jabook App"
+            UI[Compose UI<br/>Kotlin + Jetpack Compose]
+            VM[ViewModels<br/>StateFlow + Hilt]
+            UC[Use Cases<br/>Business Logic]
+            REPO[Repositories<br/>Data Abstraction]
+            
+            subgraph "Local Storage"
+                ROOM[(Room DB<br/>SQLite)]
+                DS[(DataStore<br/>Proto)]
+                FS[File System<br/>Audio Files]
+            end
+            
+            subgraph "Background Services"
+                AUDIO[Audio Service<br/>Media3 + ExoPlayer]
+                DOWNLOAD[Download Service<br/>LibTorrent]
+            end
+        end
+    end
+    
+    subgraph "External Services"
+        API[Rutracker API<br/>HTTPS]
+        TORRENTS[Torrent Network<br/>DHT/Trackers]
+    end
+    
+    USER([User]) --> UI
+    UI --> VM
+    VM --> UC
+    UC --> REPO
+    REPO --> ROOM
+    REPO --> DS
+    REPO --> FS
+    REPO --> API
+    
+    VM --> AUDIO
+    VM --> DOWNLOAD
+    
+    AUDIO --> FS
+    DOWNLOAD --> TORRENTS
+    DOWNLOAD --> FS
+    
+    DB -.Flow.-> REPO
+    REPO -.Flow.-> UC
+    UC -.Flow.-> VM
+    VM -.StateFlow.-> UI
+    
+    style UI fill:#e3f2fd
+    style VM fill:#fff3e0
+    style UC fill:#fff3e0
+    style REPO fill:#ffecb3
+    style ROOM fill:#c8e6c9
+    style DS fill:#c8e6c9
+    style AUDIO fill:#f3e5f5
+    style DOWNLOAD fill:#e8f5e9
+```
+
+---
+
+## Arrows Legend
+
+В Architecture Diagram:
+- **R → L**: От правого компонента к левому
+- **L → R**: От левого компонента к правому  
+- **T → B**: От верхнего к нижнему
+- **B → T**: От нижнего к верхнему
+
+## Потоки данных
+
+### 1. Воспроизведение книги
+```
+User → Library UI → LibraryViewModel → GetBooksUseCase → BooksRepository → Room DB
+User clicks book → PlayerViewModel → AudioPlayerService → ExoPlayer → Audio Output
+```
+
+### 2. Загрузка торрента
+```
+User → Topic UI → TopicViewModel → DownloadUseCase → DownloadRepository → DownloadService
+DownloadService → LibTorrent → Torrent Network → File System
+DownloadService → Room DB (save progress)
+```
+
+### 3. Поиск книг
+```
+User → Search UI → SearchViewModel → SearchUseCase → RutrackerRepository → Retrofit
+Retrofit → Rutracker API → JSON Response → Domain Models → UI
+```
+
+### 4. Синхронизация
+```
+WorkManager (periodic) → SyncWorker → SyncManager → Repositories
+Repositories → Rutracker API (fetch updates)
+Repositories → Room DB (save updates)
+UI auto-updates via Flow observation
+```
+
+---
+
+## Dependency Flow
+
+```{mermaid}
+%%| label: fig-dependency-flow
+%%| fig-cap: "Поток зависимостей по слоям"
+graph LR
+    UI[UI Layer] --> Domain[Domain Layer]
+    Domain --> Data[Data Layer]
+    Data --> External[External APIs]
+    
+    UI -.DI.-> Hilt[Hilt DI]
+    Domain -.DI.-> Hilt
+    Data -.DI.-> Hilt
+    
+    style UI fill:#e3f2fd
+    style Domain fill:#fff3e0
+    style Data fill:#ffecb3
+    style Hilt fill:#f3e5f5
+```
+
+**Clean Architecture Rule**: Зависимости направлены внутрь (к Domain layer)
+- UI зависит от Domain
+- Domain зависит от Data (interfaces)
+- Data имплементирует Domain interfaces
+- External systems не знают о приложении

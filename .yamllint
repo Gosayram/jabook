@@ -1,0 +1,76 @@
+extends: default
+
+rules:
+  # GitHub Actions workflows don't need document start
+  document-start: disable
+
+  # Allow longer lines for GitHub Actions (comments with action versions)
+  line-length:
+    max: 120
+    level: warning
+
+  # Allow truthy values like 'yes', 'no', 'on', 'off' for GitHub Actions
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off', 'YES', 'NO', 'ON', 'OFF']
+    check-keys: false
+
+  # Comments spacing - allow 1 space before comment (for action version comments)
+  comments:
+    min-spaces-from-content: 1
+
+  # Trailing spaces should be errors
+  trailing-spaces: enable
+
+  # New line at end of file
+  new-line-at-end-of-file: enable
+
+  # Indentation for GitHub Actions (2 spaces)
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+  # Empty lines configuration
+  empty-lines:
+    max: 2
+    max-start: 2
+    max-end: 1
+
+  # Colons spacing
+  colons:
+    max-spaces-before: 0
+    max-spaces-after: 1
+
+  # Commas spacing
+  commas:
+    max-spaces-before: 0
+    min-spaces-after: 1
+    max-spaces-after: 1
+
+  # Hyphens spacing (for lists)
+  hyphens:
+    max-spaces-after: 1
+
+  # Brackets - allow flow sequences for GitHub Actions expressions
+  brackets:
+    forbid: false
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+
+  # Braces - allow flow mappings for GitHub Actions expressions
+  braces:
+    forbid: false
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+
+  # Key ordering - disable for GitHub Actions (order matters)
+  key-ordering: disable
+
+  # Quoted strings - be flexible for GitHub Actions
+  quoted-strings:
+    quote-type: any
+    required: false
+    extra-required: []
+    extra-allowed: []
+    check-keys: false
+

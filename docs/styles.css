@@ -1,0 +1,61 @@
+/* Custom styles for Jabook documentation */
+
+:root {
+  --primary-color: #e3f2fd;
+  --secondary-color: #fff3e0;
+  --accent-color: #f3e5f5;
+}
+
+/* Mermaid diagram styling */
+.mermaid {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+/* Code blocks */
+pre.sourceCode {
+  background-color: #f8f9fa;
+  border-left: 3px solid var(--primary-color);
+  padding: 1rem;
+}
+
+/* Headers */
+h1, h2, h3 {
+  color: #1976d2;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+
+th {
+  background-color: var(--primary-color);
+  padding: 0.75rem;
+  text-align: left;
+}
+
+td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Links */
+a {
+  color: #1976d2;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Callouts */
+.callout {
+  border-left: 4px solid var(--accent-color);
+  padding: 1rem;
+  margin: 1rem 0;
+  background-color: #fafafa;
+}

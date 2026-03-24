@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,12 +37,12 @@ import java.util.concurrent.TimeoutException
  * The receiver creates a MediaController using SessionToken from AudioPlayerService
  * and uses it to send play/pause commands directly to MediaSession.
  */
-class MediaSessionActionReceiver : BroadcastReceiver() {
-    companion object {
+public class MediaSessionActionReceiver : BroadcastReceiver() {
+    public companion object {
         private const val TAG = "MediaSessionActionReceiver"
-        const val ACTION_PLAY = "com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY"
-        const val ACTION_PAUSE = "com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE"
-        private const val CONTROLLER_TIMEOUT_MS = 2000L
+        public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY"
+        public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE"
+        private const val CONTROLLER_TIMEOUT_MS: Int = 0
     }
 
     override fun onReceive(
@@ -94,7 +94,11 @@ class MediaSessionActionReceiver : BroadcastReceiver() {
 
             // Wait for controller to be ready (with shorter timeout for faster fallback)
             val controller =
-                controllerFuture.get(500L, TimeUnit.MILLISECONDS)
+                controllerFuture.get(
+                    com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS
+                        .toLong(),
+                    TimeUnit.MILLISECONDS,
+                )
 
             android.util.Log.d(
                 TAG,
@@ -114,17 +118,21 @@ class MediaSessionActionReceiver : BroadcastReceiver() {
         } catch (e: TimeoutException) {
             android.util.Log.w(TAG, "MediaController creation timeout, using service intent fallback", e)
             // Fallback to service intent (faster and more reliable)
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PLAY)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: ExecutionException) {
             android.util.Log.w(TAG, "Failed to create MediaController, using service intent fallback", e)
             // Fallback to service intent
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PLAY)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "Failed to handle PLAY command through MediaController, using service intent fallback", e)
+            android.util.Log.w(
+                TAG,
+                "Failed to handle PLAY command through MediaController, using service intent fallback",
+                e,
+            )
             // Fallback to service intent
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PLAY)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         }
     }
@@ -153,7 +161,11 @@ class MediaSessionActionReceiver : BroadcastReceiver() {
 
             // Wait for controller to be ready (with shorter timeout for faster fallback)
             val controller =
-                controllerFuture.get(500L, TimeUnit.MILLISECONDS)
+                controllerFuture.get(
+                    com.jabook.app.jabook.audio.MediaControllerConstants.QUICK_FALLBACK_TIMEOUT_MS
+                        .toLong(),
+                    TimeUnit.MILLISECONDS,
+                )
 
             android.util.Log.d(
                 TAG,
@@ -173,17 +185,21 @@ class MediaSessionActionReceiver : BroadcastReceiver() {
         } catch (e: TimeoutException) {
             android.util.Log.w(TAG, "MediaController creation timeout, using service intent fallback", e)
             // Fallback to service intent (faster and more reliable)
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PAUSE)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: ExecutionException) {
             android.util.Log.w(TAG, "Failed to create MediaController, using service intent fallback", e)
             // Fallback to service intent
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PAUSE)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "Failed to handle PAUSE command through MediaController, using service intent fallback", e)
+            android.util.Log.w(
+                TAG,
+                "Failed to handle PAUSE command through MediaController, using service intent fallback",
+                e,
+            )
             // Fallback to service intent
-            fallbackToServiceIntent(context, NotificationManager.ACTION_PAUSE)
+            fallbackToServiceIntent(context, AudioPlayerService.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         }
     }

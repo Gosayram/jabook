@@ -1,0 +1,252 @@
+---
+title: "Jabook Android Architecture"
+format: html
+---
+
+# 📚 Архитектурная документация Jabook
+
+Комплексная визуальная документация Android-приложения Jabook с использованием **Quarto** и **Mermaid диаграмм**.
+
+## 📑 Содержание
+
+### [1. Архитектура системы](01-app-overview.qmd) 🏗️
+**Graph диаграмма** - общая структура приложения с вложенными слоями
+
+**Покрывает:**
+- Android App Layer (Application, Activities)
+- Presentation Layer (10 feature modules)
+- Domain Layer (Use Cases, Models)
+- Data Layer (Repositories, Data Sources)
+- Services (Audio, Downloads, Sync)
+- External Dependencies (Media3, LibTorrent, APIs)
+
+---
+
+### [2. Диаграммы состояний](02-navigation-flow.qmd) 🔄
+**10 State Diagrams** для компонентов приложения
+
+**Включает:**
+1. UI States (Loading/Success/Error)
+2. Navigation Flow (переходы между экранами)
+3. Download States (Queued → Downloading → Completed)
+4. Player States (Idle → Playing → Paused)
+5. Service Lifecycle
+6. Auth States
+7. Sync States
+8. Search States
+9. WebView States
+10. Player Screen States
+
+---
+
+### [3. MVVM Architecture](03-screen-hierarchy.qmd) 📱
+**MVVM паттерн** для всех экранов
+
+**Покрывает:**
+- Screen → ViewModel → UseCase → Repository flow
+- UiState sealed interfaces
+- ViewModel lifecycle
+- Sequence diagrams для user interactions
+
+---
+
+### [4. Схема базы данных](04-data-layer.qmd) 🗄️
+**Entity Relationship Diagram** для Room Database
+
+**Entities:**
+- BOOKS, AUDIO_FILES, PLAYLISTS
+- PLAYLIST_ITEMS, PLAYBACK_POSITIONS
+- CHAPTERS, CHAPTER_METADATA
+- SAVED_PLAYER_STATE, DOWNLOADS
+- SEARCH_HISTORY, USER_PREFERENCES
+
+**Всего:** 11 таблиц с relationships
+
+---
+
+### [5. Архитектура аудио-плеера](05-audio-player.qmd) 🎵
+**8 State + Component диаграмм**
+
+**Включает:**
+1. Player Lifecycle (7 states)
+2. Component Structure (29 компонентов)
+3. Sleep Timer States
+4. Position Saving Strategy
+5. Notification Updates
+6. Chapter Navigation
+7. Audio Processing Pipeline
+8. Media Session Actions
+
+---
+
+### [6. Система загрузок](06-download-system.qmd) 📥
+**8 State + Flow диаграмм**
+
+**Включает:**
+1. Service Lifecycle
+2. Download State Machine (11 states)
+3. Queue Management (concurrent limit: 3)
+4. Download Flow (магниты → файлы)
+5. WorkManager Integration
+6. Torrent Session States
+7. Notification States
+8. Error Handling
+
+---
+
+### [7. Dependency Injection](07-dependency-injection.qmd) 💉
+**ERD + Graph диаграммы** для DI
+
+**Покрывает:**
+- 6 Hilt Modules (Network, Database, Data, Download, Auth, Media)
+- Dependency relationships
+- Scopes hierarchy
+- Injection types с примерами кода
+
+---
+
+### [8. Feature Modules](08-feature-modules.qmd) 🧩
+**Dependency graphs** для модулей
+
+**Покрывает:**
+- Feature dependencies (Design System, L10n, Navigation)
+- Communication patterns
+- Shared Repository pattern
+- Module dependency rules
+- Data flows
+
+---
+
+## 🚀 Как использовать
+
+### Локальное превью
+
+```bash
+# Установка Quarto
+# macOS
+brew install quarto
+
+# Linux/Windows - см. https://quarto.org/docs/get-started/
+
+# Превью документации
+cd docs
+quarto preview
+```
+
+Откроется браузер с интерактивной документацией на `http://localhost:4200`
+
+### Сборка статического сайта
+
+```bash
+cd docs
+quarto render
+```
+
+Результат будет в `docs/_output/`
+
+### Просмотр отдельного файла
+
+```bash
+quarto preview 01-app-overview.qmd
+```
+
+---
+
+## 📊 Статистика
+
+| Метрика | Значение |
+|---------|----------|
+| **Quarto files (.qmd)** | 8 + index |
+| **Total diagrams** | 45+ |
+| **ERD diagrams** | 1 (11 entities) |
+| **State Diagrams** | 28 |
+| **Flow Diagrams** | 15+ |
+| **Sequence Diagrams** | 1 |
+
+---
+
+## 🎨 Типы диаграмм
+
+### State Diagram
+```{mermaid}
+stateDiagram-v2
+    [*] --> Loading
+    Loading --> Success
+    Loading --> Error
+```
+
+### ERD
+```{mermaid}
+erDiagram
+    BOOKS ||--o{ AUDIO_FILES : contains
+```
+
+### Graph
+```{mermaid}
+graph TB
+    A[User] --> B[Screen]
+```
+
+### Sequence
+```{mermaid}
+sequenceDiagram
+    User->>UI: Action
+    UI-->>User: Response
+```
+
+---
+
+## 📝 Редактирование
+
+### VS Code / Positron
+1. Установите [Quarto Extension](https://marketplace.visualstudio.com/items?itemName=quarto.quarto)
+2. Откройте `.qmd` файл
+3. `Ctrl+Shift+K` для preview
+
+### RStudio
+Встроенная поддержка Quarto
+
+### Sublime / Vim
+Используйте `quarto preview` в терминале
+
+---
+
+## 🔧 Кастомизация
+
+### Темы
+
+Измените theme в `_quarto.yml`:
+
+```yaml
+format:
+  html:
+    theme: [cosmo, flatly, darkly, solar, ...]
+```
+
+### Mermaid Theme
+
+```yaml
+format:
+  html:
+    mermaid:
+      theme: [default, dark, forest, neutral]
+```
+
+### CSS
+
+Добавьте свои стили в `styles.css`
+
+---
+
+## 📚 Ресурсы
+
+- [Quarto Documentation](https://quarto.org/)
+- [Quarto Diagrams](https://quarto.org/docs/authoring/diagrams.html)
+- [Mermaid Documentation](https://mermaid.js.org/)
+- [Android Architecture Guide](https://developer.android.com/topic/architecture)
+
+---
+
+**Версия**: 3.0.0 (Quarto Format)  
+**Дата**: 2025-12-15  
+**Автор**: Google Gemini Antigravity

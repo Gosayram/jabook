@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,8 +29,8 @@ import kotlin.math.pow
  * - DeEsser (4-8 kHz, dynamic suppression) - reduces sibilance
  * - Gentle compression (threshold -28 dB, ratio 2:1) - stabilizes level
  */
-@OptIn(UnstableApi::class)
-class SpeechEnhancer : AudioProcessor {
+@UnstableApi
+public class SpeechEnhancer : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
     private var outputAudioFormat: AudioProcessor.AudioFormat? = null
     private var isActive = false
@@ -263,7 +263,7 @@ class SpeechEnhancer : AudioProcessor {
         isActive = false
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

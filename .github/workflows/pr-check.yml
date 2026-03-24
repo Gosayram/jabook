@@ -1,0 +1,73 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  lint-and-compile:
+    runs-on: ubuntu-latest
+    permissions:
+      # Read access to repository contents (required for checkout)
+      contents: read
+      # Read access to pull requests (optional, for PR context)
+      pull-requests: read
+      # Write access to checks (optional, for check runs status)
+      checks: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+
+      - name: Generate Gradle Wrapper (if needed)
+        working-directory: android
+        run: |
+          if [ ! -f "gradlew" ]; then
+            echo "gradlew not found, generating wrapper..."
+            GRADLE_VERSION=9.2.1
+            # Download and extract Gradle
+            wget -q "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
+            unzip -q "gradle-${GRADLE_VERSION}-bin.zip"
+            # Generate wrapper using downloaded Gradle
+            "./gradle-${GRADLE_VERSION}/bin/gradle" wrapper --gradle-version ${GRADLE_VERSION}
+            # Cleanup
+            rm -rf "gradle-${GRADLE_VERSION}" "gradle-${GRADLE_VERSION}-bin.zip"
+          fi
+
+      - name: Grant execute permission for gradlew
+        run: |
+          if [ -f "android/gradlew" ]; then
+            chmod +x android/gradlew
+          else
+            echo "Warning: android/gradlew not found, skipping chmod"
+          fi
+
+      - name: Format Kotlin code
+        run: make fmt-kotlin
+
+      - name: Lint Kotlin code
+        run: make lint-kotlin
+
+      - name: Compile Kotlin code
+        run: make compile
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Generate test coverage report
+        run: make test-coverage
+
+      - name: Verify test coverage (85% minimum)
+        run: make test-coverage-verify

@@ -21,4 +21,16 @@
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
     </style>
+
+    <!-- Splash Screen Theme -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- Set the splash screen background, animated icon, and animation duration. -->
+        <item name="windowSplashScreenBackground">@android:color/white</item>
+        
+        <!-- Use existing launcher icon as splash icon for now -->
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        
+        <!-- Post splash screen theme - switching to our NormalTheme -->
+        <item name="postSplashScreenTheme">@style/NormalTheme</item>
+    </style>
 </resources>

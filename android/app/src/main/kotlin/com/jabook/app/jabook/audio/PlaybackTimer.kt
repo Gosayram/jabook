@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,22 +26,22 @@ import androidx.media3.exoplayer.ExoPlayer
  * Supports timer options: fixed duration or "until end of current track".
  * Uses SuspendableCountDownTimer for proper pause/resume support.
  */
-class PlaybackTimer(
+public class PlaybackTimer(
     private val context: Context,
     private val player: ExoPlayer,
 ) {
     private var timer: SuspendableCountDownTimer? = null
     private var timerOption: TimerOption = TimerOption.FIXED_DURATION
 
-    enum class TimerOption {
+    public enum class TimerOption {
         FIXED_DURATION, // Timer counts down regardless of playback
         CURRENT_TRACK, // Timer pauses when playback pauses, resumes when playback resumes
     }
 
-    companion object {
-        const val ACTION_TIMER_TICK = "com.jabook.app.jabook.audio.TIMER_TICK"
-        const val ACTION_TIMER_EXPIRED = "com.jabook.app.jabook.audio.TIMER_EXPIRED"
-        const val EXTRA_REMAINING_SECONDS = "remainingSeconds"
+    public companion object {
+        public const val ACTION_TIMER_TICK: String = "com.jabook.app.jabook.audio.TIMER_TICK"
+        public const val ACTION_TIMER_EXPIRED: String = "com.jabook.app.jabook.audio.TIMER_EXPIRED"
+        public const val EXTRA_REMAINING_SECONDS: String = "remainingSeconds"
     }
 
     private val playerListener =
@@ -69,7 +69,7 @@ class PlaybackTimer(
      * @param delayInSeconds Timer duration in seconds
      * @param option Timer option (FIXED_DURATION or CURRENT_TRACK)
      */
-    fun startTimer(
+    public fun startTimer(
         delayInSeconds: Double,
         option: TimerOption = TimerOption.FIXED_DURATION,
     ) {
@@ -109,7 +109,7 @@ class PlaybackTimer(
     /**
      * Stops and cancels timer.
      */
-    fun stopTimer() {
+    public fun stopTimer() {
         timer?.cancel()
         timer = null
         android.util.Log.d("PlaybackTimer", "Timer stopped")
@@ -143,7 +143,7 @@ class PlaybackTimer(
     /**
      * Releases timer resources.
      */
-    fun release() {
+    public fun release() {
         stopTimer()
         player.removeListener(playerListener)
     }

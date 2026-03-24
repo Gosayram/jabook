@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+option java_package = "com.jabook.app.jabook.compose.data.preferences";
+option java_multiple_files = true;
+
+// User preferences stored in Proto DataStore
+message UserPreferences {
+  // Theme settings
+  ThemeMode theme_mode = 1;
+  bool use_dynamic_colors = 2;
+  
+  // Audio settings
+  float playback_speed = 3;
+  int32 rewind_duration_seconds = 4;
+  int32 forward_duration_seconds = 5;
+  string volume_boost_level = 6;  // "Off", "Boost50", "Boost100", "Boost200", "Auto"
+  string drc_level = 7;  // "Off", "Gentle", "Medium", "Strong"
+  bool speech_enhancer = 8;
+  bool auto_volume_leveling = 9;
+  bool normalize_volume = 10;
+  
+  // Language
+  string language_code = 11;  // "ru", "en"
+  
+  // Notifications
+  bool notifications_enabled = 12;
+  bool download_notifications = 13;
+  bool player_notifications = 14;
+  
+  // Network settings
+  string selected_mirror = 15;  // Selected mirror domain: "rutracker.org", "rutracker.net", "rutracker.me", or custom
+  repeated string custom_mirrors = 16;  // User-added custom mirrors
+  bool auto_switch_mirror = 17;  // Auto-switch to working mirror on failure
+  
+  // Download settings
+  string download_path = 18; // URI string for selected download folder
+  bool wifi_only_download = 19; // Restrict downloads to Wi-Fi only
+  bool limit_download_speed = 20; // Enable download speed limiting
+  int32 max_download_speed_kb = 21; // Max download speed in KB/s (0 = unlimited)
+  int32 max_concurrent_downloads = 22; // Max concurrent downloads (default 3)
+  
+  // Library settings
+  string library_sort_order = 23; // "BY_ACTIVITY", "BY_TITLE", "BY_AUTHOR", "BY_DATE_ADDED"
+  
+  // Playback behavior
+  bool auto_rewind_on_pause = 24; // Automatically rewind when pausing (inspired by Easybook)
+  int32 auto_rewind_seconds = 25; // Seconds to rewind on pause (default: 2, range: 0-10)
+  
+  // Advanced Audio
+  bool skip_silence = 26;
+  bool crossfade_enabled = 27;
+  int64 crossfade_duration_ms = 28;
+  
+  // Library Organization
+  bool normalize_chapter_titles = 29;
+  
+  // Onboarding status
+  bool onboarding_completed = 30;
+}
+
+// Theme mode enum
+enum ThemeMode {
+  SYSTEM = 0;
+  LIGHT = 1;
+  DARK = 2;
+  AMOLED = 3;
+}

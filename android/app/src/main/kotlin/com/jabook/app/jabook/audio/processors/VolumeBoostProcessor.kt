@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,8 +32,8 @@ import kotlin.math.pow
  * - Look-ahead limiter (5-10 ms) for preventing artifacts
  * - 32-bit float processing for quality
  */
-@OptIn(UnstableApi::class)
-class VolumeBoostProcessor(
+@UnstableApi
+public class VolumeBoostProcessor(
     private val boostLevel: VolumeBoostLevel,
 ) : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
@@ -223,7 +223,7 @@ class VolumeBoostProcessor(
         isActive = false
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

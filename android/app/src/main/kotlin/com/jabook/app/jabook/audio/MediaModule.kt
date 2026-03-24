@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,16 +23,20 @@ import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.RenderersFactory
+import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
+import com.jabook.app.jabook.utils.PerformanceClass
+import com.jabook.app.jabook.utils.PerformanceUtils
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.File
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -45,13 +49,13 @@ import javax.inject.Singleton
  */
 @Module
 @InstallIn(SingletonComponent::class)
-object MediaModule {
+public object MediaModule {
     @OptIn(UnstableApi::class)
     @Provides
     @Singleton
-    fun provideMediaCache(
+    public fun provideMediaCache(
         @ApplicationContext context: Context,
-    ): Cache {
+    ): androidx.media3.datasource.cache.Cache {
         val initStart = System.currentTimeMillis()
 
         // CRITICAL OPTIMIZATION: Minimize blocking operations during cache creation
@@ -116,10 +120,25 @@ object MediaModule {
         return cache
     }
 
+    @Provides
+    @Singleton
+    @Named("okhttp")
+    public fun provideOkHttpCache(
+        @ApplicationContext context: Context,
+    ): okhttp3.Cache {
+        val cacheDir = File(context.cacheDir, "okhttp_cache")
+        val cacheSize = 50L * 1024 * 1024 // 50 MB
+        android.util.Log.d(
+            "MediaModule",
+            "Providing OkHttp Cache: ${cacheDir.absolutePath}, size: ${cacheSize / (1024 * 1024)} MB",
+        )
+        return okhttp3.Cache(cacheDir, cacheSize)
+    }
+
     @OptIn(UnstableApi::class)
     @Provides
     @Singleton
-    fun provideExoPlayer(
+    public fun provideExoPlayer(
         @ApplicationContext context: Context,
     ): ExoPlayer {
         val initStart = System.currentTimeMillis()
@@ -129,11 +148,16 @@ object MediaModule {
         // Match lissen-android configuration exactly
         // Note: AudioProcessors are configured dynamically in AudioPlayerService
         // based on user settings, not here in the singleton
+        // Create optimized LoadControl
+        val loadControl = createOptimizedLoadControl(context)
+
         val player =
             try {
                 ExoPlayer
                     .Builder(context)
+                    .setLoadControl(loadControl)
                     .setHandleAudioBecomingNoisy(true)
+                    .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
                     .setAudioAttributes(
                         AudioAttributes
                             .Builder()
@@ -165,7 +189,7 @@ object MediaModule {
      * @return Configured ExoPlayer instance
      */
     @OptIn(UnstableApi::class)
-    fun createExoPlayerWithProcessors(
+    public fun createExoPlayerWithProcessors(
         context: Context,
         settings: AudioProcessingSettings,
     ): ExoPlayer {
@@ -174,30 +198,35 @@ object MediaModule {
         android.util.Log.d("MediaModule", "Creating ExoPlayer with AudioProcessors...")
 
         // Create processor chain
-        val processors =
+        val chainResult =
             com.jabook.app.jabook.audio.processors.AudioProcessorFactory
                 .createProcessorChain(settings)
+        val processors = chainResult.processors
 
         val player =
             try {
-                // Create RenderersFactory
-                // Note: AudioProcessors support in Media3 1.8.0 may require a different approach
-                // For now, we'll create the player without processors and log a warning
-                val renderersFactory: RenderersFactory = DefaultRenderersFactory(context)
-
-                if (processors.isNotEmpty()) {
-                    android.util.Log.w(
-                        "MediaModule",
-                        "AudioProcessors requested but may not be fully supported in Media3 1.8.0. " +
-                            "Processors: ${processors.size}. Consider upgrading Media3 version.",
-                    )
-                }
+                // Create RenderersFactory with custom AudioSink that supports processors
+                val renderersFactory =
+                    object : DefaultRenderersFactory(context) {
+                        override fun buildAudioSink(
+                            context: Context,
+                            enableFloatOutput: Boolean,
+                            enableAudioOffload: Boolean,
+                        ): androidx.media3.exoplayer.audio.AudioSink =
+                            androidx.media3.exoplayer.audio.DefaultAudioSink
+                                .Builder(context)
+                                .setAudioProcessors(processors.toTypedArray())
+                                .setEnableFloatOutput(enableFloatOutput)
+                                .build()
+                    }
 
                 val builder =
                     ExoPlayer
                         .Builder(context)
                         .setRenderersFactory(renderersFactory)
+                        .setLoadControl(createOptimizedLoadControl(context))
                         .setHandleAudioBecomingNoisy(true)
+                        .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
                         .setAudioAttributes(
                             AudioAttributes
                                 .Builder()
@@ -208,7 +237,7 @@ object MediaModule {
                         )
 
                 if (processors.isNotEmpty()) {
-                    android.util.Log.d("MediaModule", "Added ${processors.size} AudioProcessors to ExoPlayer")
+                    android.util.Log.d("MediaModule", "Attach ${processors.size} AudioProcessors to ExoPlayer via custom RenderersFactory")
                 }
 
                 builder.build()
@@ -221,6 +250,39 @@ object MediaModule {
         android.util.Log.d("MediaModule", "ExoPlayer with processors provided (${initDuration}ms)")
 
         return player
+    }
+
+    /**
+     * Creates optimized LoadControl for audiobooks.
+     *
+     * Inspired by Easybook implementation with optimized buffer settings for audiobooks.
+     * Settings are tuned for speech content (lower bitrate, predictable playback).
+     */
+    private fun createOptimizedLoadControl(context: Context): androidx.media3.exoplayer.LoadControl {
+        val performanceClass = PerformanceUtils.getPerformanceClass(context)
+        val loadControlBuilder = DefaultLoadControl.Builder()
+
+        if (performanceClass == PerformanceClass.LOW) {
+            // For low-end devices, reduce buffer sizes to save memory
+            loadControlBuilder
+                .setBufferDurationsMs(
+                    15000, // minBufferMs: 15 seconds
+                    30000, // maxBufferMs: 30 seconds
+                    1500, // bufferForPlaybackMs: 1.5 seconds
+                    3000, // bufferForPlaybackAfterRebufferMs: 3 seconds
+                ).setTargetBufferBytes(32 * 1024 * 1024)
+        } else {
+            // For normal/high-end devices, use Easybook-optimized settings
+            // These settings are optimized for audiobooks (speech content)
+            loadControlBuilder
+                .setBufferDurationsMs(
+                    60000, // minBufferMs: 1 minute (Easybook: 60_000)
+                    300000, // maxBufferMs: 5 minutes (Easybook: 300_000)
+                    5000, // bufferForPlaybackMs: 5 seconds (Easybook: 5_000)
+                    10000, // bufferForPlaybackAfterRebufferMs: 10 seconds (Easybook: 10_000)
+                ).setBackBuffer(10000, true) // Easybook: backBuffer = 10000, retainBackBufferFromKeyframe = true
+        }
+        return loadControlBuilder.build()
     }
 
     /**
@@ -247,4 +309,106 @@ object MediaModule {
     private const val DEFAULT_CACHE_BYTES = 200L * 1024 * 1024 // 200 MB (fallback if StatFs fails)
     private const val KEEP_FREE_BYTES = 20L * 1024 * 1024 // 20 MB
     private const val MIN_CACHE_BYTES = 10L * 1024 * 1024 // 10 MB
+}
+
+/**
+ * Hilt module for providing audio database and preferences.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+public object AudioDataModule {
+    @Provides
+    @Singleton
+    public fun provideAudioDatabase(
+        @ApplicationContext context: Context,
+    ): com.jabook.app.jabook.audio.data.local.database.AudioDatabase {
+        val builder =
+            androidx.room.Room
+                .databaseBuilder(
+                    context,
+                    com.jabook.app.jabook.audio.data.local.database.AudioDatabase::class.java,
+                    "audio_database",
+                )
+                // Use coroutine context for queries (better integration with coroutines)
+                .setQueryCoroutineContext(kotlinx.coroutines.Dispatchers.IO)
+                // PreparedStatementCache is enabled by default (size 25) for better query performance
+                // JournalMode.AUTOMATIC is the default - Room chooses WAL on modern devices
+                .setJournalMode(RoomDatabase.JournalMode.AUTOMATIC)
+
+        // Add callback for database lifecycle events
+        builder.addCallback(
+            object : RoomDatabase.Callback() {
+                override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    super.onCreate(db)
+                    android.util.Log.i("Room", "AudioDatabase created")
+                    // Enable foreign key constraints for referential integrity
+                    db.execSQL("PRAGMA foreign_keys = ON")
+                }
+
+                override fun onOpen(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    super.onOpen(db)
+                    // Enable foreign key constraints on each database open
+                    db.execSQL("PRAGMA foreign_keys = ON")
+                    // Optimize for better query performance
+                    db.execSQL("PRAGMA optimize")
+                }
+            },
+        )
+
+        // Add query callback for logging in debug builds only
+        try {
+            val isDebug =
+                Class
+                    .forName("com.jabook.app.jabook.BuildConfig")
+                    .getField("DEBUG")
+                    .get(null) as? Boolean ?: false
+            if (isDebug) {
+                builder.setQueryCallback(
+                    kotlinx.coroutines.Dispatchers.Unconfined,
+                    RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
+                        android.util.Log.d(
+                            "Room",
+                            "AudioDB Query: $sqlQuery | Args: ${bindArgs.joinToString(", ")}",
+                        )
+                    },
+                )
+            }
+        } catch (e: Exception) {
+            // BuildConfig not available, skip query callback
+            android.util.Log.d("Room", "BuildConfig not available, skipping query callback", e)
+        }
+
+        return builder.build()
+    }
+
+    @Provides
+    @Singleton
+    public fun provideAudioPreferences(
+        @ApplicationContext context: Context,
+    ): com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences =
+        com.jabook.app.jabook.audio.data.local.datastore
+            .AudioPreferences(context)
+}
+
+/**
+ * Hilt module for providing audio data repositories and DAOs.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+public object AudioRepositoryModule {
+    @Provides
+    @Singleton
+    public fun providePlaybackPositionDao(
+        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
+    ): com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao = database.playbackPositionDao()
+
+    @Provides
+    @Singleton
+    public fun provideSavedPlayerStateRepository(
+        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
+    ): com.jabook.app.jabook.audio.data.repository.SavedPlayerStateRepository {
+        val dao = database.savedPlayerStateDao()
+        return com.jabook.app.jabook.audio.data.repository
+            .SavedPlayerStateRepository(dao)
+    }
 }

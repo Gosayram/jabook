@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import android.provider.Settings
  * paths to autostart, battery optimization, and background restriction settings.
  * This class provides methods to open these settings with proper fallbacks.
  */
-object ManufacturerSettingsHelper {
+public object ManufacturerSettingsHelper {
     private const val TAG = "ManufacturerSettingsHelper"
 
     /**
@@ -86,7 +86,7 @@ object ManufacturerSettingsHelper {
      * @param packageName The package name of the app
      * @return true if settings were opened successfully, false otherwise
      */
-    fun openAutostartSettings(
+    public fun openAutostartSettings(
         context: Context,
         packageName: String,
     ): Boolean {
@@ -266,7 +266,7 @@ object ManufacturerSettingsHelper {
      * @param packageName The package name of the app
      * @return true if settings were opened successfully, false otherwise
      */
-    fun openBatteryOptimizationSettings(
+    public fun openBatteryOptimizationSettings(
         context: Context,
         packageName: String,
     ): Boolean {
@@ -423,7 +423,7 @@ object ManufacturerSettingsHelper {
      * @param packageName The package name of the app
      * @return true if settings were opened successfully, false otherwise
      */
-    fun openBackgroundRestrictionsSettings(
+    public fun openBackgroundRestrictionsSettings(
         context: Context,
         packageName: String,
     ): Boolean {
@@ -467,7 +467,7 @@ object ManufacturerSettingsHelper {
      * @param packageName The package name of the app
      * @return true if autostart is enabled, false if disabled or cannot be determined
      */
-    fun isAutostartEnabled(
+    public fun isAutostartEnabled(
         context: Context,
         packageName: String,
     ): Boolean {

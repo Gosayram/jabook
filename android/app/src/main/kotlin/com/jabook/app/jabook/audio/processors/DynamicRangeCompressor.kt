@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,8 +33,8 @@ import kotlin.math.sqrt
  * - Medium: threshold -24 dB, ratio 3:1, attack 5 ms, release 60 ms
  * - Strong: threshold -18 dB, ratio 4:1, attack 3 ms, release 40 ms
  */
-@OptIn(UnstableApi::class)
-class DynamicRangeCompressor(
+@UnstableApi
+public class DynamicRangeCompressor(
     private val drcLevel: DRCLevel,
 ) : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
@@ -287,7 +287,7 @@ class DynamicRangeCompressor(
         isActive = false
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

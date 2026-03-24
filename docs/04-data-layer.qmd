@@ -1,0 +1,256 @@
+---
+title: "Схема базы данных Room"
+format: html
+---
+
+# Схема базы данных Room
+
+Entity Relationship Diagram для локального хранилища данных приложения.
+
+## AudioDatabase Schema
+
+```{mermaid}
+%%| label: fig-database-schema  
+%%| fig-cap: "Схема базы данных AudioDatabase"
+erDiagram
+    BOOKS ||--o{ AUDIO_FILES : contains
+    BOOKS ||--o{ PLAYLISTS : has
+    BOOKS ||--o{ PLAYBACK_POSITIONS : tracks
+    BOOKS {
+        string id PK
+        string title
+        string author
+        string coverUrl
+        string directory
+        long addedAt
+        long lastPlayedAt
+        int totalDuration
+        boolean isFavorite
+    }
+    
+    AUDIO_FILES {
+        string id PK
+        string bookId FK
+        string filePath
+        string fileName
+        int fileIndex
+        long duration
+        long size
+    }
+    
+    PLAYLISTS ||--o{ PLAYLIST_ITEMS : contains
+    PLAYLISTS {
+        string id PK
+        string bookId FK
+        string name
+        long createdAt
+        long updatedAt
+        int currentTrackIndex
+        long currentPosition
+    }
+    
+    PLAYLIST_ITEMS {
+        string id PK
+        string playlistId FK
+        string audioFileId FK
+        int position
+        string title
+        string mediaId
+    }
+    
+    PLAYBACK_POSITIONS {
+        string bookId PK
+        long position
+        int trackIndex
+        long updatedAt
+        float playbackSpeed
+    }
+    
+    CHAPTERS ||--o{ CHAPTER_METADATA : has
+    BOOKS ||--o{ CHAPTERS : contains
+    CHAPTERS {
+        string id PK
+        string bookId FK
+        int index
+        string title
+        int fileIndex
+        long startPosition
+        long endPosition
+    }
+    
+    CHAPTER_METADATA {
+        string chapterId PK
+        string coverUrl
+        string description
+        int duration
+        string narrator
+    }
+    
+    SAVED_PLAYER_STATE {
+        string id PK
+        string currentBookId FK
+        string currentPlaylistId FK
+        int currentTrackIndex
+        long currentPosition
+        boolean isPlaying
+        float playbackSpeed
+        int repeatMode
+        boolean shuffleEnabled
+        long savedAt
+    }
+    
+    DOWNLOADS {
+        string id PK
+        string magnetUri
+        string savePath
+        string status
+        float progress
+        long totalBytes
+        long downloadedBytes
+        long downloadSpeed
+        long eta
+        long createdAt
+        long updatedAt
+        string errorMessage
+    }
+    
+    SEARCH_HISTORY {
+        string id PK
+        string query
+        string resultType
+        long searchedAt
+        int resultCount
+    }
+    
+    USER_PREFERENCES {
+        string key PK
+        string value
+        long updatedAt
+    }
+```
+
+## Описание таблиц
+
+### BOOKS
+Основная таблица с информацией об аудиокнигах.
+
+**Ключевые поля:**
+- `id`: Уникальный идентификатор книги
+- `directory`: Путь к папке с аудиофайлами
+- `lastPlayedAt`: Timestamp последнего воспроизведения
+- `isFavorite`: Флаг избранного
+
+**Связи:**
+- `1:N` с AUDIO_FILES (одна книга содержит много файлов)
+- `1:N` с PLAYLISTS (одна книга может иметь несколько плейлистов)
+- `1:1` с PLAYBACK_POSITIONS (одна позиция воспроизведения на книгу)
+- `1:N` с CHAPTERS (одна книга содержит несколько глав)
+
+### AUDIO_FILES
+Информация об отдельных аудиофайлах книги.
+
+**Ключевые поля:**
+- `fileIndex`: Порядковый номер файла в книге
+- `duration`: Длительность в миллисекундах
+- `filePath`: Абсолютный путь к файлу
+
+### PLAYLISTS
+Плейлисты для воспроизведения (используется Media3).
+
+**Ключевые поля:**
+- `currentTrackIndex`: Текущий трек в плейлисте
+- `currentPosition`: Позиция воспроизведения в миллисекундах
+
+**Связи:**
+- `1:N` с PLAYLIST_ITEMS (один плейлист содержит много треков)
+
+### PLAYLIST_ITEMS
+Треки внутри плейлиста.
+
+**Ключевые поля:**
+- `position`: Порядковый номер в плейлисте
+- `mediaId`: ID для Media3 MediaItem
+
+### PLAYBACK_POSITIONS
+Сохраненные позиции воспроизведения для каждой книги.
+
+**Ключевые поля:**
+- `bookId`: PK и FK (one-to-one с BOOKS)
+- `position`: Позиция в миллисекундах
+- `trackIndex`: Индекс текущего трека
+- `playbackSpeed`: Скорость воспроизведения (0.5x - 3.0x)
+
+### CHAPTERS
+Главы книги.
+
+**Ключевые поля:**
+- `index`: Номер главы
+- `fileIndex`: Индекс аудиофайла, содержащего главу
+- `startPosition`: Начало в миллисекундах
+
+**Связи:**
+- `1:1` с CHAPTER_METADATA (опциональные метаданные)
+
+### SAVED_PLAYER_STATE
+Полное состояние плеера для восстановления после перезапуска.
+
+**Ключевые поля:**
+- `isPlaying`: Был ли плеер в состоянии воспроизведения
+- `repeatMode`: Режим повтора (none/one/all)
+- `shuffleEnabled`: Включена ли случайная последовательность
+
+### DOWNLOADS
+Активные и завершенные загрузки торрентов.
+
+**Ключевые поля:**
+- `status`: QUEUED | DOWNLOADING | PAUSED | COMPLETED | FAILED | CANCELLED
+- `progress`: Прогресс от 0.0 до 1.0
+- `downloadSpeed`: Скорость в bytes/sec
+- `eta`: Оставшееся время в секундах
+
+### SEARCH_HISTORY
+История поисковых запросов.
+
+**Ключевые поля:**
+- `query`: Поисковый запрос
+- `resultType`: LOCAL | ONLINE
+- `resultCount`: Количество найденных результатов
+
+### USER_PREFERENCES
+Настройки пользователя (опциональная таблица, основное хранилище - DataStore).
+
+---
+
+## Индексы
+
+```sql
+-- AUDIO_FILES
+CREATE INDEX idx_audio_files_book_id ON AUDIO_FILES(bookId);
+CREATE INDEX idx_audio_files_file_index ON AUDIO_FILES(fileIndex);
+
+-- PLAYLISTS
+CREATE INDEX idx_playlists_book_id ON PLAYLISTS(bookId);
+
+-- CHAPTERS
+CREATE INDEX idx_chapters_book_id ON CHAPTERS(bookId);
+CREATE INDEX idx_chapters_file_index ON CHAPTERS(fileIndex);
+
+-- DOWNLOADS
+CREATE INDEX idx_downloads_status ON DOWNLOADS(status);
+
+-- SEARCH_HISTORY
+CREATE INDEX idx_search_history_date ON SEARCH_HISTORY(searchedAt DESC);
+```
+
+---
+
+## Миграции
+
+### Текущая версия: 1
+
+База данных использует `fallbackToDestructiveMigration()` для упрощения разработки. 
+
+В продакшене будут добавлены миграции:
+```kotlin
+.addMigrations(MIGRATION_1_2, MIGRATION_2_3, ...)
+```

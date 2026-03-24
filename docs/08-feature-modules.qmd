@@ -1,0 +1,376 @@
+---
+title: "Feature Modules"
+format: html
+---
+
+# Feature Modules и их взаимосвязи
+
+Диаграммы связей между функциональными модулями приложения.
+
+## Feature Dependencies Graph
+
+```{mermaid}
+%%| label: fig-01
+%%| fig-cap: "Diagram 1"
+graph TB
+    subgraph "Core Infrastructure"
+        DS[Design System]
+        L10n[Localization]
+        Nav[Navigation]
+        DI[Hilt DI]
+    end
+    
+    subgraph "Feature Modules"
+        Library[Library Feature]
+        Player[Player Feature]  
+        Search[Search Feature]
+        Downloads[Downloads Feature]
+        Settings[Settings Feature]
+        Auth[Auth Feature]
+        Topic[Topic Feature]
+        WebView[WebView Feature]
+    end
+    
+    subgraph "Shared Data"
+        BooksRepo[BooksRepository]
+        PrefsRepo[PreferencesRepository]
+        AudioService[AudioPlayerService]
+        DownloadService[DownloadService]
+    end
+    
+    %% All features depend on infrastructure
+    Library --> DS
+    Player --> DS
+    Search --> DS
+    Downloads --> DS
+    Settings --> DS
+    Auth --> DS
+    Topic --> DS
+    WebView --> DS
+    
+    Library --> L10n
+    Player --> L10n
+    Search --> L10n
+    Downloads --> L10n
+    Settings --> L10n
+    Auth --> L10n
+    Topic --> L10n
+    WebView --> L10n
+    
+    Library --> Nav
+    Player --> Nav
+    Search --> Nav
+    Downloads --> Nav
+    Settings --> Nav
+    Auth --> Nav
+    Topic --> Nav
+    WebView --> Nav
+    
+    %% Feature to shared data dependencies
+    Library --> BooksRepo
+    Library --> PrefsRepo
+    Player --> AudioService
+    Player --> BooksRepo
+    Search --> BooksRepo
+    Downloads --> DownloadService
+    Settings --> PrefsRepo
+    Auth --> PrefsRepo
+    Topic --> DownloadService
+    
+    %% Inter-feature navigation
+    Library -.navigates.-> Player
+    Library -.navigates.-> Search
+    Library -.navigates.-> Downloads
+    Search -.navigates.-> Player
+    Search -.navigates.-> Topic
+    Settings -.navigates.-> Auth
+    Auth -.navigates.-> WebView
+    
+    style DS fill:#e1f5ff
+    style L10n fill:#e1f5ff
+    style Nav fill:#e1f5ff
+    style DI fill:#e1f5ff
+```
+
+## Feature Communication Patterns
+
+### 1. Navigation Communication
+
+```{mermaid}
+%%| label: fig-02
+%%| fig-cap: "Diagram 2"
+stateDiagram-v2
+    [*] --> Library
+    
+    Library --> Player: Book selected
+    Library --> Search: Search icon
+    Library --> Downloads: Downloads icon
+    
+    Search --> Player: Local book
+    Search --> Topic: Online book
+    
+    Settings --> Auth: Login
+    Auth --> WebView: OAuth
+    
+    Player --> Library: Back
+    Search --> Library: Back
+    Downloads --> Library: Back
+    Topic --> Search: Back
+    WebView --> Auth: Back
+    Auth --> Settings: Back
+```
+
+### 2. Shared Repository Pattern
+
+```{mermaid}
+%%| label: fig-03
+%%| fig-cap: "Diagram 3"
+graph LR
+    subgraph "Features"
+        F1[Library Feature]
+        F2[Player Feature]
+        F3[Search Feature]
+    end
+    
+    subgraph "Domain"
+        UC1[GetBooksUseCase]
+        UC2[DeleteBookUseCase]
+        UC3[SearchBooksUseCase]
+    end
+    
+    subgraph "Data"
+        Repo[BooksRepository<br/>Single Source of Truth]
+        DB[(Room Database)]
+    end
+    
+    F1 --> UC1
+    F2 --> UC1
+    F3 --> UC3
+    
+    UC1 --> Repo
+    UC2 --> Repo
+    UC3 --> Repo
+    
+    Repo --> DB
+    
+    DB -.Flow updates.-> Repo
+    Repo -.Flow updates.-> UC1
+    UC1 -.Flow updates.-> F1
+    UC1 -.Flow updates.-> F2
+    
+    style Repo fill:#fff3e0
+    style DB fill:#c8e6c9
+```
+
+## Module Dependency Rules
+
+### Allowed Dependencies
+
+```{mermaid}
+%%| label: fig-04
+%%| fig-cap: "Diagram 4"
+graph TD
+    UI[UI/Feature Layer] --> Domain[Domain Layer]
+    Domain --> Data[Data Layer]
+    Data --> External[External APIs]
+    
+    UI -.DI.-> Hilt[Hilt DI]
+    Domain -.DI.-> Hilt
+    Data -.DI.-> Hilt
+    
+    style UI fill:#e3f2fd
+    style Domain fill:#fff3e0
+    style Data fill:#ffecb3
+```
+
+### Forbidden Dependencies
+
+```{mermaid}
+%%| label: fig-05
+%%| fig-cap: "Diagram 5"
+graph TD
+    Data[Data Layer] -.X.-> UI[UI Layer]
+    Domain[Domain Layer] -.X.-> UI
+    External[External APIs] -.X.-> Data
+    
+    Feature1[Feature Module] -.X.-> Feature2[Another Feature]
+    
+    style Data fill:#ffcdd2
+    style Domain fill:#ffcdd2
+    style External fill:#ffcdd2
+    style Feature1 fill:#ffcdd2
+```
+
+## Feature Module Structure
+
+Each feature follows this structure:
+
+```
+feature/
+├── FeatureScreen.kt          # Composable UI
+├── FeatureViewModel.kt       # State management
+├── FeatureUiState.kt          # UI state model
+└── components/                # Feature-specific components
+    ├── Component1.kt
+    └── Component2.kt
+```
+
+## Data Flow per Feature
+
+### Library Feature
+
+```{mermaid}
+%%| label: fig-06
+%%| fig-cap: "Diagram 6"
+graph LR
+    User([User Action]) --> UI[LibraryScreen]
+    UI --> VM[LibraryViewModel]
+    VM --> UC[GetBooksUseCase]
+    UC --> Repo[BooksRepository]
+    Repo --> DB[(Room DB)]
+    
+    DB -.Flow.-> Repo
+    Repo -.Flow.-> UC
+    UC -.Flow.-> VM
+    VM -.StateFlow.-> UI
+    UI --> Display[Display Books]
+    
+    style UI fill:#e3f2fd
+    style VM fill:#fff3e0
+    style Repo fill:#ffecb3
+```
+
+### Player Feature
+
+```{mermaid}
+%%| label: fig-07
+%%| fig-cap: "Diagram 7"
+graph LR
+    User([User Action]) --> UI[PlayerScreen]
+    UI --> VM[PlayerViewModel]
+    VM --> Service[AudioPlayerService]
+    Service --> ExoPlayer[ExoPlayer]
+    Service --> DB[(Room DB)]
+    
+    ExoPlayer -.Events.-> Service
+    Service -.Updates.-> VM
+    VM -.StateFlow.-> UI
+    
+    DB -.Positions.-> Service
+    Service -.Save.-> DB
+    
+    style UI fill:#e3f2fd
+    style VM fill:#fff3e0
+    style Service fill:#f3e5f5
+```
+
+### Downloads Feature
+
+```{mermaid}
+%%| label: fig-08
+%%| fig-cap: "Diagram 8"
+graph LR
+    User([User Action]) --> UI[DownloadsScreen]
+    UI --> VM[DownloadViewModel]
+    VM --> UC[DownloadUseCase]
+    UC --> Repo[DownloadRepository]
+    Repo --> Service[DownloadService]
+    Service --> Torrent[LibTorrent]
+    Service --> DB[(Room DB)]
+    
+    Torrent -.Progress.-> Service
+    Service -.Updates.-> DB
+    DB -.Flow.-> Repo
+    Repo -.Flow.-> UC
+    UC -.Flow.-> VM
+    VM -.StateFlow.-> UI
+    
+    style UI fill:#e3f2fd
+    style VM fill:#fff3e0
+    style Service fill:#e8f5e9
+```
+
+## Shared Components
+
+### Design System Components
+
+All features use these shared UI components:
+
+- `JabookTopAppBar`: Standard app bar
+- `LoadingScreen`: Loading indicator
+- `ErrorScreen`: Error display
+- `BookCard`: Book item display
+- `EmptyState`: Empty list state
+- `SearchBar`: Search input
+- `ProgressIndicator`: Progress display
+
+### Navigation Routes
+
+Type-safe navigation routes defined in `NavigationRoutes.kt`:
+
+```kotlin
+@Serializable object LibraryRoute
+@Serializable data class PlayerRoute(val bookId: String)
+@Serializable object SearchRoute
+@Serializable object DownloadsRoute
+@Serializable object SettingsRoute
+@Serializable object AuthRoute
+@Serializable data class TopicRoute(val topicId: String)
+@Serializable data class WebViewRoute(val url: String)
+```
+
+## Anti-Patterns to Avoid
+
+### ❌ Direct Feature-to-Feature Dependencies
+
+```kotlin
+// BAD
+class LibraryViewModel @Inject constructor(
+    private val playerViewModel: PlayerViewModel // ❌
+)
+```
+
+### ✅ Use Shared Repository Instead
+
+```kotlin
+// GOOD
+class LibraryViewModel @Inject constructor(
+    private val booksRepository: BooksRepository // ✅
+)
+
+class PlayerViewModel @Inject constructor(
+    private val booksRepository: BooksRepository // ✅
+)
+```
+
+### ❌ ViewModels in Composables
+
+```kotlin
+// BAD
+@Composable
+fun LibraryScreen(
+    playerViewModel: PlayerViewModel // ❌
+)
+```
+
+### ✅ Navigation Instead
+
+```kotlin
+// GOOD
+@Composable
+fun LibraryScreen(
+    onBookClick: (String) -> Unit // ✅
+)
+
+// In NavHost
+navController.navigate(PlayerRoute(bookId))
+```
+
+## Module Communication Summary
+
+1. **Via Navigation**: Screen → Screen transitions
+2. **Via Shared Repository**: Multiple features observing same data
+3. **Via Services**: Features controlling background services
+4. **Via DI**: Shared dependencies injected where needed
+
+**Never**: Direct feature-to-feature dependencies or ViewModel sharing

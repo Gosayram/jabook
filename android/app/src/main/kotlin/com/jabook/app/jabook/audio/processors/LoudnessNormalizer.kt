@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ import kotlin.math.pow
  * psychoacoustic filtering. This implementation uses RMS as a simpler
  * but effective alternative for speech content.
  */
-@OptIn(UnstableApi::class)
-class LoudnessNormalizer(
+@UnstableApi
+public class LoudnessNormalizer(
     private val settings: AudioProcessingSettings,
 ) : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
@@ -312,16 +312,16 @@ class LoudnessNormalizer(
      *
      * @param replayGainDb ReplayGain value in dB
      */
-    fun setReplayGain(replayGainDb: Float) {
+    public fun setReplayGain(replayGainDb: Float) {
         this.replayGainDb = replayGainDb
         // Convert dB to linear gain
-        gainMultiplier = 10.0.pow((replayGainDb / 20.0).toDouble()).toFloat()
+        gainMultiplier = 10.0.pow((replayGainDb.toDouble() / 20.0)).toFloat()
         // Limit gain to reasonable range
         gainMultiplier = gainMultiplier.coerceIn(0.1f, 10.0f)
         android.util.Log.d("LoudnessNormalizer", "ReplayGain set: ${replayGainDb}dB -> ${gainMultiplier}x")
     }
 
-    companion object {
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

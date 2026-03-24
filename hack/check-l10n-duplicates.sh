@@ -1,97 +1,147 @@
 #!/bin/bash
-# Check for duplicate top-level keys in ARB localization files
+# Script to find and remove duplicate string resource keys in Android XML files
+# Keeps the first occurrence, removes subsequent duplicates
 
 set -e
 
-EN_FILE="lib/l10n/app_en.arb"
-RU_FILE="lib/l10n/app_ru.arb"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ANDROID_RES="$PROJECT_ROOT/android/app/src/main/res"
+BACKUP_DIR="$PROJECT_ROOT/.backup/strings"
 
-EXIT_CODE=0
-
-echo "Checking for duplicate top-level keys in ARB files..."
+echo "🔍 Checking and cleaning duplicate string resource keys in Android XML files..."
 echo ""
 
-# Function to find duplicates in a file
-check_duplicates() {
-    local file=$1
-    local file_name=$(basename "$file")
+# Create backup directory if it doesn't exist
+mkdir -p "$BACKUP_DIR"
+
+# Function to check and clean duplicates in a strings.xml file
+check_and_clean_duplicates() {
+    local file_path="$1"
+    local locale="$2"
     
-    if [ ! -f "$file" ]; then
-        echo "⚠️  $file_name not found"
-        return
-    fi
+    echo "Checking strings.xml (locale: $locale)..."
     
-    echo "Checking $file_name..."
+    # Create a temporary file in the same directory for atomic replace
+    local temp_file="${file_path}.tmp"
+    # Create backup with timestamp and locale name in backup directory
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_file="$BACKUP_DIR/strings_${locale}_${timestamp}.xml"
     
-    # Extract top-level keys (keys at root level, indent <= 2 spaces)
-    # Match pattern: "key": or "@key": at the beginning of line (after optional spaces)
-    local duplicates=$(awk '
-    BEGIN {
-        duplicates = ""
-    }
-    {
-        # Skip comments and empty lines
-        if ($0 ~ /^[[:space:]]*\/\// || $0 ~ /^[[:space:]]*$/) {
-            next
-        }
+    # Use Python for better XML handling
+    python3 -c '
+import sys
+import re
+from collections import OrderedDict
+
+file_path = sys.argv[1]
+temp_file = sys.argv[2]  
+backup_file = sys.argv[3]
+locale = sys.argv[4]
+
+# Read the file
+with open(file_path, "r", encoding="utf-8") as f:
+    lines = f.readlines()
+
+# Track seen normalized keys
+seen_normalized_keys = {}
+duplicates_found = []
+output_lines = []
+
+for i, line in enumerate(lines, 1):
+    # Match string resource definition
+    match = re.search(r"<string\s+name=\"([^\"]+)\"", line)
+    
+    if match:
+        original_key = match.group(1)
+        # Normalize key by removing trailing digits
+        normalized_key = re.sub(r"\d+$", "", original_key)
         
-        # Check if line has <= 2 spaces indent (root level)
-        match($0, /^[[:space:]]*/)
-        indent = RLENGTH
-        
-        if (indent <= 2) {
-            # Match "key": or "@key": pattern
-            if (match($0, /^[[:space:]]*"(@?[^"]+)":/)) {
-                key = substr($0, RSTART + indent, RLENGTH - indent)
-                gsub(/^[[:space:]]*"/, "", key)
-                gsub(/":.*$/, "", key)
-                
-                if (key in seen) {
-                    if (!(key in dups)) {
-                        dups[key] = seen[key] "," NR
-                    } else {
-                        dups[key] = dups[key] "," NR
-                    }
-                } else {
-                    seen[key] = NR
-                }
-            }
-        }
-    }
-    END {
-        for (key in dups) {
-            print key ":" dups[key]
-        }
-    }
-    ' "$file")
+        if normalized_key in seen_normalized_keys:
+            # This is a duplicate (either exact match or numbered variant)
+            first_occurrence = seen_normalized_keys[normalized_key]
+            duplicates_found.append((i, original_key, first_occurrence["line"], first_occurrence["key"]))
+            continue  # Don'"'"'t add to output
+        else:
+            # First occurrence - remember it
+            seen_normalized_keys[normalized_key] = {"line": i, "key": original_key}
     
-    if [ -n "$duplicates" ]; then
-        echo "❌ Found duplicate top-level keys in $file_name:"
-        echo "$duplicates" | while IFS=: read -r key lines; do
-            echo "  - $key (lines: $lines)"
-            # Show the actual lines
-            echo "$lines" | tr ',' '\n' | while read line_num; do
-                sed -n "${line_num}p" "$file" | sed 's/^/    /'
-            done
-        done
-        EXIT_CODE=1
-    else
-        echo "✅ No duplicate top-level keys found in $file_name"
-    fi
+    output_lines.append(line)
+
+# Report results
+if duplicates_found:
+    print(f"⚠️  Found {len(duplicates_found)} duplicate(s)")
+    for line_num, key, first_line, first_key in duplicates_found:
+        if key == first_key:
+            print(f"   Line {line_num}: '"'"'{key}'"'"' (duplicate of line {first_line}) - REMOVED")
+        else:
+            print(f"   Line {line_num}: '"'"'{key}'"'"' (numbered duplicate of '"'"'{first_key}'"'"' at line {first_line}) - REMOVED")
+    
+    # Create backup
+    with open(backup_file, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+    
+    # Write cleaned file
+    with open(temp_file, "w", encoding="utf-8") as f:
+        f.writelines(output_lines)
+    
+    # Replace original with cleaned
+    import shutil
+    shutil.move(temp_file, file_path)
+    
+    print(f"✅ Cleaned file saved")
+    print(f"📦 Backup: {backup_file}")
+    sys.exit(1)  # Exit with 1 to indicate changes were made
+else:
+    print(f"✅ No duplicates found")
+    sys.exit(0)
+' "$file_path" "$temp_file" "$backup_file" "$locale"
+    
+    return $?
 }
 
-# Check both files
-check_duplicates "$EN_FILE"
-echo ""
-check_duplicates "$RU_FILE"
-echo ""
+had_duplicates=false
 
-if [ $EXIT_CODE -eq 1 ]; then
-    echo "❌ Duplicate top-level keys detected! Please fix them before committing."
-    echo "   Note: JSON parsers automatically use the last value for duplicate keys."
-    echo "   This can cause unexpected behavior, so duplicates should be removed."
-    exit 1
-else
-    echo "✅ All ARB files are clean - no duplicate top-level keys found."
+# Check values/strings.xml (default English)
+if [ -f "$ANDROID_RES/values/strings.xml" ]; then
+    if ! check_and_clean_duplicates "$ANDROID_RES/values/strings.xml" "values"; then
+        had_duplicates=true
+    fi
+    echo ""
 fi
 
+# Check values-ru/strings.xml (Russian)
+if [ -f "$ANDROID_RES/values-ru/strings.xml" ]; then
+    if ! check_and_clean_duplicates "$ANDROID_RES/values-ru/strings.xml" "values-ru"; then
+        had_duplicates=true
+    fi
+    echo ""
+fi
+
+# Search for any other locale strings.xml files
+echo "Searching for additional locale strings.xml files..."
+additional_files=$(find "$ANDROID_RES" -path "*/values-*/strings.xml" ! -path "*/values-ru/*" 2>/dev/null || true)
+
+if [ -n "$additional_files" ]; then
+    while IFS= read -r file; do
+        if [ -f "$file" ]; then
+            locale=$(basename "$(dirname "$file")")
+            if ! check_and_clean_duplicates "$file" "$locale"; then
+                had_duplicates=true
+            fi
+            echo ""
+        fi
+    done <<< "$additional_files"
+else
+    echo "ℹ️  No additional locale strings.xml files found"
+    echo ""
+fi
+
+if [ "$had_duplicates" = true ]; then
+    echo "🧹 Cleanup complete! Duplicates have been removed."
+    echo "📦 Backup files saved to: $BACKUP_DIR"
+    exit 1
+else
+    echo "✅ All strings.xml files are clean - no duplicate resource keys found."
+    exit 0
+fi

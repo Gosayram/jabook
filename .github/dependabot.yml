@@ -1,11 +1,14 @@
 version: 2
 updates:
-  - package-ecosystem: "pub"
-    directory: "/"
+  # Gradle dependencies
+  - package-ecosystem: "gradle"
+    directory: "/android"
     schedule:
-      interval: "weekly"
+      interval: "daily"
+    open-pull-requests-limit: 10
 
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"

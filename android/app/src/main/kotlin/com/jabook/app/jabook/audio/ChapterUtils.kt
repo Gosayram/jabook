@@ -1,4 +1,4 @@
-// Copyright 2025 Jabook Contributors
+// Copyright 2026 Jabook Contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ package com.jabook.app.jabook.audio
  * val index = calculateChapterIndex(durations, 650.0) // Returns 1 (second chapter)
  * ```
  */
-fun calculateChapterIndex(
+public fun calculateChapterIndex(
     chapterDurations: List<Double>,
     totalPosition: Double,
 ): Int {
@@ -70,7 +70,7 @@ fun calculateChapterIndex(
  * val position = calculateChapterPosition(durations, 650.0) // Returns 50.0 (50 seconds into second chapter)
  * ```
  */
-fun calculateChapterPosition(
+public fun calculateChapterPosition(
     chapterDurations: List<Double>,
     totalPosition: Double,
 ): Double {
@@ -99,7 +99,7 @@ fun calculateChapterPosition(
  * @param totalPositionMs Total playback position in milliseconds
  * @return Index of the chapter containing the position, or last chapter if position is beyond all chapters
  */
-fun calculateChapterIndexMs(
+public fun calculateChapterIndexMs(
     chapterDurationsMs: List<Long>,
     totalPositionMs: Long,
 ): Int {
@@ -127,7 +127,7 @@ fun calculateChapterIndexMs(
  * @param totalPositionMs Total playback position in milliseconds
  * @return Position within the current chapter in milliseconds, or 0L if position is beyond all chapters
  */
-fun calculateChapterPositionMs(
+public fun calculateChapterPositionMs(
     chapterDurationsMs: List<Long>,
     totalPositionMs: Long,
 ): Long {
