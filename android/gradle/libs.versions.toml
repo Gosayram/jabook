@@ -67,7 +67,7 @@ protobuf = "4.33.2"
 tink = "1.20.0"
 
 # Torrent
-libtorrent4j = "2.1.0-38"
+libtorrent4j = "2.1.0-39"
 
 # Audio
 ktaglib = "1.6.1"
