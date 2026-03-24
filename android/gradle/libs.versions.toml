@@ -82,7 +82,7 @@ firebaseBom = "34.7.0"
 
 # Testing
 junit = "4.13.2"
-kotlinTest = "2.2.21"
+kotlinTest = "2.3.20"
 mockito = "5.21.0"
 mockitoKotlin = "6.1.0"
 kotlinxCoroutinesTest = "1.10.2"
