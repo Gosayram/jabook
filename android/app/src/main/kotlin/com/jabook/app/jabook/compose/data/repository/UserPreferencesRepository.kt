@@ -72,4 +72,10 @@ public interface UserPreferencesRepository {
      * Update onboarding completion status.
      */
     public suspend fun setOnboardingCompleted(completed: Boolean)
+
+    /**
+     * Enable or disable limited storage fallback mode.
+     * When enabled, app can continue in restricted storage mode without all-files access.
+     */
+    public suspend fun setStorageFallbackEnabled(enabled: Boolean)
 }

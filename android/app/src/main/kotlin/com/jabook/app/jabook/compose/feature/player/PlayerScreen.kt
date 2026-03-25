@@ -500,7 +500,7 @@ private fun PlayerContent(
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: throw IllegalStateException("Cannot get Activity from context")
     val rawWindowSizeClass = calculateWindowSizeClass(activity)
-    val windowSizeClass = AdaptiveUtils.getEffectiveWindowSizeClass(rawWindowSizeClass, context) ?: rawWindowSizeClass
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClass(rawWindowSizeClass, context)
 
     // Adaptive sizes for compact screens (phones)
     val isCompact = windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact

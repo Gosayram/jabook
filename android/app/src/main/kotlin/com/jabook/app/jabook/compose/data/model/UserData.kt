@@ -28,6 +28,7 @@ public data class UserData(
     val font: AppFont = AppFont.DEFAULT,
     val normalizeChapterTitles: Boolean = false, // Default: OFF
     val onboardingCompleted: Boolean = false,
+    val storageFallbackEnabled: Boolean = false,
 )
 
 /**

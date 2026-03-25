@@ -140,11 +140,8 @@ private val AmoledDarkColorScheme =
     ProdDarkColorScheme.copy(
         background = androidx.compose.ui.graphics.Color.Black,
         surface = androidx.compose.ui.graphics.Color.Black,
-        surfaceVariant =
-            androidx.compose.ui.graphics
-                .Color(0xFF000000),
-        // Also black for OLED savings? Or slightly lighter? Let's use Black for maximum effect
-        // surfaceContainer could be slightly lighter if needed, but for now stick to core black
+        // Keep variant surfaces slightly above pure black to preserve visual separation.
+        surfaceVariant = androidx.compose.ui.graphics.Color(0xFF121212),
     )
 
 /**

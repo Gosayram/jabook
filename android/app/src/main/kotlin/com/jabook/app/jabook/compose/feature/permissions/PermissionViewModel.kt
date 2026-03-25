@@ -14,18 +14,26 @@
 
 package com.jabook.app.jabook.compose.feature.permissions
 
+import android.content.Context
+import android.os.Environment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.permissions.PermissionManager
 import com.jabook.app.jabook.compose.data.permissions.StorageAccessRequest
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 public data class PermissionUiState(
+    val hasFullStoragePermission: Boolean = false,
+    val hasStorageFallbackEnabled: Boolean = false,
     val hasStoragePermission: Boolean = false,
     val hasNotificationPermission: Boolean = false,
 )
@@ -34,7 +42,10 @@ public data class PermissionUiState(
 public class PermissionViewModel
     @Inject
     constructor(
+        @param:ApplicationContext private val context: Context,
         private val permissionManager: PermissionManager,
+        private val userPreferencesRepository: UserPreferencesRepository,
+        private val settingsRepository: SettingsRepository,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(PermissionUiState())
         public val uiState: StateFlow<PermissionUiState> = _uiState.asStateFlow()
@@ -45,11 +56,15 @@ public class PermissionViewModel
 
         public fun checkPermissions() {
             viewModelScope.launch {
-                val storage = permissionManager.hasStoragePermission()
+                val hasFullStoragePermission = permissionManager.hasStoragePermission()
+                val hasStorageFallbackEnabled = userPreferencesRepository.userData.first().storageFallbackEnabled
+                val storage = hasFullStoragePermission || hasStorageFallbackEnabled
                 val notification = permissionManager.hasNotificationPermission()
 
                 _uiState.value =
                     PermissionUiState(
+                        hasFullStoragePermission = hasFullStoragePermission,
+                        hasStorageFallbackEnabled = hasStorageFallbackEnabled,
                         hasStoragePermission = storage,
                         hasNotificationPermission = notification,
                     )
@@ -62,5 +77,17 @@ public class PermissionViewModel
 
         public fun getAppSettingsIntent(): android.content.Intent = permissionManager.getAppSettingsIntent()
 
+        public fun enableStorageFallbackMode() {
+            viewModelScope.launch {
+                userPreferencesRepository.setStorageFallbackEnabled(true)
+                settingsRepository.updateDownloadPath(getAppSpecificDownloadsPath())
+                checkPermissions()
+            }
+        }
+
         // Notification permission is requested via registerForActivityResult contract directly in UI
+
+        private fun getAppSpecificDownloadsPath(): String =
+            context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath
+                ?: context.filesDir.absolutePath
     }

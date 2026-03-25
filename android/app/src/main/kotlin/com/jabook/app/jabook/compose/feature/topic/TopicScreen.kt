@@ -247,22 +247,12 @@ private fun TopicDetailsContent(
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: null
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
     val isMediumOrExpanded = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
-    val contentPadding =
-        if (windowSizeClass != null) {
-            AdaptiveUtils.getContentPadding(windowSizeClass)
-        } else {
-            16.dp
-        }
-    val itemSpacing =
-        if (windowSizeClass != null) {
-            AdaptiveUtils.getItemSpacing(windowSizeClass)
-        } else {
-            16.dp
-        }
+    val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
+    val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
     var showDownloadMenu by remember { mutableStateOf(false) }
     LazyColumn(
@@ -690,15 +680,10 @@ private fun DescriptionAndCommentsSection(
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: null
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
     val isNarrow = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
-    val itemSpacing =
-        if (windowSizeClass != null) {
-            AdaptiveUtils.getItemSpacing(windowSizeClass)
-        } else {
-            16.dp
-        }
+    val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
     if (isNarrow) {
         Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(itemSpacing)) {
@@ -781,10 +766,9 @@ private fun ExpandableDescription(
     // Get window size class for adaptive sizing
     val rawWindowSizeClass =
         activity?.let {
-            androidx.compose.material3.windowsizeclass
-                .calculateWindowSizeClass(it)
+            calculateWindowSizeClass(it)
         }
-    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
     val isCompact = windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
 
     // Adaptive preview length based on screen size

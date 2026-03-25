@@ -90,9 +90,7 @@ public fun BooksGridView(
     val context = LocalContext.current
     val activity = context as? androidx.activity.ComponentActivity
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass =
-        rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) }
-            ?: rawWindowSizeClass
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
 
     val columnCount = resolveGridColumnCount(viewMode = viewMode, windowSizeClass = windowSizeClass)
     val columns = GridCells.Fixed(columnCount)

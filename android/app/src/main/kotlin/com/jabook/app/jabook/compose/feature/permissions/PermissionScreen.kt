@@ -195,7 +195,12 @@ public fun PermissionScreen(
                 }
 
                 if (onSkip != null) {
-                    TextButton(onClick = onSkip) {
+                    TextButton(
+                        onClick = {
+                            viewModel.enableStorageFallbackMode()
+                            onSkip()
+                        },
+                    ) {
                         Text(
                             text = stringResource(R.string.onboardingSkip),
                             style = MaterialTheme.typography.labelLarge,
