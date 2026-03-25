@@ -31,27 +31,17 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@651bceb6f9ca583f16b8d75b62c36ded2ae6fc9c # v4.0.0
 
-      - name: Generate Gradle Wrapper (if needed)
-        working-directory: android
-        run: |
-          if [ ! -f "gradlew" ]; then
-            echo "gradlew not found, generating wrapper..."
-            GRADLE_VERSION=9.2.1
-            # Download and extract Gradle
-            wget -q "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
-            unzip -q "gradle-${GRADLE_VERSION}-bin.zip"
-            # Generate wrapper using downloaded Gradle
-            "./gradle-${GRADLE_VERSION}/bin/gradle" wrapper --gradle-version ${GRADLE_VERSION}
-            # Cleanup
-            rm -rf "gradle-${GRADLE_VERSION}" "gradle-${GRADLE_VERSION}-bin.zip"
-          fi
-
-      - name: Grant execute permission for gradlew
+      - name: Validate Android Gradle Wrapper
         run: |
           if [ -f "android/gradlew" ]; then
             chmod +x android/gradlew
+            if [ ! -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
+              echo "ERROR: android/gradle/wrapper/gradle-wrapper.properties is missing"
+              exit 1
+            fi
           else
-            echo "Warning: android/gradlew not found, skipping chmod"
+            echo "ERROR: android/gradlew not found. Commit Gradle wrapper files to repository."
+            exit 1
           fi
 
       - name: Format Kotlin code

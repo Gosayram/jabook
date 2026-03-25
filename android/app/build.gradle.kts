@@ -1,8 +1,9 @@
+import org.gradle.api.GradleException
+import java.io.File
 import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     // REMOVED: Flutter Gradle Plugin - no longer needed
     // id("dev.flutter.flutter-gradle-plugin")
     id("com.google.devtools.ksp")
@@ -14,8 +15,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     // Compose Compiler (required for Kotlin 2.0+)
     id("org.jetbrains.kotlin.plugin.compose")
-    // Protobuf for Proto DataStore
-    id("com.google.protobuf") version "0.9.6"
     // JaCoCo for test coverage
     id("jacoco")
 }
@@ -43,6 +42,71 @@ if (hasGoogleServicesJson) {
         "google-services.json was not found in app module. " +
             "Skipping com.google.gms.google-services plugin for this build.",
     )
+}
+
+val osName = System.getProperty("os.name").lowercase()
+val osArch = System.getProperty("os.arch").lowercase()
+val isWindows = osName.contains("windows")
+
+fun detectProtocClassifier(
+    os: String,
+    arch: String,
+): String =
+    when {
+        os.contains("mac") && (arch == "aarch64" || arch == "arm64") -> "osx-aarch_64"
+        os.contains("mac") -> "osx-x86_64"
+        os.contains("linux") && (arch == "aarch64" || arch == "arm64") -> "linux-aarch_64"
+        os.contains("linux") -> "linux-x86_64"
+        os.contains("windows") && (arch == "aarch64" || arch == "arm64") -> "windows-aarch_64"
+        os.contains("windows") -> "windows-x86_64"
+        else -> throw GradleException("Unsupported OS/arch for protoc: os=$os arch=$arch")
+    }
+
+val protocClassifier = detectProtocClassifier(osName, osArch)
+val protoSourceDir = layout.projectDirectory.dir("src/main/proto")
+val generatedProtoDir = layout.buildDirectory.dir("generated/source/proto/main/java")
+val protoFiles =
+    fileTree(protoSourceDir) {
+        include("**/*.proto")
+    }
+
+val protocBinary by configurations.creating
+
+val prepareProtoc by tasks.registering(Copy::class) {
+    notCompatibleWithConfigurationCache("Custom protoc bootstrap task.")
+    from(protocBinary)
+    into(layout.buildDirectory.dir("tools/protoc"))
+    rename { if (isWindows) "protoc.exe" else "protoc" }
+    doLast {
+        if (!isWindows) {
+            val protocFile = layout.buildDirectory.file("tools/protoc/protoc").get().asFile
+            protocFile.setExecutable(true)
+        }
+    }
+}
+
+val generateProtoLite by tasks.registering(Exec::class) {
+    notCompatibleWithConfigurationCache("Custom protoc codegen task.")
+    dependsOn(prepareProtoc)
+    inputs.files(protoFiles)
+    outputs.dir(generatedProtoDir)
+
+    doFirst {
+        val outputDir = generatedProtoDir.get().asFile
+        outputDir.mkdirs()
+
+        val protocPath =
+            if (isWindows) {
+                layout.buildDirectory.file("tools/protoc/protoc.exe").get().asFile.absolutePath
+            } else {
+                layout.buildDirectory.file("tools/protoc/protoc").get().asFile.absolutePath
+            }
+
+        val argsList = mutableListOf("--java_out=lite:${outputDir.absolutePath}", "-I${protoSourceDir.asFile.absolutePath}")
+        argsList.addAll(protoFiles.files.map(File::getAbsolutePath).sorted())
+
+        commandLine(protocPath, *argsList.toTypedArray())
+    }
 }
 
 android {
@@ -118,6 +182,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
 
     // Compose Compiler configuration moved to plugin (line 16)
@@ -182,6 +247,8 @@ android {
         }
     }
 
+    sourceSets.getByName("main").java.directories.add(generatedProtoDir.get().asFile.absolutePath)
+
     // Generate separate APKs per architecture + universal APK
     splits {
         abi {
@@ -203,7 +270,24 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    dependsOn(generateProtoLite)
+}
+
+tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
+    dependsOn(generateProtoLite)
+}
+
+tasks.matching { task ->
+    task.name.startsWith("ksp") && task.name.endsWith("Kotlin")
+}.configureEach {
+    dependsOn(generateProtoLite)
+}
+
 dependencies {
+    // Protoc binary for Proto DataStore code generation (replaces protobuf-gradle-plugin).
+    protocBinary("com.google.protobuf:protoc:4.34.1:$protocClassifier@exe")
+
     // AppCompat for AppCompatActivity and AlertDialog
     implementation(libs.androidx.appcompat)
 
@@ -351,22 +435,6 @@ ktlint {
         include("**/kotlin/**")
     }
 }
-// Protobuf configuration for Proto DataStore
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:4.33.2"
-    }
-    generateProtoTasks {
-        all().forEach { task ->
-            task.builtins {
-                create("java") {
-                    option("lite")
-                }
-            }
-        }
-    }
-}
-
 // JaCoCo configuration for test coverage
 jacoco {
     toolVersion = "0.8.14"
