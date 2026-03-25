@@ -62,6 +62,22 @@ def main(argv: list[str] | None = None) -> int:
     values = list(argv if argv is not None else sys.argv[1:])
     if values and values[0] == "crawl":
         values = values[1:]
+    if values and values[0] == "search-index":
+        from .search_index import build_search_index_parser, run_search_index
+
+        parser = build_search_index_parser()
+        args = parser.parse_args(values[1:])
+        payload = run_search_index(args)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+    if values and values[0] == "search-find":
+        from .search_index import build_search_find_parser, run_search_find
+
+        parser = build_search_find_parser()
+        args = parser.parse_args(values[1:])
+        payload = run_search_find(args)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
     if values and values[0] == "capabilities":
         cap_parser = _build_capabilities_parser()
         cap_args = cap_parser.parse_args(values[1:])

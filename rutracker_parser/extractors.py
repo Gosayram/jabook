@@ -315,6 +315,141 @@ def _extract_forum_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list
     return topics, users, torrents
 
 
+def _extract_tracker_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict], list[dict], list[dict], bool]:
+    topics: list[dict] = []
+    users: list[dict] = []
+    torrents: list[dict] = []
+    forums: list[dict] = []
+    no_results = False
+
+    for row in soup.select("#tor-tbl tbody tr"):
+        topic_id = _extract_numeric(row.get("data-topic_id", ""))
+        if topic_id is None:
+            row_text = _clean_text(row.get_text(" ", strip=True)).lower()
+            if "не найдено" in row_text:
+                no_results = True
+            continue
+
+        cells = row.find_all("td", recursive=False)
+        if len(cells) < 10:
+            continue
+
+        forum_anchor = row.select_one("td.f-name-col a[href]")
+        forum_title = _clean_text(forum_anchor.get_text(" ", strip=True)) if forum_anchor else ""
+        forum_url = normalize_url(urljoin(url, forum_anchor.get("href", ""))) if forum_anchor else ""
+        forum_id = query_value_as_int(forum_url, "f") if forum_url else None
+
+        topic_anchor = row.select_one("td.t-title-col a[href*='viewtopic.php?t=']")
+        topic_title = _clean_text(topic_anchor.get_text(" ", strip=True)) if topic_anchor else ""
+        topic_url = normalize_url(urljoin(url, topic_anchor.get("href", ""))) if topic_anchor else ""
+
+        uploader_anchor = row.select_one("td.u-name-col a[href*='tracker.php?pid=']")
+        uploader_name = _clean_text(uploader_anchor.get_text(" ", strip=True)) if uploader_anchor else ""
+        uploader_url = normalize_url(urljoin(url, uploader_anchor.get("href", ""))) if uploader_anchor else ""
+        uploader_pid = query_value_as_int(uploader_url, "pid") if uploader_url else None
+
+        size_cell = cells[5]
+        size_anchor = size_cell.select_one("a[href*='dl.php?t=']")
+        size_text = _clean_text((size_anchor or size_cell).get_text(" ", strip=True))
+        size_bytes = _extract_numeric(size_cell.get("data-ts_text", "")) if size_cell else None
+        if size_bytes is None:
+            size_bytes = _parse_size_to_bytes(size_text)
+        torrent_url = normalize_url(urljoin(url, size_anchor.get("href", ""))) if size_anchor else ""
+
+        seed_cell = cells[6]
+        leech_cell = cells[7]
+        downloads_cell = cells[8]
+        added_cell = cells[9]
+
+        seeders = _extract_numeric(seed_cell.get("data-ts_text", "")) or _extract_numeric(seed_cell.get_text(" ", strip=True))
+        leechers = _extract_numeric(leech_cell.get("data-ts_text", "")) or _extract_numeric(leech_cell.get_text(" ", strip=True))
+        downloads = _extract_numeric(downloads_cell.get("data-ts_text", "")) or _extract_numeric(downloads_cell.get_text(" ", strip=True))
+        added_ts = _extract_numeric(added_cell.get("data-ts_text", ""))
+        added_node = added_cell.select_one("p")
+        added_at = _clean_text((added_node or added_cell).get_text(" ", strip=True))
+
+        status_node = row.select_one("span.tor-icon")
+        status_text = _clean_text(status_node.get_text(" ", strip=True)) if status_node else ""
+        status_classes = status_node.get("class", []) if status_node else []
+        status_title = _clean_text(cells[1].get("title", ""))
+
+        icon_img = cells[0].select_one("img")
+        topic_icon_alt = _clean_text(icon_img.get("alt", "")) if icon_img else ""
+
+        topics.append(
+            {
+                "topic_id": topic_id,
+                "forum_id": forum_id,
+                "forum_title": forum_title,
+                "forum_url": forum_url,
+                "title": topic_title,
+                "url": topic_url,
+                "source_url": url,
+                "author": uploader_name,
+                "author_url": uploader_url,
+                "uploader": uploader_name,
+                "uploader_url": uploader_url,
+                "uploader_pid": uploader_pid,
+                "size_text": size_text,
+                "size_bytes": size_bytes,
+                "torrent_url": torrent_url,
+                "seeders": seeders,
+                "leechers": leechers,
+                "downloads": downloads,
+                "added_at": added_at,
+                "added_ts": added_ts,
+                "status_text": status_text,
+                "status_title": status_title,
+                "status_classes": status_classes,
+                "topic_icon_alt": topic_icon_alt,
+                "ts": utc_now_iso(),
+            }
+        )
+
+        if forum_url or forum_title:
+            forums.append(
+                {
+                    "forum_id": forum_id,
+                    "title": forum_title,
+                    "url": forum_url,
+                    "source_url": url,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+        if uploader_url or uploader_name:
+            users.append(
+                {
+                    "user_id": None,
+                    "tracker_pid": uploader_pid,
+                    "name": uploader_name,
+                    "url": uploader_url,
+                    "source_url": url,
+                    "kind": "tracker_uploader",
+                    "topic_id": topic_id,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+        if torrent_url:
+            torrents.append(
+                {
+                    "source_url": url,
+                    "topic_id": topic_id,
+                    "forum_id": forum_id,
+                    "torrent_url": torrent_url,
+                    "size_text": size_text,
+                    "size_bytes": size_bytes,
+                    "seeders": seeders,
+                    "leechers": leechers,
+                    "downloads": downloads,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+    return topics, users, torrents, forums, no_results
+
+
 def _extract_forum_pagination(url: str, soup: BeautifulSoup) -> dict:
     links: list[dict] = []
     for anchor in soup.select("a.pg[href]"):
@@ -334,6 +469,30 @@ def _extract_forum_pagination(url: str, soup: BeautifulSoup) -> dict:
         "has_next": any(item["label"].startswith("След") for item in links),
         "max_page_number": max(numeric_pages) if numeric_pages else None,
     }
+
+
+def _extract_tracker_page_counter(url: str, pagination: dict, soup: BeautifulSoup) -> tuple[int | None, int | None]:
+    start = query_value_as_int(url, "start")
+    current_page = (start // 50) + 1 if isinstance(start, int) else 1
+    total_pages = pagination.get("max_page_number")
+
+    nav_node = soup.select_one("td.nav")
+    nav_text = _clean_text(nav_node.get_text(" ", strip=True)) if nav_node else ""
+    nav_match = re.search(r"Страница\s*(\d+)\s*из\s*(\d+)", nav_text, flags=re.IGNORECASE)
+    if nav_match:
+        if start is None:
+            current_page = _extract_numeric(nav_match.group(1)) or current_page
+        if total_pages is None:
+            total_pages = _extract_numeric(nav_match.group(2))
+
+    if total_pages is None:
+        links = pagination.get("links", [])
+        if links:
+            total_pages = max(((item.get("start") or 0) // 50) + 1 for item in links)
+        elif current_page:
+            total_pages = current_page
+
+    return current_page, total_pages
 
 
 def _extract_topic_field_map(post_body: Tag) -> dict[str, str]:
@@ -751,10 +910,18 @@ def extract_page(
                 }
             )
 
-    forum_topics, forum_users, forum_torrents = _extract_forum_rows(url, soup)
-    topics.extend(forum_topics)
-    users.extend(forum_users)
-    torrents.extend(forum_torrents)
+    tracker_no_results = False
+    if page_type == "tracker":
+        tracker_topics, tracker_users, tracker_torrents, tracker_forums, tracker_no_results = _extract_tracker_rows(url, soup)
+        topics = tracker_topics
+        users = tracker_users
+        torrents = tracker_torrents
+        forums = tracker_forums
+    else:
+        forum_topics, forum_users, forum_torrents = _extract_forum_rows(url, soup)
+        topics.extend(forum_topics)
+        users.extend(forum_users)
+        torrents.extend(forum_torrents)
 
     pagination = _extract_forum_pagination(url, soup) if page_type in {"forum", "tracker"} else {"links": [], "has_next": False, "max_page_number": None}
 
@@ -869,10 +1036,49 @@ def extract_page(
 
     tracker_details: dict | None = None
     if page_type == "tracker":
+        query_map = parse_qs(urlparse(url).query, keep_blank_values=True)
+        query_text = _clean_text((query_map.get("nm") or [""])[0])
+        if not query_text:
+            nm_input = soup.select_one("form[action*='tracker.php'] input[name='nm']")
+            if nm_input:
+                query_text = _clean_text(nm_input.get("value", ""))
+
+        forum_filters = []
+        for raw in query_map.get("f", []) + query_map.get("f[]", []):
+            value = _extract_numeric(raw)
+            if value is not None:
+                forum_filters.append(value)
+        if not forum_filters:
+            for node in soup.select("form[action*='tracker.php'] input[name='f[]'][checked]"):
+                value = _extract_numeric(node.get("value", ""))
+                if value is not None:
+                    forum_filters.append(value)
+
+        sort_by = _clean_text((query_map.get("o") or [""])[0])
+        sort_dir = _clean_text((query_map.get("s") or [""])[0])
+        if not sort_by:
+            sort_input = soup.select_one("form[action*='tracker.php'] input[name='o']")
+            sort_by = _clean_text(sort_input.get("value", "")) if sort_input else ""
+        if not sort_dir:
+            sort_dir_input = soup.select_one("form[action*='tracker.php'] input[name='s']")
+            sort_dir = _clean_text(sort_dir_input.get("value", "")) if sort_dir_input else ""
+
+        current_page, total_pages = _extract_tracker_page_counter(url, pagination, soup)
         tracker_details = {
             "url": url,
             "title": title,
             "topics_discovered": len(topics),
+            "forums_discovered": len(forums),
+            "results_count": len(topics),
+            "has_results": bool(topics),
+            "no_results": tracker_no_results,
+            "query": query_text,
+            "search_id": _clean_text((query_map.get("search_id") or [""])[0]),
+            "forum_filters": sorted(set(forum_filters)),
+            "sort_by": sort_by,
+            "sort_dir": sort_dir,
+            "current_page": current_page,
+            "total_pages": total_pages,
             "pagination": pagination,
             "ts": utc_now_iso(),
         }
