@@ -22,6 +22,47 @@ SIZE_MULTIPLIER = {
     "TB": 1024**4,
 }
 
+LOW_VALUE_NAV_LABELS = frozenset(
+    {
+        "",
+        ".",
+        "..",
+        "...",
+        "....",
+        ">>",
+        "<<",
+        ">",
+        "<",
+        "след",
+        "след.",
+        "пред",
+        "пред.",
+        "страницы",
+        "главная",
+        "nav",
+        "top",
+    }
+)
+
+FIELD_KEY_STOPWORDS = frozenset(
+    {
+        "или",
+        "и",
+        "но",
+        "а",
+        "что",
+        "как",
+        "когда",
+        "где",
+        "кто",
+        "это",
+        "битторрент",
+        "bittorrent",
+    }
+)
+
+FIELD_KEY_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9\s.,()/#:+\-]{1,62}$")
+
 
 def detect_page_type(url: str) -> str:
     parsed = urlparse(url)
@@ -81,6 +122,55 @@ def _normalize_attach_field_value(raw_value: str) -> str:
     value = _clean_text(raw_value)
     value = re.sub(r"\s*Скачать\s+по\s+magnet[-\s]ссылке\s*$", "", value, flags=re.IGNORECASE)
     return _clean_text(value).strip()
+
+
+def _is_low_value_nav_label(label: str) -> bool:
+    normalized = _clean_text(label).lower().strip(".")
+    if not normalized:
+        return True
+    if normalized.isdigit():
+        return True
+    return normalized in LOW_VALUE_NAV_LABELS
+
+
+def _extract_search_id_from_url(url: str) -> str:
+    query = parse_qs(urlparse(url).query)
+    return _clean_text((query.get("search_id") or [""])[0])
+
+
+def _is_quote_or_spoiler_context(node: Tag) -> bool:
+    for parent in node.parents:
+        if not isinstance(parent, Tag):
+            continue
+        classes = [item.lower() for item in parent.get("class", [])]
+        if any(
+            marker in classes
+            for marker in (
+                "post-quote",
+                "q",
+                "quotetitle",
+                "quotemain",
+                "sp-wrap",
+                "sp-head",
+                "sp-body",
+            )
+        ):
+            return True
+    return False
+
+
+def _is_probable_field_key(raw_key: str) -> bool:
+    key = _clean_text(raw_key).strip(": ").strip()
+    if len(key) < 2 or len(key) > 63:
+        return False
+    if sum(1 for ch in key if ch.isalpha()) < 2:
+        return False
+    if not FIELD_KEY_RE.fullmatch(key):
+        return False
+    lowered = key.lower().replace("ё", "е")
+    if lowered in FIELD_KEY_STOPWORDS:
+        return False
+    return True
 
 
 def _is_internal_page(url: str, allowed_hosts: set[str]) -> bool:
@@ -493,7 +583,7 @@ def _extract_tracker_rows(
 
 
 def _extract_forum_pagination(url: str, soup: BeautifulSoup) -> dict:
-    links: list[dict] = []
+    links_raw: list[dict] = []
     for anchor in soup.select("a.pg[href]"):
         href = anchor.get("href", "")
         if not href:
@@ -501,7 +591,9 @@ def _extract_forum_pagination(url: str, soup: BeautifulSoup) -> dict:
         normalized = normalize_url(urljoin(url, href))
         label = _clean_text(anchor.get_text(" ", strip=True))
         start = query_value_as_int(normalized, "start")
-        links.append({"url": normalized, "label": label, "start": start})
+        links_raw.append({"url": normalized, "label": label, "start": start})
+
+    links = _dedupe(links_raw, ("url", "label", "start"))
 
     numeric_pages = [_extract_numeric(item["label"] or "") for item in links]
     numeric_pages = [p for p in numeric_pages if p is not None]
@@ -542,10 +634,15 @@ def _extract_tracker_page_counter(
 def _extract_topic_field_map(post_body: Tag) -> dict[str, str]:
     fields: dict[str, str] = {}
     for label in post_body.select("span.post-b"):
-        key = _clean_text(label.get_text(" ", strip=True)).strip(":")
-        if not key:
+        if _is_quote_or_spoiler_context(label):
             continue
 
+        raw_key = _clean_text(label.get_text(" ", strip=True))
+        key = raw_key.strip(": ").strip()
+        if not _is_probable_field_key(key):
+            continue
+
+        separator_seen = raw_key.rstrip().endswith(":")
         values: list[str] = []
         for sibling in label.next_siblings:
             if isinstance(sibling, Tag) and sibling.name == "br":
@@ -554,11 +651,29 @@ def _extract_topic_field_map(post_body: Tag) -> dict[str, str]:
                 text = _clean_text(sibling.get_text(" ", strip=True))
             else:
                 text = _clean_text(str(sibling))
-            if text and text != ":":
-                values.append(text)
+            if not text:
+                continue
+            if not separator_seen:
+                if text == ":":
+                    separator_seen = True
+                    continue
+                if ":" not in text:
+                    continue
+                left, right = text.split(":", 1)
+                if left.strip():
+                    continue
+                separator_seen = True
+                text = _clean_text(right)
+                if not text:
+                    continue
+            values.append(text)
 
+        if not separator_seen:
+            continue
         value = _clean_text(" ".join(values)).strip(":")
         if value:
+            if key in fields and len(fields[key]) >= len(value):
+                continue
             fields[key] = value
 
     return fields
@@ -935,6 +1050,14 @@ def extract_page(
 
         topic_id = query_value_as_int(absolute, "t")
         if topic_id is not None and "viewtopic.php" in absolute:
+            start_offset = query_value_as_int(absolute, "start")
+            post_id = query_value_as_int(absolute, "p")
+            if post_id is not None:
+                continue
+            if start_offset is not None and _is_low_value_nav_label(label):
+                continue
+            if _is_low_value_nav_label(label) and "view=newest" not in absolute:
+                continue
             topics.append(
                 {
                     "topic_id": topic_id,
@@ -1147,16 +1270,38 @@ def extract_page(
             sort_dir = _clean_text(sort_dir_input.get("value", "")) if sort_dir_input else ""
 
         current_page, total_pages = _extract_tracker_page_counter(url, pagination, soup)
+        search_id = _clean_text((query_map.get("search_id") or [""])[0])
+        if not search_id:
+            for page_link in pagination.get("links", []):
+                candidate = _extract_search_id_from_url(page_link.get("url", ""))
+                if candidate:
+                    search_id = candidate
+                    break
+        if not search_id:
+            for item in breadcrumb_links:
+                candidate = _extract_search_id_from_url(item.get("url", ""))
+                if candidate:
+                    search_id = candidate
+                    break
+
+        topic_forum_ids = {
+            int(topic["forum_id"]) for topic in topics if isinstance(topic.get("forum_id"), int)
+        }
+        if not topic_forum_ids:
+            topic_forum_ids = {
+                int(forum["forum_id"]) for forum in forums if isinstance(forum.get("forum_id"), int)
+            }
+
         tracker_details = {
             "url": url,
             "title": title,
             "topics_discovered": len(topics),
-            "forums_discovered": len(forums),
+            "forums_discovered": len(topic_forum_ids) if topic_forum_ids else len(forums),
             "results_count": len(topics),
             "has_results": bool(topics),
             "no_results": tracker_no_results,
             "query": query_text,
-            "search_id": _clean_text((query_map.get("search_id") or [""])[0]),
+            "search_id": search_id,
             "forum_filters": sorted(set(forum_filters)),
             "sort_by": sort_by,
             "sort_dir": sort_dir,
@@ -1208,9 +1353,11 @@ def extract_page(
     }
 
     forums = _dedupe(forums, ("forum_id", "url"))
+    topics_with_id = [item for item in topics if isinstance(item.get("topic_id"), int)]
+    topics_without_id = [item for item in topics if not isinstance(item.get("topic_id"), int)]
     topics = _dedupe_prefer_rich(
-        topics,
-        ("topic_id", "url"),
+        topics_with_id,
+        ("topic_id",),
         (
             "seeders",
             "leechers",
@@ -1223,6 +1370,7 @@ def extract_page(
             "last_post_id",
         ),
     )
+    topics.extend(_dedupe_prefer_rich(topics_without_id, ("url",), ("title", "source_url")))
     users = _dedupe_prefer_rich(
         users,
         ("user_id", "url", "kind"),

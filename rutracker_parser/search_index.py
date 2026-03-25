@@ -721,7 +721,8 @@ def _resolve_index_for_find(args: Any) -> tuple[Path, dict | None]:
     if explicit_index and index_path and index_path.exists() and not index_path.is_file():
         raise FileNotFoundError(f"Index path is not a file: {index_path}")
 
-    if args.auto_index_if_missing:
+    auto_build_allowed = args.auto_index_if_missing or args.auto_refresh_on_empty
+    if auto_build_allowed:
         build_args = _build_search_index_namespace_from_find(args, query=args.query)
         index_summary = run_search_index(build_args)
         index_path = Path(index_summary["index"]["index_compact"]).expanduser().resolve()
