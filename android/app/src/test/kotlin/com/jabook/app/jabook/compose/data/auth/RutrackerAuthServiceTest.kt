@@ -28,6 +28,7 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import okio.Buffer
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalCoroutinesApi::class)
 class RutrackerAuthServiceTest {
     private val cp1251: Charset = Charset.forName("windows-1251")
+    private val utf8: Charset = Charsets.UTF_8
     private lateinit var mockWebServer: MockWebServer
     private lateinit var authService: RutrackerAuthService
 
@@ -85,13 +87,7 @@ class RutrackerAuthServiceTest {
     @Test
     fun `login returns success for valid login fixture response`() =
         runTest {
-            val bodyBytes = loadFixture("login_success.html").toByteArray(cp1251)
-            mockWebServer.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .setHeader("Content-Type", "text/html; charset=windows-1251")
-                    .setBody(Buffer().write(bodyBytes)),
-            )
+            enqueueHtmlFixture("login_success.html")
 
             val result =
                 authService.login(
@@ -112,6 +108,63 @@ class RutrackerAuthServiceTest {
             assertTrue(body.contains("login="))
         }
 
+    @Test
+    fun `login returns invalid credentials error for fail fixture`() =
+        runTest {
+            enqueueHtmlFixture("login_fail.html")
+
+            val result =
+                authService.login(
+                    credentials = UserCredentials(username = "test-user", password = "bad-pass"),
+                )
+
+            assertEquals(
+                RutrackerAuthService.AuthResult.Error("Invalid username or password"),
+                result,
+            )
+            assertEquals("Invalid username or password", authService.lastAuthError)
+        }
+
+    @Test
+    fun `login returns captcha result when captcha challenge is present`() =
+        runTest {
+            enqueueHtmlFixture("login_captcha.html")
+
+            val result =
+                authService.login(
+                    credentials = UserCredentials(username = "test-user", password = "test-pass"),
+                )
+
+            assertTrue(result is RutrackerAuthService.AuthResult.Captcha)
+            val captcha = result as RutrackerAuthService.AuthResult.Captcha
+            assertEquals("123456", captcha.data.sid)
+            assertTrue(captcha.data.url.contains("captcha"))
+            assertNull(authService.lastAuthError)
+        }
+
+    @Test
+    fun `login retries transient network failures and succeeds on final attempt`() =
+        runTest {
+            mockWebServer.enqueue(
+                MockResponse()
+                    .setSocketPolicy(SocketPolicy.DISCONNECT_AT_START),
+            )
+            mockWebServer.enqueue(
+                MockResponse()
+                    .setSocketPolicy(SocketPolicy.DISCONNECT_AT_START),
+            )
+            enqueueHtmlFixture("login_success.html")
+
+            val result =
+                authService.login(
+                    credentials = UserCredentials(username = "retry-user", password = "retry-pass"),
+                )
+
+            assertEquals(RutrackerAuthService.AuthResult.Success, result)
+            assertNull(authService.lastAuthError)
+            assertEquals(3, mockWebServer.requestCount)
+        }
+
     private fun createApi(): RutrackerApi =
         Retrofit
             .Builder()
@@ -120,12 +173,22 @@ class RutrackerAuthServiceTest {
             .build()
             .create(RutrackerApi::class.java)
 
+    private fun enqueueHtmlFixture(fileName: String) {
+        val bodyBytes = loadFixture(fileName).toByteArray(cp1251)
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "text/html; charset=windows-1251")
+                .setBody(Buffer().write(bodyBytes)),
+        )
+    }
+
     private fun loadFixture(fileName: String): String {
         val resourcePath = "fixtures/rutracker/$fileName"
         val stream =
             checkNotNull(javaClass.classLoader?.getResourceAsStream(resourcePath)) {
                 "Fixture not found: $resourcePath"
             }
-        return stream.bufferedReader(cp1251).use { it.readText() }
+        return stream.bufferedReader(utf8).use { it.readText() }
     }
 }
