@@ -143,7 +143,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
                     // Wait for controller with timeout (faster for widget UX)
                     controller =
-                        controllerFuture?.get(
+                        controllerFuture.get(
                             com.jabook.app.jabook.audio.MediaControllerConstants.WIDGET_TIMEOUT_SECONDS
                                 .toLong(),
                             TimeUnit.SECONDS,
@@ -178,7 +178,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
                     val layoutResId = getLayoutForSize(widgetSize)
                     val views = RemoteViews(context.packageName, layoutResId)
-                    setDefaultWidgetState(context, views, widgetSize)
+                    setDefaultWidgetState(context, views, appWidgetId)
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                 } catch (e2: Exception) {
                     android.util.Log.e("PlayerWidget", "Failed to set default widget state", e2)
@@ -236,6 +236,20 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     ) {
         val isPlaying = controller.isPlaying
         val currentMediaItem = controller.currentMediaItem
+        val shouldFallbackToService =
+            WidgetControllerSnapshotPolicy.shouldFallbackToService(
+                hasCurrentMediaItem = currentMediaItem != null,
+                playbackState = controller.playbackState,
+                isPlaying = isPlaying,
+            )
+        if (shouldFallbackToService) {
+            android.util.Log.w(
+                "PlayerWidget",
+                "Controller snapshot appears stale, fallback to service for widget=$appWidgetId",
+            )
+            updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
+            return
+        }
         val mediaMetadata = currentMediaItem?.mediaMetadata
 
         // Get book information from metadata
@@ -259,31 +273,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         // Update cover image (if present in layout) - load with Glide for better compatibility
         val artworkUri = mediaMetadata?.artworkUri
         safeUpdateView(views, R.id.widget_cover) {
-            if (artworkUri != null) {
-                try {
-                    // Use Glide to load bitmap for widget (more reliable than setImageViewUri)
-                    val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
-
-                    Glide
-                        .with(context.applicationContext)
-                        .asBitmap()
-                        .load(artworkUri)
-                        .override(512, 512) // Widget-friendly size
-                        .centerCrop()
-                        .into(widgetTarget)
-                } catch (e: Exception) {
-                    android.util.Log.w("PlayerWidget", "Failed to load cover image with Glide", e)
-                    // Fallback to URI method
-                    try {
-                        views.setImageViewUri(R.id.widget_cover, artworkUri)
-                    } catch (e2: Exception) {
-                        android.util.Log.w("PlayerWidget", "Failed to set cover image URI", e2)
-                        views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
-                    }
-                }
-            } else {
-                views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
-            }
+            updateCoverImage(context, views, appWidgetId, artworkUri)
         }
 
         // Update progress (if present in layout)
@@ -304,7 +294,6 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
         // Get repeat mode and playback speed
         val repeatMode = controller.repeatMode
-        val playbackSpeed = controller.playbackParameters.speed
 
         // Update repeat button state (if present in layout)
         safeUpdateView(views, R.id.widget_repeat) {
@@ -335,7 +324,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         val finalBookId = currentBookId ?: currentBookIdFromService
 
         // Set up click intents
-        setupClickIntents(context, views, finalBookId, playbackSpeed, repeatMode, widgetSize)
+        setupClickIntents(context, views, finalBookId, appWidgetId)
 
         android.util.Log.d("PlayerWidget", "Widget updated via MediaController: book=$bookTitle, playing=$isPlaying")
     }
@@ -401,31 +390,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
             // Update cover image (if present in layout) - load with Glide
             safeUpdateView(views, R.id.widget_cover) {
-                if (coverUri != null) {
-                    try {
-                        // Use Glide to load bitmap for widget
-                        val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
-
-                        Glide
-                            .with(context.applicationContext)
-                            .asBitmap()
-                            .load(coverUri)
-                            .override(512, 512)
-                            .centerCrop()
-                            .into(widgetTarget)
-                    } catch (e: Exception) {
-                        android.util.Log.w("PlayerWidget", "Failed to load cover image with Glide from service", e)
-                        // Fallback to URI method
-                        try {
-                            views.setImageViewUri(R.id.widget_cover, coverUri)
-                        } catch (e2: Exception) {
-                            android.util.Log.w("PlayerWidget", "Failed to set cover image URI from service", e2)
-                            views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
-                        }
-                    }
-                } else {
-                    views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
-                }
+                updateCoverImage(context, views, appWidgetId, coverUri)
             }
 
             // Update progress (if present in layout)
@@ -444,7 +409,6 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
             // Get repeat mode and speed from service
             val repeatMode = service.getRepeatMode()
-            val playbackSpeed = service.getPlaybackSpeed()
 
             // Update repeat button state (if present in layout)
             safeUpdateView(views, R.id.widget_repeat) {
@@ -453,7 +417,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             }
 
             // Set up click intents
-            setupClickIntents(context, views, currentBookId, playbackSpeed, repeatMode, widgetSize)
+            setupClickIntents(context, views, currentBookId, appWidgetId)
 
             // Update widget immediately (Glide will update cover asynchronously)
             appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -464,7 +428,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             android.util.Log.d("PlayerWidget", "Widget updated via service: book=$bookTitle, playing=$isPlaying")
         } else {
             // Service not available - show default state
-            setDefaultWidgetState(context, views, widgetSize)
+            setDefaultWidgetState(context, views, appWidgetId)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }
@@ -475,7 +439,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     private fun setDefaultWidgetState(
         context: Context,
         views: RemoteViews,
-        widgetSize: WidgetSize,
+        appWidgetId: Int,
     ) {
         views.setTextViewText(R.id.widget_book_title, context.getString(R.string.no_book_playing))
 
@@ -506,7 +470,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         // Set up click intents (will start service)
-        setupClickIntents(context, views, null, 1.0f, Player.REPEAT_MODE_OFF, widgetSize)
+        setupClickIntents(context, views, null, appWidgetId)
     }
 
     /**
@@ -597,9 +561,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         context: Context,
         views: RemoteViews,
         currentBookId: String?,
-        playbackSpeed: Float,
-        repeatMode: Int,
-        widgetSize: WidgetSize,
+        appWidgetId: Int,
     ) {
         val pendingIntentFlags =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -609,48 +571,52 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             }
 
         // Play/Pause button (always present)
-        val playPauseIntent =
-            Intent(context, AudioPlayerService::class.java).apply {
-                action = ACTION_PLAY_PAUSE
-            }
         views.setOnClickPendingIntent(
             R.id.widget_play_pause,
-            PendingIntent.getService(context, 0, playPauseIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+            createServicePendingIntent(
+                context = context,
+                action = ACTION_PLAY_PAUSE,
+                appWidgetId = appWidgetId,
+                pendingIntentFlags = pendingIntentFlags,
+            ),
         )
 
         // Speed button - cycle through speeds - if present
         safeUpdateView(views, R.id.widget_speed) {
-            val speedIntent =
-                Intent(context, AudioPlayerService::class.java).apply {
-                    action = ACTION_SPEED
-                }
             views.setOnClickPendingIntent(
                 R.id.widget_speed,
-                PendingIntent.getService(context, 4, speedIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+                createServicePendingIntent(
+                    context = context,
+                    action = ACTION_SPEED,
+                    appWidgetId = appWidgetId,
+                    pendingIntentFlags = pendingIntentFlags,
+                ),
             )
         }
 
         // Repeat button - cycle through repeat modes - if present
         safeUpdateView(views, R.id.widget_repeat) {
-            val repeatIntent =
-                Intent(context, AudioPlayerService::class.java).apply {
-                    action = ACTION_REPEAT
-                }
             views.setOnClickPendingIntent(
                 R.id.widget_repeat,
-                PendingIntent.getService(context, 5, repeatIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+                createServicePendingIntent(
+                    context = context,
+                    action = ACTION_REPEAT,
+                    appWidgetId = appWidgetId,
+                    pendingIntentFlags = pendingIntentFlags,
+                ),
             )
         }
 
         // Timer button - cycle through timer options - if present
         safeUpdateView(views, R.id.widget_timer) {
-            val timerIntent =
-                Intent(context, AudioPlayerService::class.java).apply {
-                    action = ACTION_TIMER
-                }
             views.setOnClickPendingIntent(
                 R.id.widget_timer,
-                PendingIntent.getService(context, 6, timerIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+                createServicePendingIntent(
+                    context = context,
+                    action = ACTION_TIMER,
+                    appWidgetId = appWidgetId,
+                    pendingIntentFlags = pendingIntentFlags,
+                ),
             )
         }
 
@@ -658,50 +624,151 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         safeUpdateView(views, R.id.widget_progress) {
             // Note: ProgressBar clicks are handled via setOnClickPendingIntent on the progress bar itself
             // We'll use a custom action that opens player for now, as seeking requires position calculation
-            val seekIntent =
-                Intent(context, ComposeMainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    data = android.net.Uri.parse("jabook://player${if (currentBookId != null) "?bookId=$currentBookId" else ""}")
-                }
             views.setOnClickPendingIntent(
                 R.id.widget_progress,
-                PendingIntent.getActivity(context, 7, seekIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+                createOpenPlayerPendingIntent(
+                    context = context,
+                    currentBookId = currentBookId,
+                    appWidgetId = appWidgetId,
+                    routeAction = WidgetActionRoutingPolicy.ROUTE_OPEN_PLAYER_PROGRESS,
+                    pendingIntentFlags = pendingIntentFlags,
+                ),
             )
         }
 
         // Previous and Next buttons - if present
         safeUpdateView(views, R.id.widget_previous) {
-            val previousIntent =
-                Intent(context, AudioPlayerService::class.java).apply {
-                    action = ACTION_PREVIOUS
-                }
             views.setOnClickPendingIntent(
                 R.id.widget_previous,
-                PendingIntent.getService(context, 2, previousIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+                createServicePendingIntent(
+                    context = context,
+                    action = ACTION_PREVIOUS,
+                    appWidgetId = appWidgetId,
+                    pendingIntentFlags = pendingIntentFlags,
+                ),
             )
         }
 
         safeUpdateView(views, R.id.widget_next) {
-            val nextIntent =
-                Intent(context, AudioPlayerService::class.java).apply {
-                    action = ACTION_NEXT
-                }
             views.setOnClickPendingIntent(
                 R.id.widget_next,
-                PendingIntent.getService(context, 1, nextIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+                createServicePendingIntent(
+                    context = context,
+                    action = ACTION_NEXT,
+                    appWidgetId = appWidgetId,
+                    pendingIntentFlags = pendingIntentFlags,
+                ),
             )
         }
 
         // Widget click - open player screen
-        val openPlayerIntent =
-            Intent(context, ComposeMainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                data = android.net.Uri.parse("jabook://player${if (currentBookId != null) "?bookId=$currentBookId" else ""}")
-            }
         views.setOnClickPendingIntent(
             R.id.widget_content,
-            PendingIntent.getActivity(context, 3, openPlayerIntent, pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT),
+            createOpenPlayerPendingIntent(
+                context = context,
+                currentBookId = currentBookId,
+                appWidgetId = appWidgetId,
+                routeAction = WidgetActionRoutingPolicy.ROUTE_OPEN_PLAYER,
+                pendingIntentFlags = pendingIntentFlags,
+            ),
         )
+    }
+
+    private fun createServicePendingIntent(
+        context: Context,
+        action: String,
+        appWidgetId: Int,
+        pendingIntentFlags: Int,
+    ): PendingIntent {
+        val intent =
+            Intent(context, AudioPlayerService::class.java).apply {
+                this.action = action
+                `package` = context.packageName
+                putExtra(EXTRA_APP_WIDGET_ID, appWidgetId)
+            }
+
+        return PendingIntent.getService(
+            context,
+            WidgetActionRoutingPolicy.requestCodeForAction(appWidgetId, action),
+            intent,
+            pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+
+    private fun createOpenPlayerPendingIntent(
+        context: Context,
+        currentBookId: String?,
+        appWidgetId: Int,
+        routeAction: String,
+        pendingIntentFlags: Int,
+    ): PendingIntent {
+        val openPlayerIntent =
+            Intent(context, ComposeMainActivity::class.java).apply {
+                action = routeAction
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                data = buildPlayerDeepLink(currentBookId, appWidgetId)
+                putExtra(EXTRA_APP_WIDGET_ID, appWidgetId)
+            }
+
+        return PendingIntent.getActivity(
+            context,
+            WidgetActionRoutingPolicy.requestCodeForAction(appWidgetId, routeAction),
+            openPlayerIntent,
+            pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+
+    private fun buildPlayerDeepLink(
+        currentBookId: String?,
+        appWidgetId: Int,
+    ): Uri {
+        val builder =
+            Uri
+                .parse("jabook://player")
+                .buildUpon()
+                .appendQueryParameter("widgetId", appWidgetId.toString())
+
+        if (!currentBookId.isNullOrBlank()) {
+            builder.appendQueryParameter("bookId", currentBookId)
+        }
+
+        return builder.build()
+    }
+
+    private fun updateCoverImage(
+        context: Context,
+        views: RemoteViews,
+        appWidgetId: Int,
+        artworkUri: Uri?,
+    ) {
+        if (artworkUri == null) {
+            views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
+            return
+        }
+
+        try {
+            val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
+            Glide.with(context.applicationContext).clear(widgetTarget)
+
+            Glide
+                .with(context.applicationContext)
+                .asBitmap()
+                .load(artworkUri)
+                .override(WidgetCoverLoadPolicy.COVER_SIZE_PX, WidgetCoverLoadPolicy.COVER_SIZE_PX)
+                .timeout(WidgetCoverLoadPolicy.COVER_TIMEOUT_MS)
+                .centerCrop()
+                .fallback(R.drawable.ic_launcher_foreground)
+                .error(R.drawable.ic_launcher_foreground)
+                .into(widgetTarget)
+        } catch (e: Exception) {
+            android.util.Log.w("PlayerWidget", "Failed to load cover with Glide, trying URI fallback", e)
+            try {
+                views.setImageViewUri(R.id.widget_cover, artworkUri)
+            } catch (e2: Exception) {
+                android.util.Log.w("PlayerWidget", "Failed to set cover URI fallback", e2)
+                views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
+            }
+        }
     }
 
     public companion object {
@@ -712,6 +779,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         public const val ACTION_REPEAT: String = "com.jabook.app.jabook.WIDGET_REPEAT"
         public const val ACTION_SPEED: String = "com.jabook.app.jabook.WIDGET_SPEED"
         public const val ACTION_TIMER: String = "com.jabook.app.jabook.WIDGET_TIMER"
+        public const val EXTRA_APP_WIDGET_ID: String = "com.jabook.app.jabook.EXTRA_APP_WIDGET_ID"
 
         /**
          * Requests widget update from anywhere in the app.
