@@ -73,7 +73,7 @@ libtorrent4j = "2.1.0-39"
 ktaglib = "1.6.1"
 
 # UI Libraries
-haze = "1.7.1"
+haze = "1.7.2"
 hypnoticcanvas = "0.4.1"
 leanback = "1.2.0"
 
