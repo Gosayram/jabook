@@ -146,6 +146,7 @@ fun detectProtocClassifier(
 val protocClassifier = detectProtocClassifier(osName, osArch)
 val protoSourceDir = layout.projectDirectory.dir("src/main/proto")
 val generatedProtoDir = layout.buildDirectory.dir("generated/source/proto/main/java")
+val roomSchemaDir = layout.buildDirectory.dir("generated/room-schemas")
 val protoInputFiles =
     fileTree(protoSourceDir) {
         include("**/*.proto")
@@ -324,7 +325,7 @@ android {
 
 // Configure KSP for Room and Hilt
 ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.schemaLocation", roomSchemaDir.get().asFile.absolutePath)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

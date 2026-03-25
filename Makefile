@@ -94,13 +94,13 @@ clean:
 .PHONY: compile
 compile:
 	@echo "Compiling Kotlin code for all flavors..."
-	@(cd android && rm -rf app/schemas && ./gradlew :app:compileBetaDebugKotlin --no-daemon --no-parallel 2>&1); \
+	@(cd android && rm -rf app/build/generated/room-schemas && ./gradlew :app:compileBetaDebugKotlin --no-daemon --no-parallel 2>&1); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -ne 0 ]; then \
 		echo "❌ Kotlin compilation failed on beta with exit code $$EXIT_CODE"; \
 		exit $$EXIT_CODE; \
 	fi; \
-	(cd android && rm -rf app/schemas && ./gradlew :app:compileProdDebugKotlin --no-daemon --no-parallel 2>&1); \
+	(cd android && rm -rf app/build/generated/room-schemas && ./gradlew :app:compileProdDebugKotlin --no-daemon --no-parallel 2>&1); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Kotlin compilation successful for all flavors"; \
