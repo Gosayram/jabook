@@ -101,7 +101,11 @@ class CrawlEngine:
         if source_category_id is not None and source_category_id in self.scope_category_ids:
             if source_forum_id is not None:
                 self.scope_forum_ids.add(source_forum_id)
-        if source_forum_id is not None and source_forum_id in self.scope_forum_ids and source_topic_id is not None:
+        if (
+            source_forum_id is not None
+            and source_forum_id in self.scope_forum_ids
+            and source_topic_id is not None
+        ):
             self.scope_topic_ids.add(source_topic_id)
 
         for row in extracted.get("categories", []):
@@ -153,26 +157,37 @@ class CrawlEngine:
         source_forum_id = query_value_as_int(source_url, "f")
 
         scoped["links"] = [
-            link for link in extracted.get("links", []) if self._is_url_in_scope(link.get("to", ""), source_url)
+            link
+            for link in extracted.get("links", [])
+            if self._is_url_in_scope(link.get("to", ""), source_url)
         ]
         scoped["categories"] = [
-            row for row in extracted.get("categories", []) if row.get("category_id") in self.scope_category_ids
+            row
+            for row in extracted.get("categories", [])
+            if row.get("category_id") in self.scope_category_ids
         ]
-        scoped["forums"] = [row for row in extracted.get("forums", []) if row.get("forum_id") in self.scope_forum_ids]
+        scoped["forums"] = [
+            row
+            for row in extracted.get("forums", [])
+            if row.get("forum_id") in self.scope_forum_ids
+        ]
         scoped["topics"] = [
             row
             for row in extracted.get("topics", [])
-            if row.get("topic_id") in self.scope_topic_ids or source_forum_id in self.scope_forum_ids
+            if row.get("topic_id") in self.scope_topic_ids
+            or source_forum_id in self.scope_forum_ids
         ]
         scoped["users"] = [
             row
             for row in extracted.get("users", [])
-            if row.get("topic_id") in self.scope_topic_ids or source_forum_id in self.scope_forum_ids
+            if row.get("topic_id") in self.scope_topic_ids
+            or source_forum_id in self.scope_forum_ids
         ]
         scoped["torrents"] = [
             row
             for row in extracted.get("torrents", [])
-            if row.get("topic_id") in self.scope_topic_ids or source_forum_id in self.scope_forum_ids
+            if row.get("topic_id") in self.scope_topic_ids
+            or source_forum_id in self.scope_forum_ids
         ]
 
         topic_details = extracted.get("topic_details")
@@ -304,7 +319,9 @@ class CrawlEngine:
 
                         for link in scoped_extracted["links"]:
                             if link.get("crawlable"):
-                                self._enqueue(link["to"], depth=task.depth + 1, parent_url=fetched.final_url)
+                                self._enqueue(
+                                    link["to"], depth=task.depth + 1, parent_url=fetched.final_url
+                                )
 
                     except AntiBotDetectedError as error:
                         self.error_count += 1

@@ -62,7 +62,9 @@ def apply_scenario(settings: CrawlSettings) -> CrawlSettings:
     if not preset:
         return settings
 
-    if settings.start_urls == [to_absolute_url(settings.mirrors[0], p) for p in DEFAULT_START_PATHS]:
+    if settings.start_urls == [
+        to_absolute_url(settings.mirrors[0], p) for p in DEFAULT_START_PATHS
+    ]:
         settings.start_urls = [to_absolute_url(settings.mirrors[0], p) for p in preset.start_paths]
 
     settings.max_depth = min(settings.max_depth, preset.max_depth)

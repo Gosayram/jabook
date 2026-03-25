@@ -49,7 +49,9 @@ def _run_crawl(argv: list[str]) -> int:
 
     settings = load_settings_from_args(args)
     if settings.scenario not in SCENARIOS:
-        raise ValueError(f"Unknown scenario: {settings.scenario}. Available: {', '.join(sorted(SCENARIOS))}")
+        raise ValueError(
+            f"Unknown scenario: {settings.scenario}. Available: {', '.join(sorted(SCENARIOS))}"
+        )
     settings = apply_scenario(settings)
 
     engine = CrawlEngine(settings)

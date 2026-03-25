@@ -15,13 +15,13 @@ from .constants import (
     DEFAULT_ALLOWED_PATH_PREFIXES,
     DEFAULT_BACKOFF_BASE_SEC,
     DEFAULT_BACKOFF_MAX_SEC,
-    DEFAULT_COOLDOWN_SEC,
     DEFAULT_CONNECT_TIMEOUT_SEC,
+    DEFAULT_COOLDOWN_SEC,
     DEFAULT_FALLBACK_MIRROR,
     DEFAULT_JITTER_SEC,
-    DEFAULT_MAX_RETRIES,
     DEFAULT_MAX_ANTIBOT_EVENTS,
     DEFAULT_MAX_HTML_BYTES,
+    DEFAULT_MAX_RETRIES,
     DEFAULT_PRIMARY_MIRROR,
     DEFAULT_READ_TIMEOUT_SEC,
     DEFAULT_REQUEST_INTERVAL_SEC,
@@ -158,7 +158,9 @@ def _build_mirrors(args: Any) -> list[str]:
     return unique_preserve_order(mirrors)
 
 
-def _build_discovery_settings(args: Any, mirrors: list[str], login: str, password: str) -> CrawlSettings:
+def _build_discovery_settings(
+    args: Any, mirrors: list[str], login: str, password: str
+) -> CrawlSettings:
     mode_requested: Mode = args.mode
     mode_effective = _resolve_mode(
         mode_requested,
@@ -357,7 +359,9 @@ def build_search_index(run_dir: Path, query: str) -> dict:
             continue
         torrent = torrents_by_topic.get(topic_id, {})
         forum_id = _coerce_int(row.get("forum_id"))
-        forum_title = str(row.get("forum_title") or "").strip() or forum_titles.get(forum_id or -1, "")
+        forum_title = str(row.get("forum_title") or "").strip() or forum_titles.get(
+            forum_id or -1, ""
+        )
 
         record = {
             "topic_id": topic_id,
@@ -370,8 +374,11 @@ def build_search_index(run_dir: Path, query: str) -> dict:
             "uploader": str(row.get("uploader") or row.get("author") or "").strip(),
             "uploader_url": str(row.get("uploader_url") or row.get("author_url") or "").strip(),
             "uploader_pid": _coerce_int(row.get("uploader_pid")),
-            "size_text": str(row.get("size_text") or torrent.get("size_text") or torrent.get("label") or "").strip(),
-            "size_bytes": _coerce_int(row.get("size_bytes")) or _coerce_int(torrent.get("size_bytes")),
+            "size_text": str(
+                row.get("size_text") or torrent.get("size_text") or torrent.get("label") or ""
+            ).strip(),
+            "size_bytes": _coerce_int(row.get("size_bytes"))
+            or _coerce_int(torrent.get("size_bytes")),
             "seeders": _coerce_int(row.get("seeders")) or _coerce_int(torrent.get("seeders")),
             "leechers": _coerce_int(row.get("leechers")) or _coerce_int(torrent.get("leechers")),
             "downloads": _coerce_int(row.get("downloads")) or _coerce_int(torrent.get("downloads")),
@@ -460,7 +467,9 @@ def build_search_index(run_dir: Path, query: str) -> dict:
     stats_path = search_dir / "index_stats.json"
 
     full_path.write_text(json.dumps(full_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    compact_path.write_text(json.dumps(compact_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    compact_path.write_text(
+        json.dumps(compact_payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     top_path.write_text(json.dumps(top_payload, ensure_ascii=False, indent=2), encoding="utf-8")
     stats_path.write_text(
         json.dumps(
@@ -468,7 +477,9 @@ def build_search_index(run_dir: Path, query: str) -> dict:
                 "query": query,
                 "generated_at": utc_now_iso(),
                 "records_total": len(records),
-                "forums_unique": len({item.get("forum_id") for item in records if item.get("forum_id") is not None}),
+                "forums_unique": len(
+                    {item.get("forum_id") for item in records if item.get("forum_id") is not None}
+                ),
                 "with_torrent_url": sum(1 for item in records if item.get("torrent_url")),
             },
             ensure_ascii=False,
@@ -526,8 +537,7 @@ def _build_idf(records: list[dict]) -> dict[str, float]:
             doc_freq[token] = doc_freq.get(token, 0) + 1
 
     return {
-        token: math.log((1.0 + total_docs) / (1.0 + freq)) + 1.0
-        for token, freq in doc_freq.items()
+        token: math.log((1.0 + total_docs) / (1.0 + freq)) + 1.0 for token, freq in doc_freq.items()
     }
 
 
@@ -557,7 +567,10 @@ def search_compact_index(index_path: Path, query: str, limit: int) -> dict:
         uploader = _normalize_text(str(row.get("uploader") or ""))
         forum = _normalize_text(str(row.get("forum_title") or ""))
         blob = _normalize_text(
-            str(row.get("search_text") or f"{row.get('title', '')} {row.get('forum_title', '')} {row.get('uploader', '')}")
+            str(
+                row.get("search_text")
+                or f"{row.get('title', '')} {row.get('forum_title', '')} {row.get('uploader', '')}"
+            )
         )
 
         title_stems = set(_tokenize(title, stem=True))
@@ -581,8 +594,16 @@ def search_compact_index(index_path: Path, query: str, limit: int) -> dict:
         elif query_normalized and query_normalized in blob:
             phrase_bonus += 16.0
 
-        fuzzy_title = SequenceMatcher(None, query_normalized, title).ratio() if query_normalized and title else 0.0
-        fuzzy_blob = SequenceMatcher(None, query_normalized, blob).ratio() if query_normalized and blob else 0.0
+        fuzzy_title = (
+            SequenceMatcher(None, query_normalized, title).ratio()
+            if query_normalized and title
+            else 0.0
+        )
+        fuzzy_blob = (
+            SequenceMatcher(None, query_normalized, blob).ratio()
+            if query_normalized and blob
+            else 0.0
+        )
         fuzzy_score = max(fuzzy_title, fuzzy_blob)
         fuzzy_bonus = max(0.0, fuzzy_score - 0.46) * 42.0
 
@@ -730,7 +751,9 @@ def run_search_find(args: Any) -> dict:
         refresh_args = _build_relaxed_refresh_args(args)
         refresh_summary = run_search_index(refresh_args)
         refreshed_path = Path(refresh_summary["index"]["index_compact"]).expanduser().resolve()
-        refreshed = search_compact_index(index_path=refreshed_path, query=args.query, limit=args.limit)
+        refreshed = search_compact_index(
+            index_path=refreshed_path, query=args.query, limit=args.limit
+        )
         refreshed["index_path"] = str(refreshed_path)
         refreshed["index_refreshed"] = refresh_summary.get("index", {})
         result = refreshed

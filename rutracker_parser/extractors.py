@@ -138,7 +138,9 @@ def _dedupe(items: list[dict], key_fields: tuple[str, ...]) -> list[dict]:
     return unique
 
 
-def _dedupe_prefer_rich(items: list[dict], key_fields: tuple[str, ...], prefer_fields: tuple[str, ...]) -> list[dict]:
+def _dedupe_prefer_rich(
+    items: list[dict], key_fields: tuple[str, ...], prefer_fields: tuple[str, ...]
+) -> list[dict]:
     chosen: dict[tuple, dict] = {}
     order: list[tuple] = []
     for item in items:
@@ -193,15 +195,23 @@ def _extract_forum_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list
 
         title_anchor = _first_topic_anchor(row)
         title = _clean_text(title_anchor.get_text(" ", strip=True)) if title_anchor else ""
-        topic_url = normalize_url(urljoin(url, title_anchor["href"])) if title_anchor and title_anchor.get("href") else ""
+        topic_url = (
+            normalize_url(urljoin(url, title_anchor["href"]))
+            if title_anchor and title_anchor.get("href")
+            else ""
+        )
 
         newest_anchor = row.select_one("a.t-is-unread[href*='viewtopic.php?t=']")
-        newest_url = normalize_url(urljoin(url, newest_anchor.get("href", ""))) if newest_anchor else ""
+        newest_url = (
+            normalize_url(urljoin(url, newest_anchor.get("href", ""))) if newest_anchor else ""
+        )
 
         author_anchor = row.select_one("div.topicAuthor a[href*='profile.php']")
         author_name = _clean_text(author_anchor.get_text(" ", strip=True)) if author_anchor else ""
         author_url = (
-            normalize_url(urljoin(url, author_anchor["href"])) if author_anchor and author_anchor.get("href") else ""
+            normalize_url(urljoin(url, author_anchor["href"]))
+            if author_anchor and author_anchor.get("href")
+            else ""
         )
 
         seed_node = row.select_one("span.seedmed b, span.seed b")
@@ -212,7 +222,11 @@ def _extract_forum_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list
         size_anchor = row.select_one("a.f-dl[href*='dl.php?t=']")
         size_text = _clean_text(size_anchor.get_text(" ", strip=True)) if size_anchor else ""
         size_bytes = _parse_size_to_bytes(size_text)
-        torrent_url = normalize_url(urljoin(url, size_anchor["href"])) if size_anchor and size_anchor.get("href") else ""
+        torrent_url = (
+            normalize_url(urljoin(url, size_anchor["href"]))
+            if size_anchor and size_anchor.get("href")
+            else ""
+        )
 
         icon_node = row.select_one("td.vf-topic-icon-cell img.topic_icon")
         icon_src = icon_node.get("src", "") if icon_node else ""
@@ -254,9 +268,17 @@ def _extract_forum_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list
             "author_url": author_url,
             "author_id": query_value_as_int(author_url, "u") if author_url else None,
             "seeders": _extract_numeric(seed_node.get_text(" ", strip=True)) if seed_node else None,
-            "leechers": _extract_numeric(leech_node.get_text(" ", strip=True)) if leech_node else None,
-            "replies": _extract_numeric(replies_node.get_text(" ", strip=True)) if replies_node else None,
-            "downloads": _extract_numeric(downloads_node.get_text(" ", strip=True)) if downloads_node else None,
+            "leechers": (
+                _extract_numeric(leech_node.get_text(" ", strip=True)) if leech_node else None
+            ),
+            "replies": (
+                _extract_numeric(replies_node.get_text(" ", strip=True)) if replies_node else None
+            ),
+            "downloads": (
+                _extract_numeric(downloads_node.get_text(" ", strip=True))
+                if downloads_node
+                else None
+            ),
             "size_text": size_text,
             "size_bytes": size_bytes,
             "torrent_url": torrent_url,
@@ -267,7 +289,9 @@ def _extract_forum_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list
             "last_post_at": last_post_time,
             "last_post_user": last_post_user,
             "last_post_user_url": last_post_user_url,
-            "last_post_user_id": query_value_as_int(last_post_user_url, "u") if last_post_user_url else None,
+            "last_post_user_id": (
+                query_value_as_int(last_post_user_url, "u") if last_post_user_url else None
+            ),
             "last_post_url": last_post_link,
             "last_post_id": last_post_id,
             "ts": utc_now_iso(),
@@ -315,7 +339,9 @@ def _extract_forum_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list
     return topics, users, torrents
 
 
-def _extract_tracker_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict], list[dict], list[dict], bool]:
+def _extract_tracker_rows(
+    url: str, soup: BeautifulSoup
+) -> tuple[list[dict], list[dict], list[dict], list[dict], bool]:
     topics: list[dict] = []
     users: list[dict] = []
     torrents: list[dict] = []
@@ -336,16 +362,24 @@ def _extract_tracker_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], li
 
         forum_anchor = row.select_one("td.f-name-col a[href]")
         forum_title = _clean_text(forum_anchor.get_text(" ", strip=True)) if forum_anchor else ""
-        forum_url = normalize_url(urljoin(url, forum_anchor.get("href", ""))) if forum_anchor else ""
+        forum_url = (
+            normalize_url(urljoin(url, forum_anchor.get("href", ""))) if forum_anchor else ""
+        )
         forum_id = query_value_as_int(forum_url, "f") if forum_url else None
 
         topic_anchor = row.select_one("td.t-title-col a[href*='viewtopic.php?t=']")
         topic_title = _clean_text(topic_anchor.get_text(" ", strip=True)) if topic_anchor else ""
-        topic_url = normalize_url(urljoin(url, topic_anchor.get("href", ""))) if topic_anchor else ""
+        topic_url = (
+            normalize_url(urljoin(url, topic_anchor.get("href", ""))) if topic_anchor else ""
+        )
 
         uploader_anchor = row.select_one("td.u-name-col a[href*='tracker.php?pid=']")
-        uploader_name = _clean_text(uploader_anchor.get_text(" ", strip=True)) if uploader_anchor else ""
-        uploader_url = normalize_url(urljoin(url, uploader_anchor.get("href", ""))) if uploader_anchor else ""
+        uploader_name = (
+            _clean_text(uploader_anchor.get_text(" ", strip=True)) if uploader_anchor else ""
+        )
+        uploader_url = (
+            normalize_url(urljoin(url, uploader_anchor.get("href", ""))) if uploader_anchor else ""
+        )
         uploader_pid = query_value_as_int(uploader_url, "pid") if uploader_url else None
 
         size_cell = cells[5]
@@ -354,16 +388,24 @@ def _extract_tracker_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], li
         size_bytes = _extract_numeric(size_cell.get("data-ts_text", "")) if size_cell else None
         if size_bytes is None:
             size_bytes = _parse_size_to_bytes(size_text)
-        torrent_url = normalize_url(urljoin(url, size_anchor.get("href", ""))) if size_anchor else ""
+        torrent_url = (
+            normalize_url(urljoin(url, size_anchor.get("href", ""))) if size_anchor else ""
+        )
 
         seed_cell = cells[6]
         leech_cell = cells[7]
         downloads_cell = cells[8]
         added_cell = cells[9]
 
-        seeders = _extract_numeric(seed_cell.get("data-ts_text", "")) or _extract_numeric(seed_cell.get_text(" ", strip=True))
-        leechers = _extract_numeric(leech_cell.get("data-ts_text", "")) or _extract_numeric(leech_cell.get_text(" ", strip=True))
-        downloads = _extract_numeric(downloads_cell.get("data-ts_text", "")) or _extract_numeric(downloads_cell.get_text(" ", strip=True))
+        seeders = _extract_numeric(seed_cell.get("data-ts_text", "")) or _extract_numeric(
+            seed_cell.get_text(" ", strip=True)
+        )
+        leechers = _extract_numeric(leech_cell.get("data-ts_text", "")) or _extract_numeric(
+            leech_cell.get_text(" ", strip=True)
+        )
+        downloads = _extract_numeric(downloads_cell.get("data-ts_text", "")) or _extract_numeric(
+            downloads_cell.get_text(" ", strip=True)
+        )
         added_ts = _extract_numeric(added_cell.get("data-ts_text", ""))
         added_node = added_cell.select_one("p")
         added_at = _clean_text((added_node or added_cell).get_text(" ", strip=True))
@@ -471,7 +513,9 @@ def _extract_forum_pagination(url: str, soup: BeautifulSoup) -> dict:
     }
 
 
-def _extract_tracker_page_counter(url: str, pagination: dict, soup: BeautifulSoup) -> tuple[int | None, int | None]:
+def _extract_tracker_page_counter(
+    url: str, pagination: dict, soup: BeautifulSoup
+) -> tuple[int | None, int | None]:
     start = query_value_as_int(url, "start")
     current_page = (start // 50) + 1 if isinstance(start, int) else 1
     total_pages = pagination.get("max_page_number")
@@ -543,7 +587,9 @@ def _extract_posts(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict
             joined = _clean_text(joined_node.get_text(" ", strip=True)) if joined_node else ""
 
             posts_node = poster.select_one("p.posts")
-            message_count = _extract_numeric(posts_node.get_text(" ", strip=True)) if posts_node else None
+            message_count = (
+                _extract_numeric(posts_node.get_text(" ", strip=True)) if posts_node else None
+            )
 
             flag_node = poster.select_one("img.poster-flag")
             flag_title = _clean_text(flag_node.get("title", "")) if flag_node else ""
@@ -613,7 +659,11 @@ def _extract_posts(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict
                 {
                     "user_id": user_id,
                     "name": nickname,
-                    "url": normalize_url(urljoin(url, f"profile.php?mode=viewprofile&u={user_id}")) if user_id else "",
+                    "url": (
+                        normalize_url(urljoin(url, f"profile.php?mode=viewprofile&u={user_id}"))
+                        if user_id
+                        else ""
+                    ),
                     "source_url": url,
                     "kind": "post_author",
                     "post_id": post_id,
@@ -664,8 +714,12 @@ def _extract_category_tree(url: str, soup: BeautifulSoup) -> list[dict]:
         for row in forums_table.select("tr[id^='f-']"):
             forum_id = _extract_numeric(row.get("id", ""))
             forum_anchor = row.select_one("h4.forumlink a[href]")
-            forum_title = _clean_text(forum_anchor.get_text(" ", strip=True)) if forum_anchor else ""
-            forum_url = normalize_url(urljoin(url, forum_anchor.get("href", ""))) if forum_anchor else ""
+            forum_title = (
+                _clean_text(forum_anchor.get_text(" ", strip=True)) if forum_anchor else ""
+            )
+            forum_url = (
+                normalize_url(urljoin(url, forum_anchor.get("href", ""))) if forum_anchor else ""
+            )
 
             subforums: list[dict] = []
             for sf_anchor in row.select("p.subforums a[href]"):
@@ -722,7 +776,9 @@ def _extract_profile_details(url: str, soup: BeautifulSoup) -> dict:
     }
 
 
-def _extract_topic_meta(url: str, soup: BeautifulSoup, stats_text: str, magnets: list[str], torrent_urls: list[str]) -> dict:
+def _extract_topic_meta(
+    url: str, soup: BeautifulSoup, stats_text: str, magnets: list[str], torrent_urls: list[str]
+) -> dict:
     meta: dict[str, object] = {}
 
     share_node = soup.select_one("#soc-container")
@@ -805,7 +861,10 @@ def extract_page(
     title_node = soup.find("title")
     title = _clean_text(title_node.get_text()) if title_node else ""
 
-    breadcrumbs = [_clean_text(node.get_text()) for node in soup.select("td.nav a, .nav a, .t-breadcrumb-top a")]
+    breadcrumbs = [
+        _clean_text(node.get_text())
+        for node in soup.select("td.nav a, .nav a, .t-breadcrumb-top a")
+    ]
     breadcrumb_links = [
         {
             "title": _clean_text(node.get_text(" ", strip=True)),
@@ -912,7 +971,9 @@ def extract_page(
 
     tracker_no_results = False
     if page_type == "tracker":
-        tracker_topics, tracker_users, tracker_torrents, tracker_forums, tracker_no_results = _extract_tracker_rows(url, soup)
+        tracker_topics, tracker_users, tracker_torrents, tracker_forums, tracker_no_results = (
+            _extract_tracker_rows(url, soup)
+        )
         topics = tracker_topics
         users = tracker_users
         torrents = tracker_torrents
@@ -923,7 +984,11 @@ def extract_page(
         users.extend(forum_users)
         torrents.extend(forum_torrents)
 
-    pagination = _extract_forum_pagination(url, soup) if page_type in {"forum", "tracker"} else {"links": [], "has_next": False, "max_page_number": None}
+    pagination = (
+        _extract_forum_pagination(url, soup)
+        if page_type in {"forum", "tracker"}
+        else {"links": [], "has_next": False, "max_page_number": None}
+    )
 
     topic_details: dict | None = None
     topic_meta: dict | None = None
@@ -931,8 +996,10 @@ def extract_page(
         topic_id = query_value_as_int(url, "t")
 
         stats_node = soup.select_one("#t-tor-stats")
-        stats_text = _clean_text(stats_node.get_text(" ", strip=True)) if stats_node else _clean_text(
-            soup.get_text(" ", strip=True)
+        stats_text = (
+            _clean_text(stats_node.get_text(" ", strip=True))
+            if stats_node
+            else _clean_text(soup.get_text(" ", strip=True))
         )
 
         size_bytes = None
@@ -1006,7 +1073,9 @@ def extract_page(
         topic_meta = _extract_topic_meta(url, soup, stats_text, magnet_urls, torrent_urls)
 
         for magnet in magnet_urls:
-            torrents.append({"source_url": url, "topic_id": topic_id, "magnet": magnet, "ts": utc_now_iso()})
+            torrents.append(
+                {"source_url": url, "topic_id": topic_id, "magnet": magnet, "ts": utc_now_iso()}
+            )
         for torrent_url in torrent_urls:
             torrents.append(
                 {
@@ -1024,9 +1093,23 @@ def extract_page(
         forum_details = {
             "forum_id": forum_id,
             "title": title,
-            "maintitle": _clean_text(maintitle_anchor.get_text(" ", strip=True)) if maintitle_anchor else "",
-            "maintitle_url": normalize_url(urljoin(url, maintitle_anchor.get("href", ""))) if maintitle_anchor else "",
-            "description": _clean_text((soup.select_one(".forum-desc-in-title") or Tag(name="div")).get_text(" ", strip=True)) if soup.select_one(".forum-desc-in-title") else "",
+            "maintitle": (
+                _clean_text(maintitle_anchor.get_text(" ", strip=True)) if maintitle_anchor else ""
+            ),
+            "maintitle_url": (
+                normalize_url(urljoin(url, maintitle_anchor.get("href", "")))
+                if maintitle_anchor
+                else ""
+            ),
+            "description": (
+                _clean_text(
+                    (soup.select_one(".forum-desc-in-title") or Tag(name="div")).get_text(
+                        " ", strip=True
+                    )
+                )
+                if soup.select_one(".forum-desc-in-title")
+                else ""
+            ),
             "url": url,
             "topics_discovered": len(topics),
             "subforums_discovered": len(forums),
@@ -1110,7 +1193,9 @@ def extract_page(
             {
                 "action": normalize_url(urljoin(url, action)) if action else url,
                 "method": method,
-                "fields": [inp.get("name", "") for inp in form.select("input[name]") if inp.get("name")],
+                "fields": [
+                    inp.get("name", "") for inp in form.select("input[name]") if inp.get("name")
+                ],
             }
         )
 
@@ -1146,7 +1231,9 @@ def extract_page(
     torrents = _dedupe(torrents, ("topic_id", "torrent_url", "magnet", "source_url"))
     links = _dedupe(links, ("from", "to"))
     categories = _dedupe(categories, ("category_id", "forum_id", "forum_url"))
-    posts = _dedupe_prefer_rich(posts, ("topic_id", "post_id"), ("fields", "image_urls", "links", "poster", "text"))
+    posts = _dedupe_prefer_rich(
+        posts, ("topic_id", "post_id"), ("fields", "image_urls", "links", "poster", "text")
+    )
 
     return {
         "page_type": page_type,

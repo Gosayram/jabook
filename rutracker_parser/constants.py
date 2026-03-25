@@ -25,9 +25,7 @@ DEFAULT_START_PATHS: Final[tuple[str, ...]] = (
     "/forum/tracker.php",
 )
 
-DEFAULT_ALLOWED_PATH_PREFIXES: Final[tuple[str, ...]] = (
-    "/forum",
-)
+DEFAULT_ALLOWED_PATH_PREFIXES: Final[tuple[str, ...]] = ("/forum",)
 
 SAFE_ENDPOINTS: Final[frozenset[str]] = frozenset(
     {
@@ -74,7 +72,9 @@ DEFAULT_MAX_DEPTH: Final[int] = 10
 DEFAULT_MAX_HTML_BYTES: Final[int] = 6_000_000
 DEFAULT_MAX_ANTIBOT_EVENTS: Final[int] = 3
 
-RETRY_STATUSES: Final[frozenset[int]] = frozenset({408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 524})
+RETRY_STATUSES: Final[frozenset[int]] = frozenset(
+    {408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 524}
+)
 
 CF_MARKERS: Final[tuple[str, ...]] = (
     "cloudflare",

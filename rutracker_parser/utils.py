@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Iterable
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 

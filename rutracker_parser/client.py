@@ -74,7 +74,7 @@ class RutrackerHttpClient:
         return any(marker in marker_blob for marker in CF_MARKERS)
 
     def _sleep_backoff(self, attempt: int) -> None:
-        exp = min(self.settings.backoff_base_sec * (2 ** attempt), self.settings.backoff_max_sec)
+        exp = min(self.settings.backoff_base_sec * (2**attempt), self.settings.backoff_max_sec)
         jitter = random.uniform(0.0, min(exp * 0.25, 8.0))
         time.sleep(exp + jitter)
 
@@ -151,7 +151,9 @@ class RutrackerHttpClient:
             )
 
         if last_error:
-            raise RuntimeError(f"Request failed after retries: {url_or_path}; error={last_error}") from last_error
+            raise RuntimeError(
+                f"Request failed after retries: {url_or_path}; error={last_error}"
+            ) from last_error
         raise RuntimeError(f"Request failed after retries: {url_or_path}")
 
     def login(self) -> bool:

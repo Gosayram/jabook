@@ -20,6 +20,19 @@ python3 -m pip install -r rutracker_parser/requirements.txt
 ```
 
 ```bash
+python3 -m pip install -r rutracker_parser/requirements-dev.txt
+```
+
+```bash
+cd rutracker_parser
+make check
+```
+
+`make format` — black + auto-fix imports/lint.
+`make lint` — ruff checks.
+`make check` — formatter check + lint.
+
+```bash
 python3 -m rutracker_parser crawl \
   --mode auto \
   --mirror https://rutracker.net \
