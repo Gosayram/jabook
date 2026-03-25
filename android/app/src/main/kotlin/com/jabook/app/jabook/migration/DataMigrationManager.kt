@@ -83,7 +83,10 @@ public class DataMigrationManager
                     val preflightReport = runMigrationPreflight(groupPath)
                     if (!preflightReport.ready) {
                         return@withContext MigrationResult.Failure(
-                            error = IllegalStateException("Migration preflight failed: ${preflightReport.blockingIssues.joinToString("; ")}"),
+                            error =
+                                IllegalStateException(
+                                    "Migration preflight failed: ${preflightReport.blockingIssues.joinToString("; ")}",
+                                ),
                             preflightReport = preflightReport,
                         )
                     }
@@ -156,18 +159,20 @@ public class DataMigrationManager
             val destinationPath = destinationDirectory?.canonicalPath ?: "unknown"
             val destinationWritable = destinationDirectory?.let { it.exists() && it.canWrite() } ?: false
 
-            val warnings = buildList {
-                if (!sourceExists) {
-                    add("Source path does not exist yet; migration will preserve path reference")
-                } else if (!sourceReadable) {
-                    add("Source path is not readable")
+            val warnings =
+                buildList {
+                    if (!sourceExists) {
+                        add("Source path does not exist yet; migration will preserve path reference")
+                    } else if (!sourceReadable) {
+                        add("Source path is not readable")
+                    }
                 }
-            }
-            val blockingIssues = buildList {
-                if (destinationDirectory != null && !destinationWritable) {
-                    add("App storage directory is not writable")
+            val blockingIssues =
+                buildList {
+                    if (destinationDirectory != null && !destinationWritable) {
+                        add("App storage directory is not writable")
+                    }
                 }
-            }
 
             return MigrationPreflightReport(
                 sourcePath = groupPath,

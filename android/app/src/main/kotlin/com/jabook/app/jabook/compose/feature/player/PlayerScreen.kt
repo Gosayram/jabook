@@ -97,8 +97,8 @@ import androidx.core.content.getSystemService
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
@@ -257,19 +257,22 @@ public fun PlayerScreen(
                         }
                     }
                 }
-
             },
         )
 
     val recordAudioPermissionLauncher =
         androidx.activity.compose.rememberLauncherForActivityResult(
-            contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .RequestPermission(),
             onResult = { granted ->
                 hasRecordAudioPermission = granted
                 if (granted) {
                     playerScreenLogger.d { "RECORD_AUDIO permission granted by user intent" }
                     @Suppress("DEPRECATION")
-                    com.jabook.app.jabook.audio.AudioPlayerService.getInstance()?.initializeVisualizer()
+                    com.jabook.app.jabook.audio.AudioPlayerService
+                        .getInstance()
+                        ?.initializeVisualizer()
                 } else {
                     playerScreenLogger.w { "RECORD_AUDIO permission denied by user intent" }
                     scope.launch {
@@ -304,7 +307,9 @@ public fun PlayerScreen(
         if (alreadyGranted) {
             hasRecordAudioPermission = true
             @Suppress("DEPRECATION")
-            com.jabook.app.jabook.audio.AudioPlayerService.getInstance()?.initializeVisualizer()
+            com.jabook.app.jabook.audio.AudioPlayerService
+                .getInstance()
+                ?.initializeVisualizer()
         } else {
             recordAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
         }

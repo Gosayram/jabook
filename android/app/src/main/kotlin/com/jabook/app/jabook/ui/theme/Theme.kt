@@ -141,7 +141,9 @@ private val AmoledDarkColorScheme =
         background = androidx.compose.ui.graphics.Color.Black,
         surface = androidx.compose.ui.graphics.Color.Black,
         // Keep variant surfaces slightly above pure black to preserve visual separation.
-        surfaceVariant = androidx.compose.ui.graphics.Color(0xFF121212),
+        surfaceVariant =
+            androidx.compose.ui.graphics
+                .Color(0xFF121212),
     )
 
 /**

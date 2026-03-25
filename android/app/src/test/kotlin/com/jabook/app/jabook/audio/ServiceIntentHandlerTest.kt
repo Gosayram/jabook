@@ -159,10 +159,12 @@ class ServiceIntentHandlerTest {
 
         verify(service, times(1)).stopAndCleanup()
         verify(service, times(1)).stopSelf()
-        verify(service, times(1)).sendBroadcast(org.mockito.kotlin.check {
-            assertEquals("com.jabook.app.jabook.EXIT_APP", it.action)
-            assertEquals("com.jabook.app.jabook", it.`package`)
-        })
+        verify(service, times(1)).sendBroadcast(
+            org.mockito.kotlin.check {
+                assertEquals("com.jabook.app.jabook.EXIT_APP", it.action)
+                assertEquals("com.jabook.app.jabook", it.`package`)
+            },
+        )
     }
 
     @Test
