@@ -38,7 +38,7 @@ python3 -m rutracker_parser capabilities --mode both
 Each run creates a directory:
 
 - `rutracker_parser/output/run_<timestamp>/pages/pages.jsonl`
-- `rutracker_parser/output/run_<timestamp>/entities/{forums,topics,users,torrents}.jsonl`
+- `rutracker_parser/output/run_<timestamp>/entities/{forums,topics,users,torrents,categories,posts,topic_meta,profiles}.jsonl`
 - `rutracker_parser/output/run_<timestamp>/graph/edges.jsonl`
 - `rutracker_parser/output/run_<timestamp>/raw/*.html.gz`
 - `rutracker_parser/output/run_<timestamp>/meta/{summary.json,mode_capabilities.json,errors.jsonl}`

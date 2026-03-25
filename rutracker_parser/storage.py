@@ -32,6 +32,10 @@ class CrawlStorage:
             "topics": (self.entities_dir / "topics.jsonl").open("a", encoding="utf-8"),
             "users": (self.entities_dir / "users.jsonl").open("a", encoding="utf-8"),
             "torrents": (self.entities_dir / "torrents.jsonl").open("a", encoding="utf-8"),
+            "categories": (self.entities_dir / "categories.jsonl").open("a", encoding="utf-8"),
+            "posts": (self.entities_dir / "posts.jsonl").open("a", encoding="utf-8"),
+            "topic_meta": (self.entities_dir / "topic_meta.jsonl").open("a", encoding="utf-8"),
+            "profiles": (self.entities_dir / "profiles.jsonl").open("a", encoding="utf-8"),
             "edges": (self.graph_dir / "edges.jsonl").open("a", encoding="utf-8"),
             "errors": (self.meta_dir / "errors.jsonl").open("a", encoding="utf-8"),
         }
@@ -63,6 +67,20 @@ class CrawlStorage:
     def write_torrents(self, payloads: list[dict]) -> None:
         for payload in payloads:
             self._write_jsonl("torrents", payload)
+
+    def write_categories(self, payloads: list[dict]) -> None:
+        for payload in payloads:
+            self._write_jsonl("categories", payload)
+
+    def write_posts(self, payloads: list[dict]) -> None:
+        for payload in payloads:
+            self._write_jsonl("posts", payload)
+
+    def write_topic_meta(self, payload: dict) -> None:
+        self._write_jsonl("topic_meta", payload)
+
+    def write_profile(self, payload: dict) -> None:
+        self._write_jsonl("profiles", payload)
 
     def write_edges(self, payloads: list[dict]) -> None:
         for payload in payloads:

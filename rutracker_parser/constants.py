@@ -14,7 +14,7 @@ DEFAULT_ACCEPT_LANGUAGE: Final[str] = "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
 DEFAULT_HEADERS: Final[dict[str, str]] = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": DEFAULT_ACCEPT_LANGUAGE,
-    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Encoding": "gzip, deflate",
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
     "DNT": "1",

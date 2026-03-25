@@ -53,12 +53,19 @@ class CrawlEngine:
         topics = extracted["topics"]
         users = extracted["users"]
         torrents = extracted["torrents"]
+        categories = extracted.get("categories", [])
+        posts = extracted.get("posts", [])
 
         topic_details = extracted.get("topic_details")
         if topic_details:
             details_row = dict(topic_details)
             details_row["kind"] = "topic_details"
             topics.append(details_row)
+
+        topic_meta = extracted.get("topic_meta")
+        if topic_meta:
+            self.storage.write_topic_meta(topic_meta)
+            self.entity_counts["topic_meta"] += 1
 
         forum_details = extracted.get("forum_details")
         if forum_details:
@@ -76,11 +83,20 @@ class CrawlEngine:
         self.storage.write_topics(topics)
         self.storage.write_users(users)
         self.storage.write_torrents(torrents)
+        self.storage.write_categories(categories)
+        self.storage.write_posts(posts)
+
+        profile_details = extracted.get("profile_details")
+        if profile_details:
+            self.storage.write_profile(profile_details)
+            self.entity_counts["profiles"] += 1
 
         self.entity_counts["forums"] += len(forums)
         self.entity_counts["topics"] += len(topics)
         self.entity_counts["users"] += len(users)
         self.entity_counts["torrents"] += len(torrents)
+        self.entity_counts["categories"] += len(categories)
+        self.entity_counts["posts"] += len(posts)
 
     def run(self) -> dict:
         try:
@@ -132,6 +148,9 @@ class CrawlEngine:
                             "title": extracted.get("title", ""),
                             "page_type": extracted.get("page_type", "generic"),
                             "breadcrumbs": extracted.get("breadcrumbs", []),
+                            "breadcrumb_links": extracted.get("breadcrumb_links", []),
+                            "pagination": extracted.get("pagination", {}),
+                            "signals": extracted.get("page_signals", {}),
                             "forms": extracted.get("forms", []),
                             "ts": utc_now_iso(),
                         }
