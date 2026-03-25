@@ -132,12 +132,7 @@
             android:windowSoftInputMode="adjustResize"
             android:autofillHints="username,password">
 
-            <!-- Theme applied before Flutter UI becomes visible -->
-            <meta-data
-                android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme" />
-
-            <!-- REMOVED: LAUNCHER intent-filter moved to ComposeMainActivity -->
+            <!-- LAUNCHER intent-filter moved to ComposeMainActivity -->
         </activity>
 
         <!-- Compose UI Activity - NOW THE MAIN LAUNCHER -->
@@ -323,10 +318,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Required for Flutter engine -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
         <!-- preloaded_fonts removed: Not needed for Compose with Google Fonts -->
         <!-- Google Fonts are loaded dynamically via FontUtils, no preloading required -->
     </application>
