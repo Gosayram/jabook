@@ -137,4 +137,85 @@ class ForegroundNotificationCoordinatorTest {
         assertEquals(ForegroundStartResult.FAILED, result)
         assertEquals(1, startCallCount)
     }
+
+    @Test
+    fun `repeated promote inside debounce window is skipped`() {
+        var nowMs = 1_000L
+        val primary: Notification = mock()
+        val startedNotifications = mutableListOf<Notification>()
+        val repromotePolicy =
+            ForegroundRepromotePolicy(
+                nowMsProvider = { nowMs },
+                minIntervalMs = 500L,
+            )
+
+        val coordinator =
+            ForegroundNotificationCoordinator(
+                startForegroundCall = { _, notification ->
+                    startedNotifications += notification
+                },
+                repromotePolicy = repromotePolicy,
+            )
+
+        val first =
+            coordinator.startWithFallback(
+                notificationId = 5,
+                primaryNotification = primary,
+                fallbackNotificationProvider = { mock() },
+                event = "first",
+            )
+        nowMs += 100L
+        val second =
+            coordinator.startWithFallback(
+                notificationId = 5,
+                primaryNotification = primary,
+                fallbackNotificationProvider = { mock() },
+                event = "second",
+            )
+
+        assertEquals(ForegroundStartResult.PRIMARY_STARTED, first)
+        assertEquals(ForegroundStartResult.SKIPPED, second)
+        assertEquals(1, startedNotifications.size)
+    }
+
+    @Test
+    fun `failed promote does not block immediate retry`() {
+        val primary: Notification = mock()
+        val fallback: Notification = mock()
+        var startCallCount = 0
+
+        val coordinator =
+            ForegroundNotificationCoordinator(
+                startForegroundCall = { _, notification ->
+                    startCallCount += 1
+                    if (startCallCount == 1 && notification == primary) {
+                        throw IllegalStateException("first primary failed")
+                    }
+                },
+                repromotePolicy =
+                    ForegroundRepromotePolicy(
+                        nowMsProvider = { 1_000L },
+                        minIntervalMs = 5_000L,
+                    ),
+            )
+
+        val first =
+            coordinator.startWithFallback(
+                notificationId = 6,
+                primaryNotification = primary,
+                fallbackNotificationProvider = { throw IllegalStateException("fallback failed") },
+                event = "first_failed",
+            )
+        val retry =
+            coordinator.startWithFallback(
+                notificationId = 6,
+                primaryNotification = primary,
+                fallbackNotificationProvider = { fallback },
+                event = "retry",
+            )
+
+        assertEquals(ForegroundStartResult.FAILED, first)
+        assertEquals(ForegroundStartResult.PRIMARY_STARTED, retry)
+        assertEquals(2, startCallCount)
+    }
 }

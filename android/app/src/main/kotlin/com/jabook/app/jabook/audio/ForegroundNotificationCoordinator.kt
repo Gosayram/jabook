@@ -19,6 +19,7 @@ import android.app.Notification
 internal enum class ForegroundStartResult {
     PRIMARY_STARTED,
     FALLBACK_STARTED,
+    SKIPPED,
     FAILED,
 }
 
@@ -27,6 +28,7 @@ internal enum class ForegroundStartResult {
  */
 internal class ForegroundNotificationCoordinator(
     private val startForegroundCall: (Int, Notification) -> Unit,
+    private val repromotePolicy: ForegroundRepromotePolicy = ForegroundRepromotePolicy(),
     private val logDebug: (String) -> Unit = {},
     private val logWarn: (String, Throwable?) -> Unit = { _, _ -> },
 ) {
@@ -36,8 +38,14 @@ internal class ForegroundNotificationCoordinator(
         fallbackNotificationProvider: () -> Notification,
         event: String,
     ): ForegroundStartResult {
+        if (!repromotePolicy.shouldAttempt(notificationId)) {
+            logDebug("foreground_start_skipped event=$event reason=debounced notificationId=$notificationId")
+            return ForegroundStartResult.SKIPPED
+        }
+
         return try {
             startForegroundCall(notificationId, primaryNotification)
+            repromotePolicy.onPromotionSucceeded(notificationId)
             logDebug("foreground_start_success event=$event path=primary notificationId=$notificationId")
             ForegroundStartResult.PRIMARY_STARTED
         } catch (primaryError: Exception) {
@@ -59,6 +67,7 @@ internal class ForegroundNotificationCoordinator(
 
             try {
                 startForegroundCall(notificationId, fallbackNotification)
+                repromotePolicy.onPromotionSucceeded(notificationId)
                 logWarn("foreground_start_success event=$event path=fallback notificationId=$notificationId", null)
                 ForegroundStartResult.FALLBACK_STARTED
             } catch (fallbackError: Exception) {
