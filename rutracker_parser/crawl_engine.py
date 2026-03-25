@@ -10,7 +10,7 @@ from .extractors import extract_page
 from .mode_matrix import feature_matrix, mode_summary
 from .settings import CrawlSettings
 from .storage import CrawlStorage
-from .utils import normalize_url, utc_now_iso
+from .utils import normalize_url, query_value_as_int, utc_now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +38,155 @@ class CrawlEngine:
         self.error_count = 0
         self.logged_in = False
         self.interrupted = False
+        self.is_audiobooks_mode = self.settings.scenario == "audiobooks"
+        self.scope_category_ids: set[int] = set()
+        self.scope_forum_ids: set[int] = set()
+        self.scope_topic_ids: set[int] = set()
+        if self.is_audiobooks_mode:
+            for start_url in self.settings.start_urls:
+                category_id = query_value_as_int(start_url, "c")
+                if category_id is not None:
+                    self.scope_category_ids.add(category_id)
+                forum_id = query_value_as_int(start_url, "f")
+                if forum_id is not None:
+                    self.scope_forum_ids.add(forum_id)
 
     def _enqueue(self, url: str, depth: int, parent_url: str | None) -> None:
         normalized = normalize_url(url)
         if depth > self.settings.max_depth:
             return
+        if not self._is_url_in_scope(normalized, parent_url):
+            return
         if normalized in self.visited or normalized in self.pending:
             return
         self.pending.add(normalized)
         self.queue.append(CrawlTask(url=normalized, depth=depth, parent_url=parent_url))
+
+    @staticmethod
+    def _endpoint(url: str) -> str:
+        return urlparse(url).path.rsplit("/", 1)[-1].lower()
+
+    def _is_url_in_scope(self, url: str, parent_url: str | None) -> bool:
+        if not self.is_audiobooks_mode:
+            return True
+
+        endpoint = self._endpoint(url)
+        category_id = query_value_as_int(url, "c")
+        forum_id = query_value_as_int(url, "f")
+        topic_id = query_value_as_int(url, "t")
+        parent_forum_id = query_value_as_int(parent_url or "", "f")
+        parent_topic_id = query_value_as_int(parent_url or "", "t")
+
+        if endpoint == "index.php":
+            return category_id is not None and category_id in self.scope_category_ids
+        if endpoint == "viewforum.php":
+            return forum_id is not None and forum_id in self.scope_forum_ids
+        if endpoint == "viewtopic.php":
+            if topic_id is None:
+                return False
+            return topic_id in self.scope_topic_ids or parent_forum_id in self.scope_forum_ids
+        if endpoint == "dl.php":
+            if topic_id is None:
+                return False
+            return topic_id in self.scope_topic_ids or parent_topic_id in self.scope_topic_ids
+        return False
+
+    def _update_scope(self, extracted: dict, source_url: str) -> None:
+        if not self.is_audiobooks_mode:
+            return
+
+        source_category_id = query_value_as_int(source_url, "c")
+        source_forum_id = query_value_as_int(source_url, "f")
+        source_topic_id = query_value_as_int(source_url, "t")
+        if source_category_id is not None and source_category_id in self.scope_category_ids:
+            if source_forum_id is not None:
+                self.scope_forum_ids.add(source_forum_id)
+        if source_forum_id is not None and source_forum_id in self.scope_forum_ids and source_topic_id is not None:
+            self.scope_topic_ids.add(source_topic_id)
+
+        for row in extracted.get("categories", []):
+            category_id = row.get("category_id")
+            if not isinstance(category_id, int) or category_id not in self.scope_category_ids:
+                continue
+
+            forum_id = row.get("forum_id")
+            if isinstance(forum_id, int):
+                self.scope_forum_ids.add(forum_id)
+            for subforum in row.get("subforums", []):
+                subforum_id = subforum.get("forum_id")
+                if isinstance(subforum_id, int):
+                    self.scope_forum_ids.add(subforum_id)
+
+        for forum in extracted.get("forums", []):
+            forum_id = forum.get("forum_id")
+            if not isinstance(forum_id, int):
+                continue
+            forum_source = forum.get("source_url", "")
+            forum_source_forum_id = query_value_as_int(forum_source, "f")
+            if forum_source_forum_id in self.scope_forum_ids:
+                self.scope_forum_ids.add(forum_id)
+
+        for topic in extracted.get("topics", []):
+            topic_id = topic.get("topic_id")
+            if not isinstance(topic_id, int):
+                continue
+            topic_source = topic.get("source_url", "")
+            topic_source_forum_id = query_value_as_int(topic_source, "f")
+            if topic_source_forum_id in self.scope_forum_ids:
+                self.scope_topic_ids.add(topic_id)
+
+        topic_details = extracted.get("topic_details") or {}
+        topic_details_id = topic_details.get("topic_id")
+        if isinstance(topic_details_id, int):
+            self.scope_topic_ids.add(topic_details_id)
+
+        topic_meta = extracted.get("topic_meta") or {}
+        topic_meta_id = topic_meta.get("topic_id")
+        if isinstance(topic_meta_id, int):
+            self.scope_topic_ids.add(topic_meta_id)
+
+    def _apply_scope_filters(self, extracted: dict, source_url: str) -> dict:
+        if not self.is_audiobooks_mode:
+            return extracted
+
+        scoped = dict(extracted)
+        source_forum_id = query_value_as_int(source_url, "f")
+
+        scoped["links"] = [
+            link for link in extracted.get("links", []) if self._is_url_in_scope(link.get("to", ""), source_url)
+        ]
+        scoped["categories"] = [
+            row for row in extracted.get("categories", []) if row.get("category_id") in self.scope_category_ids
+        ]
+        scoped["forums"] = [row for row in extracted.get("forums", []) if row.get("forum_id") in self.scope_forum_ids]
+        scoped["topics"] = [
+            row
+            for row in extracted.get("topics", [])
+            if row.get("topic_id") in self.scope_topic_ids or source_forum_id in self.scope_forum_ids
+        ]
+        scoped["users"] = [
+            row
+            for row in extracted.get("users", [])
+            if row.get("topic_id") in self.scope_topic_ids or source_forum_id in self.scope_forum_ids
+        ]
+        scoped["torrents"] = [
+            row
+            for row in extracted.get("torrents", [])
+            if row.get("topic_id") in self.scope_topic_ids or source_forum_id in self.scope_forum_ids
+        ]
+
+        topic_details = extracted.get("topic_details")
+        if topic_details and topic_details.get("topic_id") not in self.scope_topic_ids:
+            scoped["topic_details"] = None
+
+        topic_meta = extracted.get("topic_meta")
+        if topic_meta and topic_meta.get("topic_id") not in self.scope_topic_ids:
+            scoped["topic_meta"] = None
+
+        scoped["posts"] = [
+            row for row in extracted.get("posts", []) if row.get("topic_id") in self.scope_topic_ids
+        ]
+        return scoped
 
     def _emit_entities(self, extracted: dict) -> None:
         forums = extracted["forums"]
@@ -130,6 +270,8 @@ class CrawlEngine:
                             allow_path_prefixes=self.settings.allow_path_prefixes,
                             allow_endpoints=self.settings.allow_endpoints,
                         )
+                        self._update_scope(extracted, fetched.final_url)
+                        scoped_extracted = self._apply_scope_filters(extracted, fetched.final_url)
 
                         html_ref = None
                         if self.settings.save_html:
@@ -145,22 +287,22 @@ class CrawlEngine:
                             "elapsed_sec": round(fetched.elapsed_sec, 3),
                             "truncated": fetched.truncated,
                             "html_ref": html_ref,
-                            "title": extracted.get("title", ""),
-                            "page_type": extracted.get("page_type", "generic"),
-                            "breadcrumbs": extracted.get("breadcrumbs", []),
-                            "breadcrumb_links": extracted.get("breadcrumb_links", []),
-                            "pagination": extracted.get("pagination", {}),
-                            "signals": extracted.get("page_signals", {}),
-                            "forms": extracted.get("forms", []),
+                            "title": scoped_extracted.get("title", ""),
+                            "page_type": scoped_extracted.get("page_type", "generic"),
+                            "breadcrumbs": scoped_extracted.get("breadcrumbs", []),
+                            "breadcrumb_links": scoped_extracted.get("breadcrumb_links", []),
+                            "pagination": scoped_extracted.get("pagination", {}),
+                            "signals": scoped_extracted.get("page_signals", {}),
+                            "forms": scoped_extracted.get("forms", []),
                             "ts": utc_now_iso(),
                         }
                         self.storage.write_page(page_record)
-                        self.storage.write_edges(extracted["links"])
-                        self.entity_counts["edges"] += len(extracted["links"])
+                        self.storage.write_edges(scoped_extracted["links"])
+                        self.entity_counts["edges"] += len(scoped_extracted["links"])
 
-                        self._emit_entities(extracted)
+                        self._emit_entities(scoped_extracted)
 
-                        for link in extracted["links"]:
+                        for link in scoped_extracted["links"]:
                             if link.get("crawlable"):
                                 self._enqueue(link["to"], depth=task.depth + 1, parent_url=fetched.final_url)
 

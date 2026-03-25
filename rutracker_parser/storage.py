@@ -10,7 +10,12 @@ from .utils import hash_url, utc_now_iso
 class CrawlStorage:
     def __init__(self, output_root: Path) -> None:
         stamp = utc_now_iso().replace(":", "-")
-        self.run_dir = output_root / f"run_{stamp}"
+        run_dir = output_root / f"run_{stamp}"
+        suffix = 1
+        while run_dir.exists():
+            run_dir = output_root / f"run_{stamp}_{suffix:02d}"
+            suffix += 1
+        self.run_dir = run_dir
         self.pages_dir = self.run_dir / "pages"
         self.raw_dir = self.run_dir / "raw"
         self.entities_dir = self.run_dir / "entities"

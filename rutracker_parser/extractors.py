@@ -77,6 +77,12 @@ def _parse_size_to_bytes(text: str) -> int | None:
     return int(value * multiplier)
 
 
+def _normalize_attach_field_value(raw_value: str) -> str:
+    value = _clean_text(raw_value)
+    value = re.sub(r"\s*Скачать\s+по\s+magnet[-\s]ссылке\s*$", "", value, flags=re.IGNORECASE)
+    return _clean_text(value).strip()
+
+
 def _is_internal_page(url: str, allowed_hosts: set[str]) -> bool:
     parsed = urlparse(url)
     return parsed.scheme in {"http", "https"} and parsed.netloc in allowed_hosts
@@ -574,7 +580,7 @@ def _extract_topic_meta(url: str, soup: BeautifulSoup, stats_text: str, magnets:
             if len(cells) < 2:
                 continue
             key = _clean_text(cells[0].get_text(" ", strip=True)).strip(":")
-            value = _clean_text(cells[1].get_text(" ", strip=True))
+            value = _normalize_attach_field_value(cells[1].get_text(" ", strip=True))
             if key and value:
                 field_rows[key] = value
 
