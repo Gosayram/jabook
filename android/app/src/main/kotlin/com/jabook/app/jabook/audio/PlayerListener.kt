@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -86,6 +87,9 @@ internal class PlayerListener(
     // This allows PlaylistManager to wait for onMediaItemTransition instead of polling
     @Volatile
     private var pendingTrackSwitchDeferred: CompletableDeferred<Int>? = null
+    private var lastHandledTransitionIndex: Int = -1
+    private var lastHandledTransitionAtElapsedMs: Long = 0L
+    private val transitionDedupWindowMs = 300L
 
     // Debounce mechanism for notification updates (inspired by Rhythm)
     // Prevents multiple rapid updates that can cause UI jank
@@ -126,6 +130,92 @@ internal class PlayerListener(
         pendingTrackSwitchDeferred?.cancel()
         pendingTrackSwitchDeferred = null
         LogUtils.d("AudioPlayerService", "Cleared pendingTrackSwitchDeferred")
+    }
+
+    private fun handleTrackTransitionEvent(
+        currentIndex: Int,
+        source: String,
+    ) {
+        if (currentIndex < 0) {
+            return
+        }
+        if (shouldSkipDuplicateTransition(currentIndex, source)) {
+            return
+        }
+        updateTrackIndexFromTransition(currentIndex, source)
+        storeCurrentMediaItem?.invoke()
+        completePendingTrackSwitchDeferred(currentIndex, source)
+    }
+
+    private fun shouldSkipDuplicateTransition(
+        currentIndex: Int,
+        source: String,
+    ): Boolean {
+        val nowElapsedMs = SystemClock.elapsedRealtime()
+        val isDuplicate =
+            currentIndex == lastHandledTransitionIndex &&
+                nowElapsedMs - lastHandledTransitionAtElapsedMs <= transitionDedupWindowMs
+        if (isDuplicate) {
+            LogUtils.v(
+                "AudioPlayerService",
+                "Skipping duplicate transition event from $source for index $currentIndex " +
+                    "(window=${transitionDedupWindowMs}ms)",
+            )
+            return true
+        }
+        lastHandledTransitionIndex = currentIndex
+        lastHandledTransitionAtElapsedMs = nowElapsedMs
+        return false
+    }
+
+    private fun updateTrackIndexFromTransition(
+        currentIndex: Int,
+        source: String,
+    ) {
+        // CRITICAL: Don't update actualTrackIndex to 0 during playlist loading.
+        // ExoPlayer may briefly report index 0 while items are still attaching.
+        val isLoading = isPlaylistLoading?.invoke() ?: false
+        if (!isLoading || currentIndex != 0) {
+            updateActualTrackIndex?.invoke(currentIndex)
+            LogUtils.v(
+                "AudioPlayerService",
+                "Updated actualTrackIndex to $currentIndex from $source (isLoading=$isLoading)",
+            )
+        } else {
+            LogUtils.v(
+                "AudioPlayerService",
+                "Skipped updating actualTrackIndex to 0 during playlist loading " +
+                    "(source=$source, isLoading=$isLoading, currentIndex=$currentIndex)",
+            )
+        }
+    }
+
+    private fun completePendingTrackSwitchDeferred(
+        currentIndex: Int,
+        source: String,
+    ) {
+        val deferred = pendingTrackSwitchDeferred ?: return
+        try {
+            if (deferred.isActive) {
+                deferred.complete(currentIndex)
+                LogUtils.d(
+                    "AudioPlayerService",
+                    "Completed pendingTrackSwitchDeferred with index $currentIndex from $source",
+                )
+            } else {
+                LogUtils.v(
+                    "AudioPlayerService",
+                    "Pending deferred already completed/cancelled before $source (index=$currentIndex)",
+                )
+            }
+        } catch (e: Exception) {
+            LogUtils.w(
+                "AudioPlayerService",
+                "Failed to complete pendingTrackSwitchDeferred from $source: ${e.message}",
+            )
+        } finally {
+            pendingTrackSwitchDeferred = null
+        }
     }
 
     // Coroutine-based position check (inspired by Rhythm's crossfade monitoring)
@@ -433,50 +523,8 @@ internal class PlayerListener(
 
         // Handle media item transitions
         if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
-            // CRITICAL: Update actual track index from onMediaItemTransition event
-            // This is the single source of truth for current track index
             val currentIndex = player.currentMediaItemIndex
-            if (currentIndex >= 0) {
-                // CRITICAL: Don't update actualTrackIndex to 0 during playlist loading
-                // ExoPlayer may switch to first track (index 0) during loading, which would reset our target index
-                val isLoading = isPlaylistLoading?.invoke() ?: false
-                if (!isLoading || currentIndex != 0) {
-                    updateActualTrackIndex?.invoke(currentIndex)
-                    LogUtils.v(
-                        "AudioPlayerService",
-                        "Updated actualTrackIndex to $currentIndex from EVENT_MEDIA_ITEM_TRANSITION " +
-                            "(isLoading=$isLoading)",
-                    )
-                } else {
-                    LogUtils.v(
-                        "AudioPlayerService",
-                        "Skipped updating actualTrackIndex to 0 during playlist loading " +
-                            "(isLoading=$isLoading, currentIndex=$currentIndex)",
-                    )
-                }
-
-                // Store current media item for playback resumption
-                storeCurrentMediaItem?.invoke()
-
-                // CRITICAL: Complete deferred if waiting for track switch
-                // This allows PlaylistManager to wait for onMediaItemTransition instead of polling
-                pendingTrackSwitchDeferred?.let { deferred ->
-                    try {
-                        deferred.complete(currentIndex)
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "Completed pendingTrackSwitchDeferred with index $currentIndex",
-                        )
-                    } catch (e: Exception) {
-                        LogUtils.w(
-                            "AudioPlayerService",
-                            "Failed to complete pendingTrackSwitchDeferred: ${e.message}",
-                        )
-                    } finally {
-                        pendingTrackSwitchDeferred = null
-                    }
-                }
-            }
+            handleTrackTransitionEvent(currentIndex, source = "EVENT_MEDIA_ITEM_TRANSITION")
 
             // Save position of previous track before transitioning
             // This ensures position is saved even during rapid track changes
@@ -982,46 +1030,7 @@ internal class PlayerListener(
             "🎵 Track switch: index=$currentIndex, reason=$reasonName, mediaId=$mediaId",
         )
 
-        // CRITICAL: Update actual track index from onMediaItemTransition event
-        // This is the single source of truth for current track index
-        if (currentIndex >= 0) {
-            // CRITICAL: Don't update actualTrackIndex to 0 during playlist loading
-            // ExoPlayer may switch to first track (index 0) during loading, which would reset our target index
-            val isLoading = isPlaylistLoading?.invoke() ?: false
-            if (!isLoading || currentIndex != 0) {
-                updateActualTrackIndex?.invoke(currentIndex)
-                LogUtils.v(
-                    "AudioPlayerService",
-                    "Updated actualTrackIndex to $currentIndex from onMediaItemTransition " +
-                        "(isLoading=$isLoading)",
-                )
-            } else {
-                LogUtils.v(
-                    "AudioPlayerService",
-                    "Skipped updating actualTrackIndex to 0 during playlist loading " +
-                        "(isLoading=$isLoading, currentIndex=$currentIndex)",
-                )
-            }
-
-            // CRITICAL: Complete deferred if waiting for track switch
-            // This allows PlaylistManager to wait for onMediaItemTransition instead of polling
-            pendingTrackSwitchDeferred?.let { deferred ->
-                try {
-                    deferred.complete(currentIndex)
-                    LogUtils.d(
-                        "AudioPlayerService",
-                        "Completed pendingTrackSwitchDeferred with index $currentIndex (explicit handler)",
-                    )
-                } catch (e: Exception) {
-                    LogUtils.w(
-                        "AudioPlayerService",
-                        "Failed to complete pendingTrackSwitchDeferred: ${e.message}",
-                    )
-                } finally {
-                    pendingTrackSwitchDeferred = null
-                }
-            }
-        }
+        handleTrackTransitionEvent(currentIndex, source = "onMediaItemTransition")
 
         // Check sleep timer "end of chapter" mode (inspired by EasyBook)
         // Trigger when track transitions automatically (not manual seek)

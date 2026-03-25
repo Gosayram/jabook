@@ -758,6 +758,18 @@ public class AudioPlayerService : MediaLibraryService() {
         LogUtils.d("AudioPlayerService", "Updated actualTrackIndex to $index")
     }
 
+    private fun resetBookCompletionIfNeeded(actionLabel: String) {
+        if (!isBookCompleted) {
+            return
+        }
+        LogUtils.i(
+            "AudioPlayerService",
+            "$actionLabel called after book completion, resetting completion flag",
+        )
+        isBookCompleted = false
+        lastCompletedTrackIndex = -1
+    }
+
     /**
      * Sets playlist from file paths or URLs.
      *
@@ -809,15 +821,7 @@ public class AudioPlayerService : MediaLibraryService() {
         trackIndex: Int,
         positionMs: Long,
     ) {
-        // Reset book completion flag on manual track switch
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "Manual seekToTrackAndPosition($trackIndex, $positionMs) called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("Manual seekToTrackAndPosition($trackIndex, $positionMs)")
         playbackController?.seekToTrackAndPosition(trackIndex, positionMs) ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
@@ -845,15 +849,7 @@ public class AudioPlayerService : MediaLibraryService() {
         get() = getActivePlayer().isPlaying
 
     public fun play() {
-        // Reset book completion flag on play (user wants to restart)
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "play() called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("play()")
 
         playbackController?.play() ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
@@ -1027,45 +1023,21 @@ public class AudioPlayerService : MediaLibraryService() {
     }
 
     public fun next() {
-        // Reset book completion flag on manual track switch
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "Manual next() called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("Manual next()")
         playbackController?.next() ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
     }
 
     public fun previous() {
-        // Reset book completion flag on manual track switch
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "Manual previous() called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("Manual previous()")
         playbackController?.previous() ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
     }
 
     public fun seekToTrack(index: Int) {
-        // Reset book completion flag on manual track switch
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "Manual seekToTrack($index) called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("Manual seekToTrack($index)")
         playbackController?.seekToTrack(index) ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
