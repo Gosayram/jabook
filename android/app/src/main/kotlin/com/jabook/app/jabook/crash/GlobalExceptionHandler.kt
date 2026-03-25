@@ -40,7 +40,6 @@ public class GlobalExceptionHandler(
             if (BuildConfig.HAS_GOOGLE_SERVICES && !BuildConfig.DEBUG) {
                 FirebaseCrashlytics.getInstance().apply {
                     setCustomKey("uncaught_thread_name", thread.name)
-                    setCustomKey("uncaught_thread_id", thread.id)
                     setCustomKey("build_type", BuildConfig.BUILD_TYPE)
                     setCustomKey("flavor", BuildConfig.FLAVOR)
                     log("uncaught_exception_captured_by_global_handler")
