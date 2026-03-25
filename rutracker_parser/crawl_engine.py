@@ -37,6 +37,7 @@ class CrawlEngine:
         self.status_counts: Counter[int] = Counter()
         self.error_count = 0
         self.logged_in = False
+        self.interrupted = False
 
     def _enqueue(self, url: str, depth: int, parent_url: str | None) -> None:
         normalized = normalize_url(url)
@@ -96,76 +97,89 @@ class CrawlEngine:
             for item in self.settings.start_urls:
                 self._enqueue(item, depth=0, parent_url=None)
 
-            while self.queue and len(self.visited) < self.settings.max_pages:
-                task = self.queue.popleft()
-                self.pending.discard(task.url)
+            try:
+                while self.queue and len(self.visited) < self.settings.max_pages:
+                    task = self.queue.popleft()
+                    self.pending.discard(task.url)
 
-                try:
-                    fetched = self.client.request("GET", task.url, referer=task.parent_url)
-                    self.status_counts[fetched.status_code] += 1
-                    self.visited.add(task.url)
+                    try:
+                        fetched = self.client.request("GET", task.url, referer=task.parent_url)
+                        self.status_counts[fetched.status_code] += 1
+                        self.visited.add(task.url)
 
-                    extracted = extract_page(
-                        url=fetched.final_url,
-                        html=fetched.text,
-                        allowed_hosts=self.allowed_hosts,
-                        allow_path_prefixes=self.settings.allow_path_prefixes,
-                        allow_endpoints=self.settings.allow_endpoints,
-                    )
+                        extracted = extract_page(
+                            url=fetched.final_url,
+                            html=fetched.text,
+                            allowed_hosts=self.allowed_hosts,
+                            allow_path_prefixes=self.settings.allow_path_prefixes,
+                            allow_endpoints=self.settings.allow_endpoints,
+                        )
 
-                    html_ref = None
-                    if self.settings.save_html:
-                        html_ref = self.storage.save_html(fetched.final_url, fetched.text)
+                        html_ref = None
+                        if self.settings.save_html:
+                            html_ref = self.storage.save_html(fetched.final_url, fetched.text)
 
-                    page_record = {
-                        "url": fetched.final_url,
-                        "requested_url": fetched.requested_url,
-                        "depth": task.depth,
-                        "parent_url": task.parent_url,
-                        "status": fetched.status_code,
-                        "mirror": fetched.mirror,
-                        "elapsed_sec": round(fetched.elapsed_sec, 3),
-                        "truncated": fetched.truncated,
-                        "html_ref": html_ref,
-                        "title": extracted.get("title", ""),
-                        "page_type": extracted.get("page_type", "generic"),
-                        "breadcrumbs": extracted.get("breadcrumbs", []),
-                        "forms": extracted.get("forms", []),
+                        page_record = {
+                            "url": fetched.final_url,
+                            "requested_url": fetched.requested_url,
+                            "depth": task.depth,
+                            "parent_url": task.parent_url,
+                            "status": fetched.status_code,
+                            "mirror": fetched.mirror,
+                            "elapsed_sec": round(fetched.elapsed_sec, 3),
+                            "truncated": fetched.truncated,
+                            "html_ref": html_ref,
+                            "title": extracted.get("title", ""),
+                            "page_type": extracted.get("page_type", "generic"),
+                            "breadcrumbs": extracted.get("breadcrumbs", []),
+                            "forms": extracted.get("forms", []),
+                            "ts": utc_now_iso(),
+                        }
+                        self.storage.write_page(page_record)
+                        self.storage.write_edges(extracted["links"])
+                        self.entity_counts["edges"] += len(extracted["links"])
+
+                        self._emit_entities(extracted)
+
+                        for link in extracted["links"]:
+                            if link.get("crawlable"):
+                                self._enqueue(link["to"], depth=task.depth + 1, parent_url=fetched.final_url)
+
+                    except AntiBotDetectedError as error:
+                        self.error_count += 1
+                        self.storage.write_error(
+                            {
+                                "url": task.url,
+                                "error": str(error),
+                                "kind": "antibot",
+                                "depth": task.depth,
+                                "ts": utc_now_iso(),
+                            }
+                        )
+                        break
+                    except Exception as error:
+                        self.error_count += 1
+                        self.storage.write_error(
+                            {
+                                "url": task.url,
+                                "error": str(error),
+                                "kind": "request",
+                                "depth": task.depth,
+                                "ts": utc_now_iso(),
+                            }
+                        )
+                        continue
+            except KeyboardInterrupt:
+                self.interrupted = True
+                self.storage.write_error(
+                    {
+                        "url": "",
+                        "error": "Run interrupted by user",
+                        "kind": "interrupted",
+                        "depth": -1,
                         "ts": utc_now_iso(),
                     }
-                    self.storage.write_page(page_record)
-                    self.storage.write_edges(extracted["links"])
-                    self.entity_counts["edges"] += len(extracted["links"])
-
-                    self._emit_entities(extracted)
-
-                    for link in extracted["links"]:
-                        self._enqueue(link["to"], depth=task.depth + 1, parent_url=fetched.final_url)
-
-                except AntiBotDetectedError as error:
-                    self.error_count += 1
-                    self.storage.write_error(
-                        {
-                            "url": task.url,
-                            "error": str(error),
-                            "kind": "antibot",
-                            "depth": task.depth,
-                            "ts": utc_now_iso(),
-                        }
-                    )
-                    break
-                except Exception as error:
-                    self.error_count += 1
-                    self.storage.write_error(
-                        {
-                            "url": task.url,
-                            "error": str(error),
-                            "kind": "request",
-                            "depth": task.depth,
-                            "ts": utc_now_iso(),
-                        }
-                    )
-                    continue
+                )
 
             summary = {
                 "requested_mode": self.settings.mode_requested,
@@ -177,6 +191,7 @@ class CrawlEngine:
                 "status_counts": dict(sorted(self.status_counts.items())),
                 "entity_counts": dict(self.entity_counts),
                 "errors": self.error_count,
+                "interrupted": self.interrupted,
                 "run_dir": str(self.storage.run_dir),
                 "ts": utc_now_iso(),
             }

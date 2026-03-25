@@ -221,6 +221,7 @@ firebase_app_id_file.json
 
 # RuTracker parser artifacts
 rutracker_parser/output/
+rutracker_parser/.venv/
 rutracker_parser/**/__pycache__/
 
 # Misc

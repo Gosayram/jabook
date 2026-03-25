@@ -41,6 +41,9 @@ SAFE_ENDPOINTS: Final[frozenset[str]] = frozenset(
         "search.php",
         "login.php",
         "groupcp.php",
+        "bookmarks.php",
+        "privmsg.php",
+        "watching.php",
     }
 )
 
@@ -54,6 +57,7 @@ BLOCKED_QUERY_KEYS: Final[frozenset[str]] = frozenset(
         "vote",
         "attach",
         "d",
+        "action",
     }
 )
 
