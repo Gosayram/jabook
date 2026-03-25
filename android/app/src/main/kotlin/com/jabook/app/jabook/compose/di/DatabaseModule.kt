@@ -39,6 +39,8 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 public object DatabaseModule {
+    internal const val DATABASE_NAME: String = "jabook-database"
+
     /**
      * Logger for DatabaseModule.
      */
@@ -299,6 +301,23 @@ public object DatabaseModule {
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_seeders` ON `cached_topics` (`seeders`)")
         }
 
+    internal val configuredMigrations: List<Migration> =
+        listOf(
+            MIGRATION_1_2,
+            MIGRATION_2_3,
+            MIGRATION_4_5,
+            MIGRATION_5_6,
+            MIGRATION_6_7,
+            MIGRATION_7_8,
+            MIGRATION_8_9,
+            MIGRATION_9_10,
+            MIGRATION_10_11,
+            MIGRATION_11_12,
+            MIGRATION_12_13,
+            MIGRATION_13_14,
+            MIGRATION_14_15,
+        )
+
     @Provides
     @Singleton
     public fun provideJabookDatabase(
@@ -309,22 +328,8 @@ public object DatabaseModule {
                 .databaseBuilder(
                     context,
                     JabookDatabase::class.java,
-                    "jabook-database",
-                ).addMigrations(
-                    MIGRATION_1_2,
-                    MIGRATION_2_3,
-                    MIGRATION_4_5,
-                    MIGRATION_5_6,
-                    MIGRATION_6_7,
-                    MIGRATION_7_8,
-                    MIGRATION_8_9,
-                    MIGRATION_9_10,
-                    MIGRATION_10_11,
-                    MIGRATION_11_12,
-                    MIGRATION_12_13,
-                    MIGRATION_13_14,
-                    MIGRATION_14_15,
-                )
+                    DATABASE_NAME,
+                ).addMigrations(*configuredMigrations.toTypedArray())
                 // Use coroutine context for queries (better integration with coroutines)
                 // This replaces the need for setQueryExecutor and provides better performance
                 .setQueryCoroutineContext(Dispatchers.IO)
