@@ -48,14 +48,14 @@ public class SpeechEnhancer : AudioProcessor {
     // Compression parameters (gentle)
     private val compressionThresholdDb = -28.0f
     private val compressionRatio = 2.0f
-    private val compressionThresholdLinear = 10.0.pow((compressionThresholdDb / 20.0).toDouble()).toFloat()
+    private val compressionThresholdLinear = 10.0.pow((compressionThresholdDb / 20.0f).toDouble()).toFloat()
 
     // High-pass filter state (simple first-order IIR)
     private val highPassCoeff = mutableMapOf<Int, Float>() // Per channel
     private var highPassPrev = mutableMapOf<Int, Float>() // Previous sample per channel
 
     // Peak EQ state (simplified - using gain multiplier for target frequency range)
-    private val peakEqGainLinear = 10.0.pow((peakEqGainDb / 20.0).toDouble()).toFloat()
+    private val peakEqGainLinear = 10.0.pow((peakEqGainDb / 20.0f).toDouble()).toFloat()
 
     // DeEsser state (dynamic suppression in 4-8 kHz range)
     private var deEsserGain = 1.0f
@@ -244,6 +244,7 @@ public class SpeechEnhancer : AudioProcessor {
 
     override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
 
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
         // Reset filter states
         highPassPrev.clear()

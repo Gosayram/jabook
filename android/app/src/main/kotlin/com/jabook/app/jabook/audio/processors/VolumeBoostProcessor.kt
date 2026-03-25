@@ -45,7 +45,7 @@ public class VolumeBoostProcessor(
 
     // Limiter threshold: -0.3 dBFS (soft knee)
     private val limiterThresholdDb = -0.3f
-    private val limiterThresholdLinear = 10.0.pow((limiterThresholdDb / 20.0).toDouble()).toFloat()
+    private val limiterThresholdLinear = 10.0.pow((limiterThresholdDb / 20.0f).toDouble()).toFloat()
 
     // Look-ahead buffer size: 10ms
     private val lookAheadMs = 10
@@ -76,7 +76,7 @@ public class VolumeBoostProcessor(
 
         // Calculate look-ahead buffer size
         val sampleRate = inputAudioFormat.sampleRate
-        lookAheadSamples = (sampleRate * lookAheadMs / 1000).toInt()
+        lookAheadSamples = sampleRate * lookAheadMs / 1000
 
         // Initialize look-ahead buffer
         lookAheadBuffer.clear()
@@ -209,6 +209,7 @@ public class VolumeBoostProcessor(
 
     override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
 
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
         lookAheadBuffer.clear()
         inputBuffers.clear()

@@ -58,10 +58,10 @@ public class AutoVolumeLeveler : AudioProcessor {
 
         // Calculate window size in samples
         val sampleRate = inputAudioFormat.sampleRate
-        windowSizeSamples = (sampleRate * windowSizeMs / 1000).toInt()
+        windowSizeSamples = sampleRate * windowSizeMs / 1000
 
         // Calculate slew rate per sample
-        slewRatePerSample = 10.0.pow(((slewRateDbPerSecond / sampleRate) / 20.0).toDouble()).toFloat()
+        slewRatePerSample = 10.0.pow((slewRateDbPerSecond / sampleRate.toFloat() / 20.0f).toDouble()).toFloat()
 
         // Initialize LUFS buffer
         lufsBuffer.clear()
@@ -264,6 +264,7 @@ public class AutoVolumeLeveler : AudioProcessor {
 
     override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
 
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
         lufsBuffer.clear()
         rmsBuffer.clear()

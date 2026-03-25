@@ -1402,7 +1402,7 @@ public class RutrackerParser
             }
 
             if (metadata.isEmpty()) {
-                val text = postBody?.wholeText() ?: ""
+                val text = postBody.wholeText()
                 // Author (fallback)
                 "Автор[:\\s]+(.+?)(?=\\n|Исполнитель|Год|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["author"] = it
@@ -1779,7 +1779,7 @@ public class RutrackerParser
                     // Skip first post (index 0) and process comments
                     for (i in 1 until postBodies.size) {
                         val postBody = postBodies[i]
-                        val postId = postBody.attr("id")?.removePrefix("p-") ?: continue
+                        val postId = postBody.attr("id").removePrefix("p-")
 
                         // Find parent row to get author and date
                         val parentRow = postBody.parents().firstOrNull { it.tagName() == "tbody" }
@@ -1835,7 +1835,7 @@ public class RutrackerParser
                         val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 
                         // Extract comment text and HTML (preserve links)
-                        val html = postBody.html()?.takeIf { it.isNotEmpty() }
+                        val html = postBody.html().takeIf { it.isNotEmpty() }
                         val text =
                             html?.let { htmlContent ->
                                 // Convert <br> tags to newlines, then extract text
@@ -1936,7 +1936,7 @@ public class RutrackerParser
                     val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 
                     // Extract comment text and HTML (preserve links)
-                    val html = postBody.html()?.takeIf { it.isNotEmpty() }
+                    val html = postBody.html().takeIf { it.isNotEmpty() }
                     val text =
                         html?.let { htmlContent ->
                             // Convert <br> tags to newlines, then extract text
