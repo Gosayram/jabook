@@ -118,6 +118,7 @@ val hasGoogleServicesJson = googleServicesCandidates.any { relativePath -> file(
 
 if (hasGoogleServicesJson) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 } else {
     logger.lifecycle(
         "google-services.json was not found in app module. " +
@@ -273,6 +274,7 @@ android {
 
         // Enable explicit intent handling for Android 14+
         manifestPlaceholders["enableExplicitIntentHandling"] = "true"
+        buildConfigField("boolean", "HAS_GOOGLE_SERVICES", hasGoogleServicesJson.toString())
     }
 
     flavorDimensions += "default"
@@ -471,6 +473,8 @@ dependencies {
 
     // Firebase Analytics (required for other Firebase services)
     implementation(libs.firebase.analytics)
+    // Firebase Crashlytics runtime SDK
+    implementation(libs.firebase.crashlytics)
 
     // Add other Firebase dependencies as needed
     // https://firebase.google.com/docs/android/setup#available-libraries
