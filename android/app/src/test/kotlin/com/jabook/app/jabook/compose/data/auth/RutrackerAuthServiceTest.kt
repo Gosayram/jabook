@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.auth
 
 import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
 import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder
 import com.jabook.app.jabook.compose.data.remote.parser.CoverUrlExtractor
@@ -32,6 +33,7 @@ import okhttp3.mockwebserver.SocketPolicy
 import okio.Buffer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -143,6 +145,27 @@ class RutrackerAuthServiceTest {
         }
 
     @Test
+    fun `validateAuth returns false when all validation probes show session expired`() =
+        runTest {
+            enqueueHtmlFixture("login_session_expired.html")
+            enqueueHtmlFixture("login_session_expired.html")
+            enqueueHtmlFixture("login_session_expired.html")
+
+            val result = authService.validateAuth()
+
+            assertFalse(result)
+            val profileRequest = mockWebServer.takeRequest(1, TimeUnit.SECONDS)
+            val searchRequest = mockWebServer.takeRequest(1, TimeUnit.SECONDS)
+            val indexRequest = mockWebServer.takeRequest(1, TimeUnit.SECONDS)
+            assertNotNull(profileRequest)
+            assertNotNull(searchRequest)
+            assertNotNull(indexRequest)
+            assertEquals("/forum/profile.php?mode=viewprofile", profileRequest?.path)
+            assertTrue(searchRequest?.path?.startsWith("/forum/tracker.php?nm=test&f=33") == true)
+            assertEquals("/forum/index.php", indexRequest?.path)
+        }
+
+    @Test
     fun `login retries transient network failures and succeeds on final attempt`() =
         runTest {
             mockWebServer.enqueue(
@@ -162,6 +185,29 @@ class RutrackerAuthServiceTest {
 
             assertEquals(RutrackerAuthService.AuthResult.Success, result)
             assertNull(authService.lastAuthError)
+            assertEquals(3, mockWebServer.requestCount)
+        }
+
+    @Test
+    fun `login returns no connection error after exhausting retry attempts`() =
+        runTest {
+            repeat(3) {
+                mockWebServer.enqueue(
+                    MockResponse()
+                        .setSocketPolicy(SocketPolicy.DISCONNECT_AT_START),
+                )
+            }
+
+            val result =
+                authService.login(
+                    credentials = UserCredentials(username = "timeout-user", password = "timeout-pass"),
+                )
+
+            assertEquals(
+                RutrackerAuthService.AuthResult.Error(RuTrackerError.NoConnection.message),
+                result,
+            )
+            assertEquals(RuTrackerError.NoConnection.message, authService.lastAuthError)
             assertEquals(3, mockWebServer.requestCount)
         }
 
