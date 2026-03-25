@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.widget
 
+import android.net.Uri
 import androidx.media3.common.Player
 
 internal object WidgetControllerSnapshotPolicy {
@@ -58,4 +59,27 @@ internal object WidgetActionRoutingPolicy {
 internal object WidgetCoverLoadPolicy {
     internal const val COVER_SIZE_PX: Int = 512
     internal const val COVER_TIMEOUT_MS: Int = 1500
+}
+
+internal object WidgetDeepLinkPolicy {
+    private const val PLAYER_ROUTE: String = "jabook://player"
+    internal const val QUERY_WIDGET_ID: String = "widgetId"
+    internal const val QUERY_BOOK_ID: String = "bookId"
+
+    internal fun buildPlayerDeepLink(
+        currentBookId: String?,
+        appWidgetId: Int,
+    ): Uri {
+        val builder =
+            Uri
+                .parse(PLAYER_ROUTE)
+                .buildUpon()
+                .appendQueryParameter(QUERY_WIDGET_ID, appWidgetId.coerceAtLeast(0).toString())
+
+        if (!currentBookId.isNullOrBlank()) {
+            builder.appendQueryParameter(QUERY_BOOK_ID, currentBookId)
+        }
+
+        return builder.build()
+    }
 }

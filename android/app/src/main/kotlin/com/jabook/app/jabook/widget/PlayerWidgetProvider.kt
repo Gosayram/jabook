@@ -54,7 +54,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     // Debounce updates to prevent excessive widget refreshes
-    private val updateJobs = mutableMapOf<Int, kotlinx.coroutines.Job>()
+    private val updateJobRegistry = WidgetUpdateJobRegistry()
     private val debounceDelayMs = 300L
 
     override fun onUpdate(
@@ -90,6 +90,19 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    override fun onDeleted(
+        context: Context,
+        appWidgetIds: IntArray,
+    ) {
+        super.onDeleted(context, appWidgetIds)
+        updateJobRegistry.cancelForIds(appWidgetIds)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        updateJobRegistry.cancelAll()
+    }
+
     /**
      * Updates a single widget instance.
      * Uses MediaSession to get player state, which is more reliable than singleton instance.
@@ -100,15 +113,12 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
     ) {
-        // Cancel any pending update for this widget
-        updateJobs[appWidgetId]?.cancel()
-
-        // Schedule debounced update
-        updateJobs[appWidgetId] =
+        val updateJob =
             scope.launch(Dispatchers.IO) {
                 kotlinx.coroutines.delay(debounceDelayMs)
                 updateAppWidgetInternal(context, appWidgetManager, appWidgetId)
             }
+        updateJobRegistry.replace(appWidgetId, updateJob)
     }
 
     /**
@@ -706,7 +716,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             Intent(context, ComposeMainActivity::class.java).apply {
                 action = routeAction
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                data = buildPlayerDeepLink(currentBookId, appWidgetId)
+                data = WidgetDeepLinkPolicy.buildPlayerDeepLink(currentBookId, appWidgetId)
                 putExtra(EXTRA_APP_WIDGET_ID, appWidgetId)
             }
 
@@ -716,23 +726,6 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             openPlayerIntent,
             pendingIntentFlags or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-    }
-
-    private fun buildPlayerDeepLink(
-        currentBookId: String?,
-        appWidgetId: Int,
-    ): Uri {
-        val builder =
-            Uri
-                .parse("jabook://player")
-                .buildUpon()
-                .appendQueryParameter("widgetId", appWidgetId.toString())
-
-        if (!currentBookId.isNullOrBlank()) {
-            builder.appendQueryParameter("bookId", currentBookId)
-        }
-
-        return builder.build()
     }
 
     private fun updateCoverImage(

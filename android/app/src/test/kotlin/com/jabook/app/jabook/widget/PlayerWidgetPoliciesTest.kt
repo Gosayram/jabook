@@ -18,9 +18,13 @@ import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerWidgetPoliciesTest {
     @Test
     fun `controller snapshot with media item does not fallback`() {
@@ -104,5 +108,30 @@ class PlayerWidgetPoliciesTest {
             )
 
         assertNotEquals(playPause, next)
+    }
+
+    @Test
+    fun `deep link includes widget id and book id when provided`() {
+        val uri = WidgetDeepLinkPolicy.buildPlayerDeepLink(currentBookId = "book-123", appWidgetId = 10)
+
+        assertEquals("jabook", uri.scheme)
+        assertEquals("player", uri.host)
+        assertEquals("10", uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_WIDGET_ID))
+        assertEquals("book-123", uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_BOOK_ID))
+    }
+
+    @Test
+    fun `deep link omits book id when blank`() {
+        val uri = WidgetDeepLinkPolicy.buildPlayerDeepLink(currentBookId = "   ", appWidgetId = 12)
+
+        assertEquals("12", uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_WIDGET_ID))
+        assertNull(uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_BOOK_ID))
+    }
+
+    @Test
+    fun `deep link clamps negative widget id to zero`() {
+        val uri = WidgetDeepLinkPolicy.buildPlayerDeepLink(currentBookId = null, appWidgetId = -9)
+
+        assertEquals("0", uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_WIDGET_ID))
     }
 }
