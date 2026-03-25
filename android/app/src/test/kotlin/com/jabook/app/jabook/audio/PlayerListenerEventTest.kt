@@ -18,7 +18,6 @@ import androidx.media3.common.Player
 import org.junit.Test
 import org.mockito.kotlin.mock
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Tests for PlayerListener event handling.
@@ -33,15 +32,14 @@ class PlayerListenerEventTest {
         // This test verifies that PlayerListener constructor works
         // Full behavior testing requires more complex mocking of coroutines
 
-        // Arrange - create minimal mocks
-        val mockContext: android.content.Context = mock()
-        val mockPlayer: androidx.media3.exoplayer.ExoPlayer = mock()
+        // Arrange - create minimal dependencies
+        val context: android.content.Context = mock()
 
         // Assert we can reference all required lambdas
         val listener =
             PlayerListener(
-                context = mockContext,
-                getActivePlayer = { mockPlayer },
+                context = context,
+                getActivePlayer = { error("Not used in constructor test") },
                 getIsBookCompleted = { false },
                 setIsBookCompleted = { },
                 getSleepTimerEndOfChapter = { false },
@@ -60,20 +58,19 @@ class PlayerListenerEventTest {
                 isPlaylistLoading = { false },
             )
 
-        // If we get here without exception, the test passes
-        assertTrue(listener is Player.Listener)
+        val playerListener: Player.Listener = listener
+        assertEquals(listener, playerListener)
     }
 
     @Test
     fun `PlayerListener implements Player Listener interface`() {
         // Verify that PlayerListener is a proper Player.Listener
-        val mockContext: android.content.Context = mock()
-        val mockPlayer: androidx.media3.exoplayer.ExoPlayer = mock()
+        val context: android.content.Context = mock()
 
         val listener =
             PlayerListener(
-                context = mockContext,
-                getActivePlayer = { mockPlayer },
+                context = context,
+                getActivePlayer = { error("Not used in interface test") },
                 getIsBookCompleted = { false },
                 setIsBookCompleted = { },
                 getSleepTimerEndOfChapter = { false },
