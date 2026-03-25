@@ -32,6 +32,13 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 public class AudioVisualizerManager(
     private val context: Context,
+    private val permissionChecker: (Context) -> Boolean = { appContext ->
+        ContextCompat.checkSelfPermission(
+            appContext,
+            Manifest.permission.RECORD_AUDIO,
+        ) == PackageManager.PERMISSION_GRANTED
+    },
+    private val visualizerFactory: (Int) -> Visualizer = { sessionId -> Visualizer(sessionId) },
 ) {
     public companion object {
         private const val TAG = "AudioVisualizerManager"
@@ -54,6 +61,12 @@ public class AudioVisualizerManager(
      * Initialize visualizer with the player's audio session ID.
      */
     public fun initialize(audioSessionId: Int) {
+        if (audioSessionId <= 0) {
+            Log.w(TAG, "Invalid audio session id: $audioSessionId, visualizer disabled")
+            release()
+            return
+        }
+
         if (this.audioSessionId == audioSessionId && visualizer != null) {
             Log.d(TAG, "Visualizer already initialized with same session")
             return
@@ -62,6 +75,7 @@ public class AudioVisualizerManager(
         // Check permission
         if (!hasRecordAudioPermission()) {
             Log.w(TAG, "RECORD_AUDIO permission not granted, visualizer disabled")
+            release()
             return
         }
 
@@ -70,7 +84,7 @@ public class AudioVisualizerManager(
 
         try {
             visualizer =
-                Visualizer(audioSessionId).apply {
+                visualizerFactory(audioSessionId).apply {
                     captureSize = CAPTURE_SIZE
 
                     setDataCaptureListener(
@@ -118,7 +132,7 @@ public class AudioVisualizerManager(
             Log.d(TAG, "Visualizer initialized with session $audioSessionId")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize visualizer", e)
-            _isActive.value = false
+            release()
         }
     }
 
@@ -126,11 +140,24 @@ public class AudioVisualizerManager(
      * Enable or disable the visualizer.
      */
     public fun setEnabled(enabled: Boolean) {
+        if (enabled && !hasRecordAudioPermission()) {
+            Log.w(TAG, "Cannot enable visualizer: RECORD_AUDIO permission not granted")
+            release()
+            return
+        }
+
+        val activeVisualizer = visualizer
+        if (activeVisualizer == null) {
+            _isActive.value = false
+            return
+        }
+
         try {
-            visualizer?.enabled = enabled
+            activeVisualizer.enabled = enabled
             _isActive.value = enabled
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set visualizer enabled state", e)
+            release()
         }
     }
 
@@ -142,16 +169,23 @@ public class AudioVisualizerManager(
             visualizer?.enabled = false
             visualizer?.release()
             visualizer = null
+            audioSessionId = 0
             _isActive.value = false
+            clearVisualizationData()
             Log.d(TAG, "Visualizer released")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to release visualizer", e)
+            visualizer = null
+            audioSessionId = 0
+            _isActive.value = false
+            clearVisualizationData()
         }
     }
 
-    private fun hasRecordAudioPermission(): Boolean =
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.RECORD_AUDIO,
-        ) == PackageManager.PERMISSION_GRANTED
+    private fun clearVisualizationData() {
+        _waveformData.value = FloatArray(CAPTURE_SIZE)
+        _fftData.value = FloatArray(CAPTURE_SIZE / 2)
+    }
+
+    private fun hasRecordAudioPermission(): Boolean = permissionChecker(context)
 }
