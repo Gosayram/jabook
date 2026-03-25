@@ -23,9 +23,11 @@ python3 -m rutracker_parser crawl \
   --mode auto \
   --mirror https://rutracker.net \
   --fallback-mirror https://rutracker.me \
-  --scenario full \
+  --scenario audiobooks \
   --output-dir rutracker_parser/output
 ```
+
+`--scenario` presets: `full`, `structure`, `topics`, `auth_surface`, `audiobooks`.
 
 ```bash
 python3 -m rutracker_parser capabilities --mode both

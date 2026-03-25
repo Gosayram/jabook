@@ -131,6 +131,29 @@ def _dedupe(items: list[dict], key_fields: tuple[str, ...]) -> list[dict]:
     return unique
 
 
+def _dedupe_prefer_rich(items: list[dict], key_fields: tuple[str, ...], prefer_fields: tuple[str, ...]) -> list[dict]:
+    chosen: dict[tuple, dict] = {}
+    order: list[tuple] = []
+    for item in items:
+        key = tuple(item.get(field) for field in key_fields)
+        score = sum(1 for field in prefer_fields if item.get(field) not in (None, "", [], {}))
+        if key not in chosen:
+            chosen[key] = dict(item)
+            chosen[key]["__score"] = score
+            order.append(key)
+            continue
+        if score > chosen[key].get("__score", -1):
+            chosen[key] = dict(item)
+            chosen[key]["__score"] = score
+
+    result: list[dict] = []
+    for key in order:
+        payload = dict(chosen[key])
+        payload.pop("__score", None)
+        result.append(payload)
+    return result
+
+
 def _extract_forum_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict], list[dict]]:
     topics: list[dict] = []
     users: list[dict] = []
@@ -490,7 +513,11 @@ def extract_page(
         )
 
     forums = _dedupe(forums, ("forum_id", "url"))
-    topics = _dedupe(topics, ("topic_id", "url"))
+    topics = _dedupe_prefer_rich(
+        topics,
+        ("topic_id", "url"),
+        ("seeders", "leechers", "downloads", "size_text", "size_bytes", "torrent_url", "author"),
+    )
     users = _dedupe(users, ("user_id", "url", "kind"))
     torrents = _dedupe(torrents, ("topic_id", "torrent_url", "magnet", "source_url"))
     links = _dedupe(links, ("from", "to"))

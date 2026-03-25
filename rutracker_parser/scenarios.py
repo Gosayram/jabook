@@ -40,6 +40,20 @@ SCENARIOS: dict[str, ScenarioPreset] = {
         max_depth=8,
         max_pages=1800,
     ),
+    "audiobooks": ScenarioPreset(
+        name="audiobooks",
+        start_paths=(
+            "/forum/index.php?c=33",
+            "/forum/viewforum.php?f=2332",
+            "/forum/viewforum.php?f=2326",
+            "/forum/viewforum.php?f=2389",
+            "/forum/viewforum.php?f=2327",
+            "/forum/viewforum.php?f=2324",
+            "/forum/viewforum.php?f=2328",
+        ),
+        max_depth=4,
+        max_pages=2200,
+    ),
 }
 
 
