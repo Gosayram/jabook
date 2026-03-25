@@ -27,6 +27,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -151,6 +152,10 @@ class DataMigrationManagerTest {
 
             // Assert
             assertTrue(result is MigrationResult.Success)
+            val successResult = result as MigrationResult.Success
+            assertNotNull(successResult.legacyStateChecksum)
+            assertEquals(64, successResult.legacyStateChecksum?.length)
+            assertNotNull(successResult.preflightReport)
             verify(editor).putBoolean("migration_completed_v1", true)
             verify(editor).apply()
 
@@ -233,5 +238,66 @@ class DataMigrationManagerTest {
             assertTrue(error.message?.contains("restricted", ignoreCase = true) == true)
             verify(booksDao, never()).insertBook(any())
             verify(editor, never()).putBoolean("migration_completed_v1", true)
+        }
+
+    @Test
+    fun `migrateFromFlutter triggers rollback when post insert step fails`() =
+        runTest {
+            val legacyJson =
+                """
+                {
+                    "groupPath": "/storage/emulated/0/Audiobooks/MyBook",
+                    "currentPosition": 1200,
+                    "currentIndex": 1,
+                    "metadata": {
+                        "title": "Rollback Book",
+                        "artist": "Rollback Author",
+                        "album": "Rollback Album"
+                    }
+                }
+                """.trimIndent()
+
+            whenever(sharedPreferences.getString("flutter.player_state", null)).thenReturn(legacyJson)
+            whenever(
+                bookIdentifier.generateBookId(
+                    eq("/storage/emulated/0/Audiobooks/MyBook"),
+                    eq("Rollback Album"),
+                    eq("Rollback Author"),
+                ),
+            ).thenReturn("rollback-id")
+            whenever(editor.apply()).thenThrow(RuntimeException("failed to persist migration flag"))
+
+            val result = migrationManager.migrateFromFlutter()
+
+            assertTrue(result is MigrationResult.Failure)
+            val failure = result as MigrationResult.Failure
+            assertNotNull(failure.rollbackReport)
+            assertTrue(failure.rollbackReport?.attempted == true)
+            assertTrue(failure.rollbackReport?.succeeded == true)
+            verify(booksDao).deleteById("rollback-id")
+        }
+
+    @Test
+    fun `migrateFromFlutter fails preflight when destination directory is not writable`() =
+        runTest {
+            val legacyJson =
+                """
+                {
+                    "groupPath": "/storage/emulated/0/Audiobooks/MyBook",
+                    "currentPosition": 0,
+                    "currentIndex": 0
+                }
+                """.trimIndent()
+
+            whenever(sharedPreferences.getString("flutter.player_state", null)).thenReturn(legacyJson)
+            whenever(context.filesDir).thenReturn(java.io.File("/proc"))
+
+            val result = migrationManager.migrateFromFlutter()
+
+            assertTrue(result is MigrationResult.Failure)
+            val failure = result as MigrationResult.Failure
+            assertNotNull(failure.preflightReport)
+            assertTrue(failure.preflightReport?.blockingIssues?.isNotEmpty() == true)
+            verify(booksDao, never()).insertBook(any())
         }
 }

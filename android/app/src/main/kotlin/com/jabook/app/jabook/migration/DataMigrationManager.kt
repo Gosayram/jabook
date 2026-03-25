@@ -23,6 +23,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -67,6 +68,7 @@ public class DataMigrationManager
         public suspend fun migrateFromFlutter(): MigrationResult =
             withContext(Dispatchers.IO) {
                 Log.d(TAG, "Starting migration from Flutter...")
+                var insertedBookId: String? = null
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     val jsonString =
@@ -78,6 +80,13 @@ public class DataMigrationManager
                     val groupPath = validateAndNormalizeLegacyGroupPath(rawGroupPath)
                     val currentPosition = json.optLong("currentPosition", 0L)
                     val currentIndex = json.optInt("currentIndex", 0)
+                    val preflightReport = runMigrationPreflight(groupPath)
+                    if (!preflightReport.ready) {
+                        return@withContext MigrationResult.Failure(
+                            error = IllegalStateException("Migration preflight failed: ${preflightReport.blockingIssues.joinToString("; ")}"),
+                            preflightReport = preflightReport,
+                        )
+                    }
 
                     // Metadata
                     val metadataJson = json.optJSONObject("metadata")
@@ -116,17 +125,88 @@ public class DataMigrationManager
 
                     // Insert into DB
                     jabookDatabase.booksDao().insertBook(bookEntity)
+                    insertedBookId = bookId
 
                     // Mark as migrated
                     prefs.edit().putBoolean(KEY_MIGRATION_COMPLETED, true).apply()
 
                     Log.i(TAG, "Migration successful for 1 book")
-                    MigrationResult.Success(booksCount = 1, chaptersCount = 0)
+                    MigrationResult.Success(
+                        booksCount = 1,
+                        chaptersCount = 0,
+                        legacyStateChecksum = computeLegacyStateChecksum(jsonString),
+                        preflightReport = preflightReport,
+                    )
                 } catch (e: Exception) {
+                    val rollbackReport = rollbackAfterFailure(insertedBookId)
                     Log.e(TAG, "Migration failed", e)
-                    MigrationResult.Failure(e)
+                    MigrationResult.Failure(
+                        error = e,
+                        rollbackReport = rollbackReport,
+                    )
                 }
             }
+
+        private fun runMigrationPreflight(groupPath: String): MigrationPreflightReport {
+            val sourceDirectory = File(groupPath)
+            val sourceExists = sourceDirectory.exists()
+            val sourceReadable = sourceDirectory.canRead()
+
+            val destinationDirectory = runCatching { context.filesDir }.getOrNull()
+            val destinationPath = destinationDirectory?.canonicalPath ?: "unknown"
+            val destinationWritable = destinationDirectory?.let { it.exists() && it.canWrite() } ?: false
+
+            val warnings = buildList {
+                if (!sourceExists) {
+                    add("Source path does not exist yet; migration will preserve path reference")
+                } else if (!sourceReadable) {
+                    add("Source path is not readable")
+                }
+            }
+            val blockingIssues = buildList {
+                if (destinationDirectory != null && !destinationWritable) {
+                    add("App storage directory is not writable")
+                }
+            }
+
+            return MigrationPreflightReport(
+                sourcePath = groupPath,
+                sourceExists = sourceExists,
+                sourceReadable = sourceReadable,
+                destinationPath = destinationPath,
+                destinationWritable = destinationWritable,
+                warnings = warnings,
+                blockingIssues = blockingIssues,
+            )
+        }
+
+        private suspend fun rollbackAfterFailure(insertedBookId: String?): MigrationRollbackReport {
+            if (insertedBookId.isNullOrBlank()) {
+                return MigrationRollbackReport(attempted = false, succeeded = false, steps = emptyList())
+            }
+
+            return try {
+                jabookDatabase.booksDao().deleteById(insertedBookId)
+                MigrationRollbackReport(
+                    attempted = true,
+                    succeeded = true,
+                    steps = listOf("deleted_migrated_book:$insertedBookId"),
+                )
+            } catch (rollbackError: Exception) {
+                Log.e(TAG, "Rollback failed for migrated book $insertedBookId", rollbackError)
+                MigrationRollbackReport(
+                    attempted = true,
+                    succeeded = false,
+                    steps = listOf("failed_to_delete_migrated_book:$insertedBookId"),
+                )
+            }
+        }
+
+        private fun computeLegacyStateChecksum(payload: String): String {
+            val digest = MessageDigest.getInstance("SHA-256")
+            val hash = digest.digest(payload.toByteArray(Charsets.UTF_8))
+            return hash.joinToString("") { byte -> "%02x".format(byte) }
+        }
 
         private fun validateAndNormalizeLegacyGroupPath(rawPath: String): String {
             val trimmedPath = rawPath.trim()
@@ -187,9 +267,31 @@ public sealed class MigrationResult {
     public data class Success(
         val booksCount: Int,
         val chaptersCount: Int,
+        val legacyStateChecksum: String? = null,
+        val preflightReport: MigrationPreflightReport? = null,
     ) : MigrationResult()
 
     public data class Failure(
         val error: Exception,
+        val preflightReport: MigrationPreflightReport? = null,
+        val rollbackReport: MigrationRollbackReport? = null,
     ) : MigrationResult()
 }
+
+public data class MigrationPreflightReport(
+    val sourcePath: String,
+    val sourceExists: Boolean,
+    val sourceReadable: Boolean,
+    val destinationPath: String,
+    val destinationWritable: Boolean,
+    val warnings: List<String>,
+    val blockingIssues: List<String>,
+) {
+    val ready: Boolean = blockingIssues.isEmpty()
+}
+
+public data class MigrationRollbackReport(
+    val attempted: Boolean,
+    val succeeded: Boolean,
+    val steps: List<String>,
+)
