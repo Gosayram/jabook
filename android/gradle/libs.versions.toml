@@ -92,7 +92,7 @@ robolectric = "4.16"
 truth = "1.4.5"
 
 # Code Quality
-ktlint = "14.0.1"
+ktlint = "14.2.0"
 
 [libraries]
 # AndroidX Core
