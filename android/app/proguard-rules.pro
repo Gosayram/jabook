@@ -1,5 +1,9 @@
 # JaBook R8 rules (minimal - optimized for size)
 
+# Temporary stability workaround: keep shrinking/obfuscation but disable optimizer
+# to avoid R8 internal crash (IndexOutOfBoundsException) on release minification.
+-dontoptimize
+
 # -------- Kotlin Metadata (essential only) --------
 -keepattributes Signature, InnerClasses, EnclosingMethod
 -keepclassmembers class **$WhenMappings { <fields>; }

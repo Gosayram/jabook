@@ -187,7 +187,14 @@ internal class PlayerConfigurator(
             val currentIndex = activePlayer.currentMediaItemIndex
             val currentPosition = activePlayer.currentPosition
             val hasPlaylist = activePlayer.mediaItemCount > 0
-            val playlistManager = service.playlistManager
+            val playlistManager =
+                service.playlistManager ?: run {
+                    android.util.Log.w(
+                        "AudioPlayerService",
+                        "PlaylistManager is null, skipping playback state save/restore during player reconfiguration",
+                    )
+                    return
+                }
 
             // Save state if we have a playlist AND playlist is not currently loading
             // This prevents saving incorrect state when Flutter is setting a new playlist
