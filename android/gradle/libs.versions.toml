@@ -35,7 +35,7 @@ androidxRoom = "2.8.4"
 
 # AndroidX DataStore
 androidxDatastore = "1.2.0"
-androidxDatastorePreferences = "1.1.7"
+androidxDatastorePreferences = "1.2.1"
 
 # AndroidX Work
 androidxWork = "2.11.0"
