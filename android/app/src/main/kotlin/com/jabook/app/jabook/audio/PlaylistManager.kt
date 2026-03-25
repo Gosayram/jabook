@@ -943,7 +943,7 @@ internal class PlaylistManager(
             if (useDeferred) {
                 CompletableDeferred<Int>().also { deferred ->
                     try {
-                        setPendingTrackSwitchDeferred?.invoke(deferred)
+                        setPendingTrackSwitchDeferred.invoke(deferred)
                         LogUtils.d(
                             "AudioPlayerService",
                             "Set pendingTrackSwitchDeferred for track switch to $targetIndex",

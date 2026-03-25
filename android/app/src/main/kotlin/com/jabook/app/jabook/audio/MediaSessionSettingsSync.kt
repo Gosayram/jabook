@@ -50,13 +50,13 @@ public class MediaSessionSettingsSync(
                     // Extract intervals with safe defaults
                     val rewindSeconds =
                         if (prefs.rewindDurationSeconds > 0) {
-                            prefs.rewindDurationSeconds.toInt()
+                            prefs.rewindDurationSeconds
                         } else {
                             10 // Default 10s
                         }
                     val forwardSeconds =
                         if (prefs.forwardDurationSeconds > 0) {
-                            prefs.forwardDurationSeconds.toInt()
+                            prefs.forwardDurationSeconds
                         } else {
                             30 // Default 30s
                         }

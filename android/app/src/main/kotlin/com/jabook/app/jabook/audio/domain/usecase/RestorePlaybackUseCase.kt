@@ -48,7 +48,7 @@ public class RestorePlaybackUseCase
                                     isPlaying = false, // Start paused
                                     currentPosition = entity.position,
                                     duration = 0L, // Will be set when track loads
-                                    currentTrackIndex = entity.trackIndex.toInt(),
+                                    currentTrackIndex = entity.trackIndex,
                                     playbackSpeed = 1.0f,
                                     bufferedPosition = 0L,
                                     playbackState = 0, // IDLE - will be updated when player loads

@@ -709,7 +709,7 @@ internal class PlayerListener(
         val currentIndex = player.currentMediaItemIndex
         val mediaItem = player.currentMediaItem
         val mediaId = mediaItem?.mediaId ?: "unknown"
-        val metadata = getCurrentMetadata?.invoke()
+        val metadata = getCurrentMetadata.invoke()
 
         // Enhanced error logging with context (inspired by Easybook)
         val bookId = getCurrentBookId?.invoke() ?: "unknown"
@@ -871,7 +871,7 @@ internal class PlayerListener(
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
         val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
-        val metadata = getCurrentMetadata?.invoke()
+        val metadata = getCurrentMetadata.invoke()
         val bookId = getCurrentBookId?.invoke() ?: "unknown"
         val bookName = metadata?.get("title") ?: "unknown"
 
@@ -1300,7 +1300,7 @@ internal class PlayerListener(
             // Clear embedded artwork path if external URI is available
             setEmbeddedArtworkPath(null)
         } else if (hasArtworkData) {
-            LogUtils.d("AudioPlayerService", "Embedded artwork data available: ${artworkData?.size ?: 0} bytes")
+            LogUtils.d("AudioPlayerService", "Embedded artwork data available: ${artworkData.size} bytes")
             // Save embedded artwork to temporary file for Flutter access
             try {
                 val cacheDir = context.cacheDir

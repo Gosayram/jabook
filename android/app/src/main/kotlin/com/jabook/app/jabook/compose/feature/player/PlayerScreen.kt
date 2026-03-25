@@ -728,21 +728,19 @@ private fun PlayerContent(
                 )
 
                 if (showLyrics && !state.lyrics.isNullOrEmpty()) {
-                    state.lyrics?.let { lyrics ->
-                        Box(
-                            modifier =
-                                imageModifier
-                                    .fillMaxWidth(coverWidth)
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(24.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
-                        ) {
-                            LyricsView(
-                                lyrics = lyrics,
-                                currentPosition = state.currentPosition,
-                                onSeek = onSeek,
-                            )
-                        }
+                    Box(
+                        modifier =
+                            imageModifier
+                                .fillMaxWidth(coverWidth)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                    ) {
+                        LyricsView(
+                            lyrics = state.lyrics.orEmpty(),
+                            currentPosition = state.currentPosition,
+                            onSeek = onSeek,
+                        )
                     }
                 } else if (isVinylMode) {
                     VinylCover(
@@ -1260,9 +1258,7 @@ private fun PlayerContent(
                                     Modifier.size(controlButtonIconSize),
                                 )
                                 if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
-                                    val activeState =
-                                        sleepTimerState
-                                            as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active
+                                    val activeState = sleepTimerState
                                     Text(
                                         activeState.formattedTime,
                                         fontSize = controlButtonTextSize,
@@ -1398,9 +1394,7 @@ private fun PlayerContent(
                                 Modifier.size(controlButtonIconSize),
                             )
                             if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
-                                val activeState =
-                                    sleepTimerState
-                                        as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active
+                                val activeState = sleepTimerState
                                 Text(
                                     activeState.formattedTime,
                                     fontSize = controlButtonTextSize,

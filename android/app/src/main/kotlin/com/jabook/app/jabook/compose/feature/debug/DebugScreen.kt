@@ -203,7 +203,7 @@ private fun LogsTab(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                "Error: ${(uiState as DebugUiState.Error).message}",
+                "Error: ${uiState.message}",
                 color = MaterialTheme.colorScheme.error,
             )
         }

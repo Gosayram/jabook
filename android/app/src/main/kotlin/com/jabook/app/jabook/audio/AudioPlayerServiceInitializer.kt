@@ -18,6 +18,7 @@ import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
+import android.os.Bundle
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.flow.first
@@ -273,10 +274,10 @@ public class AudioPlayerServiceInitializer(
             // Reserve space for skip buttons in notification (prevents jumping when buttons change)
             // Following Media3 official pattern from DemoPlaybackService
             service.mediaLibrarySession?.sessionExtras =
-                androidx.core.os.bundleOf(
-                    androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV to true,
-                    androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT to true,
-                )
+                Bundle().apply {
+                    putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, true)
+                    putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, true)
+                }
 
             // Assign to legacy field for compatibility
             service.mediaSession = service.mediaLibrarySession

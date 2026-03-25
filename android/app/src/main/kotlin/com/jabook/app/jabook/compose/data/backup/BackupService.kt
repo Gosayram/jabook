@@ -124,7 +124,7 @@ public class BackupService
                     logger.d { "Parsed backup version ${backupData.version}" }
 
                     // 3. Validate schema version (support both 1.x and 2.x)
-                    val schemaVersion = backupData.schemaVersion ?: backupData.version // Fallback for v1.0.0
+                    val schemaVersion = backupData.schemaVersion
                     if (!isCompatibleVersion(schemaVersion)) {
                         throw IllegalArgumentException(
                             "Incompatible backup schema version: $schemaVersion. " +

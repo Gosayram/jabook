@@ -191,11 +191,11 @@ internal class PlayerConfigurator(
 
             // Save state if we have a playlist AND playlist is not currently loading
             // This prevents saving incorrect state when Flutter is setting a new playlist
-            val filePathsForSave = playlistManager?.currentFilePaths
-            val isPlaylistLoading = playlistManager?.isPlaylistLoading ?: false
+            val filePathsForSave = playlistManager.currentFilePaths
+            val isPlaylistLoading = playlistManager.isPlaylistLoading
 
             if (hasPlaylist && filePathsForSave != null && filePathsForSave.isNotEmpty() && !isPlaylistLoading) {
-                playlistManager?.savedPlaybackState =
+                playlistManager.savedPlaybackState =
                     SavedPlaybackState(
                         currentIndex = currentIndex,
                         currentPosition = currentPosition,
@@ -246,12 +246,12 @@ internal class PlayerConfigurator(
             // BUT only if we're not already loading a playlist (prevent conflicts)
             // CRITICAL: Also check if playlist was loaded recently (within 2 seconds) - if so, don't restore stale state
             // This prevents restoration of incorrect state after Flutter loads correct playlist
-            val lastPlaylistLoadTime: Long = playlistManager?.lastPlaylistLoadTime ?: 0L
+            val lastPlaylistLoadTime: Long = playlistManager.lastPlaylistLoadTime
             val timeSinceLastLoad: Long = System.currentTimeMillis() - lastPlaylistLoadTime
             val wasRecentlyLoaded = timeSinceLastLoad < 2000L // 2 seconds
 
-            val savedStateForRestore = playlistManager?.savedPlaybackState
-            val filePathsForRestore = playlistManager?.currentFilePaths
+            val savedStateForRestore = playlistManager.savedPlaybackState
+            val filePathsForRestore = playlistManager.currentFilePaths
 
             if (savedStateForRestore != null &&
                 filePathsForRestore != null &&
@@ -265,26 +265,26 @@ internal class PlayerConfigurator(
 
                 // CRITICAL: Initialize actualTrackIndex from saved state
                 // We access playlistManager.actualTrackIndex directly or via service method if needed, but safer via manager
-                playlistManager?.actualTrackIndex =
+                playlistManager.actualTrackIndex =
                     savedStateForRestore.currentIndex.coerceIn(0, filePathsForRestore.size - 1)
                 android.util.Log.d(
                     "AudioPlayerService",
-                    "Initialized actualTrackIndex to ${playlistManager?.actualTrackIndex} (from savedState.currentIndex=${savedStateForRestore.currentIndex})",
+                    "Initialized actualTrackIndex to ${playlistManager.actualTrackIndex} (from savedState.currentIndex=${savedStateForRestore.currentIndex})",
                 )
 
                 // Mark as loading to prevent conflicts
-                playlistManager?.isPlaylistLoading = true
-                playlistManager?.currentLoadingPlaylist = filePathsForRestore
+                playlistManager.isPlaylistLoading = true
+                playlistManager.currentLoadingPlaylist = filePathsForRestore
 
                 // Restore playlist asynchronously
                 service.playerServiceScope.launch {
                     try {
-                        playlistManager?.preparePlaybackOptimized(
+                        playlistManager.preparePlaybackOptimized(
                             filePathsForRestore,
                             playlistManager.currentMetadata,
                             savedStateForRestore.currentIndex,
                             savedStateForRestore.currentPosition,
-                        ) ?: throw IllegalStateException("PlaylistManager not initialized")
+                        )
 
                         // Position is already applied in preparePlaybackOptimized if firstTrackIndex == savedState.currentIndex
                         // Only wait for player to be ready and restore playback state
@@ -329,7 +329,7 @@ internal class PlayerConfigurator(
                         }
 
                         // Clear saved state
-                        playlistManager?.savedPlaybackState = null
+                        playlistManager.savedPlaybackState = null
 
                         // MediaLibraryService automatically updates notification when Player state changes
                     } catch (e: Exception) {
@@ -338,11 +338,11 @@ internal class PlayerConfigurator(
                             "Failed to restore playlist after player recreation",
                             e,
                         )
-                        playlistManager?.savedPlaybackState = null
+                        playlistManager.savedPlaybackState = null
                     } finally {
                         // Clear loading flag when done
-                        playlistManager?.isPlaylistLoading = false
-                        playlistManager?.currentLoadingPlaylist = null
+                        playlistManager.isPlaylistLoading = false
+                        playlistManager.currentLoadingPlaylist = null
                     }
                 }
             } else if (wasRecentlyLoaded) {

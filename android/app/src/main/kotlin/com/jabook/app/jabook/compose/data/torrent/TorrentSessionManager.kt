@@ -102,11 +102,11 @@ public class TorrentSessionManager
                             is StateUpdateAlert -> handleStateUpdate(alert)
                             is PeerLogAlert -> {
                                 // Log peer-level debugging (can be verbose, so use debug level)
-                                logger.d { "PEER_LOG: ${(alert as PeerLogAlert).logMessage()}" }
+                                logger.d { "PEER_LOG: ${alert.logMessage()}" }
                             }
                             is TorrentLogAlert -> {
                                 // Log torrent-level debugging
-                                logger.d { "TORRENT_LOG: ${(alert as TorrentLogAlert).logMessage()}" }
+                                logger.d { "TORRENT_LOG: ${alert.logMessage()}" }
                             }
                             else -> {
                                 // Log unhandled alerts for debugging (use debug to avoid spam)

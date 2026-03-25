@@ -825,6 +825,7 @@ public class AudioPlayerLibrarySessionCallback(
      * This is called by the system when user wants to resume playback from a previous session.
      * Based on Media3 DemoMediaLibrarySessionCallback example.
      */
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     @OptIn(UnstableApi::class) // onPlaybackResumption callback + MediaItemsWithStartPosition
     override fun onPlaybackResumption(
         mediaSession: MediaSession,

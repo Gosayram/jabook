@@ -397,7 +397,7 @@ public class AudioPlayerController
             if (isBookChanged) {
                 logger.i { "Book changed: $previousBookId -> $bookId. Resetting state." }
                 // Reset state to avoid showing old book's data
-                _currentPosition.value = initialPosition.toLong()
+                _currentPosition.value = initialPosition
                 _currentChapterIndex.value = initialChapterIndex
                 _isPlaying.value = false
             }
@@ -463,7 +463,7 @@ public class AudioPlayerController
                             filePaths = filePaths,
                             metadata = metadata,
                             initialTrackIndex = initialChapterIndex,
-                            initialPosition = initialPosition.toLong(),
+                            initialPosition = initialPosition,
                             groupPath = bookId,
                         )
 

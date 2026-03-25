@@ -527,7 +527,7 @@ internal class PlaybackController(
             // without waiting for all tracks. This provides instant, smooth resume.
             // Only wait for all tracks if target track is NOT the first loaded track.
             val shouldWaitForAllTracks = !isTargetTrackAlreadyCurrent && expectedTrackCount != null
-            val allTracksLoaded = !shouldWaitForAllTracks || mediaItemCount >= (expectedTrackCount ?: 0)
+            val allTracksLoaded = !shouldWaitForAllTracks || mediaItemCount >= expectedTrackCount
 
             if (isPlayerReady && isTrackLoaded && allTracksLoaded) {
                 playerReady = true
