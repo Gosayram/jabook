@@ -4,11 +4,15 @@ import json
 import math
 import os
 import re
+import threading
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import replace
 from difflib import SequenceMatcher
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Literal
-from urllib.parse import urlencode, urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from .client import RutrackerHttpClient
 from .constants import (
@@ -30,8 +34,17 @@ from .constants import (
 )
 from .crawl_engine import CrawlEngine
 from .extractors import extract_page
+from .mode_matrix import feature_matrix, mode_summary
 from .settings import CrawlSettings, Mode
-from .utils import ensure_absolute_base, to_absolute_url, unique_preserve_order, utc_now_iso
+from .storage import CrawlStorage
+from .utils import (
+    ensure_absolute_base,
+    normalize_url,
+    query_value_as_int,
+    to_absolute_url,
+    unique_preserve_order,
+    utc_now_iso,
+)
 
 AUDIOBOOK_CATEGORY_ID = 33
 DEFAULT_OUTPUT_DIR = "rutracker_parser/output"
@@ -88,6 +101,11 @@ COMMENT_LOW_SIGNAL_TOKENS = {
     "огонь",
     "жду",
 }
+DEFAULT_PARALLEL_INDEX_WORKERS = 2
+MAX_PARALLEL_INDEX_WORKERS = 6
+DEFAULT_INCREMENTAL_PAGES_WINDOW = 8
+DEFAULT_HARD_MAX_PAGES_PER_FORUM = 450
+DEFAULT_TRACKER_PAGE_SIZE = 50
 
 
 def _resolve_mode(
@@ -315,6 +333,396 @@ def _build_search_settings(args: Any, forum_ids: list[int]) -> CrawlSettings:
         allow_endpoints=frozenset({"tracker.php"}),
         scenario="search_index",
     )
+
+
+def _replace_url_query(url: str, updates: dict[str, str | int | None]) -> str:
+    parsed = urlparse(url)
+    query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+    query_map: dict[str, str] = {}
+    for key, value in query_pairs:
+        query_map[key] = value
+    for key, value in updates.items():
+        if value is None:
+            query_map.pop(key, None)
+            continue
+        query_map[key] = str(value)
+    encoded = urlencode(sorted(query_map.items()), doseq=True)
+    normalized = parsed._replace(query=encoded)
+    return normalize_url(urlunparse(normalized))
+
+
+def _infer_tracker_page_size(url: str, extracted: dict) -> int:
+    pagination = extracted.get("pagination") or {}
+    starts: list[int] = []
+    for item in pagination.get("links", []):
+        start_value = _coerce_int(item.get("start"))
+        if start_value is None:
+            start_value = query_value_as_int(str(item.get("url") or ""), "start")
+        if isinstance(start_value, int) and start_value >= 0:
+            starts.append(start_value)
+    starts = sorted(set(starts))
+    if len(starts) >= 2:
+        diffs = [b - a for a, b in zip(starts, starts[1:], strict=False) if b - a > 0]
+        if diffs:
+            return max(1, min(diffs))
+
+    from_url = query_value_as_int(url, "per_page")
+    if isinstance(from_url, int) and from_url > 0:
+        return from_url
+
+    topics = [row for row in extracted.get("topics", []) if not row.get("kind")]
+    topic_count = len(topics)
+    if 5 <= topic_count <= 200:
+        return topic_count
+    return DEFAULT_TRACKER_PAGE_SIZE
+
+
+def _clamp_parallel_workers(raw_value: Any) -> int:
+    try:
+        workers = int(raw_value)
+    except (TypeError, ValueError):
+        workers = DEFAULT_PARALLEL_INDEX_WORKERS
+    return min(max(workers, 1), MAX_PARALLEL_INDEX_WORKERS)
+
+
+def _resolve_tracker_total_pages(extracted: dict) -> int:
+    tracker_details = extracted.get("tracker_details") or {}
+    pagination = extracted.get("pagination") or {}
+    total_pages = _coerce_int(tracker_details.get("total_pages"))
+    if total_pages is None:
+        total_pages = _coerce_int(pagination.get("max_page_number"))
+    if total_pages is None or total_pages < 1:
+        return 1
+    return total_pages
+
+
+def _plan_pages_for_forum(
+    *,
+    total_pages: int,
+    max_pages_per_forum: int,
+    incremental_mode: bool,
+    incremental_pages_window: int,
+    hard_cap: int,
+) -> int:
+    planned = max(total_pages, 1)
+    if max_pages_per_forum > 0:
+        planned = min(planned, max_pages_per_forum)
+    elif incremental_mode:
+        planned = min(planned, max(incremental_pages_window, 1))
+    planned = min(planned, max(hard_cap, 1))
+    return max(planned, 1)
+
+
+def _run_parallel_tracker_harvest(
+    args: Any,
+    settings: CrawlSettings,
+    forum_ids: list[int],
+) -> dict:
+    mirrors = settings.mirrors
+    allowed_hosts = {urlparse(mirror).netloc for mirror in mirrors}
+    start_urls = _build_start_urls(mirrors[0], args.query, forum_ids)
+
+    workers = _clamp_parallel_workers(getattr(args, "workers", DEFAULT_PARALLEL_INDEX_WORKERS))
+    max_pages_per_forum = max(int(getattr(args, "max_pages_per_forum", 0) or 0), 0)
+    hard_cap = max(
+        int(getattr(args, "hard_max_pages_per_forum", DEFAULT_HARD_MAX_PAGES_PER_FORUM) or 1), 1
+    )
+    incremental_pages_window = max(
+        int(getattr(args, "incremental_pages_window", DEFAULT_INCREMENTAL_PAGES_WINDOW) or 1), 1
+    )
+    incremental_mode = bool(getattr(args, "incremental", False)) and not bool(
+        getattr(args, "force", False)
+    )
+
+    bootstrap_client = RutrackerHttpClient(settings)
+    logged_in = False
+    if settings.mode_effective == "auth":
+        logged_in = bootstrap_client.login()
+        if not logged_in and args.mode == "auth":
+            raise RuntimeError("Не удалось авторизоваться для parallel search-index")
+    auth_cookies = bootstrap_client.session.cookies.get_dict()
+
+    status_counts: Counter[int] = Counter()
+    entity_counts: Counter[str] = Counter()
+    planned_pages_total = 0
+    planned_extra_pages = 0
+    errors_count = 0
+    interrupted = False
+    planner_rows: list[dict] = []
+
+    storage = CrawlStorage(Path(args.output_dir))
+    visited_pages = 0
+    try:
+
+        def persist_page_result(
+            *,
+            parent_url: str | None,
+            depth: int,
+            fetched: Any,
+            extracted: dict,
+        ) -> None:
+            nonlocal visited_pages
+
+            html_ref = (
+                storage.save_html(fetched.final_url, fetched.text) if settings.save_html else None
+            )
+            page_record = {
+                "url": fetched.final_url,
+                "requested_url": fetched.requested_url,
+                "depth": depth,
+                "parent_url": parent_url,
+                "status": fetched.status_code,
+                "mirror": fetched.mirror,
+                "elapsed_sec": round(fetched.elapsed_sec, 3),
+                "truncated": fetched.truncated,
+                "html_ref": html_ref,
+                "title": extracted.get("title", ""),
+                "page_type": extracted.get("page_type", "generic"),
+                "breadcrumbs": extracted.get("breadcrumbs", []),
+                "breadcrumb_links": extracted.get("breadcrumb_links", []),
+                "pagination": extracted.get("pagination", {}),
+                "signals": extracted.get("page_signals", {}),
+                "forms": extracted.get("forms", []),
+                "ts": utc_now_iso(),
+            }
+            storage.write_page(page_record)
+            visited_pages += 1
+
+            links = extracted.get("links", [])
+            storage.write_edges(links)
+            entity_counts["edges"] += len(links)
+
+            forums = list(extracted.get("forums", []))
+            topics = list(extracted.get("topics", []))
+            users = list(extracted.get("users", []))
+            torrents = list(extracted.get("torrents", []))
+            categories = list(extracted.get("categories", []))
+            posts = list(extracted.get("posts", []))
+
+            tracker_details = extracted.get("tracker_details")
+            if tracker_details:
+                tracker_row = dict(tracker_details)
+                tracker_row["kind"] = "tracker_details"
+                topics.append(tracker_row)
+
+            forum_details = extracted.get("forum_details")
+            if forum_details:
+                forum_row = dict(forum_details)
+                forum_row["kind"] = "forum_details"
+                forums.append(forum_row)
+
+            storage.write_forums(forums)
+            storage.write_topics(topics)
+            storage.write_users(users)
+            storage.write_torrents(torrents)
+            storage.write_categories(categories)
+            storage.write_posts(posts)
+            entity_counts["forums"] += len(forums)
+            entity_counts["topics"] += len(topics)
+            entity_counts["users"] += len(users)
+            entity_counts["torrents"] += len(torrents)
+            entity_counts["categories"] += len(categories)
+            entity_counts["posts"] += len(posts)
+
+            topic_meta = extracted.get("topic_meta")
+            if topic_meta:
+                storage.write_topic_meta(topic_meta)
+                entity_counts["topic_meta"] += 1
+
+            profile_details = extracted.get("profile_details")
+            if profile_details:
+                storage.write_profile(profile_details)
+                entity_counts["profiles"] += 1
+
+        tasks: list[dict] = []
+        task_urls_seen: set[str] = set()
+        for forum_id, start_url in zip(forum_ids, start_urls, strict=False):
+            try:
+                fetched = bootstrap_client.request("GET", start_url)
+                status_counts[fetched.status_code] += 1
+                extracted = extract_page(
+                    url=fetched.final_url,
+                    html=fetched.text,
+                    allowed_hosts=allowed_hosts,
+                    allow_path_prefixes=DEFAULT_ALLOWED_PATH_PREFIXES,
+                    allow_endpoints=frozenset({"tracker.php"}),
+                )
+                persist_page_result(
+                    parent_url=None,
+                    depth=0,
+                    fetched=fetched,
+                    extracted=extracted,
+                )
+            except KeyboardInterrupt:
+                interrupted = True
+                break
+            except Exception as error:
+                errors_count += 1
+                storage.write_error(
+                    {
+                        "url": start_url,
+                        "error": str(error),
+                        "kind": "seed_request",
+                        "depth": 0,
+                        "ts": utc_now_iso(),
+                    }
+                )
+                continue
+
+            total_pages = _resolve_tracker_total_pages(extracted)
+            page_size = _infer_tracker_page_size(fetched.final_url, extracted)
+            planned_pages = _plan_pages_for_forum(
+                total_pages=total_pages,
+                max_pages_per_forum=max_pages_per_forum,
+                incremental_mode=incremental_mode,
+                incremental_pages_window=incremental_pages_window,
+                hard_cap=hard_cap,
+            )
+            planned_pages_total += planned_pages
+
+            tracker_details = extracted.get("tracker_details") or {}
+            search_id = str(tracker_details.get("search_id") or "").strip()
+            sort_by = str(tracker_details.get("sort_by") or "").strip()
+            sort_dir = str(tracker_details.get("sort_dir") or "").strip()
+            planner_rows.append(
+                {
+                    "forum_id": forum_id,
+                    "seed_url": fetched.final_url,
+                    "total_pages_detected": total_pages,
+                    "planned_pages": planned_pages,
+                    "page_size": page_size,
+                    "search_id": search_id,
+                    "sort_by": sort_by,
+                    "sort_dir": sort_dir,
+                }
+            )
+
+            for page_no in range(2, planned_pages + 1):
+                start_offset = (page_no - 1) * page_size
+                page_url = _replace_url_query(
+                    fetched.final_url,
+                    {
+                        "start": start_offset,
+                        "search_id": search_id or None,
+                        "o": sort_by or None,
+                        "s": sort_dir or None,
+                    },
+                )
+                if page_url in task_urls_seen:
+                    continue
+                task_urls_seen.add(page_url)
+                planned_extra_pages += 1
+                tasks.append(
+                    {
+                        "forum_id": forum_id,
+                        "page_no": page_no,
+                        "url": page_url,
+                        "referer": fetched.final_url,
+                    }
+                )
+
+        if not interrupted and tasks:
+            worker_settings = replace(
+                settings,
+                request_interval_sec=max(settings.request_interval_sec * float(workers), 0.2),
+                jitter_sec=max(settings.jitter_sec * float(workers), 0.0),
+            )
+            local_state = threading.local()
+
+            def get_worker_client() -> RutrackerHttpClient:
+                client = getattr(local_state, "client", None)
+                if client is None:
+                    client = RutrackerHttpClient(worker_settings)
+                    if auth_cookies:
+                        client.session.cookies.update(auth_cookies)
+                    elif worker_settings.mode_effective == "auth":
+                        ok = client.login()
+                        if not ok and args.mode == "auth":
+                            raise RuntimeError("Worker login failed in parallel search-index")
+                    local_state.client = client
+                return client
+
+            def run_task(task: dict) -> dict:
+                try:
+                    client = get_worker_client()
+                    fetched = client.request("GET", task["url"], referer=task.get("referer"))
+                    extracted = extract_page(
+                        url=fetched.final_url,
+                        html=fetched.text,
+                        allowed_hosts=allowed_hosts,
+                        allow_path_prefixes=DEFAULT_ALLOWED_PATH_PREFIXES,
+                        allow_endpoints=frozenset({"tracker.php"}),
+                    )
+                    return {"ok": True, "task": task, "fetched": fetched, "extracted": extracted}
+                except Exception as error:
+                    return {"ok": False, "task": task, "error": str(error)}
+
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = [executor.submit(run_task, task) for task in tasks]
+                for future in as_completed(futures):
+                    result = future.result()
+                    task = result.get("task", {})
+                    if not result.get("ok"):
+                        errors_count += 1
+                        storage.write_error(
+                            {
+                                "url": task.get("url", ""),
+                                "error": result.get("error", "parallel request failed"),
+                                "kind": "parallel_request",
+                                "depth": 0,
+                                "ts": utc_now_iso(),
+                            }
+                        )
+                        continue
+                    fetched = result["fetched"]
+                    extracted = result["extracted"]
+                    status_counts[fetched.status_code] += 1
+                    persist_page_result(
+                        parent_url=str(task.get("referer") or ""),
+                        depth=0,
+                        fetched=fetched,
+                        extracted=extracted,
+                    )
+
+        summary = {
+            "requested_mode": settings.mode_requested,
+            "effective_mode": settings.mode_effective,
+            "logged_in": logged_in,
+            "mirrors": settings.mirrors,
+            "visited_pages": visited_pages,
+            "pending_pages": 0,
+            "status_counts": dict(sorted(status_counts.items())),
+            "entity_counts": dict(entity_counts),
+            "errors": errors_count,
+            "interrupted": interrupted,
+            "harvest_mode": "parallel_tracker",
+            "workers": workers,
+            "planner": {
+                "incremental_mode": incremental_mode,
+                "max_pages_per_forum": max_pages_per_forum,
+                "incremental_pages_window": incremental_pages_window,
+                "hard_max_pages_per_forum": hard_cap,
+                "planned_pages_total": planned_pages_total,
+                "planned_extra_pages": planned_extra_pages,
+                "forums": planner_rows,
+            },
+            "run_dir": str(storage.run_dir),
+            "ts": utc_now_iso(),
+        }
+        storage.write_meta("summary.json", summary)
+        storage.write_meta("search_plan.json", summary.get("planner", {}))
+        storage.write_meta(
+            "mode_capabilities.json",
+            {
+                "matrix": feature_matrix(),
+                "guest": mode_summary("guest"),
+                "auth": mode_summary("auth"),
+                "effective": mode_summary(settings.mode_effective),
+            },
+        )
+        return summary
+    finally:
+        storage.close()
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -1495,7 +1903,8 @@ def build_search_index(
 
 
 def run_search_index(args: Any) -> dict:
-    incremental_enabled = bool(getattr(args, "incremental", False))
+    force_reindex = bool(getattr(args, "force", False))
+    incremental_enabled = bool(getattr(args, "incremental", False)) and not force_reindex
     base_index_value = str(getattr(args, "base_index", "") or "").strip()
     min_quality_score = _clamp_quality_threshold(
         getattr(args, "min_quality_score", 0.0), default=0.0
@@ -1512,13 +1921,14 @@ def run_search_index(args: Any) -> dict:
     base_comment_records: list[dict] = []
 
     if incremental_enabled:
+        candidate: Path | None = None
         if base_index_value:
             candidate = Path(base_index_value).expanduser().resolve()
         else:
             latest_full = _find_latest_index_full_file(Path(args.output_dir))
-            candidate = latest_full.resolve() if latest_full else Path("")
+            candidate = latest_full.resolve() if latest_full else None
 
-        if candidate and candidate.exists():
+        if candidate is not None and candidate.exists():
             if not candidate.is_file():
                 raise FileNotFoundError(f"Base index is not a file: {candidate}")
             base_index_path = candidate
@@ -1574,8 +1984,14 @@ def run_search_index(args: Any) -> dict:
         raise RuntimeError("Не удалось определить форумы аудиокниг для поиска")
 
     settings = _build_search_settings(args, forum_ids)
-    engine = CrawlEngine(settings)
-    crawl_summary = engine.run()
+    indexer = str(getattr(args, "indexer", "parallel") or "parallel").strip().lower()
+    if indexer not in {"parallel", "crawl"}:
+        indexer = "parallel"
+    if indexer == "crawl":
+        engine = CrawlEngine(settings)
+        crawl_summary = engine.run()
+    else:
+        crawl_summary = _run_parallel_tracker_harvest(args, settings, forum_ids)
 
     run_dir = Path(crawl_summary["run_dir"])
     index_summary = build_search_index(
@@ -1595,6 +2011,8 @@ def run_search_index(args: Any) -> dict:
     return {
         "query": args.query,
         "forum_ids": forum_ids,
+        "indexer": indexer,
+        "force_reindex": force_reindex,
         "crawl": crawl_summary,
         "index": index_summary,
         "comments_index": comments_summary,
@@ -1611,6 +2029,7 @@ def run_search_index(args: Any) -> dict:
             "max_base_records": max_base_records,
             "min_quality_score": min_quality_score,
             "min_comment_quality_score": min_comment_quality_score,
+            "force_reindex": force_reindex,
         },
     }
 
@@ -1944,6 +2363,15 @@ def _build_search_index_namespace_from_find(args: Any, query: str) -> Any:
         user_agent=args.user_agent,
         skip_html=args.skip_html,
         incremental=bool(getattr(args, "incremental", False)),
+        force=bool(getattr(args, "force", False)),
+        indexer=str(getattr(args, "indexer", "parallel") or "parallel"),
+        workers=int(getattr(args, "workers", DEFAULT_PARALLEL_INDEX_WORKERS) or 0),
+        incremental_pages_window=int(
+            getattr(args, "incremental_pages_window", DEFAULT_INCREMENTAL_PAGES_WINDOW) or 0
+        ),
+        hard_max_pages_per_forum=int(
+            getattr(args, "hard_max_pages_per_forum", DEFAULT_HARD_MAX_PAGES_PER_FORUM) or 0
+        ),
         base_index=str(getattr(args, "base_index", "") or ""),
         min_quality_score=float(getattr(args, "min_quality_score", 0.0) or 0.0),
         min_comment_quality_score=float(getattr(args, "min_comment_quality_score", 0.0) or 0.0),
@@ -1953,6 +2381,8 @@ def _build_search_index_namespace_from_find(args: Any, query: str) -> Any:
 
 def _build_relaxed_refresh_args(args: Any) -> Any:
     refreshed = _build_search_index_namespace_from_find(args, query=args.query)
+    refreshed.force = False
+    refreshed.indexer = str(getattr(refreshed, "indexer", "parallel") or "parallel")
     if not refreshed.forum_id and refreshed.limit_forums and refreshed.limit_forums <= 2:
         refreshed.limit_forums = 8
     refreshed.max_pages_per_forum = max(2, int(refreshed.max_pages_per_forum))
@@ -2264,9 +2694,17 @@ def build_search_index_parser() -> Any:
     parser.add_argument("--fallback-mirror", default=DEFAULT_FALLBACK_MIRROR)
     parser.add_argument("--extra-mirror", action="append", default=[])
     parser.add_argument("--no-fallback", action="store_true")
+    parser.add_argument("--indexer", choices=["parallel", "crawl"], default="parallel")
+    parser.add_argument("--workers", type=int, default=DEFAULT_PARALLEL_INDEX_WORKERS)
     parser.add_argument("--forum-id", action="append", type=int, default=[])
     parser.add_argument("--limit-forums", type=int, default=0)
     parser.add_argument("--max-pages-per-forum", type=int, default=2)
+    parser.add_argument(
+        "--incremental-pages-window", type=int, default=DEFAULT_INCREMENTAL_PAGES_WINDOW
+    )
+    parser.add_argument(
+        "--hard-max-pages-per-forum", type=int, default=DEFAULT_HARD_MAX_PAGES_PER_FORUM
+    )
     parser.add_argument("--request-interval", type=float, default=DEFAULT_REQUEST_INTERVAL_SEC)
     parser.add_argument("--jitter", type=float, default=DEFAULT_JITTER_SEC)
     parser.add_argument("--connect-timeout", type=float, default=DEFAULT_CONNECT_TIMEOUT_SEC)
@@ -2285,6 +2723,7 @@ def build_search_index_parser() -> Any:
     parser.add_argument("--min-quality-score", type=float, default=0.4)
     parser.add_argument("--min-comment-quality-score", type=float, default=0.15)
     parser.add_argument("--incremental", action="store_true")
+    parser.add_argument("--force", action="store_true")
     parser.add_argument("--base-index", default="")
     parser.add_argument("--max-base-records", type=int, default=200_000)
     return parser
@@ -2306,6 +2745,7 @@ def build_search_find_parser() -> Any:
     parser.add_argument("--min-quality-score", type=float, default=0.4)
     parser.add_argument("--min-comment-quality-score", type=float, default=0.15)
     parser.add_argument("--incremental", action="store_true")
+    parser.add_argument("--force", action="store_true")
     parser.add_argument("--base-index", default="")
     parser.add_argument("--max-base-records", type=int, default=200_000)
 
@@ -2314,9 +2754,17 @@ def build_search_find_parser() -> Any:
     parser.add_argument("--fallback-mirror", default=DEFAULT_FALLBACK_MIRROR)
     parser.add_argument("--extra-mirror", action="append", default=[])
     parser.add_argument("--no-fallback", action="store_true")
+    parser.add_argument("--indexer", choices=["parallel", "crawl"], default="parallel")
+    parser.add_argument("--workers", type=int, default=DEFAULT_PARALLEL_INDEX_WORKERS)
     parser.add_argument("--forum-id", action="append", type=int, default=[])
     parser.add_argument("--limit-forums", type=int, default=0)
     parser.add_argument("--max-pages-per-forum", type=int, default=1)
+    parser.add_argument(
+        "--incremental-pages-window", type=int, default=DEFAULT_INCREMENTAL_PAGES_WINDOW
+    )
+    parser.add_argument(
+        "--hard-max-pages-per-forum", type=int, default=DEFAULT_HARD_MAX_PAGES_PER_FORUM
+    )
     parser.add_argument("--request-interval", type=float, default=DEFAULT_REQUEST_INTERVAL_SEC)
     parser.add_argument("--jitter", type=float, default=DEFAULT_JITTER_SEC)
     parser.add_argument("--connect-timeout", type=float, default=DEFAULT_CONNECT_TIMEOUT_SEC)
