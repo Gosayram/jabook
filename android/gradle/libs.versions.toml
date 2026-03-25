@@ -7,7 +7,7 @@ targetSdk = "36"
 
 # Kotlin
 kotlin = "2.3.20"
-ksp = "2.3.3"
+ksp = "2.3.6"
 kotlinxCoroutines = "1.10.2"
 kotlinxSerialization = "1.10.0"
 
