@@ -16,6 +16,8 @@ package com.jabook.app.jabook.audio
 
 import android.app.Service
 import android.content.Intent
+import com.jabook.app.jabook.widget.PlayerWidgetProvider
+import com.jabook.app.jabook.widget.WidgetObservabilityPolicy
 
 /**
  * Handles intents sent to AudioPlayerService via onStartCommand.
@@ -23,6 +25,7 @@ import android.content.Intent
  */
 internal class ServiceIntentHandler(
     private val service: AudioPlayerService,
+    private val widgetActionDeduplicator: WidgetActionDeduplicator = WidgetActionDeduplicator(),
 ) {
     public fun handleStartCommand(
         intent: Intent?,
@@ -31,10 +34,54 @@ internal class ServiceIntentHandler(
     ): Boolean {
         // Handle actions from notification and timer
         val action = intent?.action
-        android.util.Log.d(
-            "AudioPlayerService",
-            "handleStartCommand called with action: $action, intent: $intent, flags: $flags, startId: $startId",
-        )
+        val widgetId =
+            intent?.getIntExtra(
+                PlayerWidgetProvider.EXTRA_APP_WIDGET_ID,
+                WidgetObservabilityPolicy.UNKNOWN_WIDGET_ID,
+            ) ?: WidgetObservabilityPolicy.UNKNOWN_WIDGET_ID
+        if (action == null || !WidgetActionDeduplicator.isWidgetAction(action)) {
+            android.util.Log.d(
+                "AudioPlayerService",
+                "handleStartCommand called with action: $action, intent: $intent, flags: $flags, startId: $startId",
+            )
+        }
+
+        if (action != null && WidgetActionDeduplicator.isWidgetAction(action)) {
+            val shouldHandle = widgetActionDeduplicator.shouldHandle(action, widgetId)
+            if (!shouldHandle) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    WidgetObservabilityPolicy.serviceMessage(
+                        event = "action_deduplicated",
+                        action = action,
+                        widgetId = widgetId,
+                        deduplicated = true,
+                    ),
+                )
+                return true
+            }
+            android.util.Log.d(
+                "AudioPlayerService",
+                WidgetObservabilityPolicy.serviceMessage(
+                    event = "action_accepted",
+                    action = action,
+                    widgetId = widgetId,
+                    deduplicated = false,
+                ),
+            )
+        }
+
+        val notifyWidgetUpdated: (String) -> Unit = { widgetAction ->
+            PlayerWidgetProvider.requestUpdate(service)
+            android.util.Log.d(
+                "AudioPlayerService",
+                WidgetObservabilityPolicy.serviceMessage(
+                    event = "request_update_sent",
+                    action = widgetAction,
+                    widgetId = widgetId,
+                ),
+            )
+        }
 
         val handled =
             when (action) {
@@ -109,25 +156,19 @@ internal class ServiceIntentHandler(
                     } else {
                         service.play()
                     }
-                    // Update widget after state change
-                    com.jabook.app.jabook.widget.PlayerWidgetProvider
-                        .requestUpdate(service)
+                    notifyWidgetUpdated(action)
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_NEXT" -> {
                     android.util.Log.d("AudioPlayerService", "Widget next action")
                     service.next()
-                    // Update widget after state change
-                    com.jabook.app.jabook.widget.PlayerWidgetProvider
-                        .requestUpdate(service)
+                    notifyWidgetUpdated(action)
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_PREVIOUS" -> {
                     android.util.Log.d("AudioPlayerService", "Widget previous action")
                     service.previous()
-                    // Update widget after state change
-                    com.jabook.app.jabook.widget.PlayerWidgetProvider
-                        .requestUpdate(service)
+                    notifyWidgetUpdated(action)
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_REPEAT" -> {
@@ -142,9 +183,7 @@ internal class ServiceIntentHandler(
                             else -> androidx.media3.common.Player.REPEAT_MODE_OFF
                         }
                     service.setRepeatMode(newRepeatMode)
-                    // Update widget after state change
-                    com.jabook.app.jabook.widget.PlayerWidgetProvider
-                        .requestUpdate(service)
+                    notifyWidgetUpdated(action)
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_SPEED" -> {
@@ -157,9 +196,7 @@ internal class ServiceIntentHandler(
                     val nextIndex = if (currentIndex >= 0 && currentIndex < speeds.size - 1) currentIndex + 1 else 0
                     val newSpeed = speeds[nextIndex]
                     service.setSpeed(newSpeed)
-                    // Update widget after state change
-                    com.jabook.app.jabook.widget.PlayerWidgetProvider
-                        .requestUpdate(service)
+                    notifyWidgetUpdated(action)
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_TIMER" -> {
@@ -177,9 +214,7 @@ internal class ServiceIntentHandler(
                     } else {
                         service.cancelSleepTimer()
                     }
-                    // Update widget after state change
-                    com.jabook.app.jabook.widget.PlayerWidgetProvider
-                        .requestUpdate(service)
+                    notifyWidgetUpdated(action)
                     true
                 }
                 else -> false

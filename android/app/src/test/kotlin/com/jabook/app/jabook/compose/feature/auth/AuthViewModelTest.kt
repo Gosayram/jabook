@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
+import app.cash.turbine.test
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
@@ -137,5 +138,33 @@ class AuthViewModelTest {
             viewModel.logout()
             testDispatcher.scheduler.advanceUntilIdle()
             verify(authRepository).logout()
+        }
+
+    @Test
+    fun `login emits loading then completion states with Turbine`() =
+        runTest {
+            whenever(authRepository.login(any())).thenReturn(Result.success(true))
+
+            viewModel.uiState.test {
+                val initial = awaitItem()
+                assertEquals(false, initial.isLoading)
+                assertNull(initial.error)
+
+                viewModel.login("test-user", "test-pass", rememberMe = false)
+                testDispatcher.scheduler.runCurrent()
+
+                val loading = awaitItem()
+                assertEquals(true, loading.isLoading)
+                assertNull(loading.error)
+
+                testDispatcher.scheduler.advanceUntilIdle()
+
+                val completed = awaitItem()
+                assertEquals(false, completed.isLoading)
+                assertNull(completed.error)
+                verify(authRepository).clearStoredCredentials()
+
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 }

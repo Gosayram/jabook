@@ -289,6 +289,20 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal val playerServiceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    private val foregroundNotificationCoordinator by lazy {
+        ForegroundNotificationCoordinator(
+            startForegroundCall = { notificationId, notification ->
+                startForeground(notificationId, notification)
+            },
+            logDebug = { message ->
+                LogUtils.d("AudioPlayerService", message)
+            },
+            logWarn = { message, throwable ->
+                LogUtils.w("AudioPlayerService", message, throwable)
+            },
+        )
+    }
+
     // Periodic position saving designated to PlaybackPositionRepository
     private var positionSaveJob: kotlinx.coroutines.Job? = null
 
@@ -480,25 +494,30 @@ public class AudioPlayerService : MediaLibraryService() {
             // CRITICAL: Start foreground immediately to avoid ANR and timeout issues (following Rhythm pattern)
             // MediaLibraryService will automatically manage notifications later, but we need to start foreground
             // immediately to prevent ForegroundServiceDidNotStartInTimeException
-            try {
-                // Initialize NotificationHelper first (needed for channel creation)
-                notificationHelper = NotificationHelper(this)
-                val initialNotification =
-                    notificationHelper?.createMinimalNotification()
-                        ?: NotificationHelper(this).createFallbackNotification()
-                startForeground(NotificationHelper.NOTIFICATION_ID, initialNotification)
-                LogUtils.e("JABOOK_SERVICE", "[OK] startForeground() called immediately")
-            } catch (e: Exception) {
-                LogUtils.e("JABOOK_SERVICE", "[ERROR] Failed to start foreground immediately", e)
-                // Try fallback notification
+            // Initialize NotificationHelper first (needed for channel creation)
+            val helper = NotificationHelper(this)
+            notificationHelper = helper
+            val initialNotification =
                 try {
-                    val fallbackNotification = NotificationHelper(this).createFallbackNotification()
-                    startForeground(NotificationHelper.NOTIFICATION_ID, fallbackNotification)
-                    LogUtils.e("JABOOK_SERVICE", "[OK] startForeground() called with fallback notification")
-                } catch (e2: Exception) {
-                    LogUtils.e("JABOOK_SERVICE", "[CRITICAL] Failed to start foreground even with fallback", e2)
-                    // Continue anyway - MediaLibraryService might handle it
+                    helper.createMinimalNotification()
+                } catch (e: Exception) {
+                    LogUtils.w("AudioPlayerService", "Failed to create minimal notification, using fallback", e)
+                    helper.createFallbackNotification()
                 }
+            val foregroundStartResult =
+                foregroundNotificationCoordinator.startWithFallback(
+                    notificationId = NotificationHelper.NOTIFICATION_ID,
+                    primaryNotification = initialNotification,
+                    fallbackNotificationProvider = { helper.createFallbackNotification() },
+                    event = "service_on_create",
+                )
+            if (foregroundStartResult == ForegroundStartResult.FAILED) {
+                LogUtils.e(
+                    "JABOOK_SERVICE",
+                    "[CRITICAL] Failed to start foreground with both primary and fallback notification",
+                )
+            } else {
+                LogUtils.e("JABOOK_SERVICE", "[OK] startForeground() completed with result=$foregroundStartResult")
             }
 
             // Set MediaSessionService.Listener for handling foreground service start exceptions
@@ -1598,7 +1617,15 @@ public class AudioPlayerService : MediaLibraryService() {
                                         setOnlyAlertOnce(true)
                                     }.build()
 
-                            startForeground(notificationId, nonDismissibleNotification)
+                            foregroundNotificationCoordinator.startWithFallback(
+                                notificationId = notificationId,
+                                primaryNotification = nonDismissibleNotification,
+                                fallbackNotificationProvider = {
+                                    notificationHelper?.createFallbackNotification()
+                                        ?: NotificationHelper(this@AudioPlayerService).createFallbackNotification()
+                                },
+                                event = "player_notification_posted",
+                            )
                         }
                     },
                 ).setSmallIconResourceId(com.jabook.app.jabook.R.drawable.ic_notification_logo)
@@ -1607,52 +1634,16 @@ public class AudioPlayerService : MediaLibraryService() {
         // listener to force refresh notification when metadata changes
         // CRITICAL: Debounce notification updates to prevent spam
         // Events can fire multiple times rapidly (e.g., onMediaItemTransition + onMediaMetadataChanged)
-        var notificationUpdateJob: kotlinx.coroutines.Job? = null
-        val debounceDelayMs = 150L // Wait 150ms before updating notification (balanced for responsiveness)
-
-        exoPlayer.addListener(
-            object : Player.Listener {
-                override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
-                    // Debounce notification update
-                    notificationUpdateJob?.cancel()
-                    val service = this@AudioPlayerService
-                    notificationUpdateJob =
-                        service.playerServiceScope.launch {
-                            kotlinx.coroutines.delay(debounceDelayMs)
-                            LogUtils.d("PlayerNotification", "onMediaMetadataChanged: invalidating notification (debounced)")
-                            service.playerNotificationManager?.invalidate()
-                        }
-                }
-
-                override fun onMediaItemTransition(
-                    mediaItem: androidx.media3.common.MediaItem?,
-                    reason: Int,
-                ) {
-                    // Debounce notification update
-                    notificationUpdateJob?.cancel()
-                    val service = this@AudioPlayerService
-                    notificationUpdateJob =
-                        service.playerServiceScope.launch {
-                            kotlinx.coroutines.delay(debounceDelayMs)
-                            LogUtils.d("PlayerNotification", "onMediaItemTransition: invalidating notification (debounced)")
-                            service.playerNotificationManager?.invalidate()
-                        }
-                }
-
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_READY) {
-                        // Immediate update for READY state (important for initial load)
-                        LogUtils.d("PlayerNotification", "onPlaybackStateChanged: READY, invalidating immediately")
-                        this@AudioPlayerService.playerNotificationManager?.invalidate()
-                    }
-                }
-
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    // Immediate update for play/pause (user expects instant feedback)
-                    LogUtils.d("PlayerNotification", "onIsPlayingChanged: $isPlaying, invalidating immediately")
+        val notificationInvalidationPipeline =
+            PlayerNotificationInvalidationPipeline(
+                scope = playerServiceScope,
+                invalidate = {
                     this@AudioPlayerService.playerNotificationManager?.invalidate()
-                }
-            },
+                },
+            )
+
+        notificationInvalidationPipeline.register(
+            player = exoPlayer,
         )
 
         playerNotificationManager?.setPlayer(exoPlayer)
@@ -1664,8 +1655,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
         // CRITICAL: Force immediate invalidate to ensure startForeground() is called within 5 seconds
         // This prevents ForegroundServiceDidNotStartInTimeException crash
-        LogUtils.d("PlayerNotification", "Forcing immediate invalidate for foreground state")
-        playerNotificationManager?.invalidate()
+        notificationInvalidationPipeline.forceInitialStateInvalidate()
     }
 
     /**

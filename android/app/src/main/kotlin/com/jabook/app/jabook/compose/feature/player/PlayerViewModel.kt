@@ -26,6 +26,7 @@ import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
+import com.jabook.app.jabook.compose.domain.model.toTypedResult
 import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCase
 import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
 
 /**
  * ViewModel for the Player screen.
@@ -110,9 +112,9 @@ public class PlayerViewModel
             // - Other system events
             viewModelScope.launch {
                 try {
-                    val positionResult = playbackPositionRepository.getPosition(bookId).first()
+                    val positionResult = playbackPositionRepository.getPosition(bookId).first().toTypedResult()
                     when (positionResult) {
-                        is com.jabook.app.jabook.audio.core.result.Result.Success -> {
+                        is TypedResult.Success -> {
                             positionResult.data?.let { entity ->
                                 savedPosition = entity.position
                                 savedChapterIndex = entity.trackIndex
@@ -121,12 +123,12 @@ public class PlayerViewModel
                                 }
                             }
                         }
-                        is com.jabook.app.jabook.audio.core.result.Result.Error -> {
-                            logger.w(positionResult.exception) {
-                                "Failed to restore position: ${positionResult.exception.message}"
+                        is TypedResult.Error -> {
+                            logger.w(positionResult.error.cause) {
+                                "Failed to restore position: ${positionResult.error.message}"
                             }
                         }
-                        else -> {
+                        is TypedResult.Loading -> {
                             // Loading state, will be updated when ready
                         }
                     }
@@ -169,10 +171,10 @@ public class PlayerViewModel
                     // Priority: Book Override -> Global Setting -> Hardcoded Default
                     val rewindInterval =
                         book.rewindDuration
-                            ?: if (preferences.rewindDurationSeconds > 0) preferences.rewindDurationSeconds.toInt() else 10
+                            ?: if (preferences.rewindDurationSeconds > 0) preferences.rewindDurationSeconds else 10
                     val forwardInterval =
                         book.forwardDuration
-                            ?: if (preferences.forwardDurationSeconds > 0) preferences.forwardDurationSeconds.toInt() else 30
+                            ?: if (preferences.forwardDurationSeconds > 0) preferences.forwardDurationSeconds else 30
 
                     // Use saved position from database if player hasn't loaded yet
                     // This ensures position is restored even if player hasn't started
@@ -227,7 +229,7 @@ public class PlayerViewModel
                     chapters.getOrNull(index)
                 }.collect { chapter ->
                     if (chapter?.fileUrl != null) {
-                        loadLyrics(chapter.fileUrl!!)
+                        loadLyrics(chapter.fileUrl)
                     } else {
                         lyricsState.value = null
                     }
@@ -255,7 +257,7 @@ public class PlayerViewModel
             viewModelScope.launch {
                 getBookDetailsUseCase(bookId).collect { book ->
                     if (book?.coverUrl != null) {
-                        extractColorsFromCover(book.coverUrl!!)
+                        extractColorsFromCover(book.coverUrl)
                     }
                 }
             }

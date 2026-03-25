@@ -73,6 +73,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -94,6 +95,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
@@ -194,22 +198,33 @@ public fun PlayerScreen(
         mutableStateOf(powerManager?.isPowerSaveMode == true)
     }
 
-    // Request permissions (Notifications + Audio Visualizer) immediately on entry
-    // Bundling them ensures the user is prompted as soon as they enter the player screen
-    val permissionsToRequest =
-        remember {
-            mutableListOf<String>()
-                .apply {
-                    // Notifications for Android 13+
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                        add(android.Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                    // Record Audio for Visualizer
-                    add(android.Manifest.permission.RECORD_AUDIO)
-                }.toTypedArray()
+    var hasRecordAudioPermission by remember {
+        mutableStateOf(
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.RECORD_AUDIO,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(context, lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    hasRecordAudioPermission =
+                        androidx.core.content.ContextCompat.checkSelfPermission(
+                            context,
+                            android.Manifest.permission.RECORD_AUDIO,
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
+    }
 
-    val multiplePermissionsLauncher =
+    val notificationPermissionsLauncher =
         androidx.activity.compose.rememberLauncherForActivityResult(
             contract =
                 androidx.activity.result.contract.ActivityResultContracts
@@ -242,18 +257,80 @@ public fun PlayerScreen(
                         }
                     }
                 }
+            },
+        )
 
-                // Handle Audio permission result
-                val audioGranted = result[android.Manifest.permission.RECORD_AUDIO] ?: false
-                if (audioGranted) {
-                    playerScreenLogger.d { "RECORD_AUDIO permission granted, visualizer enabled" }
+    val recordAudioPermissionLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .RequestPermission(),
+            onResult = { granted ->
+                hasRecordAudioPermission = granted
+                if (granted) {
+                    playerScreenLogger.d { "RECORD_AUDIO permission granted by user intent" }
+                    @Suppress("DEPRECATION")
+                    com.jabook.app.jabook.audio.AudioPlayerService
+                        .getInstance()
+                        ?.initializeVisualizer()
                 } else {
-                    playerScreenLogger.w { "RECORD_AUDIO permission denied, visualizer disabled" }
+                    playerScreenLogger.w { "RECORD_AUDIO permission denied by user intent" }
+                    scope.launch {
+                        val snackResult =
+                            snackbarHostState.showSnackbar(
+                                message = "Audio visualizer needs microphone permission",
+                                actionLabel = "Settings",
+                                duration = androidx.compose.material3.SnackbarDuration.Long,
+                            )
+                        if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                            try {
+                                val intent =
+                                    android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = android.net.Uri.fromParts("package", context.packageName, null)
+                                    }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                playerScreenLogger.e(e) { "Failed to open settings" }
+                            }
+                        }
+                    }
                 }
             },
         )
 
+    val requestRecordAudioPermission: () -> Unit = {
+        val alreadyGranted =
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.RECORD_AUDIO,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (alreadyGranted) {
+            hasRecordAudioPermission = true
+            @Suppress("DEPRECATION")
+            com.jabook.app.jabook.audio.AudioPlayerService
+                .getInstance()
+                ?.initializeVisualizer()
+        } else {
+            recordAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     androidx.compose.runtime.LaunchedEffect(Unit) {
+        val notificationPermissionGranted =
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                androidx.core.content.ContextCompat
+                    .checkSelfPermission(
+                        context,
+                        android.Manifest.permission.POST_NOTIFICATIONS,
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+        val permissionsToRequest =
+            PlayerPermissionPolicy.entryPermissionsToRequest(
+                sdkInt = android.os.Build.VERSION.SDK_INT,
+                isNotificationPermissionGranted = notificationPermissionGranted,
+            )
         val permissionsMissing =
             permissionsToRequest.filter {
                 androidx.core.content.ContextCompat
@@ -262,7 +339,7 @@ public fun PlayerScreen(
 
         if (permissionsMissing.isNotEmpty()) {
             playerScreenLogger.d { "Requesting permissions: $permissionsMissing" }
-            multiplePermissionsLauncher.launch(permissionsMissing.toTypedArray())
+            notificationPermissionsLauncher.launch(permissionsMissing.toTypedArray())
         }
     }
 
@@ -420,6 +497,8 @@ public fun PlayerScreen(
                                             }
                                         },
                                         onStatsClick = { showStatsOverlay = true },
+                                        hasRecordAudioPermission = hasRecordAudioPermission,
+                                        onRequestRecordAudioPermission = requestRecordAudioPermission,
                                         sharedTransitionScope = sharedTransitionScope,
                                         animatedVisibilityScope = animatedVisibilityScope,
                                     )
@@ -489,6 +568,8 @@ private fun PlayerContent(
     onSleepTimerClick: () -> Unit,
     onChapterRepeatClick: () -> Unit,
     onStatsClick: () -> Unit,
+    hasRecordAudioPermission: Boolean,
+    onRequestRecordAudioPermission: () -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
@@ -500,7 +581,7 @@ private fun PlayerContent(
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
             ?: throw IllegalStateException("Cannot get Activity from context")
     val rawWindowSizeClass = calculateWindowSizeClass(activity)
-    val windowSizeClass = AdaptiveUtils.getEffectiveWindowSizeClass(rawWindowSizeClass, context) ?: rawWindowSizeClass
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClass(rawWindowSizeClass, context)
 
     // Adaptive sizes for compact screens (phones)
     val isCompact = windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
@@ -856,36 +937,57 @@ private fun PlayerContent(
             // Audio Visualizer - hidden on compact screens to save space
             if (!isCompact) {
                 item {
-                    // getVisualizerWaveformData() requires direct service access (not available via MediaController)
                     @Suppress("DEPRECATION")
                     val service =
                         com.jabook.app.jabook.audio.AudioPlayerService
                             .getInstance()
-                    val waveformData by service
-                        ?.getVisualizerWaveformData()
-                        ?.collectAsStateWithLifecycle()
-                        ?: remember { androidx.compose.runtime.mutableStateOf(FloatArray(256)) }
-
-                    // Initialize visualizer when playing
-                    LaunchedEffect(state.isPlaying) {
-                        if (state.isPlaying) {
-                            service?.initializeVisualizer()
+                    LaunchedEffect(hasRecordAudioPermission) {
+                        if (!hasRecordAudioPermission) {
+                            service?.setVisualizerEnabled(false)
                         }
                     }
 
-                    AudioVisualizer(
-                        waveformData = waveformData,
-                        isPlaying = state.isPlaying,
-                        style = VisualizerStyle.CIRCULAR, // Upgraded to Circular Visualizer
-                        height = 48.dp,
-                        primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                        secondaryColor =
-                            state.themeColors?.primaryColor?.copy(alpha = 0.5f)
-                                ?: MaterialTheme.colorScheme.secondary,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth(),
-                    )
+                    if (hasRecordAudioPermission) {
+                        // getVisualizerWaveformData() requires direct service access (not available via MediaController)
+                        val waveformData by service
+                            ?.getVisualizerWaveformData()
+                            ?.collectAsStateWithLifecycle()
+                            ?: remember { androidx.compose.runtime.mutableStateOf(FloatArray(256)) }
+
+                        // Initialize visualizer only after explicit permission grant
+                        LaunchedEffect(state.isPlaying, hasRecordAudioPermission) {
+                            if (state.isPlaying) {
+                                service?.initializeVisualizer()
+                                service?.setVisualizerEnabled(true)
+                            } else {
+                                service?.setVisualizerEnabled(false)
+                            }
+                        }
+
+                        AudioVisualizer(
+                            waveformData = waveformData,
+                            isPlaying = state.isPlaying,
+                            style = VisualizerStyle.CIRCULAR,
+                            height = 48.dp,
+                            primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                            secondaryColor =
+                                state.themeColors?.primaryColor?.copy(alpha = 0.5f)
+                                    ?: MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        FilledTonalButton(
+                            onClick = onRequestRecordAudioPermission,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Tune,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 8.dp),
+                            )
+                            Text(text = "Enable visualizer")
+                        }
+                    }
                 }
             }
 

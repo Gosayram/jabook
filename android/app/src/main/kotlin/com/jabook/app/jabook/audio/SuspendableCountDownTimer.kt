@@ -51,6 +51,11 @@ public class SuspendableCountDownTimer(
     }
 
     /**
+     * Returns current remaining milliseconds.
+     */
+    public fun getRemainingMillis(): Long = remainingMillis
+
+    /**
      * Resumes the timer with remaining milliseconds.
      *
      * @return New SuspendableCountDownTimer instance

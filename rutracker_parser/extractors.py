@@ -1,0 +1,1727 @@
+from __future__ import annotations
+
+import json
+import re
+from urllib.parse import parse_qs, urljoin, urlparse
+
+from bs4 import BeautifulSoup, Tag
+
+from .constants import BLOCKED_QUERY_KEYS
+from .utils import normalize_url, query_value_as_int, utc_now_iso
+
+SEED_RE = re.compile(r"Сиды\s*[:\-]?\s*(\d+)", re.IGNORECASE)
+LEECH_RE = re.compile(r"Личи\s*[:\-]?\s*(\d+)", re.IGNORECASE)
+DOWNLOADS_RE = re.compile(r"(?:\.torrent\s+)?скачан\w*\s*[:\-]?\s*([\d\s,]+)", re.IGNORECASE)
+REGISTERED_RE = re.compile(r"Зарегистрирован\s*:\s*([^|\n\r]+)", re.IGNORECASE)
+BTIH_RE = re.compile(r"btih:([A-Fa-f0-9]{32,64})", re.IGNORECASE)
+
+SIZE_MULTIPLIER = {
+    "B": 1,
+    "KB": 1024,
+    "MB": 1024**2,
+    "GB": 1024**3,
+    "TB": 1024**4,
+}
+
+LOW_VALUE_NAV_LABELS = frozenset(
+    {
+        "",
+        ".",
+        "..",
+        "...",
+        "....",
+        ">>",
+        "<<",
+        ">",
+        "<",
+        "след",
+        "след.",
+        "пред",
+        "пред.",
+        "страницы",
+        "главная",
+        "nav",
+        "top",
+    }
+)
+
+FIELD_KEY_STOPWORDS = frozenset(
+    {
+        "или",
+        "и",
+        "но",
+        "а",
+        "что",
+        "как",
+        "когда",
+        "где",
+        "кто",
+        "это",
+        "битторрент",
+        "bittorrent",
+    }
+)
+
+FIELD_KEY_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9\s.,()/#:+\-]{1,62}$")
+
+
+def detect_page_type(url: str) -> str:
+    parsed = urlparse(url)
+    endpoint = parsed.path.rsplit("/", 1)[-1].lower()
+    if endpoint == "index.php":
+        return "index"
+    if endpoint == "viewforum.php":
+        return "forum"
+    if endpoint == "viewtopic.php":
+        return "topic"
+    if endpoint == "tracker.php":
+        return "tracker"
+    if endpoint == "profile.php":
+        return "profile"
+    if endpoint == "login.php":
+        return "login"
+    if endpoint == "bookmarks.php":
+        return "bookmarks"
+    if endpoint == "watching.php":
+        return "watching"
+    if endpoint == "privmsg.php":
+        return "privmsg"
+    return "generic"
+
+
+def _clean_text(value: str) -> str:
+    return " ".join(value.replace("\xa0", " ").split())
+
+
+def _extract_numeric(raw: str) -> int | None:
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if not digits:
+        return None
+    try:
+        return int(digits)
+    except ValueError:
+        return None
+
+
+def _parse_size_to_bytes(text: str) -> int | None:
+    cleaned = _clean_text(text).upper().replace(",", ".")
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(B|KB|MB|GB|TB)", cleaned)
+    if not match:
+        return None
+    try:
+        value = float(match.group(1))
+    except ValueError:
+        return None
+    unit = match.group(2)
+    multiplier = SIZE_MULTIPLIER.get(unit)
+    if not multiplier:
+        return None
+    return int(value * multiplier)
+
+
+def _normalize_attach_field_value(raw_value: str) -> str:
+    value = _clean_text(raw_value)
+    value = re.sub(r"\s*Скачать\s+по\s+magnet[-\s]ссылке\s*$", "", value, flags=re.IGNORECASE)
+    return _clean_text(value).strip()
+
+
+def _is_low_value_nav_label(label: str) -> bool:
+    normalized = _clean_text(label).lower().strip(".")
+    if not normalized:
+        return True
+    if normalized.isdigit():
+        return True
+    return normalized in LOW_VALUE_NAV_LABELS
+
+
+def _extract_search_id_from_url(url: str) -> str:
+    query = parse_qs(urlparse(url).query)
+    return _clean_text((query.get("search_id") or [""])[0])
+
+
+def _is_quote_or_spoiler_context(node: Tag) -> bool:
+    for parent in node.parents:
+        if not isinstance(parent, Tag):
+            continue
+        classes = [item.lower() for item in parent.get("class", [])]
+        if any(
+            marker in classes
+            for marker in (
+                "post-quote",
+                "q",
+                "quotetitle",
+                "quotemain",
+                "sp-wrap",
+                "sp-head",
+                "sp-body",
+            )
+        ):
+            return True
+    return False
+
+
+def _is_probable_field_key(raw_key: str) -> bool:
+    key = _clean_text(raw_key).strip(": ").strip()
+    if len(key) < 2 or len(key) > 63:
+        return False
+    if sum(1 for ch in key if ch.isalpha()) < 2:
+        return False
+    if not FIELD_KEY_RE.fullmatch(key):
+        return False
+    lowered = key.lower().replace("ё", "е")
+    if lowered in FIELD_KEY_STOPWORDS:
+        return False
+    return True
+
+
+def _is_internal_page(url: str, allowed_hosts: set[str]) -> bool:
+    parsed = urlparse(url)
+    return parsed.scheme in {"http", "https"} and parsed.netloc in allowed_hosts
+
+
+def _is_crawl_allowed(
+    url: str,
+    *,
+    allow_path_prefixes: tuple[str, ...],
+    allow_endpoints: frozenset[str],
+) -> bool:
+    parsed = urlparse(url)
+    if not any(parsed.path.startswith(prefix) for prefix in allow_path_prefixes):
+        return False
+    endpoint = parsed.path.rsplit("/", 1)[-1]
+    if endpoint and endpoint not in allow_endpoints:
+        return False
+    query = parse_qs(parsed.query)
+    if any(key in BLOCKED_QUERY_KEYS for key in query):
+        return False
+    return True
+
+
+def _relation(url: str) -> str:
+    if "viewforum.php" in url:
+        return "forum"
+    if "viewtopic.php" in url:
+        return "topic"
+    if "tracker.php" in url:
+        return "tracker"
+    if "profile.php" in url:
+        return "profile"
+    if "bookmarks.php" in url:
+        return "bookmarks"
+    if "watching.php" in url:
+        return "watching"
+    if "privmsg.php" in url:
+        return "privmsg"
+    if "memberlist.php" in url:
+        return "memberlist"
+    return "page"
+
+
+def _dedupe(items: list[dict], key_fields: tuple[str, ...]) -> list[dict]:
+    seen: set[tuple] = set()
+    unique: list[dict] = []
+    for item in items:
+        key = tuple(item.get(field) for field in key_fields)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(item)
+    return unique
+
+
+def _dedupe_prefer_rich(
+    items: list[dict], key_fields: tuple[str, ...], prefer_fields: tuple[str, ...]
+) -> list[dict]:
+    chosen: dict[tuple, dict] = {}
+    order: list[tuple] = []
+    for item in items:
+        key = tuple(item.get(field) for field in key_fields)
+        score = sum(1 for field in prefer_fields if item.get(field) not in (None, "", [], {}))
+        if key not in chosen:
+            chosen[key] = dict(item)
+            chosen[key]["__score"] = score
+            order.append(key)
+            continue
+        if score > chosen[key].get("__score", -1):
+            chosen[key] = dict(item)
+            chosen[key]["__score"] = score
+
+    result: list[dict] = []
+    for key in order:
+        payload = dict(chosen[key])
+        payload.pop("__score", None)
+        result.append(payload)
+    return result
+
+
+def _first_topic_anchor(row: Tag) -> Tag | None:
+    candidates = row.select("a[href*='viewtopic.php?t=']")
+    if not candidates:
+        return None
+
+    def score(anchor: Tag) -> tuple[int, int, int]:
+        href = anchor.get("href", "")
+        text = _clean_text(anchor.get_text(" ", strip=True))
+        has_view_newest = 1 if "view=newest" in href else 0
+        is_title_class = 1 if "tt-text" in (anchor.get("class") or []) else 0
+        return (len(text), is_title_class, -has_view_newest)
+
+    best = max(candidates, key=score)
+    return best
+
+
+def _extract_forum_rows(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict], list[dict]]:
+    topics: list[dict] = []
+    users: list[dict] = []
+    torrents: list[dict] = []
+
+    forum_id = query_value_as_int(url, "f")
+    rows = soup.select("tr.hl-tr[data-topic_id], tr.hl-tr[id^='tr-']")
+    for row in rows:
+        topic_id = _extract_numeric(row.get("data-topic_id", ""))
+        if topic_id is None:
+            topic_id = _extract_numeric(row.get("id", ""))
+        if topic_id is None:
+            continue
+
+        title_anchor = _first_topic_anchor(row)
+        title = _clean_text(title_anchor.get_text(" ", strip=True)) if title_anchor else ""
+        topic_url = (
+            normalize_url(urljoin(url, title_anchor["href"]))
+            if title_anchor and title_anchor.get("href")
+            else ""
+        )
+
+        newest_anchor = row.select_one("a.t-is-unread[href*='viewtopic.php?t=']")
+        newest_url = (
+            normalize_url(urljoin(url, newest_anchor.get("href", ""))) if newest_anchor else ""
+        )
+
+        author_anchor = row.select_one("div.topicAuthor a[href*='profile.php']")
+        author_name = _clean_text(author_anchor.get_text(" ", strip=True)) if author_anchor else ""
+        author_url = (
+            normalize_url(urljoin(url, author_anchor["href"]))
+            if author_anchor and author_anchor.get("href")
+            else ""
+        )
+
+        seed_node = row.select_one("span.seedmed b, span.seed b")
+        leech_node = row.select_one("span.leechmed b, span.leech b")
+        replies_node = row.select_one("td.vf-col-replies span[title*='Ответов']")
+        downloads_node = row.select_one("td.vf-col-replies p[title*='скачан'] b")
+
+        size_anchor = row.select_one("a.f-dl[href*='dl.php?t=']")
+        size_text = _clean_text(size_anchor.get_text(" ", strip=True)) if size_anchor else ""
+        size_bytes = _parse_size_to_bytes(size_text)
+        torrent_url = (
+            normalize_url(urljoin(url, size_anchor["href"]))
+            if size_anchor and size_anchor.get("href")
+            else ""
+        )
+
+        icon_node = row.select_one("td.vf-topic-icon-cell img.topic_icon")
+        icon_src = icon_node.get("src", "") if icon_node else ""
+        topic_icon_name = icon_src.rsplit("/", 1)[-1] if icon_src else ""
+
+        status_icon = row.select_one("span.tor-icon")
+        status_classes = status_icon.get("class", []) if status_icon else []
+
+        last_post_time = ""
+        last_post_user = ""
+        last_post_user_url = ""
+        last_post_link = ""
+        last_post_id = None
+
+        last_post_col = row.select_one("td.vf-col-last-post")
+        if last_post_col:
+            first_line = last_post_col.select_one("p")
+            if first_line:
+                last_post_time = _clean_text(first_line.get_text(" ", strip=True))
+
+            user_anchor = last_post_col.select_one("a[href*='profile.php']")
+            if user_anchor and user_anchor.get("href"):
+                last_post_user = _clean_text(user_anchor.get_text(" ", strip=True))
+                last_post_user_url = normalize_url(urljoin(url, user_anchor["href"]))
+
+            post_anchor = last_post_col.select_one("a[href*='viewtopic.php?p=']")
+            if post_anchor and post_anchor.get("href"):
+                last_post_link = normalize_url(urljoin(url, post_anchor["href"]))
+                last_post_id = query_value_as_int(last_post_link, "p")
+
+        topic_payload = {
+            "topic_id": topic_id,
+            "forum_id": forum_id,
+            "title": title,
+            "url": topic_url,
+            "newest_url": newest_url,
+            "source_url": url,
+            "author": author_name,
+            "author_url": author_url,
+            "author_id": query_value_as_int(author_url, "u") if author_url else None,
+            "seeders": _extract_numeric(seed_node.get_text(" ", strip=True)) if seed_node else None,
+            "leechers": (
+                _extract_numeric(leech_node.get_text(" ", strip=True)) if leech_node else None
+            ),
+            "replies": (
+                _extract_numeric(replies_node.get_text(" ", strip=True)) if replies_node else None
+            ),
+            "downloads": (
+                _extract_numeric(downloads_node.get_text(" ", strip=True))
+                if downloads_node
+                else None
+            ),
+            "size_text": size_text,
+            "size_bytes": size_bytes,
+            "torrent_url": torrent_url,
+            "is_unread": bool(newest_anchor),
+            "is_sticky": "sticky" in topic_icon_name,
+            "topic_icon": topic_icon_name,
+            "topic_status_classes": status_classes,
+            "last_post_at": last_post_time,
+            "last_post_user": last_post_user,
+            "last_post_user_url": last_post_user_url,
+            "last_post_user_id": (
+                query_value_as_int(last_post_user_url, "u") if last_post_user_url else None
+            ),
+            "last_post_url": last_post_link,
+            "last_post_id": last_post_id,
+            "ts": utc_now_iso(),
+        }
+        topics.append(topic_payload)
+
+        if author_url:
+            users.append(
+                {
+                    "user_id": query_value_as_int(author_url, "u"),
+                    "name": author_name,
+                    "url": author_url,
+                    "source_url": url,
+                    "kind": "topic_author",
+                    "topic_id": topic_id,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+        if last_post_user_url:
+            users.append(
+                {
+                    "user_id": query_value_as_int(last_post_user_url, "u"),
+                    "name": last_post_user,
+                    "url": last_post_user_url,
+                    "source_url": url,
+                    "kind": "last_poster",
+                    "topic_id": topic_id,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+        if torrent_url:
+            torrents.append(
+                {
+                    "source_url": url,
+                    "topic_id": topic_id,
+                    "torrent_url": torrent_url,
+                    "size_text": size_text,
+                    "size_bytes": size_bytes,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+    return topics, users, torrents
+
+
+def _extract_tracker_rows(
+    url: str, soup: BeautifulSoup
+) -> tuple[list[dict], list[dict], list[dict], list[dict], bool]:
+    topics: list[dict] = []
+    users: list[dict] = []
+    torrents: list[dict] = []
+    forums: list[dict] = []
+    no_results = False
+
+    for row in soup.select("#tor-tbl tbody tr"):
+        topic_id = _extract_numeric(row.get("data-topic_id", ""))
+        if topic_id is None:
+            row_text = _clean_text(row.get_text(" ", strip=True)).lower()
+            if "не найдено" in row_text:
+                no_results = True
+            continue
+
+        cells = row.find_all("td", recursive=False)
+        if len(cells) < 10:
+            continue
+
+        forum_anchor = row.select_one("td.f-name-col a[href]")
+        forum_title = _clean_text(forum_anchor.get_text(" ", strip=True)) if forum_anchor else ""
+        forum_url = (
+            normalize_url(urljoin(url, forum_anchor.get("href", ""))) if forum_anchor else ""
+        )
+        forum_id = query_value_as_int(forum_url, "f") if forum_url else None
+
+        topic_anchor = row.select_one("td.t-title-col a[href*='viewtopic.php?t=']")
+        topic_title = _clean_text(topic_anchor.get_text(" ", strip=True)) if topic_anchor else ""
+        topic_url = (
+            normalize_url(urljoin(url, topic_anchor.get("href", ""))) if topic_anchor else ""
+        )
+
+        uploader_anchor = row.select_one("td.u-name-col a[href*='tracker.php?pid=']")
+        uploader_name = (
+            _clean_text(uploader_anchor.get_text(" ", strip=True)) if uploader_anchor else ""
+        )
+        uploader_url = (
+            normalize_url(urljoin(url, uploader_anchor.get("href", ""))) if uploader_anchor else ""
+        )
+        uploader_pid = query_value_as_int(uploader_url, "pid") if uploader_url else None
+
+        size_cell = cells[5]
+        size_anchor = size_cell.select_one("a[href*='dl.php?t=']")
+        size_text = _clean_text((size_anchor or size_cell).get_text(" ", strip=True))
+        size_bytes = _extract_numeric(size_cell.get("data-ts_text", "")) if size_cell else None
+        if size_bytes is None:
+            size_bytes = _parse_size_to_bytes(size_text)
+        torrent_url = (
+            normalize_url(urljoin(url, size_anchor.get("href", ""))) if size_anchor else ""
+        )
+
+        seed_cell = cells[6]
+        leech_cell = cells[7]
+        downloads_cell = cells[8]
+        added_cell = cells[9]
+
+        seeders = _extract_numeric(seed_cell.get("data-ts_text", "")) or _extract_numeric(
+            seed_cell.get_text(" ", strip=True)
+        )
+        leechers = _extract_numeric(leech_cell.get("data-ts_text", "")) or _extract_numeric(
+            leech_cell.get_text(" ", strip=True)
+        )
+        downloads = _extract_numeric(downloads_cell.get("data-ts_text", "")) or _extract_numeric(
+            downloads_cell.get_text(" ", strip=True)
+        )
+        added_ts = _extract_numeric(added_cell.get("data-ts_text", ""))
+        added_node = added_cell.select_one("p")
+        added_at = _clean_text((added_node or added_cell).get_text(" ", strip=True))
+
+        status_node = row.select_one("span.tor-icon")
+        status_text = _clean_text(status_node.get_text(" ", strip=True)) if status_node else ""
+        status_classes = status_node.get("class", []) if status_node else []
+        status_title = _clean_text(cells[1].get("title", ""))
+
+        icon_img = cells[0].select_one("img")
+        topic_icon_alt = _clean_text(icon_img.get("alt", "")) if icon_img else ""
+
+        topics.append(
+            {
+                "topic_id": topic_id,
+                "forum_id": forum_id,
+                "forum_title": forum_title,
+                "forum_url": forum_url,
+                "title": topic_title,
+                "url": topic_url,
+                "source_url": url,
+                "author": uploader_name,
+                "author_url": uploader_url,
+                "uploader": uploader_name,
+                "uploader_url": uploader_url,
+                "uploader_pid": uploader_pid,
+                "size_text": size_text,
+                "size_bytes": size_bytes,
+                "torrent_url": torrent_url,
+                "seeders": seeders,
+                "leechers": leechers,
+                "downloads": downloads,
+                "added_at": added_at,
+                "added_ts": added_ts,
+                "status_text": status_text,
+                "status_title": status_title,
+                "status_classes": status_classes,
+                "topic_icon_alt": topic_icon_alt,
+                "ts": utc_now_iso(),
+            }
+        )
+
+        if forum_url or forum_title:
+            forums.append(
+                {
+                    "forum_id": forum_id,
+                    "title": forum_title,
+                    "url": forum_url,
+                    "source_url": url,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+        if uploader_url or uploader_name:
+            users.append(
+                {
+                    "user_id": None,
+                    "tracker_pid": uploader_pid,
+                    "name": uploader_name,
+                    "url": uploader_url,
+                    "source_url": url,
+                    "kind": "tracker_uploader",
+                    "topic_id": topic_id,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+        if torrent_url:
+            torrents.append(
+                {
+                    "source_url": url,
+                    "topic_id": topic_id,
+                    "forum_id": forum_id,
+                    "torrent_url": torrent_url,
+                    "size_text": size_text,
+                    "size_bytes": size_bytes,
+                    "seeders": seeders,
+                    "leechers": leechers,
+                    "downloads": downloads,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+    return topics, users, torrents, forums, no_results
+
+
+def _extract_forum_pagination(url: str, soup: BeautifulSoup) -> dict:
+    links_raw: list[dict] = []
+    for anchor in soup.select("a.pg[href]"):
+        href = anchor.get("href", "")
+        if not href:
+            continue
+        normalized = normalize_url(urljoin(url, href))
+        label = _clean_text(anchor.get_text(" ", strip=True))
+        start = query_value_as_int(normalized, "start")
+        links_raw.append({"url": normalized, "label": label, "start": start})
+
+    links = _dedupe(links_raw, ("url", "label", "start"))
+
+    numeric_pages = [_extract_numeric(item["label"] or "") for item in links]
+    numeric_pages = [p for p in numeric_pages if p is not None]
+
+    return {
+        "links": links,
+        "has_next": any(item["label"].startswith("След") for item in links),
+        "max_page_number": max(numeric_pages) if numeric_pages else None,
+    }
+
+
+def _extract_tracker_page_counter(
+    url: str, pagination: dict, soup: BeautifulSoup
+) -> tuple[int | None, int | None]:
+    start = query_value_as_int(url, "start")
+    current_page = (start // 50) + 1 if isinstance(start, int) else 1
+    total_pages = pagination.get("max_page_number")
+
+    nav_node = soup.select_one("td.nav")
+    nav_text = _clean_text(nav_node.get_text(" ", strip=True)) if nav_node else ""
+    nav_match = re.search(r"Страница\s*(\d+)\s*из\s*(\d+)", nav_text, flags=re.IGNORECASE)
+    if nav_match:
+        if start is None:
+            current_page = _extract_numeric(nav_match.group(1)) or current_page
+        if total_pages is None:
+            total_pages = _extract_numeric(nav_match.group(2))
+
+    if total_pages is None:
+        links = pagination.get("links", [])
+        if links:
+            total_pages = max(((item.get("start") or 0) // 50) + 1 for item in links)
+        elif current_page:
+            total_pages = current_page
+
+    return current_page, total_pages
+
+
+def _extract_topic_field_map(post_body: Tag) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for label in post_body.select("span.post-b"):
+        if _is_quote_or_spoiler_context(label):
+            continue
+
+        raw_key = _clean_text(label.get_text(" ", strip=True))
+        key = raw_key.strip(": ").strip()
+        if not _is_probable_field_key(key):
+            continue
+
+        separator_seen = raw_key.rstrip().endswith(":")
+        values: list[str] = []
+        for sibling in label.next_siblings:
+            if isinstance(sibling, Tag) and sibling.name == "br":
+                break
+            if isinstance(sibling, Tag):
+                text = _clean_text(sibling.get_text(" ", strip=True))
+            else:
+                text = _clean_text(str(sibling))
+            if not text:
+                continue
+            if not separator_seen:
+                if text == ":":
+                    separator_seen = True
+                    continue
+                if ":" not in text:
+                    continue
+                left, right = text.split(":", 1)
+                if left.strip():
+                    continue
+                separator_seen = True
+                text = _clean_text(right)
+                if not text:
+                    continue
+            values.append(text)
+
+        if not separator_seen:
+            continue
+        value = _clean_text(" ".join(values)).strip(":")
+        if value:
+            if key in fields and len(fields[key]) >= len(value):
+                continue
+            fields[key] = value
+
+    return fields
+
+
+QUOTE_CLASS_MARKERS = frozenset(
+    {
+        "q-wrap",
+        "q",
+        "q-head",
+        "q-post",
+        "post-quote",
+        "quotemain",
+    }
+)
+
+SPOILER_CLASS_MARKERS = frozenset(
+    {
+        "sp-wrap",
+        "sp-head",
+        "sp-body",
+        "sp-no-auto-open",
+    }
+)
+
+
+def _is_in_context_classes(node: Tag, class_markers: frozenset[str]) -> bool:
+    for parent in [node, *node.parents]:
+        if not isinstance(parent, Tag):
+            continue
+        classes = {item.lower() for item in parent.get("class", [])}
+        if classes.intersection(class_markers):
+            return True
+    return False
+
+
+def _extract_post_id_from_url(url: str) -> int | None:
+    post_id = query_value_as_int(url, "p")
+    if post_id is not None:
+        return post_id
+    fragment = urlparse(url).fragment
+    if fragment:
+        return _extract_numeric(fragment)
+    return None
+
+
+def _extract_links_detailed(url: str, root: Tag) -> list[dict]:
+    source_host = urlparse(url).netloc
+    links: list[dict] = []
+    for anchor in root.select("a[href]"):
+        href = anchor.get("href", "").strip()
+        if not href:
+            continue
+        absolute = normalize_url(urljoin(url, href))
+        parsed = urlparse(absolute)
+
+        rel_value = anchor.get("rel", [])
+        if isinstance(rel_value, str):
+            rel_values = [_clean_text(rel_value).lower()] if rel_value else []
+        else:
+            rel_values = [_clean_text(item).lower() for item in rel_value if item]
+
+        classes = [_clean_text(item) for item in anchor.get("class", []) if item]
+        links.append(
+            {
+                "url": absolute,
+                "href": href,
+                "text": _clean_text(anchor.get_text(" ", strip=True)),
+                "title": _clean_text(anchor.get("title", "")),
+                "classes": classes,
+                "rel": rel_values,
+                "is_external": parsed.netloc != source_host if parsed.netloc else False,
+                "is_quote": _is_in_context_classes(anchor, QUOTE_CLASS_MARKERS),
+                "is_spoiler": _is_in_context_classes(anchor, SPOILER_CLASS_MARKERS),
+                "topic_id": query_value_as_int(absolute, "t"),
+                "forum_id": query_value_as_int(absolute, "f"),
+                "user_id": query_value_as_int(absolute, "u"),
+                "post_id": _extract_post_id_from_url(absolute),
+            }
+        )
+    return _dedupe(
+        links,
+        (
+            "url",
+            "text",
+            "is_quote",
+            "is_spoiler",
+        ),
+    )
+
+
+def _extract_images_detailed(url: str, root: Tag) -> list[dict]:
+    images: list[dict] = []
+    for img_var in root.select("var.postImg[title]"):
+        raw = _clean_text(img_var.get("title", ""))
+        if not raw:
+            continue
+        absolute = normalize_url(urljoin(url, raw))
+        images.append(
+            {
+                "url": absolute,
+                "source": "var.postImg",
+                "alt": "",
+                "title": raw,
+                "classes": [_clean_text(item) for item in img_var.get("class", []) if item],
+                "is_smile": False,
+                "is_quote": _is_in_context_classes(img_var, QUOTE_CLASS_MARKERS),
+                "is_spoiler": _is_in_context_classes(img_var, SPOILER_CLASS_MARKERS),
+            }
+        )
+
+    for img in root.select("img[src]"):
+        raw_src = img.get("src", "").strip()
+        if not raw_src:
+            continue
+        absolute = normalize_url(urljoin(url, raw_src))
+        classes = [_clean_text(item) for item in img.get("class", []) if item]
+        images.append(
+            {
+                "url": absolute,
+                "source": "img",
+                "alt": _clean_text(img.get("alt", "")),
+                "title": _clean_text(img.get("title", "")),
+                "classes": classes,
+                "is_smile": "smile" in {item.lower() for item in classes},
+                "is_quote": _is_in_context_classes(img, QUOTE_CLASS_MARKERS),
+                "is_spoiler": _is_in_context_classes(img, SPOILER_CLASS_MARKERS),
+            }
+        )
+
+    return _dedupe(images, ("url", "source", "is_quote", "is_spoiler"))
+
+
+def _extract_quote_blocks(url: str, post_body: Tag) -> list[dict]:
+    quotes: list[dict] = []
+    for quote_wrap in post_body.select("div.q-wrap"):
+        head_node = quote_wrap.select_one("div.q-head")
+        quote_node = quote_wrap.select_one("div.q") or quote_wrap
+        author_raw = ""
+        if head_node:
+            author_node = head_node.select_one("b")
+            if author_node:
+                author_raw = _clean_text(author_node.get_text(" ", strip=True))
+            else:
+                author_raw = _clean_text(head_node.get_text(" ", strip=True))
+        author = re.sub(r"\s*писал\(а\)\s*:?\s*$", "", author_raw, flags=re.IGNORECASE).strip()
+        if author.lower() == "цитата":
+            author = ""
+
+        quoted_post_node = quote_wrap.select_one("u.q-post")
+        quoted_post_id = (
+            _extract_numeric(quoted_post_node.get_text(" ", strip=True))
+            if quoted_post_node
+            else None
+        )
+        quote_links = _extract_links_detailed(url, quote_node)
+        quote_images = _extract_images_detailed(url, quote_node)
+        quotes.append(
+            {
+                "author": author,
+                "quoted_post_id": quoted_post_id,
+                "header_text": (
+                    _clean_text(head_node.get_text(" ", strip=True)) if head_node else ""
+                ),
+                "text": _clean_text(quote_node.get_text(" ", strip=True)),
+                "html": quote_node.decode_contents(),
+                "links": quote_links,
+                "image_urls": [item.get("url", "") for item in quote_images if item.get("url")],
+            }
+        )
+    return quotes
+
+
+def _extract_spoiler_blocks(url: str, post_body: Tag) -> list[dict]:
+    spoilers: list[dict] = []
+    for spoiler_wrap in post_body.select("div.sp-wrap"):
+        head_node = spoiler_wrap.select_one("div.sp-head")
+        body_node = spoiler_wrap.select_one("div.sp-body")
+        node = body_node or spoiler_wrap
+        spoiler_links = _extract_links_detailed(url, node)
+        spoiler_images = _extract_images_detailed(url, node)
+        head_classes = {item.lower() for item in (head_node.get("class", []) if head_node else [])}
+        spoilers.append(
+            {
+                "title": _clean_text(head_node.get_text(" ", strip=True)) if head_node else "",
+                "is_folded": "folded" in head_classes,
+                "text": _clean_text(node.get_text(" ", strip=True)),
+                "html": node.decode_contents(),
+                "links": spoiler_links,
+                "image_urls": [item.get("url", "") for item in spoiler_images if item.get("url")],
+            }
+        )
+    return spoilers
+
+
+def _extract_reply_targets(quotes: list[dict], links: list[dict]) -> list[int]:
+    targets = {
+        int(item["quoted_post_id"])
+        for item in quotes
+        if isinstance(item.get("quoted_post_id"), int)
+    }
+    for link in links:
+        post_id = link.get("post_id")
+        if isinstance(post_id, int):
+            targets.add(post_id)
+    return sorted(targets)
+
+
+def _extract_formatting_stats(post_body: Tag, quotes: list[dict], spoilers: list[dict]) -> dict:
+    image_count = len(post_body.select("img[src]")) + len(post_body.select("var.postImg[title]"))
+    return {
+        "bold_count": len(post_body.select("b, strong, span.post-b")),
+        "italic_count": len(post_body.select("i, em")),
+        "underline_count": len(post_body.select("u")),
+        "strike_count": len(post_body.select("s, strike, del")),
+        "code_count": len(post_body.select("code, pre")),
+        "line_break_count": len(post_body.select("br, span.post-br")),
+        "link_count": len(post_body.select("a[href]")),
+        "image_count": image_count,
+        "smile_count": len(post_body.select("img.smile")),
+        "quote_count": len(quotes),
+        "spoiler_count": len(spoilers),
+        "list_item_count": len(post_body.select("ul li, ol li")),
+        "align_block_count": len(post_body.select(".post-align")),
+        "styled_block_count": len(post_body.select("[style]")),
+    }
+
+
+def _extract_ext_meta(raw_value: str) -> dict[str, str]:
+    raw = (raw_value or "").strip()
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return {str(k): _clean_text(str(v)) for k, v in parsed.items()}
+    except json.JSONDecodeError:
+        pass
+
+    fallback: dict[str, str] = {}
+    for part in raw.replace("{", "").replace("}", "").replace('"', "").split(","):
+        if ":" not in part:
+            continue
+        key, value = part.split(":", 1)
+        fallback[key.strip()] = _clean_text(value)
+    return fallback
+
+
+def _extract_posts(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict]]:
+    posts: list[dict] = []
+    users: list[dict] = []
+
+    topic_id = query_value_as_int(url, "t")
+    for body in soup.select("div.post_body[id^='p-']"):
+        post_id = _extract_numeric(body.get("id", ""))
+        tbody = body.find_parent("tbody")
+        poster = tbody.select_one("td.poster_info") if tbody else None
+
+        nickname = ""
+        joined = ""
+        message_count = None
+        flag_title = ""
+        avatar_url = ""
+        poster_profile_url = ""
+        poster_pm_url = ""
+
+        if poster:
+            nick_node = poster.select_one("p.nick")
+            nickname = _clean_text(nick_node.get_text(" ", strip=True)) if nick_node else ""
+
+            joined_node = poster.select_one("p.joined")
+            joined = _clean_text(joined_node.get_text(" ", strip=True)) if joined_node else ""
+
+            posts_node = poster.select_one("p.posts")
+            message_count = (
+                _extract_numeric(posts_node.get_text(" ", strip=True)) if posts_node else None
+            )
+
+            flag_node = poster.select_one("img.poster-flag")
+            flag_title = _clean_text(flag_node.get("title", "")) if flag_node else ""
+
+            avatar_node = poster.select_one("p.avatar img[src], p.avatar img[title], p.avatar img")
+            if avatar_node:
+                avatar_raw = (
+                    avatar_node.get("src", "").strip() or avatar_node.get("title", "").strip()
+                )
+                avatar_url = normalize_url(urljoin(url, avatar_raw)) if avatar_raw else ""
+
+        if tbody:
+            profile_anchor = tbody.select_one("td.poster_btn a[href*='profile.php']")
+            if profile_anchor and profile_anchor.get("href"):
+                poster_profile_url = normalize_url(urljoin(url, profile_anchor.get("href", "")))
+            pm_anchor = tbody.select_one("td.poster_btn a[href*='privmsg.php']")
+            if pm_anchor and pm_anchor.get("href"):
+                poster_pm_url = normalize_url(urljoin(url, pm_anchor.get("href", "")))
+
+        head = body.find_parent("td", class_="message")
+        posted_at = ""
+        edited_info = ""
+        quote_action_url = ""
+        quote_action_post_id = None
+        if head:
+            link = head.select_one("p.post-time a.p-link")
+            posted_at = _clean_text(link.get_text(" ", strip=True)) if link else ""
+            edited_node = head.select_one("span.posted_since")
+            edited_info = _clean_text(edited_node.get_text(" ", strip=True)) if edited_node else ""
+
+            quote_anchor = head.select_one("a[href*='posting.php?mode=quote']")
+            if quote_anchor and quote_anchor.get("href"):
+                quote_action_url = normalize_url(urljoin(url, quote_anchor.get("href", "")))
+                quote_action_post_id = query_value_as_int(quote_action_url, "p")
+
+        fields = _extract_topic_field_map(body)
+        text_lines = [
+            _clean_text(line)
+            for line in body.get_text("\n", strip=True).splitlines()
+            if _clean_text(line)
+        ]
+        body_text = _clean_text(" ".join(text_lines))
+
+        links_detailed = _extract_links_detailed(url, body)
+        images_detailed = _extract_images_detailed(url, body)
+        quotes = _extract_quote_blocks(url, body)
+        spoilers = _extract_spoiler_blocks(url, body)
+        reply_to_post_ids = _extract_reply_targets(quotes, links_detailed)
+        reply_to_users = sorted(
+            {
+                _clean_text(item.get("author", ""))
+                for item in quotes
+                if _clean_text(item.get("author", ""))
+            }
+        )
+        formatting_stats = _extract_formatting_stats(body, quotes, spoilers)
+
+        signature_text = ""
+        signature_html = ""
+        signature_links: list[str] = []
+        signature_images: list[str] = []
+        post_wrap = body.find_parent("div", class_="post_wrap")
+        if post_wrap:
+            signature_node = post_wrap.select_one("div.signature .sig-body")
+            if signature_node:
+                signature_text = _clean_text(signature_node.get_text(" ", strip=True))
+                signature_html = signature_node.decode_contents()
+                signature_links = [
+                    item.get("url", "")
+                    for item in _extract_links_detailed(url, signature_node)
+                    if item.get("url")
+                ]
+                signature_images = [
+                    item.get("url", "")
+                    for item in _extract_images_detailed(url, signature_node)
+                    if item.get("url")
+                ]
+
+        ext_meta = _extract_ext_meta(body.get("data-ext_link_data", ""))
+
+        posts.append(
+            {
+                "topic_id": topic_id,
+                "post_id": post_id,
+                "url": f"{url}#{post_id}" if post_id else url,
+                "source_url": url,
+                "poster": nickname,
+                "poster_joined": joined,
+                "poster_message_count": message_count,
+                "poster_flag": flag_title,
+                "poster_avatar_url": avatar_url,
+                "poster_profile_url": poster_profile_url,
+                "poster_pm_url": poster_pm_url,
+                "posted_at": posted_at,
+                "edited_info": edited_info,
+                "quote_action_url": quote_action_url,
+                "quote_action_post_id": quote_action_post_id,
+                "text": body_text,
+                "text_lines": text_lines,
+                "html": body.decode_contents(),
+                "fields": fields,
+                "image_urls": [item.get("url", "") for item in images_detailed if item.get("url")],
+                "images_detailed": images_detailed,
+                "links": [item.get("url", "") for item in links_detailed if item.get("url")],
+                "links_detailed": links_detailed,
+                "quotes": quotes,
+                "spoilers": spoilers,
+                "reply_to_post_ids": reply_to_post_ids,
+                "reply_to_users": reply_to_users,
+                "formatting_stats": formatting_stats,
+                "signature_text": signature_text,
+                "signature_html": signature_html,
+                "signature_links": signature_links,
+                "signature_images": signature_images,
+                "ext_meta": ext_meta,
+                "ts": utc_now_iso(),
+            }
+        )
+
+        user_id = None
+        if ext_meta.get("u"):
+            user_id = _extract_numeric(ext_meta.get("u", ""))
+        if user_id is None and poster_profile_url:
+            user_id = query_value_as_int(poster_profile_url, "u")
+        if user_id is not None or nickname:
+            users.append(
+                {
+                    "user_id": user_id,
+                    "name": nickname,
+                    "url": (
+                        poster_profile_url
+                        or (
+                            normalize_url(urljoin(url, f"profile.php?mode=viewprofile&u={user_id}"))
+                            if user_id
+                            else ""
+                        )
+                    ),
+                    "pm_url": poster_pm_url,
+                    "avatar_url": avatar_url,
+                    "source_url": url,
+                    "kind": "post_author",
+                    "post_id": post_id,
+                    "topic_id": topic_id,
+                    "joined": joined,
+                    "message_count": message_count,
+                    "flag": flag_title,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+    return posts, users
+
+
+def _extract_category_tree(url: str, soup: BeautifulSoup) -> list[dict]:
+    categories: list[dict] = []
+    for category in soup.select("div.category[id^='c-']"):
+        category_id = _extract_numeric(category.get("id", ""))
+        cat_anchor = category.select_one("h3.cat_title a[href]")
+        if not cat_anchor:
+            continue
+
+        category_title = _clean_text(cat_anchor.get_text(" ", strip=True))
+        category_url = normalize_url(urljoin(url, cat_anchor.get("href", "")))
+
+        forums_table = category.select_one("table.forums")
+        if not forums_table:
+            categories.append(
+                {
+                    "category_id": category_id,
+                    "category_title": category_title,
+                    "category_url": category_url,
+                    "forum_id": None,
+                    "forum_title": "",
+                    "forum_url": "",
+                    "subforums": [],
+                    "ts": utc_now_iso(),
+                }
+            )
+            continue
+
+        for row in forums_table.select("tr[id^='f-']"):
+            forum_id = _extract_numeric(row.get("id", ""))
+            forum_anchor = row.select_one("h4.forumlink a[href]")
+            forum_title = (
+                _clean_text(forum_anchor.get_text(" ", strip=True)) if forum_anchor else ""
+            )
+            forum_url = (
+                normalize_url(urljoin(url, forum_anchor.get("href", ""))) if forum_anchor else ""
+            )
+
+            subforums: list[dict] = []
+            for sf_anchor in row.select("p.subforums a[href]"):
+                sf_url = normalize_url(urljoin(url, sf_anchor.get("href", "")))
+                subforums.append(
+                    {
+                        "forum_id": query_value_as_int(sf_url, "f"),
+                        "title": _clean_text(sf_anchor.get_text(" ", strip=True)),
+                        "url": sf_url,
+                    }
+                )
+
+            categories.append(
+                {
+                    "category_id": category_id,
+                    "category_title": category_title,
+                    "category_url": category_url,
+                    "forum_id": forum_id,
+                    "forum_title": forum_title,
+                    "forum_url": forum_url,
+                    "subforums": subforums,
+                    "ts": utc_now_iso(),
+                }
+            )
+    return categories
+
+
+def _extract_profile_details(url: str, soup: BeautifulSoup) -> dict:
+    profile_details: dict[str, str] = {}
+    for row in soup.select("tr"):
+        cells = row.find_all("td", recursive=False)
+        if len(cells) < 2:
+            continue
+        label = _clean_text(cells[0].get_text(" ", strip=True)).strip(":")
+        value = _clean_text(cells[1].get_text(" ", strip=True))
+        if not label or not value:
+            continue
+        if len(label) > 80:
+            continue
+        if label in profile_details:
+            continue
+        profile_details[label] = value
+
+    user_id = query_value_as_int(url, "u")
+    header = soup.select_one("h1, .maintitle")
+    display_name = _clean_text(header.get_text(" ", strip=True)) if header else ""
+
+    return {
+        "user_id": user_id,
+        "url": url,
+        "display_name": display_name,
+        "fields": profile_details,
+        "ts": utc_now_iso(),
+    }
+
+
+def _extract_topic_meta(
+    url: str, soup: BeautifulSoup, stats_text: str, magnets: list[str], torrent_urls: list[str]
+) -> dict:
+    meta: dict[str, object] = {}
+
+    share_node = soup.select_one("#soc-container")
+    if share_node:
+        meta["share_title"] = _clean_text(share_node.get("data-share_title", ""))
+        share_url = share_node.get("data-share_url", "")
+        meta["share_url"] = normalize_url(urljoin(url, share_url)) if share_url else ""
+
+    attach_table = soup.select_one("table.attach")
+    field_rows: dict[str, str] = {}
+    if attach_table:
+        for row in attach_table.select("tr.row1"):
+            cells = row.find_all("td", recursive=False)
+            if len(cells) < 2:
+                continue
+            key = _clean_text(cells[0].get_text(" ", strip=True)).strip(":")
+            value = _normalize_attach_field_value(cells[1].get_text(" ", strip=True))
+            if key and value:
+                field_rows[key] = value
+
+        dl_topic = attach_table.select_one("a.dl-topic[href*='dl.php?t=']")
+        if dl_topic:
+            dl_url = normalize_url(urljoin(url, dl_topic.get("href", "")))
+            meta["torrent_download_url"] = dl_url
+
+        tor_file_size = attach_table.select_one("a.dl-topic + p.small")
+        if tor_file_size:
+            meta["torrent_file_size"] = _clean_text(tor_file_size.get_text(" ", strip=True))
+
+    meta["fields"] = field_rows
+
+    hash_values: list[str] = []
+    for magnet in magnets:
+        match = BTIH_RE.search(magnet)
+        if match:
+            hash_values.append(match.group(1).upper())
+    for anchor in soup.select("a.magnet-link[title]"):
+        title_hash = _clean_text(anchor.get("title", ""))
+        if title_hash:
+            hash_values.append(title_hash.upper())
+
+    meta["hashes"] = sorted(set(hash_values))
+    meta["magnets"] = magnets
+    meta["torrent_links"] = torrent_urls
+
+    seed_match = SEED_RE.search(stats_text)
+    leech_match = LEECH_RE.search(stats_text)
+    downloads_match = DOWNLOADS_RE.search(stats_text)
+    registered_match = REGISTERED_RE.search(stats_text)
+    if seed_match:
+        meta["seeders"] = _extract_numeric(seed_match.group(1))
+    if leech_match:
+        meta["leechers"] = _extract_numeric(leech_match.group(1))
+    if downloads_match:
+        meta["downloads"] = _extract_numeric(downloads_match.group(1))
+    if registered_match:
+        meta["registered"] = _clean_text(registered_match.group(1))
+
+    topic_status_node = soup.select_one("#tor-status-resp")
+    if topic_status_node:
+        meta["topic_status_text"] = _clean_text(topic_status_node.get_text(" ", strip=True))
+
+    meta["topic_id"] = query_value_as_int(url, "t")
+    meta["url"] = url
+    meta["ts"] = utc_now_iso()
+    return meta
+
+
+def extract_page(
+    *,
+    url: str,
+    html: str,
+    allowed_hosts: set[str],
+    allow_path_prefixes: tuple[str, ...],
+    allow_endpoints: frozenset[str],
+) -> dict:
+    page_type = detect_page_type(url)
+    soup = BeautifulSoup(html, "lxml")
+
+    title_node = soup.find("title")
+    title = _clean_text(title_node.get_text()) if title_node else ""
+
+    breadcrumbs = [
+        _clean_text(node.get_text())
+        for node in soup.select("td.nav a, .nav a, .t-breadcrumb-top a")
+    ]
+    breadcrumb_links = [
+        {
+            "title": _clean_text(node.get_text(" ", strip=True)),
+            "url": normalize_url(urljoin(url, node.get("href", ""))),
+        }
+        for node in soup.select("td.nav a[href], .nav a[href], .t-breadcrumb-top a[href]")
+        if node.get("href")
+    ]
+
+    links: list[dict] = []
+    forums: list[dict] = []
+    topics: list[dict] = []
+    users: list[dict] = []
+    torrents: list[dict] = []
+    categories: list[dict] = []
+    posts: list[dict] = []
+
+    for anchor in soup.select("a[href]"):
+        href = anchor.get("href", "").strip()
+        if not href:
+            continue
+
+        absolute = normalize_url(urljoin(url, href))
+        if absolute.startswith("magnet:"):
+            torrents.append(
+                {
+                    "source_url": url,
+                    "magnet": absolute,
+                    "label": _clean_text(anchor.get_text(" ", strip=True)),
+                    "ts": utc_now_iso(),
+                }
+            )
+            continue
+
+        if not _is_internal_page(absolute, allowed_hosts):
+            continue
+
+        crawlable = _is_crawl_allowed(
+            absolute,
+            allow_path_prefixes=allow_path_prefixes,
+            allow_endpoints=allow_endpoints,
+        )
+
+        label = _clean_text(anchor.get_text(" ", strip=True))
+        relation = _relation(absolute)
+        links.append(
+            {
+                "from": url,
+                "to": absolute,
+                "label": label,
+                "relation": relation,
+                "crawlable": crawlable,
+                "ts": utc_now_iso(),
+            }
+        )
+
+        forum_id = query_value_as_int(absolute, "f")
+        if forum_id is not None and "viewforum.php" in absolute:
+            forums.append(
+                {
+                    "forum_id": forum_id,
+                    "title": label,
+                    "url": absolute,
+                    "source_url": url,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+        topic_id = query_value_as_int(absolute, "t")
+        if topic_id is not None and "viewtopic.php" in absolute:
+            start_offset = query_value_as_int(absolute, "start")
+            post_id = query_value_as_int(absolute, "p")
+            if post_id is not None:
+                continue
+            if start_offset is not None and _is_low_value_nav_label(label):
+                continue
+            if _is_low_value_nav_label(label) and "view=newest" not in absolute:
+                continue
+            topics.append(
+                {
+                    "topic_id": topic_id,
+                    "title": label,
+                    "url": absolute,
+                    "source_url": url,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+        user_id = query_value_as_int(absolute, "u")
+        if user_id is not None and "profile.php" in absolute:
+            users.append(
+                {
+                    "user_id": user_id,
+                    "name": label,
+                    "url": absolute,
+                    "source_url": url,
+                    "kind": "profile_link",
+                    "ts": utc_now_iso(),
+                }
+            )
+
+        if "dl.php" in absolute and "t=" in absolute:
+            torrents.append(
+                {
+                    "source_url": url,
+                    "torrent_url": absolute,
+                    "label": label,
+                    "topic_id": query_value_as_int(absolute, "t"),
+                    "ts": utc_now_iso(),
+                }
+            )
+
+    tracker_no_results = False
+    if page_type == "tracker":
+        tracker_topics, tracker_users, tracker_torrents, tracker_forums, tracker_no_results = (
+            _extract_tracker_rows(url, soup)
+        )
+        topics = tracker_topics
+        users = tracker_users
+        torrents = tracker_torrents
+        forums = tracker_forums
+    else:
+        forum_topics, forum_users, forum_torrents = _extract_forum_rows(url, soup)
+        topics.extend(forum_topics)
+        users.extend(forum_users)
+        torrents.extend(forum_torrents)
+
+    pagination = (
+        _extract_forum_pagination(url, soup)
+        if page_type in {"forum", "tracker"}
+        else {"links": [], "has_next": False, "max_page_number": None}
+    )
+
+    topic_details: dict | None = None
+    topic_meta: dict | None = None
+    if page_type == "topic":
+        topic_id = query_value_as_int(url, "t")
+
+        stats_node = soup.select_one("#t-tor-stats")
+        stats_text = (
+            _clean_text(stats_node.get_text(" ", strip=True))
+            if stats_node
+            else _clean_text(soup.get_text(" ", strip=True))
+        )
+
+        size_bytes = None
+        size_human = ""
+        size_node = soup.select_one("#tor-size-humn")
+        if size_node:
+            size_human = _clean_text(size_node.get_text(" ", strip=True))
+            size_bytes = _extract_numeric(size_node.get("title", ""))
+        if size_bytes is None:
+            size_bytes = _parse_size_to_bytes(stats_text)
+
+        seeders = None
+        leechers = None
+        downloads = None
+
+        seed_node = soup.select_one("#t-tor-stats span.seed b, span.seed b")
+        if seed_node:
+            seeders = _extract_numeric(seed_node.get_text(" ", strip=True))
+        else:
+            seed_match = SEED_RE.search(stats_text)
+            if seed_match:
+                seeders = _extract_numeric(seed_match.group(1))
+
+        leech_node = soup.select_one("#t-tor-stats span.leech b, span.leech b")
+        if leech_node:
+            leechers = _extract_numeric(leech_node.get_text(" ", strip=True))
+        else:
+            leech_match = LEECH_RE.search(stats_text)
+            if leech_match:
+                leechers = _extract_numeric(leech_match.group(1))
+
+        downloads_match = DOWNLOADS_RE.search(stats_text)
+        if downloads_match:
+            downloads = _extract_numeric(downloads_match.group(1))
+
+        registered_value = None
+        registered_match = REGISTERED_RE.search(stats_text)
+        if registered_match:
+            registered_value = _clean_text(registered_match.group(1))
+
+        magnet_urls = [
+            normalize_url(urljoin(url, a.get("href", "")))
+            for a in soup.select("a.magnet-link[href], a[href^='magnet:?xt=urn:btih:']")
+            if a.get("href")
+        ]
+        torrent_urls = [
+            normalize_url(urljoin(url, a.get("href", "")))
+            for a in soup.select("a[href*='dl.php?t=']")
+            if a.get("href")
+        ]
+
+        parsed_posts, post_users = _extract_posts(url, soup)
+        posts.extend(parsed_posts)
+        users.extend(post_users)
+
+        topic_details = {
+            "topic_id": topic_id,
+            "title": title,
+            "url": url,
+            "size_bytes": size_bytes,
+            "size_human": size_human,
+            "seeders": seeders,
+            "leechers": leechers,
+            "downloads": downloads,
+            "registered": registered_value,
+            "magnets": magnet_urls,
+            "torrent_links": torrent_urls,
+            "posts": parsed_posts,
+            "ts": utc_now_iso(),
+        }
+        topic_meta = _extract_topic_meta(url, soup, stats_text, magnet_urls, torrent_urls)
+
+        for magnet in magnet_urls:
+            torrents.append(
+                {"source_url": url, "topic_id": topic_id, "magnet": magnet, "ts": utc_now_iso()}
+            )
+        for torrent_url in torrent_urls:
+            torrents.append(
+                {
+                    "source_url": url,
+                    "topic_id": topic_id,
+                    "torrent_url": torrent_url,
+                    "ts": utc_now_iso(),
+                }
+            )
+
+    forum_details: dict | None = None
+    if page_type == "forum":
+        forum_id = query_value_as_int(url, "f")
+        maintitle_anchor = soup.select_one("h1.maintitle a[href]")
+        forum_details = {
+            "forum_id": forum_id,
+            "title": title,
+            "maintitle": (
+                _clean_text(maintitle_anchor.get_text(" ", strip=True)) if maintitle_anchor else ""
+            ),
+            "maintitle_url": (
+                normalize_url(urljoin(url, maintitle_anchor.get("href", "")))
+                if maintitle_anchor
+                else ""
+            ),
+            "description": (
+                _clean_text(
+                    (soup.select_one(".forum-desc-in-title") or Tag(name="div")).get_text(
+                        " ", strip=True
+                    )
+                )
+                if soup.select_one(".forum-desc-in-title")
+                else ""
+            ),
+            "url": url,
+            "topics_discovered": len(topics),
+            "subforums_discovered": len(forums),
+            "pagination": pagination,
+            "ts": utc_now_iso(),
+        }
+
+    tracker_details: dict | None = None
+    if page_type == "tracker":
+        query_map = parse_qs(urlparse(url).query, keep_blank_values=True)
+        query_text = _clean_text((query_map.get("nm") or [""])[0])
+        if not query_text:
+            nm_input = soup.select_one("form[action*='tracker.php'] input[name='nm']")
+            if nm_input:
+                query_text = _clean_text(nm_input.get("value", ""))
+
+        forum_filters = []
+        for raw in query_map.get("f", []) + query_map.get("f[]", []):
+            value = _extract_numeric(raw)
+            if value is not None:
+                forum_filters.append(value)
+        if not forum_filters:
+            for node in soup.select("form[action*='tracker.php'] input[name='f[]'][checked]"):
+                value = _extract_numeric(node.get("value", ""))
+                if value is not None:
+                    forum_filters.append(value)
+
+        sort_by = _clean_text((query_map.get("o") or [""])[0])
+        sort_dir = _clean_text((query_map.get("s") or [""])[0])
+        if not sort_by:
+            sort_input = soup.select_one("form[action*='tracker.php'] input[name='o']")
+            sort_by = _clean_text(sort_input.get("value", "")) if sort_input else ""
+        if not sort_dir:
+            sort_dir_input = soup.select_one("form[action*='tracker.php'] input[name='s']")
+            sort_dir = _clean_text(sort_dir_input.get("value", "")) if sort_dir_input else ""
+
+        current_page, total_pages = _extract_tracker_page_counter(url, pagination, soup)
+        search_id = _clean_text((query_map.get("search_id") or [""])[0])
+        if not search_id:
+            for page_link in pagination.get("links", []):
+                candidate = _extract_search_id_from_url(page_link.get("url", ""))
+                if candidate:
+                    search_id = candidate
+                    break
+        if not search_id:
+            for item in breadcrumb_links:
+                candidate = _extract_search_id_from_url(item.get("url", ""))
+                if candidate:
+                    search_id = candidate
+                    break
+
+        topic_forum_ids = {
+            int(topic["forum_id"]) for topic in topics if isinstance(topic.get("forum_id"), int)
+        }
+        if not topic_forum_ids:
+            topic_forum_ids = {
+                int(forum["forum_id"]) for forum in forums if isinstance(forum.get("forum_id"), int)
+            }
+
+        tracker_details = {
+            "url": url,
+            "title": title,
+            "topics_discovered": len(topics),
+            "forums_discovered": len(topic_forum_ids) if topic_forum_ids else len(forums),
+            "results_count": len(topics),
+            "has_results": bool(topics),
+            "no_results": tracker_no_results,
+            "query": query_text,
+            "search_id": search_id,
+            "forum_filters": sorted(set(forum_filters)),
+            "sort_by": sort_by,
+            "sort_dir": sort_dir,
+            "current_page": current_page,
+            "total_pages": total_pages,
+            "pagination": pagination,
+            "ts": utc_now_iso(),
+        }
+
+    if page_type == "index":
+        categories = _extract_category_tree(url, soup)
+
+    profile_details: dict | None = None
+    if page_type == "profile":
+        profile_details = _extract_profile_details(url, soup)
+        if profile_details.get("user_id") is not None:
+            users.append(
+                {
+                    "user_id": profile_details.get("user_id"),
+                    "name": profile_details.get("display_name", ""),
+                    "url": profile_details.get("url", ""),
+                    "source_url": url,
+                    "kind": "profile_page",
+                    "fields": profile_details.get("fields", {}),
+                    "ts": utc_now_iso(),
+                }
+            )
+
+    forms: list[dict] = []
+    for form in soup.select("form"):
+        action = form.get("action", "").strip()
+        method = form.get("method", "GET").upper()
+        forms.append(
+            {
+                "action": normalize_url(urljoin(url, action)) if action else url,
+                "method": method,
+                "fields": [
+                    inp.get("name", "") for inp in form.select("input[name]") if inp.get("name")
+                ],
+            }
+        )
+
+    page_signals = {
+        "contains_antiphishing_banner": "Похоже, вас пытаются обмануть" in html,
+        "contains_login_form": bool(soup.select_one("form[action*='login.php']")),
+        "contains_logout_action": "logout.php" in html,
+        "has_magnet_links": bool(soup.select_one("a.magnet-link")),
+        "has_torrent_download_link": bool(soup.select_one("a[href*='dl.php?t=']")),
+    }
+
+    forums = _dedupe(forums, ("forum_id", "url"))
+    topics_with_id = [item for item in topics if isinstance(item.get("topic_id"), int)]
+    topics_without_id = [item for item in topics if not isinstance(item.get("topic_id"), int)]
+    topics = _dedupe_prefer_rich(
+        topics_with_id,
+        ("topic_id",),
+        (
+            "seeders",
+            "leechers",
+            "downloads",
+            "size_text",
+            "size_bytes",
+            "torrent_url",
+            "author",
+            "title",
+            "last_post_id",
+        ),
+    )
+    topics.extend(_dedupe_prefer_rich(topics_without_id, ("url",), ("title", "source_url")))
+    users = _dedupe_prefer_rich(
+        users,
+        ("user_id", "url", "kind"),
+        ("name", "joined", "message_count", "post_id", "topic_id", "avatar_url", "fields"),
+    )
+    torrents = _dedupe(torrents, ("topic_id", "torrent_url", "magnet", "source_url"))
+    links = _dedupe(links, ("from", "to"))
+    categories = _dedupe(categories, ("category_id", "forum_id", "forum_url"))
+    posts = _dedupe_prefer_rich(
+        posts,
+        ("topic_id", "post_id"),
+        (
+            "fields",
+            "images_detailed",
+            "links_detailed",
+            "quotes",
+            "spoilers",
+            "reply_to_post_ids",
+            "formatting_stats",
+            "poster_avatar_url",
+            "poster_profile_url",
+            "signature_images",
+            "poster",
+            "text",
+        ),
+    )
+
+    return {
+        "page_type": page_type,
+        "title": title,
+        "breadcrumbs": breadcrumbs,
+        "breadcrumb_links": breadcrumb_links,
+        "links": links,
+        "forums": forums,
+        "topics": topics,
+        "users": users,
+        "torrents": torrents,
+        "categories": categories,
+        "posts": posts,
+        "topic_details": topic_details,
+        "topic_meta": topic_meta,
+        "forum_details": forum_details,
+        "tracker_details": tracker_details,
+        "profile_details": profile_details,
+        "pagination": pagination,
+        "page_signals": page_signals,
+        "forms": forms,
+    }

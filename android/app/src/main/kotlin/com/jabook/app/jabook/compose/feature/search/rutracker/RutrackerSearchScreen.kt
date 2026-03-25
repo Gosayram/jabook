@@ -101,21 +101,10 @@ public fun RutrackerSearchScreen(
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            ?: null
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
-    val contentPadding =
-        if (windowSizeClass != null) {
-            AdaptiveUtils.getContentPadding(windowSizeClass)
-        } else {
-            16.dp
-        }
-    val itemSpacing =
-        if (windowSizeClass != null) {
-            AdaptiveUtils.getItemSpacing(windowSizeClass)
-        } else {
-            12.dp
-        }
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
+    val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
     var searchQuery by remember { mutableStateOf("") }
     val searchState by viewModel.searchState.collectAsState()
@@ -548,9 +537,8 @@ private fun SearchResultCard(
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            ?: null
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     Card(
@@ -561,18 +549,8 @@ private fun SearchResultCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         // Use adaptive padding and spacing
-        val cardPadding =
-            if (windowSizeClass != null) {
-                AdaptiveUtils.getCardPadding(windowSizeClass)
-            } else {
-                12.dp // Default compact padding
-            }
-        val itemSpacing =
-            if (windowSizeClass != null) {
-                AdaptiveUtils.getItemSpacing(windowSizeClass)
-            } else {
-                12.dp // Default compact spacing
-            }
+        val cardPadding = AdaptiveUtils.getCardPaddingOrDefault(windowSizeClass)
+        val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
         Row(
             modifier = Modifier.padding(cardPadding),
             horizontalArrangement = Arrangement.spacedBy(itemSpacing),

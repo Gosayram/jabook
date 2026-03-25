@@ -1,0 +1,53 @@
+{
+  "matrix": {
+    "forum_tree": "both",
+    "forum_pagination": "both",
+    "topic_listing": "both",
+    "topic_content": "both",
+    "topic_magnet_links": "both",
+    "public_user_links": "both",
+    "site_graph_edges": "both",
+    "torrent_download_links": "auth",
+    "user_bookmarks": "auth",
+    "watched_topics": "auth",
+    "private_profile_fields": "auth",
+    "pm_sections": "auth"
+  },
+  "guest": {
+    "mode": "guest",
+    "working": [
+      "forum_pagination",
+      "forum_tree",
+      "public_user_links",
+      "site_graph_edges",
+      "topic_content",
+      "topic_listing",
+      "topic_magnet_links"
+    ],
+    "blocked": [
+      "pm_sections",
+      "private_profile_fields",
+      "torrent_download_links",
+      "user_bookmarks",
+      "watched_topics"
+    ]
+  },
+  "auth": {
+    "mode": "auth",
+    "working": [
+      "forum_pagination",
+      "forum_tree",
+      "pm_sections",
+      "private_profile_fields",
+      "public_user_links",
+      "site_graph_edges",
+      "topic_content",
+      "topic_listing",
+      "topic_magnet_links",
+      "torrent_download_links",
+      "user_bookmarks",
+      "watched_topics"
+    ],
+    "blocked": []
+  }
+}

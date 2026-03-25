@@ -49,6 +49,7 @@ public class CrossFadePlayer(
     public var crossFadeDurationMs: Long = 0L
     private var currentAnimator: ValueAnimator? = null
     private var isCrossFading = false
+    private var crossFadeOutPlayer: ExoPlayer? = null
 
     public var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
 
@@ -56,18 +57,20 @@ public class CrossFadePlayer(
      * Prepares the next player with the given media item.
      */
     public fun setNextTrack(mediaItem: androidx.media3.common.MediaItem) {
-        nextPlayer.setMediaItem(mediaItem)
-        nextPlayer.prepare()
-        android.util.Log.d("CrossFadePlayer", "Next track prepared on $nextPlayer")
+        val targetPlayer = resolvePreloadTargetPlayer()
+        targetPlayer.setMediaItem(mediaItem)
+        targetPlayer.prepare()
+        android.util.Log.d("CrossFadePlayer", "Next track prepared on $targetPlayer")
     }
 
     /**
      * Prepares the next player with the given media source.
      */
     public fun setNextMediaSource(mediaSource: MediaSource) {
-        nextPlayer.setMediaSource(mediaSource)
-        nextPlayer.prepare()
-        android.util.Log.d("CrossFadePlayer", "Next media source prepared on $nextPlayer")
+        val targetPlayer = resolvePreloadTargetPlayer()
+        targetPlayer.setMediaSource(mediaSource)
+        targetPlayer.prepare()
+        android.util.Log.d("CrossFadePlayer", "Next media source prepared on $targetPlayer")
     }
 
     /**
@@ -92,9 +95,12 @@ public class CrossFadePlayer(
      * Stops playback and releases resources.
      */
     public fun release() {
+        currentAnimator?.cancel()
+        currentAnimator = null
+        isCrossFading = false
+        crossFadeOutPlayer = null
         playerA.release()
         playerB.release()
-        currentAnimator?.cancel()
     }
 
     /**
@@ -108,6 +114,7 @@ public class CrossFadePlayer(
 
         val fadingOutPlayer = currentPlayer
         val fadingInPlayer = nextPlayer
+        crossFadeOutPlayer = fadingOutPlayer
 
         // Ensure starting volumes
         fadingOutPlayer.volume = 1f
@@ -126,7 +133,7 @@ public class CrossFadePlayer(
 
         currentAnimator =
             ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = crossFadeDurationMs.toLong()
+                duration = crossFadeDurationMs
                 interpolator = LinearInterpolator()
 
                 addUpdateListener { animation ->
@@ -150,6 +157,7 @@ public class CrossFadePlayer(
 
                             // Swap players
                             swapPlayers()
+                            crossFadeOutPlayer = null
                             onComplete()
                             android.util.Log.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
                         }
@@ -157,6 +165,16 @@ public class CrossFadePlayer(
                 )
                 start()
             }
+    }
+
+    private fun resolvePreloadTargetPlayer(): ExoPlayer {
+        // During crossfade, `nextPlayer` is currently fading in and about to become active.
+        // Queue updates should preload into the outgoing player, which becomes standby after swap.
+        return if (isCrossFading) {
+            crossFadeOutPlayer ?: nextPlayer
+        } else {
+            nextPlayer
+        }
     }
 
     private fun swapPlayers() {

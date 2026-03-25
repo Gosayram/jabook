@@ -52,6 +52,7 @@ public class LoudnessNormalizer(
 
     // Use ArrayDeque for O(1) add/remove operations (better than mutableListOf)
     private val rmsBuffer = ArrayDeque<Float>()
+    private var rmsWindowSum = 0.0f
 
     // Gain adjustment (in linear scale)
     private var gainMultiplier = 1.0f
@@ -61,6 +62,7 @@ public class LoudnessNormalizer(
 
     // Input/output buffers
     private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
 
@@ -70,11 +72,13 @@ public class LoudnessNormalizer(
 
         // Calculate window size in samples
         val sampleRate = inputAudioFormat.sampleRate
-        windowSizeSamples = (sampleRate * windowSizeMs / 1000).toInt()
+        windowSizeSamples = (sampleRate * windowSizeMs / 1000).coerceAtLeast(1)
 
         // Initialize RMS buffer
         rmsBuffer.clear()
+        rmsWindowSum = 0.0f
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
 
@@ -107,6 +111,7 @@ public class LoudnessNormalizer(
             buffer.put(inputBuffer)
             buffer.flip()
             inputBuffers.add(buffer)
+            queuedInputBytes += buffer.remaining()
         }
     }
 
@@ -120,7 +125,7 @@ public class LoudnessNormalizer(
         }
 
         // Process all input buffers
-        val totalSize = inputBuffers.sumOf { it.remaining() }
+        val totalSize = queuedInputBytes
         if (totalSize == 0) {
             return EMPTY_BUFFER
         }
@@ -133,17 +138,25 @@ public class LoudnessNormalizer(
                 0L
             }
 
-        // Allocate output buffer
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        // Reuse output buffer when possible to avoid frequent allocations
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
 
         // Process each input buffer
         for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
+            processBuffer(inputBuffer, preparedOutputBuffer)
         }
 
         inputBuffers.clear()
-        outputBuffer!!.flip()
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
 
         // Log processing time if profiling enabled
         if (startTime > 0) {
@@ -159,7 +172,7 @@ public class LoudnessNormalizer(
             }
         }
 
-        return outputBuffer!!
+        return preparedOutputBuffer
     }
 
     /**
@@ -174,8 +187,6 @@ public class LoudnessNormalizer(
         // Only process 16-bit PCM (most common format)
         if (format.encoding != android.media.AudioFormat.ENCODING_PCM_16BIT) {
             // For other formats, pass through (can be extended later)
-            val remaining = input.remaining()
-            val position = output.position()
             output.put(input)
             return
         }
@@ -215,20 +226,17 @@ public class LoudnessNormalizer(
 
         val rms = kotlin.math.sqrt(sumSquares / (samples * channels)).toFloat()
 
-        // Update RMS buffer (sliding window) - O(1) operations with ArrayDeque
+        // Update RMS sliding window using running-sum (O(1) avg calculation)
         rmsBuffer.addLast(rms)
+        rmsWindowSum += rms
         if (rmsBuffer.size > windowSizeSamples) {
-            rmsBuffer.removeFirst()
+            rmsWindowSum -= rmsBuffer.removeFirst()
         }
 
-        // Calculate average RMS over window (optimized: avoid creating intermediate list)
+        // Average RMS over the current window in O(1)
         val avgRms =
             if (rmsBuffer.isNotEmpty()) {
-                var sum = 0.0f
-                for (value in rmsBuffer) {
-                    sum += value
-                }
-                sum / rmsBuffer.size
+                rmsWindowSum / rmsBuffer.size
             } else {
                 rms
             }
@@ -287,9 +295,12 @@ public class LoudnessNormalizer(
 
     override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
 
+    @Suppress("OVERRIDE_DEPRECATION")
     override fun flush() {
         rmsBuffer.clear()
+        rmsWindowSum = 0.0f
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
         // Reset gain only if not using ReplayGain

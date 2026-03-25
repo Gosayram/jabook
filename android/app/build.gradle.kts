@@ -1,8 +1,90 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.Properties
+import javax.inject.Inject
+
+abstract class GenerateProtoLiteTask : DefaultTask() {
+    @get:Input
+    abstract val windowsHost: org.gradle.api.provider.Property<Boolean>
+
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val protoSourceDir: DirectoryProperty
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val protoFiles: ConfigurableFileCollection
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val protocBinaryFiles: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @get:OutputFile
+    abstract val protocOutputFile: RegularFileProperty
+
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @TaskAction
+    fun generate() {
+        val protocBinary = protocBinaryFiles.singleFile
+        val protocFile = protocOutputFile.get().asFile
+        protocFile.parentFile.mkdirs()
+        Files.copy(protocBinary.toPath(), protocFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        if (!windowsHost.get()) {
+            protocFile.setExecutable(true)
+        }
+
+        val output = outputDir.get().asFile
+        output.mkdirs()
+
+        val protoRoot = protoSourceDir.get().asFile
+        val protoPaths =
+            protoFiles
+                .files
+                .map(File::getAbsolutePath)
+                .sorted()
+
+        if (protoPaths.isEmpty()) {
+            logger.lifecycle("No proto files found in ${protoRoot.absolutePath}, skipping protobuf generation")
+            return
+        }
+
+        val args =
+            mutableListOf(
+                "--java_out=lite:${output.absolutePath}",
+                "-I${protoRoot.absolutePath}",
+            ).apply {
+                addAll(protoPaths)
+            }
+
+        execOperations.exec {
+            executable = protocFile.absolutePath
+            args(args)
+        }
+    }
+}
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     // REMOVED: Flutter Gradle Plugin - no longer needed
     // id("dev.flutter.flutter-gradle-plugin")
     id("com.google.devtools.ksp")
@@ -14,8 +96,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     // Compose Compiler (required for Kotlin 2.0+)
     id("org.jetbrains.kotlin.plugin.compose")
-    // Protobuf for Proto DataStore
-    id("com.google.protobuf") version "0.9.6"
     // JaCoCo for test coverage
     id("jacoco")
 }
@@ -38,11 +118,50 @@ val hasGoogleServicesJson = googleServicesCandidates.any { relativePath -> file(
 
 if (hasGoogleServicesJson) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 } else {
     logger.lifecycle(
         "google-services.json was not found in app module. " +
             "Skipping com.google.gms.google-services plugin for this build.",
     )
+}
+
+val osName = System.getProperty("os.name").lowercase()
+val osArch = System.getProperty("os.arch").lowercase()
+val isWindowsHost = osName.contains("windows")
+
+fun detectProtocClassifier(
+    os: String,
+    arch: String,
+): String =
+    when {
+        os.contains("mac") && (arch == "aarch64" || arch == "arm64") -> "osx-aarch_64"
+        os.contains("mac") -> "osx-x86_64"
+        os.contains("linux") && (arch == "aarch64" || arch == "arm64") -> "linux-aarch_64"
+        os.contains("linux") -> "linux-x86_64"
+        os.contains("windows") && (arch == "aarch64" || arch == "arm64") -> "windows-aarch_64"
+        os.contains("windows") -> "windows-x86_64"
+        else -> throw GradleException("Unsupported OS/arch for protoc: os=$os arch=$arch")
+    }
+
+val protocClassifier = detectProtocClassifier(osName, osArch)
+val protoSourceDir = layout.projectDirectory.dir("src/main/proto")
+val generatedProtoDir = layout.buildDirectory.dir("generated/source/proto/main/java")
+val roomSchemaDir = layout.buildDirectory.dir("generated/room-schemas")
+val protoInputFiles =
+    fileTree(protoSourceDir) {
+        include("**/*.proto")
+    }
+
+val protocBinary by configurations.creating
+
+val generateProtoLite by tasks.registering(GenerateProtoLiteTask::class) {
+    windowsHost.set(isWindowsHost)
+    protoSourceDir.set(layout.projectDirectory.dir("src/main/proto"))
+    protoFiles.from(protoInputFiles)
+    protocBinaryFiles.from(protocBinary)
+    outputDir.set(generatedProtoDir)
+    protocOutputFile.set(layout.buildDirectory.file("tools/protoc/${if (isWindowsHost) "protoc.exe" else "protoc"}"))
 }
 
 android {
@@ -118,6 +237,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
 
     // Compose Compiler configuration moved to plugin (line 16)
@@ -154,6 +274,7 @@ android {
 
         // Enable explicit intent handling for Android 14+
         manifestPlaceholders["enableExplicitIntentHandling"] = "true"
+        buildConfigField("boolean", "HAS_GOOGLE_SERVICES", hasGoogleServicesJson.toString())
     }
 
     flavorDimensions += "default"
@@ -182,6 +303,12 @@ android {
         }
     }
 
+    sourceSets
+        .getByName("main")
+        .java
+        .directories
+        .add(generatedProtoDir.get().asFile.absolutePath)
+
     // Generate separate APKs per architecture + universal APK
     splits {
         abi {
@@ -200,10 +327,28 @@ android {
 
 // Configure KSP for Room and Hilt
 ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.schemaLocation", roomSchemaDir.get().asFile.absolutePath)
 }
 
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    dependsOn(generateProtoLite)
+}
+
+tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
+    dependsOn(generateProtoLite)
+}
+
+tasks
+    .matching { task ->
+        task.name.startsWith("ksp") && task.name.endsWith("Kotlin")
+    }.configureEach {
+        dependsOn(generateProtoLite)
+    }
+
 dependencies {
+    // Protoc binary for Proto DataStore code generation (replaces protobuf-gradle-plugin).
+    protocBinary("com.google.protobuf:protoc:4.34.1:$protocClassifier@exe")
+
     // AppCompat for AppCompatActivity and AlertDialog
     implementation(libs.androidx.appcompat)
 
@@ -328,6 +473,8 @@ dependencies {
 
     // Firebase Analytics (required for other Firebase services)
     implementation(libs.firebase.analytics)
+    // Firebase Crashlytics runtime SDK
+    implementation(libs.firebase.crashlytics)
 
     // Add other Firebase dependencies as needed
     // https://firebase.google.com/docs/android/setup#available-libraries
@@ -351,22 +498,6 @@ ktlint {
         include("**/kotlin/**")
     }
 }
-// Protobuf configuration for Proto DataStore
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:4.33.2"
-    }
-    generateProtoTasks {
-        all().forEach { task ->
-            task.builtins {
-                create("java") {
-                    option("lite")
-                }
-            }
-        }
-    }
-}
-
 // JaCoCo configuration for test coverage
 jacoco {
     toolVersion = "0.8.14"

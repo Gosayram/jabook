@@ -50,6 +50,7 @@ public class DataStoreUserPreferencesRepository
             private val FONT = stringPreferencesKey("font")
             private val NORMALIZE_CHAPTER_TITLES = booleanPreferencesKey("normalize_chapter_titles")
             private val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+            private val STORAGE_FALLBACK_ENABLED = booleanPreferencesKey("storage_fallback_enabled")
         }
 
         override val userData: Flow<UserData> =
@@ -91,6 +92,7 @@ public class DataStoreUserPreferencesRepository
                         } ?: AppFont.DEFAULT,
                     normalizeChapterTitles = preferences[NORMALIZE_CHAPTER_TITLES] ?: false,
                     onboardingCompleted = preferences[ONBOARDING_COMPLETED] ?: false,
+                    storageFallbackEnabled = preferences[STORAGE_FALLBACK_ENABLED] ?: false,
                 )
             }
 
@@ -139,6 +141,12 @@ public class DataStoreUserPreferencesRepository
         override suspend fun setOnboardingCompleted(completed: Boolean) {
             dataStore.edit { preferences ->
                 preferences[ONBOARDING_COMPLETED] = completed
+            }
+        }
+
+        override suspend fun setStorageFallbackEnabled(enabled: Boolean) {
+            dataStore.edit { preferences ->
+                preferences[STORAGE_FALLBACK_ENABLED] = enabled
             }
         }
     }

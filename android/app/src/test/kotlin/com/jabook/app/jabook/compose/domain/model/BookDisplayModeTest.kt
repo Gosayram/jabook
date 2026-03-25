@@ -15,9 +15,12 @@
 package com.jabook.app.jabook.compose.domain.model
 
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -30,7 +33,6 @@ import org.junit.Test
  * - Grid cells configuration
  * - List cover sizes
  */
-@Suppress("DEPRECATION")
 class BookDisplayModeTest {
     @Test
     fun `GRID_COMPACT is identified as grid mode`() {
@@ -57,43 +59,51 @@ class BookDisplayModeTest {
     }
 
     @Test
-    fun `GRID_COMPACT returns fixed grid cells on phone`() {
-        val gridCells = BookDisplayMode.GRID_COMPACT.getGridCells(isTablet = false)
-        assertNotNull(gridCells)
-        assertTrue(gridCells is GridCells.Fixed)
+    fun `GRID_COMPACT returns compact grid cells for compact window`() {
+        val gridCells = BookDisplayMode.GRID_COMPACT.getGridCells(compactWindow())
+        assertEquals(GridCells.Fixed(3), gridCells)
     }
 
     @Test
-    fun `GRID_COMPACT returns fixed grid cells on tablet`() {
-        val gridCells = BookDisplayMode.GRID_COMPACT.getGridCells(isTablet = true)
-        assertNotNull(gridCells)
-        assertTrue(gridCells is GridCells.Fixed)
+    fun `GRID_COMPACT returns adaptive grid cells for medium window`() {
+        val gridCells = BookDisplayMode.GRID_COMPACT.getGridCells(mediumWindow())
+        assertEquals(GridCells.Fixed(5), gridCells)
     }
 
     @Test
-    fun `GRID_COMFORTABLE returns fixed grid cells on phone`() {
-        val gridCells = BookDisplayMode.GRID_COMFORTABLE.getGridCells(isTablet = false)
-        assertNotNull(gridCells)
-        assertTrue(gridCells is GridCells.Fixed)
+    fun `GRID_COMPACT returns adaptive grid cells for expanded window`() {
+        val gridCells = BookDisplayMode.GRID_COMPACT.getGridCells(expandedWindow())
+        assertEquals(GridCells.Fixed(7), gridCells)
     }
 
     @Test
-    fun `GRID_COMFORTABLE returns fixed grid cells on tablet`() {
-        val gridCells = BookDisplayMode.GRID_COMFORTABLE.getGridCells(isTablet = true)
-        assertNotNull(gridCells)
-        assertTrue(gridCells is GridCells.Fixed)
+    fun `GRID_COMFORTABLE returns compact grid cells for compact window`() {
+        val gridCells = BookDisplayMode.GRID_COMFORTABLE.getGridCells(compactWindow())
+        assertEquals(GridCells.Fixed(2), gridCells)
+    }
+
+    @Test
+    fun `GRID_COMFORTABLE returns adaptive grid cells for medium window`() {
+        val gridCells = BookDisplayMode.GRID_COMFORTABLE.getGridCells(mediumWindow())
+        assertEquals(GridCells.Fixed(4), gridCells)
+    }
+
+    @Test
+    fun `GRID_COMFORTABLE returns adaptive grid cells for expanded window`() {
+        val gridCells = BookDisplayMode.GRID_COMFORTABLE.getGridCells(expandedWindow())
+        assertEquals(GridCells.Fixed(6), gridCells)
     }
 
     @Test
     fun `LIST_COMPACT returns null for grid cells`() {
-        assertNull(BookDisplayMode.LIST_COMPACT.getGridCells(isTablet = false))
-        assertNull(BookDisplayMode.LIST_COMPACT.getGridCells(isTablet = true))
+        assertNull(BookDisplayMode.LIST_COMPACT.getGridCells(compactWindow()))
+        assertNull(BookDisplayMode.LIST_COMPACT.getGridCells(mediumWindow()))
     }
 
     @Test
     fun `LIST_DEFAULT returns null for grid cells`() {
-        assertNull(BookDisplayMode.LIST_DEFAULT.getGridCells(isTablet = false))
-        assertNull(BookDisplayMode.LIST_DEFAULT.getGridCells(isTablet = true))
+        assertNull(BookDisplayMode.LIST_DEFAULT.getGridCells(compactWindow()))
+        assertNull(BookDisplayMode.LIST_DEFAULT.getGridCells(expandedWindow()))
     }
 
     @Test
@@ -150,4 +160,13 @@ class BookDisplayModeTest {
             assertTrue("$mode should be list", mode.isList())
         }
     }
+
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+    private fun compactWindow(): WindowSizeClass = WindowSizeClass.calculateFromSize(DpSize(360.dp, 800.dp))
+
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+    private fun mediumWindow(): WindowSizeClass = WindowSizeClass.calculateFromSize(DpSize(700.dp, 900.dp))
+
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+    private fun expandedWindow(): WindowSizeClass = WindowSizeClass.calculateFromSize(DpSize(1000.dp, 900.dp))
 }

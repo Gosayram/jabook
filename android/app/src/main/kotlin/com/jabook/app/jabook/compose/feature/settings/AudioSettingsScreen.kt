@@ -35,7 +35,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
@@ -51,27 +50,11 @@ public fun AudioSettingsScreen(
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            ?: null
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) } ?: rawWindowSizeClass
-    val contentPadding =
-        if (windowSizeClass != null) {
-            AdaptiveUtils.getContentPadding(windowSizeClass)
-        } else {
-            16.dp
-        }
-    val itemSpacing =
-        if (windowSizeClass != null) {
-            AdaptiveUtils.getItemSpacing(windowSizeClass)
-        } else {
-            12.dp
-        }
-    val smallSpacing =
-        if (windowSizeClass != null) {
-            AdaptiveUtils.getSmallSpacing(windowSizeClass)
-        } else {
-            4.dp
-        }
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
+    val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
+    val smallSpacing = AdaptiveUtils.getSmallSpacingOrDefault(windowSizeClass)
 
     val protoSettings by viewModel.protoSettings.collectAsStateWithLifecycle()
 
@@ -107,15 +90,11 @@ public fun AudioSettingsScreen(
                 checked = protoSettings.autoRewindOnPause,
                 onCheckedChange = {
                     viewModel.updateAudioSettings(rewindSeconds = if (it) 2 else 0)
-                }, // This logic is slightly weird in existing VM, let's check
+                },
                 contentPadding = contentPadding,
                 itemSpacing = itemSpacing,
                 smallSpacing = smallSpacing,
             )
-            // Note: protoSettings has autoRewindOnPause boolean, but updateAudioSettings doesn't take it?
-            // Wait, I didn't add autoRewindOnPause to updateAudioSettings in previous steps.
-            // But ProtoSettingsRepository handles it separately via dedicated method?
-            // Let me re-check ProtoSettingsRepository.
 
             // Audio Quality (Phase 1.2 features)
             HorizontalDivider()

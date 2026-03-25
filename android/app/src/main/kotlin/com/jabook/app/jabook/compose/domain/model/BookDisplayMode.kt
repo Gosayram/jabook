@@ -65,24 +65,6 @@ public enum class BookDisplayMode {
     public fun isList(): Boolean = !isGrid()
 
     /**
-     * Returns GridCells configuration for this mode.
-     *
-     * @param isTablet True if device is a tablet (width >= 600dp)
-     * @return GridCells configuration or null for list modes
-     * @deprecated Use getGridCells(windowSizeClass) instead for better adaptive behavior
-     */
-    @Deprecated(
-        message = "Use getGridCells(windowSizeClass) instead",
-        replaceWith = ReplaceWith("getGridCells(WindowSizeClass)"),
-    )
-    public fun getGridCells(isTablet: Boolean): GridCells? =
-        when (this) {
-            GRID_COMPACT -> GridCells.Fixed(if (isTablet) 6 else 3)
-            GRID_COMFORTABLE -> GridCells.Fixed(if (isTablet) 4 else 2)
-            LIST_COMPACT, LIST_DEFAULT -> null // Not applicable for lists
-        }
-
-    /**
      * Returns GridCells configuration for this mode based on WindowSizeClass.
      *
      * Uses Material 3 adaptive guidelines for better responsiveness.

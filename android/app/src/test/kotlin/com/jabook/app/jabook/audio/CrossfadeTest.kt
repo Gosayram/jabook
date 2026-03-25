@@ -102,4 +102,16 @@ class CrossfadeTest {
         verify(playerB).setMediaSource(mediaSource)
         verify(playerB).prepare()
     }
+
+    @Test
+    fun `setNextTrack during crossfade preloads outgoing player for next queue slot`() {
+        val queuedAfterCrossfade = MediaItem.fromUri("file://queued_after_crossfade.mp3")
+
+        crossFadePlayer.startCrossFade()
+        crossFadePlayer.setNextTrack(queuedAfterCrossfade)
+
+        // During active crossfade, the outgoing player becomes standby after swap.
+        verify(playerA).setMediaItem(queuedAfterCrossfade)
+        verify(playerA).prepare()
+    }
 }

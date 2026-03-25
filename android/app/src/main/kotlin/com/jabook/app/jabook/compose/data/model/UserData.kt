@@ -28,6 +28,7 @@ public data class UserData(
     val font: AppFont = AppFont.DEFAULT,
     val normalizeChapterTitles: Boolean = false, // Default: OFF
     val onboardingCompleted: Boolean = false,
+    val storageFallbackEnabled: Boolean = false,
 )
 
 /**
@@ -47,9 +48,9 @@ public enum class LibraryViewMode {
     /** Compact list view */
     LIST_COMPACT,
 
-    /** Grid view - compact (3 cols phone, 6 tablet) */
+    /** Grid view - compact (adaptive columns by WindowSizeClass) */
     GRID_COMPACT,
 
-    /** Grid view - comfortable (2 cols phone, 4 tablet) */
+    /** Grid view - comfortable (adaptive columns by WindowSizeClass) */
     GRID_COMFORTABLE,
 }

@@ -21,6 +21,7 @@ import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
 import dagger.hilt.EntryPoint
@@ -69,6 +70,8 @@ public class JabookApplication :
     public override fun onCreate() {
         super.onCreate()
 
+        configureCrashlytics()
+
         // Initialize Global Exception Handler
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(
@@ -87,11 +90,16 @@ public class JabookApplication :
         // Service will initialize MediaSession, ExoPlayer, and notification provider
         try {
             android.util.Log.i("JabookApplication", "Starting AudioPlayerService warmup...")
+            logCrashlytics("audio_service_warmup_started")
             val serviceIntent = android.content.Intent(this, com.jabook.app.jabook.audio.AudioPlayerService::class.java)
             startService(serviceIntent)
             android.util.Log.i("JabookApplication", "AudioPlayerService warmup initiated")
+            logCrashlytics("audio_service_warmup_initiated")
         } catch (e: Exception) {
             android.util.Log.e("JabookApplication", "Failed to start AudioPlayerService warmup", e)
+            if (isCrashlyticsEnabled()) {
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
         }
 
         // Configure Coil ImageLoader with OkHttpClient from Hilt
@@ -138,5 +146,27 @@ public class JabookApplication :
         }
 
         android.util.Log.d("JabookApplication", "Application created with Hilt support")
+    }
+
+    private fun configureCrashlytics() {
+        if (!isCrashlyticsEnabled()) {
+            return
+        }
+        FirebaseCrashlytics.getInstance().apply {
+            setCrashlyticsCollectionEnabled(true)
+            setCustomKey("build_type", BuildConfig.BUILD_TYPE)
+            setCustomKey("flavor", BuildConfig.FLAVOR)
+            setCustomKey("version_name", BuildConfig.VERSION_NAME)
+            setCustomKey("version_code", BuildConfig.VERSION_CODE.toLong())
+            log("crashlytics_initialized")
+        }
+    }
+
+    private fun isCrashlyticsEnabled(): Boolean = BuildConfig.HAS_GOOGLE_SERVICES && !BuildConfig.DEBUG
+
+    private fun logCrashlytics(message: String) {
+        if (isCrashlyticsEnabled()) {
+            FirebaseCrashlytics.getInstance().log(message)
+        }
     }
 }

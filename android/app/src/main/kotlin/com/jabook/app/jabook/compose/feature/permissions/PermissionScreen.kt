@@ -14,8 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.permissions
 
-import android.Manifest
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +49,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.data.permissions.StorageAccessMode
 
 @Composable
 public fun PermissionScreen(
@@ -138,15 +137,15 @@ public fun PermissionScreen(
             // Button to grant storage
             Button(
                 onClick = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        manageStorageLauncher.launch(viewModel.getManageExternalStorageIntent())
-                    } else {
-                        requestLegacyStorageLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                                Manifest.permission.READ_EXTERNAL_STORAGE,
-                            ),
-                        )
+                    val storageRequest = viewModel.getStorageAccessRequest()
+                    when (storageRequest.mode) {
+                        StorageAccessMode.FULL_FILE_SYSTEM -> {
+                            val targetIntent = storageRequest.intent ?: viewModel.getManageExternalStorageIntent()
+                            manageStorageLauncher.launch(targetIntent)
+                        }
+                        StorageAccessMode.LEGACY_RUNTIME_PERMISSIONS -> {
+                            requestLegacyStorageLauncher.launch(storageRequest.runtimePermissions.toTypedArray())
+                        }
                     }
                 },
                 modifier =
@@ -196,7 +195,12 @@ public fun PermissionScreen(
                 }
 
                 if (onSkip != null) {
-                    TextButton(onClick = onSkip) {
+                    TextButton(
+                        onClick = {
+                            viewModel.enableStorageFallbackMode()
+                            onSkip()
+                        },
+                    ) {
                         Text(
                             text = stringResource(R.string.onboardingSkip),
                             style = MaterialTheme.typography.labelLarge,

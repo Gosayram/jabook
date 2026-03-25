@@ -27,6 +27,17 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+public enum class StorageAccessMode {
+    FULL_FILE_SYSTEM,
+    LEGACY_RUNTIME_PERMISSIONS,
+}
+
+public data class StorageAccessRequest(
+    val mode: StorageAccessMode,
+    val runtimePermissions: List<String> = emptyList(),
+    val intent: Intent? = null,
+)
+
 @Singleton
 public class PermissionManager
     @Inject
@@ -66,6 +77,29 @@ public class PermissionManager
                 ) == PackageManager.PERMISSION_GRANTED
             } else {
                 true
+            }
+
+        /**
+         * Returns storage access request parameters for current Android version.
+         *
+         * Android 11+ uses all-files access settings screen.
+         * Android 10 and below use legacy runtime permissions.
+         */
+        public fun getStorageAccessRequest(): StorageAccessRequest =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                StorageAccessRequest(
+                    mode = StorageAccessMode.FULL_FILE_SYSTEM,
+                    intent = getManageExternalStorageIntent(),
+                )
+            } else {
+                StorageAccessRequest(
+                    mode = StorageAccessMode.LEGACY_RUNTIME_PERMISSIONS,
+                    runtimePermissions =
+                        listOf(
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
+                        ),
+                )
             }
 
         /**
