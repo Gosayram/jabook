@@ -1634,22 +1634,16 @@ public class AudioPlayerService : MediaLibraryService() {
         // listener to force refresh notification when metadata changes
         // CRITICAL: Debounce notification updates to prevent spam
         // Events can fire multiple times rapidly (e.g., onMediaItemTransition + onMediaMetadataChanged)
-        val notificationInvalidationCoordinator =
-            PlayerNotificationInvalidationCoordinator(
+        val notificationInvalidationPipeline =
+            PlayerNotificationInvalidationPipeline(
                 scope = playerServiceScope,
-                policy = PlayerNotificationInvalidatePolicy(),
-                log = { message ->
-                    LogUtils.d("PlayerNotification", message)
-                },
                 invalidate = {
                     this@AudioPlayerService.playerNotificationManager?.invalidate()
                 },
             )
 
-        exoPlayer.addListener(
-            PlayerNotificationInvalidationListener(
-                signals = notificationInvalidationCoordinator,
-            ),
+        notificationInvalidationPipeline.register(
+            player = exoPlayer,
         )
 
         playerNotificationManager?.setPlayer(exoPlayer)
@@ -1661,7 +1655,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
         // CRITICAL: Force immediate invalidate to ensure startForeground() is called within 5 seconds
         // This prevents ForegroundServiceDidNotStartInTimeException crash
-        notificationInvalidationCoordinator.onImmediateSignal(event = "force_initial_state")
+        notificationInvalidationPipeline.forceInitialStateInvalidate()
     }
 
     /**
