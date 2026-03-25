@@ -14,7 +14,7 @@ kotlinxSerialization = "1.10.0"
 # AndroidX Core
 androidxCore = "1.13.1"
 androidxCoreSplashscreen = "1.2.0"
-androidxActivity = "1.12.1"
+androidxActivity = "1.13.0"
 androidxAppcompat = "1.7.1"
 androidxMedia = "1.7.1"
 
