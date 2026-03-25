@@ -157,6 +157,10 @@ keystore.properties
 # Ignore wrapper files
 !gradle/wrapper/gradle-wrapper.jar
 !gradle/wrapper/gradle-wrapper.properties
+!android/gradle/wrapper/gradle-wrapper.jar
+!android/gradle/wrapper/gradle-wrapper.properties
+!android/gradlew
+!android/gradlew.bat
 
 
 # Kotlin Compiler
@@ -180,6 +184,7 @@ debug-info/
 # Android
 .gradle/
 **/gradle-wrapper.jar
+!android/gradle/wrapper/gradle-wrapper.jar
 **/local.properties
 **/GeneratedPluginRegistrant.java
 **/GeneratedPluginRegistrant.kt
