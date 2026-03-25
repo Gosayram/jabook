@@ -150,6 +150,15 @@ def _find_latest_index_file(output_dir: Path) -> Path | None:
     return candidates[-1]
 
 
+def _find_latest_index_full_file(output_dir: Path) -> Path | None:
+    if not output_dir.exists():
+        return None
+    candidates = sorted(output_dir.glob("run_*/search/index_full.json"))
+    if not candidates:
+        return None
+    return candidates[-1]
+
+
 def _build_mirrors(args: Any) -> list[str]:
     mirrors = [ensure_absolute_base(args.mirror)]
     if not args.no_fallback and args.fallback_mirror:
@@ -311,6 +320,178 @@ def _topic_richness(row: dict) -> int:
     return sum(1 for key in keys if row.get(key) not in (None, "", [], {}))
 
 
+def _is_minimal_index_record(record: dict) -> bool:
+    topic_id = _coerce_int(record.get("topic_id"))
+    title = str(record.get("title") or "").strip()
+    topic_url = str(record.get("topic_url") or "").strip()
+    if topic_id is None:
+        return False
+    if len(title) < 3:
+        return False
+    if "viewtopic.php" not in topic_url or "t=" not in topic_url:
+        return False
+
+    has_payload = any(
+        record.get(field) not in (None, "", [], {})
+        for field in ("torrent_url", "size_bytes", "size_text", "seeders", "leechers", "downloads")
+    )
+    return has_payload
+
+
+def _record_quality_score(row: dict) -> float:
+    score = 0.0
+    total = 0.0
+
+    title = str(row.get("title") or "").strip()
+    topic_url = str(row.get("topic_url") or "").strip()
+    forum_title = str(row.get("forum_title") or "").strip()
+    uploader = str(row.get("uploader") or "").strip()
+    torrent_url = str(row.get("torrent_url") or "").strip()
+    status_text = str(row.get("status_text") or "").strip()
+    size_bytes = _coerce_int(row.get("size_bytes"))
+    seeders = _coerce_int(row.get("seeders"))
+    leechers = _coerce_int(row.get("leechers"))
+    downloads = _coerce_int(row.get("downloads"))
+    added_ts = _coerce_int(row.get("added_ts"))
+    added_at = str(row.get("added_at") or "").strip()
+
+    total += 2.0
+    if len(title) >= 8:
+        score += 2.0
+    elif title:
+        score += 1.0
+
+    total += 1.7
+    if "viewtopic.php" in topic_url and "t=" in topic_url:
+        score += 1.7
+
+    total += 1.0
+    if forum_title:
+        score += 1.0
+
+    total += 1.0
+    if uploader:
+        score += 1.0
+
+    total += 1.6
+    if torrent_url:
+        score += 1.6
+
+    total += 1.2
+    if isinstance(size_bytes, int) and size_bytes > 0:
+        score += 1.2
+    elif str(row.get("size_text") or "").strip():
+        score += 0.6
+
+    total += 2.0
+    if any(isinstance(value, int) and value >= 0 for value in (seeders, leechers, downloads)):
+        score += 2.0
+
+    total += 1.0
+    if isinstance(added_ts, int) and added_ts > 0:
+        score += 1.0
+    elif added_at:
+        score += 0.5
+
+    total += 0.5
+    if status_text:
+        score += 0.5
+
+    if total <= 0.0:
+        return 0.0
+    return max(0.0, min(1.0, score / total))
+
+
+def _record_quality_penalty(row: dict) -> float:
+    quality = _record_quality_score(row)
+    return (1.0 - quality) * 28.0
+
+
+def _normalize_existing_index_record(row: dict, query: str) -> dict | None:
+    topic_id = _coerce_int(row.get("topic_id"))
+    if topic_id is None:
+        return None
+    normalized = dict(row)
+    normalized["topic_id"] = topic_id
+    normalized["query"] = str(normalized.get("query") or query)
+
+    rank = normalized.get("rank")
+    if not isinstance(rank, (int, float)):
+        rank = _record_rank(normalized)
+    normalized["rank"] = round(float(rank), 6)
+
+    quality_score = normalized.get("quality_score")
+    if not isinstance(quality_score, (int, float)):
+        quality_score = _record_quality_score(normalized)
+    normalized["quality_score"] = round(float(quality_score), 4)
+
+    quality_penalty = normalized.get("quality_penalty")
+    if not isinstance(quality_penalty, (int, float)):
+        quality_penalty = _record_quality_penalty(normalized)
+    normalized["quality_penalty"] = round(float(quality_penalty), 6)
+    return normalized
+
+
+def _merge_incremental_records(
+    *,
+    current_records: list[dict],
+    base_records: list[dict],
+    query: str,
+) -> tuple[list[dict], dict]:
+    base_map: dict[int, dict] = {}
+    for row in base_records:
+        normalized = _normalize_existing_index_record(row, query)
+        if not normalized:
+            continue
+        base_map[normalized["topic_id"]] = normalized
+
+    base_topic_ids = set(base_map.keys())
+    new_count = 0
+    updated_count = 0
+
+    for row in current_records:
+        topic_id = _coerce_int(row.get("topic_id"))
+        if topic_id is None:
+            continue
+        if topic_id in base_topic_ids:
+            updated_count += 1
+        else:
+            new_count += 1
+        base_map[topic_id] = row
+
+    carried_over = max(len(base_topic_ids) - updated_count, 0)
+    merged = sorted(
+        base_map.values(),
+        key=lambda item: (
+            float(item.get("rank") or 0.0),
+            _coerce_int(item.get("seeders")) or 0,
+            _coerce_int(item.get("downloads")) or 0,
+            _coerce_int(item.get("added_ts")) or 0,
+            float(item.get("quality_score") or 0.0),
+        ),
+        reverse=True,
+    )
+    return merged, {
+        "base_records_total": len(base_topic_ids),
+        "new_records": new_count,
+        "updated_records": updated_count,
+        "carried_over_records": carried_over,
+        "merged_records_total": len(merged),
+    }
+
+
+def _load_index_records(index_path: Path) -> tuple[str, list[dict]]:
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict):
+        query = str(payload.get("query") or "").strip()
+        records = payload.get("records", [])
+        if isinstance(records, list):
+            return query, [row for row in records if isinstance(row, dict)]
+    elif isinstance(payload, list):
+        return "", [row for row in payload if isinstance(row, dict)]
+    return "", []
+
+
 def _record_rank(row: dict) -> float:
     seeders = _coerce_int(row.get("seeders")) or 0
     leechers = _coerce_int(row.get("leechers")) or 0
@@ -324,11 +505,23 @@ def _record_rank(row: dict) -> float:
     )
 
 
-def build_search_index(run_dir: Path, query: str) -> dict:
+def build_search_index(
+    run_dir: Path,
+    query: str,
+    *,
+    base_records: list[dict] | None = None,
+    base_index_path: Path | None = None,
+) -> dict:
     topics_rows = _read_jsonl(run_dir / "entities" / "topics.jsonl")
     torrents_rows = _read_jsonl(run_dir / "entities" / "torrents.jsonl")
     forums_rows = _read_jsonl(run_dir / "entities" / "forums.jsonl")
     pages_rows = _read_jsonl(run_dir / "pages" / "pages.jsonl")
+    drop_stats: dict[str, int] = {
+        "skipped_kind_rows": 0,
+        "skipped_non_tracker_rows": 0,
+        "skipped_without_topic_id": 0,
+        "skipped_low_quality": 0,
+    }
 
     forum_titles: dict[int, str] = {}
     for row in forums_rows:
@@ -349,13 +542,16 @@ def build_search_index(run_dir: Path, query: str) -> dict:
     chosen: dict[int, dict] = {}
     for row in topics_rows:
         if row.get("kind"):
+            drop_stats["skipped_kind_rows"] += 1
             continue
         source_url = str(row.get("source_url") or "")
         if "tracker.php" not in source_url:
+            drop_stats["skipped_non_tracker_rows"] += 1
             continue
 
         topic_id = _coerce_int(row.get("topic_id"))
         if topic_id is None:
+            drop_stats["skipped_without_topic_id"] += 1
             continue
         torrent = torrents_by_topic.get(topic_id, {})
         forum_id = _coerce_int(row.get("forum_id"))
@@ -390,7 +586,17 @@ def build_search_index(run_dir: Path, query: str) -> dict:
             "query": query,
             "ts": str(row.get("ts") or utc_now_iso()),
         }
-        record["rank"] = round(_record_rank(record), 6)
+        quality_score = _record_quality_score(record)
+        quality_penalty = _record_quality_penalty(record)
+        rank_base = _record_rank(record)
+        record["quality_score"] = round(quality_score, 4)
+        record["quality_penalty"] = round(quality_penalty, 6)
+        record["rank_base"] = round(rank_base, 6)
+        record["rank"] = round(max(rank_base - quality_penalty, 0.0), 6)
+
+        if not _is_minimal_index_record(record):
+            drop_stats["skipped_low_quality"] += 1
+            continue
 
         old = chosen.get(topic_id)
         if old is None:
@@ -402,16 +608,39 @@ def build_search_index(run_dir: Path, query: str) -> dict:
         if (record.get("rank") or 0.0) > (old.get("rank") or 0.0):
             chosen[topic_id] = record
 
-    records = sorted(
+    current_records = sorted(
         chosen.values(),
         key=lambda item: (
             float(item.get("rank") or 0.0),
             _coerce_int(item.get("seeders")) or 0,
             _coerce_int(item.get("downloads")) or 0,
             _coerce_int(item.get("added_ts")) or 0,
+            float(item.get("quality_score") or 0.0),
         ),
         reverse=True,
     )
+    records = current_records
+
+    incremental_summary = {
+        "enabled": False,
+        "base_index_path": "",
+        "base_records_total": 0,
+        "new_records": len(current_records),
+        "updated_records": 0,
+        "carried_over_records": 0,
+        "merged_records_total": len(current_records),
+    }
+    if base_records:
+        records, merge_stats = _merge_incremental_records(
+            current_records=current_records,
+            base_records=base_records,
+            query=query,
+        )
+        incremental_summary = {
+            "enabled": True,
+            "base_index_path": str(base_index_path) if base_index_path else "",
+            **merge_stats,
+        }
 
     compact_records = [
         {
@@ -430,6 +659,9 @@ def build_search_index(run_dir: Path, query: str) -> dict:
             "status_text": row.get("status_text", ""),
             "topic_url": row.get("topic_url", ""),
             "torrent_url": row.get("torrent_url", ""),
+            "quality_score": row.get("quality_score", 0.0),
+            "quality_penalty": row.get("quality_penalty", 0.0),
+            "rank_base": row.get("rank_base", row.get("rank", 0.0)),
             "rank": row.get("rank", 0.0),
             "search_text": _normalize_text(
                 f"{row.get('title', '')} {row.get('forum_title', '')} {row.get('uploader', '')}"
@@ -446,7 +678,10 @@ def build_search_index(run_dir: Path, query: str) -> dict:
         "generated_at": utc_now_iso(),
         "run_dir": str(run_dir),
         "pages_crawled": len(pages_rows),
+        "records_from_crawl": len(current_records),
         "records_total": len(records),
+        "drop_stats": drop_stats,
+        "incremental": incremental_summary,
         "records": records,
     }
     compact_payload = {
@@ -476,11 +711,21 @@ def build_search_index(run_dir: Path, query: str) -> dict:
             {
                 "query": query,
                 "generated_at": utc_now_iso(),
+                "records_from_crawl": len(current_records),
                 "records_total": len(records),
                 "forums_unique": len(
                     {item.get("forum_id") for item in records if item.get("forum_id") is not None}
                 ),
                 "with_torrent_url": sum(1 for item in records if item.get("torrent_url")),
+                "quality_avg": round(
+                    (
+                        sum(float(item.get("quality_score") or 0.0) for item in records)
+                        / max(len(records), 1)
+                    ),
+                    4,
+                ),
+                "drop_stats": drop_stats,
+                "incremental": incremental_summary,
             },
             ensure_ascii=False,
             indent=2,
@@ -496,10 +741,38 @@ def build_search_index(run_dir: Path, query: str) -> dict:
         "index_compact": str(compact_path),
         "index_top50": str(top_path),
         "index_stats": str(stats_path),
+        "records_from_crawl": len(current_records),
+        "drop_stats": drop_stats,
+        "incremental": incremental_summary,
     }
 
 
 def run_search_index(args: Any) -> dict:
+    incremental_enabled = bool(getattr(args, "incremental", False))
+    base_index_value = str(getattr(args, "base_index", "") or "").strip()
+    base_index_path: Path | None = None
+    base_query = ""
+    base_records: list[dict] = []
+
+    if incremental_enabled:
+        if base_index_value:
+            candidate = Path(base_index_value).expanduser().resolve()
+        else:
+            latest_full = _find_latest_index_full_file(Path(args.output_dir))
+            candidate = latest_full.resolve() if latest_full else Path("")
+
+        if candidate and candidate.exists():
+            if not candidate.is_file():
+                raise FileNotFoundError(f"Base index is not a file: {candidate}")
+            base_index_path = candidate
+            base_query, loaded = _load_index_records(base_index_path)
+            if base_query and _normalize_text(base_query) != _normalize_text(args.query):
+                base_records = []
+            else:
+                base_records = loaded
+        elif base_index_value:
+            raise FileNotFoundError(f"Base index not found: {candidate}")
+
     forum_ids = [value for value in args.forum_id if value > 0]
     if not forum_ids:
         forum_ids = discover_audiobooks_forum_ids(args)
@@ -515,12 +788,23 @@ def run_search_index(args: Any) -> dict:
     crawl_summary = engine.run()
 
     run_dir = Path(crawl_summary["run_dir"])
-    index_summary = build_search_index(run_dir, args.query)
+    index_summary = build_search_index(
+        run_dir,
+        args.query,
+        base_records=base_records,
+        base_index_path=base_index_path,
+    )
     return {
         "query": args.query,
         "forum_ids": forum_ids,
         "crawl": crawl_summary,
         "index": index_summary,
+        "incremental": {
+            "enabled": incremental_enabled,
+            "base_index_path": str(base_index_path) if base_index_path else "",
+            "base_query": base_query,
+            "base_records_loaded": len(base_records),
+        },
     }
 
 
@@ -610,12 +894,16 @@ def search_compact_index(index_path: Path, query: str, limit: int) -> dict:
         seeders = _coerce_int(row.get("seeders")) or 0
         downloads = _coerce_int(row.get("downloads")) or 0
         base_rank = float(row.get("rank") or 0.0)
+        quality_score = float(row.get("quality_score") or 0.0)
+        quality_penalty = float(row.get("quality_penalty") or 0.0)
         freshness = (_coerce_int(row.get("added_ts")) or 0) / 100_000_000.0
         score = (
             lexical * 120.0
             + phrase_bonus
             + fuzzy_bonus
             + base_rank * 2.0
+            + quality_score * 18.0
+            - quality_penalty * 1.3
             + seeders * 1.1
             + math.log1p(downloads) * 2.2
             + freshness
@@ -638,6 +926,7 @@ def search_compact_index(index_path: Path, query: str, limit: int) -> dict:
         records,
         key=lambda row: (
             float(row.get("rank") or 0.0),
+            float(row.get("quality_score") or 0.0),
             _coerce_int(row.get("seeders")) or 0,
             _coerce_int(row.get("downloads")) or 0,
             _coerce_int(row.get("added_ts")) or 0,
@@ -695,6 +984,8 @@ def _build_search_index_namespace_from_find(args: Any, query: str) -> Any:
         password_env=args.password_env,
         user_agent=args.user_agent,
         skip_html=args.skip_html,
+        incremental=bool(getattr(args, "incremental", False)),
+        base_index=str(getattr(args, "base_index", "") or ""),
     )
 
 
@@ -805,6 +1096,8 @@ def build_search_index_parser() -> Any:
     parser.add_argument("--password-env", default="RUTRACKER_PASSWORD")
     parser.add_argument("--user-agent", default=DEFAULT_USER_AGENT)
     parser.add_argument("--skip-html", action="store_true")
+    parser.add_argument("--incremental", action="store_true")
+    parser.add_argument("--base-index", default="")
     return parser
 
 
@@ -819,6 +1112,8 @@ def build_search_find_parser() -> Any:
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--auto-index-if-missing", action="store_true")
     parser.add_argument("--auto-refresh-on-empty", action="store_true")
+    parser.add_argument("--incremental", action="store_true")
+    parser.add_argument("--base-index", default="")
 
     parser.add_argument("--mode", choices=["auto", "guest", "auth"], default="auto")
     parser.add_argument("--mirror", default=DEFAULT_PRIMARY_MIRROR)

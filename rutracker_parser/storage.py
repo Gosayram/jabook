@@ -31,26 +31,37 @@ class CrawlStorage:
         ):
             path.mkdir(parents=True, exist_ok=True)
 
-        self._handles: dict[str, object] = {
-            "pages": (self.pages_dir / "pages.jsonl").open("a", encoding="utf-8"),
-            "forums": (self.entities_dir / "forums.jsonl").open("a", encoding="utf-8"),
-            "topics": (self.entities_dir / "topics.jsonl").open("a", encoding="utf-8"),
-            "users": (self.entities_dir / "users.jsonl").open("a", encoding="utf-8"),
-            "torrents": (self.entities_dir / "torrents.jsonl").open("a", encoding="utf-8"),
-            "categories": (self.entities_dir / "categories.jsonl").open("a", encoding="utf-8"),
-            "posts": (self.entities_dir / "posts.jsonl").open("a", encoding="utf-8"),
-            "topic_meta": (self.entities_dir / "topic_meta.jsonl").open("a", encoding="utf-8"),
-            "profiles": (self.entities_dir / "profiles.jsonl").open("a", encoding="utf-8"),
-            "edges": (self.graph_dir / "edges.jsonl").open("a", encoding="utf-8"),
-            "errors": (self.meta_dir / "errors.jsonl").open("a", encoding="utf-8"),
+        self._stream_paths: dict[str, Path] = {
+            "pages": self.pages_dir / "pages.jsonl",
+            "forums": self.entities_dir / "forums.jsonl",
+            "topics": self.entities_dir / "topics.jsonl",
+            "users": self.entities_dir / "users.jsonl",
+            "torrents": self.entities_dir / "torrents.jsonl",
+            "categories": self.entities_dir / "categories.jsonl",
+            "posts": self.entities_dir / "posts.jsonl",
+            "topic_meta": self.entities_dir / "topic_meta.jsonl",
+            "profiles": self.entities_dir / "profiles.jsonl",
+            "edges": self.graph_dir / "edges.jsonl",
+            "errors": self.meta_dir / "errors.jsonl",
         }
+        self._handles: dict[str, object] = {}
 
     def close(self) -> None:
         for handle in self._handles.values():
             handle.close()
+        self._handles.clear()
+
+    def _handle_for_stream(self, stream: str) -> object:
+        handle = self._handles.get(stream)
+        if handle is not None:
+            return handle
+        target = self._stream_paths[stream]
+        opened = target.open("a", encoding="utf-8")
+        self._handles[stream] = opened
+        return opened
 
     def _write_jsonl(self, stream: str, payload: dict) -> None:
-        handle = self._handles[stream]
+        handle = self._handle_for_stream(stream)
         handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
         handle.flush()
 
