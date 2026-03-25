@@ -245,7 +245,6 @@ private fun TopicDetailsContent(
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            ?: null
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
     val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
@@ -678,7 +677,6 @@ private fun DescriptionAndCommentsSection(
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            ?: null
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
     val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
     val isNarrow = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
@@ -761,7 +759,6 @@ private fun ExpandableDescription(
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            ?: null
 
     // Get window size class for adaptive sizing
     val rawWindowSizeClass =

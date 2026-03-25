@@ -81,7 +81,6 @@ public fun TorrentDownloadsScreen(
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            ?: null
     val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
     val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
