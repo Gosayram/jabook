@@ -73,6 +73,21 @@ COMMON_RU_SUFFIXES = (
     "е",
     "о",
 )
+COMMENT_LOW_SIGNAL_TOKENS = {
+    "спасибо",
+    "благодарю",
+    "благодарность",
+    "благодарочка",
+    "ап",
+    "up",
+    "+",
+    "ок",
+    "класс",
+    "супер",
+    "норм",
+    "огонь",
+    "жду",
+}
 
 
 def _resolve_mode(
@@ -154,6 +169,15 @@ def _find_latest_index_full_file(output_dir: Path) -> Path | None:
     if not output_dir.exists():
         return None
     candidates = sorted(output_dir.glob("run_*/search/index_full.json"))
+    if not candidates:
+        return None
+    return candidates[-1]
+
+
+def _find_latest_comments_index_file(output_dir: Path) -> Path | None:
+    if not output_dir.exists():
+        return None
+    candidates = sorted(output_dir.glob("run_*/search/comments_index.jsonl"))
     if not candidates:
         return None
     return candidates[-1]
@@ -302,6 +326,51 @@ def _read_jsonl(path: Path) -> list[dict]:
             continue
         rows.append(json.loads(line))
     return rows
+
+
+def _jsonl_write(path: Path, rows: list[dict]) -> None:
+    payload = "\n".join(json.dumps(row, ensure_ascii=False) for row in rows)
+    if payload:
+        payload += "\n"
+    path.write_text(payload, encoding="utf-8")
+
+
+def _as_dict_list(value: Any) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    result: list[dict] = []
+    for item in value:
+        if isinstance(item, dict):
+            result.append(item)
+    return result
+
+
+def _as_int_list(value: Any) -> list[int]:
+    if not isinstance(value, list):
+        return []
+    result: list[int] = []
+    seen: set[int] = set()
+    for item in value:
+        casted = _coerce_int(item)
+        if casted is None or casted in seen:
+            continue
+        seen.add(casted)
+        result.append(casted)
+    return result
+
+
+def _as_text_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        text = str(item or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result
 
 
 def _topic_richness(row: dict) -> int:
@@ -573,6 +642,580 @@ def _record_rank(row: dict) -> float:
         + math.log1p(float(downloads)) * 2.0
         + (freshness / 100_000_000.0)
     )
+
+
+def _comment_payload_richness(row: dict) -> int:
+    formatting = row.get("formatting_stats")
+    if not isinstance(formatting, dict):
+        formatting = {}
+    return sum(
+        1
+        for item in (
+            row.get("text"),
+            row.get("topic_title"),
+            row.get("poster"),
+            row.get("post_url"),
+            row.get("links_detailed"),
+            row.get("images_detailed"),
+            row.get("quotes"),
+            row.get("spoilers"),
+            row.get("reply_to_post_ids"),
+            row.get("reply_to_users"),
+            row.get("signature_text"),
+            formatting,
+        )
+        if item not in (None, "", [], {})
+    )
+
+
+def _is_minimal_comment_record(record: dict) -> bool:
+    topic_id = _coerce_int(record.get("topic_id"))
+    post_id = _coerce_int(record.get("post_id"))
+    post_url = str(record.get("post_url") or "").strip()
+    text = str(record.get("text") or "").strip()
+    links_detailed = _as_dict_list(record.get("links_detailed"))
+    images_detailed = _as_dict_list(record.get("images_detailed"))
+    quotes = _as_dict_list(record.get("quotes"))
+    spoilers = _as_dict_list(record.get("spoilers"))
+    if topic_id is None or post_id is None:
+        return False
+    if not post_url:
+        return False
+    if len(text) >= 3:
+        return True
+    return bool(links_detailed or images_detailed or quotes or spoilers)
+
+
+def _comment_quality_score(row: dict) -> float:
+    text = str(row.get("text") or "").strip()
+    topic_title = str(row.get("topic_title") or "").strip()
+    post_url = str(row.get("post_url") or "").strip()
+    topic_url = str(row.get("topic_url") or "").strip()
+    poster = str(row.get("poster") or "").strip()
+    posted_at = str(row.get("posted_at") or "").strip()
+
+    links = _as_dict_list(row.get("links_detailed"))
+    images = _as_dict_list(row.get("images_detailed"))
+    quotes = _as_dict_list(row.get("quotes"))
+    spoilers = _as_dict_list(row.get("spoilers"))
+    reply_post_ids = _as_int_list(row.get("reply_to_post_ids"))
+    reply_users = _as_text_list(row.get("reply_to_users"))
+    formatting = row.get("formatting_stats")
+    if not isinstance(formatting, dict):
+        formatting = {}
+
+    text_len = len(text)
+    score = 0.0
+    total = 0.0
+
+    total += 2.6
+    if text_len >= 220:
+        score += 2.6
+    elif text_len >= 100:
+        score += 2.0
+    elif text_len >= 40:
+        score += 1.3
+    elif text_len >= 15:
+        score += 0.7
+    elif text_len > 0:
+        score += 0.3
+
+    total += 1.9
+    if topic_title:
+        score += 0.7
+    if post_url and "viewtopic.php" in post_url and "#" in post_url:
+        score += 0.8
+    elif post_url:
+        score += 0.4
+    if topic_url and "viewtopic.php" in topic_url:
+        score += 0.4
+
+    total += 1.0
+    if poster:
+        score += 0.5
+    if posted_at:
+        score += 0.5
+
+    total += 2.5
+    structure_raw = (
+        min(len(quotes), 4) * 0.35
+        + min(len(spoilers), 3) * 0.45
+        + min(len(links), 8) * 0.14
+        + min(len(images), 6) * 0.12
+        + min(len(reply_post_ids), 6) * 0.18
+        + min(len(reply_users), 6) * 0.16
+    )
+    if formatting:
+        structure_raw += (
+            min(
+                float(formatting.get("bold_count") or 0)
+                + float(formatting.get("italic_count") or 0)
+                + float(formatting.get("code_count") or 0)
+                + float(formatting.get("list_item_count") or 0)
+                + float(formatting.get("quote_count") or 0)
+                + float(formatting.get("spoiler_count") or 0),
+                12.0,
+            )
+            * 0.06
+        )
+    score += min(structure_raw, 2.5)
+
+    total += 1.3
+    signature_text = str(row.get("signature_text") or "").strip()
+    if signature_text:
+        score += 0.2
+    if _as_text_list(row.get("signature_links")):
+        score += 0.6
+    if _as_text_list(row.get("signature_images")):
+        score += 0.5
+
+    if total <= 0.0:
+        return 0.0
+
+    quality = max(0.0, min(1.0, score / total))
+
+    normalized_text = _normalize_text(text)
+    text_tokens = set(_tokenize(normalized_text, stem=False))
+    only_low_signal = bool(text_tokens) and text_tokens.issubset(COMMENT_LOW_SIGNAL_TOKENS)
+    low_signal = only_low_signal or (
+        text_len <= 70 and any(token in COMMENT_LOW_SIGNAL_TOKENS for token in text_tokens)
+    )
+    if text_len < 20 and not (links or images or quotes or spoilers):
+        quality *= 0.42
+    if low_signal:
+        quality *= 0.72
+    if len(links) >= 6 and text_len < 120:
+        quality *= 0.84
+
+    return max(0.0, min(1.0, quality))
+
+
+def _comment_quality_penalty(row: dict) -> float:
+    return (1.0 - _comment_quality_score(row)) * 24.0
+
+
+def _comment_rank_base(row: dict) -> float:
+    quality = float(row.get("quality_score") or 0.0)
+    text_len = max(len(str(row.get("text") or "").strip()), 0)
+    reply_count = len(_as_int_list(row.get("reply_to_post_ids")))
+    quote_count = len(_as_dict_list(row.get("quotes")))
+    spoiler_count = len(_as_dict_list(row.get("spoilers")))
+    link_count = len(_as_dict_list(row.get("links_detailed")))
+    image_count = len(_as_dict_list(row.get("images_detailed")))
+    formatting = row.get("formatting_stats")
+    if not isinstance(formatting, dict):
+        formatting = {}
+    style_signal = min(
+        float(formatting.get("bold_count") or 0)
+        + float(formatting.get("italic_count") or 0)
+        + float(formatting.get("code_count") or 0)
+        + float(formatting.get("list_item_count") or 0),
+        10.0,
+    )
+
+    return (
+        quality * 45.0
+        + min(float(text_len), 1600.0) / 42.0
+        + float(reply_count) * 1.5
+        + float(quote_count) * 1.2
+        + float(spoiler_count) * 1.05
+        + float(link_count) * 0.42
+        + float(image_count) * 0.35
+        + style_signal * 0.45
+    )
+
+
+def _normalize_existing_comment_index_record(
+    row: dict, query: str, *, min_quality_score: float = 0.0
+) -> dict | None:
+    topic_id = _coerce_int(row.get("topic_id"))
+    post_id = _coerce_int(row.get("post_id"))
+    if topic_id is None or post_id is None:
+        return None
+
+    normalized = dict(row)
+    normalized["topic_id"] = topic_id
+    normalized["post_id"] = post_id
+    normalized["comment_key"] = f"{topic_id}:{post_id}"
+    normalized["query"] = str(normalized.get("query") or query)
+
+    quality_score = normalized.get("quality_score")
+    if not isinstance(quality_score, (int, float)):
+        quality_score = _comment_quality_score(normalized)
+    normalized["quality_score"] = round(float(quality_score), 4)
+
+    quality_penalty = normalized.get("quality_penalty")
+    if not isinstance(quality_penalty, (int, float)):
+        quality_penalty = _comment_quality_penalty(normalized)
+    normalized["quality_penalty"] = round(float(quality_penalty), 6)
+
+    rank_base = normalized.get("rank_base")
+    if not isinstance(rank_base, (int, float)):
+        rank_base = _comment_rank_base(normalized)
+    normalized["rank_base"] = round(float(rank_base), 6)
+    normalized["rank"] = round(
+        max(float(normalized["rank_base"]) - float(normalized["quality_penalty"]), 0.0), 6
+    )
+    normalized["text_len"] = len(str(normalized.get("text") or "").strip())
+
+    if float(normalized.get("quality_score") or 0.0) < min_quality_score:
+        return None
+    if not _is_minimal_comment_record(normalized):
+        return None
+    return normalized
+
+
+def _merge_incremental_comment_records(
+    *,
+    current_records: list[dict],
+    base_records: list[dict],
+    query: str,
+    min_quality_score: float = 0.0,
+) -> tuple[list[dict], dict]:
+    base_map: dict[str, dict] = {}
+    base_filtered_out = 0
+    for row in base_records:
+        normalized = _normalize_existing_comment_index_record(
+            row, query, min_quality_score=min_quality_score
+        )
+        if not normalized:
+            base_filtered_out += 1
+            continue
+        base_map[str(normalized["comment_key"])] = normalized
+
+    base_keys = set(base_map.keys())
+    new_count = 0
+    updated_count = 0
+    new_sample: list[str] = []
+    updated_sample: list[str] = []
+    for row in current_records:
+        key = str(row.get("comment_key") or "")
+        if not key:
+            continue
+        if key in base_keys:
+            updated_count += 1
+            if len(updated_sample) < 50:
+                updated_sample.append(key)
+        else:
+            new_count += 1
+            if len(new_sample) < 50:
+                new_sample.append(key)
+        base_map[key] = row
+
+    carried_over = max(len(base_keys) - updated_count, 0)
+    merged = sorted(
+        base_map.values(),
+        key=lambda item: (
+            float(item.get("rank") or 0.0),
+            float(item.get("quality_score") or 0.0),
+            int(item.get("text_len") or 0),
+            _coerce_int(item.get("post_id")) or 0,
+        ),
+        reverse=True,
+    )
+    return merged, {
+        "base_records_total": len(base_keys),
+        "base_records_filtered_out": base_filtered_out,
+        "new_records": new_count,
+        "updated_records": updated_count,
+        "carried_over_records": carried_over,
+        "merged_records_total": len(merged),
+        "new_comment_keys_sample": new_sample,
+        "updated_comment_keys_sample": updated_sample,
+    }
+
+
+def _build_topic_context_map(topics_rows: list[dict]) -> dict[int, dict]:
+    by_topic: dict[int, dict] = {}
+    for row in topics_rows:
+        topic_id = _coerce_int(row.get("topic_id"))
+        if topic_id is None:
+            continue
+        if str(row.get("kind") or "").strip().lower() == "tracker_details":
+            continue
+        candidate = {
+            "topic_title": str(row.get("title") or "").strip(),
+            "topic_url": str(row.get("url") or row.get("topic_url") or "").strip(),
+            "forum_id": _coerce_int(row.get("forum_id")),
+            "forum_title": str(row.get("forum_title") or "").strip(),
+            "forum_url": str(row.get("forum_url") or "").strip(),
+        }
+        current = by_topic.get(topic_id)
+        if not current:
+            by_topic[topic_id] = candidate
+            continue
+        if _comment_payload_richness(candidate) >= _comment_payload_richness(current):
+            by_topic[topic_id] = candidate
+    return by_topic
+
+
+def _load_comments_index_records(index_path: Path) -> tuple[str, list[dict]]:
+    rows = _read_jsonl(index_path)
+    query = ""
+    normalized: list[dict] = []
+    for row in rows:
+        if not query:
+            query = str(row.get("query") or "").strip()
+        if isinstance(row, dict):
+            normalized.append(row)
+    return query, normalized
+
+
+def build_comments_index(
+    run_dir: Path,
+    query: str,
+    *,
+    base_records: list[dict] | None = None,
+    base_index_path: Path | None = None,
+    min_quality_score: float = 0.0,
+) -> dict:
+    posts_rows = _read_jsonl(run_dir / "entities" / "posts.jsonl")
+    topics_rows = _read_jsonl(run_dir / "entities" / "topics.jsonl")
+    quality_threshold = _clamp_quality_threshold(min_quality_score, default=0.0)
+    drop_stats: dict[str, int] = {
+        "skipped_without_topic_or_post_id": 0,
+        "skipped_empty_payload": 0,
+        "skipped_low_quality": 0,
+    }
+
+    topic_context = _build_topic_context_map(topics_rows)
+    chosen: dict[str, dict] = {}
+    for row in posts_rows:
+        topic_id = _coerce_int(row.get("topic_id"))
+        post_id = _coerce_int(row.get("post_id"))
+        if topic_id is None or post_id is None:
+            drop_stats["skipped_without_topic_or_post_id"] += 1
+            continue
+
+        context = topic_context.get(topic_id, {})
+        text = str(row.get("text") or "").strip()
+        text_lines = _as_text_list(row.get("text_lines"))
+        if not text and text_lines:
+            text = " ".join(text_lines).strip()
+
+        links_detailed = _as_dict_list(row.get("links_detailed"))
+        if not links_detailed:
+            links_detailed = [
+                {"url": link, "anchor_text": "", "is_external": False}
+                for link in _as_text_list(row.get("links"))
+            ]
+
+        images_detailed = _as_dict_list(row.get("images_detailed"))
+        if not images_detailed:
+            images_detailed = [
+                {"url": image, "alt": ""} for image in _as_text_list(row.get("image_urls"))
+            ]
+
+        quotes = _as_dict_list(row.get("quotes"))
+        spoilers = _as_dict_list(row.get("spoilers"))
+        reply_to_post_ids = _as_int_list(row.get("reply_to_post_ids"))
+        reply_to_users = _as_text_list(row.get("reply_to_users"))
+        formatting_stats = row.get("formatting_stats")
+        if not isinstance(formatting_stats, dict):
+            formatting_stats = {}
+
+        quote_texts = [
+            str(item.get("text") or "").strip()
+            for item in quotes
+            if str(item.get("text") or "").strip()
+        ]
+        spoiler_texts = [
+            str(item.get("text") or "").strip()
+            for item in spoilers
+            if str(item.get("text") or "").strip()
+        ]
+        link_texts = [
+            str(item.get("anchor_text") or item.get("url") or "").strip()
+            for item in links_detailed
+            if str(item.get("anchor_text") or item.get("url") or "").strip()
+        ]
+
+        topic_title = str(row.get("topic_title") or context.get("topic_title") or "").strip()
+        topic_url = str(row.get("topic_url") or context.get("topic_url") or "").strip()
+        forum_title = str(row.get("forum_title") or context.get("forum_title") or "").strip()
+        forum_id = _coerce_int(row.get("forum_id")) or _coerce_int(context.get("forum_id"))
+        forum_url = str(row.get("forum_url") or context.get("forum_url") or "").strip()
+        post_url = str(row.get("url") or "").strip()
+        poster = str(row.get("poster") or "").strip()
+        signature_text = str(row.get("signature_text") or "").strip()
+        signature_links = _as_text_list(row.get("signature_links"))
+        signature_images = _as_text_list(row.get("signature_images"))
+
+        search_blob = " ".join(
+            item
+            for item in (
+                topic_title,
+                forum_title,
+                poster,
+                text,
+                " ".join(text_lines),
+                " ".join(quote_texts),
+                " ".join(spoiler_texts),
+                " ".join(link_texts),
+                " ".join(reply_to_users),
+                signature_text,
+            )
+            if item
+        )
+        search_text = _normalize_text(search_blob[:9000])
+
+        record = {
+            "comment_key": f"{topic_id}:{post_id}",
+            "topic_id": topic_id,
+            "post_id": post_id,
+            "post_url": post_url,
+            "topic_title": topic_title,
+            "topic_url": topic_url,
+            "forum_id": forum_id,
+            "forum_title": forum_title,
+            "forum_url": forum_url,
+            "poster": poster,
+            "poster_profile_url": str(row.get("poster_profile_url") or "").strip(),
+            "poster_avatar_url": str(row.get("poster_avatar_url") or "").strip(),
+            "poster_pm_url": str(row.get("poster_pm_url") or "").strip(),
+            "posted_at": str(row.get("posted_at") or "").strip(),
+            "edited_info": str(row.get("edited_info") or "").strip(),
+            "quote_action_url": str(row.get("quote_action_url") or "").strip(),
+            "quote_action_post_id": _coerce_int(row.get("quote_action_post_id")),
+            "text": text,
+            "text_len": len(text),
+            "text_lines": text_lines,
+            "quote_texts": quote_texts,
+            "spoiler_texts": spoiler_texts,
+            "links_detailed": links_detailed,
+            "images_detailed": images_detailed,
+            "quotes": quotes,
+            "spoilers": spoilers,
+            "reply_to_post_ids": reply_to_post_ids,
+            "reply_to_users": reply_to_users,
+            "formatting_stats": formatting_stats,
+            "signature_text": signature_text,
+            "signature_links": signature_links,
+            "signature_images": signature_images,
+            "source_url": str(row.get("source_url") or "").strip(),
+            "query": query,
+            "search_text": search_text,
+            "ts": str(row.get("ts") or utc_now_iso()),
+        }
+
+        if not _is_minimal_comment_record(record):
+            drop_stats["skipped_empty_payload"] += 1
+            continue
+
+        quality_score = _comment_quality_score(record)
+        if quality_score < quality_threshold:
+            drop_stats["skipped_low_quality"] += 1
+            continue
+
+        quality_penalty = _comment_quality_penalty(record)
+        rank_base = _comment_rank_base({**record, "quality_score": quality_score})
+        record["quality_score"] = round(quality_score, 4)
+        record["quality_penalty"] = round(quality_penalty, 6)
+        record["rank_base"] = round(rank_base, 6)
+        record["rank"] = round(max(rank_base - quality_penalty, 0.0), 6)
+
+        existing = chosen.get(record["comment_key"])
+        if not existing:
+            chosen[record["comment_key"]] = record
+            continue
+        if _comment_payload_richness(record) > _comment_payload_richness(existing):
+            chosen[record["comment_key"]] = record
+            continue
+        if float(record.get("rank") or 0.0) > float(existing.get("rank") or 0.0):
+            chosen[record["comment_key"]] = record
+
+    current_records = sorted(
+        chosen.values(),
+        key=lambda item: (
+            float(item.get("rank") or 0.0),
+            float(item.get("quality_score") or 0.0),
+            int(item.get("text_len") or 0),
+            _coerce_int(item.get("post_id")) or 0,
+        ),
+        reverse=True,
+    )
+    records = current_records
+
+    incremental_summary = {
+        "enabled": False,
+        "base_index_path": "",
+        "min_quality_score": quality_threshold,
+        "base_records_total": 0,
+        "base_records_filtered_out": 0,
+        "new_records": len(current_records),
+        "updated_records": 0,
+        "carried_over_records": 0,
+        "merged_records_total": len(current_records),
+        "new_comment_keys_sample": [],
+        "updated_comment_keys_sample": [],
+    }
+    if base_records:
+        records, merge_stats = _merge_incremental_comment_records(
+            current_records=current_records,
+            base_records=base_records,
+            query=query,
+            min_quality_score=quality_threshold,
+        )
+        incremental_summary = {
+            "enabled": True,
+            "base_index_path": str(base_index_path) if base_index_path else "",
+            "min_quality_score": quality_threshold,
+            **merge_stats,
+        }
+
+    search_dir = run_dir / "search"
+    search_dir.mkdir(parents=True, exist_ok=True)
+
+    comments_index_path = search_dir / "comments_index.jsonl"
+    comments_stats_path = search_dir / "comments_index_stats.json"
+    comments_top_path = search_dir / "comments_top50.json"
+
+    _jsonl_write(comments_index_path, records)
+    comments_top_path.write_text(
+        json.dumps(
+            {
+                "query": query,
+                "generated_at": utc_now_iso(),
+                "top": records[:50],
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    comments_stats_path.write_text(
+        json.dumps(
+            {
+                "query": query,
+                "generated_at": utc_now_iso(),
+                "records_from_crawl": len(current_records),
+                "records_total": len(records),
+                "min_quality_score": quality_threshold,
+                "quality_avg": round(
+                    (
+                        sum(float(item.get("quality_score") or 0.0) for item in records)
+                        / max(len(records), 1)
+                    ),
+                    4,
+                ),
+                "drop_stats": drop_stats,
+                "incremental": incremental_summary,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return {
+        "records_total": len(records),
+        "records_from_crawl": len(current_records),
+        "comments_index": str(comments_index_path),
+        "comments_top50": str(comments_top_path),
+        "comments_index_stats": str(comments_stats_path),
+        "drop_stats": drop_stats,
+        "min_quality_score": quality_threshold,
+        "incremental": incremental_summary,
+    }
 
 
 def build_search_index(
@@ -858,9 +1501,15 @@ def run_search_index(args: Any) -> dict:
         getattr(args, "min_quality_score", 0.0), default=0.0
     )
     max_base_records = max(int(getattr(args, "max_base_records", 200_000) or 0), 0)
+    min_comment_quality_score = _clamp_quality_threshold(
+        getattr(args, "min_comment_quality_score", 0.0), default=0.0
+    )
     base_index_path: Path | None = None
+    base_comments_index_path: Path | None = None
     base_query = ""
     base_records: list[dict] = []
+    base_comment_query = ""
+    base_comment_records: list[dict] = []
 
     if incremental_enabled:
         if base_index_value:
@@ -888,6 +1537,29 @@ def run_search_index(args: Any) -> dict:
                     ),
                     reverse=True,
                 )[:max_base_records]
+
+            candidate_comments = base_index_path.parent / "comments_index.jsonl"
+            if candidate_comments.exists() and candidate_comments.is_file():
+                base_comments_index_path = candidate_comments
+                base_comment_query, loaded_comments = _load_comments_index_records(
+                    base_comments_index_path
+                )
+                if base_comment_query and _normalize_text(base_comment_query) != _normalize_text(
+                    args.query
+                ):
+                    base_comment_records = []
+                else:
+                    base_comment_records = loaded_comments
+                if max_base_records > 0 and len(base_comment_records) > max_base_records:
+                    base_comment_records = sorted(
+                        base_comment_records,
+                        key=lambda item: (
+                            float(item.get("rank") or 0.0),
+                            float(item.get("quality_score") or 0.0),
+                            int(item.get("text_len") or 0),
+                        ),
+                        reverse=True,
+                    )[:max_base_records]
         elif base_index_value:
             raise FileNotFoundError(f"Base index not found: {candidate}")
 
@@ -913,18 +1585,32 @@ def run_search_index(args: Any) -> dict:
         base_index_path=base_index_path,
         min_quality_score=min_quality_score,
     )
+    comments_summary = build_comments_index(
+        run_dir,
+        args.query,
+        base_records=base_comment_records,
+        base_index_path=base_comments_index_path,
+        min_quality_score=min_comment_quality_score,
+    )
     return {
         "query": args.query,
         "forum_ids": forum_ids,
         "crawl": crawl_summary,
         "index": index_summary,
+        "comments_index": comments_summary,
         "incremental": {
             "enabled": incremental_enabled,
             "base_index_path": str(base_index_path) if base_index_path else "",
             "base_query": base_query,
             "base_records_loaded": len(base_records),
+            "base_comments_index_path": (
+                str(base_comments_index_path) if base_comments_index_path else ""
+            ),
+            "base_comment_query": base_comment_query,
+            "base_comment_records_loaded": len(base_comment_records),
             "max_base_records": max_base_records,
             "min_quality_score": min_quality_score,
+            "min_comment_quality_score": min_comment_quality_score,
         },
     }
 
@@ -1090,6 +1776,147 @@ def search_compact_index(
     }
 
 
+def search_comments_index(
+    index_path: Path, query: str, limit: int, *, min_quality_score: float = 0.0
+) -> dict:
+    records = _read_jsonl(index_path)
+    quality_threshold = _clamp_quality_threshold(min_quality_score, default=0.0)
+    raw_records_count = len(records)
+    if quality_threshold > 0.0:
+        records = [
+            row for row in records if float(row.get("quality_score") or 0.0) >= quality_threshold
+        ]
+
+    query_normalized = _normalize_text(query)
+    query_tokens = _tokenize(query_normalized, stem=False)
+    query_stems = set(_tokenize(query_normalized, stem=True))
+    idf_map = _build_idf(records)
+
+    strict_ranked: list[tuple[float, dict]] = []
+    fuzzy_ranked: list[tuple[float, dict]] = []
+    for row in records:
+        text = _normalize_text(str(row.get("text") or ""))
+        topic_title = _normalize_text(str(row.get("topic_title") or ""))
+        poster = _normalize_text(str(row.get("poster") or ""))
+        forum_title = _normalize_text(str(row.get("forum_title") or ""))
+        blob = _normalize_text(
+            str(
+                row.get("search_text")
+                or (
+                    f"{row.get('topic_title', '')} {row.get('forum_title', '')} "
+                    f"{row.get('poster', '')} {row.get('text', '')}"
+                )
+            )
+        )
+
+        text_stems = set(_tokenize(text, stem=True))
+        topic_stems = set(_tokenize(topic_title, stem=True))
+        poster_stems = set(_tokenize(poster, stem=True))
+        forum_stems = set(_tokenize(forum_title, stem=True))
+        all_stems = text_stems | topic_stems | poster_stems | forum_stems
+
+        lexical = 0.0
+        for token in query_stems:
+            token_idf = idf_map.get(token, 1.0)
+            if token in text_stems:
+                lexical += token_idf * 8.0
+            if token in topic_stems:
+                lexical += token_idf * 4.0
+            if token in poster_stems:
+                lexical += token_idf * 2.5
+            if token in forum_stems:
+                lexical += token_idf * 1.6
+
+        phrase_bonus = 0.0
+        if query_normalized and query_normalized in text:
+            phrase_bonus += 34.0
+        elif query_normalized and query_normalized in blob:
+            phrase_bonus += 18.0
+
+        fuzzy_text = (
+            SequenceMatcher(None, query_normalized, text).ratio()
+            if query_normalized and text
+            else 0.0
+        )
+        fuzzy_topic = (
+            SequenceMatcher(None, query_normalized, topic_title).ratio()
+            if query_normalized and topic_title
+            else 0.0
+        )
+        fuzzy_blob = (
+            SequenceMatcher(None, query_normalized, blob).ratio()
+            if query_normalized and blob
+            else 0.0
+        )
+        fuzzy_score = max(fuzzy_text, fuzzy_topic, fuzzy_blob)
+        fuzzy_bonus = max(0.0, fuzzy_score - 0.46) * 42.0
+
+        quality_score = float(row.get("quality_score") or 0.0)
+        quality_penalty = float(row.get("quality_penalty") or 0.0)
+        base_rank = float(row.get("rank") or 0.0)
+        reply_count = len(_as_int_list(row.get("reply_to_post_ids")))
+        quote_count = len(_as_dict_list(row.get("quotes")))
+        spoiler_count = len(_as_dict_list(row.get("spoilers")))
+        score = (
+            lexical * 115.0
+            + phrase_bonus
+            + fuzzy_bonus
+            + base_rank * 1.8
+            + quality_score * 20.0
+            - quality_penalty * 1.2
+            + float(reply_count) * 1.3
+            + float(quote_count) * 0.8
+            + float(spoiler_count) * 0.6
+        )
+
+        strict_hit = bool(query_stems.intersection(all_stems)) or bool(
+            query_normalized and query_normalized in blob
+        )
+        relaxed_hit = strict_hit or _partial_hit(query_tokens, blob) or fuzzy_score >= 0.58
+        if strict_hit:
+            strict_ranked.append((score, row))
+        elif relaxed_hit:
+            fuzzy_ranked.append((score, row))
+
+    strict_ranked.sort(key=lambda item: item[0], reverse=True)
+    fuzzy_ranked.sort(key=lambda item: item[0], reverse=True)
+    top_ranked = sorted(
+        records,
+        key=lambda row: (
+            float(row.get("rank") or 0.0),
+            float(row.get("quality_score") or 0.0),
+            int(row.get("text_len") or 0),
+            _coerce_int(row.get("post_id")) or 0,
+        ),
+        reverse=True,
+    )
+
+    strategy = "strict"
+    matched = len(strict_ranked)
+    best: list[dict]
+    if strict_ranked:
+        best = [row for _, row in strict_ranked[: max(limit, 1)]]
+    elif fuzzy_ranked:
+        strategy = "fuzzy"
+        matched = len(fuzzy_ranked)
+        best = [row for _, row in fuzzy_ranked[: max(limit, 1)]]
+    else:
+        strategy = "top_rank_fallback"
+        matched = 0
+        best = top_ranked[: max(limit, 1)]
+
+    return {
+        "query": query,
+        "limit": max(limit, 1),
+        "matched": matched,
+        "strategy": strategy,
+        "min_quality_score": quality_threshold,
+        "records_before_quality_filter": raw_records_count,
+        "index_records": len(records),
+        "results": best,
+    }
+
+
 def _build_search_index_namespace_from_find(args: Any, query: str) -> Any:
     return SimpleNamespace(
         query=query,
@@ -1119,6 +1946,7 @@ def _build_search_index_namespace_from_find(args: Any, query: str) -> Any:
         incremental=bool(getattr(args, "incremental", False)),
         base_index=str(getattr(args, "base_index", "") or ""),
         min_quality_score=float(getattr(args, "min_quality_score", 0.0) or 0.0),
+        min_comment_quality_score=float(getattr(args, "min_comment_quality_score", 0.0) or 0.0),
         max_base_records=int(getattr(args, "max_base_records", 200_000) or 0),
     )
 
@@ -1131,6 +1959,10 @@ def _build_relaxed_refresh_args(args: Any) -> Any:
     refreshed.max_retries = max(2, int(refreshed.max_retries))
     refreshed.min_quality_score = min(
         _clamp_quality_threshold(getattr(refreshed, "min_quality_score", 0.0), default=0.0), 0.35
+    )
+    refreshed.min_comment_quality_score = min(
+        _clamp_quality_threshold(getattr(refreshed, "min_comment_quality_score", 0.0), default=0.0),
+        0.2,
     )
     return refreshed
 
@@ -1166,53 +1998,254 @@ def _resolve_index_for_find(args: Any) -> tuple[Path, dict | None]:
     )
 
 
+def _resolve_comments_index_for_find(args: Any) -> tuple[Path, dict | None]:
+    index_summary: dict | None = None
+    explicit_index = bool(getattr(args, "comments_index", ""))
+    if explicit_index:
+        index_path = Path(args.comments_index).expanduser().resolve()
+    else:
+        latest = _find_latest_comments_index_file(Path(args.output_dir))
+        index_path = latest.resolve() if latest else Path("")
+
+    if index_path and index_path.is_file():
+        return index_path, index_summary
+    if explicit_index and index_path and index_path.exists() and not index_path.is_file():
+        raise FileNotFoundError(f"Comments index path is not a file: {index_path}")
+
+    auto_build_allowed = args.auto_index_if_missing or args.auto_refresh_on_empty
+    if auto_build_allowed:
+        build_args = _build_search_index_namespace_from_find(args, query=args.query)
+        index_summary = run_search_index(build_args)
+        comments_path = (
+            index_summary.get("comments_index", {}).get("comments_index")
+            if isinstance(index_summary.get("comments_index"), dict)
+            else ""
+        )
+        index_path = Path(str(comments_path)).expanduser().resolve() if comments_path else Path("")
+        if index_path and index_path.is_file():
+            return index_path, index_summary
+
+    if explicit_index:
+        raise FileNotFoundError(
+            f"Comments index not found: {index_path}. "
+            "Use --auto-index-if-missing to build it automatically."
+        )
+    raise FileNotFoundError(
+        f"Comments index not found in {Path(args.output_dir).resolve()}. "
+        "Provide --comments-index or use --auto-index-if-missing."
+    )
+
+
+def _merge_scope_results(topic_result: dict, comment_result: dict, limit: int) -> list[dict]:
+    merged: list[dict] = []
+    for row in topic_result.get("results", []):
+        payload = dict(row)
+        payload["entity_type"] = "topic"
+        payload["score_hint"] = (
+            float(row.get("rank") or 0.0) + float(row.get("quality_score") or 0.0) * 4.0
+        )
+        merged.append(payload)
+    for row in comment_result.get("results", []):
+        payload = dict(row)
+        payload["entity_type"] = "comment"
+        payload["score_hint"] = (
+            float(row.get("rank") or 0.0) + float(row.get("quality_score") or 0.0) * 6.0
+        )
+        merged.append(payload)
+    merged.sort(key=lambda item: float(item.get("score_hint") or 0.0), reverse=True)
+    return merged[: max(limit, 1)]
+
+
 def run_search_find(args: Any) -> dict:
     min_quality_score = _clamp_quality_threshold(
         getattr(args, "min_quality_score", 0.0), default=0.0
     )
-    index_path, build_summary = _resolve_index_for_find(args)
-    result = search_compact_index(
-        index_path=index_path,
-        query=args.query,
-        limit=args.limit,
-        min_quality_score=min_quality_score,
+    min_comment_quality_score = _clamp_quality_threshold(
+        getattr(args, "min_comment_quality_score", 0.0), default=0.0
     )
-    result["index_path"] = str(index_path)
-    if build_summary:
-        result["index_built"] = build_summary.get("index", {})
+    scope = str(getattr(args, "scope", "topics") or "topics").strip().lower()
+    if scope not in {"topics", "comments", "all"}:
+        scope = "topics"
 
-    needs_refresh = args.auto_refresh_on_empty and (
-        result.get("matched", 0) == 0 or result.get("index_records", 0) == 0
-    )
-    if needs_refresh:
+    topic_result: dict | None = None
+    comment_result: dict | None = None
+    topic_build_summary: dict | None = None
+    comments_build_summary: dict | None = None
+
+    if scope in {"topics", "all"}:
+        try:
+            index_path, topic_build_summary = _resolve_index_for_find(args)
+            topic_result = search_compact_index(
+                index_path=index_path,
+                query=args.query,
+                limit=args.limit,
+                min_quality_score=min_quality_score,
+            )
+            topic_result["index_path"] = str(index_path)
+            if topic_build_summary:
+                topic_result["index_built"] = topic_build_summary.get("index", {})
+        except FileNotFoundError as error:
+            if scope == "topics":
+                raise
+            topic_result = {
+                "query": args.query,
+                "limit": max(int(args.limit), 1),
+                "matched": 0,
+                "strategy": "missing_index",
+                "index_records": 0,
+                "records_before_quality_filter": 0,
+                "results": [],
+                "warning": str(error),
+            }
+
+    if scope in {"comments", "all"}:
+        try:
+            comments_index_path, comments_build_summary = _resolve_comments_index_for_find(args)
+            comment_result = search_comments_index(
+                index_path=comments_index_path,
+                query=args.query,
+                limit=args.limit,
+                min_quality_score=min_comment_quality_score,
+            )
+            comment_result["index_path"] = str(comments_index_path)
+            if comments_build_summary:
+                comment_result["index_built"] = comments_build_summary.get("comments_index", {})
+        except FileNotFoundError as error:
+            if scope == "comments":
+                raise
+            comment_result = {
+                "query": args.query,
+                "limit": max(int(args.limit), 1),
+                "matched": 0,
+                "strategy": "missing_index",
+                "index_records": 0,
+                "records_before_quality_filter": 0,
+                "results": [],
+                "warning": str(error),
+            }
+
+    if scope == "topics":
+        result = dict(topic_result or {})
+    elif scope == "comments":
+        result = dict(comment_result or {})
+    else:
+        result = {
+            "query": args.query,
+            "limit": max(int(args.limit), 1),
+            "scope": "all",
+            "topic": topic_result or {},
+            "comments": comment_result or {},
+            "results": _merge_scope_results(topic_result or {}, comment_result or {}, args.limit),
+            "matched": int((topic_result or {}).get("matched", 0))
+            + int((comment_result or {}).get("matched", 0)),
+            "index_records": int((topic_result or {}).get("index_records", 0))
+            + int((comment_result or {}).get("index_records", 0)),
+            "records_before_quality_filter": int(
+                (topic_result or {}).get("records_before_quality_filter", 0)
+            )
+            + int((comment_result or {}).get("records_before_quality_filter", 0)),
+        }
+
+    def _needs_refresh(block: dict | None) -> bool:
+        if not block:
+            return False
+        return bool(args.auto_refresh_on_empty) and (
+            int(block.get("matched", 0)) == 0 or int(block.get("index_records", 0)) == 0
+        )
+
+    if scope in {"topics", "all"} and _needs_refresh(topic_result):
         refresh_args = _build_relaxed_refresh_args(args)
         refresh_summary = run_search_index(refresh_args)
         refreshed_path = Path(refresh_summary["index"]["index_compact"]).expanduser().resolve()
-        refreshed = search_compact_index(
+        refreshed_topic = search_compact_index(
             index_path=refreshed_path,
             query=args.query,
             limit=args.limit,
             min_quality_score=min_quality_score,
         )
-        refreshed["index_path"] = str(refreshed_path)
-        refreshed["index_refreshed"] = refresh_summary.get("index", {})
-        result = refreshed
+        refreshed_topic["index_path"] = str(refreshed_path)
+        refreshed_topic["index_refreshed"] = refresh_summary.get("index", {})
+        topic_result = refreshed_topic
 
-    if result.get("records_before_quality_filter", 0) > 0 and result.get("index_records", 0) == 0:
-        result["hint"] = (
-            "Все записи отфильтрованы по quality. Снизьте --min-quality-score "
-            "или обновите индекс с более широким покрытием."
+    if scope in {"comments", "all"} and _needs_refresh(comment_result):
+        refresh_args = _build_relaxed_refresh_args(args)
+        refresh_summary = run_search_index(refresh_args)
+        comments_path_value = (
+            refresh_summary.get("comments_index", {}).get("comments_index")
+            if isinstance(refresh_summary.get("comments_index"), dict)
+            else ""
         )
-    elif result.get("index_records", 0) == 0:
-        result["hint"] = (
-            "Индекс пуст: расширьте покрытие (больше форумов/страниц) или включите "
-            "--auto-refresh-on-empty для автопересборки."
-        )
-    elif result.get("matched", 0) == 0:
-        result["hint"] = (
-            "Точных совпадений нет в текущем индексе. Можно перезапросить с более широким "
-            "query или обновить индекс (--auto-refresh-on-empty)."
-        )
+        if comments_path_value:
+            refreshed_path = Path(str(comments_path_value)).expanduser().resolve()
+            refreshed_comments = search_comments_index(
+                index_path=refreshed_path,
+                query=args.query,
+                limit=args.limit,
+                min_quality_score=min_comment_quality_score,
+            )
+            refreshed_comments["index_path"] = str(refreshed_path)
+            refreshed_comments["index_refreshed"] = refresh_summary.get("comments_index", {})
+            comment_result = refreshed_comments
+
+    if scope == "topics":
+        result = dict(topic_result or {})
+    elif scope == "comments":
+        result = dict(comment_result or {})
+    else:
+        result = {
+            "query": args.query,
+            "limit": max(int(args.limit), 1),
+            "scope": "all",
+            "topic": topic_result or {},
+            "comments": comment_result or {},
+            "results": _merge_scope_results(topic_result or {}, comment_result or {}, args.limit),
+            "matched": int((topic_result or {}).get("matched", 0))
+            + int((comment_result or {}).get("matched", 0)),
+            "index_records": int((topic_result or {}).get("index_records", 0))
+            + int((comment_result or {}).get("index_records", 0)),
+            "records_before_quality_filter": int(
+                (topic_result or {}).get("records_before_quality_filter", 0)
+            )
+            + int((comment_result or {}).get("records_before_quality_filter", 0)),
+        }
+
+    if scope == "topics":
+        if (
+            result.get("records_before_quality_filter", 0) > 0
+            and result.get("index_records", 0) == 0
+        ):
+            result["hint"] = (
+                "Все topic-записи отфильтрованы по quality. Снизьте --min-quality-score "
+                "или обновите индекс с более широким покрытием."
+            )
+        elif result.get("index_records", 0) == 0:
+            result["hint"] = (
+                "Topic-индекс пуст: расширьте покрытие (больше форумов/страниц) или включите "
+                "--auto-refresh-on-empty для автопересборки."
+            )
+        elif result.get("matched", 0) == 0:
+            result["hint"] = (
+                "Точных topic-совпадений нет в текущем индексе. Можно перезапросить с более "
+                "широким query или обновить индекс (--auto-refresh-on-empty)."
+            )
+    elif scope == "comments":
+        if (
+            result.get("records_before_quality_filter", 0) > 0
+            and result.get("index_records", 0) == 0
+        ):
+            result["hint"] = (
+                "Все comment-записи отфильтрованы по quality. Снизьте "
+                "--min-comment-quality-score или обновите индекс."
+            )
+        elif result.get("index_records", 0) == 0:
+            result["hint"] = (
+                "Comment-индекс пуст: нужно обойти темы (viewtopic) и пересобрать индекс."
+            )
+        elif result.get("matched", 0) == 0:
+            result["hint"] = (
+                "Точных совпадений в комментариях нет. Попробуйте расширить query "
+                "или обновить индекс (--auto-refresh-on-empty)."
+            )
 
     if args.write:
         target = Path(args.write)
@@ -1250,6 +2283,7 @@ def build_search_index_parser() -> Any:
     parser.add_argument("--user-agent", default=DEFAULT_USER_AGENT)
     parser.add_argument("--skip-html", action="store_true")
     parser.add_argument("--min-quality-score", type=float, default=0.4)
+    parser.add_argument("--min-comment-quality-score", type=float, default=0.15)
     parser.add_argument("--incremental", action="store_true")
     parser.add_argument("--base-index", default="")
     parser.add_argument("--max-base-records", type=int, default=200_000)
@@ -1261,6 +2295,8 @@ def build_search_find_parser() -> Any:
 
     parser = argparse.ArgumentParser(prog="python -m rutracker_parser search-find")
     parser.add_argument("--index", default="")
+    parser.add_argument("--comments-index", default="")
+    parser.add_argument("--scope", choices=["topics", "comments", "all"], default="topics")
     parser.add_argument("--query", required=True)
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--write", default="")
@@ -1268,6 +2304,7 @@ def build_search_find_parser() -> Any:
     parser.add_argument("--auto-index-if-missing", action="store_true")
     parser.add_argument("--auto-refresh-on-empty", action="store_true")
     parser.add_argument("--min-quality-score", type=float, default=0.4)
+    parser.add_argument("--min-comment-quality-score", type=float, default=0.15)
     parser.add_argument("--incremental", action="store_true")
     parser.add_argument("--base-index", default="")
     parser.add_argument("--max-base-records", type=int, default=200_000)
