@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -93,5 +94,64 @@ class PlayerNotificationInvalidationCoordinatorTest {
 
             assertEquals(listOf("invalidate"), events)
             assertTrue(logs.any { it.contains("force_initial_state: invalidating immediately") })
+        }
+
+    @Test
+    fun `ready immediate signal cancels pending metadata debounce and keeps single invalidate`() =
+        runTest {
+            val events = mutableListOf<String>()
+            val logs = mutableListOf<String>()
+            val coordinator =
+                PlayerNotificationInvalidationCoordinator(
+                    scope = backgroundScope,
+                    policy = PlayerNotificationInvalidatePolicy(debounceDelayMs = 120L),
+                    log = logs::add,
+                    invalidate = { events += "invalidate" },
+                )
+
+            coordinator.onDebouncedSignal("onMediaMetadataChanged")
+            testScheduler.advanceTimeBy(60L)
+            coordinator.onImmediateSignal("onPlaybackStateChanged: READY")
+            testScheduler.runCurrent()
+
+            assertEquals(listOf("invalidate"), events)
+            assertTrue(logs.any { it.contains("onPlaybackStateChanged: READY: canceled pending debounced invalidate") })
+            assertTrue(logs.any { it.contains("onPlaybackStateChanged: READY: invalidating immediately") })
+
+            testScheduler.advanceTimeBy(300L)
+            testScheduler.runCurrent()
+            assertEquals(listOf("invalidate"), events)
+            assertFalse(logs.any { it.contains("onMediaMetadataChanged: invalidating notification (debounced)") })
+        }
+
+    @Test
+    fun `ready immediate keeps clear log ordering in burst metadata and transition scenario`() =
+        runTest {
+            val events = mutableListOf<String>()
+            val logs = mutableListOf<String>()
+            val coordinator =
+                PlayerNotificationInvalidationCoordinator(
+                    scope = backgroundScope,
+                    policy = PlayerNotificationInvalidatePolicy(debounceDelayMs = 150L),
+                    log = logs::add,
+                    invalidate = { events += "invalidate" },
+                )
+
+            coordinator.onDebouncedSignal("onMediaMetadataChanged")
+            coordinator.onDebouncedSignal("onMediaItemTransition")
+            testScheduler.advanceTimeBy(40L)
+            coordinator.onImmediateSignal("onPlaybackStateChanged: READY")
+            testScheduler.runCurrent()
+
+            assertEquals(listOf("invalidate"), events)
+            val coalescedIndex = logs.indexOfFirst { it.contains("onMediaItemTransition: debounce coalesced") }
+            val canceledIndex =
+                logs.indexOfFirst {
+                    it.contains("onPlaybackStateChanged: READY: canceled pending debounced invalidate")
+                }
+            val immediateIndex = logs.indexOfFirst { it.contains("onPlaybackStateChanged: READY: invalidating immediately") }
+            assertTrue(coalescedIndex >= 0)
+            assertTrue(canceledIndex > coalescedIndex)
+            assertTrue(immediateIndex > canceledIndex)
         }
 }
