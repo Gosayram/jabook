@@ -1634,73 +1634,39 @@ public class AudioPlayerService : MediaLibraryService() {
         // listener to force refresh notification when metadata changes
         // CRITICAL: Debounce notification updates to prevent spam
         // Events can fire multiple times rapidly (e.g., onMediaItemTransition + onMediaMetadataChanged)
-        var notificationUpdateJob: kotlinx.coroutines.Job? = null
-        val notificationInvalidatePolicy = PlayerNotificationInvalidatePolicy()
-
-        fun cancelPendingNotificationInvalidate(reason: String) {
-            val hadPendingJob = notificationUpdateJob?.isActive == true
-            notificationUpdateJob?.cancel()
-            notificationUpdateJob = null
-            if (hadPendingJob) {
-                LogUtils.d("PlayerNotification", "$reason: canceled pending debounced invalidate")
-            }
-        }
-
-        fun scheduleDebouncedNotificationInvalidate(event: String) {
-            when (notificationInvalidatePolicy.onDebouncedSignal()) {
-                PlayerNotificationInvalidatePolicy.DebouncedAction.COALESCED -> {
-                    LogUtils.d("PlayerNotification", "$event: debounce coalesced")
-                }
-                PlayerNotificationInvalidatePolicy.DebouncedAction.SCHEDULE -> {
-                    val service = this@AudioPlayerService
-                    val newJob =
-                        service.playerServiceScope.launch {
-                            kotlinx.coroutines.delay(notificationInvalidatePolicy.debounceDelayMs())
-                            LogUtils.d("PlayerNotification", "$event: invalidating notification (debounced)")
-                            service.playerNotificationManager?.invalidate()
-                            notificationInvalidatePolicy.onDebouncedInvalidateDelivered()
-                            notificationUpdateJob = null
-                        }
-                    newJob.invokeOnCompletion { throwable ->
-                        if (throwable is kotlinx.coroutines.CancellationException) {
-                            notificationInvalidatePolicy.onDebouncedInvalidateCancelled()
-                        }
-                    }
-                    notificationUpdateJob = newJob
-                }
-            }
-        }
-
-        fun invalidateNotificationImmediately(event: String) {
-            val action = notificationInvalidatePolicy.onImmediateSignal()
-            if (action.cancelPendingDebounced) {
-                cancelPendingNotificationInvalidate(event)
-            }
-            LogUtils.d("PlayerNotification", "$event: invalidating immediately")
-            this@AudioPlayerService.playerNotificationManager?.invalidate()
-        }
+        val notificationInvalidationCoordinator =
+            PlayerNotificationInvalidationCoordinator(
+                scope = playerServiceScope,
+                policy = PlayerNotificationInvalidatePolicy(),
+                log = { message ->
+                    LogUtils.d("PlayerNotification", message)
+                },
+                invalidate = {
+                    this@AudioPlayerService.playerNotificationManager?.invalidate()
+                },
+            )
 
         exoPlayer.addListener(
             object : Player.Listener {
                 override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
-                    scheduleDebouncedNotificationInvalidate(event = "onMediaMetadataChanged")
+                    notificationInvalidationCoordinator.onDebouncedSignal(event = "onMediaMetadataChanged")
                 }
 
                 override fun onMediaItemTransition(
                     mediaItem: androidx.media3.common.MediaItem?,
                     reason: Int,
                 ) {
-                    scheduleDebouncedNotificationInvalidate(event = "onMediaItemTransition")
+                    notificationInvalidationCoordinator.onDebouncedSignal(event = "onMediaItemTransition")
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
-                        invalidateNotificationImmediately(event = "onPlaybackStateChanged: READY")
+                        notificationInvalidationCoordinator.onImmediateSignal(event = "onPlaybackStateChanged: READY")
                     }
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    invalidateNotificationImmediately(event = "onIsPlayingChanged: $isPlaying")
+                    notificationInvalidationCoordinator.onImmediateSignal(event = "onIsPlayingChanged: $isPlaying")
                 }
             },
         )
@@ -1714,7 +1680,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
         // CRITICAL: Force immediate invalidate to ensure startForeground() is called within 5 seconds
         // This prevents ForegroundServiceDidNotStartInTimeException crash
-        invalidateNotificationImmediately(event = "force_initial_state")
+        notificationInvalidationCoordinator.onImmediateSignal(event = "force_initial_state")
     }
 
     /**
