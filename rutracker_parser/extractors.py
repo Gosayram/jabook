@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from urllib.parse import parse_qs, urljoin, urlparse
 
@@ -679,6 +680,249 @@ def _extract_topic_field_map(post_body: Tag) -> dict[str, str]:
     return fields
 
 
+QUOTE_CLASS_MARKERS = frozenset(
+    {
+        "q-wrap",
+        "q",
+        "q-head",
+        "q-post",
+        "post-quote",
+        "quotemain",
+    }
+)
+
+SPOILER_CLASS_MARKERS = frozenset(
+    {
+        "sp-wrap",
+        "sp-head",
+        "sp-body",
+        "sp-no-auto-open",
+    }
+)
+
+
+def _is_in_context_classes(node: Tag, class_markers: frozenset[str]) -> bool:
+    for parent in [node, *node.parents]:
+        if not isinstance(parent, Tag):
+            continue
+        classes = {item.lower() for item in parent.get("class", [])}
+        if classes.intersection(class_markers):
+            return True
+    return False
+
+
+def _extract_post_id_from_url(url: str) -> int | None:
+    post_id = query_value_as_int(url, "p")
+    if post_id is not None:
+        return post_id
+    fragment = urlparse(url).fragment
+    if fragment:
+        return _extract_numeric(fragment)
+    return None
+
+
+def _extract_links_detailed(url: str, root: Tag) -> list[dict]:
+    source_host = urlparse(url).netloc
+    links: list[dict] = []
+    for anchor in root.select("a[href]"):
+        href = anchor.get("href", "").strip()
+        if not href:
+            continue
+        absolute = normalize_url(urljoin(url, href))
+        parsed = urlparse(absolute)
+
+        rel_value = anchor.get("rel", [])
+        if isinstance(rel_value, str):
+            rel_values = [_clean_text(rel_value).lower()] if rel_value else []
+        else:
+            rel_values = [_clean_text(item).lower() for item in rel_value if item]
+
+        classes = [_clean_text(item) for item in anchor.get("class", []) if item]
+        links.append(
+            {
+                "url": absolute,
+                "href": href,
+                "text": _clean_text(anchor.get_text(" ", strip=True)),
+                "title": _clean_text(anchor.get("title", "")),
+                "classes": classes,
+                "rel": rel_values,
+                "is_external": parsed.netloc != source_host if parsed.netloc else False,
+                "is_quote": _is_in_context_classes(anchor, QUOTE_CLASS_MARKERS),
+                "is_spoiler": _is_in_context_classes(anchor, SPOILER_CLASS_MARKERS),
+                "topic_id": query_value_as_int(absolute, "t"),
+                "forum_id": query_value_as_int(absolute, "f"),
+                "user_id": query_value_as_int(absolute, "u"),
+                "post_id": _extract_post_id_from_url(absolute),
+            }
+        )
+    return _dedupe(
+        links,
+        (
+            "url",
+            "text",
+            "is_quote",
+            "is_spoiler",
+        ),
+    )
+
+
+def _extract_images_detailed(url: str, root: Tag) -> list[dict]:
+    images: list[dict] = []
+    for img_var in root.select("var.postImg[title]"):
+        raw = _clean_text(img_var.get("title", ""))
+        if not raw:
+            continue
+        absolute = normalize_url(urljoin(url, raw))
+        images.append(
+            {
+                "url": absolute,
+                "source": "var.postImg",
+                "alt": "",
+                "title": raw,
+                "classes": [_clean_text(item) for item in img_var.get("class", []) if item],
+                "is_smile": False,
+                "is_quote": _is_in_context_classes(img_var, QUOTE_CLASS_MARKERS),
+                "is_spoiler": _is_in_context_classes(img_var, SPOILER_CLASS_MARKERS),
+            }
+        )
+
+    for img in root.select("img[src]"):
+        raw_src = img.get("src", "").strip()
+        if not raw_src:
+            continue
+        absolute = normalize_url(urljoin(url, raw_src))
+        classes = [_clean_text(item) for item in img.get("class", []) if item]
+        images.append(
+            {
+                "url": absolute,
+                "source": "img",
+                "alt": _clean_text(img.get("alt", "")),
+                "title": _clean_text(img.get("title", "")),
+                "classes": classes,
+                "is_smile": "smile" in {item.lower() for item in classes},
+                "is_quote": _is_in_context_classes(img, QUOTE_CLASS_MARKERS),
+                "is_spoiler": _is_in_context_classes(img, SPOILER_CLASS_MARKERS),
+            }
+        )
+
+    return _dedupe(images, ("url", "source", "is_quote", "is_spoiler"))
+
+
+def _extract_quote_blocks(url: str, post_body: Tag) -> list[dict]:
+    quotes: list[dict] = []
+    for quote_wrap in post_body.select("div.q-wrap"):
+        head_node = quote_wrap.select_one("div.q-head")
+        quote_node = quote_wrap.select_one("div.q") or quote_wrap
+        author_raw = ""
+        if head_node:
+            author_node = head_node.select_one("b")
+            if author_node:
+                author_raw = _clean_text(author_node.get_text(" ", strip=True))
+            else:
+                author_raw = _clean_text(head_node.get_text(" ", strip=True))
+        author = re.sub(r"\s*писал\(а\)\s*:?\s*$", "", author_raw, flags=re.IGNORECASE).strip()
+        if author.lower() == "цитата":
+            author = ""
+
+        quoted_post_node = quote_wrap.select_one("u.q-post")
+        quoted_post_id = (
+            _extract_numeric(quoted_post_node.get_text(" ", strip=True))
+            if quoted_post_node
+            else None
+        )
+        quote_links = _extract_links_detailed(url, quote_node)
+        quote_images = _extract_images_detailed(url, quote_node)
+        quotes.append(
+            {
+                "author": author,
+                "quoted_post_id": quoted_post_id,
+                "header_text": (
+                    _clean_text(head_node.get_text(" ", strip=True)) if head_node else ""
+                ),
+                "text": _clean_text(quote_node.get_text(" ", strip=True)),
+                "html": quote_node.decode_contents(),
+                "links": quote_links,
+                "image_urls": [item.get("url", "") for item in quote_images if item.get("url")],
+            }
+        )
+    return quotes
+
+
+def _extract_spoiler_blocks(url: str, post_body: Tag) -> list[dict]:
+    spoilers: list[dict] = []
+    for spoiler_wrap in post_body.select("div.sp-wrap"):
+        head_node = spoiler_wrap.select_one("div.sp-head")
+        body_node = spoiler_wrap.select_one("div.sp-body")
+        node = body_node or spoiler_wrap
+        spoiler_links = _extract_links_detailed(url, node)
+        spoiler_images = _extract_images_detailed(url, node)
+        head_classes = {item.lower() for item in (head_node.get("class", []) if head_node else [])}
+        spoilers.append(
+            {
+                "title": _clean_text(head_node.get_text(" ", strip=True)) if head_node else "",
+                "is_folded": "folded" in head_classes,
+                "text": _clean_text(node.get_text(" ", strip=True)),
+                "html": node.decode_contents(),
+                "links": spoiler_links,
+                "image_urls": [item.get("url", "") for item in spoiler_images if item.get("url")],
+            }
+        )
+    return spoilers
+
+
+def _extract_reply_targets(quotes: list[dict], links: list[dict]) -> list[int]:
+    targets = {
+        int(item["quoted_post_id"])
+        for item in quotes
+        if isinstance(item.get("quoted_post_id"), int)
+    }
+    for link in links:
+        post_id = link.get("post_id")
+        if isinstance(post_id, int):
+            targets.add(post_id)
+    return sorted(targets)
+
+
+def _extract_formatting_stats(post_body: Tag, quotes: list[dict], spoilers: list[dict]) -> dict:
+    image_count = len(post_body.select("img[src]")) + len(post_body.select("var.postImg[title]"))
+    return {
+        "bold_count": len(post_body.select("b, strong, span.post-b")),
+        "italic_count": len(post_body.select("i, em")),
+        "underline_count": len(post_body.select("u")),
+        "strike_count": len(post_body.select("s, strike, del")),
+        "code_count": len(post_body.select("code, pre")),
+        "line_break_count": len(post_body.select("br, span.post-br")),
+        "link_count": len(post_body.select("a[href]")),
+        "image_count": image_count,
+        "smile_count": len(post_body.select("img.smile")),
+        "quote_count": len(quotes),
+        "spoiler_count": len(spoilers),
+        "list_item_count": len(post_body.select("ul li, ol li")),
+        "align_block_count": len(post_body.select(".post-align")),
+        "styled_block_count": len(post_body.select("[style]")),
+    }
+
+
+def _extract_ext_meta(raw_value: str) -> dict[str, str]:
+    raw = (raw_value or "").strip()
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return {str(k): _clean_text(str(v)) for k, v in parsed.items()}
+    except json.JSONDecodeError:
+        pass
+
+    fallback: dict[str, str] = {}
+    for part in raw.replace("{", "").replace("}", "").replace('"', "").split(","):
+        if ":" not in part:
+            continue
+        key, value = part.split(":", 1)
+        fallback[key.strip()] = _clean_text(value)
+    return fallback
+
+
 def _extract_posts(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict]]:
     posts: list[dict] = []
     users: list[dict] = []
@@ -693,6 +937,9 @@ def _extract_posts(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict
         joined = ""
         message_count = None
         flag_title = ""
+        avatar_url = ""
+        poster_profile_url = ""
+        poster_pm_url = ""
 
         if poster:
             nick_node = poster.select_one("p.nick")
@@ -709,41 +956,81 @@ def _extract_posts(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict
             flag_node = poster.select_one("img.poster-flag")
             flag_title = _clean_text(flag_node.get("title", "")) if flag_node else ""
 
+            avatar_node = poster.select_one("p.avatar img[src], p.avatar img[title], p.avatar img")
+            if avatar_node:
+                avatar_raw = (
+                    avatar_node.get("src", "").strip() or avatar_node.get("title", "").strip()
+                )
+                avatar_url = normalize_url(urljoin(url, avatar_raw)) if avatar_raw else ""
+
+        if tbody:
+            profile_anchor = tbody.select_one("td.poster_btn a[href*='profile.php']")
+            if profile_anchor and profile_anchor.get("href"):
+                poster_profile_url = normalize_url(urljoin(url, profile_anchor.get("href", "")))
+            pm_anchor = tbody.select_one("td.poster_btn a[href*='privmsg.php']")
+            if pm_anchor and pm_anchor.get("href"):
+                poster_pm_url = normalize_url(urljoin(url, pm_anchor.get("href", "")))
+
         head = body.find_parent("td", class_="message")
         posted_at = ""
         edited_info = ""
+        quote_action_url = ""
+        quote_action_post_id = None
         if head:
             link = head.select_one("p.post-time a.p-link")
             posted_at = _clean_text(link.get_text(" ", strip=True)) if link else ""
             edited_node = head.select_one("span.posted_since")
             edited_info = _clean_text(edited_node.get_text(" ", strip=True)) if edited_node else ""
 
+            quote_anchor = head.select_one("a[href*='posting.php?mode=quote']")
+            if quote_anchor and quote_anchor.get("href"):
+                quote_action_url = normalize_url(urljoin(url, quote_anchor.get("href", "")))
+                quote_action_post_id = query_value_as_int(quote_action_url, "p")
+
         fields = _extract_topic_field_map(body)
-        body_text = _clean_text(body.get_text(" ", strip=True))
-        image_urls = []
-        for img_var in body.select("var.postImg[title]"):
-            title = _clean_text(img_var.get("title", ""))
-            if title:
-                image_urls.append(title)
-        for img in body.select("img[src]"):
-            src = normalize_url(urljoin(url, img.get("src", "")))
-            if src:
-                image_urls.append(src)
-
-        links = [
-            normalize_url(urljoin(url, a.get("href", "")))
-            for a in body.select("a[href]")
-            if a.get("href")
+        text_lines = [
+            _clean_text(line)
+            for line in body.get_text("\n", strip=True).splitlines()
+            if _clean_text(line)
         ]
+        body_text = _clean_text(" ".join(text_lines))
 
-        ext_meta = {}
-        if body.has_attr("data-ext_link_data"):
-            raw = body.get("data-ext_link_data", "")
-            for part in raw.replace("{", "").replace("}", "").replace('"', "").split(","):
-                if ":" not in part:
-                    continue
-                key, value = part.split(":", 1)
-                ext_meta[key.strip()] = _clean_text(value)
+        links_detailed = _extract_links_detailed(url, body)
+        images_detailed = _extract_images_detailed(url, body)
+        quotes = _extract_quote_blocks(url, body)
+        spoilers = _extract_spoiler_blocks(url, body)
+        reply_to_post_ids = _extract_reply_targets(quotes, links_detailed)
+        reply_to_users = sorted(
+            {
+                _clean_text(item.get("author", ""))
+                for item in quotes
+                if _clean_text(item.get("author", ""))
+            }
+        )
+        formatting_stats = _extract_formatting_stats(body, quotes, spoilers)
+
+        signature_text = ""
+        signature_html = ""
+        signature_links: list[str] = []
+        signature_images: list[str] = []
+        post_wrap = body.find_parent("div", class_="post_wrap")
+        if post_wrap:
+            signature_node = post_wrap.select_one("div.signature .sig-body")
+            if signature_node:
+                signature_text = _clean_text(signature_node.get_text(" ", strip=True))
+                signature_html = signature_node.decode_contents()
+                signature_links = [
+                    item.get("url", "")
+                    for item in _extract_links_detailed(url, signature_node)
+                    if item.get("url")
+                ]
+                signature_images = [
+                    item.get("url", "")
+                    for item in _extract_images_detailed(url, signature_node)
+                    if item.get("url")
+                ]
+
+        ext_meta = _extract_ext_meta(body.get("data-ext_link_data", ""))
 
         posts.append(
             {
@@ -755,12 +1042,30 @@ def _extract_posts(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict
                 "poster_joined": joined,
                 "poster_message_count": message_count,
                 "poster_flag": flag_title,
+                "poster_avatar_url": avatar_url,
+                "poster_profile_url": poster_profile_url,
+                "poster_pm_url": poster_pm_url,
                 "posted_at": posted_at,
                 "edited_info": edited_info,
+                "quote_action_url": quote_action_url,
+                "quote_action_post_id": quote_action_post_id,
                 "text": body_text,
+                "text_lines": text_lines,
+                "html": body.decode_contents(),
                 "fields": fields,
-                "image_urls": _dedupe([{"u": x} for x in image_urls], ("u",)),
-                "links": _dedupe([{"u": x} for x in links], ("u",)),
+                "image_urls": [item.get("url", "") for item in images_detailed if item.get("url")],
+                "images_detailed": images_detailed,
+                "links": [item.get("url", "") for item in links_detailed if item.get("url")],
+                "links_detailed": links_detailed,
+                "quotes": quotes,
+                "spoilers": spoilers,
+                "reply_to_post_ids": reply_to_post_ids,
+                "reply_to_users": reply_to_users,
+                "formatting_stats": formatting_stats,
+                "signature_text": signature_text,
+                "signature_html": signature_html,
+                "signature_links": signature_links,
+                "signature_images": signature_images,
                 "ext_meta": ext_meta,
                 "ts": utc_now_iso(),
             }
@@ -769,16 +1074,23 @@ def _extract_posts(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict
         user_id = None
         if ext_meta.get("u"):
             user_id = _extract_numeric(ext_meta.get("u", ""))
+        if user_id is None and poster_profile_url:
+            user_id = query_value_as_int(poster_profile_url, "u")
         if user_id is not None or nickname:
             users.append(
                 {
                     "user_id": user_id,
                     "name": nickname,
                     "url": (
-                        normalize_url(urljoin(url, f"profile.php?mode=viewprofile&u={user_id}"))
-                        if user_id
-                        else ""
+                        poster_profile_url
+                        or (
+                            normalize_url(urljoin(url, f"profile.php?mode=viewprofile&u={user_id}"))
+                            if user_id
+                            else ""
+                        )
                     ),
+                    "pm_url": poster_pm_url,
+                    "avatar_url": avatar_url,
                     "source_url": url,
                     "kind": "post_author",
                     "post_id": post_id,
@@ -790,13 +1102,7 @@ def _extract_posts(url: str, soup: BeautifulSoup) -> tuple[list[dict], list[dict
                 }
             )
 
-    cleaned_posts = []
-    for post in posts:
-        item = dict(post)
-        item["image_urls"] = [u["u"] for u in post["image_urls"] if u.get("u")]
-        item["links"] = [u["u"] for u in post["links"] if u.get("u")]
-        cleaned_posts.append(item)
-    return cleaned_posts, users
+    return posts, users
 
 
 def _extract_category_tree(url: str, soup: BeautifulSoup) -> list[dict]:
@@ -1374,13 +1680,28 @@ def extract_page(
     users = _dedupe_prefer_rich(
         users,
         ("user_id", "url", "kind"),
-        ("name", "joined", "message_count", "post_id", "topic_id", "fields"),
+        ("name", "joined", "message_count", "post_id", "topic_id", "avatar_url", "fields"),
     )
     torrents = _dedupe(torrents, ("topic_id", "torrent_url", "magnet", "source_url"))
     links = _dedupe(links, ("from", "to"))
     categories = _dedupe(categories, ("category_id", "forum_id", "forum_url"))
     posts = _dedupe_prefer_rich(
-        posts, ("topic_id", "post_id"), ("fields", "image_urls", "links", "poster", "text")
+        posts,
+        ("topic_id", "post_id"),
+        (
+            "fields",
+            "images_detailed",
+            "links_detailed",
+            "quotes",
+            "spoilers",
+            "reply_to_post_ids",
+            "formatting_stats",
+            "poster_avatar_url",
+            "poster_profile_url",
+            "signature_images",
+            "poster",
+            "text",
+        ),
     )
 
     return {
