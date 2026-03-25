@@ -28,7 +28,7 @@ androidxComposeMaterial3AdaptiveNavigation = "1.5.0-alpha11"
 androidxComposeUiTextGoogleFonts = "1.10.6"
 
 # AndroidX Navigation
-androidxNavigation = "2.9.6"
+androidxNavigation = "2.9.7"
 
 # AndroidX Room
 androidxRoom = "2.8.4"
