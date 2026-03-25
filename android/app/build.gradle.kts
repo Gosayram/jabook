@@ -79,7 +79,11 @@ val prepareProtoc by tasks.registering(Copy::class) {
     rename { if (isWindows) "protoc.exe" else "protoc" }
     doLast {
         if (!isWindows) {
-            val protocFile = layout.buildDirectory.file("tools/protoc/protoc").get().asFile
+            val protocFile =
+                layout.buildDirectory
+                    .file("tools/protoc/protoc")
+                    .get()
+                    .asFile
             protocFile.setExecutable(true)
         }
     }
@@ -97,9 +101,17 @@ val generateProtoLite by tasks.registering(Exec::class) {
 
         val protocPath =
             if (isWindows) {
-                layout.buildDirectory.file("tools/protoc/protoc.exe").get().asFile.absolutePath
+                layout.buildDirectory
+                    .file("tools/protoc/protoc.exe")
+                    .get()
+                    .asFile
+                    .absolutePath
             } else {
-                layout.buildDirectory.file("tools/protoc/protoc").get().asFile.absolutePath
+                layout.buildDirectory
+                    .file("tools/protoc/protoc")
+                    .get()
+                    .asFile
+                    .absolutePath
             }
 
         val argsList = mutableListOf("--java_out=lite:${outputDir.absolutePath}", "-I${protoSourceDir.asFile.absolutePath}")
@@ -247,7 +259,11 @@ android {
         }
     }
 
-    sourceSets.getByName("main").java.directories.add(generatedProtoDir.get().asFile.absolutePath)
+    sourceSets
+        .getByName("main")
+        .java
+        .directories
+        .add(generatedProtoDir.get().asFile.absolutePath)
 
     // Generate separate APKs per architecture + universal APK
     splits {
@@ -278,11 +294,12 @@ tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
     dependsOn(generateProtoLite)
 }
 
-tasks.matching { task ->
-    task.name.startsWith("ksp") && task.name.endsWith("Kotlin")
-}.configureEach {
-    dependsOn(generateProtoLite)
-}
+tasks
+    .matching { task ->
+        task.name.startsWith("ksp") && task.name.endsWith("Kotlin")
+    }.configureEach {
+        dependsOn(generateProtoLite)
+    }
 
 dependencies {
     // Protoc binary for Proto DataStore code generation (replaces protobuf-gradle-plugin).
