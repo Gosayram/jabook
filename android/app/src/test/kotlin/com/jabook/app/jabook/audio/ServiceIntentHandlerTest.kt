@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Intent
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaSession
 import com.jabook.app.jabook.widget.PlayerWidgetProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -24,6 +25,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -145,5 +147,33 @@ class ServiceIntentHandlerTest {
         assertTrue(telemetryMessages.single().contains("deduplicated=true"))
 
         verify(service, times(1)).play()
+    }
+
+    @Test
+    fun `exit app action performs foreground stop and service shutdown when initialized`() {
+        val mediaSession: MediaSession = mock()
+        whenever(service.isFullyInitializedFlag).thenReturn(true)
+        whenever(service.mediaSession).thenReturn(mediaSession)
+
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_EXIT_APP), flags = 0, startId = 30)
+
+        verify(service, times(1)).stopAndCleanup()
+        verify(service, times(1)).stopSelf()
+        verify(service, times(1)).sendBroadcast(org.mockito.kotlin.check {
+            assertEquals("com.jabook.app.jabook.EXIT_APP", it.action)
+            assertEquals("com.jabook.app.jabook", it.`package`)
+        })
+    }
+
+    @Test
+    fun `exit app action is ignored when service is not initialized`() {
+        whenever(service.isFullyInitializedFlag).thenReturn(false)
+        whenever(service.mediaSession).thenReturn(null)
+        whenever(service.mediaLibrarySession).thenReturn(null)
+
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_EXIT_APP), flags = 0, startId = 31)
+
+        verify(service, never()).stopAndCleanup()
+        verify(service, never()).stopSelf()
     }
 }
