@@ -92,6 +92,11 @@ internal class PlaylistManager(
     @Volatile
     private var activeLoadingJob: Job? = null
 
+    // Monotonic generation id for async playlist loading.
+    // Used to prevent stale background jobs from mutating the player after a newer setPlaylist call.
+    @Volatile
+    private var playlistLoadGeneration: Long = 0L
+
     // Mutex to synchronize playlist loading operations and prevent race conditions
     private val playlistLoadMutex = Mutex()
 
@@ -147,9 +152,18 @@ internal class PlaylistManager(
                     isPlaylistLoading = true
                     currentLoadingPlaylist = filePaths
                     lastPlaylistLoadTime = System.currentTimeMillis()
+                    val loadGeneration = ++playlistLoadGeneration
 
                     try {
-                        setPlaylistInternal(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                        setPlaylistInternal(
+                            filePaths = filePaths,
+                            metadata = metadata,
+                            initialTrackIndex = initialTrackIndex,
+                            initialPosition = initialPosition,
+                            groupPath = groupPath,
+                            callback = callback,
+                            loadGeneration = loadGeneration,
+                        )
                     } finally {
                         // Clear loading flag when done
                         isPlaylistLoading = false
@@ -187,6 +201,7 @@ internal class PlaylistManager(
         initialPosition: Long? = null,
         groupPath: String? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
+        loadGeneration: Long,
     ) {
         // Clear saved state to prevent restoration from interfering with new playlist
         savedPlaybackState = null
@@ -244,7 +259,13 @@ internal class PlaylistManager(
         )
 
         try {
-            preparePlaybackOptimized(sortedFilePaths, metadata, initialTrackIndex, initialPosition)
+            preparePlaybackOptimized(
+                filePaths = sortedFilePaths,
+                metadata = metadata,
+                initialTrackIndex = initialTrackIndex,
+                initialPosition = initialPosition,
+                loadGeneration = loadGeneration,
+            )
             LogUtils.d("AudioPlayerService", "Playlist prepared successfully")
 
             // Call callback first to unblock Flutter
@@ -296,6 +317,7 @@ internal class PlaylistManager(
         metadata: Map<String, String>?,
         initialTrackIndex: Int? = null,
         initialPosition: Long? = null,
+        loadGeneration: Long = playlistLoadGeneration,
     ) = withContext(Dispatchers.IO) {
         val playlistLoadStartTime = System.currentTimeMillis()
         val playlistSize = filePaths.size
@@ -313,7 +335,14 @@ internal class PlaylistManager(
                 preparePlaybackSynchronous(filePaths, metadata, initialTrackIndex, initialPosition, playlistLoadStartTime)
             } else {
                 // Use optimized async loading for large playlists
-                preparePlaybackAsync(filePaths, metadata, initialTrackIndex, initialPosition, playlistLoadStartTime)
+                preparePlaybackAsync(
+                    filePaths = filePaths,
+                    metadata = metadata,
+                    initialTrackIndex = initialTrackIndex,
+                    initialPosition = initialPosition,
+                    loadStartTime = playlistLoadStartTime,
+                    loadGeneration = loadGeneration,
+                )
             }
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to prepare playback", e)
@@ -390,6 +419,7 @@ internal class PlaylistManager(
         initialTrackIndex: Int?,
         initialPosition: Long?,
         loadStartTime: Long,
+        loadGeneration: Long,
     ) = withContext(Dispatchers.IO) {
         try {
             LogUtils.d("AudioPlayerService", "Using async loading for large playlist (${filePaths.size} tracks)")
@@ -459,6 +489,13 @@ internal class PlaylistManager(
             activeLoadingJob =
                 playerServiceScope.launch(mediaItemDispatcher) {
                     try {
+                        if (!isLoadGenerationActive(loadGeneration)) {
+                            LogUtils.d(
+                                "AudioPlayerService",
+                                "Skipping stale async load job before start (generation=$loadGeneration, active=$playlistLoadGeneration)",
+                            )
+                            return@launch
+                        }
                         LogUtils.d(
                             "AudioPlayerService",
                             "Starting async MediaItems loading (previous job cancelled if existed)",
@@ -651,9 +688,14 @@ internal class PlaylistManager(
                         LogUtils.e("AudioPlayerService", "Error loading remaining MediaItems asynchronously", e)
                         // Don't throw - player is already working with first item
                     } finally {
+                        val isCurrentGeneration = isLoadGenerationActive(loadGeneration)
                         // Apply initial position after all tracks are loaded
                         // This prevents ExoPlayer from switching to another track when MediaItems are added
-                        if (initialTrackIndex != null && initialPosition != null && initialPosition > 0) {
+                        if (isCurrentGeneration &&
+                            initialTrackIndex != null &&
+                            initialPosition != null &&
+                            initialPosition > 0
+                        ) {
                             withContext(Dispatchers.Main) {
                                 applyInitialPositionAfterLoad(
                                     initialTrackIndex,
@@ -662,18 +704,31 @@ internal class PlaylistManager(
                                     loadStartTime,
                                 )
                             }
+                        } else if (!isCurrentGeneration) {
+                            LogUtils.d(
+                                "AudioPlayerService",
+                                "Skipping initial position apply for stale async load generation=$loadGeneration (active=$playlistLoadGeneration)",
+                            )
                         }
 
                         // Clear job reference when done
-                        activeLoadingJob = null
+                        if (activeLoadingJob === kotlinx.coroutines.currentCoroutineContext()[Job]) {
+                            activeLoadingJob = null
+                        }
                     }
                 }
 
             // Verify playlist order after all items are loaded (in separate coroutine to not block)
             playerServiceScope.launch {
                 try {
+                    if (!isLoadGenerationActive(loadGeneration)) {
+                        return@launch
+                    }
                     // Wait a bit for items to load
                     delay(2000L)
+                    if (!isLoadGenerationActive(loadGeneration)) {
+                        return@launch
+                    }
                     withContext(Dispatchers.Main) {
                         val activePlayer = getActivePlayer()
                         if (activePlayer.mediaItemCount == filePaths.size) {
@@ -718,6 +773,8 @@ internal class PlaylistManager(
             throw e
         }
     }
+
+    private fun isLoadGenerationActive(generation: Long): Boolean = playlistLoadGeneration == generation
 
     /**
      * Applies initial position after all tracks are loaded.
