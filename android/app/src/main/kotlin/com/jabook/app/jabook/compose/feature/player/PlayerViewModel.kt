@@ -26,6 +26,7 @@ import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
+import com.jabook.app.jabook.compose.domain.model.toTypedResult
 import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCase
 import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
 
 /**
  * ViewModel for the Player screen.
@@ -110,9 +112,9 @@ public class PlayerViewModel
             // - Other system events
             viewModelScope.launch {
                 try {
-                    val positionResult = playbackPositionRepository.getPosition(bookId).first()
+                    val positionResult = playbackPositionRepository.getPosition(bookId).first().toTypedResult()
                     when (positionResult) {
-                        is com.jabook.app.jabook.audio.core.result.Result.Success -> {
+                        is TypedResult.Success -> {
                             positionResult.data?.let { entity ->
                                 savedPosition = entity.position
                                 savedChapterIndex = entity.trackIndex
@@ -121,12 +123,12 @@ public class PlayerViewModel
                                 }
                             }
                         }
-                        is com.jabook.app.jabook.audio.core.result.Result.Error -> {
-                            logger.w(positionResult.exception) {
-                                "Failed to restore position: ${positionResult.exception.message}"
+                        is TypedResult.Error -> {
+                            logger.w(positionResult.error.cause) {
+                                "Failed to restore position: ${positionResult.error.message}"
                             }
                         }
-                        else -> {
+                        is TypedResult.Loading -> {
                             // Loading state, will be updated when ready
                         }
                     }

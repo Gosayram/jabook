@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import com.jabook.app.jabook.audio.core.result.Result as AudioResult
+
 /**
  * A generic sealed interface that represents the result of an operation.
  *
@@ -187,11 +189,24 @@ public fun Throwable.toAppError(): AppError.Unknown =
 /**
  * Converts legacy Result<T> (with Throwable) to new Result<T, AppError>.
  */
-public fun <T> com.jabook.app.jabook.audio.core.result.Result<T>.toTypedResult(): Result<T, AppError> =
+public fun <T> AudioResult<T>.toTypedResult(): Result<T, AppError> =
     when (this) {
-        is com.jabook.app.jabook.audio.core.result.Result.Success -> Result.Success(data)
-        is com.jabook.app.jabook.audio.core.result.Result.Error -> Result.Error(exception.toAppError())
-        is com.jabook.app.jabook.audio.core.result.Result.Loading -> Result.Loading()
+        is AudioResult.Success -> Result.Success(data)
+        is AudioResult.Error -> Result.Error(exception.toAppError())
+        is AudioResult.Loading -> Result.Loading()
+    }
+
+/**
+ * Converts typed Result<T, AppError> to audio-layer Result<T>.
+ */
+public fun <T, E : AppError> Result<T, E>.toAudioResult(): AudioResult<T> =
+    when (this) {
+        is Result.Success -> AudioResult.Success(data)
+        is Result.Error ->
+            AudioResult.Error(
+                error.cause as? Exception ?: RuntimeException(error.message, error.cause),
+            )
+        is Result.Loading -> AudioResult.Loading
     }
 
 /**
