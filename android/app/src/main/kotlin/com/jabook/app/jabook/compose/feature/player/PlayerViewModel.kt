@@ -171,10 +171,10 @@ public class PlayerViewModel
                     // Priority: Book Override -> Global Setting -> Hardcoded Default
                     val rewindInterval =
                         book.rewindDuration
-                            ?: if (preferences.rewindDurationSeconds > 0) preferences.rewindDurationSeconds.toInt() else 10
+                            ?: if (preferences.rewindDurationSeconds > 0) preferences.rewindDurationSeconds else 10
                     val forwardInterval =
                         book.forwardDuration
-                            ?: if (preferences.forwardDurationSeconds > 0) preferences.forwardDurationSeconds.toInt() else 30
+                            ?: if (preferences.forwardDurationSeconds > 0) preferences.forwardDurationSeconds else 30
 
                     // Use saved position from database if player hasn't loaded yet
                     // This ensures position is restored even if player hasn't started
@@ -229,7 +229,7 @@ public class PlayerViewModel
                     chapters.getOrNull(index)
                 }.collect { chapter ->
                     if (chapter?.fileUrl != null) {
-                        loadLyrics(chapter.fileUrl!!)
+                        loadLyrics(chapter.fileUrl)
                     } else {
                         lyricsState.value = null
                     }
@@ -257,7 +257,7 @@ public class PlayerViewModel
             viewModelScope.launch {
                 getBookDetailsUseCase(bookId).collect { book ->
                     if (book?.coverUrl != null) {
-                        extractColorsFromCover(book.coverUrl!!)
+                        extractColorsFromCover(book.coverUrl)
                     }
                 }
             }
