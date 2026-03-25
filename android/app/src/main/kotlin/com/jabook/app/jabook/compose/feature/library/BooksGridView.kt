@@ -29,6 +29,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -38,13 +41,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -74,6 +77,7 @@ import com.jabook.app.jabook.compose.domain.model.Book
             "com.jabook.app.jabook.compose.domain.model.BookDisplayMode",
         ),
 )
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 public fun BooksGridView(
     books: List<Book>,
@@ -83,16 +87,15 @@ public fun BooksGridView(
     onBookLongPress: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isTablet = isTabletDevice()
+    val context = LocalContext.current
+    val activity = context as? androidx.activity.ComponentActivity
+    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val windowSizeClass =
+        rawWindowSizeClass?.let { AdaptiveUtils.getEffectiveWindowSizeClass(it, context) }
+            ?: rawWindowSizeClass
 
-    val columns =
-        when (viewMode) {
-            LibraryViewMode.GRID_COMPACT ->
-                GridCells.Fixed(if (isTablet) 6 else 3)
-            LibraryViewMode.GRID_COMFORTABLE ->
-                GridCells.Fixed(if (isTablet) 4 else 2)
-            else -> GridCells.Fixed(2) // Fallback
-        }
+    val columnCount = resolveGridColumnCount(viewMode = viewMode, windowSizeClass = windowSizeClass)
+    val columns = GridCells.Fixed(columnCount)
 
     LazyVerticalGrid(
         columns = columns,
@@ -109,6 +112,25 @@ public fun BooksGridView(
                 onBookLongPress = onBookLongPress,
             )
         }
+    }
+}
+
+internal fun resolveGridColumnCount(
+    viewMode: LibraryViewMode,
+    windowSizeClass: WindowSizeClass?,
+): Int {
+    if (windowSizeClass == null) {
+        return when (viewMode) {
+            LibraryViewMode.GRID_COMPACT -> 3
+            LibraryViewMode.GRID_COMFORTABLE -> 2
+            else -> 2
+        }
+    }
+
+    return when (viewMode) {
+        LibraryViewMode.GRID_COMPACT -> AdaptiveUtils.getCompactGridColumns(windowSizeClass)
+        LibraryViewMode.GRID_COMFORTABLE -> AdaptiveUtils.getComfortableGridColumns(windowSizeClass)
+        else -> 2
     }
 }
 
@@ -216,15 +238,4 @@ private fun BookGridItem(
             }
         }
     }
-}
-
-/**
- * Helper to detect tablet devices.
- * Considers devices with width >= 600dp as tablets.
- */
-@Composable
-private fun isTabletDevice(): Boolean {
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp
-    return screenWidthDp >= 600
 }

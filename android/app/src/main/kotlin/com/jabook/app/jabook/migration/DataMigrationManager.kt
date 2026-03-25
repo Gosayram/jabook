@@ -22,6 +22,7 @@ import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -43,6 +44,8 @@ public class DataMigrationManager
             private const val PREFS_NAME = "FlutterSharedPreferences"
             private const val KEY_PLAYER_STATE = "flutter.player_state"
             private const val KEY_MIGRATION_COMPLETED = "migration_completed_v1"
+            private val ALLOWED_STORAGE_ROOTS: List<String> = listOf("/storage", "/sdcard", "/mnt/media_rw")
+            private val BLOCKED_SYSTEM_ROOTS: List<String> = listOf("/proc", "/sys", "/dev", "/system", "/apex", "/vendor")
         }
 
         public suspend fun needsMigration(): Boolean =
@@ -71,15 +74,16 @@ public class DataMigrationManager
                             ?: return@withContext MigrationResult.Failure(Exception("No player state found"))
 
                     val json = org.json.JSONObject(jsonString)
-                    val groupPath = json.getString("groupPath")
+                    val rawGroupPath = json.getString("groupPath")
+                    val groupPath = validateAndNormalizeLegacyGroupPath(rawGroupPath)
                     val currentPosition = json.optLong("currentPosition", 0L)
                     val currentIndex = json.optInt("currentIndex", 0)
 
                     // Metadata
                     val metadataJson = json.optJSONObject("metadata")
-                    val album = metadataJson?.optString("album")
-                    val artist = metadataJson?.optString("artist") ?: metadataJson?.optString("albumArtist")
-                    val title = metadataJson?.optString("title") ?: java.io.File(groupPath).name
+                    val album = metadataJson?.optNormalizedString("album")
+                    val artist = metadataJson?.optNormalizedString("artist") ?: metadataJson?.optNormalizedString("albumArtist")
+                    val title = metadataJson?.optNormalizedString("title") ?: File(groupPath).name
 
                     // Generate ID consistent with Scanner
                     val bookId =
@@ -123,6 +127,57 @@ public class DataMigrationManager
                     MigrationResult.Failure(e)
                 }
             }
+
+        private fun validateAndNormalizeLegacyGroupPath(rawPath: String): String {
+            val trimmedPath = rawPath.trim()
+            if (trimmedPath.isBlank()) {
+                throw IllegalArgumentException("Legacy groupPath is empty")
+            }
+
+            // Reject traversal-like segments early before canonicalization.
+            val containsTraversalSegment =
+                trimmedPath
+                    .replace('\\', '/')
+                    .split('/')
+                    .any { segment -> segment == ".." }
+            if (containsTraversalSegment) {
+                throw IllegalArgumentException("Legacy groupPath contains traversal segment")
+            }
+
+            val normalizedPath =
+                try {
+                    File(trimmedPath).canonicalPath
+                } catch (e: Exception) {
+                    throw IllegalArgumentException("Legacy groupPath cannot be normalized", e)
+                }
+
+            if (!File(normalizedPath).isAbsolute) {
+                throw IllegalArgumentException("Legacy groupPath must be absolute")
+            }
+
+            val isBlockedRoot =
+                BLOCKED_SYSTEM_ROOTS.any { root ->
+                    normalizedPath == root || normalizedPath.startsWith("$root/")
+                }
+            if (isBlockedRoot) {
+                throw IllegalArgumentException("Legacy groupPath points to restricted system location")
+            }
+
+            val isAllowedRoot =
+                ALLOWED_STORAGE_ROOTS.any { root ->
+                    normalizedPath == root || normalizedPath.startsWith("$root/")
+                }
+            if (!isAllowedRoot) {
+                throw IllegalArgumentException("Legacy groupPath is outside supported storage roots")
+            }
+
+            return normalizedPath
+        }
+
+        private fun org.json.JSONObject.optNormalizedString(key: String): String? {
+            val rawValue = optString(key, "").trim()
+            return rawValue.takeIf { it.isNotEmpty() }
+        }
     }
 
 /**

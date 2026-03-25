@@ -36,6 +36,7 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
@@ -163,5 +164,74 @@ class DataMigrationManagerTest {
             assertEquals(15000L, capturedBook.currentPosition)
             assertEquals(2, capturedBook.currentChapterIndex)
             assertEquals("/storage/emulated/0/Audiobooks/MyBook", capturedBook.localPath)
+        }
+
+    @Test
+    fun `migrateFromFlutter fails for relative legacy group path`() =
+        runTest {
+            val legacyJson =
+                """
+                {
+                    "groupPath": "Audiobooks/MyBook",
+                    "currentPosition": 15000,
+                    "currentIndex": 2
+                }
+                """.trimIndent()
+
+            whenever(sharedPreferences.getString("flutter.player_state", null)).thenReturn(legacyJson)
+
+            val result = migrationManager.migrateFromFlutter()
+
+            assertTrue(result is MigrationResult.Failure)
+            val error = (result as MigrationResult.Failure).error
+            assertTrue(error.message?.contains("storage roots", ignoreCase = true) == true)
+            verify(booksDao, never()).insertBook(any())
+            verify(editor, never()).putBoolean("migration_completed_v1", true)
+        }
+
+    @Test
+    fun `migrateFromFlutter fails for traversal segment in group path`() =
+        runTest {
+            val legacyJson =
+                """
+                {
+                    "groupPath": "/storage/emulated/0/Audiobooks/../Secrets",
+                    "currentPosition": 15000,
+                    "currentIndex": 2
+                }
+                """.trimIndent()
+
+            whenever(sharedPreferences.getString("flutter.player_state", null)).thenReturn(legacyJson)
+
+            val result = migrationManager.migrateFromFlutter()
+
+            assertTrue(result is MigrationResult.Failure)
+            val error = (result as MigrationResult.Failure).error
+            assertTrue(error.message?.contains("traversal", ignoreCase = true) == true)
+            verify(booksDao, never()).insertBook(any())
+            verify(editor, never()).putBoolean("migration_completed_v1", true)
+        }
+
+    @Test
+    fun `migrateFromFlutter fails for restricted system path`() =
+        runTest {
+            val legacyJson =
+                """
+                {
+                    "groupPath": "/proc/self",
+                    "currentPosition": 15000,
+                    "currentIndex": 2
+                }
+                """.trimIndent()
+
+            whenever(sharedPreferences.getString("flutter.player_state", null)).thenReturn(legacyJson)
+
+            val result = migrationManager.migrateFromFlutter()
+
+            assertTrue(result is MigrationResult.Failure)
+            val error = (result as MigrationResult.Failure).error
+            assertTrue(error.message?.contains("restricted", ignoreCase = true) == true)
+            verify(booksDao, never()).insertBook(any())
+            verify(editor, never()).putBoolean("migration_completed_v1", true)
         }
 }

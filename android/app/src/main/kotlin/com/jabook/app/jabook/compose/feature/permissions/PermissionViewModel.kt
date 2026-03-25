@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.permissions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.permissions.PermissionManager
+import com.jabook.app.jabook.compose.data.permissions.StorageAccessRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,6 +57,8 @@ public class PermissionViewModel
         }
 
         public fun getManageExternalStorageIntent(): android.content.Intent = permissionManager.getManageExternalStorageIntent()
+
+        public fun getStorageAccessRequest(): StorageAccessRequest = permissionManager.getStorageAccessRequest()
 
         public fun getAppSettingsIntent(): android.content.Intent = permissionManager.getAppSettingsIntent()
 
