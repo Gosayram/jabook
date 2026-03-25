@@ -80,6 +80,15 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             intent.action == "com.jabook.app.jabook.PLAYBACK_STATE_CHANGED" ||
             intent.action == "com.jabook.app.jabook.MEDIA_ITEM_CHANGED"
         ) {
+            android.util.Log.d(
+                "PlayerWidget",
+                WidgetObservabilityPolicy.providerMessage(
+                    event = "update_broadcast_received",
+                    widgetId = WidgetObservabilityPolicy.UNKNOWN_WIDGET_ID,
+                    source = WidgetUpdateSource.BROADCAST,
+                    detail = "action=${intent.action}",
+                ),
+            )
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val componentName = ComponentName(context, PlayerWidgetProvider::class.java)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
@@ -130,6 +139,13 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetId: Int,
     ) {
         scope.launch(Dispatchers.IO) {
+            android.util.Log.d(
+                "PlayerWidget",
+                WidgetObservabilityPolicy.providerMessage(
+                    event = "update_start",
+                    widgetId = appWidgetId,
+                ),
+            )
             var controller: MediaController? = null
             var controllerFuture: ListenableFuture<MediaController>? = null
             try {
@@ -162,11 +178,30 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     if (controller != null) {
                         updateWidgetFromController(context, views, controller, widgetSize, appWidgetManager, appWidgetId)
                     } else {
+                        android.util.Log.w(
+                            "PlayerWidget",
+                            WidgetObservabilityPolicy.providerMessage(
+                                event = "controller_fallback",
+                                widgetId = appWidgetId,
+                                source = WidgetUpdateSource.SERVICE_FALLBACK,
+                                reason = WidgetFallbackReason.CONTROLLER_UNAVAILABLE,
+                            ),
+                        )
                         // Fallback to service instance if MediaController is not available
                         updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("PlayerWidget", "Failed to get MediaController, falling back to service", e)
+                    android.util.Log.w(
+                        "PlayerWidget",
+                        WidgetObservabilityPolicy.providerMessage(
+                            event = "controller_fallback",
+                            widgetId = appWidgetId,
+                            source = WidgetUpdateSource.SERVICE_FALLBACK,
+                            reason = WidgetFallbackReason.CONTROLLER_EXCEPTION,
+                            detail = e.javaClass.simpleName,
+                        ),
+                        e,
+                    )
                     // Fallback to service instance
                     updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
                 } finally {
@@ -182,7 +217,17 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 // Note: Glide will update cover asynchronously via AppWidgetTarget
                 // No need for second update - Glide handles it automatically
             } catch (e: Exception) {
-                android.util.Log.e("PlayerWidget", "Failed to update widget", e)
+                android.util.Log.e(
+                    "PlayerWidget",
+                    WidgetObservabilityPolicy.providerMessage(
+                        event = "update_failed",
+                        widgetId = appWidgetId,
+                        source = WidgetUpdateSource.DEFAULT_STATE,
+                        reason = WidgetFallbackReason.UPDATE_EXCEPTION,
+                        detail = e.javaClass.simpleName,
+                    ),
+                    e,
+                )
                 // Show default state on error
                 try {
                     val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
@@ -191,7 +236,17 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     setDefaultWidgetState(context, views, appWidgetId)
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                 } catch (e2: Exception) {
-                    android.util.Log.e("PlayerWidget", "Failed to set default widget state", e2)
+                    android.util.Log.e(
+                        "PlayerWidget",
+                        WidgetObservabilityPolicy.providerMessage(
+                            event = "default_state_failed",
+                            widgetId = appWidgetId,
+                            source = WidgetUpdateSource.DEFAULT_STATE,
+                            reason = WidgetFallbackReason.UPDATE_EXCEPTION,
+                            detail = e2.javaClass.simpleName,
+                        ),
+                        e2,
+                    )
                 }
             }
         }
@@ -255,7 +310,12 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         if (shouldFallbackToService) {
             android.util.Log.w(
                 "PlayerWidget",
-                "Controller snapshot appears stale, fallback to service for widget=$appWidgetId",
+                WidgetObservabilityPolicy.providerMessage(
+                    event = "controller_fallback",
+                    widgetId = appWidgetId,
+                    source = WidgetUpdateSource.SERVICE_FALLBACK,
+                    reason = WidgetFallbackReason.CONTROLLER_STALE_SNAPSHOT,
+                ),
             )
             updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
             return
@@ -336,7 +396,15 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         // Set up click intents
         setupClickIntents(context, views, finalBookId, appWidgetId)
 
-        android.util.Log.d("PlayerWidget", "Widget updated via MediaController: book=$bookTitle, playing=$isPlaying")
+        android.util.Log.d(
+            "PlayerWidget",
+            WidgetObservabilityPolicy.providerMessage(
+                event = "update_success",
+                widgetId = appWidgetId,
+                source = WidgetUpdateSource.CONTROLLER,
+                detail = "playing=$isPlaying",
+            ),
+        )
     }
 
     /**
@@ -435,9 +503,26 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             // Note: Glide will update cover asynchronously via AppWidgetTarget
             // No need for second update - Glide handles it automatically
 
-            android.util.Log.d("PlayerWidget", "Widget updated via service: book=$bookTitle, playing=$isPlaying")
+            android.util.Log.d(
+                "PlayerWidget",
+                WidgetObservabilityPolicy.providerMessage(
+                    event = "update_success",
+                    widgetId = appWidgetId,
+                    source = WidgetUpdateSource.SERVICE_FALLBACK,
+                    detail = "playing=$isPlaying",
+                ),
+            )
         } else {
             // Service not available - show default state
+            android.util.Log.w(
+                "PlayerWidget",
+                WidgetObservabilityPolicy.providerMessage(
+                    event = "default_state_applied",
+                    widgetId = appWidgetId,
+                    source = WidgetUpdateSource.DEFAULT_STATE,
+                    reason = WidgetFallbackReason.SERVICE_UNAVAILABLE,
+                ),
+            )
             setDefaultWidgetState(context, views, appWidgetId)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

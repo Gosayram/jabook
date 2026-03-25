@@ -83,3 +83,59 @@ internal object WidgetDeepLinkPolicy {
         return builder.build()
     }
 }
+
+internal enum class WidgetUpdateSource {
+    BROADCAST,
+    CONTROLLER,
+    SERVICE_FALLBACK,
+    DEFAULT_STATE,
+}
+
+internal enum class WidgetFallbackReason {
+    CONTROLLER_UNAVAILABLE,
+    CONTROLLER_EXCEPTION,
+    CONTROLLER_STALE_SNAPSHOT,
+    SERVICE_UNAVAILABLE,
+    UPDATE_EXCEPTION,
+}
+
+internal object WidgetObservabilityPolicy {
+    internal const val UNKNOWN_WIDGET_ID: Int = -1
+
+    internal fun sanitizeWidgetId(widgetId: Int?): Int =
+        if (widgetId != null && widgetId >= 0) {
+            widgetId
+        } else {
+            UNKNOWN_WIDGET_ID
+        }
+
+    internal fun providerMessage(
+        event: String,
+        widgetId: Int?,
+        source: WidgetUpdateSource? = null,
+        reason: WidgetFallbackReason? = null,
+        detail: String? = null,
+    ): String =
+        buildString {
+            append("widget_event=").append(event)
+            append(" widgetId=").append(sanitizeWidgetId(widgetId))
+            source?.let { append(" source=").append(it.name) }
+            reason?.let { append(" reason=").append(it.name) }
+            if (!detail.isNullOrBlank()) {
+                append(" detail=").append(detail)
+            }
+        }
+
+    internal fun serviceMessage(
+        event: String,
+        action: String,
+        widgetId: Int?,
+        deduplicated: Boolean? = null,
+    ): String =
+        buildString {
+            append("widget_service_event=").append(event)
+            append(" action=").append(action)
+            append(" widgetId=").append(sanitizeWidgetId(widgetId))
+            deduplicated?.let { append(" deduplicated=").append(it) }
+        }
+}

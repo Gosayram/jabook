@@ -134,4 +134,38 @@ class PlayerWidgetPoliciesTest {
 
         assertEquals("0", uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_WIDGET_ID))
     }
+
+    @Test
+    fun `providerMessage includes key observability fields`() {
+        val message =
+            WidgetObservabilityPolicy.providerMessage(
+                event = "controller_fallback",
+                widgetId = 42,
+                source = WidgetUpdateSource.SERVICE_FALLBACK,
+                reason = WidgetFallbackReason.CONTROLLER_STALE_SNAPSHOT,
+                detail = "playing=true",
+            )
+
+        assertTrue(message.contains("widget_event=controller_fallback"))
+        assertTrue(message.contains("widgetId=42"))
+        assertTrue(message.contains("source=SERVICE_FALLBACK"))
+        assertTrue(message.contains("reason=CONTROLLER_STALE_SNAPSHOT"))
+        assertTrue(message.contains("detail=playing=true"))
+    }
+
+    @Test
+    fun `serviceMessage sanitizes invalid widget id`() {
+        val message =
+            WidgetObservabilityPolicy.serviceMessage(
+                event = "action_accepted",
+                action = PlayerWidgetProvider.ACTION_NEXT,
+                widgetId = -10,
+                deduplicated = false,
+            )
+
+        assertTrue(message.contains("widget_service_event=action_accepted"))
+        assertTrue(message.contains("action=${PlayerWidgetProvider.ACTION_NEXT}"))
+        assertTrue(message.contains("widgetId=-1"))
+        assertTrue(message.contains("deduplicated=false"))
+    }
 }

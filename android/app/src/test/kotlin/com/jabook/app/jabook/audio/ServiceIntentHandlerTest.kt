@@ -17,14 +17,18 @@ package com.jabook.app.jabook.audio
 import android.content.Intent
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.widget.PlayerWidgetProvider
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 
 @RunWith(RobolectricTestRunner::class)
 class ServiceIntentHandlerTest {
@@ -36,6 +40,7 @@ class ServiceIntentHandlerTest {
 
     @Before
     fun setUp() {
+        ShadowLog.clear()
         service = mock()
         player = mock()
 
@@ -84,5 +89,61 @@ class ServiceIntentHandlerTest {
         handler.handleStartCommand(secondIntent, flags = 0, startId = 2)
 
         verify(service, times(2)).play()
+    }
+
+    @Test
+    fun `accepted widget action emits accepted then update telemetry`() {
+        val intent =
+            Intent(PlayerWidgetProvider.ACTION_NEXT).apply {
+                putExtra(PlayerWidgetProvider.EXTRA_APP_WIDGET_ID, 31)
+            }
+
+        handler.handleStartCommand(intent, flags = 0, startId = 10)
+
+        val telemetryMessages =
+            ShadowLog
+                .getLogsForTag("AudioPlayerService")
+                .map { it.msg }
+                .filter { it.contains("widget_service_event=") }
+
+        val acceptedIndex = telemetryMessages.indexOfFirst { it.contains("widget_service_event=action_accepted") }
+        val updateIndex = telemetryMessages.indexOfFirst { it.contains("widget_service_event=request_update_sent") }
+
+        assertTrue(acceptedIndex >= 0)
+        assertTrue(updateIndex > acceptedIndex)
+        assertTrue(telemetryMessages[acceptedIndex].contains("widgetId=31"))
+        assertTrue(telemetryMessages[updateIndex].contains("widgetId=31"))
+
+        verify(service, times(1)).next()
+        val updateBroadcast = argumentCaptor<Intent>()
+        verify(service, times(1)).sendBroadcast(updateBroadcast.capture())
+        assertEquals(PlayerWidgetProvider.ACTION_UPDATE_WIDGET, updateBroadcast.firstValue.action)
+    }
+
+    @Test
+    fun `deduplicated widget action logs only deduplicated telemetry without update request`() {
+        val intent =
+            Intent(PlayerWidgetProvider.ACTION_PLAY_PAUSE).apply {
+                putExtra(PlayerWidgetProvider.EXTRA_APP_WIDGET_ID, 41)
+            }
+
+        handler.handleStartCommand(intent, flags = 0, startId = 20)
+        ShadowLog.clear()
+        nowMs += 50L
+        handler.handleStartCommand(intent, flags = 0, startId = 21)
+
+        val allLogs =
+            ShadowLog
+                .getLogsForTag("AudioPlayerService")
+                .map { it.msg }
+        val telemetryMessages = allLogs.filter { it.contains("widget_service_event=") }
+
+        assertEquals(1, allLogs.size)
+        assertEquals(1, telemetryMessages.size)
+        assertTrue(telemetryMessages.single().contains("widget_service_event=action_deduplicated"))
+        assertTrue(telemetryMessages.single().contains("widgetId=41"))
+        assertTrue(telemetryMessages.single().contains("deduplicated=true"))
+
+        verify(service, times(1)).play()
     }
 }
