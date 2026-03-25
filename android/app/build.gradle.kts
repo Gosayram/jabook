@@ -1,6 +1,87 @@
+import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.Properties
+import javax.inject.Inject
+
+abstract class GenerateProtoLiteTask : DefaultTask() {
+    @get:Input
+    abstract val windowsHost: org.gradle.api.provider.Property<Boolean>
+
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val protoSourceDir: DirectoryProperty
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val protoFiles: ConfigurableFileCollection
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val protocBinaryFiles: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @get:OutputFile
+    abstract val protocOutputFile: RegularFileProperty
+
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @TaskAction
+    fun generate() {
+        val protocBinary = protocBinaryFiles.singleFile
+        val protocFile = protocOutputFile.get().asFile
+        protocFile.parentFile.mkdirs()
+        Files.copy(protocBinary.toPath(), protocFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        if (!windowsHost.get()) {
+            protocFile.setExecutable(true)
+        }
+
+        val output = outputDir.get().asFile
+        output.mkdirs()
+
+        val protoRoot = protoSourceDir.get().asFile
+        val protoPaths =
+            protoFiles
+                .files
+                .map(File::getAbsolutePath)
+                .sorted()
+
+        if (protoPaths.isEmpty()) {
+            logger.lifecycle("No proto files found in ${protoRoot.absolutePath}, skipping protobuf generation")
+            return
+        }
+
+        val args =
+            mutableListOf(
+                "--java_out=lite:${output.absolutePath}",
+                "-I${protoRoot.absolutePath}",
+            ).apply {
+                addAll(protoPaths)
+            }
+
+        execOperations.exec {
+            executable = protocFile.absolutePath
+            args(args)
+        }
+    }
+}
 
 plugins {
     id("com.android.application")
@@ -46,7 +127,7 @@ if (hasGoogleServicesJson) {
 
 val osName = System.getProperty("os.name").lowercase()
 val osArch = System.getProperty("os.arch").lowercase()
-val isWindows = osName.contains("windows")
+val isWindowsHost = osName.contains("windows")
 
 fun detectProtocClassifier(
     os: String,
@@ -65,60 +146,20 @@ fun detectProtocClassifier(
 val protocClassifier = detectProtocClassifier(osName, osArch)
 val protoSourceDir = layout.projectDirectory.dir("src/main/proto")
 val generatedProtoDir = layout.buildDirectory.dir("generated/source/proto/main/java")
-val protoFiles =
+val protoInputFiles =
     fileTree(protoSourceDir) {
         include("**/*.proto")
     }
 
 val protocBinary by configurations.creating
 
-val prepareProtoc by tasks.registering(Copy::class) {
-    notCompatibleWithConfigurationCache("Custom protoc bootstrap task.")
-    from(protocBinary)
-    into(layout.buildDirectory.dir("tools/protoc"))
-    rename { if (isWindows) "protoc.exe" else "protoc" }
-    doLast {
-        if (!isWindows) {
-            val protocFile =
-                layout.buildDirectory
-                    .file("tools/protoc/protoc")
-                    .get()
-                    .asFile
-            protocFile.setExecutable(true)
-        }
-    }
-}
-
-val generateProtoLite by tasks.registering(Exec::class) {
-    notCompatibleWithConfigurationCache("Custom protoc codegen task.")
-    dependsOn(prepareProtoc)
-    inputs.files(protoFiles)
-    outputs.dir(generatedProtoDir)
-
-    doFirst {
-        val outputDir = generatedProtoDir.get().asFile
-        outputDir.mkdirs()
-
-        val protocPath =
-            if (isWindows) {
-                layout.buildDirectory
-                    .file("tools/protoc/protoc.exe")
-                    .get()
-                    .asFile
-                    .absolutePath
-            } else {
-                layout.buildDirectory
-                    .file("tools/protoc/protoc")
-                    .get()
-                    .asFile
-                    .absolutePath
-            }
-
-        val argsList = mutableListOf("--java_out=lite:${outputDir.absolutePath}", "-I${protoSourceDir.asFile.absolutePath}")
-        argsList.addAll(protoFiles.files.map(File::getAbsolutePath).sorted())
-
-        commandLine(protocPath, *argsList.toTypedArray())
-    }
+val generateProtoLite by tasks.registering(GenerateProtoLiteTask::class) {
+    windowsHost.set(isWindowsHost)
+    protoSourceDir.set(layout.projectDirectory.dir("src/main/proto"))
+    protoFiles.from(protoInputFiles)
+    protocBinaryFiles.from(protocBinary)
+    outputDir.set(generatedProtoDir)
+    protocOutputFile.set(layout.buildDirectory.file("tools/protoc/${if (isWindowsHost) "protoc.exe" else "protoc"}"))
 }
 
 android {
