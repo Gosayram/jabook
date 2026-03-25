@@ -78,7 +78,7 @@ class SleepTimerManagerTest {
             // paused remaining time must be the source of truth.
             timerPrefs()
                 .edit()
-                .putLong("sleepTimerEndTime", System.currentTimeMillis() - 10_000L)
+                .putLong(SleepTimerPersistence.KEY_END_TIME, System.currentTimeMillis() - 10_000L)
                 .apply()
 
             val restoredManager =
@@ -134,10 +134,10 @@ class SleepTimerManagerTest {
         runTest(testDispatcher) {
             timerPrefs()
                 .edit()
-                .putLong("sleepTimerEndTime", 0L)
-                .putBoolean("sleepTimerEndOfChapter", true)
-                .putBoolean("sleepTimerPaused", false)
-                .putLong("sleepTimerPausedRemainingMillis", -1L)
+                .putLong(SleepTimerPersistence.KEY_END_TIME, 0L)
+                .putBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, true)
+                .putBoolean(SleepTimerPersistence.KEY_PAUSED, false)
+                .putLong(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS, SleepTimerPersistence.NO_REMAINING_MILLIS)
                 .apply()
 
             val player = mock<ExoPlayer>()
@@ -191,10 +191,10 @@ class SleepTimerManagerTest {
             listener.onIsPlayingChanged(true)
             advanceUntilIdle()
 
-            val pausedFlag = timerPrefs().getBoolean("sleepTimerPaused", true)
+            val pausedFlag = timerPrefs().getBoolean(SleepTimerPersistence.KEY_PAUSED, true)
             assertTrue(!pausedFlag)
             assertNotNull(manager.getSleepTimerRemainingSeconds())
         }
 
-    private fun timerPrefs() = context.getSharedPreferences("jabook_timer_prefs", Context.MODE_PRIVATE)
+    private fun timerPrefs() = context.getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
 }
