@@ -12,7 +12,7 @@ kotlinxCoroutines = "1.10.2"
 kotlinxSerialization = "1.10.0"
 
 # AndroidX Core
-androidxCore = "1.13.1"
+androidxCore = "1.18.0"
 androidxCoreSplashscreen = "1.2.0"
 androidxActivity = "1.12.1"
 androidxAppcompat = "1.7.1"
