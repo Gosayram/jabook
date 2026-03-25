@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.app.Service
 import android.content.Intent
+import com.jabook.app.jabook.widget.PlayerWidgetProvider
 
 /**
  * Handles intents sent to AudioPlayerService via onStartCommand.
@@ -23,6 +24,7 @@ import android.content.Intent
  */
 internal class ServiceIntentHandler(
     private val service: AudioPlayerService,
+    private val widgetActionDeduplicator: WidgetActionDeduplicator = WidgetActionDeduplicator(),
 ) {
     public fun handleStartCommand(
         intent: Intent?,
@@ -35,6 +37,22 @@ internal class ServiceIntentHandler(
             "AudioPlayerService",
             "handleStartCommand called with action: $action, intent: $intent, flags: $flags, startId: $startId",
         )
+
+        if (action != null && WidgetActionDeduplicator.isWidgetAction(action)) {
+            val widgetId =
+                intent.getIntExtra(
+                    PlayerWidgetProvider.EXTRA_APP_WIDGET_ID,
+                    WidgetActionDeduplicator.UNKNOWN_WIDGET_ID,
+                )
+            val shouldHandle = widgetActionDeduplicator.shouldHandle(action, widgetId)
+            if (!shouldHandle) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Skipped duplicate widget action=$action for widgetId=$widgetId within dedupe window",
+                )
+                return true
+            }
+        }
 
         val handled =
             when (action) {
