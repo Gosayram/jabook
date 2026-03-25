@@ -1647,28 +1647,9 @@ public class AudioPlayerService : MediaLibraryService() {
             )
 
         exoPlayer.addListener(
-            object : Player.Listener {
-                override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
-                    notificationInvalidationCoordinator.onDebouncedSignal(event = "onMediaMetadataChanged")
-                }
-
-                override fun onMediaItemTransition(
-                    mediaItem: androidx.media3.common.MediaItem?,
-                    reason: Int,
-                ) {
-                    notificationInvalidationCoordinator.onDebouncedSignal(event = "onMediaItemTransition")
-                }
-
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_READY) {
-                        notificationInvalidationCoordinator.onImmediateSignal(event = "onPlaybackStateChanged: READY")
-                    }
-                }
-
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    notificationInvalidationCoordinator.onImmediateSignal(event = "onIsPlayingChanged: $isPlaying")
-                }
-            },
+            PlayerNotificationInvalidationListener(
+                signals = notificationInvalidationCoordinator,
+            ),
         )
 
         playerNotificationManager?.setPlayer(exoPlayer)

@@ -28,10 +28,10 @@ internal class PlayerNotificationInvalidationCoordinator(
     private val policy: PlayerNotificationInvalidatePolicy = PlayerNotificationInvalidatePolicy(),
     private val log: (String) -> Unit = {},
     private val invalidate: () -> Unit,
-) {
+) : PlayerNotificationInvalidationSignalSink {
     private var notificationUpdateJob: Job? = null
 
-    internal fun onDebouncedSignal(event: String) {
+    override fun onDebouncedSignal(event: String) {
         when (policy.onDebouncedSignal()) {
             PlayerNotificationInvalidatePolicy.DebouncedAction.COALESCED -> {
                 log("$event: debounce coalesced")
@@ -55,7 +55,7 @@ internal class PlayerNotificationInvalidationCoordinator(
         }
     }
 
-    internal fun onImmediateSignal(event: String) {
+    override fun onImmediateSignal(event: String) {
         val action = policy.onImmediateSignal()
         if (action.cancelPendingDebounced) {
             cancelPending(event)
