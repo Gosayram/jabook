@@ -57,7 +57,7 @@ retrofit = "3.0.0"
 jsoup = "1.21.2"
 
 # Image Loading
-coil3 = "3.3.0"
+coil3 = "3.4.0"
 glide = "5.0.5"
 
 # Serialization
