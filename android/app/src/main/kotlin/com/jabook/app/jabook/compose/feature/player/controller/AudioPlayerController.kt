@@ -34,6 +34,8 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,6 +73,9 @@ public class AudioPlayerController
         private val scope = CoroutineScope(Dispatchers.Main)
         private var mediaController: MediaController? = null
         private var mediaControllerFuture: ListenableFuture<MediaController>? = null
+        private var mediaControllerRetryJob: Job? = null
+        private var serviceInitRetryJob: Job? = null
+        private var exoFallbackListenerAttached = false
 
         // Playback State
         private val _isPlaying = MutableStateFlow(false)
@@ -253,11 +258,28 @@ public class AudioPlayerController
             val maxRetries = 5 // Increased from 3 for better resilience
             val retryDelayMs = 1000L // Increased from 500ms for service startup
 
+            if (mediaController != null) {
+                _connectionState.value = ConnectionState.CONNECTED
+                return
+            }
+            if (retryCount == 0 &&
+                _connectionState.value == ConnectionState.CONNECTING &&
+                mediaControllerFuture != null
+            ) {
+                logger.d { "MediaController initialization already in progress, skipping duplicate init call" }
+                return
+            }
+
             // CRITICAL: Use Log.e to bypass LogUtils filtering for debugging
             Log.e("JABOOK_CONTROLLER", "initMediaController START (attempt ${retryCount + 1}/$maxRetries)")
             _connectionState.value = ConnectionState.CONNECTING
 
             try {
+                mediaControllerFuture?.let { future ->
+                    MediaController.releaseFuture(future)
+                }
+                mediaControllerFuture = null
+
                 val sessionToken =
                     SessionToken(
                         context,
@@ -282,7 +304,18 @@ public class AudioPlayerController
                                     MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(),
                                     TimeUnit.SECONDS,
                                 )
+                            mediaController?.let { existing ->
+                                if (existing !== controller) {
+                                    existing.removeListener(mediaControllerListener)
+                                    existing.release()
+                                }
+                            }
                             mediaController = controller
+                            // MediaController connected: detach fallback listener to avoid double updates.
+                            if (exoFallbackListenerAttached) {
+                                exoPlayer.removeListener(mediaControllerListener)
+                                exoFallbackListenerAttached = false
+                            }
                             controller?.addListener(mediaControllerListener)
 
                             // Initialize state from MediaController
@@ -293,6 +326,8 @@ public class AudioPlayerController
                                 _currentChapterIndex.value = ctrl.currentMediaItemIndex
                                 updateStats(ctrl)
                                 _connectionState.value = ConnectionState.CONNECTED
+                                mediaControllerRetryJob?.cancel()
+                                mediaControllerRetryJob = null
                                 Log.e(
                                     "JABOOK_CONTROLLER",
                                     "✅ MediaController CONNECTED! isPlaying=${ctrl.isPlaying}, mediaItemCount=${ctrl.mediaItemCount}",
@@ -306,26 +341,21 @@ public class AudioPlayerController
                             logger.w {
                                 "MediaController initialization timeout, retrying... (attempt $retryCount/$maxRetries)"
                             }
-                            if (retryCount < maxRetries) {
-                                // Retry after delay
-                                scope.launch {
-                                    kotlinx.coroutines.delay(retryDelayMs)
-                                    initMediaController(retryCount + 1)
-                                }
-                            } else {
-                                Log.e("JABOOK_CONTROLLER", "❌ TIMEOUT after $maxRetries retries, using ExoPlayer fallback")
-                                logger.e {
-                                    "MediaController initialization failed after $maxRetries retries, using fallback"
-                                }
-                                _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
-                                initializeFromExoPlayer()
-                            }
+                            scheduleMediaControllerRetry(
+                                nextRetryCount = retryCount + 1,
+                                maxRetries = maxRetries,
+                                retryDelayMs = retryDelayMs,
+                                reason = "timeout",
+                            )
                         } catch (e: Exception) {
                             Log.e("JABOOK_CONTROLLER", "❌ Exception in MediaController init: ${e.message}", e)
                             logger.e(e) { "Error initializing MediaController" }
-                            // Fallback: initialize from exoPlayer
-                            _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
-                            initializeFromExoPlayer()
+                            scheduleMediaControllerRetry(
+                                nextRetryCount = retryCount + 1,
+                                maxRetries = maxRetries,
+                                retryDelayMs = retryDelayMs,
+                                reason = "exception",
+                            )
                         }
                     },
                     ContextCompat.getMainExecutor(context),
@@ -333,21 +363,39 @@ public class AudioPlayerController
             } catch (e: Exception) {
                 Log.e("JABOOK_CONTROLLER", "❌ Failed to create SessionToken/MediaController: ${e.message}", e)
                 logger.e(e) { "Failed to create MediaController" }
-                if (retryCount < maxRetries) {
-                    Log.e("JABOOK_CONTROLLER", "Retry ${retryCount + 1}/$maxRetries in ${retryDelayMs}ms...")
-                    // Retry after delay
-                    scope.launch {
-                        kotlinx.coroutines.delay(retryDelayMs)
-                        initMediaController(retryCount + 1)
-                    }
-                } else {
-                    Log.e("JABOOK_CONTROLLER", "❌ FAILED after $maxRetries retries, using ExoPlayer fallback")
-                    logger.e { "MediaController creation failed after $maxRetries retries, using fallback" }
-                    // Fallback: initialize from exoPlayer
-                    _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
-                    initializeFromExoPlayer()
-                }
+                scheduleMediaControllerRetry(
+                    nextRetryCount = retryCount + 1,
+                    maxRetries = maxRetries,
+                    retryDelayMs = retryDelayMs,
+                    reason = "token_creation",
+                )
             }
+        }
+
+        private fun scheduleMediaControllerRetry(
+            nextRetryCount: Int,
+            maxRetries: Int,
+            retryDelayMs: Long,
+            reason: String,
+        ) {
+            if (mediaController != null) {
+                return
+            }
+            if (nextRetryCount > maxRetries) {
+                Log.e("JABOOK_CONTROLLER", "❌ FAILED after $maxRetries retries ($reason), using ExoPlayer fallback")
+                logger.e {
+                    "MediaController initialization failed after $maxRetries retries ($reason), using fallback"
+                }
+                _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
+                initializeFromExoPlayer()
+                return
+            }
+            mediaControllerRetryJob?.cancel()
+            mediaControllerRetryJob =
+                scope.launch {
+                    delay(retryDelayMs)
+                    initMediaController(nextRetryCount)
+                }
         }
 
         /**
@@ -363,7 +411,10 @@ public class AudioPlayerController
             )
             logger.w { "Using ExoPlayer fallback during MediaController initialization" }
             // Attach listener to singleton ExoPlayer as fallback
-            exoPlayer.addListener(mediaControllerListener)
+            if (!exoFallbackListenerAttached) {
+                exoPlayer.addListener(mediaControllerListener)
+                exoFallbackListenerAttached = true
+            }
             // Initialize state
             _isPlaying.value = exoPlayer.isPlaying
             _currentPosition.value = exoPlayer.currentPosition
@@ -542,13 +593,15 @@ public class AudioPlayerController
                 context.startService(intent)
 
                 // Retry MediaController initialization after service start
-                scope.launch {
-                    kotlinx.coroutines.delay(500L) // Wait for service to initialize
-                    if (mediaController == null) {
-                        logger.d { "Retrying MediaController initialization after service start" }
-                        initMediaController()
+                serviceInitRetryJob?.cancel()
+                serviceInitRetryJob =
+                    scope.launch {
+                        delay(500L) // Wait for service to initialize
+                        if (mediaController == null) {
+                            logger.d { "Retrying MediaController initialization after service start" }
+                            initMediaController()
+                        }
                     }
-                }
             } catch (e: Exception) {
                 logger.e(
                     e,
@@ -562,6 +615,15 @@ public class AudioPlayerController
          * Should be called when controller is no longer needed.
          */
         public fun release() {
+            mediaControllerRetryJob?.cancel()
+            mediaControllerRetryJob = null
+            serviceInitRetryJob?.cancel()
+            serviceInitRetryJob = null
+
+            if (exoFallbackListenerAttached) {
+                exoPlayer.removeListener(mediaControllerListener)
+                exoFallbackListenerAttached = false
+            }
             mediaController?.removeListener(mediaControllerListener)
             mediaController?.release()
             mediaController = null
@@ -569,5 +631,6 @@ public class AudioPlayerController
                 MediaController.releaseFuture(it)
             }
             mediaControllerFuture = null
+            _connectionState.value = ConnectionState.DISCONNECTED
         }
     }
