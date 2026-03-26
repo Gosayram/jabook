@@ -225,9 +225,25 @@ internal class PlayerListener(
     private var positionStoppedCount: Int = 0 // Count how many times position hasn't changed
     private var positionStoppedStartTime: Long = -1L // When position first stopped advancing
     private val positionCheckIntervalMs = 1000L // Check every second
-    private val endOfFileThresholdMs = 500L // Consider file ended if within 500ms of duration
+    private val minEndOfFileThresholdMs = 500L
+    private val maxEndOfFileThresholdMs = 5000L
+    private val endOfFileThresholdPercent = 0.01
     private val positionStoppedThreshold = 2 // Consider file ended if position hasn't changed for 2 checks (2 seconds)
     private val maxPositionStoppedTimeMs = 3000L // Maximum time position can be stopped before considering file ended (3 seconds)
+
+    private fun resetPositionTrackingState() {
+        lastPosition = -1L
+        positionStoppedCount = 0
+        positionStoppedStartTime = -1L
+    }
+
+    private fun calculateEndOfFileThresholdMs(durationMs: Long): Long {
+        if (durationMs == C.TIME_UNSET || durationMs <= 0) {
+            return minEndOfFileThresholdMs
+        }
+        val proportionalThreshold = (durationMs * endOfFileThresholdPercent).toLong()
+        return proportionalThreshold.coerceIn(minEndOfFileThresholdMs, maxEndOfFileThresholdMs)
+    }
 
     // Use onEvents() for more efficient event handling (inspired by lissen-android)
     // This allows handling multiple events in one callback for better performance
@@ -456,6 +472,7 @@ internal class PlayerListener(
                 // Save position to ensure it's preserved
                 LogUtils.d("AudioPlayerService", "Playback stopped, saving position")
                 saveCurrentPosition()
+                resetPositionTrackingState()
             }
 
             // Save position when playback starts (critical event)
@@ -533,9 +550,7 @@ internal class PlayerListener(
             // Track changed - restart position check for new track
             stopPositionCheck()
             // Reset position tracking for new track
-            lastPosition = -1L
-            positionStoppedCount = 0
-            positionStoppedStartTime = -1L
+            resetPositionTrackingState()
 
             // Track changed - update notification to show new track's embedded artwork
             // MediaSession automatically updates from ExoPlayer
@@ -1390,6 +1405,7 @@ internal class PlayerListener(
                     // Get current state (currentIndex and totalTracks already defined above)
                     val currentPosition = player.currentPosition
                     val duration = player.duration
+                    val endOfFileThresholdMs = calculateEndOfFileThresholdMs(duration)
 
                     // Log position check for debugging (only on last track to reduce spam)
                     if (currentIndex >= totalTracks - 1) {
@@ -1504,9 +1520,7 @@ internal class PlayerListener(
                         lastPosition = currentPosition
                     } else {
                         // Not on last track, reset tracking
-                        lastPosition = -1L
-                        positionStoppedCount = 0
-                        positionStoppedStartTime = -1L
+                        resetPositionTrackingState()
                     }
 
                     // Check 4: Playback stopped but we're still in READY state (file ended prematurely)
@@ -1540,9 +1554,7 @@ internal class PlayerListener(
                     kotlinx.coroutines.delay(positionCheckIntervalMs)
                 }
                 // Reset tracking when loop ends
-                lastPosition = -1L
-                positionStoppedCount = 0
-                positionStoppedStartTime = -1L
+                resetPositionTrackingState()
             }
     }
 
@@ -1553,9 +1565,7 @@ internal class PlayerListener(
         positionCheckJob?.cancel()
         positionCheckJob = null
         // Reset tracking when stopping
-        lastPosition = -1L
-        positionStoppedCount = 0
-        positionStoppedStartTime = -1L
+        resetPositionTrackingState()
     }
 
     /**
