@@ -300,8 +300,6 @@ internal class PlayerListener(
             // Handle book completion - when last track ends
             if (playbackState == Player.STATE_ENDED) {
                 val currentIndex = player.currentMediaItemIndex
-                // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
-                // This fixes issue where player.mediaItemCount may be incorrect (e.g., 20 instead of 16)
                 val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
 
                 // Check sleep timer "end of chapter" mode (inspired by EasyBook)
@@ -312,96 +310,7 @@ internal class PlayerListener(
                     sendTimerExpiredEvent()
                 }
 
-                // CRITICAL: If index is 0, invalid, or out of bounds, use saved index or calculate last track
-                // This handles case when ExoPlayer reset index before STATE_ENDED or tried to go beyond last track
-                val actualIndex =
-                    if ((currentIndex == 0 || currentIndex < 0 || currentIndex >= totalTracks) && totalTracks > 0) {
-                        val savedIndex = getLastCompletedTrackIndex?.invoke() ?: -1
-                        if (savedIndex >= 0 && savedIndex < totalTracks) {
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "STATE_ENDED: Index is invalid ($currentIndex), using saved index $savedIndex",
-                            )
-                            savedIndex
-                        } else {
-                            // If no saved index, check if we should use last track
-                            // This happens when last track ended and ExoPlayer tried to go to next (index >= totalTracks)
-                            val lastTrackIndex = totalTracks - 1
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "STATE_ENDED: Index is invalid ($currentIndex), using calculated last track $lastTrackIndex (total=$totalTracks)",
-                            )
-                            lastTrackIndex
-                        }
-                    } else {
-                        currentIndex
-                    }
-
-                if (actualIndex >= totalTracks - 1) {
-                    // Last track finished - book completed
-                    // Save values BEFORE any operations that might reset index
-                    val lastIndex = actualIndex
-                    val lastPosition = player.currentPosition
-
-                    LogUtils.i(
-                        "AudioPlayerService",
-                        "Book completed: last track finished (track $lastIndex of ${totalTracks - 1}, position=${lastPosition}ms)",
-                    )
-
-                    // Set flag to prevent further playback
-                    setIsBookCompleted(true)
-
-                    // Mark book as completed for activity sorting
-                    getCurrentBookId?.invoke()?.let { bookId ->
-                        markBookCompleted?.invoke(bookId)
-                    }
-
-                    // Save last track index so getState() can return correct index even if ExoPlayer resets it
-                    setLastCompletedTrackIndex?.invoke(lastIndex)
-                    LogUtils.d(
-                        "AudioPlayerService",
-                        "Saved last completed track index: $lastIndex",
-                    )
-
-                    // Stop playback completely to prevent auto-advance
-                    // IMPORTANT: Don't call player.stop() - it resets index to 0 and clears playlist
-                    // Instead, just pause and seek to end of last track
-                    try {
-                        // First, pause playback
-                        player.pause()
-                        player.playWhenReady = false
-
-                        // Seek to end of last track to show completion
-                        // This preserves the index and shows correct track number
-                        if (lastIndex >= 0 && lastIndex < totalTracks) {
-                            // Seek to the end of the last track (or current position if near end)
-                            val seekPosition = if (lastPosition > 0) lastPosition else Long.MAX_VALUE
-                            player.seekTo(lastIndex, seekPosition)
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "Seeked to last track $lastIndex at position $seekPosition to preserve index",
-                            )
-                        }
-                    } catch (e: Exception) {
-                        LogUtils.e("AudioPlayerService", "Error handling book completion", e)
-                        // Fallback to just pausing
-                        player.playWhenReady = false
-                    }
-
-                    // Save final position
-                    saveCurrentPosition()
-
-                    // Update notification to show completion
-                    scheduleNotificationUpdate()
-
-                    // Send broadcast to UI to show completion message
-                    val intent =
-                        Intent("com.jabook.app.jabook.BOOK_COMPLETED").apply {
-                            setPackage(context.packageName) // Set package for explicit broadcast
-                            putExtra("last_track_index", lastIndex)
-                        }
-                    context.sendBroadcast(intent)
-                } else {
+                if (!handleBookCompletion(player, currentIndex, source = "STATE_ENDED")) {
                     // Not last track - ExoPlayer will auto-advance (normal behavior)
                     LogUtils.d(
                         "AudioPlayerService",
@@ -1579,10 +1488,22 @@ internal class PlayerListener(
     private fun handleBookCompletion(
         player: Player,
         currentIndex: Int,
-    ) {
+        source: String = "unknown",
+    ): Boolean {
+        if (getIsBookCompleted()) {
+            LogUtils.v(
+                "AudioPlayerService",
+                "Skipping duplicate completion from $source: book is already marked completed",
+            )
+            return false
+        }
+
         // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
         // This fixes issue where player.mediaItemCount may be incorrect (e.g., 20 instead of 16)
         val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
+        if (totalTracks <= 0) {
+            return false
+        }
 
         // CRITICAL: If index is 0, invalid, or out of bounds, use saved index or calculate last track
         // This handles case when ExoPlayer reset index or tried to go beyond last track
@@ -1594,7 +1515,7 @@ internal class PlayerListener(
                 if (savedIndex >= 0 && savedIndex < totalTracks) {
                     LogUtils.d(
                         "AudioPlayerService",
-                        "Index is invalid ($currentIndex), using saved index $savedIndex for book completion",
+                        "$source: index is invalid ($currentIndex), using saved index $savedIndex for book completion",
                     )
                     savedIndex
                 } else {
@@ -1605,7 +1526,7 @@ internal class PlayerListener(
                         val lastTrackIndex = totalTracks - 1
                         LogUtils.d(
                             "AudioPlayerService",
-                            "Using calculated last track index $lastTrackIndex (total=$totalTracks, originalIndex=$currentIndex)",
+                            "$source: using calculated last track index $lastTrackIndex (total=$totalTracks, originalIndex=$currentIndex)",
                         )
                         lastTrackIndex
                     } else {
@@ -1615,7 +1536,7 @@ internal class PlayerListener(
                             val lastTrackIndex = totalTracks - 1
                             LogUtils.d(
                                 "AudioPlayerService",
-                                "Index out of bounds ($currentIndex >= $totalTracks), using last track index $lastTrackIndex",
+                                "$source: index out of bounds ($currentIndex >= $totalTracks), using last track index $lastTrackIndex",
                             )
                             lastTrackIndex
                         } else {
@@ -1635,17 +1556,22 @@ internal class PlayerListener(
 
             LogUtils.i(
                 "AudioPlayerService",
-                "Book completed: last track finished (track $lastIndex of ${totalTracks - 1}, position=${lastPosition}ms, originalIndex=$currentIndex) - detected by position check",
+                "Book completed from $source: last track finished (track $lastIndex of ${totalTracks - 1}, position=${lastPosition}ms, originalIndex=$currentIndex)",
             )
 
             // Set flag to prevent further playback
             setIsBookCompleted(true)
 
+            // Mark book as completed for activity sorting
+            getCurrentBookId?.invoke()?.let { bookId ->
+                markBookCompleted?.invoke(bookId)
+            }
+
             // Save last track index so getState() can return correct index even if ExoPlayer resets it
             setLastCompletedTrackIndex?.invoke(lastIndex)
             LogUtils.d(
                 "AudioPlayerService",
-                "Saved last completed track index: $lastIndex",
+                "$source: saved last completed track index: $lastIndex",
             )
 
             // Stop playback completely to prevent auto-advance
@@ -1686,7 +1612,9 @@ internal class PlayerListener(
                     putExtra("last_track_index", lastIndex)
                 }
             context.sendBroadcast(intent)
+            return true
         }
+        return false
     }
 
     /**

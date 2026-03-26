@@ -419,11 +419,12 @@ public class AudioPlayerLibrarySessionCallback(
 
     private suspend fun estimateRootChildrenCount(): Int {
         val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
+        val persistedGroupPath = persistedState?.groupPath
         val downloads = torrentDownloadRepository.getAllFlow().firstOrNull() ?: emptyList()
-        val hasPersisted = persistedState != null
+        val hasPersisted = persistedGroupPath != null
         val dedupedDownloadsCount =
             downloads.count { download ->
-                !hasPersisted || download.hash != persistedState?.groupPath
+                !hasPersisted || download.hash != persistedGroupPath
             }
         return dedupedDownloadsCount + if (hasPersisted) 1 else 0
     }
