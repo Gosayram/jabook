@@ -64,6 +64,13 @@ public class AudioPlayerLibrarySessionCallback(
     private val mediaButtonHandler: MediaButtonHandler?,
     private val getDurationForFile: (String) -> Long?,
 ) : MediaLibraryService.MediaLibrarySession.Callback {
+    private enum class RootBrowseMode {
+        ALL,
+        RECENT,
+        OFFLINE,
+        SUGGESTED,
+    }
+
     public val customCommands: List<CommandButton> =
         listOf(
             CommandButton
@@ -96,29 +103,15 @@ public class AudioPlayerLibrarySessionCallback(
         //
         // Custom commands (rewind/forward) are still available via SessionCommands,
         // and CustomLayout will be set after initialization completes.
-        if (
+        val isSystemController =
             session.isMediaNotificationController(controller) ||
-            session.isAutomotiveController(controller) ||
-            session.isAutoCompanionController(controller)
-        ) {
-            val rewindCommand = androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY)
-            val forwardCommand = androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY)
+                session.isAutomotiveController(controller) ||
+                session.isAutoCompanionController(controller)
 
-            val availableCommands =
-                MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-                    .buildUpon()
-                    .add(rewindCommand)
-                    .add(forwardCommand)
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY))
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY))
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_CANCEL_SLEEP_TIMER, Bundle.EMPTY))
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING, Bundle.EMPTY))
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE, Bundle.EMPTY))
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH, Bundle.EMPTY))
-                    .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS, Bundle.EMPTY))
-                    .build()
+        if (isSystemController) {
+            // Automotive clients intentionally do not receive sleep timer commands.
+            val includeSleepTimerCommands = !session.isAutomotiveController(controller)
+            val availableCommands = buildAvailableSessionCommands(includeSleepTimerCommands)
 
             // NOTE: CustomLayout is NOT set here - it will be set separately after initialization
             // This follows Rhythm pattern to avoid MediaSessionLegacyStub conversion issues
@@ -129,21 +122,7 @@ public class AudioPlayerLibrarySessionCallback(
         }
 
         // For regular app controllers, add custom commands but without custom buttons
-        val availableCommands =
-            MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-                .buildUpon()
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_CANCEL_SLEEP_TIMER, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS, Bundle.EMPTY))
-                .build()
+        val availableCommands = buildAvailableSessionCommands(includeSleepTimerCommands = true)
 
         return MediaSession.ConnectionResult
             .AcceptedResultBuilder(session)
@@ -220,8 +199,13 @@ public class AudioPlayerLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
         customCommand: androidx.media3.session.SessionCommand,
         args: Bundle,
-    ): ListenableFuture<SessionResult> =
-        when (customCommand.customAction) {
+    ): ListenableFuture<SessionResult> {
+        val customAction = customCommand.customAction
+        if (isAutomotiveSleepTimerCommand(session, controller, customAction)) {
+            return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+        }
+
+        return when (customAction) {
             CUSTOM_COMMAND_REWIND -> {
                 val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
                 service.rewind(rewindSeconds)
@@ -233,7 +217,7 @@ public class AudioPlayerLibrarySessionCallback(
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             CUSTOM_COMMAND_SET_PLAYLIST -> {
-                handleSetPlaylistCommand(args)
+                handleSetPlaylistCommand(session = session, args = args)
             }
             CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES -> {
                 val minutes = args.getInt(ARG_MINUTES, 0)
@@ -300,12 +284,16 @@ public class AudioPlayerLibrarySessionCallback(
             }
             else -> Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
         }
+    }
 
     /**
      * Handles setPlaylist command with complex parameters.
      * Uses coroutines to handle async callback.
      */
-    private fun handleSetPlaylistCommand(args: Bundle): ListenableFuture<SessionResult> =
+    private fun handleSetPlaylistCommand(
+        session: MediaSession,
+        args: Bundle,
+    ): ListenableFuture<SessionResult> =
         CoroutineScope(Dispatchers.IO).future {
             try {
                 val filePathsArray = args.getStringArray(ARG_FILE_PATHS)
@@ -370,6 +358,8 @@ public class AudioPlayerLibrarySessionCallback(
                     }
 
                 if (success) {
+                    // Notify connected browsers that root children changed after playlist update.
+                    notifyLibraryRootsChanged(session)
                     SessionResult(SessionResult.RESULT_SUCCESS)
                 } else {
                     SessionResult(SessionError.ERROR_UNKNOWN)
@@ -379,6 +369,64 @@ public class AudioPlayerLibrarySessionCallback(
                 SessionResult(SessionError.ERROR_UNKNOWN)
             }
         }
+
+    private fun buildAvailableSessionCommands(includeSleepTimerCommands: Boolean): androidx.media3.session.SessionCommands {
+        val builder =
+            MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                .buildUpon()
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS, Bundle.EMPTY))
+
+        if (includeSleepTimerCommands) {
+            builder
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_CANCEL_SLEEP_TIMER, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
+        }
+        return builder.build()
+    }
+
+    private fun isAutomotiveSleepTimerCommand(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        action: String,
+    ): Boolean {
+        if (!session.isAutomotiveController(controller)) {
+            return false
+        }
+        return action == CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES ||
+            action == CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER ||
+            action == CUSTOM_COMMAND_CANCEL_SLEEP_TIMER ||
+            action == CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING ||
+            action == CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE ||
+            action == CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER
+    }
+
+    private suspend fun notifyLibraryRootsChanged(session: MediaSession) {
+        val librarySession = session as? MediaLibraryService.MediaLibrarySession ?: return
+        val rootCount = estimateRootChildrenCount()
+        librarySession.notifyChildrenChanged(ROOT_ID, rootCount, null)
+        librarySession.notifyChildrenChanged(ROOT_ID_RECENT, rootCount.coerceAtMost(1), null)
+        librarySession.notifyChildrenChanged(ROOT_ID_OFFLINE, rootCount, null)
+        librarySession.notifyChildrenChanged(ROOT_ID_SUGGESTED, rootCount, null)
+    }
+
+    private suspend fun estimateRootChildrenCount(): Int {
+        val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
+        val downloads = torrentDownloadRepository.getAllFlow().firstOrNull() ?: emptyList()
+        val hasPersisted = persistedState != null
+        val dedupedDownloadsCount =
+            downloads.count { download ->
+                !hasPersisted || download.hash != persistedState?.groupPath
+            }
+        return dedupedDownloadsCount + if (hasPersisted) 1 else 0
+    }
 
     public companion object {
         public const val CUSTOM_COMMAND_REWIND: String = "com.jabook.app.jabook.rewind"
@@ -411,6 +459,11 @@ public class AudioPlayerLibrarySessionCallback(
         public const val ARG_RESULT_END_OF_CHAPTER: String = "endOfChapter"
         public const val ARG_RESULT_GROUP_PATH: String = "groupPath"
         public const val ARG_RESULT_FILE_PATHS: String = "filePaths"
+
+        public const val ROOT_ID: String = "root"
+        public const val ROOT_ID_RECENT: String = "root_recent"
+        public const val ROOT_ID_OFFLINE: String = "root_offline"
+        public const val ROOT_ID_SUGGESTED: String = "root_suggested"
     }
 
     // Minimal implementation for library operations (required by MediaLibrarySession.Callback)
@@ -421,6 +474,9 @@ public class AudioPlayerLibrarySessionCallback(
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<MediaItem>> =
         CoroutineScope(Dispatchers.IO).future {
+            val browseMode = resolveBrowseModeFromParams(params)
+            val rootMediaId = rootIdForBrowseMode(browseMode)
+
             // Log recommended media art size for optimization (Android Auto provides size hints)
             val recommendedArtSize = MediaMetadataExtrasHelper.getRecommendedArtSize(params)
             android.util.Log.d(
@@ -429,12 +485,17 @@ public class AudioPlayerLibrarySessionCallback(
             )
 
             // Create content style preferences for Android Auto
-            val rootExtras = MediaMetadataExtrasHelper.createRootExtras()
+            val rootExtras =
+                MediaMetadataExtrasHelper
+                    .createRootExtras()
+                    .apply {
+                        putString("jabook.library.root_mode", browseMode.name)
+                    }
 
             val rootItem =
                 MediaItem
                     .Builder()
-                    .setMediaId("root")
+                    .setMediaId(rootMediaId)
                     .setMediaMetadata(
                         MediaMetadata
                             .Builder()
@@ -465,7 +526,7 @@ public class AudioPlayerLibrarySessionCallback(
                 val rootItem =
                     MediaItem
                         .Builder()
-                        .setMediaId("root")
+                        .setMediaId(ROOT_ID)
                         .setMediaMetadata(
                             MediaMetadata
                                 .Builder()
@@ -580,73 +641,101 @@ public class AudioPlayerLibrarySessionCallback(
         CoroutineScope(Dispatchers.IO).future {
             val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
             val items = mutableListOf<MediaItem>()
+            val browseMode = resolveBrowseMode(parentId = parentId, params = params)
 
             // 1. "Last Played" Item
-            if (parentId == "root" && persistedState != null) {
-                val bookTitle = persistedState.metadata?.get("title") ?: "Last Played"
-                val metadataBuilder =
-                    MediaMetadata
-                        .Builder()
-                        .setTitle(bookTitle)
-                        .setIsBrowsable(true)
-                        .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
+            if (isRootId(parentId) && persistedState != null) {
+                val isPersistedStateOffline = persistedState.filePaths.all { File(it).exists() }
+                val shouldIncludeLastPlayed =
+                    when (browseMode) {
+                        RootBrowseMode.ALL -> true
+                        RootBrowseMode.RECENT -> true
+                        RootBrowseMode.SUGGESTED -> true
+                        RootBrowseMode.OFFLINE -> isPersistedStateOffline
+                    }
+                if (shouldIncludeLastPlayed) {
+                    val bookTitle = persistedState.metadata?.get("title") ?: "Last Played"
+                    val metadataBuilder =
+                        MediaMetadata
+                            .Builder()
+                            .setTitle(bookTitle)
+                            .setIsBrowsable(true)
+                            .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
 
-                persistedState.metadata?.get("artist")?.let { metadataBuilder.setArtist(it) }
-                persistedState.metadata?.get("coverPath")?.let { coverPath ->
-                    if (coverPath.isNotEmpty()) {
-                        val artworkFile = File(coverPath)
-                        if (artworkFile.exists()) {
-                            metadataBuilder.setArtworkUri(android.net.Uri.fromFile(artworkFile))
+                    persistedState.metadata?.get("artist")?.let { metadataBuilder.setArtist(it) }
+                    persistedState.metadata?.get("coverPath")?.let { coverPath ->
+                        if (coverPath.isNotEmpty()) {
+                            val artworkFile = File(coverPath)
+                            if (artworkFile.exists()) {
+                                metadataBuilder.setArtworkUri(android.net.Uri.fromFile(artworkFile))
+                            }
                         }
                     }
+
+                    // Create comprehensive metadata extras (completion, download status, grouping, etc.)
+                    val totalDuration = persistedState.filePaths.sumOf { getDurationForFile(it) ?: 0L }
+                    val metadataExtras =
+                        CompletionStatusHelper
+                            .createCompletionExtras(
+                                positionMs = persistedState.currentPosition,
+                                durationMs = totalDuration,
+                            ).apply {
+                                // Download status: check if files exist locally
+                                val isDownloaded = persistedState.filePaths.all { File(it).exists() }
+                                MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
+
+                                // Content grouping for series
+                                persistedState.metadata?.get("series")?.let { series ->
+                                    MediaMetadataExtrasHelper.run { addContentGroup(series) }
+                                }
+
+                                // Explicit content flag
+                                val isExplicit = persistedState.metadata?.get("isExplicit")?.toBoolean() ?: false
+                                MediaMetadataExtrasHelper.run { addExplicitFlag(isExplicit) }
+
+                                // Grid view for books with cover art
+                                MediaMetadataExtrasHelper.run {
+                                    addPlayableStyle(MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
+                                }
+                            }
+                    metadataBuilder.setExtras(metadataExtras)
+
+                    items.add(
+                        MediaItem
+                            .Builder()
+                            .setMediaId(persistedState.groupPath)
+                            .setMediaMetadata(metadataBuilder.build())
+                            .build(),
+                    )
                 }
-
-                // Create comprehensive metadata extras (completion, download status, grouping, etc.)
-                val totalDuration = persistedState.filePaths.sumOf { getDurationForFile(it) ?: 0L }
-                val metadataExtras =
-                    CompletionStatusHelper
-                        .createCompletionExtras(
-                            positionMs = persistedState.currentPosition,
-                            durationMs = totalDuration,
-                        ).apply {
-                            // Download status: check if files exist locally
-                            val isDownloaded = persistedState.filePaths.all { File(it).exists() }
-                            MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
-
-                            // Content grouping for series
-                            persistedState.metadata?.get("series")?.let { series ->
-                                MediaMetadataExtrasHelper.run { addContentGroup(series) }
-                            }
-
-                            // Explicit content flag
-                            val isExplicit = persistedState.metadata?.get("isExplicit")?.toBoolean() ?: false
-                            MediaMetadataExtrasHelper.run { addExplicitFlag(isExplicit) }
-
-                            // Grid view for books with cover art
-                            MediaMetadataExtrasHelper.run {
-                                addPlayableStyle(MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM)
-                            }
-                        }
-                metadataBuilder.setExtras(metadataExtras)
-
-                items.add(
-                    MediaItem
-                        .Builder()
-                        .setMediaId(persistedState.groupPath)
-                        .setMediaMetadata(metadataBuilder.build())
-                        .build(),
-                )
             }
 
             // 2. All Downloads from Repository
-            if (parentId == "root") {
+            if (isRootId(parentId)) {
                 try {
                     val downloads = torrentDownloadRepository.getAllFlow().firstOrNull() ?: emptyList()
+                    val filteredDownloads =
+                        downloads
+                            .asSequence()
+                            .filter { download ->
+                                // Skip if it's the same as Last Played to avoid duplicates
+                                persistedState == null || download.hash != persistedState.groupPath
+                            }.filter { download ->
+                                when (browseMode) {
+                                    RootBrowseMode.ALL -> true
+                                    RootBrowseMode.RECENT -> false
+                                    RootBrowseMode.OFFLINE -> isDownloadOffline(download)
+                                    RootBrowseMode.SUGGESTED -> isDownloadOffline(download)
+                                }
+                            }.let { sequence ->
+                                if (browseMode == RootBrowseMode.SUGGESTED) {
+                                    sequence.take(10)
+                                } else {
+                                    sequence
+                                }
+                            }.toList()
 
-                    for (download in downloads) {
-                        // Skip if it's the same as Last Played to avoid duplicates
-                        if (persistedState != null && download.hash == persistedState.groupPath) continue
-
+                    for (download in filteredDownloads) {
                         val metadataBuilder =
                             MediaMetadata
                                 .Builder()
@@ -683,7 +772,7 @@ public class AudioPlayerLibrarySessionCallback(
                 } catch (e: Exception) {
                     android.util.Log.e("LibrarySession", "Failed to load downloads", e)
                 }
-            } else if (parentId != "root") {
+            } else if (!isRootId(parentId)) {
                 // 3. Browse specific book (by Hash)
                 val download = torrentDownloadRepository.getByHash(parentId)
                 if (download != null) {
@@ -831,7 +920,7 @@ public class AudioPlayerLibrarySessionCallback(
         mediaSession: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> =
-        CoroutineScope(Dispatchers.Unconfined).future {
+        CoroutineScope(Dispatchers.IO).future {
             // Check if book is completed - don't resume completed books
             if (service.isBookCompleted) {
                 android.util.Log.d(
@@ -1065,4 +1154,45 @@ public class AudioPlayerLibrarySessionCallback(
                 positionMs,
             )
         }
+
+    private fun resolveBrowseMode(
+        parentId: String,
+        params: MediaLibraryService.LibraryParams?,
+    ): RootBrowseMode {
+        if (!isRootId(parentId)) {
+            return RootBrowseMode.ALL
+        }
+        return when (parentId) {
+            ROOT_ID_RECENT -> RootBrowseMode.RECENT
+            ROOT_ID_OFFLINE -> RootBrowseMode.OFFLINE
+            ROOT_ID_SUGGESTED -> RootBrowseMode.SUGGESTED
+            else -> resolveBrowseModeFromParams(params)
+        }
+    }
+
+    private fun resolveBrowseModeFromParams(params: MediaLibraryService.LibraryParams?): RootBrowseMode =
+        when {
+            params?.isRecent == true -> RootBrowseMode.RECENT
+            params?.isOffline == true -> RootBrowseMode.OFFLINE
+            params?.isSuggested == true -> RootBrowseMode.SUGGESTED
+            else -> RootBrowseMode.ALL
+        }
+
+    private fun rootIdForBrowseMode(mode: RootBrowseMode): String =
+        when (mode) {
+            RootBrowseMode.ALL -> ROOT_ID
+            RootBrowseMode.RECENT -> ROOT_ID_RECENT
+            RootBrowseMode.OFFLINE -> ROOT_ID_OFFLINE
+            RootBrowseMode.SUGGESTED -> ROOT_ID_SUGGESTED
+        }
+
+    private fun isRootId(parentId: String): Boolean =
+        parentId == ROOT_ID ||
+            parentId == ROOT_ID_RECENT ||
+            parentId == ROOT_ID_OFFLINE ||
+            parentId == ROOT_ID_SUGGESTED
+
+    private fun isDownloadOffline(download: com.jabook.app.jabook.compose.data.torrent.TorrentDownload): Boolean =
+        download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.COMPLETED ||
+            download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.SEEDING
 }

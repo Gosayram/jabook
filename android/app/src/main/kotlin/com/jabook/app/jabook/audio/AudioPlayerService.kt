@@ -1771,5 +1771,14 @@ public class AudioPlayerService : MediaLibraryService() {
      * This can happen when:
      * - Notification permission is not granted (Android 13+)
      */
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
+        if (!isFullyInitialized()) {
+            LogUtils.w(
+                "AudioPlayerService",
+                "Rejecting controller ${controllerInfo.packageName} while service is not fully initialized",
+            )
+            return null
+        }
+        return mediaLibrarySession
+    }
 }
