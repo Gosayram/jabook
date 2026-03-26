@@ -259,7 +259,7 @@ internal class PlaylistManager(
         )
 
         try {
-            preparePlaybackOptimized(
+            preparePlaybackOptimizedInternal(
                 filePaths = sortedFilePaths,
                 metadata = metadata,
                 initialTrackIndex = initialTrackIndex,
@@ -313,6 +313,24 @@ internal class PlaylistManager(
      * @param initialPosition Optional position in milliseconds to seek to after loading
      */
     public suspend fun preparePlaybackOptimized(
+        filePaths: List<String>,
+        metadata: Map<String, String>?,
+        initialTrackIndex: Int? = null,
+        initialPosition: Long? = null,
+        loadGeneration: Long = playlistLoadGeneration,
+    ) {
+        playlistLoadMutex.withLock {
+            preparePlaybackOptimizedInternal(
+                filePaths = filePaths,
+                metadata = metadata,
+                initialTrackIndex = initialTrackIndex,
+                initialPosition = initialPosition,
+                loadGeneration = loadGeneration,
+            )
+        }
+    }
+
+    private suspend fun preparePlaybackOptimizedInternal(
         filePaths: List<String>,
         metadata: Map<String, String>?,
         initialTrackIndex: Int? = null,

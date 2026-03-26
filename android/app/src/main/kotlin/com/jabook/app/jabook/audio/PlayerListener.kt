@@ -541,7 +541,10 @@ internal class PlayerListener(
         // Handle media item transitions
         if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
             val currentIndex = player.currentMediaItemIndex
-            handleTrackTransitionEvent(currentIndex, source = "EVENT_MEDIA_ITEM_TRANSITION")
+            LogUtils.v(
+                "AudioPlayerService",
+                "EVENT_MEDIA_ITEM_TRANSITION received for index=$currentIndex; state sync handled by onMediaItemTransition()",
+            )
 
             // Save position of previous track before transitioning
             // This ensures position is saved even during rapid track changes

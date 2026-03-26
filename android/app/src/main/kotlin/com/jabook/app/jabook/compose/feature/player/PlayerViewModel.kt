@@ -151,6 +151,7 @@ public class PlayerViewModel
                 playerController.isPlaying,
                 playerController.currentPosition,
                 playerController.currentChapterIndex,
+                playerController.currentBookId,
                 settingsRepository.userPreferences,
                 userPreferencesRepository.userData.map { it.playbackSpeed },
             ) { args ->
@@ -161,8 +162,9 @@ public class PlayerViewModel
                 val playing = args[2] as Boolean
                 val controllerPosition = args[3] as Long
                 val controllerChapterIndex = args[4] as Int
-                val preferences = args[5] as com.jabook.app.jabook.compose.data.preferences.UserPreferences
-                val playbackSpeed = args[6] as Float
+                val controllerBookId = args[5] as String?
+                val preferences = args[6] as com.jabook.app.jabook.compose.data.preferences.UserPreferences
+                val playbackSpeed = args[7] as Float
 
                 if (book == null) {
                     PlayerUiState.Error("Book not found")
@@ -176,16 +178,32 @@ public class PlayerViewModel
                         book.forwardDuration
                             ?: if (preferences.forwardDurationSeconds > 0) preferences.forwardDurationSeconds else 30
 
-                    // Use saved position from database if player hasn't loaded yet
-                    // This ensures position is restored even if player hasn't started
-                    val position = if (controllerPosition > 0 || isBookLoaded) controllerPosition else savedPosition
+                    val maxChapterIndex = (chapters.size - 1).coerceAtLeast(0)
+                    val safeSavedChapterIndex = savedChapterIndex.coerceIn(0, maxChapterIndex)
+                    val isControllerBoundToCurrentBook = controllerBookId == bookId
+                    val hasControllerStateForCurrentBook =
+                        isControllerBoundToCurrentBook &&
+                            (
+                                isBookLoaded ||
+                                    controllerPosition > 0L ||
+                                    controllerChapterIndex > 0 ||
+                                    playing
+                            )
+
                     val chapterIndex =
-                        if (controllerChapterIndex > 0 ||
-                            isBookLoaded
-                        ) {
-                            controllerChapterIndex
+                        if (hasControllerStateForCurrentBook) {
+                            controllerChapterIndex.coerceIn(0, maxChapterIndex)
                         } else {
-                            savedChapterIndex.coerceIn(0, chapters.size - 1)
+                            safeSavedChapterIndex
+                        }
+
+                    // Prefer controller position only when it's clearly bound to this book;
+                    // otherwise keep DB-restored position to avoid transient UI jumps.
+                    val position =
+                        if (hasControllerStateForCurrentBook) {
+                            controllerPosition.coerceAtLeast(0L)
+                        } else {
+                            savedPosition.coerceAtLeast(0L)
                         }
 
                     PlayerUiState.Success(
