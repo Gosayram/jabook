@@ -28,6 +28,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -50,6 +51,7 @@ class AudioPlayerLibrarySessionCallbackTest {
 
         service = mock()
         whenever(service.applicationContext).thenReturn(context)
+        whenever(service.packageName).thenReturn("com.jabook.app.jabook")
         // Mock string resources
         whenever(service.getString(any())).thenReturn("Test String")
 
@@ -66,6 +68,7 @@ class AudioPlayerLibrarySessionCallbackTest {
 
         session = mock()
         controller = mock()
+        whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
 
         callback =
             AudioPlayerLibrarySessionCallback(
@@ -119,5 +122,51 @@ class AudioPlayerLibrarySessionCallbackTest {
         // Implementation returns SessionResult(SessionError.ERROR_NOT_SUPPORTED) -> code is non-zero
         val result = future.get(1, TimeUnit.SECONDS)
         assert(result.resultCode != SessionResult.RESULT_SUCCESS)
+    }
+
+    @Test
+    fun `onCustomCommand denies privileged command for non app controller`() {
+        // Given
+        whenever(controller.packageName).thenReturn("com.external.controller")
+        val args =
+            Bundle().apply {
+                putBoolean(AudioPlayerLibrarySessionCallback.ARG_VISUALIZER_ENABLED, true)
+            }
+        val command =
+            SessionCommand(
+                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_VISUALIZER_ENABLED,
+                Bundle.EMPTY,
+            )
+
+        // When
+        val future = callback.onCustomCommand(session, controller, command, args)
+
+        // Then
+        verify(service, never()).setVisualizerEnabled(any())
+        val result = future.get(1, TimeUnit.SECONDS)
+        assert(result.resultCode != SessionResult.RESULT_SUCCESS)
+    }
+
+    @Test
+    fun `onCustomCommand allows privileged command for app controller`() {
+        // Given
+        whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
+        val args =
+            Bundle().apply {
+                putBoolean(AudioPlayerLibrarySessionCallback.ARG_VISUALIZER_ENABLED, true)
+            }
+        val command =
+            SessionCommand(
+                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_VISUALIZER_ENABLED,
+                Bundle.EMPTY,
+            )
+
+        // When
+        val future = callback.onCustomCommand(session, controller, command, args)
+
+        // Then
+        verify(service).setVisualizerEnabled(true)
+        val result = future.get(1, TimeUnit.SECONDS)
+        assertEquals(SessionResult.RESULT_SUCCESS, result.resultCode)
     }
 }
