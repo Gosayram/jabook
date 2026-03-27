@@ -34,7 +34,6 @@ import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.firstOrNull
@@ -488,7 +487,7 @@ public class AudioPlayerLibrarySessionCallback(
         browser: MediaSession.ControllerInfo,
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<MediaItem>> =
-        CoroutineScope(Dispatchers.IO).future {
+        service.playerServiceScope.future(Dispatchers.IO) {
             val browseMode = resolveBrowseModeFromParams(params)
             val rootMediaId = rootIdForBrowseMode(browseMode)
 
@@ -536,7 +535,7 @@ public class AudioPlayerLibrarySessionCallback(
         browser: MediaSession.ControllerInfo,
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> =
-        CoroutineScope(Dispatchers.IO).future {
+        service.playerServiceScope.future(Dispatchers.IO) {
             if (mediaId == "root") {
                 val rootItem =
                     MediaItem
@@ -653,7 +652,7 @@ public class AudioPlayerLibrarySessionCallback(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-        CoroutineScope(Dispatchers.IO).future {
+        service.playerServiceScope.future(Dispatchers.IO) {
             val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
             val items = mutableListOf<MediaItem>()
             val browseMode = resolveBrowseMode(parentId = parentId, params = params)
@@ -846,7 +845,7 @@ public class AudioPlayerLibrarySessionCallback(
         query: String,
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<Void>> =
-        CoroutineScope(Dispatchers.IO).future {
+        service.playerServiceScope.future(Dispatchers.IO) {
             val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
             var count = 0
             if (persistedState != null) {
@@ -869,7 +868,7 @@ public class AudioPlayerLibrarySessionCallback(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-        CoroutineScope(Dispatchers.IO).future {
+        service.playerServiceScope.future(Dispatchers.IO) {
             val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
             val items = mutableListOf<MediaItem>()
 
@@ -935,7 +934,7 @@ public class AudioPlayerLibrarySessionCallback(
         mediaSession: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> =
-        CoroutineScope(Dispatchers.IO).future {
+        service.playerServiceScope.future(Dispatchers.IO) {
             // Check if book is completed - don't resume completed books
             if (service.isBookCompleted) {
                 android.util.Log.d(
