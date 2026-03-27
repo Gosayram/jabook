@@ -287,6 +287,9 @@ internal class PlayerListener(
             if (playbackState == Player.STATE_ENDED) {
                 stopPositionCheck()
             }
+            if (PositionTrackingResetPolicy.shouldResetOnPlaybackStateChanged(playbackState)) {
+                resetPositionTrackingState()
+            }
 
             // Handle book completion - when last track ends
             if (playbackState == Player.STATE_ENDED) {
@@ -652,6 +655,9 @@ internal class PlayerListener(
         if (!playWhenReady) {
             LogUtils.d("AudioPlayerService", "Playback paused (reason=$reasonText), saving position")
             saveCurrentPosition()
+            if (PositionTrackingResetPolicy.shouldResetOnPlayWhenReadyChanged(playWhenReady)) {
+                resetPositionTrackingState()
+            }
 
             when (reason) {
                 Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS -> {
