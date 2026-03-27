@@ -41,6 +41,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -97,6 +98,9 @@ public class AudioPlayerService : MediaLibraryService() {
 
     @Inject
     public lateinit var audioPreferences: com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences
+
+    @Inject
+    public lateinit var audioVisualizerStateBridge: AudioVisualizerStateBridge
 
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
@@ -160,6 +164,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // Audio visualizer manager
     internal var audioVisualizerManager: AudioVisualizerManager? = null
+    private var visualizerBridgeJob: kotlinx.coroutines.Job? = null
 
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null
@@ -623,6 +628,15 @@ public class AudioPlayerService : MediaLibraryService() {
             // Initialize AudioVisualizerManager
             LogUtils.e("JABOOK_SERVICE", "Initializing AudioVisualizerManager...")
             audioVisualizerManager = AudioVisualizerManager(this)
+            visualizerBridgeJob?.cancel()
+            visualizerBridgeJob =
+                playerServiceScope.launch {
+                    audioVisualizerManager
+                        ?.waveformData
+                        ?.collect { waveform ->
+                            audioVisualizerStateBridge.updateWaveform(waveform)
+                        }
+                }
             // Visualizer will be enabled when playback starts (requires audio session)
             LogUtils.e("JABOOK_SERVICE", "[OK] AudioVisualizerManager initialized")
 
@@ -1702,6 +1716,9 @@ public class AudioPlayerService : MediaLibraryService() {
 
             audioVisualizerManager?.release()
             audioVisualizerManager = null
+            visualizerBridgeJob?.cancel()
+            visualizerBridgeJob = null
+            audioVisualizerStateBridge.reset()
 
             phoneCallListener?.stopListening()
             phoneCallListener = null
@@ -1746,6 +1763,9 @@ public class AudioPlayerService : MediaLibraryService() {
         // Release audio visualizer
         audioVisualizerManager?.release()
         audioVisualizerManager = null
+        visualizerBridgeJob?.cancel()
+        visualizerBridgeJob = null
+        audioVisualizerStateBridge.reset()
 
         // Stop listening for phone calls
         phoneCallListener?.stopListening()

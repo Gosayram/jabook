@@ -73,6 +73,7 @@ public class PlayerViewModel
         private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
         private val playbackPositionRepository: PlaybackPositionRepository,
         private val lyricsRepository: com.jabook.app.jabook.data.lyrics.LyricsRepository,
+        private val audioVisualizerStateBridge: com.jabook.app.jabook.audio.AudioVisualizerStateBridge,
         private val loggerFactory: LoggerFactory,
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
@@ -87,6 +88,7 @@ public class PlayerViewModel
 
         // Player Stats for Nerds
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
+        public val visualizerWaveformData: StateFlow<FloatArray> = audioVisualizerStateBridge.waveformData
 
         // Saved position from database (restored on init)
         private var savedPosition: Long = 0L

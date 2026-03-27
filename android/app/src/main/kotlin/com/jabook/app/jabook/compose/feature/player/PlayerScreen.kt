@@ -163,6 +163,7 @@ public fun PlayerScreen(
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
+    val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
 
     // Auto-initialize player when book data is ready
     // Only initialize once when we have Success state with actual chapters
@@ -449,6 +450,7 @@ public fun PlayerScreen(
                                         sleepTimerState = sleepTimerState,
                                         normalizeEnabled = normalizeEnabled,
                                         chapterRepeatMode = chapterRepeatMode,
+                                        visualizerWaveformData = visualizerWaveformData,
                                         onPlayPause = {
                                             clickDebouncer.debounce {
                                                 if (state.isPlaying) viewModel.pause() else viewModel.play()
@@ -551,6 +553,7 @@ private fun PlayerContent(
     sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
     normalizeEnabled: Boolean,
     chapterRepeatMode: ChapterRepeatMode,
+    visualizerWaveformData: FloatArray,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -933,10 +936,6 @@ private fun PlayerContent(
             // Audio Visualizer - hidden on compact screens to save space
             if (!isCompact) {
                 item {
-                    @Suppress("DEPRECATION")
-                    val service =
-                        com.jabook.app.jabook.audio.AudioPlayerService
-                            .getInstance()
                     LaunchedEffect(hasRecordAudioPermission) {
                         if (!hasRecordAudioPermission) {
                             onSetVisualizerEnabled(false)
@@ -944,12 +943,6 @@ private fun PlayerContent(
                     }
 
                     if (hasRecordAudioPermission) {
-                        // getVisualizerWaveformData() requires direct service access (not available via MediaController)
-                        val waveformData by service
-                            ?.getVisualizerWaveformData()
-                            ?.collectAsStateWithLifecycle()
-                            ?: remember { androidx.compose.runtime.mutableStateOf(FloatArray(256)) }
-
                         // Initialize visualizer only after explicit permission grant
                         LaunchedEffect(state.isPlaying, hasRecordAudioPermission) {
                             if (state.isPlaying) {
@@ -961,7 +954,7 @@ private fun PlayerContent(
                         }
 
                         AudioVisualizer(
-                            waveformData = waveformData,
+                            waveformData = visualizerWaveformData,
                             isPlaying = state.isPlaying,
                             style = VisualizerStyle.CIRCULAR,
                             height = 48.dp,
