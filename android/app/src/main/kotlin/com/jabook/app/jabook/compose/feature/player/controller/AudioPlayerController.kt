@@ -509,12 +509,47 @@ public class AudioPlayerController
             command: PendingControllerCommand,
             commandName: String,
         ) {
+            coalescePendingCommands(command)
+            if (command is InitializeVisualizerCommand &&
+                pendingCommands.any { it is InitializeVisualizerCommand }
+            ) {
+                logger.d {
+                    "Skip duplicate queued command '$commandName' while MediaController is not ready"
+                }
+                return
+            }
             if (pendingCommands.size >= maxPendingCommands) {
                 pendingCommands.removeFirstOrNull()
             }
             pendingCommands.addLast(command)
             logger.w {
                 "Queued command '$commandName' while MediaController is not ready (queueSize=${pendingCommands.size})"
+            }
+        }
+
+        private fun coalescePendingCommands(newCommand: PendingControllerCommand) {
+            pendingCommands.removeAll { existing ->
+                when (newCommand) {
+                    PlayCommand,
+                    PauseCommand,
+                    -> existing is PlayCommand || existing is PauseCommand
+
+                    is SeekToCommand -> existing is SeekToCommand
+
+                    SkipToNextCommand,
+                    SkipToPreviousCommand,
+                    is SkipToChapterCommand,
+                    ->
+                        existing is SkipToNextCommand ||
+                            existing is SkipToPreviousCommand ||
+                            existing is SkipToChapterCommand
+
+                    is SetPlaybackSpeedCommand -> existing is SetPlaybackSpeedCommand
+
+                    is SetVisualizerEnabledCommand -> existing is SetVisualizerEnabledCommand
+
+                    InitializeVisualizerCommand -> false
+                }
             }
         }
 
