@@ -528,30 +528,35 @@ public class AudioPlayerController
         }
 
         private fun coalescePendingCommands(newCommand: PendingControllerCommand) {
+            val incomingType = mapToDeferredCommandType(newCommand)
             pendingCommands.removeAll { existing ->
-                when (newCommand) {
-                    PlayCommand,
-                    PauseCommand,
-                    -> existing is PlayCommand || existing is PauseCommand
-
-                    is SeekToCommand -> existing is SeekToCommand
-
-                    SkipToNextCommand,
-                    SkipToPreviousCommand,
-                    is SkipToChapterCommand,
-                    ->
-                        existing is SkipToNextCommand ||
-                            existing is SkipToPreviousCommand ||
-                            existing is SkipToChapterCommand
-
-                    is SetPlaybackSpeedCommand -> existing is SetPlaybackSpeedCommand
-
-                    is SetVisualizerEnabledCommand -> existing is SetVisualizerEnabledCommand
-
-                    InitializeVisualizerCommand -> false
-                }
+                val existingType = mapToDeferredCommandType(existing)
+                DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                    existing = existingType,
+                    incoming = incomingType,
+                )
             }
         }
+
+        private fun mapToDeferredCommandType(command: PendingControllerCommand): DeferredCommandType =
+            when (command) {
+                PlayCommand,
+                PauseCommand,
+                -> DeferredCommandType.PLAYBACK_TOGGLE
+
+                is SeekToCommand -> DeferredCommandType.SEEK
+
+                SkipToNextCommand,
+                SkipToPreviousCommand,
+                is SkipToChapterCommand,
+                -> DeferredCommandType.SKIP
+
+                is SetPlaybackSpeedCommand -> DeferredCommandType.SPEED
+
+                is SetVisualizerEnabledCommand -> DeferredCommandType.VISUALIZER_ENABLED
+
+                InitializeVisualizerCommand -> DeferredCommandType.VISUALIZER_INITIALIZE
+            }
 
         private fun flushPendingOperations(controller: MediaController) {
             val pendingLoad = pendingLoadRequest
