@@ -247,4 +247,35 @@ public object MediaControllerExtensions {
                 null
             }
         }
+
+    /**
+     * Initializes visualizer inside AudioPlayerService.
+     */
+    public fun initializeVisualizer(controller: MediaController): ListenableFuture<SessionResult> {
+        val command =
+            SessionCommand(
+                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_INITIALIZE_VISUALIZER,
+                Bundle.EMPTY,
+            )
+        return controller.sendCustomCommand(command, Bundle.EMPTY)
+    }
+
+    /**
+     * Enables or disables visualizer inside AudioPlayerService.
+     */
+    public fun setVisualizerEnabled(
+        controller: MediaController,
+        enabled: Boolean,
+    ): ListenableFuture<SessionResult> {
+        val args =
+            Bundle().apply {
+                putBoolean(AudioPlayerLibrarySessionCallback.ARG_VISUALIZER_ENABLED, enabled)
+            }
+        val command =
+            SessionCommand(
+                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_VISUALIZER_ENABLED,
+                args,
+            )
+        return controller.sendCustomCommand(command, Bundle.EMPTY)
+    }
 }

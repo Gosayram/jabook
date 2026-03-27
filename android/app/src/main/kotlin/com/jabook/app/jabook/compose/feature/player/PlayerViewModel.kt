@@ -483,6 +483,14 @@ public class PlayerViewModel
             playerController.setPitchCorrectionEnabled(enabled)
         }
 
+        public fun initializeVisualizer() {
+            playerController.initializeVisualizer()
+        }
+
+        public fun setVisualizerEnabled(enabled: Boolean) {
+            playerController.setVisualizerEnabled(enabled)
+        }
+
         public fun startSleepTimer(minutes: Int) {
             sleepTimerRepository.startTimer(minutes)
         }

@@ -282,6 +282,15 @@ public class AudioPlayerLibrarySessionCallback(
                     }
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
             }
+            CUSTOM_COMMAND_INITIALIZE_VISUALIZER -> {
+                service.initializeVisualizer()
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            CUSTOM_COMMAND_SET_VISUALIZER_ENABLED -> {
+                val enabled = args.getBoolean(ARG_VISUALIZER_ENABLED, false)
+                service.setVisualizerEnabled(enabled)
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             else -> Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
         }
     }
@@ -294,7 +303,7 @@ public class AudioPlayerLibrarySessionCallback(
         session: MediaSession,
         args: Bundle,
     ): ListenableFuture<SessionResult> =
-        CoroutineScope(Dispatchers.IO).future {
+        service.playerServiceScope.future(Dispatchers.IO) {
             try {
                 val filePathsArray = args.getStringArray(ARG_FILE_PATHS)
                 if (filePathsArray == null) {
@@ -379,6 +388,8 @@ public class AudioPlayerLibrarySessionCallback(
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_INITIALIZE_VISUALIZER, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_VISUALIZER_ENABLED, Bundle.EMPTY))
 
         if (includeSleepTimerCommands) {
             builder
@@ -447,6 +458,8 @@ public class AudioPlayerLibrarySessionCallback(
         // Service state commands
         public const val CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH: String = "com.jabook.app.jabook.getCurrentGroupPath"
         public const val CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS: String = "com.jabook.app.jabook.getCurrentFilePaths"
+        public const val CUSTOM_COMMAND_INITIALIZE_VISUALIZER: String = "com.jabook.app.jabook.initializeVisualizer"
+        public const val CUSTOM_COMMAND_SET_VISUALIZER_ENABLED: String = "com.jabook.app.jabook.setVisualizerEnabled"
 
         // Bundle keys for command arguments
         public const val ARG_FILE_PATHS: String = "filePaths"
@@ -455,6 +468,7 @@ public class AudioPlayerLibrarySessionCallback(
         public const val ARG_INITIAL_POSITION: String = "initialPosition"
         public const val ARG_GROUP_PATH: String = "groupPath"
         public const val ARG_MINUTES: String = "minutes"
+        public const val ARG_VISUALIZER_ENABLED: String = "visualizerEnabled"
         public const val ARG_RESULT_REMAINING: String = "remaining"
         public const val ARG_RESULT_ACTIVE: String = "active"
         public const val ARG_RESULT_END_OF_CHAPTER: String = "endOfChapter"

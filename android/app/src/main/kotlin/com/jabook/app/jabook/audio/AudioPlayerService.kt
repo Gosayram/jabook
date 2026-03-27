@@ -1772,13 +1772,20 @@ public class AudioPlayerService : MediaLibraryService() {
      * - Notification permission is not granted (Android 13+)
      */
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
-        if (!isFullyInitialized()) {
+        val session = mediaLibrarySession
+        if (session == null) {
             LogUtils.w(
                 "AudioPlayerService",
-                "Rejecting controller ${controllerInfo.packageName} while service is not fully initialized",
+                "Rejecting controller ${controllerInfo.packageName}: MediaLibrarySession is not ready yet",
             )
             return null
         }
-        return mediaLibrarySession
+        if (!isFullyInitialized()) {
+            LogUtils.w(
+                "AudioPlayerService",
+                "Accepting controller ${controllerInfo.packageName} with partially initialized service; session is available",
+            )
+        }
+        return session
     }
 }

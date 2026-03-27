@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.inject.Inject
@@ -177,6 +178,20 @@ public class AudioPlayerController
         ) : PendingControllerCommand {
             override fun execute(controller: MediaController) {
                 controller.setPlaybackSpeed(speed)
+            }
+        }
+
+        private data object InitializeVisualizerCommand : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                MediaControllerExtensions.initializeVisualizer(controller)
+            }
+        }
+
+        private data class SetVisualizerEnabledCommand(
+            private val enabled: Boolean,
+        ) : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                MediaControllerExtensions.setVisualizerEnabled(controller, enabled)
             }
         }
 
@@ -644,7 +659,10 @@ public class AudioPlayerController
                         )
 
                     // Wait for result
-                    val result = future.get(30, TimeUnit.SECONDS)
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            future.get(30, TimeUnit.SECONDS)
+                        }
                     if (result.resultCode == SessionResult.RESULT_SUCCESS && autoPlay) {
                         controller.play()
                     } else if (result.resultCode != SessionResult.RESULT_SUCCESS) {
@@ -718,6 +736,24 @@ public class AudioPlayerController
                 pendingCommand = SetPlaybackSpeedCommand(speed),
             ) { controller ->
                 controller.setPlaybackSpeed(speed)
+            }
+        }
+
+        public fun initializeVisualizer() {
+            executeOrQueue(
+                commandName = "initializeVisualizer",
+                pendingCommand = InitializeVisualizerCommand,
+            ) { controller ->
+                MediaControllerExtensions.initializeVisualizer(controller)
+            }
+        }
+
+        public fun setVisualizerEnabled(enabled: Boolean) {
+            executeOrQueue(
+                commandName = "setVisualizerEnabled",
+                pendingCommand = SetVisualizerEnabledCommand(enabled),
+            ) { controller ->
+                MediaControllerExtensions.setVisualizerEnabled(controller, enabled)
             }
         }
 

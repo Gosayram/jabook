@@ -269,10 +269,7 @@ public fun PlayerScreen(
                 hasRecordAudioPermission = granted
                 if (granted) {
                     playerScreenLogger.d { "RECORD_AUDIO permission granted by user intent" }
-                    @Suppress("DEPRECATION")
-                    com.jabook.app.jabook.audio.AudioPlayerService
-                        .getInstance()
-                        ?.initializeVisualizer()
+                    viewModel.initializeVisualizer()
                 } else {
                     playerScreenLogger.w { "RECORD_AUDIO permission denied by user intent" }
                     scope.launch {
@@ -306,10 +303,7 @@ public fun PlayerScreen(
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         if (alreadyGranted) {
             hasRecordAudioPermission = true
-            @Suppress("DEPRECATION")
-            com.jabook.app.jabook.audio.AudioPlayerService
-                .getInstance()
-                ?.initializeVisualizer()
+            viewModel.initializeVisualizer()
         } else {
             recordAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
         }
@@ -499,6 +493,8 @@ public fun PlayerScreen(
                                         onStatsClick = { showStatsOverlay = true },
                                         hasRecordAudioPermission = hasRecordAudioPermission,
                                         onRequestRecordAudioPermission = requestRecordAudioPermission,
+                                        onInitializeVisualizer = viewModel::initializeVisualizer,
+                                        onSetVisualizerEnabled = viewModel::setVisualizerEnabled,
                                         sharedTransitionScope = sharedTransitionScope,
                                         animatedVisibilityScope = animatedVisibilityScope,
                                     )
@@ -570,6 +566,8 @@ private fun PlayerContent(
     onStatsClick: () -> Unit,
     hasRecordAudioPermission: Boolean,
     onRequestRecordAudioPermission: () -> Unit,
+    onInitializeVisualizer: () -> Unit,
+    onSetVisualizerEnabled: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
@@ -941,7 +939,7 @@ private fun PlayerContent(
                             .getInstance()
                     LaunchedEffect(hasRecordAudioPermission) {
                         if (!hasRecordAudioPermission) {
-                            service?.setVisualizerEnabled(false)
+                            onSetVisualizerEnabled(false)
                         }
                     }
 
@@ -955,10 +953,10 @@ private fun PlayerContent(
                         // Initialize visualizer only after explicit permission grant
                         LaunchedEffect(state.isPlaying, hasRecordAudioPermission) {
                             if (state.isPlaying) {
-                                service?.initializeVisualizer()
-                                service?.setVisualizerEnabled(true)
+                                onInitializeVisualizer()
+                                onSetVisualizerEnabled(true)
                             } else {
-                                service?.setVisualizerEnabled(false)
+                                onSetVisualizerEnabled(false)
                             }
                         }
 
