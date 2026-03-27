@@ -1502,48 +1502,22 @@ internal class PlayerListener(
             return false
         }
 
-        // CRITICAL: If index is 0, invalid, or out of bounds, use saved index or calculate last track
-        // This handles case when ExoPlayer reset index or tried to go beyond last track
+        // CRITICAL: Resolve unstable/out-of-bounds indexes into a consistent completion index.
+        val savedIndex = getLastCompletedTrackIndex?.invoke() ?: -1
         val actualIndex =
-            if ((currentIndex == 0 || currentIndex < 0 || currentIndex >= totalTracks) && totalTracks > 0) {
-                // Index might have been reset or gone out of bounds, check if we're actually on last track
-                // by checking if we were just playing and position is near end
-                val savedIndex = getLastCompletedTrackIndex?.invoke() ?: -1
-                if (savedIndex >= 0 && savedIndex < totalTracks) {
-                    LogUtils.d(
-                        "AudioPlayerService",
-                        "$source: index is invalid ($currentIndex), using saved index $savedIndex for book completion",
-                    )
-                    savedIndex
-                } else {
-                    // No saved index, but if totalTracks > 0, last track is totalTracks - 1
-                    // This happens when last track ended and ExoPlayer tried to go to next (index >= totalTracks)
-                    // Only use this if we're sure we're at the end
-                    if (player.currentPosition > 0 && player.duration > 0) {
-                        val lastTrackIndex = totalTracks - 1
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "$source: using calculated last track index $lastTrackIndex (total=$totalTracks, originalIndex=$currentIndex)",
-                        )
-                        lastTrackIndex
-                    } else {
-                        // If we can't determine, use last track index if index is out of bounds
-                        // This handles the case when ExoPlayer sets index to >= totalTracks
-                        if (currentIndex >= totalTracks) {
-                            val lastTrackIndex = totalTracks - 1
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "$source: index out of bounds ($currentIndex >= $totalTracks), using last track index $lastTrackIndex",
-                            )
-                            lastTrackIndex
-                        } else {
-                            currentIndex
-                        }
-                    }
-                }
-            } else {
-                currentIndex
-            }
+            BookCompletionIndexPolicy.resolveCompletionIndex(
+                currentIndex = currentIndex,
+                totalTracks = totalTracks,
+                savedCompletedIndex = savedIndex,
+                currentPositionMs = player.currentPosition,
+                durationMs = player.duration,
+            )
+        if (actualIndex != currentIndex) {
+            LogUtils.d(
+                "AudioPlayerService",
+                "$source: normalized completion index $currentIndex -> $actualIndex (saved=$savedIndex, total=$totalTracks)",
+            )
+        }
 
         if (actualIndex >= totalTracks - 1) {
             // Last track finished - book completed

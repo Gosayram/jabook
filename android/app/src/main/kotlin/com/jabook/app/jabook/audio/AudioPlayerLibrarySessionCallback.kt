@@ -316,52 +316,27 @@ public class AudioPlayerLibrarySessionCallback(
     ): ListenableFuture<SessionResult> =
         service.playerServiceScope.future(Dispatchers.IO) {
             try {
-                val filePathsArray = args.getStringArray(ARG_FILE_PATHS)
-                if (filePathsArray == null) {
+                val parsedArgs = SetPlaylistCommandArgsParser.parse(args)
+                if (parsedArgs == null) {
                     return@future SessionResult(SessionError.ERROR_BAD_VALUE)
                 }
-                val filePaths = filePathsArray.toList()
-
-                // Extract metadata if present, converting Map<String!, String?>? to Map<String, String>?
-                val metadataMap: Map<String, String>? =
-                    args.getBundle(ARG_METADATA)?.let { metadataBundle ->
-                        metadataBundle
-                            .keySet()
-                            .associateWith { key ->
-                                metadataBundle.getString(key) ?: ""
-                            }.filterValues { it.isNotEmpty() }
-                    }
-
-                val initialTrackIndex =
-                    if (args.containsKey(ARG_INITIAL_TRACK_INDEX)) {
-                        args.getInt(ARG_INITIAL_TRACK_INDEX)
-                    } else {
-                        null
-                    }
-
-                val initialPosition =
-                    if (args.containsKey(ARG_INITIAL_POSITION)) {
-                        args.getLong(ARG_INITIAL_POSITION)
-                    } else {
-                        null
-                    }
-
-                val groupPath = args.getString(ARG_GROUP_PATH)
 
                 // Use CompletableDeferred to wait for callback
                 val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
 
                 service.setPlaylist(
-                    filePaths = filePaths,
-                    metadata = metadataMap,
-                    initialTrackIndex = initialTrackIndex,
-                    initialPosition = initialPosition,
-                    groupPath = groupPath,
+                    filePaths = parsedArgs.filePaths,
+                    metadata = parsedArgs.metadata,
+                    initialTrackIndex = parsedArgs.initialTrackIndex,
+                    initialPosition = parsedArgs.initialPositionMs,
+                    groupPath = parsedArgs.groupPath,
                     callback = { success, exception ->
                         if (exception != null) {
                             android.util.Log.e("AudioPlayerService", "setPlaylist failed", exception)
                         }
-                        deferred.complete(success)
+                        if (!deferred.isCompleted) {
+                            deferred.complete(success)
+                        }
                     },
                 )
 
