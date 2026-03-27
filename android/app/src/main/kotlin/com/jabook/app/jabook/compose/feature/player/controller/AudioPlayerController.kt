@@ -81,6 +81,7 @@ public class AudioPlayerController
         private val pendingCommands = ArrayDeque<PendingControllerCommand>()
         private var pendingLoadRequest: PendingLoadRequest? = null
         private val maxPendingCommands = 64
+        private var loadBookRetryAttempts: Int = 0
 
         // Playback State
         private val _isPlaying = MutableStateFlow(false)
@@ -127,6 +128,7 @@ public class AudioPlayerController
             val autoPlay: Boolean,
             val metadata: Map<String, String>?,
             val bookId: String?,
+            val retryAttempt: Int = 0,
         )
 
         private sealed interface PendingControllerCommand {
@@ -562,14 +564,7 @@ public class AudioPlayerController
             val pendingLoad = pendingLoadRequest
             if (pendingLoad != null) {
                 pendingLoadRequest = null
-                loadBook(
-                    filePaths = pendingLoad.filePaths,
-                    initialChapterIndex = pendingLoad.initialChapterIndex,
-                    initialPosition = pendingLoad.initialPosition,
-                    autoPlay = pendingLoad.autoPlay,
-                    metadata = pendingLoad.metadata,
-                    bookId = pendingLoad.bookId,
-                )
+                loadBookInternal(pendingLoad, resetRetryState = false)
             }
 
             while (pendingCommands.isNotEmpty()) {
@@ -611,34 +606,56 @@ public class AudioPlayerController
             metadata: Map<String, String>? = null,
             bookId: String? = null,
         ) {
+            val request =
+                PendingLoadRequest(
+                    filePaths = filePaths,
+                    initialChapterIndex = initialChapterIndex,
+                    initialPosition = initialPosition,
+                    autoPlay = autoPlay,
+                    metadata = metadata,
+                    bookId = bookId,
+                    retryAttempt = 0,
+                )
+            loadBookInternal(request, resetRetryState = true)
+        }
+
+        private fun loadBookInternal(
+            request: PendingLoadRequest,
+            resetRetryState: Boolean,
+        ) {
+            if (resetRetryState) {
+                loadBookRetryAttempts = 0
+            }
+
             startService()
 
             // CRITICAL: Check if we're switching to a different book
             val previousBookId = _currentBookId.value
-            val isBookChanged = bookId != null && bookId != previousBookId
+            val isBookChanged = request.bookId != null && request.bookId != previousBookId
 
             if (isBookChanged) {
-                logger.i { "Book changed: $previousBookId -> $bookId. Resetting state." }
+                logger.i { "Book changed: $previousBookId -> ${request.bookId}. Resetting state." }
                 // Reset state to avoid showing old book's data
-                _currentPosition.value = initialPosition
-                _currentChapterIndex.value = initialChapterIndex
+                _currentPosition.value = request.initialPosition
+                _currentChapterIndex.value = request.initialChapterIndex
                 _isPlaying.value = false
             }
 
             // Update current book ID
-            _currentBookId.value = bookId
+            _currentBookId.value = request.bookId
 
             // Use MediaController for all operations including setPlaylist
             val controller = mediaController
             if (controller == null) {
                 pendingLoadRequest =
                     PendingLoadRequest(
-                        filePaths = filePaths,
-                        initialChapterIndex = initialChapterIndex,
-                        initialPosition = initialPosition,
-                        autoPlay = autoPlay,
-                        metadata = metadata,
-                        bookId = bookId,
+                        filePaths = request.filePaths,
+                        initialChapterIndex = request.initialChapterIndex,
+                        initialPosition = request.initialPosition,
+                        autoPlay = request.autoPlay,
+                        metadata = request.metadata,
+                        bookId = request.bookId,
+                        retryAttempt = request.retryAttempt,
                     )
                 logger.w { "Queued loadBook request while MediaController is not ready" }
                 loadBookRetryJob?.cancel()
@@ -660,12 +677,12 @@ public class AudioPlayerController
                     val currentGroupPath = MediaControllerExtensions.getCurrentGroupPath(controller)
                     val currentPaths = MediaControllerExtensions.getCurrentFilePaths(controller)
 
-                    val isSameBook = bookId != null && bookId == currentGroupPath
+                    val isSameBook = request.bookId != null && request.bookId == currentGroupPath
                     // Compare playlists by content, not by reference, to handle sorted paths
                     val isSamePlaylist =
                         currentPaths != null &&
-                            currentPaths.size == filePaths.size &&
-                            currentPaths.sorted() == filePaths.sorted()
+                            currentPaths.size == request.filePaths.size &&
+                            currentPaths.sorted() == request.filePaths.sorted()
 
                     if ((isSameBook || isSamePlaylist) && !isBookChanged) {
                         logger.i {
@@ -674,16 +691,19 @@ public class AudioPlayerController
 
                         // Handle seeking if needed (e.g. user clicked a specific chapter)
                         // Only seek if significantly different to allow resume logic to work
-                        if (initialChapterIndex != controller.currentMediaItemIndex) {
-                            controller.seekTo(initialChapterIndex, 0L)
+                        if (request.initialChapterIndex != controller.currentMediaItemIndex) {
+                            controller.seekTo(request.initialChapterIndex, 0L)
                         }
-                        if (initialPosition > 0L && Math.abs(controller.currentPosition - initialPosition) > 1000L) {
-                            controller.seekTo(initialPosition)
+                        if (request.initialPosition > 0L &&
+                            Math.abs(controller.currentPosition - request.initialPosition) > 1000L
+                        ) {
+                            controller.seekTo(request.initialPosition)
                         }
 
-                        if (autoPlay && !controller.isPlaying) {
+                        if (request.autoPlay && !controller.isPlaying) {
                             controller.play()
                         }
+                        loadBookRetryAttempts = 0
                         return@launch
                     }
 
@@ -691,11 +711,11 @@ public class AudioPlayerController
                     val future =
                         MediaControllerExtensions.setPlaylist(
                             controller = controller,
-                            filePaths = filePaths,
-                            metadata = metadata,
-                            initialTrackIndex = initialChapterIndex,
-                            initialPosition = initialPosition,
-                            groupPath = bookId,
+                            filePaths = request.filePaths,
+                            metadata = request.metadata,
+                            initialTrackIndex = request.initialChapterIndex,
+                            initialPosition = request.initialPosition,
+                            groupPath = request.bookId,
                         )
 
                     // Wait for result
@@ -703,16 +723,60 @@ public class AudioPlayerController
                         withContext(Dispatchers.IO) {
                             future.get(30, TimeUnit.SECONDS)
                         }
-                    if (result.resultCode == SessionResult.RESULT_SUCCESS && autoPlay) {
+                    if (result.resultCode == SessionResult.RESULT_SUCCESS && request.autoPlay) {
                         controller.play()
                     } else if (result.resultCode != SessionResult.RESULT_SUCCESS) {
                         logger.e {
                             "setPlaylist failed with code: ${result.resultCode}"
                         }
+                        scheduleLoadBookRetry(request, "result=${result.resultCode}")
+                        return@launch
                     }
+                    loadBookRetryAttempts = 0
                 } catch (e: Exception) {
                     logger.e({ "Error in loadBook" }, e)
+                    scheduleLoadBookRetry(request, "exception=${e::class.java.simpleName}")
                 }
+            }
+        }
+
+        private fun scheduleLoadBookRetry(
+            request: PendingLoadRequest,
+            reason: String,
+        ) {
+            val nextAttempt = request.retryAttempt + 1
+            if (!LoadBookRetryPolicy.shouldRetry(nextAttempt)) {
+                logger.e {
+                    "loadBook retry limit reached for ${request.bookId ?: "unknown-book"} after ${request.retryAttempt} attempts ($reason)"
+                }
+                pendingLoadRequest = null
+                loadBookRetryAttempts = request.retryAttempt
+                return
+            }
+
+            val delayedRequest =
+                request.copy(
+                    retryAttempt = nextAttempt,
+                )
+            pendingLoadRequest = delayedRequest
+            loadBookRetryAttempts = nextAttempt
+            val delayMs = LoadBookRetryPolicy.retryDelayMs(nextAttempt)
+
+            loadBookRetryJob?.cancel()
+            loadBookRetryJob =
+                scope.launch {
+                    delay(delayMs)
+                    if (pendingLoadRequest != delayedRequest) {
+                        return@launch
+                    }
+                    pendingLoadRequest = null
+                    loadBookInternal(
+                        request = delayedRequest,
+                        resetRetryState = false,
+                    )
+                }
+            logger.w {
+                "Scheduling loadBook retry #$nextAttempt in ${delayMs}ms for ${request.bookId ?: "unknown-book"} ($reason)"
             }
         }
 
@@ -850,6 +914,7 @@ public class AudioPlayerController
             loadBookRetryJob?.cancel()
             loadBookRetryJob = null
             pendingLoadRequest = null
+            loadBookRetryAttempts = 0
             pendingCommands.clear()
 
             if (exoFallbackListenerAttached) {
