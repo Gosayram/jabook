@@ -41,6 +41,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -1673,115 +1674,84 @@ public class AudioPlayerService : MediaLibraryService() {
      * calls onCreate() multiple times without onDestroy().
      */
     private fun cleanupExistingComponents() {
-        // Only cleanup if components already exist (onCreate called multiple times)
-        if (mediaLibrarySession != null || serviceMediaController != null || crossFadePlayer != null) {
+        val hasExistingComponents =
+            mediaLibrarySession != null ||
+                serviceMediaController != null ||
+                crossFadePlayer != null ||
+                audioVisualizerManager != null ||
+                positionSaveJob != null ||
+                updateLayoutJob != null ||
+                visualizerBridgeJob != null
+        if (hasExistingComponents) {
             LogUtils.w(
                 "AudioPlayerService",
-                "onCreate() called multiple times, cleaning up existing components",
+                "onCreate() called with existing runtime components, performing pre-init cleanup",
             )
-
-            // Release MediaController
-            serviceMediaController?.release()
-            serviceMediaController = null
-
-            // Release MediaLibrarySession
-            mediaLibrarySession?.release()
-            mediaLibrarySession = null
-            mediaSession = null
-
-            // Release CrossFadePlayer
-            crossFadePlayer?.release()
-            crossFadePlayer = null
-
-            // Release MediaSessionManager
-            mediaSessionManager?.release()
-            mediaSessionManager = null
-
-            // Stop and release other components
-            playerNotificationManager?.setPlayer(null)
-            playerNotificationManager = null
-
-            audioOutputManager.stopMonitoring()
-
-            playbackEnhancerService.release()
-
-            sleepTimerManager?.release()
-            sleepTimerManager = null
-
-            inactivityTimer?.release()
-            inactivityTimer = null
-
-            playbackTimer?.release()
-            playbackTimer = null
-
-            audioVisualizerManager?.release()
-            audioVisualizerManager = null
-            visualizerBridgeJob?.cancel()
-            visualizerBridgeJob = null
-            audioVisualizerStateBridge.reset()
-
-            phoneCallListener?.stopListening()
-            phoneCallListener = null
-
-            headsetAutoplayHandler?.stopListening()
-            headsetAutoplayHandler = null
-
-            // Cancel jobs
-            updateLayoutJob?.cancel()
-            updateLayoutJob = null
-
-            // Reset initialization flag
-            isFullyInitializedFlag = false
-
+        }
+        releaseRuntimeComponents(cancelServiceScopeChildren = true)
+        if (hasExistingComponents) {
             LogUtils.i("AudioPlayerService", "Existing components cleaned up")
         }
     }
 
     override fun onDestroy() {
-        // Clean up PlayerNotificationManager
+        releaseRuntimeComponents(cancelServiceScopeChildren = true)
+        // Delegate to lifecycle manager
+        lifecycleManager?.onDestroy()
+        super.onDestroy()
+    }
+
+    private fun releaseRuntimeComponents(cancelServiceScopeChildren: Boolean) {
+        stopPeriodicPositionSaving()
+        if (cancelServiceScopeChildren) {
+            playerServiceScope.coroutineContext.cancelChildren()
+        }
+
         playerNotificationManager?.setPlayer(null)
         playerNotificationManager = null
 
-        // Stop proximity monitoring
         audioOutputManager.stopMonitoring()
-
-        // Release PlaybackEnhancerService resources
         playbackEnhancerService.release()
 
-        // Release SleepTimerManager (listeners/sensors)
         sleepTimerManager?.release()
         sleepTimerManager = null
 
-        // Release InactivityTimer
         inactivityTimer?.release()
         inactivityTimer = null
 
-        // Release PlaybackTimer
         playbackTimer?.release()
         playbackTimer = null
 
-        // Release audio visualizer
+        crossFadePlayer?.release()
+        crossFadePlayer = null
+        crossfadeHandler = null
+
         audioVisualizerManager?.release()
         audioVisualizerManager = null
         visualizerBridgeJob?.cancel()
         visualizerBridgeJob = null
         audioVisualizerStateBridge.reset()
 
-        // Stop listening for phone calls
         phoneCallListener?.stopListening()
         phoneCallListener = null
 
-        // Release service MediaController
+        headsetAutoplayHandler?.stopListening()
+        headsetAutoplayHandler = null
+
         serviceMediaController?.release()
         serviceMediaController = null
 
-        // Cancel debounced layout updates
+        mediaSessionManager?.release()
+        mediaSessionManager = null
+
+        mediaLibrarySession?.release()
+        mediaLibrarySession = null
+        mediaSession = null
+
         updateLayoutJob?.cancel()
         updateLayoutJob = null
 
-        // Delegate to lifecycle manager
-        lifecycleManager?.onDestroy()
-        super.onDestroy()
+        isFullyInitializedFlag = false
     }
 
     /**

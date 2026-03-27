@@ -106,11 +106,16 @@ public class AudioPlayerLibrarySessionCallback(
             session.isMediaNotificationController(controller) ||
                 session.isAutomotiveController(controller) ||
                 session.isAutoCompanionController(controller)
+        val isAppController = isAppController(controller)
 
         if (isSystemController) {
             // Automotive clients intentionally do not receive sleep timer commands.
             val includeSleepTimerCommands = !session.isAutomotiveController(controller)
-            val availableCommands = buildAvailableSessionCommands(includeSleepTimerCommands)
+            val availableCommands =
+                buildAvailableSessionCommands(
+                    includeSleepTimerCommands = includeSleepTimerCommands,
+                    includePrivilegedCommands = isAppController,
+                )
 
             // NOTE: CustomLayout is NOT set here - it will be set separately after initialization
             // This follows Rhythm pattern to avoid MediaSessionLegacyStub conversion issues
@@ -121,7 +126,11 @@ public class AudioPlayerLibrarySessionCallback(
         }
 
         // For regular app controllers, add custom commands but without custom buttons
-        val availableCommands = buildAvailableSessionCommands(includeSleepTimerCommands = true)
+        val availableCommands =
+            buildAvailableSessionCommands(
+                includeSleepTimerCommands = true,
+                includePrivilegedCommands = isAppController,
+            )
 
         return MediaSession.ConnectionResult
             .AcceptedResultBuilder(session)
@@ -200,6 +209,9 @@ public class AudioPlayerLibrarySessionCallback(
         args: Bundle,
     ): ListenableFuture<SessionResult> {
         val customAction = customCommand.customAction
+        if (isPrivilegedCommand(customAction) && !isAppController(controller)) {
+            return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+        }
         if (isAutomotiveSleepTimerCommand(session, controller, customAction)) {
             return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
         }
@@ -378,17 +390,24 @@ public class AudioPlayerLibrarySessionCallback(
             }
         }
 
-    private fun buildAvailableSessionCommands(includeSleepTimerCommands: Boolean): androidx.media3.session.SessionCommands {
+    private fun buildAvailableSessionCommands(
+        includeSleepTimerCommands: Boolean,
+        includePrivilegedCommands: Boolean,
+    ): androidx.media3.session.SessionCommands {
         val builder =
             MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
                 .buildUpon()
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY))
+
+        if (includePrivilegedCommands) {
+            builder
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_INITIALIZE_VISUALIZER, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_VISUALIZER_ENABLED, Bundle.EMPTY))
+        }
 
         if (includeSleepTimerCommands) {
             builder
@@ -401,6 +420,21 @@ public class AudioPlayerLibrarySessionCallback(
         }
         return builder.build()
     }
+
+    private fun isAppController(controller: MediaSession.ControllerInfo): Boolean = controller.packageName == service.packageName
+
+    private fun isPrivilegedCommand(action: String): Boolean =
+        action == CUSTOM_COMMAND_SET_PLAYLIST ||
+            action == CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES ||
+            action == CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER ||
+            action == CUSTOM_COMMAND_CANCEL_SLEEP_TIMER ||
+            action == CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING ||
+            action == CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE ||
+            action == CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER ||
+            action == CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH ||
+            action == CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS ||
+            action == CUSTOM_COMMAND_INITIALIZE_VISUALIZER ||
+            action == CUSTOM_COMMAND_SET_VISUALIZER_ENABLED
 
     private fun isAutomotiveSleepTimerCommand(
         session: MediaSession,
