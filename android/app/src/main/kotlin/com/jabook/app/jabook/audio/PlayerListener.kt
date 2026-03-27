@@ -225,9 +225,6 @@ internal class PlayerListener(
     private var positionStoppedCount: Int = 0 // Count how many times position hasn't changed
     private var positionStoppedStartTime: Long = -1L // When position first stopped advancing
     private val positionCheckIntervalMs = 1000L // Check every second
-    private val minEndOfFileThresholdMs = 500L
-    private val maxEndOfFileThresholdMs = 5000L
-    private val endOfFileThresholdPercent = 0.01
     private val positionStoppedThreshold = 2 // Consider file ended if position hasn't changed for 2 checks (2 seconds)
     private val maxPositionStoppedTimeMs = 3000L // Maximum time position can be stopped before considering file ended (3 seconds)
 
@@ -238,11 +235,7 @@ internal class PlayerListener(
     }
 
     private fun calculateEndOfFileThresholdMs(durationMs: Long): Long {
-        if (durationMs == C.TIME_UNSET || durationMs <= 0) {
-            return minEndOfFileThresholdMs
-        }
-        val proportionalThreshold = (durationMs * endOfFileThresholdPercent).toLong()
-        return proportionalThreshold.coerceIn(minEndOfFileThresholdMs, maxEndOfFileThresholdMs)
+        return EndOfFileDetectionPolicy.calculateThresholdMs(durationMs)
     }
 
     // Use onEvents() for more efficient event handling (inspired by lissen-android)
