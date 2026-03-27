@@ -236,9 +236,7 @@ public fun SquigglySlider(
     }
 }
 
-private fun normalizeValueRange(
-    valueRange: ClosedFloatingPointRange<Float>,
-): ClosedFloatingPointRange<Float> {
+private fun normalizeValueRange(valueRange: ClosedFloatingPointRange<Float>): ClosedFloatingPointRange<Float> {
     val start =
         if (valueRange.start.isFinite()) {
             valueRange.start
