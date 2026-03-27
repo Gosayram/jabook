@@ -840,18 +840,15 @@ private fun PlayerContent(
                     // Update slider position from player when not dragging.
                     // After seek, wait briefly for player progress to converge near target to avoid jump-back jitter.
                     LaunchedEffect(playerProgress, isDragging, awaitingSeekSync) {
-                        if (!playerProgress.isFinite() || isDragging) {
-                            return@LaunchedEffect
-                        }
-                        val clampedProgress = playerProgress.coerceIn(0f, 1f)
-                        if (awaitingSeekSync) {
-                            if (kotlin.math.abs(clampedProgress - sliderPosition) <= 0.02f) {
-                                sliderPosition = clampedProgress
-                                awaitingSeekSync = false
-                            }
-                        } else {
-                            sliderPosition = clampedProgress
-                        }
+                        val result =
+                            SliderSeekSyncPolicy.resolveFromPlayerProgress(
+                                playerProgress = playerProgress,
+                                currentSliderPosition = sliderPosition,
+                                isDragging = isDragging,
+                                awaitingSeekSync = awaitingSeekSync,
+                            )
+                        sliderPosition = result.sliderPosition
+                        awaitingSeekSync = result.awaitingSeekSync
                     }
 
                     // Guard against stale awaiting flag if player progress update is delayed.
