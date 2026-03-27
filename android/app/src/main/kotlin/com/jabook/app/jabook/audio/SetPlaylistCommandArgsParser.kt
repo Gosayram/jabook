@@ -29,7 +29,7 @@ internal object SetPlaylistCommandArgsParser {
         val filePathsArray = args.getStringArray(AudioPlayerLibrarySessionCallback.ARG_FILE_PATHS) ?: return null
         val filePaths =
             filePathsArray
-                .map { it.trim() }
+                .mapNotNull { it?.trim() }
                 .filter { it.isNotEmpty() }
         if (filePaths.isEmpty()) {
             return null
