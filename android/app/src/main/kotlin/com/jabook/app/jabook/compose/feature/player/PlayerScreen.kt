@@ -117,6 +117,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
@@ -834,11 +835,30 @@ private fun PlayerContent(
                     // Local state for smooth slider interaction
                     var isDragging by remember { mutableStateOf(false) }
                     var sliderPosition by remember { mutableStateOf(playerProgress) }
+                    var awaitingSeekSync by remember { mutableStateOf(false) }
 
-                    // Update slider position from player when not dragging
-                    LaunchedEffect(playerProgress) {
-                        if (!isDragging && playerProgress.isFinite() && !playerProgress.isNaN()) {
-                            sliderPosition = playerProgress.coerceIn(0f, 1f)
+                    // Update slider position from player when not dragging.
+                    // After seek, wait briefly for player progress to converge near target to avoid jump-back jitter.
+                    LaunchedEffect(playerProgress, isDragging, awaitingSeekSync) {
+                        if (!playerProgress.isFinite() || isDragging) {
+                            return@LaunchedEffect
+                        }
+                        val clampedProgress = playerProgress.coerceIn(0f, 1f)
+                        if (awaitingSeekSync) {
+                            if (kotlin.math.abs(clampedProgress - sliderPosition) <= 0.02f) {
+                                sliderPosition = clampedProgress
+                                awaitingSeekSync = false
+                            }
+                        } else {
+                            sliderPosition = clampedProgress
+                        }
+                    }
+
+                    // Guard against stale awaiting flag if player progress update is delayed.
+                    LaunchedEffect(awaitingSeekSync) {
+                        if (awaitingSeekSync) {
+                            delay(1500L)
+                            awaitingSeekSync = false
                         }
                     }
 
@@ -846,16 +866,20 @@ private fun PlayerContent(
                         value = sliderPosition,
                         onValueChange = { newProgress ->
                             isDragging = true
-                            sliderPosition = newProgress
+                            awaitingSeekSync = false
+                            sliderPosition = newProgress.coerceIn(0f, 1f)
                         },
                         onValueChangeFinished = {
                             // Seek only when user finishes dragging
                             state.currentChapter?.let { chapter ->
                                 val durationMs = chapter.duration.inWholeMilliseconds
-                                if (durationMs > 0 && sliderPosition.isFinite() && !sliderPosition.isNaN()) {
+                                if (durationMs > 0 && sliderPosition.isFinite()) {
                                     val clampedProgress = sliderPosition.coerceIn(0f, 1f)
                                     val seekPosition = (clampedProgress * durationMs.toFloat()).toLong().coerceAtLeast(0L)
+                                    awaitingSeekSync = true
                                     onSeek(seekPosition)
+                                } else {
+                                    awaitingSeekSync = false
                                 }
                             }
                             isDragging = false

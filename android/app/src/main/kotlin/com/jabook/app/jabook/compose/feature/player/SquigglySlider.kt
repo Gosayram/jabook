@@ -78,6 +78,10 @@ public fun SquigglySlider(
     activeTrackColor: Color = MaterialTheme.colorScheme.primary,
     inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
+    val normalizedRange =
+        remember(valueRange) {
+            normalizeValueRange(valueRange)
+        }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val isDragged by interactionSource.collectIsDraggedAsState()
@@ -132,15 +136,15 @@ public fun SquigglySlider(
             // Validate and sanitize value: check for NaN, Infinity, and ensure it's in valid range
             val sanitizedValue =
                 when {
-                    !value.isFinite() || value.isNaN() -> valueRange.start // Default to start if invalid
-                    else -> value.coerceIn(valueRange.start, valueRange.endInclusive)
+                    !value.isFinite() -> normalizedRange.start // Default to start if invalid
+                    else -> value.coerceIn(normalizedRange.start, normalizedRange.endInclusive)
                 }
 
             // Calculate progress ratio (0..1) with protection against division by zero
-            val range = valueRange.endInclusive - valueRange.start
+            val range = normalizedRange.endInclusive - normalizedRange.start
             val fraction =
                 if (range > 0 && range.isFinite()) {
-                    ((sanitizedValue - valueRange.start) / range).coerceIn(0f, 1f)
+                    ((sanitizedValue - normalizedRange.start) / range).coerceIn(0f, 1f)
                 } else {
                     0f
                 }
@@ -207,11 +211,16 @@ public fun SquigglySlider(
         // Invisible Material Slider to handle interactions and Thumb
         // We make the track transparent colors so we see our custom Canvas below
         Slider(
-            value = value,
+            value =
+                if (value.isFinite()) {
+                    value.coerceIn(normalizedRange.start, normalizedRange.endInclusive)
+                } else {
+                    normalizedRange.start
+                },
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,
-            valueRange = valueRange,
+            valueRange = normalizedRange,
             onValueChangeFinished = onValueChangeFinished,
             interactionSource = interactionSource,
             colors =
@@ -224,5 +233,27 @@ public fun SquigglySlider(
                     disabledInactiveTrackColor = Color.Transparent,
                 ),
         )
+    }
+}
+
+private fun normalizeValueRange(
+    valueRange: ClosedFloatingPointRange<Float>,
+): ClosedFloatingPointRange<Float> {
+    val start =
+        if (valueRange.start.isFinite()) {
+            valueRange.start
+        } else {
+            0f
+        }
+    val end =
+        if (valueRange.endInclusive.isFinite()) {
+            valueRange.endInclusive
+        } else {
+            1f
+        }
+    return if (start < end) {
+        start..end
+    } else {
+        0f..1f
     }
 }
