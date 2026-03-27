@@ -43,4 +43,3 @@ class EndOfFileDetectionPolicyTest {
         assertEquals(5000L, threshold)
     }
 }
-

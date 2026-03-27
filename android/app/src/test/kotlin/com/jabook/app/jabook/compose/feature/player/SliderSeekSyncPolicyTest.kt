@@ -76,4 +76,3 @@ class SliderSeekSyncPolicyTest {
         assertFalse(result.awaitingSeekSync)
     }
 }
-

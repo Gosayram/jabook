@@ -234,9 +234,7 @@ internal class PlayerListener(
         positionStoppedStartTime = -1L
     }
 
-    private fun calculateEndOfFileThresholdMs(durationMs: Long): Long {
-        return EndOfFileDetectionPolicy.calculateThresholdMs(durationMs)
-    }
+    private fun calculateEndOfFileThresholdMs(durationMs: Long): Long = EndOfFileDetectionPolicy.calculateThresholdMs(durationMs)
 
     // Use onEvents() for more efficient event handling (inspired by lissen-android)
     // This allows handling multiple events in one callback for better performance

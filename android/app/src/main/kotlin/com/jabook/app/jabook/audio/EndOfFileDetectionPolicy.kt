@@ -33,4 +33,3 @@ internal object EndOfFileDetectionPolicy {
         )
     }
 }
-
