@@ -35,15 +35,17 @@ naming:
   active: false
 
 empty-blocks:
-  active: true
-  EmptyFunctionBlock:
-    active: false
-  EmptyCatchBlock:
-    active: false
+  active: false
 
 exceptions:
   active: true
   TooGenericExceptionCaught:
+    active: false
+  TooGenericExceptionThrown:
+    active: false
+  SwallowedException:
+    active: false
+  InstanceOfCheckForException:
     active: false
 
 potential-bugs:
