@@ -41,7 +41,7 @@ public class MediaSessionCallback(
     }
 
     // Note: onPlay, onPause, onSkipToNextMediaItem, onSkipToPreviousMediaItem, and onSeekTo
-    // are not available in MediaSession.Callback in Media3 1.8.0. MediaSession automatically
+    // are not available in MediaSession.Callback in current Media3. MediaSession automatically
     // delegates these commands to the Player. We use Player listeners to intercept state
     // changes if needed. The onPlay and onPause callbacks are kept in the constructor for
     // API compatibility but are not used in MediaSession.Callback.
