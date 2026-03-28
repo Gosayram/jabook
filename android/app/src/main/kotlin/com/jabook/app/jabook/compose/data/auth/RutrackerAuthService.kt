@@ -27,6 +27,8 @@ import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
+import com.jabook.app.jabook.utils.RetryConfig
+import com.jabook.app.jabook.utils.retryWithBackoff
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -96,8 +98,17 @@ public class RutrackerAuthService
                     val requestStart = System.currentTimeMillis()
                     val response =
                         retryWithBackoff(
-                            times = MAX_RETRIES,
-                            initialDelay = INITIAL_BACKOFF_MS,
+                            config =
+                                RetryConfig(
+                                    maxRetries = MAX_RETRIES - 1,
+                                    initialDelayMs = INITIAL_BACKOFF_MS,
+                                    maxDelayMs = 60_000L,
+                                    backoffMultiplier = 2.0,
+                                    shouldRetry = { throwable ->
+                                        throwable is java.io.IOException ||
+                                            throwable is java.net.SocketTimeoutException
+                                    },
+                                ),
                         ) {
                             // Apply timeout for the network call
                             withContext(Dispatchers.IO) {
@@ -514,32 +525,5 @@ public class RutrackerAuthService
                 logger.logError(operationId, "Index check exception", e)
                 return false
             }
-        }
-
-        /**
-         * Helper function to retry operations with exponential backoff.
-         */
-        private suspend fun <T> retryWithBackoff(
-            times: Int,
-            initialDelay: Long,
-            maxDelay: Long = 60000L,
-            factor: Double = 2.0,
-            block: suspend () -> T,
-        ): T {
-            var currentDelay = initialDelay
-            repeat(times - 1) { attempt ->
-                try {
-                    return block()
-                } catch (e: Exception) {
-                    // Only retry on specific network exceptions
-                    if (e !is java.io.IOException && e !is java.net.SocketTimeoutException) {
-                        throw e
-                    }
-                    logger.e({ "Operation failed, retrying in ${currentDelay}ms (attempt ${attempt + 1}/$times)" }, e)
-                    kotlinx.coroutines.delay(currentDelay)
-                    currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelay)
-                }
-            }
-            return block() // Last attempt
         }
     }
