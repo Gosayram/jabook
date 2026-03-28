@@ -82,6 +82,7 @@ public class AudioPlayerController
         private var pendingLoadRequest: PendingLoadRequest? = null
         private val maxPendingCommands = 64
         private var loadBookRetryAttempts: Int = 0
+        private var nextLoadRequestId: Long = 0L
 
         // Playback State
         private val _isPlaying = MutableStateFlow(false)
@@ -122,6 +123,7 @@ public class AudioPlayerController
         private var onChapterEndedCallback: (() -> Boolean)? = null
 
         private data class PendingLoadRequest(
+            val requestId: Long,
             val filePaths: List<String>,
             val initialChapterIndex: Int,
             val initialPosition: Long,
@@ -608,6 +610,7 @@ public class AudioPlayerController
         ) {
             val request =
                 PendingLoadRequest(
+                    requestId = nextRequestId(),
                     filePaths = filePaths,
                     initialChapterIndex = initialChapterIndex,
                     initialPosition = initialPosition,
@@ -653,6 +656,7 @@ public class AudioPlayerController
             if (controller == null) {
                 pendingLoadRequest =
                     PendingLoadRequest(
+                        requestId = request.requestId,
                         filePaths = request.filePaths,
                         initialChapterIndex = request.initialChapterIndex,
                         initialPosition = request.initialPosition,
@@ -772,7 +776,7 @@ public class AudioPlayerController
             loadBookRetryJob =
                 scope.launch {
                     delay(delayMs)
-                    if (pendingLoadRequest != delayedRequest) {
+                    if (pendingLoadRequest?.requestId != delayedRequest.requestId) {
                         return@launch
                     }
                     pendingLoadRequest = null
@@ -784,6 +788,11 @@ public class AudioPlayerController
             logger.w {
                 "Scheduling loadBook retry #$nextAttempt in ${delayMs}ms for ${request.bookId ?: "unknown-book"} ($reason)"
             }
+        }
+
+        private fun nextRequestId(): Long {
+            nextLoadRequestId += 1L
+            return nextLoadRequestId
         }
 
         public fun play() {
