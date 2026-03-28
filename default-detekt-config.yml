@@ -1,0 +1,63 @@
+config:
+  validation: true
+  warningsAsErrors: false
+  excludes: ''
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+
+processors:
+  active: true
+  exclude:
+    - 'DetektProgressListener'
+
+console-reports:
+  active: true
+  exclude:
+    - 'ProjectStatisticsReport'
+    - 'ComplexityReport'
+    - 'NotificationReport'
+    - 'FindingsReport'
+    - 'FileBasedFindingsReport'
+
+output-reports:
+  active: true
+  exclude: []
+
+comments:
+  active: false
+
+complexity:
+  active: true
+  TooManyFunctions:
+    active: true
+    excludes: &testFolders
+      - '**/test/**'
+      - '**/androidTest/**'
+    thresholdInFiles: 20
+    thresholdInClasses: 20
+    thresholdInInterfaces: 20
+    thresholdInObjects: 20
+    thresholdInEnums: 20
+  LongMethod:
+    active: true
+    threshold: 80
+
+naming:
+  active: true
+  FunctionNaming:
+    active: true
+    excludes: *testFolders
+    functionPattern: '[a-z][a-zA-Z0-9]*'
+  VariableNaming:
+    active: true
+    variablePattern: '[a-z][A-Za-z0-9]*'
+    privateVariablePattern: '(_)?[a-z][A-Za-z0-9]*'
+
+potential-bugs:
+  active: true
+
+# We already use ktlint, so keep detekt focused on non-formatting rules.
+formatting:
+  active: false
