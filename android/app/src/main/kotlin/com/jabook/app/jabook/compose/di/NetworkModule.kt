@@ -19,6 +19,7 @@ import com.jabook.app.jabook.compose.data.network.AuthInterceptor
 import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
+import com.jabook.app.jabook.compose.data.network.NetworkTelemetryEventListenerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
@@ -92,6 +93,7 @@ public object NetworkModule {
         settingsRepository: SettingsRepository,
         cookieJar: PersistentCookieJar,
         loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
+        networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
         val healthCheckClient =
@@ -100,6 +102,7 @@ public object NetworkModule {
                 .cookieJar(cookieJar)
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
+                .eventListenerFactory(networkTelemetryEventListenerFactory)
                 .build()
 
         return MirrorManager(settingsRepository, healthCheckClient, loggerFactory)
@@ -126,10 +129,12 @@ public object NetworkModule {
         loggingInterceptor: HttpLoggingInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
+        networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
     ): OkHttpClient =
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
+            .eventListenerFactory(networkTelemetryEventListenerFactory)
             // Interceptor order matters! They are called in order:
             // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)
             // 2. RutrackerHeadersInterceptor - Adds User-Agent, Accept, Accept-Language (NO Accept-Encoding!)
