@@ -86,6 +86,7 @@ internal class PlayerConfigurator(
                     getIsBookCompleted = { service.playlistManager?.isBookCompleted ?: false },
                     setIsBookCompleted = { service.playlistManager?.isBookCompleted = it },
                     getSleepTimerEndOfChapter = { service.sleepTimerManager?.sleepTimerEndOfChapter ?: false },
+                    getSleepTimerEndOfTrack = { service.sleepTimerManager?.sleepTimerEndOfTrack ?: false },
                     getSleepTimerEndTime = { service.sleepTimerManager?.sleepTimerEndTime ?: 0L },
                     cancelSleepTimer = { service.sleepTimerManager?.cancelSleepTimer() },
                     sendTimerExpiredEvent = { /* Handled by SleepTimerManager */ },

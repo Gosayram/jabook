@@ -183,6 +183,7 @@ class SleepTimerManagerTest {
                 .edit()
                 .putLong(SleepTimerPersistence.KEY_END_TIME, 0L)
                 .putBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, true)
+                .putString(SleepTimerPersistence.KEY_MODE, SleepTimerMode.CHAPTER_END.name)
                 .putBoolean(SleepTimerPersistence.KEY_PAUSED, false)
                 .putLong(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS, SleepTimerPersistence.NO_REMAINING_MILLIS)
                 .apply()
@@ -203,6 +204,37 @@ class SleepTimerManagerTest {
 
             assertTrue(manager.isSleepTimerActive())
             assertEquals(null, manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
+    fun `set end of track survives process recreation`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val creator =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            creator.setSleepTimerEndOfTrack()
+
+            val restored =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            restored.restoreTimerState()
+
+            assertTrue(restored.isSleepTimerActive())
+            assertTrue(restored.sleepTimerEndOfTrack)
+            assertEquals(null, restored.getSleepTimerRemainingSeconds())
         }
 
     @Test

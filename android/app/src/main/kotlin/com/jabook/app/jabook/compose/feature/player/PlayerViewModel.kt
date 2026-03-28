@@ -508,6 +508,10 @@ public class PlayerViewModel
             sleepTimerRepository.startTimerEndOfChapter()
         }
 
+        public fun startSleepTimerEndOfTrack() {
+            sleepTimerRepository.startTimerEndOfTrack()
+        }
+
         public fun cancelSleepTimer() {
             sleepTimerRepository.cancelTimer()
         }

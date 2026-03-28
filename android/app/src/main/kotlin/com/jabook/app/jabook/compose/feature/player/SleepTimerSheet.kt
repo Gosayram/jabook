@@ -45,6 +45,7 @@ import com.jabook.app.jabook.compose.domain.model.SleepTimerState
  * @param currentState Current sleep timer state
  * @param onStartTimer Callback when timer duration is selected
  * @param onStartTimerEndOfChapter Callback when "End of Chapter" is selected
+ * @param onStartTimerEndOfTrack Callback when "End of Track" is selected
  * @param onCancelTimer Callback to cancel active timer
  * @param onDismiss Callback to dismiss the sheet
  */
@@ -54,6 +55,7 @@ public fun SleepTimerSheet(
     currentState: SleepTimerState,
     onStartTimer: (Int) -> Unit,
     onStartTimerEndOfChapter: () -> Unit,
+    onStartTimerEndOfTrack: () -> Unit,
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -99,6 +101,23 @@ public fun SleepTimerSheet(
                             },
                     )
 
+                    ListItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.endOfTrackLabel))
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Filled.Timer,
+                                contentDescription = null,
+                            )
+                        },
+                        modifier =
+                            Modifier.clickable {
+                                onStartTimerEndOfTrack()
+                                onDismiss()
+                            },
+                    )
+
                     // Timer options
                     val durations = listOf(5, 10, 15, 30, 45, 60)
 
@@ -135,6 +154,14 @@ public fun SleepTimerSheet(
                     // Show End of Chapter status
                     ActiveTimerContent(
                         timeText = stringResource(R.string.endOfChapterLabel),
+                        onCancelTimer = onCancelTimer,
+                        onDismiss = onDismiss,
+                    )
+                }
+
+                is SleepTimerState.EndOfTrack -> {
+                    ActiveTimerContent(
+                        timeText = stringResource(R.string.endOfTrackLabel),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )

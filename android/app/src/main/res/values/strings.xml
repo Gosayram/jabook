@@ -1364,6 +1364,7 @@
     <string name="cancelTimerButton">Cancel timer</string>
     <!-- Label for end of chapter -->
     <string name="endOfChapterLabel">End of chapter</string>
+    <string name="endOfTrackLabel">End of track</string>
     <!-- Label for at end of chapter -->
     <string name="atEndOfChapterLabel">At end of chapter</string>
     <!-- Tooltip for sleep timer with duration -->

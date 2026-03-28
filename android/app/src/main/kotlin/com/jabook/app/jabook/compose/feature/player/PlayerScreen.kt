@@ -370,6 +370,7 @@ public fun PlayerScreen(
             currentState = sleepTimerState,
             onStartTimer = viewModel::startSleepTimer,
             onStartTimerEndOfChapter = viewModel::startSleepTimerEndOfChapter,
+            onStartTimerEndOfTrack = viewModel::startSleepTimerEndOfTrack,
             onCancelTimer = viewModel::cancelSleepTimer,
             onDismiss = { showSleepTimerSheet = false },
         )

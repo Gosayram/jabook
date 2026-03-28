@@ -43,6 +43,7 @@ class ReplayGainTest {
                 getIsBookCompleted = { false },
                 setIsBookCompleted = { },
                 getSleepTimerEndOfChapter = { false },
+                getSleepTimerEndOfTrack = { false },
                 getSleepTimerEndTime = { 0L },
                 cancelSleepTimer = { },
                 sendTimerExpiredEvent = { },

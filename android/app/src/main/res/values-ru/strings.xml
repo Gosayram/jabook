@@ -1332,6 +1332,7 @@
     <string name="cancelTimerButton">Отменить таймер</string>
     <!-- Метка для конца главы -->
     <string name="endOfChapterLabel">Конец главы</string>
+    <string name="endOfTrackLabel">Конец трека</string>
     <!-- Метка для конца главы -->
     <string name="atEndOfChapterLabel">В конце главы</string>
     <!-- Подсказка для таймера сна с указанием времени -->

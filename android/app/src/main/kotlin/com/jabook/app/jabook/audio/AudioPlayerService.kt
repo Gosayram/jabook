@@ -1004,6 +1004,13 @@ public class AudioPlayerService : MediaLibraryService() {
     }
 
     /**
+     * Sets sleep timer to expire at end of current track.
+     */
+    public fun setSleepTimerEndOfTrack() {
+        sleepTimerManager?.setSleepTimerEndOfTrack()
+    }
+
+    /**
      * Cancels active sleep timer.
      */
     public fun cancelSleepTimer() {
@@ -1028,6 +1035,11 @@ public class AudioPlayerService : MediaLibraryService() {
      * Checks if sleep timer is set to end of chapter.
      */
     public fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
+
+    /**
+     * Checks if sleep timer is set to end of track.
+     */
+    public fun isSleepTimerEndOfTrack(): Boolean = sleepTimerManager?.sleepTimerEndOfTrack == true
 
     /**
      * Gets the audio session ID from ExoPlayer.

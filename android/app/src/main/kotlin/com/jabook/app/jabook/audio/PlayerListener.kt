@@ -46,6 +46,7 @@ internal class PlayerListener(
     private val getIsBookCompleted: () -> Boolean,
     private val setIsBookCompleted: (Boolean) -> Unit,
     private val getSleepTimerEndOfChapter: () -> Boolean,
+    private val getSleepTimerEndOfTrack: () -> Boolean,
     private val getSleepTimerEndTime: () -> Long,
     private val cancelSleepTimer: () -> Unit,
     private val sendTimerExpiredEvent: () -> Unit,
@@ -306,7 +307,7 @@ internal class PlayerListener(
                 val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
 
                 // Check sleep timer "end of chapter" mode (inspired by EasyBook)
-                if (getSleepTimerEndOfChapter()) {
+                if (getSleepTimerEndOfChapter() || getSleepTimerEndOfTrack()) {
                     LogUtils.d("AudioPlayerService", "Sleep timer expired (end of chapter), pausing playback")
                     player.playWhenReady = false
                     cancelSleepTimer()
@@ -972,7 +973,9 @@ internal class PlayerListener(
 
         // Check sleep timer "end of chapter" mode (inspired by EasyBook)
         // Trigger when track transitions automatically (not manual seek)
-        if (getSleepTimerEndOfChapter() && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+        if ((getSleepTimerEndOfChapter() || getSleepTimerEndOfTrack()) &&
+            reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+        ) {
             LogUtils.d(
                 "AudioPlayerService",
                 "Sleep timer expired (end of chapter on auto transition), pausing playback",

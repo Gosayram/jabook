@@ -243,6 +243,10 @@ public class AudioPlayerLibrarySessionCallback(
                 service.setSleepTimerEndOfChapter()
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
+            CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_TRACK -> {
+                service.setSleepTimerEndOfTrack()
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             CUSTOM_COMMAND_CANCEL_SLEEP_TIMER -> {
                 service.cancelSleepTimer()
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
@@ -270,6 +274,14 @@ public class AudioPlayerLibrarySessionCallback(
                 val resultBundle =
                     Bundle().apply {
                         putBoolean(ARG_RESULT_END_OF_CHAPTER, isEndOfChapter)
+                    }
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
+            }
+            CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_TRACK -> {
+                val isEndOfTrack = service.isSleepTimerEndOfTrack()
+                val resultBundle =
+                    Bundle().apply {
+                        putBoolean(ARG_RESULT_END_OF_TRACK, isEndOfTrack)
                     }
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
             }
@@ -392,10 +404,12 @@ public class AudioPlayerLibrarySessionCallback(
             builder
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_TRACK, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_CANCEL_SLEEP_TIMER, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
+                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_TRACK, Bundle.EMPTY))
         }
         return builder.build()
     }
@@ -406,10 +420,12 @@ public class AudioPlayerLibrarySessionCallback(
         action == CUSTOM_COMMAND_SET_PLAYLIST ||
             action == CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES ||
             action == CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER ||
+            action == CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_TRACK ||
             action == CUSTOM_COMMAND_CANCEL_SLEEP_TIMER ||
             action == CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING ||
             action == CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE ||
             action == CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER ||
+            action == CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_TRACK ||
             action == CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH ||
             action == CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS ||
             action == CUSTOM_COMMAND_INITIALIZE_VISUALIZER ||
@@ -425,10 +441,12 @@ public class AudioPlayerLibrarySessionCallback(
         }
         return action == CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES ||
             action == CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER ||
+            action == CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_TRACK ||
             action == CUSTOM_COMMAND_CANCEL_SLEEP_TIMER ||
             action == CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING ||
             action == CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE ||
-            action == CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER
+            action == CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER ||
+            action == CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_TRACK
     }
 
     private suspend fun notifyLibraryRootsChanged(session: MediaSession) {
@@ -462,10 +480,12 @@ public class AudioPlayerLibrarySessionCallback(
         // Sleep timer commands
         public const val CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES: String = "com.jabook.app.jabook.setSleepTimerMinutes"
         public const val CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER: String = "com.jabook.app.jabook.setSleepTimerEndOfChapter"
+        public const val CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_TRACK: String = "com.jabook.app.jabook.setSleepTimerEndOfTrack"
         public const val CUSTOM_COMMAND_CANCEL_SLEEP_TIMER: String = "com.jabook.app.jabook.cancelSleepTimer"
         public const val CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING: String = "com.jabook.app.jabook.getSleepTimerRemaining"
         public const val CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE: String = "com.jabook.app.jabook.isSleepTimerActive"
         public const val CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER: String = "com.jabook.app.jabook.isSleepTimerEndOfChapter"
+        public const val CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_TRACK: String = "com.jabook.app.jabook.isSleepTimerEndOfTrack"
 
         // Service state commands
         public const val CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH: String = "com.jabook.app.jabook.getCurrentGroupPath"
@@ -484,6 +504,7 @@ public class AudioPlayerLibrarySessionCallback(
         public const val ARG_RESULT_REMAINING: String = "remaining"
         public const val ARG_RESULT_ACTIVE: String = "active"
         public const val ARG_RESULT_END_OF_CHAPTER: String = "endOfChapter"
+        public const val ARG_RESULT_END_OF_TRACK: String = "endOfTrack"
         public const val ARG_RESULT_GROUP_PATH: String = "groupPath"
         public const val ARG_RESULT_FILE_PATHS: String = "filePaths"
 
