@@ -14,8 +14,13 @@
 
 package com.jabook.app.jabook.compose.feature.settings
 
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -982,6 +987,12 @@ public fun SettingsScreen(
             }
 
             SettingsItem(
+                title = stringResource(R.string.languageSettingsLabel),
+                subtitle = stringResource(R.string.languageDescription),
+                onClick = { openSystemLanguageSettings(context) },
+            )
+
+            SettingsItem(
                 title = stringResource(R.string.fontTitle),
                 subtitle = stringResource(R.string.chooseFontFamily),
             ) {
@@ -1683,3 +1694,26 @@ private fun formatBytes(bytes: Long): String =
 private fun formatTimestamp(millis: Long): String =
     com.jabook.app.jabook.compose.util.DateTimeFormatter
         .formatGOST(millis)
+
+private fun openSystemLanguageSettings(context: Context) {
+    val appLanguageIntent =
+        Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
+            data = Uri.fromParts("package", context.packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+    val fallbackIntent =
+        Intent(Settings.ACTION_LOCALE_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.startActivity(appLanguageIntent)
+        } else {
+            context.startActivity(fallbackIntent)
+        }
+    } catch (_: ActivityNotFoundException) {
+        context.startActivity(fallbackIntent)
+    }
+}
