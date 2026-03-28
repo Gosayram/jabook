@@ -25,6 +25,69 @@ import java.io.IOException
 @OptIn(ExperimentalCoroutinesApi::class)
 class RetryUtilsTest {
     @Test
+    fun `retryWithBackoff uses retry-after delay override when provided`() =
+        runTest {
+            val delays = mutableListOf<Long>()
+            var nowMs = 0L
+            var attempts = 0
+
+            val result =
+                retryWithBackoff(
+                    RetryConfig(
+                        maxRetries = 2,
+                        initialDelayMs = 10,
+                        shouldRetry = { it is RetryableHttpException },
+                        delayOverrideMs = { throwable, _ ->
+                            (throwable as? RetryableHttpException)?.retryAfterMs
+                        },
+                        nowMsProvider = { nowMs },
+                        delayProvider = { delayMs ->
+                            delays += delayMs
+                            nowMs += delayMs
+                        },
+                    ),
+                ) {
+                    attempts++
+                    if (attempts == 1) {
+                        throw RetryableHttpException(statusCode = 429, retryAfterMs = 1_500L)
+                    }
+                    "ok"
+                }
+
+            assertEquals("ok", result)
+            assertEquals(listOf(1_500L), delays)
+            assertEquals(2, attempts)
+        }
+
+    @Test
+    fun `retryWithBackoff stops when next delay exceeds retry budget`() =
+        runTest {
+            var attempts = 0
+            var nowMs = 0L
+            val expected = IOException("transient")
+
+            try {
+                retryWithBackoff(
+                    RetryConfig(
+                        maxRetries = 4,
+                        initialDelayMs = 1_000L,
+                        maxElapsedTimeMs = 1_500L,
+                        shouldRetry = { it is IOException },
+                        nowMsProvider = { nowMs },
+                        delayProvider = { delayMs -> nowMs += delayMs },
+                    ),
+                ) {
+                    attempts++
+                    throw expected
+                }
+                fail("Expected exception to be thrown")
+            } catch (actual: IOException) {
+                assertSame(expected, actual)
+                assertEquals(2, attempts)
+            }
+        }
+
+    @Test
     fun `retryWithBackoff retries and returns successful result`() =
         runTest {
             var attempts = 0

@@ -28,6 +28,7 @@ import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.utils.RetryConfig
+import com.jabook.app.jabook.utils.RetryableHttpException
 import com.jabook.app.jabook.utils.retryWithBackoff
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -108,12 +109,24 @@ public class RutrackerAuthService
                                         throwable is java.io.IOException ||
                                             throwable is java.net.SocketTimeoutException
                                     },
+                                    delayOverrideMs = { throwable, _ ->
+                                        (throwable as? RetryableHttpException)?.retryAfterMs
+                                    },
                                 ),
                         ) {
                             // Apply timeout for the network call
                             withContext(Dispatchers.IO) {
                                 kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
-                                    api.login(body)
+                                    val response = api.login(body)
+                                    if (response.code() == 429 || response.code() == 503) {
+                                        val retryAfterMs = parseRetryAfterToMs(response.headers()["Retry-After"])
+                                        throw RetryableHttpException(
+                                            statusCode = response.code(),
+                                            retryAfterMs = retryAfterMs,
+                                            message = "HTTP ${response.code()} from login endpoint",
+                                        )
+                                    }
+                                    response
                                 }
                             }
                         }
@@ -253,6 +266,11 @@ public class RutrackerAuthService
             }
 
             return sb.toString()
+        }
+
+        private fun parseRetryAfterToMs(retryAfterHeader: String?): Long? {
+            val seconds = retryAfterHeader?.trim()?.toLongOrNull() ?: return null
+            return if (seconds > 0L) seconds * 1000L else 0L
         }
 
         public sealed interface AuthResult {

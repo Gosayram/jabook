@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.di
 
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.data.network.AuthInterceptor
 import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
 import com.jabook.app.jabook.compose.data.network.MirrorManager
@@ -68,7 +69,16 @@ public object NetworkModule {
     @Singleton
     public fun provideLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY // Use BASIC or HEADERS for production
+            level =
+                if (BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.BODY
+                } else {
+                    HttpLoggingInterceptor.Level.BASIC
+                }
+            redactHeader("Authorization")
+            redactHeader("Cookie")
+            redactHeader("Set-Cookie")
+            redactHeader("X-Api-Key")
         }
 
     /**
