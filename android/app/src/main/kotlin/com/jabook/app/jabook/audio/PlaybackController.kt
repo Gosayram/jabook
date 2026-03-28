@@ -409,7 +409,8 @@ internal class PlaybackController(
 
         try {
             val playWhenReadyBeforeSeek = player.playWhenReady
-            player.seekTo(trackIndex, positionMs)
+            val adjustedPositionMs = ChapterSeekOffsetPolicy.adjust(positionMs)
+            player.seekTo(trackIndex, adjustedPositionMs)
 
             // Reset inactivity timer (user action)
             resetInactivityTimer()

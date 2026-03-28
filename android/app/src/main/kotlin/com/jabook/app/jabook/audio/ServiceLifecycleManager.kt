@@ -30,6 +30,13 @@ internal class ServiceLifecycleManager(
         android.util.Log.i("AudioPlayerService", "onTaskRemoved called")
 
         try {
+            // Best-effort immediate save to avoid losing progress when app is swiped away.
+            service.saveCurrentPosition()
+        } catch (e: Exception) {
+            android.util.Log.w("AudioPlayerService", "Failed to save position in onTaskRemoved", e)
+        }
+
+        try {
             // If player is not playing, stop the service
             val player = service.getActivePlayer()
             if (!player.playWhenReady ||
