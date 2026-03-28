@@ -366,6 +366,17 @@ internal class PlayerConfigurator(
     }
 
     public fun release() {
+        playerListener?.let { listener ->
+            try {
+                service.exoPlayer.removeListener(listener)
+            } catch (_: Exception) {
+            }
+            try {
+                customExoPlayer?.removeListener(listener)
+            } catch (_: Exception) {
+            }
+            listener.release()
+        }
         customExoPlayer?.release()
         customExoPlayer = null
         playerListener = null

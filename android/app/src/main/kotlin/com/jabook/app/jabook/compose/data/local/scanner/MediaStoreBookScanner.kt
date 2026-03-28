@@ -171,36 +171,71 @@ public class MediaStoreBookScanner
             // Parse metadata from first file for book-level info
             val firstFile = files.firstOrNull() ?: return null
             val metadata = metadataParser.parseMetadata(firstFile.filePath)
+            val sanitizedAlbum =
+                if (MediaStoreMetadataFallbackPolicy.hasReplacementCharacter(album)) {
+                    logger.w { "MediaStore album contains replacement character, preferring parser metadata fallback" }
+                    null
+                } else {
+                    album
+                }
+            val sanitizedAuthorFromMediaStore =
+                if (MediaStoreMetadataFallbackPolicy.hasReplacementCharacter(firstFile.artist)) {
+                    logger.w {
+                        "MediaStore author contains replacement character for file ${firstFile.filePath}, " +
+                            "using parser metadata fallback"
+                    }
+                    null
+                } else {
+                    firstFile.artist
+                }
 
-            val chapters =
-                files
-                    .sortedWith(createChapterComparator())
-                    .mapIndexed { index, file ->
-                        // Apply encoding detector to chapter titles
-                        // Use filename without extension if no title tag
-                        val rawTitle =
-                            file.title?.takeIf { it.isNotBlank() }
-                                ?: java.io.File(file.displayName).nameWithoutExtension
-                        val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
+            val chapters = mutableListOf<ScannedChapter>()
+            files
+                .sortedWith(createChapterComparator())
+                .forEachIndexed { index, file ->
+                    // Use filename without extension if no title tag.
+                    var rawTitle =
+                        file.title?.takeIf { it.isNotBlank() }
+                            ?: java.io.File(file.displayName).nameWithoutExtension
 
-                        if (detectedEncoding != null) {
-                            logger.d {
-                                "📖 Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)"
-                            }
+                    // MediaStore can return U+FFFD for broken encoding; read direct tags for this file.
+                    if (MediaStoreMetadataFallbackPolicy.hasReplacementCharacter(rawTitle)) {
+                        logger.w {
+                            "MediaStore chapter title contains replacement character for ${file.filePath}, " +
+                                "using parser metadata fallback"
                         }
+                        val fallbackTitle =
+                            metadataParser
+                                .parseMetadata(file.filePath)
+                                ?.title
+                                ?.takeIf { it.isNotBlank() }
+                        if (fallbackTitle != null) {
+                            rawTitle = fallbackTitle
+                        }
+                    }
 
+                    val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
+
+                    if (detectedEncoding != null) {
+                        logger.d {
+                            "📖 Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)"
+                        }
+                    }
+
+                    chapters.add(
                         ScannedChapter(
                             filePath = file.filePath,
                             title = fixedTitle,
                             index = index,
                             duration = file.duration,
-                        )
-                    }
+                        ),
+                    )
+                }
 
             return ScannedBook(
                 directory = File(firstFile.filePath).parent ?: "",
-                title = metadata?.album ?: album,
-                author = metadata?.albumArtist ?: metadata?.artist ?: firstFile.artist ?: "Unknown",
+                title = metadata?.album ?: sanitizedAlbum ?: "Unknown Album",
+                author = metadata?.albumArtist ?: metadata?.artist ?: sanitizedAuthorFromMediaStore ?: "Unknown",
                 chapters = chapters,
                 totalDuration = chapters.sumOf { it.duration },
                 coverArt = metadata?.coverArt,

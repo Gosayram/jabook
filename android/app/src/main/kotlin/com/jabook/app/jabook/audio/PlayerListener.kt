@@ -95,6 +95,11 @@ internal class PlayerListener(
     // Prevents multiple rapid updates that can cause UI jank
     private var notificationUpdateJob: kotlinx.coroutines.Job? = null
     private val notificationDebounceMs = 150L
+    private val audioFocusDuckingController =
+        AudioFocusDuckingController(
+            getActivePlayer = getActivePlayer,
+            scope = coroutineScope,
+        )
 
     /**
      * Schedules a debounced notification update.
@@ -674,6 +679,11 @@ internal class PlayerListener(
                 }
             }
         }
+    }
+
+    override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
+        audioFocusDuckingController.onPlaybackSuppressionReasonChanged(playbackSuppressionReason)
+        scheduleNotificationUpdate()
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -1602,5 +1612,12 @@ internal class PlayerListener(
         } else {
             LogUtils.w("AudioPlayerService", "Invalid audio session ID (0), skipping visualizer update")
         }
+    }
+
+    fun release() {
+        notificationUpdateJob?.cancel()
+        notificationUpdateJob = null
+        stopPositionCheck()
+        audioFocusDuckingController.release()
     }
 }
