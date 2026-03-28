@@ -96,17 +96,6 @@ public object NetworkModule {
     }
 
     /**
-     * Provide RetryInterceptor with exponential backoff.
-     */
-    @Provides
-    @Singleton
-    public fun provideRetryInterceptor(
-        loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
-    ): com.jabook.app.jabook.compose.data.network.RetryInterceptor =
-        com.jabook.app.jabook.compose.data.network
-            .RetryInterceptor(loggerFactory)
-
-    /**
      * Provide DynamicBaseUrlInterceptor.
      */
     @Provides
@@ -127,7 +116,6 @@ public object NetworkModule {
         loggingInterceptor: HttpLoggingInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
-        retryInterceptor: com.jabook.app.jabook.compose.data.network.RetryInterceptor,
     ): OkHttpClient =
         OkHttpClient
             .Builder()
@@ -135,18 +123,16 @@ public object NetworkModule {
             // Interceptor order matters! They are called in order:
             // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)
             // 2. RutrackerHeadersInterceptor - Adds User-Agent, Accept, Accept-Language (NO Accept-Encoding!)
-            // 3. RetryInterceptor - Retries failed requests with exponential backoff
-            // 4. AuthInterceptor - Handles session expiry and re-authentication
-            // 5. DynamicBaseUrlInterceptor - Switches between RuTracker mirrors
-            // 6. LoggingInterceptor - Last to log final request/response
+            // 3. AuthInterceptor - Handles session expiry and re-authentication
+            // 4. DynamicBaseUrlInterceptor - Switches between RuTracker mirrors
+            // 5. LoggingInterceptor - Last to log final request/response
             .addInterceptor(BrotliInterceptor) // Automatic Brotli decompression (MUST be first to add Accept-Encoding!)
             .addInterceptor(rutrackerHeadersInterceptor) // Add browser-like headers (NO Accept-Encoding - BrotliInterceptor handles it)
-            .addInterceptor(retryInterceptor) // Retry with exponential backoff
             .addInterceptor(authInterceptor) // Auto re-authentication
             .addInterceptor(dynamicBaseUrlInterceptor) // Dynamic base URL for mirrors
             .addInterceptor(loggingInterceptor) // Logging last for complete request/response
             // Improved timeouts with better defaults
-            .callTimeout(90, TimeUnit.SECONDS) // Total time for entire call (including retries/redirects) - increased for retries
+            .callTimeout(90, TimeUnit.SECONDS) // Total time for entire call
             .connectTimeout(15, TimeUnit.SECONDS) // Time to establish connection - reduced for faster failure detection
             .readTimeout(45, TimeUnit.SECONDS) // Time to read response - increased for large responses
             .writeTimeout(15, TimeUnit.SECONDS) // Time to write request - reduced for faster failure detection
