@@ -74,6 +74,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
@@ -115,7 +116,8 @@ public fun RutrackerSearchScreen(
     // Indexing state
     val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
-    val safeNavigateBack = dropUnlessResumed { onNavigateBack() }
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
     var showIndexingDialog by remember { mutableStateOf(false) }
 
     var showFilters by remember { mutableStateOf(false) }

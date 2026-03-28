@@ -87,6 +87,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
@@ -115,7 +116,8 @@ public fun TopicScreen(
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val isLoadingMoreComments by viewModel.isLoadingMoreComments.collectAsStateWithLifecycle()
-    val safeNavigateBack = dropUnlessResumed { onNavigateBack() }
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var commentsExpanded by remember { mutableStateOf(false) }
@@ -207,6 +209,7 @@ public fun TopicScreen(
                     details = state.details,
                     viewModel = viewModel,
                     isRefreshing = isRefreshing,
+                    isLoadingMoreComments = isLoadingMoreComments,
                     onRefresh = { viewModel.refreshTopicDetails(silent = true) },
                     onNavigateToTopic = onNavigateToTopic,
                     commentsExpanded = commentsExpanded,
@@ -238,6 +241,7 @@ private fun TopicDetailsContent(
     details: RutrackerTopicDetails,
     viewModel: TopicViewModel,
     isRefreshing: Boolean,
+    isLoadingMoreComments: Boolean,
     onRefresh: () -> Unit,
     onNavigateToTopic: (String) -> Unit,
     commentsExpanded: Boolean,

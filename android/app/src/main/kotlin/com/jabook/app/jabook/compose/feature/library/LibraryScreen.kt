@@ -57,6 +57,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
@@ -94,9 +95,10 @@ public fun LibraryScreen(
     val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
     val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val safeNavigateToFavorites = dropUnlessResumed { onNavigateToFavorites() }
-    val safeNavigateToSearch = dropUnlessResumed { onNavigateToSearch() }
-    val safeNavigateToDownloads = dropUnlessResumed { onNavigateToDownloads() }
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateToFavorites = dropUnlessResumed { navigationClickGuard.run(onNavigateToFavorites) }
+    val safeNavigateToSearch = dropUnlessResumed { navigationClickGuard.run(onNavigateToSearch) }
+    val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
 
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
     val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
