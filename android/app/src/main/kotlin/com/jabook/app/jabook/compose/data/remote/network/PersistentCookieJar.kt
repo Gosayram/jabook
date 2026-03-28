@@ -20,6 +20,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -47,6 +48,7 @@ public class PersistentCookieJar
 
             private val Context.cookieDataStore: DataStore<Preferences> by preferencesDataStore(
                 name = DATASTORE_NAME,
+                corruptionHandler = DataStoreCorruptionPolicy.preferencesHandler(storeName = DATASTORE_NAME),
             )
         }
 

@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.data.preferences
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.dataStore
+import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -28,6 +29,11 @@ import javax.inject.Singleton
 private val Context.userPreferencesDataStore: DataStore<UserPreferences> by dataStore(
     fileName = "user_preferences.pb",
     serializer = UserPreferencesSerializer,
+    corruptionHandler =
+        DataStoreCorruptionPolicy.protoHandler(
+            storeName = "user_preferences",
+            defaultValue = UserPreferencesSerializer.defaultValue,
+        ),
 )
 
 /**

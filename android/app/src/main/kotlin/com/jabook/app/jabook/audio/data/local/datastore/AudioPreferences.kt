@@ -22,6 +22,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.map
  */
 private val Context.audioPreferencesDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "audio_preferences",
+    corruptionHandler = DataStoreCorruptionPolicy.preferencesHandler(storeName = "audio_preferences"),
 )
 
 /**

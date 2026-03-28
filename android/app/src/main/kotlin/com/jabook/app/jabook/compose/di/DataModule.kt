@@ -22,6 +22,7 @@ import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.data.repository.DataStoreUserPreferencesRepository
 import com.jabook.app.jabook.compose.data.repository.OfflineFirstBooksRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -31,7 +32,10 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 // Extension property for DataStore
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "jabook_preferences")
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "jabook_preferences",
+    corruptionHandler = DataStoreCorruptionPolicy.preferencesHandler(storeName = "jabook_preferences"),
+)
 
 /**
  * Hilt module for data layer dependencies.
