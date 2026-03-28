@@ -8,6 +8,9 @@ on:
   schedule:
     - cron: '23 16 * * 2'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   trivy-scan:
     name: Trivy Scan
@@ -42,3 +45,49 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
           category: "/trivy"
+
+      - name: Run Trivy table report (non-blocking)
+        if: always()
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          output: 'trivy-results.txt'
+          vuln-type: 'library'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Publish Trivy summary
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          {
+            echo "## Trivy report"
+            echo
+            if [ -f trivy-results.txt ]; then
+              echo '```text'
+              sed -n '1,200p' trivy-results.txt
+              echo '```'
+              if [ "$(wc -l < trivy-results.txt)" -gt 200 ]; then
+                echo
+                echo "_Output truncated to first 200 lines. Full report is in workflow artifacts._"
+              fi
+            else
+              echo "Trivy text report was not generated."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Trivy artifacts
+        if: always() && (hashFiles('trivy-results.sarif') != '' || hashFiles('trivy-results.txt') != '')
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trivy-security-report
+          path: |
+            trivy-results.sarif
+            trivy-results.txt
+          if-no-files-found: ignore
