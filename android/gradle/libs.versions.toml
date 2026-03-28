@@ -54,7 +54,7 @@ media3 = "1.9.3"
 # Network
 okhttp = "5.3.2"
 retrofit = "3.0.0"
-jsoup = "1.21.2"
+jsoup = "1.22.1"
 
 # Image Loading
 coil3 = "3.3.0"
