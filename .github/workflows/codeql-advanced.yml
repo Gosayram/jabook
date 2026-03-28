@@ -34,11 +34,6 @@ jobs:
     permissions:
       # required for all workflows
       security-events: write
-      # required for reviewdog github-pr-check reporter
-      checks: write
-      # required for PR annotations/comments by reviewdog
-      pull-requests: write
-
       # required to fetch internal or private CodeQL packs
       packages: read
 
@@ -67,19 +62,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: Run detekt with reviewdog (non-blocking)
-        if: matrix.language == 'actions' && github.event_name == 'pull_request'
-        continue-on-error: true
-        uses: alaegin/Detekt-Action@31b3733d9abfdae0c8c7d92afea33ed016f66034 # v1.23.8
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reviewdog_reporter: github-pr-check
-          reviewdog_level: warning
-          reviewdog_filter: added
-          fail_on_error: false
-          detekt_excludes: '**/build/**,**/.idea/**'
-          detekt_input: android
-
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
@@ -103,3 +85,27 @@ jobs:
         uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
           category: "/language:${{ matrix.language }}"
+
+  detekt-reviewdog:
+    name: Detekt Reviewdog
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Run detekt with reviewdog (non-blocking)
+        continue-on-error: true
+        uses: alaegin/Detekt-Action@31b3733d9abfdae0c8c7d92afea33ed016f66034 # v1.23.8
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reviewdog_reporter: github-pr-check
+          reviewdog_level: warning
+          reviewdog_filter: nofilter
+          fail_on_error: false
+          detekt_excludes: '**/build/**,**/.idea/**'
+          detekt_input: android
