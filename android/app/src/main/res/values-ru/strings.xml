@@ -1333,6 +1333,7 @@
     <!-- Метка для конца главы -->
     <string name="endOfChapterLabel">Конец главы</string>
     <string name="endOfTrackLabel">Конец трека</string>
+    <string name="endOfTrackFallbackLabel">Конец трека (метаданные глав недоступны)</string>
     <!-- Метка для конца главы -->
     <string name="atEndOfChapterLabel">В конце главы</string>
     <!-- Подсказка для таймера сна с указанием времени -->

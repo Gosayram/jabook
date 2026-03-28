@@ -187,6 +187,15 @@ internal class SleepTimerManager(
         // Note: For "end of chapter" mode, timer will be triggered in onMediaItemTransition
     }
 
+    public fun setSleepTimerEndOfChapterOrFallback(hasChapterModeSupport: Boolean): Boolean {
+        if (hasChapterModeSupport) {
+            setSleepTimerEndOfChapter()
+            return true
+        }
+        setSleepTimerEndOfTrack()
+        return false
+    }
+
     public fun setSleepTimerEndOfTrack() {
         stopTimer() // Stop existing timer if any
 

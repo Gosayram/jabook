@@ -1004,6 +1004,17 @@ public class AudioPlayerService : MediaLibraryService() {
     }
 
     /**
+     * Sets sleep timer to end of chapter when chapter boundaries are available.
+     * Falls back to end of track otherwise.
+     *
+     * @return true when chapter-end mode is active, false when fallback to track-end was applied
+     */
+    public fun setSleepTimerEndOfChapterOrFallback(): Boolean {
+        val hasChapterModeSupport = getActivePlayer().mediaItemCount > 1
+        return sleepTimerManager?.setSleepTimerEndOfChapterOrFallback(hasChapterModeSupport) ?: false
+    }
+
+    /**
      * Sets sleep timer to expire at end of current track.
      */
     public fun setSleepTimerEndOfTrack() {

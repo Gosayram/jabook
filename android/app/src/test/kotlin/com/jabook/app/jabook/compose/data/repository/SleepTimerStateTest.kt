@@ -43,10 +43,12 @@ class SleepTimerStateTest {
     }
 
     @Test
-    fun `EndOfTrack state should be singleton`() {
-        val eot1 = SleepTimerState.EndOfTrack
-        val eot2 = SleepTimerState.EndOfTrack
-        assertEquals(eot1, eot2, "EndOfTrack should be singleton")
+    fun `EndOfTrack state equality should include fallback flag`() {
+        val eot1 = SleepTimerState.EndOfTrack(fallbackFromChapter = false)
+        val eot2 = SleepTimerState.EndOfTrack(fallbackFromChapter = false)
+        val eot3 = SleepTimerState.EndOfTrack(fallbackFromChapter = true)
+        assertEquals(eot1, eot2)
+        assertTrue(eot1 != eot3)
     }
 
     @Test
@@ -87,7 +89,7 @@ class SleepTimerStateTest {
                     SleepTimerState.Idle,
                     SleepTimerState.Active(60),
                     SleepTimerState.EndOfChapter,
-                    SleepTimerState.EndOfTrack,
+                    SleepTimerState.EndOfTrack(),
                 )
 
             var idleCount = 0

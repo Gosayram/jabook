@@ -240,8 +240,12 @@ public class AudioPlayerLibrarySessionCallback(
                 }
             }
             CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER -> {
-                service.setSleepTimerEndOfChapter()
-                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                val chapterModeApplied = service.setSleepTimerEndOfChapterOrFallback()
+                val resultBundle =
+                    Bundle().apply {
+                        putBoolean(ARG_RESULT_FALLBACK_TO_TRACK_END, !chapterModeApplied)
+                    }
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
             }
             CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_TRACK -> {
                 service.setSleepTimerEndOfTrack()
@@ -505,6 +509,7 @@ public class AudioPlayerLibrarySessionCallback(
         public const val ARG_RESULT_ACTIVE: String = "active"
         public const val ARG_RESULT_END_OF_CHAPTER: String = "endOfChapter"
         public const val ARG_RESULT_END_OF_TRACK: String = "endOfTrack"
+        public const val ARG_RESULT_FALLBACK_TO_TRACK_END: String = "fallbackToTrackEnd"
         public const val ARG_RESULT_GROUP_PATH: String = "groupPath"
         public const val ARG_RESULT_FILE_PATHS: String = "filePaths"
 

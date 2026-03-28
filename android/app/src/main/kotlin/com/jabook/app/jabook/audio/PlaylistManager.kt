@@ -339,6 +339,15 @@ internal class PlaylistManager(
     ) = withContext(Dispatchers.IO) {
         val playlistLoadStartTime = System.currentTimeMillis()
         val playlistSize = filePaths.size
+        if (playlistSize == 0) {
+            withContext(Dispatchers.Main) {
+                val activePlayer = getActivePlayer()
+                activePlayer.playWhenReady = false
+                activePlayer.clearMediaItems()
+            }
+            LogUtils.w("AudioPlayerService", "Ignoring empty playlist request")
+            return@withContext
+        }
         val isSmallPlaylist = playlistSize < 50
 
         LogUtils.i(

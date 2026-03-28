@@ -1365,6 +1365,7 @@
     <!-- Label for end of chapter -->
     <string name="endOfChapterLabel">End of chapter</string>
     <string name="endOfTrackLabel">End of track</string>
+    <string name="endOfTrackFallbackLabel">End of track (chapter metadata unavailable)</string>
     <!-- Label for at end of chapter -->
     <string name="atEndOfChapterLabel">At end of chapter</string>
     <!-- Tooltip for sleep timer with duration -->

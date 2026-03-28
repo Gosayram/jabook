@@ -161,7 +161,12 @@ public fun SleepTimerSheet(
 
                 is SleepTimerState.EndOfTrack -> {
                     ActiveTimerContent(
-                        timeText = stringResource(R.string.endOfTrackLabel),
+                        timeText =
+                            if (currentState.fallbackFromChapter) {
+                                stringResource(R.string.endOfTrackFallbackLabel)
+                            } else {
+                                stringResource(R.string.endOfTrackLabel)
+                            },
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )

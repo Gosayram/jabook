@@ -153,7 +153,7 @@ public class SleepTimerRepositoryImpl
                 try {
                     val isEndOfTrack = MediaControllerExtensions.isSleepTimerEndOfTrack(controller)
                     if (isEndOfTrack) {
-                        SleepTimerState.EndOfTrack
+                        SleepTimerState.EndOfTrack()
                     } else {
                         val isEndOfChapter = MediaControllerExtensions.isSleepTimerEndOfChapter(controller)
                         if (isEndOfChapter) {
@@ -220,7 +220,18 @@ public class SleepTimerRepositoryImpl
                                 TimeUnit.SECONDS,
                             )
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
-                            _timerState.value = SleepTimerState.EndOfChapter
+                            val fallbackToTrackEnd =
+                                result.extras.getBoolean(
+                                    com.jabook.app.jabook.audio.AudioPlayerLibrarySessionCallback
+                                        .ARG_RESULT_FALLBACK_TO_TRACK_END,
+                                    false,
+                                )
+                            _timerState.value =
+                                if (fallbackToTrackEnd) {
+                                    SleepTimerState.EndOfTrack(fallbackFromChapter = true)
+                                } else {
+                                    SleepTimerState.EndOfChapter
+                                }
                         }
                     } catch (e: Exception) {
                         logger.e({ "Failed to set sleep timer end of chapter" }, e)
@@ -244,7 +255,7 @@ public class SleepTimerRepositoryImpl
                                 TimeUnit.SECONDS,
                             )
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
-                            _timerState.value = SleepTimerState.EndOfTrack
+                            _timerState.value = SleepTimerState.EndOfTrack()
                         }
                     } catch (e: Exception) {
                         logger.e({ "Failed to set sleep timer end of track" }, e)
