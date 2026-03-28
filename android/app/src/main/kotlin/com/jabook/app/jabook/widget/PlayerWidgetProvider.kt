@@ -780,6 +780,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 this.action = action
                 `package` = context.packageName
                 putExtra(EXTRA_APP_WIDGET_ID, appWidgetId)
+                putExtra(EXTRA_WIDGET_ACTION_CREATED_AT_MS, System.currentTimeMillis())
             }
 
         return PendingIntent.getService(
@@ -858,6 +859,8 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         public const val ACTION_SPEED: String = "com.jabook.app.jabook.WIDGET_SPEED"
         public const val ACTION_TIMER: String = "com.jabook.app.jabook.WIDGET_TIMER"
         public const val EXTRA_APP_WIDGET_ID: String = "com.jabook.app.jabook.EXTRA_APP_WIDGET_ID"
+        public const val EXTRA_WIDGET_ACTION_CREATED_AT_MS: String =
+            "com.jabook.app.jabook.EXTRA_WIDGET_ACTION_CREATED_AT_MS"
 
         /**
          * Requests widget update from anywhere in the app.
