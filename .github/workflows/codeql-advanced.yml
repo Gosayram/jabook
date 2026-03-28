@@ -34,6 +34,10 @@ jobs:
     permissions:
       # required for all workflows
       security-events: write
+      # required for reviewdog github-pr-check reporter
+      checks: write
+      # required for PR annotations/comments by reviewdog
+      pull-requests: write
 
       # required to fetch internal or private CodeQL packs
       packages: read
