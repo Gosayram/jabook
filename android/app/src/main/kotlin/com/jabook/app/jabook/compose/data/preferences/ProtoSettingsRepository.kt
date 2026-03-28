@@ -16,25 +16,30 @@ package com.jabook.app.jabook.compose.data.preferences
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.dataStore
+import androidx.datastore.core.DataStoreFactory
+import androidx.datastore.dataStoreFile
 import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Extension property for Proto DataStore
-private val Context.userPreferencesDataStore: DataStore<UserPreferences> by dataStore(
-    fileName = "user_preferences.pb",
-    serializer = UserPreferencesSerializer,
-    corruptionHandler =
-        DataStoreCorruptionPolicy.protoHandler(
-            storeName = "user_preferences",
-            defaultValue = UserPreferencesSerializer.defaultValue,
-        ),
-)
+private fun createUserPreferencesDataStore(context: Context): DataStore<UserPreferences> =
+    DataStoreFactory.create(
+        serializer = UserPreferencesSerializer,
+        corruptionHandler =
+            DataStoreCorruptionPolicy.protoHandler(
+                storeName = "user_preferences",
+                defaultValue = UserPreferencesSerializer.defaultValue,
+            ),
+        scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+        produceFile = { context.dataStoreFile("user_preferences.pb") },
+    )
 
 /**
  * Repository for managing user settings/preferences.
@@ -167,7 +172,7 @@ public class ProtoSettingsRepository
     constructor(
         @param:ApplicationContext private val context: Context,
     ) : SettingsRepository {
-        private val dataStore = context.userPreferencesDataStore
+        private val dataStore: DataStore<UserPreferences> by lazy { createUserPreferencesDataStore(context) }
 
         override val userPreferences: Flow<UserPreferences> =
             dataStore.data

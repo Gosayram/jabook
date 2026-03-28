@@ -19,11 +19,12 @@ import androidx.annotation.VisibleForTesting
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.preferencesDataStoreFile
 import com.google.crypto.tink.Aead
 import com.google.crypto.tink.aead.AeadConfig
 import com.google.crypto.tink.aead.AesGcmKeyManager
@@ -31,6 +32,9 @@ import com.google.crypto.tink.integration.android.AndroidKeysetManager
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -45,7 +49,7 @@ internal object SecureCredentialStorageFactories {
     internal var aeadFactoryOverride: ((Context) -> Aead)? = null
 
     internal fun dataStore(context: Context): DataStore<Preferences> =
-        dataStoreFactoryOverride?.invoke(context) ?: context.credentialsDataStore
+        dataStoreFactoryOverride?.invoke(context) ?: createCredentialsDataStore(context)
 
     internal fun aead(context: Context): Aead = aeadFactoryOverride?.invoke(context) ?: createDefaultAead(context)
 }
@@ -59,11 +63,12 @@ internal fun secureCredentialsCorruptionHandler(): ReplaceFileCorruptionHandler<
         emptyPreferences()
     }
 
-// Extension property for DataStore
-private val Context.credentialsDataStore: DataStore<Preferences> by preferencesDataStore(
-    name = "secure_credentials",
-    corruptionHandler = secureCredentialsCorruptionHandler(),
-)
+private fun createCredentialsDataStore(context: Context): DataStore<Preferences> =
+    PreferenceDataStoreFactory.create(
+        corruptionHandler = secureCredentialsCorruptionHandler(),
+        scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+        produceFile = { context.preferencesDataStoreFile("secure_credentials") },
+    )
 
 private fun createDefaultAead(context: Context): Aead {
     AeadConfig.register()

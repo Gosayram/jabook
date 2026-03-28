@@ -16,12 +16,16 @@ package com.jabook.app.jabook.compose.data.remote.network
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.preferencesDataStoreFile
 import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.Cookie
@@ -45,14 +49,15 @@ public class PersistentCookieJar
         public companion object {
             private const val DATASTORE_NAME = "cookies"
             private const val COOKIE_SEPARATOR = "||"
-
-            private val Context.cookieDataStore: DataStore<Preferences> by preferencesDataStore(
-                name = DATASTORE_NAME,
-                corruptionHandler = DataStoreCorruptionPolicy.preferencesHandler(storeName = DATASTORE_NAME),
-            )
         }
 
-        private val dataStore = context.cookieDataStore
+        private val dataStore: DataStore<Preferences> by lazy {
+            PreferenceDataStoreFactory.create(
+                corruptionHandler = DataStoreCorruptionPolicy.preferencesHandler(storeName = DATASTORE_NAME),
+                scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+                produceFile = { context.preferencesDataStoreFile(DATASTORE_NAME) },
+            )
+        }
         private val cache = mutableMapOf<String, List<Cookie>>()
 
         override fun saveFromResponse(
