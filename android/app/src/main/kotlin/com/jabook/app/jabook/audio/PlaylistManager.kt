@@ -1212,6 +1212,13 @@ internal class PlaylistManager(
             androidx.media3.common.MediaMetadata
                 .Builder()
                 .setTitle(titleWithFlavor)
+                .setSubtitle(
+                    NotificationChapterSubtitlePolicy.resolveSubtitle(
+                        path = path,
+                        index = index,
+                        metadata = metadata,
+                    ),
+                )
 
         if (providedArtist != null) {
             metadataBuilder.setArtist(providedArtist)
