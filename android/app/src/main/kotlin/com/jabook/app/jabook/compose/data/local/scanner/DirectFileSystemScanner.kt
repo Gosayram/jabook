@@ -126,6 +126,14 @@ public class DirectFileSystemScanner
                         // We still use the first file for Book-level metadata (Author/Cover) usually
                         val firstFile = sortedFiles.first()
                         val firstFileMetadata = metadataCache.getOrParse(File(firstFile.filePath), metadataParser)
+                        val structureType =
+                            BookStructureHeuristics.classify(
+                                fileNames = sortedFiles.map { it.displayName },
+                                hasNestedDirectories =
+                                    File(dir).listFiles()?.any { it.isDirectory } == true,
+                                singleFileDurationMs = firstFileMetadata?.duration,
+                            )
+                        logger.d { "Book structure detected for '$bookName': $structureType" }
 
                         val bookTitle = firstFileMetadata?.album ?: File(dir).name
                         val bookAuthor = firstFileMetadata?.albumArtist ?: firstFileMetadata?.artist ?: "Unknown"
