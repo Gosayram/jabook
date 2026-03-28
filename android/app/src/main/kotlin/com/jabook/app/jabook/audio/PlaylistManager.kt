@@ -20,6 +20,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.ContentDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.FileDataSource
@@ -47,6 +48,38 @@ import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
+
+internal enum class MediaDataSourceRoute {
+    NETWORK_CACHED,
+    LOCAL_FILE,
+    LOCAL_CONTENT,
+    DEFAULT,
+}
+
+internal fun buildPlaybackUri(path: String): Uri {
+    val isUrl = path.startsWith("http://") || path.startsWith("https://")
+    if (isUrl || path.startsWith("content://") || path.startsWith("file://")) {
+        return Uri.parse(path)
+    }
+
+    return Uri.fromFile(File(path))
+}
+
+internal fun resolveMediaDataSourceRoute(uri: Uri): MediaDataSourceRoute =
+    when (uri.scheme) {
+        "http",
+        "https",
+        -> MediaDataSourceRoute.NETWORK_CACHED
+
+        "file",
+        null,
+        -> MediaDataSourceRoute.LOCAL_FILE
+
+        "content",
+        -> MediaDataSourceRoute.LOCAL_CONTENT
+
+        else -> MediaDataSourceRoute.DEFAULT
+    }
 
 /**
  * Manages playlist preparation and MediaSource creation.
@@ -1175,16 +1208,14 @@ internal class PlaylistManager(
      * Helper method to avoid code duplication.
      */
     private fun createUriForPath(path: String): Uri {
-        val isUrl = path.startsWith("http://") || path.startsWith("https://")
-        return if (isUrl) {
-            Uri.parse(path)
-        } else {
-            val file = File(path)
-            if (!file.exists()) {
+        val uri = buildPlaybackUri(path)
+        if (uri.scheme == "file" || uri.scheme == null) {
+            val localPath = uri.path
+            if (localPath.isNullOrEmpty() || !File(localPath).exists()) {
                 LogUtils.w("AudioPlayerService", "File does not exist: $path")
             }
-            Uri.fromFile(file)
         }
+        return uri
     }
 
     /**
@@ -1374,18 +1405,19 @@ internal class PlaylistManager(
             FileDataSource.Factory()
         }
 
+        private val contentDataSourceFactory by lazy {
+            DataSource.Factory { ContentDataSource(context) }
+        }
+
         override fun createDataSource(): DataSource = defaultFactory.createDataSource()
 
-        public fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory {
-            val isNetworkUri = uri.scheme == "http" || uri.scheme == "https"
-            val isLocalFile = uri.scheme == "file" || uri.scheme == null
-
-            return when {
-                isNetworkUri -> cacheFactory
-                isLocalFile -> fileDataSourceFactory
-                else -> defaultFactory
+        public fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory =
+            when (resolveMediaDataSourceRoute(uri)) {
+                MediaDataSourceRoute.NETWORK_CACHED -> cacheFactory
+                MediaDataSourceRoute.LOCAL_FILE -> fileDataSourceFactory
+                MediaDataSourceRoute.LOCAL_CONTENT -> contentDataSourceFactory
+                MediaDataSourceRoute.DEFAULT -> defaultFactory
             }
-        }
     }
 
     /**
