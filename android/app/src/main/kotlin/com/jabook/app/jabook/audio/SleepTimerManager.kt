@@ -192,11 +192,7 @@ internal class SleepTimerManager(
      */
     public fun cancelSleepTimer() {
         stopTimer()
-        sleepTimerEndTime = 0
-        sleepTimerEndOfChapter = false
-        isFixedTimerPaused = false
-        fixedTimerPausedRemainingMillis = null
-        _sleepTimerRemainingSeconds = null
+        clearRuntimeState()
         LogUtils.d("AudioPlayerService", "Sleep timer cancelled")
         saveTimerState()
     }
@@ -422,11 +418,7 @@ internal class SleepTimerManager(
             ) {
                 SleepTimerRestorePlan.None -> {
                     val hadPersistedState = persistedState.endTimeMillis > 0L || persistedState.endOfChapter
-                    sleepTimerEndTime = 0L
-                    sleepTimerEndOfChapter = false
-                    isFixedTimerPaused = false
-                    fixedTimerPausedRemainingMillis = null
-                    _sleepTimerRemainingSeconds = null
+                    clearRuntimeState()
                     if (hadPersistedState) {
                         saveTimerState()
                     }
@@ -441,49 +433,10 @@ internal class SleepTimerManager(
                     LogUtils.d("AudioPlayerService", "Sleep timer restored: end of chapter mode")
                 }
                 is SleepTimerRestorePlan.FixedDuration -> {
-                    val remainingMillis = restorePlan.remainingMillis
-                    val remaining = (remainingMillis / 1000).toInt()
-
-                    sleepTimerEndTime = System.currentTimeMillis() + remainingMillis
-                    sleepTimerEndOfChapter = false
-                    timerOption = TimerOption.FIXED_DURATION
-                    isFixedTimerPaused = restorePlan.paused
-                    fixedTimerPausedRemainingMillis = remainingMillis.takeIf { restorePlan.paused }
-                    _sleepTimerRemainingSeconds = remaining
-
-                    // Restore SuspendableCountDownTimer
-                    suspendableTimer =
-                        SuspendableCountDownTimer(
-                            totalMillis = remainingMillis,
-                            intervalMillis = 500L,
-                            onTickSeconds = { seconds ->
-                                _sleepTimerRemainingSeconds = seconds.toInt()
-                            },
-                            onFinished = {
-                                LogUtils.d("AudioPlayerService", "Restored sleep timer expired, pausing playback")
-                                val player = getActivePlayer()
-                                player.playWhenReady = false
-                                cancelSleepTimer()
-                                sendTimerExpiredEvent()
-                            },
-                        )
-
-                    // Start timer only if player is playing
-                    val player = getActivePlayer()
-                    if (player.isPlaying) {
-                        suspendableTimer?.start()
-                        sleepTimerEndTime = System.currentTimeMillis() + remainingMillis
-                        isFixedTimerPaused = false
-                        fixedTimerPausedRemainingMillis = null
-                    } else {
-                        isFixedTimerPaused = true
-                        fixedTimerPausedRemainingMillis = remainingMillis
-                    }
-
-                    setupPlayerListener()
-                    setupShakeListener()
-
-                    LogUtils.d("AudioPlayerService", "Sleep timer restored: $remaining seconds remaining")
+                    restoreFixedDurationTimer(
+                        remainingMillis = restorePlan.remainingMillis,
+                        paused = restorePlan.paused,
+                    )
                 }
             }
         } catch (e: Exception) {
@@ -498,5 +451,59 @@ internal class SleepTimerManager(
     public fun release() {
         stopTimer()
         LogUtils.d("AudioPlayerService", "SleepTimerManager released")
+    }
+
+    private fun clearRuntimeState() {
+        sleepTimerEndTime = 0L
+        sleepTimerEndOfChapter = false
+        isFixedTimerPaused = false
+        fixedTimerPausedRemainingMillis = null
+        _sleepTimerRemainingSeconds = null
+    }
+
+    private fun restoreFixedDurationTimer(
+        remainingMillis: Long,
+        paused: Boolean,
+    ) {
+        val remaining = (remainingMillis / 1000).toInt()
+
+        sleepTimerEndTime = System.currentTimeMillis() + remainingMillis
+        sleepTimerEndOfChapter = false
+        timerOption = TimerOption.FIXED_DURATION
+        isFixedTimerPaused = paused
+        fixedTimerPausedRemainingMillis = remainingMillis.takeIf { paused }
+        _sleepTimerRemainingSeconds = remaining
+
+        suspendableTimer =
+            SuspendableCountDownTimer(
+                totalMillis = remainingMillis,
+                intervalMillis = 500L,
+                onTickSeconds = { seconds ->
+                    _sleepTimerRemainingSeconds = seconds.toInt()
+                },
+                onFinished = {
+                    LogUtils.d("AudioPlayerService", "Restored sleep timer expired, pausing playback")
+                    val player = getActivePlayer()
+                    player.playWhenReady = false
+                    cancelSleepTimer()
+                    sendTimerExpiredEvent()
+                },
+            )
+
+        val player = getActivePlayer()
+        if (player.isPlaying) {
+            suspendableTimer?.start()
+            sleepTimerEndTime = System.currentTimeMillis() + remainingMillis
+            isFixedTimerPaused = false
+            fixedTimerPausedRemainingMillis = null
+        } else {
+            isFixedTimerPaused = true
+            fixedTimerPausedRemainingMillis = remainingMillis
+        }
+
+        setupPlayerListener()
+        setupShakeListener()
+
+        LogUtils.d("AudioPlayerService", "Sleep timer restored: $remaining seconds remaining")
     }
 }

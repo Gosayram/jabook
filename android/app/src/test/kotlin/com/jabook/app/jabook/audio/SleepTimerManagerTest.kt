@@ -34,6 +34,7 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -156,6 +157,37 @@ class SleepTimerManagerTest {
 
             assertTrue(manager.isSleepTimerActive())
             assertEquals(null, manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
+    fun `set end of chapter survives process recreation without fixed timer listener`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val creator =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            creator.setSleepTimerEndOfChapter()
+
+            val restored =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            restored.restoreTimerState()
+
+            assertTrue(restored.isSleepTimerActive())
+            assertEquals(null, restored.getSleepTimerRemainingSeconds())
+            verify(player, never()).addListener(org.mockito.kotlin.any())
         }
 
     @Test
