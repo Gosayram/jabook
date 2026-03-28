@@ -56,6 +56,10 @@ message UserPreferences {
   
   // Onboarding status
   bool onboarding_completed = 30;
+
+  // Skip Silence advanced tuning
+  float skip_silence_threshold_db = 31; // Recommended range: -40 .. -20 dB
+  int32 skip_silence_min_ms = 32; // Recommended range: 150 .. 300 ms
 }
 
 // Theme mode enum

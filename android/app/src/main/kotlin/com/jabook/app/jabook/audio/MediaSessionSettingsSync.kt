@@ -107,6 +107,12 @@ public class MediaSessionSettingsSync(
                         speechEnhancer = prefs.speechEnhancer,
                         autoVolumeLeveling = prefs.autoVolumeLeveling,
                         skipSilence = prefs.skipSilence,
+                        skipSilenceThresholdNormalized =
+                            com.jabook.app.jabook.audio.processors.SkipSilenceThresholdPolicy
+                                .toNormalizedAmplitude(prefs.skipSilenceThresholdDb),
+                        skipSilenceMinDurationMs =
+                            com.jabook.app.jabook.audio.processors.SkipSilenceThresholdPolicy
+                                .sanitizeMinSilenceMs(prefs.skipSilenceMinMs),
                         isCrossfadeEnabled = prefs.crossfadeEnabled,
                         crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
                     )

@@ -56,6 +56,8 @@ public fun AudioSettingsSheet(
     onUpdateSettings: (
         volumeBoostLevel: VolumeBoostLevel?,
         skipSilence: Boolean?,
+        skipSilenceThresholdDb: Float?,
+        skipSilenceMinMs: Int?,
         normalizeVolume: Boolean?,
         speechEnhancer: Boolean?,
         autoVolumeLeveling: Boolean?,
@@ -90,29 +92,29 @@ public fun AudioSettingsSheet(
                     VolumeBoostChip(
                         label = "Off",
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Off,
-                        onClick = { onUpdateSettings(VolumeBoostLevel.Off, null, null, null, null) },
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Off, null, null, null, null, null, null) },
                     )
                     VolumeBoostChip(
                         label = "+50%",
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost50,
-                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost50, null, null, null, null) },
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost50, null, null, null, null, null, null) },
                     )
                     VolumeBoostChip(
                         label = "+100%",
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost100,
-                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost100, null, null, null, null) },
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost100, null, null, null, null, null, null) },
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     VolumeBoostChip(
                         label = "+200%",
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost200,
-                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost200, null, null, null, null) },
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost200, null, null, null, null, null, null) },
                     )
                     VolumeBoostChip(
                         label = "Auto",
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Auto,
-                        onClick = { onUpdateSettings(VolumeBoostLevel.Auto, null, null, null, null) },
+                        onClick = { onUpdateSettings(VolumeBoostLevel.Auto, null, null, null, null, null, null) },
                     )
                 }
             }
@@ -131,7 +133,7 @@ public fun AudioSettingsSheet(
                 title = "Skip Silence", // TODO: strings.xml
                 description = "Automatically skip silent parts",
                 checked = state.skipSilence,
-                onCheckedChange = { onUpdateSettings(null, it, null, null, null) },
+                onCheckedChange = { onUpdateSettings(null, it, null, null, null, null, null) },
             )
 
             // Normalize Volume
@@ -139,7 +141,7 @@ public fun AudioSettingsSheet(
                 title = "Normalize Volume", // TODO: strings.xml
                 description = "Keep consistent volume across tracks",
                 checked = state.normalizeVolume,
-                onCheckedChange = { onUpdateSettings(null, null, it, null, null) },
+                onCheckedChange = { onUpdateSettings(null, null, null, null, it, null, null) },
             )
 
             // Speech Enhancer
@@ -147,7 +149,7 @@ public fun AudioSettingsSheet(
                 title = "Speech Enhancer", // TODO: strings.xml
                 description = "Clarify voices and reduce background noise",
                 checked = state.speechEnhancer,
-                onCheckedChange = { onUpdateSettings(null, null, null, it, null) },
+                onCheckedChange = { onUpdateSettings(null, null, null, null, null, it, null) },
             )
 
             // Auto Volume Leveling
@@ -155,7 +157,7 @@ public fun AudioSettingsSheet(
                 title = "Auto Leveling", // TODO: strings.xml
                 description = "Adjust volume dynamically",
                 checked = state.autoVolumeLeveling,
-                onCheckedChange = { onUpdateSettings(null, null, null, null, it) },
+                onCheckedChange = { onUpdateSettings(null, null, null, null, null, null, it) },
             )
 
             // Bottom padding for navigation bar

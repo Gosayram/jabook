@@ -68,6 +68,8 @@ public interface SettingsRepository {
         autoVolumeLeveling: Boolean? = null,
         normalizeVolume: Boolean? = null,
         skipSilence: Boolean? = null,
+        skipSilenceThresholdDb: Float? = null,
+        skipSilenceMinMs: Int? = null,
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
     )
@@ -195,6 +197,8 @@ public class ProtoSettingsRepository
             autoVolumeLeveling: Boolean?,
             normalizeVolume: Boolean?,
             skipSilence: Boolean?,
+            skipSilenceThresholdDb: Float?,
+            skipSilenceMinMs: Int?,
             crossfadeEnabled: Boolean?,
             crossfadeDurationMs: Long?,
         ) {
@@ -208,6 +212,8 @@ public class ProtoSettingsRepository
                 autoVolumeLeveling?.let { builder.setAutoVolumeLeveling(it) }
                 normalizeVolume?.let { builder.setNormalizeVolume(it) }
                 skipSilence?.let { builder.setSkipSilence(it) }
+                skipSilenceThresholdDb?.let { builder.setSkipSilenceThresholdDb(it) }
+                skipSilenceMinMs?.let { builder.setSkipSilenceMinMs(it) }
                 crossfadeEnabled?.let { builder.setCrossfadeEnabled(it) }
                 crossfadeDurationMs?.let { builder.setCrossfadeDurationMs(it) }
                 builder.build()

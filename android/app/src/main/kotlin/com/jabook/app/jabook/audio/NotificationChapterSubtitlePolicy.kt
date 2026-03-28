@@ -31,9 +31,9 @@ internal object NotificationChapterSubtitlePolicy {
         val fileBasedTitle =
             if (path.startsWith("http://") || path.startsWith("https://")) {
                 runCatching {
-                    URI(path).path
-                        .substringAfterLast('/')
-                        .substringBeforeLast('.')
+                    val parsedPath = URI(path).path
+                    val fileName = parsedPath.substringAfterLast('/')
+                    fileName.substringBeforeLast('.')
                 }.getOrDefault("")
             } else {
                 File(path).nameWithoutExtension

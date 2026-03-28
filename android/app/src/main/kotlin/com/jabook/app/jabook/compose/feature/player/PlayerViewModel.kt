@@ -348,6 +348,8 @@ public class PlayerViewModel
             val volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel =
                 com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
             val skipSilence: Boolean = false,
+            val skipSilenceThresholdDb: Float = -32.0f,
+            val skipSilenceMinMs: Int = 250,
             val normalizeVolume: Boolean = true,
             val speechEnhancer: Boolean = false,
             val autoVolumeLeveling: Boolean = false,
@@ -369,6 +371,8 @@ public class PlayerViewModel
                                 com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
                             },
                         skipSilence = prefs.skipSilence,
+                        skipSilenceThresholdDb = prefs.skipSilenceThresholdDb,
+                        skipSilenceMinMs = prefs.skipSilenceMinMs,
                         normalizeVolume = prefs.normalizeVolume,
                         speechEnhancer = prefs.speechEnhancer,
                         autoVolumeLeveling = prefs.autoVolumeLeveling,
@@ -523,6 +527,8 @@ public class PlayerViewModel
         public fun updateAudioSettings(
             volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel? = null,
             skipSilence: Boolean? = null,
+            skipSilenceThresholdDb: Float? = null,
+            skipSilenceMinMs: Int? = null,
             normalizeVolume: Boolean? = null,
             speechEnhancer: Boolean? = null,
             autoVolumeLeveling: Boolean? = null,
@@ -531,6 +537,8 @@ public class PlayerViewModel
                 settingsRepository.updateAudioSettings(
                     volumeBoost = volumeBoostLevel?.name,
                     skipSilence = skipSilence,
+                    skipSilenceThresholdDb = skipSilenceThresholdDb,
+                    skipSilenceMinMs = skipSilenceMinMs,
                     normalizeVolume = normalizeVolume,
                     speechEnhancer = speechEnhancer,
                     autoVolumeLeveling = autoVolumeLeveling,

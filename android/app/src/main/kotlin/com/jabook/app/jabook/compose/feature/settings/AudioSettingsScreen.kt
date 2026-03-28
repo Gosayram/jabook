@@ -140,6 +140,34 @@ public fun AudioSettingsScreen(
                 smallSpacing = smallSpacing,
             )
 
+            if (protoSettings.skipSilence) {
+                SettingsSliderItem(
+                    title = stringResource(R.string.skip_silence_threshold_title),
+                    subtitle = stringResource(R.string.skip_silence_threshold_desc),
+                    sliderValue = protoSettings.skipSilenceThresholdDb,
+                    onValueChange = { viewModel.updateAudioSettings(skipSilenceThresholdDb = it) },
+                    valueRange = -40f..-20f,
+                    steps = 19,
+                    valueFormatter = { "${it.toInt()} dB" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+
+                SettingsSliderItem(
+                    title = stringResource(R.string.skip_silence_min_ms_title),
+                    subtitle = stringResource(R.string.skip_silence_min_ms_desc),
+                    sliderValue = protoSettings.skipSilenceMinMs.toFloat(),
+                    onValueChange = { viewModel.updateAudioSettings(skipSilenceMinMs = it.toInt()) },
+                    valueRange = 150f..300f,
+                    steps = 14,
+                    valueFormatter = { "${it.toInt()} ms" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+            }
+
             // Volume Normalization
             SettingsSwitchItem(
                 title = stringResource(R.string.normalizeVolumeTitle),

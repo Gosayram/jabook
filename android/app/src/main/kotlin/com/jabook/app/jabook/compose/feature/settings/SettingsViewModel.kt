@@ -222,6 +222,8 @@ public class SettingsViewModel
             normalizeVolume: Boolean? = null,
             autoVolumeLeveling: Boolean? = null,
             skipSilence: Boolean? = null,
+            skipSilenceThresholdDb: Float? = null,
+            skipSilenceMinMs: Int? = null,
             crossfadeEnabled: Boolean? = null,
             crossfadeDurationMs: Long? = null,
         ) {
@@ -235,6 +237,8 @@ public class SettingsViewModel
                     normalizeVolume = normalizeVolume,
                     autoVolumeLeveling = autoVolumeLeveling,
                     skipSilence = skipSilence,
+                    skipSilenceThresholdDb = skipSilenceThresholdDb,
+                    skipSilenceMinMs = skipSilenceMinMs,
                     crossfadeEnabled = crossfadeEnabled,
                     crossfadeDurationMs = crossfadeDurationMs,
                 )

@@ -49,6 +49,8 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setAutoRewindOnPause(false) // Default: disabled
             .setAutoRewindSeconds(2) // Default: 2 seconds
             .setAutoSwitchMirror(true) // Default: enabled (user can disable if needed)
+            .setSkipSilenceThresholdDb(-32.0f)
+            .setSkipSilenceMinMs(250)
             .build()
 
     override suspend fun readFrom(input: InputStream): UserPreferences =
