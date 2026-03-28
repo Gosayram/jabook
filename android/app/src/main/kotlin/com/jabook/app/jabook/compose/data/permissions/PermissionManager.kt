@@ -49,6 +49,10 @@ public class PermissionManager
             ExternalStoragePreflightChecker(
                 hasFullStoragePermission = { hasStoragePermission() },
             )
+        private val storageTransferWorkflow =
+            StorageTransferWorkflow(
+                preflightChecker = externalStoragePreflightChecker,
+            )
 
         /**
          * Checks if the app has the comprehensive storage permission required for operation.
@@ -139,5 +143,16 @@ public class PermissionManager
             externalStoragePreflightChecker.verifyTransferIntegrity(
                 sourcePath = sourcePath,
                 targetPath = targetPath,
+            )
+
+        public fun transferFileWithRollback(
+            sourcePath: String,
+            targetPath: String,
+            overwrite: Boolean = true,
+        ): StorageTransferWorkflowResult =
+            storageTransferWorkflow.transferFile(
+                sourcePath = sourcePath,
+                targetPath = targetPath,
+                overwrite = overwrite,
             )
     }

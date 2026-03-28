@@ -91,6 +91,7 @@ androidxTestCore = "1.7.0"
 androidxTestExt = "1.3.0"
 robolectric = "4.16"
 truth = "1.4.5"
+jimfs = "1.3.0"
 
 # Code Quality
 ktlint = "14.2.0"
@@ -216,6 +217,7 @@ androidx-test-core = { group = "androidx.test", name = "core", version.ref = "an
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExt" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+jimfs = { group = "com.google.jimfs", name = "jimfs", version.ref = "jimfs" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }

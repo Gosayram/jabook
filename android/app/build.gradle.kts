@@ -467,6 +467,7 @@ dependencies {
 
     // Testing dependencies
     testImplementation(libs.bundles.test)
+    testImplementation(libs.jimfs)
 
     // Firebase - Import the Firebase BoM to manage library versions
     implementation(platform(libs.firebase.bom))
