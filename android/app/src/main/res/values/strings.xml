@@ -300,6 +300,8 @@
     <string name="resume_rewind_title">Resume Rewind After Long Pause</string>
     <string name="resume_rewind_desc">If paused for more than 30 minutes, rewind by selected value when resuming</string>
     <string name="resume_rewind_option_seconds">%1$d s</string>
+    <string name="sleep_timer_shake_extend_title">Shake To Extend Sleep Timer</string>
+    <string name="sleep_timer_shake_extend_desc">Shake device to add 5 minutes to active sleep timer (fixed mode)</string>
     
     <string name="audio_quality_title">Audio Quality</string>
     <string name="crossfade_title">Crossfade</string>

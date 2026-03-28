@@ -79,6 +79,28 @@ public class AudioPlayerServiceInitializer(
                 },
             )
 
+        // 3.1 SleepTimerManager
+        service.sleepTimerManager =
+            SleepTimerManager(
+                context = service,
+                packageName = service.packageName,
+                playerServiceScope = service.playerServiceScope,
+                getActivePlayer = { service.getActivePlayer() },
+                sendBroadcast = { service.sendBroadcast(it) },
+                isShakeToExtendEnabled = {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.userPreferences
+                                .first()
+                                .sleepTimerShakeExtendEnabled
+                        }
+                    } catch (e: Exception) {
+                        true
+                    }
+                },
+            )
+        service.sleepTimerManager?.restoreTimerState()
+
         // 4. PlaylistManager (Complex dependencies)
         service.playlistManager =
             PlaylistManager(

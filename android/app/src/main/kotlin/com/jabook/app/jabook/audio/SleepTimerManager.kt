@@ -20,6 +20,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.PowerManager
 import android.widget.Toast
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -42,6 +43,11 @@ internal class SleepTimerManager(
     private val playerServiceScope: CoroutineScope,
     private val getActivePlayer: () -> ExoPlayer,
     private val sendBroadcast: (Intent) -> Unit,
+    private val isShakeToExtendEnabled: () -> Boolean = { true },
+    private val isPowerSaveModeEnabled: () -> Boolean = {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        powerManager?.isPowerSaveMode == true
+    },
 ) {
     // Sleep timer state
     var sleepTimerEndTime: Long = 0L
@@ -61,6 +67,7 @@ internal class SleepTimerManager(
     private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     private var lastShakeTime: Long = 0L
     private var isTimerExtensionInProgress: Boolean = false
+    private var isShakeListenerRegistered: Boolean = false
     private val shakeThreshold = 1.6f // g-force threshold
     private val shakeDebounceMs = 2000L
 
@@ -311,14 +318,33 @@ internal class SleepTimerManager(
     }
 
     private fun setupShakeListener() {
+        if (!isSleepTimerActive() || timerOption != TimerOption.FIXED_DURATION) {
+            return
+        }
+        if (!isShakeToExtendEnabled()) {
+            LogUtils.d("AudioPlayerService", "Shake listener skipped: feature disabled")
+            return
+        }
+        if (isPowerSaveModeEnabled()) {
+            LogUtils.d("AudioPlayerService", "Shake listener skipped: power save mode is enabled")
+            return
+        }
+        if (isShakeListenerRegistered) {
+            return
+        }
         if (accelerometer != null) {
             sensorManager.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_UI)
+            isShakeListenerRegistered = true
             LogUtils.d("AudioPlayerService", "Shake listener registered")
         }
     }
 
     private fun removeShakeListener() {
+        if (!isShakeListenerRegistered) {
+            return
+        }
         sensorManager.unregisterListener(shakeListener)
+        isShakeListenerRegistered = false
         LogUtils.d("AudioPlayerService", "Shake listener unregistered")
     }
 
@@ -334,6 +360,7 @@ internal class SleepTimerManager(
 
     private fun extendTimer() {
         if (!isSleepTimerActive() || timerOption != TimerOption.FIXED_DURATION) return
+        if (!isShakeToExtendEnabled() || isPowerSaveModeEnabled()) return
         if (isTimerExtensionInProgress) return
 
         isTimerExtensionInProgress = true

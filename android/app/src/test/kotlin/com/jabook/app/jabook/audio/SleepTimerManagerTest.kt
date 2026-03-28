@@ -131,6 +131,52 @@ class SleepTimerManagerTest {
         }
 
     @Test
+    fun `triggerShakeForTesting does not extend timer when shake-to-extend is disabled`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                    isShakeToExtendEnabled = { false },
+                )
+
+            manager.setSleepTimerMinutes(1)
+            manager.triggerShakeForTesting(nowMillis = 1_000L)
+            advanceUntilIdle()
+
+            assertEquals(60, manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
+    fun `triggerShakeForTesting does not extend timer in power save mode`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                    isPowerSaveModeEnabled = { true },
+                )
+
+            manager.setSleepTimerMinutes(1)
+            manager.triggerShakeForTesting(nowMillis = 1_000L)
+            advanceUntilIdle()
+
+            assertEquals(60, manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
     fun `restoreTimerState restores end of chapter mode`() =
         runTest(testDispatcher) {
             timerPrefs()

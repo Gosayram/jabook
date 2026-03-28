@@ -64,6 +64,9 @@ message UserPreferences {
 
   // Resume rewind after long pause (> 30 min): allowed values 0/5/10/30 seconds.
   int32 resume_rewind_seconds = 34;
+
+  // Enable "shake to extend sleep timer" behavior for fixed-duration sleep timer mode.
+  bool sleep_timer_shake_extend_enabled = 35;
 }
 
 // Theme mode enum

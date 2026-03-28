@@ -115,6 +115,18 @@ public fun AudioSettingsScreen(
                 }
             }
 
+            SettingsSwitchItem(
+                title = stringResource(R.string.sleep_timer_shake_extend_title),
+                subtitle = stringResource(R.string.sleep_timer_shake_extend_desc),
+                checked = protoSettings.sleepTimerShakeExtendEnabled,
+                onCheckedChange = {
+                    viewModel.updateAudioSettings(sleepTimerShakeExtendEnabled = it)
+                },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
             // Audio Quality (Phase 1.2 features)
             HorizontalDivider()
             SettingsSection(
