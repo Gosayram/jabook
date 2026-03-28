@@ -72,6 +72,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
@@ -114,6 +115,7 @@ public fun RutrackerSearchScreen(
     // Indexing state
     val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
+    val safeNavigateBack = dropUnlessResumed { onNavigateBack() }
     var showIndexingDialog by remember { mutableStateOf(false) }
 
     var showFilters by remember { mutableStateOf(false) }
@@ -163,7 +165,7 @@ public fun RutrackerSearchScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.search_rutracker)) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = safeNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.close),
