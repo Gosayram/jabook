@@ -15,13 +15,16 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -36,6 +39,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -147,5 +151,51 @@ class PlaylistManagerEdgeCaseTest {
             assertNull(callbackError)
             verify(exoPlayer, never()).clearMediaItems()
             verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
+        }
+
+    @Test
+    fun `preparePlaybackOptimized falls back to polling when deferred track switch times out`() =
+        testScope.runTest {
+            val largePlaylist = (0 until 50).map { index -> "/storage/book/$index.mp3" }
+            val targetIndex = 3
+            val targetPosition = 1_234L
+            var pendingDeferred: CompletableDeferred<Int>? = null
+
+            val timeoutFallbackManager =
+                PlaylistManager(
+                    context = context,
+                    mediaCache = mock(),
+                    getActivePlayer = { exoPlayer },
+                    playerServiceScope = testScope,
+                    mediaItemDispatcher = testDispatcher,
+                    getFlavorSuffix = { "" },
+                    durationManager = mock(),
+                    playerPersistenceManager = mock(),
+                    playbackController = mock(),
+                    getCurrentTrackIndex = { 0 },
+                    setPendingTrackSwitchDeferred = { deferred -> pendingDeferred = deferred },
+                )
+
+            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
+            whenever(exoPlayer.mediaItemCount).thenReturn(largePlaylist.size)
+            whenever(exoPlayer.currentMediaItemIndex).thenReturn(0, 0, targetIndex, targetIndex)
+            whenever(exoPlayer.currentPosition).thenReturn(0L)
+            whenever(exoPlayer.getMediaItemAt(any())).thenReturn(MediaItem.fromUri("file:///storage/book/placeholder.mp3"))
+
+            timeoutFallbackManager.preparePlaybackOptimized(
+                filePaths = largePlaylist,
+                metadata = null,
+                initialTrackIndex = targetIndex,
+                initialPosition = targetPosition,
+            )
+
+            // Trigger deferred timeout branch (5 seconds) and allow fallback polling to run.
+            advanceTimeBy(5_200L)
+            advanceUntilIdle()
+
+            assertTrue(pendingDeferred != null)
+            assertTrue(requireNotNull(pendingDeferred).isCancelled)
+            verify(exoPlayer, times(1)).seekToDefaultPosition(eq(targetIndex))
+            verify(exoPlayer).seekTo(eq(targetIndex), eq(targetPosition))
         }
 }
