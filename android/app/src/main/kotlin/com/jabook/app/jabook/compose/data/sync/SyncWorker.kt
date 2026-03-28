@@ -18,6 +18,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.crash.CrashDiagnostics
 
 /**
  * Worker for periodic data synchronization.
@@ -51,7 +52,9 @@ public class SyncWorker
         }
 
         override suspend fun doWork(): Result {
-            logger.d { "Starting sync work" }
+            val attempt = runAttemptCount + 1
+            val stopReasonAtStart = runCatching { stopReason }.getOrDefault(-1)
+            logger.i { "Starting sync work attempt=$attempt stopReason=$stopReasonAtStart" }
 
             return try {
                 // Sync book metadata
@@ -63,13 +66,32 @@ public class SyncWorker
                 // Clean up old data
                 cleanupOldData()
 
-                logger.d { "Sync completed successfully" }
+                logger.i { "Sync completed successfully attempt=$attempt" }
                 Result.success()
             } catch (e: Exception) {
                 logger.e({ "Sync failed" }, e)
                 if (runAttemptCount < 3) {
+                    logger.w { "Sync scheduled for retry attempt=$attempt stopReason=${runCatching { stopReason }.getOrDefault(-1)}" }
+                    CrashDiagnostics.reportNonFatal(
+                        tag = "sync_worker_retry",
+                        throwable = e,
+                        attributes =
+                            mapOf(
+                                "attempt" to attempt,
+                                "stop_reason" to runCatching { stopReason }.getOrDefault(-1),
+                            ),
+                    )
                     Result.retry()
                 } else {
+                    CrashDiagnostics.reportNonFatal(
+                        tag = "sync_worker_failure",
+                        throwable = e,
+                        attributes =
+                            mapOf(
+                                "attempt" to attempt,
+                                "stop_reason" to runCatching { stopReason }.getOrDefault(-1),
+                            ),
+                    )
                     Result.failure()
                 }
             }

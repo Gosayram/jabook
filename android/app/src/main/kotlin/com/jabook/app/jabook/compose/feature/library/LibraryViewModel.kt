@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -305,7 +306,11 @@ public class LibraryViewModel
 
                 // Track work ID for cancellation
                 currentScanWorkId = scanRequest.id
-                workManager.enqueue(scanRequest)
+                workManager.enqueueUniqueWork(
+                    LibraryScanWorker.WORK_NAME,
+                    ExistingWorkPolicy.REPLACE,
+                    scanRequest,
+                )
 
                 // Observe work progress
                 workManager.getWorkInfoByIdFlow(scanRequest.id).collect { workInfo ->
@@ -337,10 +342,8 @@ public class LibraryViewModel
          * Cancel the currently running library scan.
          */
         public fun cancelLibraryScan() {
-            currentScanWorkId?.let { workId ->
-                workManager.cancelWorkById(workId)
-                currentScanWorkId = null
-            }
+            workManager.cancelUniqueWork(LibraryScanWorker.WORK_NAME)
+            currentScanWorkId = null
             _scanState.value = ScanState.Idle
         }
     }
