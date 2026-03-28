@@ -34,14 +34,22 @@ complexity:
 naming:
   active: false
 
-potential-bugs:
-  active: true
-
 empty-blocks:
   active: true
+  EmptyFunctionBlock:
+    active: false
+  EmptyCatchBlock:
+    active: false
 
 exceptions:
   active: true
+  TooGenericExceptionCaught:
+    active: false
+
+potential-bugs:
+  active: true
+  ImplicitDefaultLocale:
+    active: false
 
 coroutines:
   active: false
@@ -52,6 +60,6 @@ performance:
 style:
   active: false
 
-# We already use ktlint, so keep detekt focused on bug-prone rules.
+# We already use ktlint, so keep detekt focused on high-signal bug-prone rules.
 formatting:
   active: false
