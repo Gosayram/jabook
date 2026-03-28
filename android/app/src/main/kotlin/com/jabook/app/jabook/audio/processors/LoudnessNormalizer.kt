@@ -50,9 +50,15 @@ public class LoudnessNormalizer(
     private val windowSizeMs = 400
     private var windowSizeSamples = 0
 
-    // Use ArrayDeque for O(1) add/remove operations (better than mutableListOf)
-    private val rmsBuffer = ArrayDeque<Float>()
-    private var rmsWindowSum = 0.0f
+    // Keep weighted RMS entries by frame-count, so 400ms window is stable across varying buffer sizes.
+    private data class RmsWindowEntry(
+        val rms: Float,
+        val frames: Int,
+    )
+
+    private val rmsBuffer = ArrayDeque<RmsWindowEntry>()
+    private var rmsWeightedSum = 0.0f
+    private var rmsWindowFrames = 0
 
     // Gain adjustment (in linear scale)
     private var gainMultiplier = 1.0f
@@ -76,14 +82,20 @@ public class LoudnessNormalizer(
 
         // Initialize RMS buffer
         rmsBuffer.clear()
-        rmsWindowSum = 0.0f
+        rmsWeightedSum = 0.0f
+        rmsWindowFrames = 0
         inputBuffers.clear()
         queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
 
-        // Only activate if normalization is enabled
-        isActive = settings.normalizeVolume
+        // Performance guardrails:
+        // - normalize only PCM_16BIT (actual algorithm path)
+        // - disable for invalid channel count
+        isActive =
+            settings.normalizeVolume &&
+            inputAudioFormat.encoding == android.media.AudioFormat.ENCODING_PCM_16BIT &&
+            inputAudioFormat.channelCount > 0
 
         android.util.Log.d(
             "LoudnessNormalizer",
@@ -226,17 +238,23 @@ public class LoudnessNormalizer(
 
         val rms = kotlin.math.sqrt(sumSquares / (samples * channels)).toFloat()
 
-        // Update RMS sliding window using running-sum (O(1) avg calculation)
-        rmsBuffer.addLast(rms)
-        rmsWindowSum += rms
-        if (rmsBuffer.size > windowSizeSamples) {
-            rmsWindowSum -= rmsBuffer.removeFirst()
+        // Update RMS sliding window using frame-weighted running average.
+        // This keeps the intended 400ms horizon independent from varying input buffer sizes.
+        val entryFrames = samples.coerceAtLeast(1)
+        rmsBuffer.addLast(RmsWindowEntry(rms = rms, frames = entryFrames))
+        rmsWeightedSum += rms * entryFrames
+        rmsWindowFrames += entryFrames
+
+        while (rmsWindowFrames > windowSizeSamples && rmsBuffer.isNotEmpty()) {
+            val oldest = rmsBuffer.removeFirst()
+            rmsWeightedSum -= oldest.rms * oldest.frames
+            rmsWindowFrames -= oldest.frames
         }
 
         // Average RMS over the current window in O(1)
         val avgRms =
-            if (rmsBuffer.isNotEmpty()) {
-                rmsWindowSum / rmsBuffer.size
+            if (rmsWindowFrames > 0) {
+                rmsWeightedSum / rmsWindowFrames
             } else {
                 rms
             }
@@ -298,7 +316,8 @@ public class LoudnessNormalizer(
     @Suppress("OVERRIDE_DEPRECATION")
     override fun flush() {
         rmsBuffer.clear()
-        rmsWindowSum = 0.0f
+        rmsWeightedSum = 0.0f
+        rmsWindowFrames = 0
         inputBuffers.clear()
         queuedInputBytes = 0
         outputBuffer = null

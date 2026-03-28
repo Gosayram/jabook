@@ -47,6 +47,8 @@ public class AudioVisualizerManager(
 
     private var visualizer: Visualizer? = null
     private var audioSessionId: Int = 0
+    private var lastRequestedAudioSessionId: Int = 0
+    private var desiredEnabled: Boolean = true
 
     private val _waveformData = MutableStateFlow(FloatArray(CAPTURE_SIZE))
     public val waveformData: StateFlow<FloatArray> = _waveformData.asStateFlow()
@@ -63,23 +65,29 @@ public class AudioVisualizerManager(
     public fun initialize(audioSessionId: Int) {
         if (audioSessionId <= 0) {
             Log.w(TAG, "Invalid audio session id: $audioSessionId, visualizer disabled")
+            lastRequestedAudioSessionId = 0
             release()
             return
         }
 
+        lastRequestedAudioSessionId = audioSessionId
+
         if (this.audioSessionId == audioSessionId && visualizer != null) {
             Log.d(TAG, "Visualizer already initialized with same session")
+            if (desiredEnabled && !_isActive.value) {
+                setEnabled(enabled = true)
+            }
             return
         }
 
         // Check permission
         if (!hasRecordAudioPermission()) {
             Log.w(TAG, "RECORD_AUDIO permission not granted, visualizer disabled")
-            release()
+            release(clearRequestedSessionId = false)
             return
         }
 
-        release()
+        release(clearRequestedSessionId = false)
         this.audioSessionId = audioSessionId
 
         try {
@@ -126,13 +134,13 @@ public class AudioVisualizerManager(
                         true, // fft
                     )
 
-                    enabled = true
-                    _isActive.value = true
+                    enabled = desiredEnabled
+                    _isActive.value = desiredEnabled
                 }
             Log.d(TAG, "Visualizer initialized with session $audioSessionId")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize visualizer", e)
-            release()
+            release(clearRequestedSessionId = false)
         }
     }
 
@@ -140,15 +148,22 @@ public class AudioVisualizerManager(
      * Enable or disable the visualizer.
      */
     public fun setEnabled(enabled: Boolean) {
+        desiredEnabled = enabled
+
         if (enabled && !hasRecordAudioPermission()) {
             Log.w(TAG, "Cannot enable visualizer: RECORD_AUDIO permission not granted")
-            release()
+            release(clearRequestedSessionId = false)
             return
         }
 
         val activeVisualizer = visualizer
         if (activeVisualizer == null) {
-            _isActive.value = false
+            if (enabled && lastRequestedAudioSessionId > 0) {
+                initialize(lastRequestedAudioSessionId)
+            }
+            if (visualizer == null) {
+                _isActive.value = false
+            }
             return
         }
 
@@ -157,7 +172,7 @@ public class AudioVisualizerManager(
             _isActive.value = enabled
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set visualizer enabled state", e)
-            release()
+            release(clearRequestedSessionId = false)
         }
     }
 
@@ -165,11 +180,18 @@ public class AudioVisualizerManager(
      * Release visualizer resources.
      */
     public fun release() {
+        release(clearRequestedSessionId = true)
+    }
+
+    private fun release(clearRequestedSessionId: Boolean) {
         try {
             visualizer?.enabled = false
             visualizer?.release()
             visualizer = null
             audioSessionId = 0
+            if (clearRequestedSessionId) {
+                lastRequestedAudioSessionId = 0
+            }
             _isActive.value = false
             clearVisualizationData()
             Log.d(TAG, "Visualizer released")
@@ -177,6 +199,9 @@ public class AudioVisualizerManager(
             Log.e(TAG, "Failed to release visualizer", e)
             visualizer = null
             audioSessionId = 0
+            if (clearRequestedSessionId) {
+                lastRequestedAudioSessionId = 0
+            }
             _isActive.value = false
             clearVisualizationData()
         }

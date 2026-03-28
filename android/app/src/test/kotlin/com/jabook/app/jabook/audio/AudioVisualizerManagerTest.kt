@@ -117,4 +117,54 @@ class AudioVisualizerManagerTest {
 
         assertFalse(manager.isActive.value)
     }
+
+    @Test
+    fun `setEnabled true reinitializes visualizer after permission is granted`() {
+        var permissionGranted = false
+        var factoryCalls = 0
+
+        val manager =
+            AudioVisualizerManager(
+                context = context,
+                permissionChecker = { permissionGranted },
+                visualizerFactory = {
+                    factoryCalls++
+                    mock()
+                },
+            )
+
+        manager.initialize(audioSessionId = 25)
+        assertEquals(0, factoryCalls)
+
+        permissionGranted = true
+        manager.setEnabled(enabled = true)
+
+        assertEquals(1, factoryCalls)
+        assertTrue(manager.isActive.value)
+    }
+
+    @Test
+    fun `release clears remembered session and setEnabled does not reinitialize`() {
+        var permissionGranted = false
+        var factoryCalls = 0
+
+        val manager =
+            AudioVisualizerManager(
+                context = context,
+                permissionChecker = { permissionGranted },
+                visualizerFactory = {
+                    factoryCalls++
+                    mock()
+                },
+            )
+
+        manager.initialize(audioSessionId = 30)
+        manager.release()
+
+        permissionGranted = true
+        manager.setEnabled(enabled = true)
+
+        assertEquals(0, factoryCalls)
+        assertFalse(manager.isActive.value)
+    }
 }

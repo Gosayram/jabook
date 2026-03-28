@@ -19,6 +19,7 @@ import androidx.media3.common.audio.AudioProcessor
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -83,6 +84,34 @@ class LoudnessNormalizerTest {
         val sample = output.order(ByteOrder.nativeOrder()).short
 
         assertEquals(Short.MAX_VALUE, sample)
+    }
+
+    @Test
+    fun `configure with unsupported encoding keeps processor inactive`() {
+        val format =
+            AudioProcessor.AudioFormat(
+                44_100,
+                1,
+                AudioFormat.ENCODING_PCM_FLOAT,
+            )
+
+        normalizer.configure(format)
+
+        assertFalse(normalizer.isActive())
+    }
+
+    @Test
+    fun `configure with invalid channel count keeps processor inactive`() {
+        val format =
+            AudioProcessor.AudioFormat(
+                44_100,
+                0,
+                AudioFormat.ENCODING_PCM_16BIT,
+            )
+
+        normalizer.configure(format)
+
+        assertFalse(normalizer.isActive())
     }
 
     private fun pcm16Buffer(vararg samples: Int): ByteBuffer =
