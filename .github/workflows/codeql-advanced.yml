@@ -48,8 +48,6 @@ jobs:
         include:
           - language: actions
             build-mode: none
-          - language: java-kotlin
-            build-mode: manual
           - language: python
             build-mode: none
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
@@ -65,32 +63,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: Set up JDK 21
-        if: matrix.language == 'java-kotlin'
-        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Setup Android SDK
-        if: matrix.language == 'java-kotlin'
-        uses: android-actions/setup-android@651bceb6f9ca583f16b8d75b62c36ded2ae6fc9c # v4.0.0
-
-      - name: Validate Android Gradle Wrapper
-        if: matrix.language == 'java-kotlin'
-        run: |
-          if [ -f "android/gradlew" ]; then
-            chmod +x android/gradlew
-            if [ ! -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
-              echo "ERROR: android/gradle/wrapper/gradle-wrapper.properties is missing"
-              exit 1
-            fi
-          else
-            echo "ERROR: android/gradlew not found. Commit Gradle wrapper files to repository."
-            exit 1
-          fi
-
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
@@ -104,17 +76,11 @@ jobs:
           # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
           # queries: security-extended,security-and-quality
 
-      # If the analyze step fails for one of the languages you are analyzing with
-      # "We were unable to automatically build your code", modify the matrix above
-      # to set the build mode to "manual" for that language. Then modify this step
-      # to build your code.
-      # Command-line programs to run using the OS shell.
-      # See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-      - name: Run manual build steps
-        if: matrix.build-mode == 'manual' && matrix.language == 'java-kotlin'
+      - name: Verify Python syntax
+        if: matrix.language == 'python'
         shell: bash
         run: |
-          make compile
+          python3 -m compileall -q rutracker_parser scripts
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
