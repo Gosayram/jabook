@@ -57,7 +57,6 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -72,6 +71,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
@@ -107,13 +107,13 @@ public fun RutrackerSearchScreen(
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
     var searchQuery by remember { mutableStateOf("") }
-    val searchState by viewModel.searchState.collectAsState()
-    val filters by viewModel.filters.collectAsState()
-    val sortOrder by viewModel.sortOrder.collectAsState()
+    val searchState by viewModel.searchState.collectAsStateWithLifecycle()
+    val filters by viewModel.filters.collectAsStateWithLifecycle()
+    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
     // Indexing state
-    val indexingProgress by indexingViewModel.indexingProgress.collectAsState()
-    val isIndexing by indexingViewModel.isIndexing.collectAsState()
+    val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
+    val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
     var showIndexingDialog by remember { mutableStateOf(false) }
 
     var showFilters by remember { mutableStateOf(false) }
