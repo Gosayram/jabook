@@ -48,4 +48,11 @@ public sealed interface SleepTimerState {
      * Timer is set to end of current chapter.
      */
     public data object EndOfChapter : SleepTimerState
+
+    /**
+     * Timer is set to end of current track.
+     */
+    public data class EndOfTrack(
+        val fallbackFromChapter: Boolean = false,
+    ) : SleepTimerState
 }

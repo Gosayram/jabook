@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.network
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -153,6 +154,11 @@ public class MirrorManager
                 } catch (e: Exception) {
                     // Individual mirror unavailable is normal, not a warning
                     logger.i { "Mirror $domain unavailable (timeout or unreachable): ${e.message}" }
+                    CrashDiagnostics.reportNonFatal(
+                        tag = "mirror_health_check_failed",
+                        throwable = e,
+                        attributes = mapOf("mirror_domain" to domain),
+                    )
                     false
                 }
             }
@@ -165,6 +171,7 @@ public class MirrorManager
          * @return true if switched successfully, false if no mirrors are available
          */
         public suspend fun switchToNextMirror(): Boolean {
+            syncStateFromPreferencesSnapshot()
             val currentDomain = _currentMirror.value
             val mirrors = _availableMirrors.value
             val currentIndex = mirrors.indexOf(currentDomain)
@@ -256,5 +263,24 @@ public class MirrorManager
         public suspend fun isAutoSwitchEnabled(): Boolean {
             val prefs = settingsRepository.userPreferences.first()
             return prefs.autoSwitchMirror
+        }
+
+        /**
+         * Synchronize in-memory state with latest persisted preferences snapshot.
+         *
+         * This avoids races where public suspend APIs are called before init collector
+         * has observed the first settings emission.
+         */
+        private suspend fun syncStateFromPreferencesSnapshot() {
+            val prefs = settingsRepository.userPreferences.first()
+            val savedMirror = prefs.selectedMirror
+            if (savedMirror.isNotBlank() && savedMirror != _currentMirror.value) {
+                _currentMirror.value = savedMirror
+            }
+
+            val allMirrors = (DEFAULT_MIRRORS + prefs.customMirrorsList).distinct()
+            if (allMirrors != _availableMirrors.value) {
+                _availableMirrors.value = allMirrors
+            }
         }
     }

@@ -25,7 +25,7 @@ class SleepTimerPersistenceTest {
             SleepTimerPersistence.toPersistedState(
                 SleepTimerRuntimeState(
                     endTimeMillis = 1000L,
-                    endOfChapter = false,
+                    mode = SleepTimerMode.FIXED_DURATION,
                     fixedDurationPaused = false,
                     fixedDurationPausedRemainingMillis = null,
                 ),
@@ -42,6 +42,7 @@ class SleepTimerPersistenceTest {
                     SleepTimerPersistedState(
                         endTimeMillis = 0L,
                         endOfChapter = true,
+                        mode = null,
                         paused = false,
                         pausedRemainingMillis = SleepTimerPersistence.NO_REMAINING_MILLIS,
                     ),
@@ -59,6 +60,7 @@ class SleepTimerPersistenceTest {
                     SleepTimerPersistedState(
                         endTimeMillis = 5_000L,
                         endOfChapter = false,
+                        mode = SleepTimerMode.FIXED_DURATION,
                         paused = true,
                         pausedRemainingMillis = 120_000L,
                     ),
@@ -79,6 +81,7 @@ class SleepTimerPersistenceTest {
                     SleepTimerPersistedState(
                         endTimeMillis = 40_000L,
                         endOfChapter = false,
+                        mode = SleepTimerMode.FIXED_DURATION,
                         paused = false,
                         pausedRemainingMillis = SleepTimerPersistence.NO_REMAINING_MILLIS,
                     ),
@@ -99,6 +102,7 @@ class SleepTimerPersistenceTest {
                     SleepTimerPersistedState(
                         endTimeMillis = 5_000L,
                         endOfChapter = false,
+                        mode = SleepTimerMode.FIXED_DURATION,
                         paused = false,
                         pausedRemainingMillis = SleepTimerPersistence.NO_REMAINING_MILLIS,
                     ),
@@ -106,5 +110,23 @@ class SleepTimerPersistenceTest {
             )
 
         assertTrue(plan is SleepTimerRestorePlan.None)
+    }
+
+    @Test
+    fun `computeRestorePlan returns end of track when mode is track end`() {
+        val plan =
+            SleepTimerPersistence.computeRestorePlan(
+                persistedState =
+                    SleepTimerPersistedState(
+                        endTimeMillis = 0L,
+                        endOfChapter = false,
+                        mode = SleepTimerMode.TRACK_END,
+                        paused = false,
+                        pausedRemainingMillis = SleepTimerPersistence.NO_REMAINING_MILLIS,
+                    ),
+                nowMillis = 10_000L,
+            )
+
+        assertTrue(plan is SleepTimerRestorePlan.EndOfTrack)
     }
 }

@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_14_15
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_15_16
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import dagger.Module
 import dagger.Provides
@@ -316,6 +317,7 @@ public object DatabaseModule {
             MIGRATION_12_13,
             MIGRATION_13_14,
             MIGRATION_14_15,
+            MIGRATION_15_16,
         )
 
     @Provides

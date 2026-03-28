@@ -75,6 +75,7 @@ public class SleepTimerRepositoryImpl
                         when {
                             newState is SleepTimerState.Active -> 1000L // 1 second when active
                             newState is SleepTimerState.EndOfChapter -> 1000L // 1 second for end of chapter
+                            newState is SleepTimerState.EndOfTrack -> 1000L // 1 second for end of track
                             // Immediate check when transitioning to idle
                             lastState !is SleepTimerState.Idle && newState is SleepTimerState.Idle -> 1000L
                             else -> 5000L // 5 seconds when idle
@@ -150,15 +151,20 @@ public class SleepTimerRepositoryImpl
             // Use MediaController custom commands to get timer state
             val newState =
                 try {
-                    val isEndOfChapter = MediaControllerExtensions.isSleepTimerEndOfChapter(controller)
-                    if (isEndOfChapter) {
-                        SleepTimerState.EndOfChapter
+                    val isEndOfTrack = MediaControllerExtensions.isSleepTimerEndOfTrack(controller)
+                    if (isEndOfTrack) {
+                        SleepTimerState.EndOfTrack()
                     } else {
-                        val remaining = MediaControllerExtensions.getSleepTimerRemainingSeconds(controller)
-                        if (remaining != null && remaining > 0) {
-                            SleepTimerState.Active(remaining)
+                        val isEndOfChapter = MediaControllerExtensions.isSleepTimerEndOfChapter(controller)
+                        if (isEndOfChapter) {
+                            SleepTimerState.EndOfChapter
                         } else {
-                            SleepTimerState.Idle
+                            val remaining = MediaControllerExtensions.getSleepTimerRemainingSeconds(controller)
+                            if (remaining != null && remaining > 0) {
+                                SleepTimerState.Active(remaining)
+                            } else {
+                                SleepTimerState.Idle
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -214,13 +220,48 @@ public class SleepTimerRepositoryImpl
                                 TimeUnit.SECONDS,
                             )
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
-                            _timerState.value = SleepTimerState.EndOfChapter
+                            val fallbackToTrackEnd =
+                                result.extras.getBoolean(
+                                    com.jabook.app.jabook.audio.AudioPlayerLibrarySessionCallback
+                                        .ARG_RESULT_FALLBACK_TO_TRACK_END,
+                                    false,
+                                )
+                            _timerState.value =
+                                if (fallbackToTrackEnd) {
+                                    SleepTimerState.EndOfTrack(fallbackFromChapter = true)
+                                } else {
+                                    SleepTimerState.EndOfChapter
+                                }
                         }
                     } catch (e: Exception) {
                         logger.e({ "Failed to set sleep timer end of chapter" }, e)
                     }
                 } else {
                     logger.w { "MediaController not available for startTimerEndOfChapter" }
+                }
+            }
+        }
+
+        override fun startTimerEndOfTrack() {
+            scope.launch {
+                val controller = mediaController
+                if (controller != null) {
+                    try {
+                        val future = MediaControllerExtensions.setSleepTimerEndOfTrack(controller)
+                        val result =
+                            future.get(
+                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
+                                    .toLong(),
+                                TimeUnit.SECONDS,
+                            )
+                        if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
+                            _timerState.value = SleepTimerState.EndOfTrack()
+                        }
+                    } catch (e: Exception) {
+                        logger.e({ "Failed to set sleep timer end of track" }, e)
+                    }
+                } else {
+                    logger.w { "MediaController not available for startTimerEndOfTrack" }
                 }
             }
         }

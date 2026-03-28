@@ -117,6 +117,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
@@ -163,6 +164,7 @@ public fun PlayerScreen(
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
+    val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
 
     // Auto-initialize player when book data is ready
     // Only initialize once when we have Success state with actual chapters
@@ -269,10 +271,7 @@ public fun PlayerScreen(
                 hasRecordAudioPermission = granted
                 if (granted) {
                     playerScreenLogger.d { "RECORD_AUDIO permission granted by user intent" }
-                    @Suppress("DEPRECATION")
-                    com.jabook.app.jabook.audio.AudioPlayerService
-                        .getInstance()
-                        ?.initializeVisualizer()
+                    viewModel.initializeVisualizer()
                 } else {
                     playerScreenLogger.w { "RECORD_AUDIO permission denied by user intent" }
                     scope.launch {
@@ -306,10 +305,7 @@ public fun PlayerScreen(
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         if (alreadyGranted) {
             hasRecordAudioPermission = true
-            @Suppress("DEPRECATION")
-            com.jabook.app.jabook.audio.AudioPlayerService
-                .getInstance()
-                ?.initializeVisualizer()
+            viewModel.initializeVisualizer()
         } else {
             recordAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
         }
@@ -374,6 +370,7 @@ public fun PlayerScreen(
             currentState = sleepTimerState,
             onStartTimer = viewModel::startSleepTimer,
             onStartTimerEndOfChapter = viewModel::startSleepTimerEndOfChapter,
+            onStartTimerEndOfTrack = viewModel::startSleepTimerEndOfTrack,
             onCancelTimer = viewModel::cancelSleepTimer,
             onDismiss = { showSleepTimerSheet = false },
         )
@@ -455,6 +452,7 @@ public fun PlayerScreen(
                                         sleepTimerState = sleepTimerState,
                                         normalizeEnabled = normalizeEnabled,
                                         chapterRepeatMode = chapterRepeatMode,
+                                        visualizerWaveformData = visualizerWaveformData,
                                         onPlayPause = {
                                             clickDebouncer.debounce {
                                                 if (state.isPlaying) viewModel.pause() else viewModel.play()
@@ -499,6 +497,8 @@ public fun PlayerScreen(
                                         onStatsClick = { showStatsOverlay = true },
                                         hasRecordAudioPermission = hasRecordAudioPermission,
                                         onRequestRecordAudioPermission = requestRecordAudioPermission,
+                                        onInitializeVisualizer = viewModel::initializeVisualizer,
+                                        onSetVisualizerEnabled = viewModel::setVisualizerEnabled,
                                         sharedTransitionScope = sharedTransitionScope,
                                         animatedVisibilityScope = animatedVisibilityScope,
                                     )
@@ -555,6 +555,7 @@ private fun PlayerContent(
     sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
     normalizeEnabled: Boolean,
     chapterRepeatMode: ChapterRepeatMode,
+    visualizerWaveformData: FloatArray,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -570,6 +571,8 @@ private fun PlayerContent(
     onStatsClick: () -> Unit,
     hasRecordAudioPermission: Boolean,
     onRequestRecordAudioPermission: () -> Unit,
+    onInitializeVisualizer: () -> Unit,
+    onSetVisualizerEnabled: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
@@ -642,6 +645,7 @@ private fun PlayerContent(
 
     // Lyrics visibility state
     var showLyrics by remember { mutableStateOf(false) }
+    val seekScope = rememberCoroutineScope()
 
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
@@ -728,21 +732,19 @@ private fun PlayerContent(
                 )
 
                 if (showLyrics && !state.lyrics.isNullOrEmpty()) {
-                    state.lyrics?.let { lyrics ->
-                        Box(
-                            modifier =
-                                imageModifier
-                                    .fillMaxWidth(coverWidth)
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(24.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
-                        ) {
-                            LyricsView(
-                                lyrics = lyrics,
-                                currentPosition = state.currentPosition,
-                                onSeek = onSeek,
-                            )
-                        }
+                    Box(
+                        modifier =
+                            imageModifier
+                                .fillMaxWidth(coverWidth)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                    ) {
+                        LyricsView(
+                            lyrics = state.lyrics.orEmpty(),
+                            currentPosition = state.currentPosition,
+                            onSeek = onSeek,
+                        )
                     }
                 } else if (isVinylMode) {
                     VinylCover(
@@ -819,27 +821,67 @@ private fun PlayerContent(
                             .fillMaxWidth()
                             .padding(horizontal = if (isCompact) 4.dp else 0.dp),
                 ) {
-                    // Progress bar with local state to prevent conflicts during dragging
-                    // Using derivedStateOf for performance optimization (inspired by Flow pattern)
-                    val durationMs = state.currentChapter?.duration?.inWholeMilliseconds ?: 0L
-                    val playerProgress by remember(state.currentPosition, durationMs) {
+                    val chapterTimeline by remember(state.chapters, state.currentChapterIndex, state.currentPosition) {
                         derivedStateOf {
-                            if (durationMs > 0 && state.currentPosition >= 0) {
-                                (state.currentPosition.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-                            } else {
-                                0f
-                            }
+                            ChapterSeekbarPolicy.buildTimeline(
+                                chapters = state.chapters,
+                                currentChapterIndex = state.currentChapterIndex,
+                                currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
+                            )
+                        }
+                    }
+                    val playerProgress by remember(chapterTimeline) {
+                        derivedStateOf {
+                            chapterTimeline.progress
                         }
                     }
 
                     // Local state for smooth slider interaction
                     var isDragging by remember { mutableStateOf(false) }
                     var sliderPosition by remember { mutableStateOf(playerProgress) }
+                    var awaitingSeekSync by remember { mutableStateOf(false) }
+                    val previewSeekTarget by remember(state.chapters, sliderPosition) {
+                        derivedStateOf {
+                            ChapterSeekbarPolicy.resolveSeekTarget(
+                                chapters = state.chapters,
+                                progress = sliderPosition,
+                            )
+                        }
+                    }
+                    val currentGlobalPositionMs by remember(
+                        isDragging,
+                        sliderPosition,
+                        chapterTimeline.totalDurationMs,
+                        chapterTimeline.globalPositionMs,
+                    ) {
+                        derivedStateOf {
+                            if (isDragging && chapterTimeline.totalDurationMs > 0) {
+                                (sliderPosition.coerceIn(0f, 1f) * chapterTimeline.totalDurationMs.toFloat()).toLong()
+                            } else {
+                                chapterTimeline.globalPositionMs
+                            }
+                        }
+                    }
 
-                    // Update slider position from player when not dragging
-                    LaunchedEffect(playerProgress) {
-                        if (!isDragging && playerProgress.isFinite() && !playerProgress.isNaN()) {
-                            sliderPosition = playerProgress.coerceIn(0f, 1f)
+                    // Update slider position from player when not dragging.
+                    // After seek, wait briefly for player progress to converge near target to avoid jump-back jitter.
+                    LaunchedEffect(playerProgress, isDragging, awaitingSeekSync) {
+                        val result =
+                            SliderSeekSyncPolicy.resolveFromPlayerProgress(
+                                playerProgress = playerProgress,
+                                currentSliderPosition = sliderPosition,
+                                isDragging = isDragging,
+                                awaitingSeekSync = awaitingSeekSync,
+                            )
+                        sliderPosition = result.sliderPosition
+                        awaitingSeekSync = result.awaitingSeekSync
+                    }
+
+                    // Guard against stale awaiting flag if player progress update is delayed.
+                    LaunchedEffect(awaitingSeekSync) {
+                        if (awaitingSeekSync) {
+                            delay(1500L)
+                            awaitingSeekSync = false
                         }
                     }
 
@@ -847,21 +889,34 @@ private fun PlayerContent(
                         value = sliderPosition,
                         onValueChange = { newProgress ->
                             isDragging = true
-                            sliderPosition = newProgress
+                            awaitingSeekSync = false
+                            sliderPosition = newProgress.coerceIn(0f, 1f)
                         },
                         onValueChangeFinished = {
                             // Seek only when user finishes dragging
-                            state.currentChapter?.let { chapter ->
-                                val durationMs = chapter.duration.inWholeMilliseconds
-                                if (durationMs > 0 && sliderPosition.isFinite() && !sliderPosition.isNaN()) {
-                                    val clampedProgress = sliderPosition.coerceIn(0f, 1f)
-                                    val seekPosition = (clampedProgress * durationMs.toFloat()).toLong().coerceAtLeast(0L)
-                                    onSeek(seekPosition)
+                            if (chapterTimeline.totalDurationMs > 0 && sliderPosition.isFinite()) {
+                                val target =
+                                    ChapterSeekbarPolicy.resolveSeekTarget(
+                                        chapters = state.chapters,
+                                        progress = sliderPosition,
+                                    )
+                                awaitingSeekSync = true
+                                if (target.chapterIndex != state.currentChapterIndex) {
+                                    onSelectChapter(target.chapterIndex)
+                                    seekScope.launch {
+                                        delay(80L)
+                                        onSeek(target.chapterPositionMs)
+                                    }
+                                } else {
+                                    onSeek(target.chapterPositionMs)
                                 }
+                            } else {
+                                awaitingSeekSync = false
                             }
                             isDragging = false
                         },
                         isPlaying = state.isPlaying,
+                        chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
                         activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
                         inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
                         modifier =
@@ -869,11 +924,30 @@ private fun PlayerContent(
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
                                 .semantics {
-                                    val current = formatDuration(state.currentPosition)
-                                    val total = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0)
+                                    val current = formatDuration(currentGlobalPositionMs)
+                                    val total = formatDuration(chapterTimeline.totalDurationMs)
                                     stateDescription = "$current of $total"
                                 },
                     )
+
+                    if (isDragging) {
+                        val previewTitle =
+                            state.chapters
+                                .getOrNull(previewSeekTarget.chapterIndex)
+                                ?.title
+                                .orEmpty()
+                        Text(
+                            text = "${previewSeekTarget.chapterIndex + 1}. $previewTitle",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(bottom = 4.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
 
                     // Time labels
                     Row(
@@ -881,13 +955,13 @@ private fun PlayerContent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = formatDuration(state.currentPosition),
+                            text = formatDuration(currentGlobalPositionMs),
                             style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
 
                         Text(
-                            text = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0),
+                            text = formatDuration(chapterTimeline.totalDurationMs),
                             style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -904,16 +978,12 @@ private fun PlayerContent(
                         val chapterText =
                             stringResource(
                                 R.string.chapterOf,
-                                state.currentChapterIndex + 1,
+                                (if (isDragging) previewSeekTarget.chapterIndex else state.currentChapterIndex) + 1,
                                 state.chapters.size,
                             )
 
                         // Calculate finish time
-                        val remainingMs =
-                            state.currentChapter
-                                ?.duration
-                                ?.inWholeMilliseconds
-                                ?.minus(state.currentPosition) ?: 0
+                        val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
                         val speed = state.playbackSpeed
                         // Avoid division by zero
                         val realRemainingMs = if (speed > 0) (remainingMs / speed).toLong() else remainingMs
@@ -937,35 +1007,25 @@ private fun PlayerContent(
             // Audio Visualizer - hidden on compact screens to save space
             if (!isCompact) {
                 item {
-                    @Suppress("DEPRECATION")
-                    val service =
-                        com.jabook.app.jabook.audio.AudioPlayerService
-                            .getInstance()
                     LaunchedEffect(hasRecordAudioPermission) {
                         if (!hasRecordAudioPermission) {
-                            service?.setVisualizerEnabled(false)
+                            onSetVisualizerEnabled(false)
                         }
                     }
 
                     if (hasRecordAudioPermission) {
-                        // getVisualizerWaveformData() requires direct service access (not available via MediaController)
-                        val waveformData by service
-                            ?.getVisualizerWaveformData()
-                            ?.collectAsStateWithLifecycle()
-                            ?: remember { androidx.compose.runtime.mutableStateOf(FloatArray(256)) }
-
                         // Initialize visualizer only after explicit permission grant
                         LaunchedEffect(state.isPlaying, hasRecordAudioPermission) {
                             if (state.isPlaying) {
-                                service?.initializeVisualizer()
-                                service?.setVisualizerEnabled(true)
+                                onInitializeVisualizer()
+                                onSetVisualizerEnabled(true)
                             } else {
-                                service?.setVisualizerEnabled(false)
+                                onSetVisualizerEnabled(false)
                             }
                         }
 
                         AudioVisualizer(
-                            waveformData = waveformData,
+                            waveformData = visualizerWaveformData,
                             isPlaying = state.isPlaying,
                             style = VisualizerStyle.CIRCULAR,
                             height = 48.dp,
@@ -1260,9 +1320,7 @@ private fun PlayerContent(
                                     Modifier.size(controlButtonIconSize),
                                 )
                                 if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
-                                    val activeState =
-                                        sleepTimerState
-                                            as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active
+                                    val activeState = sleepTimerState
                                     Text(
                                         activeState.formattedTime,
                                         fontSize = controlButtonTextSize,
@@ -1398,9 +1456,7 @@ private fun PlayerContent(
                                 Modifier.size(controlButtonIconSize),
                             )
                             if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
-                                val activeState =
-                                    sleepTimerState
-                                        as com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active
+                                val activeState = sleepTimerState
                                 Text(
                                     activeState.formattedTime,
                                     fontSize = controlButtonTextSize,

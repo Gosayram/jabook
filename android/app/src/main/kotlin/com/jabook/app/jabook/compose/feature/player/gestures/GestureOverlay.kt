@@ -162,7 +162,6 @@ public fun GestureOverlay(
                                         // Value stored in seconds for display
                                         gestureState = gestureState.copy(value = seekMs / 1000f)
                                     }
-                                    else -> {}
                                 }
 
                                 // Consume event so underlying views don't scroll

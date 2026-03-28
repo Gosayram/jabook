@@ -112,28 +112,35 @@ public class DirectFileSystemScanner
 
                         val bookName = File(dir).name
 
-                        // Sort files before parsing (to maintain chapter order)
-                        val sortedFiles =
-                            files.sortedWith(
-                                compareBy(
-                                    { file -> getFileCategory(file.displayName) },
-                                    { file -> extractChapterInfo(file.displayName).toSortKey() },
-                                    { file -> file.displayName.lowercase() },
-                                ),
-                            )
+                        val unsortedFiles = files
 
                         // Detect Book Metadata from FIRST file (as fallback if others fail, or for Album name)
                         // We still use the first file for Book-level metadata (Author/Cover) usually
-                        val firstFile = sortedFiles.first()
+                        val firstFile = unsortedFiles.first()
                         val firstFileMetadata = metadataCache.getOrParse(File(firstFile.filePath), metadataParser)
+                        val structureType =
+                            BookStructureHeuristics.classify(
+                                fileNames = unsortedFiles.map { it.displayName },
+                                hasNestedDirectories =
+                                    File(dir).listFiles()?.any { it.isDirectory } == true,
+                                singleFileDurationMs = firstFileMetadata?.duration,
+                            )
+                        logger.d { "Book structure detected for '$bookName': $structureType" }
 
                         val bookTitle = firstFileMetadata?.album ?: File(dir).name
                         val bookAuthor = firstFileMetadata?.albumArtist ?: firstFileMetadata?.artist ?: "Unknown"
 
-                        val chapters = mutableListOf<ScannedChapter>()
+                        data class ParsedChapter(
+                            val filePath: String,
+                            val displayName: String,
+                            val title: String,
+                            val duration: Long,
+                            val trackNumber: Int?,
+                        )
+                        val parsedChapters = mutableListOf<ParsedChapter>()
 
                         // Parse EVERY file to get duration
-                        for ((chapterIndex, fileInfo) in sortedFiles.withIndex()) {
+                        for (fileInfo in unsortedFiles) {
                             ensureActive() // Granular cancellation check
 
                             // Update progress per FILE
@@ -173,15 +180,39 @@ public class DirectFileSystemScanner
 
                             val finalTitle = if (hasMojibake) fixedTitle else rawTitle
 
-                            chapters.add(
-                                ScannedChapter(
+                            parsedChapters.add(
+                                ParsedChapter(
                                     filePath = fileInfo.filePath,
+                                    displayName = fileInfo.displayName,
                                     title = finalTitle,
-                                    index = chapterIndex,
-                                    duration = metadata?.duration ?: 0L, // HERE IS THE FIX
+                                    duration = metadata?.duration ?: 0L,
+                                    trackNumber = metadata?.trackNumber,
                                 ),
                             )
                         }
+
+                        val chapterOrderComparator = ChapterOrderPolicy.comparator()
+                        val chapters =
+                            parsedChapters
+                                .sortedWith { left, right ->
+                                    chapterOrderComparator.compare(
+                                        ChapterOrderCandidate(
+                                            displayName = left.displayName,
+                                            trackNumber = left.trackNumber,
+                                        ),
+                                        ChapterOrderCandidate(
+                                            displayName = right.displayName,
+                                            trackNumber = right.trackNumber,
+                                        ),
+                                    )
+                                }.mapIndexed { chapterIndex, chapter ->
+                                    ScannedChapter(
+                                        filePath = chapter.filePath,
+                                        title = chapter.title,
+                                        index = chapterIndex,
+                                        duration = chapter.duration,
+                                    )
+                                }
 
                         // Create Book
                         val book =

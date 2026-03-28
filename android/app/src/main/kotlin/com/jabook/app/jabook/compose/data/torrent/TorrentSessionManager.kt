@@ -15,7 +15,11 @@
 package com.jabook.app.jabook.compose.data.torrent
 
 import android.content.Context
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -61,9 +65,15 @@ public class TorrentSessionManager
         private var session: SessionManager? = null
         private val torrents = mutableMapOf<String, TorrentHandle>()
         private val topicIds = mutableMapOf<String, String>()
+        private var lastLibrarySyncTriggerAtMs: Long = 0L
 
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
+
+        private companion object {
+            private const val LIBRARY_SYNC_AFTER_TORRENT_WORK = "library_scan_after_torrent_finish"
+            private const val LIBRARY_SYNC_TRIGGER_COOLDOWN_MS = 3_000L
+        }
 
         private val alertListener =
             object : AlertListener {
@@ -102,11 +112,11 @@ public class TorrentSessionManager
                             is StateUpdateAlert -> handleStateUpdate(alert)
                             is PeerLogAlert -> {
                                 // Log peer-level debugging (can be verbose, so use debug level)
-                                logger.d { "PEER_LOG: ${(alert as PeerLogAlert).logMessage()}" }
+                                logger.d { "PEER_LOG: ${alert.logMessage()}" }
                             }
                             is TorrentLogAlert -> {
                                 // Log torrent-level debugging
-                                logger.d { "TORRENT_LOG: ${(alert as TorrentLogAlert).logMessage()}" }
+                                logger.d { "TORRENT_LOG: ${alert.logMessage()}" }
                             }
                             else -> {
                                 // Log unhandled alerts for debugging (use debug to avoid spam)
@@ -606,10 +616,42 @@ public class TorrentSessionManager
                             "uploaded=${status.totalUpload()} bytes, " +
                             "downloadRate=${status.downloadRate()} bytes/s"
                     }
+                    scheduleImmediateLibrarySync(hash)
                 }
                 updateDownloads()
             } catch (e: Exception) {
                 logger.e({ "Error handling torrent finished alert" }, e)
+            }
+        }
+
+        private fun scheduleImmediateLibrarySync(torrentHash: String) {
+            try {
+                val nowMs = System.currentTimeMillis()
+                if (
+                    !TorrentLibrarySyncTriggerPolicy.shouldTrigger(
+                        lastTriggeredAtMs = lastLibrarySyncTriggerAtMs,
+                        nowMs = nowMs,
+                        cooldownMs = LIBRARY_SYNC_TRIGGER_COOLDOWN_MS,
+                    )
+                ) {
+                    logger.d { "Skip immediate library sync for $torrentHash: cooldown active" }
+                    return
+                }
+
+                val workRequest =
+                    OneTimeWorkRequestBuilder<LibraryScanWorker>()
+                        .addTag("torrent-finished-sync")
+                        .build()
+
+                WorkManager.getInstance(context).enqueueUniqueWork(
+                    LIBRARY_SYNC_AFTER_TORRENT_WORK,
+                    ExistingWorkPolicy.KEEP,
+                    workRequest,
+                )
+                lastLibrarySyncTriggerAtMs = nowMs
+                logger.i { "Scheduled immediate library sync after torrent finish: hash=$torrentHash" }
+            } catch (e: Exception) {
+                logger.e({ "Failed to schedule immediate library sync for hash=$torrentHash" }, e)
             }
         }
 

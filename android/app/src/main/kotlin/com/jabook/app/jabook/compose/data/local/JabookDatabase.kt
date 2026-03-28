@@ -26,6 +26,7 @@ import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
+import com.jabook.app.jabook.compose.data.local.entity.BookFtsEntity
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
@@ -56,10 +57,12 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 13: Added last_updated and index_version fields to cached_topics, plus search indices.
  * Database version 14: Added search indices on title, author, timestamp, and seeders for faster queries.
  * Database version 15: Update cached_topics with fallback category for RuTracker search fix.
+ * Database version 16: Added books_fts (FTS virtual index) for fast local library search.
  */
 @Database(
     entities = [
         BookEntity::class,
+        BookFtsEntity::class,
         ChapterEntity::class,
         SearchHistoryEntity::class,
         CookieEntity::class,
@@ -71,7 +74,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {

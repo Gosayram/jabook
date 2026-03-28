@@ -62,12 +62,17 @@ public interface SettingsRepository {
     public suspend fun updateAudioSettings(
         rewindSeconds: Int? = null,
         forwardSeconds: Int? = null,
+        resumeRewindSeconds: Int? = null,
+        sleepTimerShakeExtendEnabled: Boolean? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
         speechEnhancer: Boolean? = null,
         autoVolumeLeveling: Boolean? = null,
         normalizeVolume: Boolean? = null,
         skipSilence: Boolean? = null,
+        skipSilenceThresholdDb: Float? = null,
+        skipSilenceMinMs: Int? = null,
+        skipSilenceMode: SkipSilenceMode? = null,
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
     )
@@ -189,12 +194,17 @@ public class ProtoSettingsRepository
         override suspend fun updateAudioSettings(
             rewindSeconds: Int?,
             forwardSeconds: Int?,
+            resumeRewindSeconds: Int?,
+            sleepTimerShakeExtendEnabled: Boolean?,
             volumeBoost: String?,
             drcLevel: String?,
             speechEnhancer: Boolean?,
             autoVolumeLeveling: Boolean?,
             normalizeVolume: Boolean?,
             skipSilence: Boolean?,
+            skipSilenceThresholdDb: Float?,
+            skipSilenceMinMs: Int?,
+            skipSilenceMode: SkipSilenceMode?,
             crossfadeEnabled: Boolean?,
             crossfadeDurationMs: Long?,
         ) {
@@ -202,12 +212,17 @@ public class ProtoSettingsRepository
                 val builder = preferences.toBuilder()
                 rewindSeconds?.let { builder.setRewindDurationSeconds(it) }
                 forwardSeconds?.let { builder.setForwardDurationSeconds(it) }
+                resumeRewindSeconds?.let { builder.setResumeRewindSeconds(it) }
+                sleepTimerShakeExtendEnabled?.let { builder.setSleepTimerShakeExtendEnabled(it) }
                 volumeBoost?.let { builder.setVolumeBoostLevel(it) }
                 drcLevel?.let { builder.setDrcLevel(it) }
                 speechEnhancer?.let { builder.setSpeechEnhancer(it) }
                 autoVolumeLeveling?.let { builder.setAutoVolumeLeveling(it) }
                 normalizeVolume?.let { builder.setNormalizeVolume(it) }
                 skipSilence?.let { builder.setSkipSilence(it) }
+                skipSilenceThresholdDb?.let { builder.setSkipSilenceThresholdDb(it) }
+                skipSilenceMinMs?.let { builder.setSkipSilenceMinMs(it) }
+                skipSilenceMode?.let { builder.setSkipSilenceMode(it) }
                 crossfadeEnabled?.let { builder.setCrossfadeEnabled(it) }
                 crossfadeDurationMs?.let { builder.setCrossfadeDurationMs(it) }
                 builder.build()

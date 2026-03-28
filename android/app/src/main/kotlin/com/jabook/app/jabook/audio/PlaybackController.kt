@@ -31,7 +31,7 @@ internal class PlaybackController(
     private val getActivePlayer: () -> ExoPlayer,
     private val playerServiceScope: CoroutineScope,
     private val resetInactivityTimer: () -> Unit,
-    private val getAutoRewindEnabled: () -> Boolean,
+    private val getResumeRewindSeconds: () -> Int,
 ) {
     /**
      * Starts or resumes playback.
@@ -66,38 +66,27 @@ internal class PlaybackController(
                     player.prepare()
                 }
 
-                // Smart Rewind Logic (Audiobook tailored)
-                // Rewind based on how long we were paused
-                val autoRewindEnabled =
+                // Long-pause resume rewind (DataStore-driven: 0/5/10/30 sec).
+                val configuredRewindSeconds =
                     try {
-                        getAutoRewindEnabled()
+                        getResumeRewindSeconds()
                     } catch (e: Exception) {
-                        false
+                        10
                     }
-
-                if (autoRewindEnabled) {
-                    val currentTime = System.currentTimeMillis()
-                    val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else Long.MAX_VALUE
-
-                    // Only rewind if we're not at the very beginning
-                    // And if we're definitely resuming (not starting fresh with 0 duration)
-                    if (player.currentPosition > 5000) {
-                        val rewindMs =
-                            when {
-                                pauseDurationMs < 60_000 -> 0L // < 1 min: No rewind
-                                pauseDurationMs < 600_000 -> 10_000L // 1-10 mins: 10s rewind
-                                else -> 30_000L // > 10 mins (or app restart): 30s rewind
-                            }
-
-                        if (rewindMs > 0) {
-                            val newPos = (player.currentPosition - rewindMs).coerceAtLeast(0L)
-                            player.seekTo(newPos)
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "Smart Rewind: Rewinding ${rewindMs / 1000}s (pause: ${pauseDurationMs / 1000}s)",
-                            )
-                        }
-                    }
+                val currentTime = System.currentTimeMillis()
+                val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else Long.MAX_VALUE
+                val rewindMs =
+                    ResumeRewindPolicy.resolveRewindMs(
+                        pauseDurationMs = pauseDurationMs,
+                        configuredSeconds = configuredRewindSeconds,
+                    )
+                if (rewindMs > 0 && player.currentPosition > 5000L) {
+                    val newPos = (player.currentPosition - rewindMs).coerceAtLeast(0L)
+                    player.seekTo(newPos)
+                    LogUtils.d(
+                        "AudioPlayerService",
+                        "Resume rewind: ${rewindMs / 1000}s after pause ${pauseDurationMs / 1000}s",
+                    )
                 }
 
                 // Match lissen-android: simply set playWhenReady=true
@@ -409,7 +398,8 @@ internal class PlaybackController(
 
         try {
             val playWhenReadyBeforeSeek = player.playWhenReady
-            player.seekTo(trackIndex, positionMs)
+            val adjustedPositionMs = ChapterSeekOffsetPolicy.adjust(positionMs)
+            player.seekTo(trackIndex, adjustedPositionMs)
 
             // Reset inactivity timer (user action)
             resetInactivityTimer()
@@ -527,7 +517,7 @@ internal class PlaybackController(
             // without waiting for all tracks. This provides instant, smooth resume.
             // Only wait for all tracks if target track is NOT the first loaded track.
             val shouldWaitForAllTracks = !isTargetTrackAlreadyCurrent && expectedTrackCount != null
-            val allTracksLoaded = !shouldWaitForAllTracks || mediaItemCount >= (expectedTrackCount ?: 0)
+            val allTracksLoaded = !shouldWaitForAllTracks || mediaItemCount >= expectedTrackCount
 
             if (isPlayerReady && isTrackLoaded && allTracksLoaded) {
                 playerReady = true

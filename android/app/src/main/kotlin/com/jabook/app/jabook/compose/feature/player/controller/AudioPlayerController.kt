@@ -34,10 +34,13 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.inject.Inject
@@ -71,6 +74,15 @@ public class AudioPlayerController
         private val scope = CoroutineScope(Dispatchers.Main)
         private var mediaController: MediaController? = null
         private var mediaControllerFuture: ListenableFuture<MediaController>? = null
+        private var mediaControllerRetryJob: Job? = null
+        private var serviceInitRetryJob: Job? = null
+        private var loadBookRetryJob: Job? = null
+        private var exoFallbackListenerAttached = false
+        private val pendingCommands = ArrayDeque<PendingControllerCommand>()
+        private var pendingLoadRequest: PendingLoadRequest? = null
+        private val maxPendingCommands = 64
+        private var loadBookRetryAttempts: Int = 0
+        private var nextLoadRequestId: Long = 0L
 
         // Playback State
         private val _isPlaying = MutableStateFlow(false)
@@ -109,6 +121,83 @@ public class AudioPlayerController
 
         // Callback for chapter end handling (e.g., repeat logic)
         private var onChapterEndedCallback: (() -> Boolean)? = null
+
+        private data class PendingLoadRequest(
+            val requestId: Long,
+            val filePaths: List<String>,
+            val initialChapterIndex: Int,
+            val initialPosition: Long,
+            val autoPlay: Boolean,
+            val metadata: Map<String, String>?,
+            val bookId: String?,
+            val retryAttempt: Int = 0,
+        )
+
+        private sealed interface PendingControllerCommand {
+            fun execute(controller: MediaController)
+        }
+
+        private data object PlayCommand : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                controller.play()
+            }
+        }
+
+        private data object PauseCommand : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                controller.pause()
+            }
+        }
+
+        private data class SeekToCommand(
+            private val positionMs: Long,
+        ) : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                controller.seekTo(positionMs)
+            }
+        }
+
+        private data object SkipToNextCommand : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                controller.seekToNext()
+            }
+        }
+
+        private data object SkipToPreviousCommand : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                controller.seekToPrevious()
+            }
+        }
+
+        private data class SkipToChapterCommand(
+            private val chapterIndex: Int,
+        ) : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                controller.seekTo(chapterIndex, 0L)
+            }
+        }
+
+        private data class SetPlaybackSpeedCommand(
+            private val speed: Float,
+        ) : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                controller.setPlaybackSpeed(speed)
+            }
+        }
+
+        private data object InitializeVisualizerCommand : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                MediaControllerExtensions.initializeVisualizer(controller)
+            }
+        }
+
+        private data class SetVisualizerEnabledCommand(
+            private val enabled: Boolean,
+        ) : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                MediaControllerExtensions.setVisualizerEnabled(controller, enabled)
+            }
+        }
 
         /**
          * Set callback to handle chapter end events.
@@ -250,14 +339,31 @@ public class AudioPlayerController
          * Uses retry logic to handle cases when service is not yet ready.
          */
         private fun initMediaController(retryCount: Int = 0) {
-            val maxRetries = 5 // Increased from 3 for better resilience
-            val retryDelayMs = 1000L // Increased from 500ms for service startup
+            val maxRetries = 10
+            val retryDelayMs = 1500L
+
+            if (mediaController != null) {
+                _connectionState.value = ConnectionState.CONNECTED
+                return
+            }
+            if (retryCount == 0 &&
+                _connectionState.value == ConnectionState.CONNECTING &&
+                mediaControllerFuture != null
+            ) {
+                logger.d { "MediaController initialization already in progress, skipping duplicate init call" }
+                return
+            }
 
             // CRITICAL: Use Log.e to bypass LogUtils filtering for debugging
             Log.e("JABOOK_CONTROLLER", "initMediaController START (attempt ${retryCount + 1}/$maxRetries)")
             _connectionState.value = ConnectionState.CONNECTING
 
             try {
+                mediaControllerFuture?.let { future ->
+                    MediaController.releaseFuture(future)
+                }
+                mediaControllerFuture = null
+
                 val sessionToken =
                     SessionToken(
                         context,
@@ -282,7 +388,18 @@ public class AudioPlayerController
                                     MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(),
                                     TimeUnit.SECONDS,
                                 )
+                            mediaController?.let { existing ->
+                                if (existing !== controller) {
+                                    existing.removeListener(mediaControllerListener)
+                                    existing.release()
+                                }
+                            }
                             mediaController = controller
+                            // MediaController connected: detach fallback listener to avoid double updates.
+                            if (exoFallbackListenerAttached) {
+                                exoPlayer.removeListener(mediaControllerListener)
+                                exoFallbackListenerAttached = false
+                            }
                             controller?.addListener(mediaControllerListener)
 
                             // Initialize state from MediaController
@@ -293,6 +410,9 @@ public class AudioPlayerController
                                 _currentChapterIndex.value = ctrl.currentMediaItemIndex
                                 updateStats(ctrl)
                                 _connectionState.value = ConnectionState.CONNECTED
+                                mediaControllerRetryJob?.cancel()
+                                mediaControllerRetryJob = null
+                                flushPendingOperations(ctrl)
                                 Log.e(
                                     "JABOOK_CONTROLLER",
                                     "✅ MediaController CONNECTED! isPlaying=${ctrl.isPlaying}, mediaItemCount=${ctrl.mediaItemCount}",
@@ -306,26 +426,21 @@ public class AudioPlayerController
                             logger.w {
                                 "MediaController initialization timeout, retrying... (attempt $retryCount/$maxRetries)"
                             }
-                            if (retryCount < maxRetries) {
-                                // Retry after delay
-                                scope.launch {
-                                    kotlinx.coroutines.delay(retryDelayMs)
-                                    initMediaController(retryCount + 1)
-                                }
-                            } else {
-                                Log.e("JABOOK_CONTROLLER", "❌ TIMEOUT after $maxRetries retries, using ExoPlayer fallback")
-                                logger.e {
-                                    "MediaController initialization failed after $maxRetries retries, using fallback"
-                                }
-                                _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
-                                initializeFromExoPlayer()
-                            }
+                            scheduleMediaControllerRetry(
+                                nextRetryCount = retryCount + 1,
+                                maxRetries = maxRetries,
+                                retryDelayMs = retryDelayMs,
+                                reason = "timeout",
+                            )
                         } catch (e: Exception) {
                             Log.e("JABOOK_CONTROLLER", "❌ Exception in MediaController init: ${e.message}", e)
                             logger.e(e) { "Error initializing MediaController" }
-                            // Fallback: initialize from exoPlayer
-                            _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
-                            initializeFromExoPlayer()
+                            scheduleMediaControllerRetry(
+                                nextRetryCount = retryCount + 1,
+                                maxRetries = maxRetries,
+                                retryDelayMs = retryDelayMs,
+                                reason = "exception",
+                            )
                         }
                     },
                     ContextCompat.getMainExecutor(context),
@@ -333,21 +448,39 @@ public class AudioPlayerController
             } catch (e: Exception) {
                 Log.e("JABOOK_CONTROLLER", "❌ Failed to create SessionToken/MediaController: ${e.message}", e)
                 logger.e(e) { "Failed to create MediaController" }
-                if (retryCount < maxRetries) {
-                    Log.e("JABOOK_CONTROLLER", "Retry ${retryCount + 1}/$maxRetries in ${retryDelayMs}ms...")
-                    // Retry after delay
-                    scope.launch {
-                        kotlinx.coroutines.delay(retryDelayMs)
-                        initMediaController(retryCount + 1)
-                    }
-                } else {
-                    Log.e("JABOOK_CONTROLLER", "❌ FAILED after $maxRetries retries, using ExoPlayer fallback")
-                    logger.e { "MediaController creation failed after $maxRetries retries, using fallback" }
-                    // Fallback: initialize from exoPlayer
-                    _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
-                    initializeFromExoPlayer()
-                }
+                scheduleMediaControllerRetry(
+                    nextRetryCount = retryCount + 1,
+                    maxRetries = maxRetries,
+                    retryDelayMs = retryDelayMs,
+                    reason = "token_creation",
+                )
             }
+        }
+
+        private fun scheduleMediaControllerRetry(
+            nextRetryCount: Int,
+            maxRetries: Int,
+            retryDelayMs: Long,
+            reason: String,
+        ) {
+            if (mediaController != null) {
+                return
+            }
+            if (nextRetryCount > maxRetries) {
+                Log.e("JABOOK_CONTROLLER", "❌ FAILED after $maxRetries retries ($reason), using ExoPlayer fallback")
+                logger.e {
+                    "MediaController initialization failed after $maxRetries retries ($reason), using fallback"
+                }
+                _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
+                initializeFromExoPlayer()
+                return
+            }
+            mediaControllerRetryJob?.cancel()
+            mediaControllerRetryJob =
+                scope.launch {
+                    delay(retryDelayMs)
+                    initMediaController(nextRetryCount)
+                }
         }
 
         /**
@@ -363,7 +496,10 @@ public class AudioPlayerController
             )
             logger.w { "Using ExoPlayer fallback during MediaController initialization" }
             // Attach listener to singleton ExoPlayer as fallback
-            exoPlayer.addListener(mediaControllerListener)
+            if (!exoFallbackListenerAttached) {
+                exoPlayer.addListener(mediaControllerListener)
+                exoFallbackListenerAttached = true
+            }
             // Initialize state
             _isPlaying.value = exoPlayer.isPlaying
             _currentPosition.value = exoPlayer.currentPosition
@@ -371,6 +507,90 @@ public class AudioPlayerController
             _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
             updateStats(exoPlayer)
             Log.e("JABOOK_CONTROLLER", "Fallback initialized: isPlaying=${_isPlaying.value}, position=${_currentPosition.value}")
+        }
+
+        private fun enqueueCommand(
+            command: PendingControllerCommand,
+            commandName: String,
+        ) {
+            coalescePendingCommands(command)
+            if (command is InitializeVisualizerCommand &&
+                pendingCommands.any { it is InitializeVisualizerCommand }
+            ) {
+                logger.d {
+                    "Skip duplicate queued command '$commandName' while MediaController is not ready"
+                }
+                return
+            }
+            if (pendingCommands.size >= maxPendingCommands) {
+                pendingCommands.removeFirstOrNull()
+            }
+            pendingCommands.addLast(command)
+            logger.w {
+                "Queued command '$commandName' while MediaController is not ready (queueSize=${pendingCommands.size})"
+            }
+        }
+
+        private fun coalescePendingCommands(newCommand: PendingControllerCommand) {
+            val incomingType = mapToDeferredCommandType(newCommand)
+            pendingCommands.removeAll { existing ->
+                val existingType = mapToDeferredCommandType(existing)
+                DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                    existing = existingType,
+                    incoming = incomingType,
+                )
+            }
+        }
+
+        private fun mapToDeferredCommandType(command: PendingControllerCommand): DeferredCommandType =
+            when (command) {
+                PlayCommand,
+                PauseCommand,
+                -> DeferredCommandType.PLAYBACK_TOGGLE
+
+                is SeekToCommand -> DeferredCommandType.SEEK
+
+                SkipToNextCommand,
+                SkipToPreviousCommand,
+                is SkipToChapterCommand,
+                -> DeferredCommandType.SKIP
+
+                is SetPlaybackSpeedCommand -> DeferredCommandType.SPEED
+
+                is SetVisualizerEnabledCommand -> DeferredCommandType.VISUALIZER_ENABLED
+
+                InitializeVisualizerCommand -> DeferredCommandType.VISUALIZER_INITIALIZE
+            }
+
+        private fun flushPendingOperations(controller: MediaController) {
+            val pendingLoad = pendingLoadRequest
+            if (pendingLoad != null) {
+                pendingLoadRequest = null
+                loadBookInternal(pendingLoad, resetRetryState = false)
+            }
+
+            while (pendingCommands.isNotEmpty()) {
+                val command = pendingCommands.removeFirst()
+                try {
+                    command.execute(controller)
+                } catch (e: Exception) {
+                    logger.e(e) { "Failed to execute queued MediaController command" }
+                }
+            }
+        }
+
+        private fun executeOrQueue(
+            commandName: String,
+            pendingCommand: PendingControllerCommand,
+            action: (MediaController) -> Unit,
+        ) {
+            val controller = mediaController
+            if (controller != null) {
+                action(controller)
+                return
+            }
+            enqueueCommand(pendingCommand, commandName)
+            ensureControllerReady()
         }
 
         public fun setPitchCorrectionEnabled(enabled: Boolean) {
@@ -388,37 +608,73 @@ public class AudioPlayerController
             metadata: Map<String, String>? = null,
             bookId: String? = null,
         ) {
+            val request =
+                PendingLoadRequest(
+                    requestId = nextRequestId(),
+                    filePaths = filePaths,
+                    initialChapterIndex = initialChapterIndex,
+                    initialPosition = initialPosition,
+                    autoPlay = autoPlay,
+                    metadata = metadata,
+                    bookId = bookId,
+                    retryAttempt = 0,
+                )
+            loadBookInternal(request, resetRetryState = true)
+        }
+
+        private fun loadBookInternal(
+            request: PendingLoadRequest,
+            resetRetryState: Boolean,
+        ) {
+            if (resetRetryState) {
+                // New user-initiated load should invalidate any previously scheduled retry.
+                loadBookRetryJob?.cancel()
+                loadBookRetryJob = null
+                pendingLoadRequest = null
+                loadBookRetryAttempts = 0
+            }
+
             startService()
 
             // CRITICAL: Check if we're switching to a different book
             val previousBookId = _currentBookId.value
-            val isBookChanged = bookId != null && bookId != previousBookId
+            val isBookChanged = request.bookId != null && request.bookId != previousBookId
 
             if (isBookChanged) {
-                logger.i { "Book changed: $previousBookId -> $bookId. Resetting state." }
+                logger.i { "Book changed: $previousBookId -> ${request.bookId}. Resetting state." }
                 // Reset state to avoid showing old book's data
-                _currentPosition.value = initialPosition.toLong()
-                _currentChapterIndex.value = initialChapterIndex
+                _currentPosition.value = request.initialPosition
+                _currentChapterIndex.value = request.initialChapterIndex
                 _isPlaying.value = false
             }
 
             // Update current book ID
-            _currentBookId.value = bookId
+            _currentBookId.value = request.bookId
 
             // Use MediaController for all operations including setPlaylist
             val controller = mediaController
             if (controller == null) {
-                // MediaController not ready, retry asynchronously
-                logger.d { "MediaController not ready, retrying asynchronously..." }
-                scope.launch {
-                    kotlinx.coroutines.delay(500L)
-                    if (mediaController != null) {
-                        // Retry loadBook with ready MediaController
-                        loadBook(filePaths, initialChapterIndex, initialPosition, autoPlay, metadata, bookId)
-                    } else {
-                        logger.e { "MediaController not available after retry" }
+                pendingLoadRequest =
+                    PendingLoadRequest(
+                        requestId = request.requestId,
+                        filePaths = request.filePaths,
+                        initialChapterIndex = request.initialChapterIndex,
+                        initialPosition = request.initialPosition,
+                        autoPlay = request.autoPlay,
+                        metadata = request.metadata,
+                        bookId = request.bookId,
+                        retryAttempt = request.retryAttempt,
+                    )
+                logger.w { "Queued loadBook request while MediaController is not ready" }
+                loadBookRetryJob?.cancel()
+                loadBookRetryJob =
+                    scope.launch {
+                        delay(1200L)
+                        if (mediaController == null) {
+                            ensureControllerReady()
+                        }
                     }
-                }
+                ensureControllerReady()
                 return
             }
 
@@ -429,12 +685,12 @@ public class AudioPlayerController
                     val currentGroupPath = MediaControllerExtensions.getCurrentGroupPath(controller)
                     val currentPaths = MediaControllerExtensions.getCurrentFilePaths(controller)
 
-                    val isSameBook = bookId != null && bookId == currentGroupPath
+                    val isSameBook = request.bookId != null && request.bookId == currentGroupPath
                     // Compare playlists by content, not by reference, to handle sorted paths
                     val isSamePlaylist =
                         currentPaths != null &&
-                            currentPaths.size == filePaths.size &&
-                            currentPaths.sorted() == filePaths.sorted()
+                            currentPaths.size == request.filePaths.size &&
+                            currentPaths.sorted() == request.filePaths.sorted()
 
                     if ((isSameBook || isSamePlaylist) && !isBookChanged) {
                         logger.i {
@@ -443,16 +699,20 @@ public class AudioPlayerController
 
                         // Handle seeking if needed (e.g. user clicked a specific chapter)
                         // Only seek if significantly different to allow resume logic to work
-                        if (initialChapterIndex != controller.currentMediaItemIndex) {
-                            controller.seekTo(initialChapterIndex, 0L)
+                        if (request.initialChapterIndex != controller.currentMediaItemIndex) {
+                            controller.seekTo(request.initialChapterIndex, 0L)
                         }
-                        if (initialPosition > 0L && Math.abs(controller.currentPosition - initialPosition) > 1000L) {
-                            controller.seekTo(initialPosition)
+                        if (request.initialPosition > 0L &&
+                            Math.abs(controller.currentPosition - request.initialPosition) > 1000L
+                        ) {
+                            controller.seekTo(request.initialPosition)
                         }
 
-                        if (autoPlay && !controller.isPlaying) {
+                        if (request.autoPlay && !controller.isPlaying) {
                             controller.play()
                         }
+                        pendingLoadRequest = null
+                        loadBookRetryAttempts = 0
                         return@launch
                     }
 
@@ -460,68 +720,166 @@ public class AudioPlayerController
                     val future =
                         MediaControllerExtensions.setPlaylist(
                             controller = controller,
-                            filePaths = filePaths,
-                            metadata = metadata,
-                            initialTrackIndex = initialChapterIndex,
-                            initialPosition = initialPosition.toLong(),
-                            groupPath = bookId,
+                            filePaths = request.filePaths,
+                            metadata = request.metadata,
+                            initialTrackIndex = request.initialChapterIndex,
+                            initialPosition = request.initialPosition,
+                            groupPath = request.bookId,
                         )
 
                     // Wait for result
-                    val result = future.get(30, TimeUnit.SECONDS)
-                    if (result.resultCode == SessionResult.RESULT_SUCCESS && autoPlay) {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            future.get(30, TimeUnit.SECONDS)
+                        }
+                    if (result.resultCode == SessionResult.RESULT_SUCCESS && request.autoPlay) {
                         controller.play()
                     } else if (result.resultCode != SessionResult.RESULT_SUCCESS) {
                         logger.e {
                             "setPlaylist failed with code: ${result.resultCode}"
                         }
+                        scheduleLoadBookRetry(request, "result=${result.resultCode}")
+                        return@launch
                     }
+                    pendingLoadRequest = null
+                    loadBookRetryAttempts = 0
                 } catch (e: Exception) {
                     logger.e({ "Error in loadBook" }, e)
+                    scheduleLoadBookRetry(request, "exception=${e::class.java.simpleName}")
                 }
             }
         }
 
+        private fun scheduleLoadBookRetry(
+            request: PendingLoadRequest,
+            reason: String,
+        ) {
+            val nextAttempt = request.retryAttempt + 1
+            if (!LoadBookRetryPolicy.shouldRetry(nextAttempt)) {
+                logger.e {
+                    "loadBook retry limit reached for ${request.bookId ?: "unknown-book"} after ${request.retryAttempt} attempts ($reason)"
+                }
+                pendingLoadRequest = null
+                loadBookRetryAttempts = request.retryAttempt
+                return
+            }
+
+            val delayedRequest =
+                request.copy(
+                    retryAttempt = nextAttempt,
+                )
+            pendingLoadRequest = delayedRequest
+            loadBookRetryAttempts = nextAttempt
+            val delayMs = LoadBookRetryPolicy.retryDelayMs(nextAttempt)
+
+            loadBookRetryJob?.cancel()
+            loadBookRetryJob =
+                scope.launch {
+                    delay(delayMs)
+                    if (pendingLoadRequest?.requestId != delayedRequest.requestId) {
+                        return@launch
+                    }
+                    pendingLoadRequest = null
+                    loadBookInternal(
+                        request = delayedRequest,
+                        resetRetryState = false,
+                    )
+                }
+            logger.w {
+                "Scheduling loadBook retry #$nextAttempt in ${delayMs}ms for ${request.bookId ?: "unknown-book"} ($reason)"
+            }
+        }
+
+        private fun nextRequestId(): Long {
+            nextLoadRequestId += 1L
+            return nextLoadRequestId
+        }
+
         public fun play() {
-            startService()
-            mediaController?.play() ?: run {
-                logger.w { "MediaController not available for play(), service may not be ready" }
+            executeOrQueue(
+                commandName = "play",
+                pendingCommand = PlayCommand,
+            ) { controller ->
+                controller.play()
             }
         }
 
         public fun pause() {
-            mediaController?.pause() ?: run {
-                logger.w { "MediaController not available for pause(), service may not be ready" }
+            executeOrQueue(
+                commandName = "pause",
+                pendingCommand = PauseCommand,
+            ) { controller ->
+                controller.pause()
             }
         }
 
         public fun seekTo(positionMs: Long) {
-            mediaController?.seekTo(positionMs) ?: run {
-                logger.w { "MediaController not available for seekTo(), service may not be ready" }
+            executeOrQueue(
+                commandName = "seekTo",
+                pendingCommand = SeekToCommand(positionMs),
+            ) { controller ->
+                controller.seekTo(positionMs)
             }
         }
 
         public fun skipToNext() {
-            mediaController?.seekToNext() ?: run {
-                logger.w { "MediaController not available for skipToNext(), service may not be ready" }
+            executeOrQueue(
+                commandName = "skipToNext",
+                pendingCommand = SkipToNextCommand,
+            ) { controller ->
+                controller.seekToNext()
             }
         }
 
         public fun skipToPrevious() {
-            mediaController?.seekToPrevious() ?: run {
-                logger.w { "MediaController not available for skipToPrevious(), service may not be ready" }
+            executeOrQueue(
+                commandName = "skipToPrevious",
+                pendingCommand = SkipToPreviousCommand,
+            ) { controller ->
+                controller.seekToPrevious()
             }
         }
 
         public fun skipToChapter(index: Int) {
-            mediaController?.seekTo(index, 0L) ?: run {
-                logger.w { "MediaController not available for skipToChapter(), service may not be ready" }
+            executeOrQueue(
+                commandName = "skipToChapter",
+                pendingCommand = SkipToChapterCommand(index),
+            ) { controller ->
+                controller.seekTo(index, 0L)
             }
         }
 
         public fun setPlaybackSpeed(speed: Float) {
-            mediaController?.setPlaybackSpeed(speed) ?: run {
-                logger.w { "MediaController not available for setPlaybackSpeed(), service may not be ready" }
+            executeOrQueue(
+                commandName = "setPlaybackSpeed",
+                pendingCommand = SetPlaybackSpeedCommand(speed),
+            ) { controller ->
+                controller.setPlaybackSpeed(speed)
+            }
+        }
+
+        public fun initializeVisualizer() {
+            executeOrQueue(
+                commandName = "initializeVisualizer",
+                pendingCommand = InitializeVisualizerCommand,
+            ) { controller ->
+                MediaControllerExtensions.initializeVisualizer(controller)
+            }
+        }
+
+        public fun setVisualizerEnabled(enabled: Boolean) {
+            executeOrQueue(
+                commandName = "setVisualizerEnabled",
+                pendingCommand = SetVisualizerEnabledCommand(enabled),
+            ) { controller ->
+                MediaControllerExtensions.setVisualizerEnabled(controller, enabled)
+            }
+        }
+
+        private fun ensureControllerReady() {
+            startService()
+            if (mediaController == null && mediaControllerFuture == null) {
+                initMediaController()
             }
         }
 
@@ -542,13 +900,15 @@ public class AudioPlayerController
                 context.startService(intent)
 
                 // Retry MediaController initialization after service start
-                scope.launch {
-                    kotlinx.coroutines.delay(500L) // Wait for service to initialize
-                    if (mediaController == null) {
-                        logger.d { "Retrying MediaController initialization after service start" }
-                        initMediaController()
+                serviceInitRetryJob?.cancel()
+                serviceInitRetryJob =
+                    scope.launch {
+                        delay(1000L) // Wait for service to initialize
+                        if (mediaController == null) {
+                            logger.d { "Retrying MediaController initialization after service start" }
+                            initMediaController()
+                        }
                     }
-                }
             } catch (e: Exception) {
                 logger.e(
                     e,
@@ -562,6 +922,20 @@ public class AudioPlayerController
          * Should be called when controller is no longer needed.
          */
         public fun release() {
+            mediaControllerRetryJob?.cancel()
+            mediaControllerRetryJob = null
+            serviceInitRetryJob?.cancel()
+            serviceInitRetryJob = null
+            loadBookRetryJob?.cancel()
+            loadBookRetryJob = null
+            pendingLoadRequest = null
+            loadBookRetryAttempts = 0
+            pendingCommands.clear()
+
+            if (exoFallbackListenerAttached) {
+                exoPlayer.removeListener(mediaControllerListener)
+                exoFallbackListenerAttached = false
+            }
             mediaController?.removeListener(mediaControllerListener)
             mediaController?.release()
             mediaController = null
@@ -569,5 +943,6 @@ public class AudioPlayerController
                 MediaController.releaseFuture(it)
             }
             mediaControllerFuture = null
+            _connectionState.value = ConnectionState.DISCONNECTED
         }
     }

@@ -276,6 +276,11 @@
     <string name="playback_general">Общие настройки</string>
     <string name="auto_rewind_title">Перемотка при паузе</string>
     <string name="auto_rewind_desc">Перематывать на 2 секунды назад при возобновлении после долгой паузы</string>
+    <string name="resume_rewind_title">Перемотка при возобновлении после долгой паузы</string>
+    <string name="resume_rewind_desc">Если пауза длится более 30 минут, при возобновлении перемотать назад на выбранное значение</string>
+    <string name="resume_rewind_option_seconds">%1$d с</string>
+    <string name="sleep_timer_shake_extend_title">Встряхивание для продления таймера сна</string>
+    <string name="sleep_timer_shake_extend_desc">Встряхните устройство, чтобы добавить 5 минут к активному таймеру сна (фиксированный режим)</string>
 
     <string name="audio_quality_title">Качество аудио</string>
     <string name="crossfade_title">Плавный переход (Crossfade)</string>
@@ -284,6 +289,14 @@
 
     <string name="skip_silence_title">Пропуск тишины</string>
     <string name="skip_silence_desc">Пропускать тихие участки в аудио</string>
+    <string name="skip_silence_threshold_title">Порог тишины</string>
+    <string name="skip_silence_threshold_desc">Ниже значение — сохраняет больше тихой речи, выше — сильнее пропускает паузы</string>
+    <string name="skip_silence_min_ms_title">Мин. длительность тишины</string>
+    <string name="skip_silence_min_ms_desc">Тишина короче этого значения не будет пропускаться</string>
+    <string name="skip_silence_mode_title">Режим пропуска тишины</string>
+    <string name="skip_silence_mode_desc">Пропуск полностью убирает длинные паузы, Ускорение только сокращает их</string>
+    <string name="skip_silence_mode_skip">Пропуск</string>
+    <string name="skip_silence_mode_speed_up">Ускорение</string>
     <!-- Заголовок настроек улучшения звука -->
     <string name="audioEnhancementTitle">Улучшение звука</string>
     <!-- Описание настроек улучшения звука -->
@@ -1319,6 +1332,8 @@
     <string name="cancelTimerButton">Отменить таймер</string>
     <!-- Метка для конца главы -->
     <string name="endOfChapterLabel">Конец главы</string>
+    <string name="endOfTrackLabel">Конец трека</string>
+    <string name="endOfTrackFallbackLabel">Конец трека (метаданные глав недоступны)</string>
     <!-- Метка для конца главы -->
     <string name="atEndOfChapterLabel">В конце главы</string>
     <!-- Подсказка для таймера сна с указанием времени -->

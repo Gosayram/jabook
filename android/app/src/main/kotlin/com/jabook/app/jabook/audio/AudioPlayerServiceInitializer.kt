@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
@@ -64,19 +65,41 @@ public class AudioPlayerServiceInitializer(
                 getActivePlayer = { service.getActivePlayer() },
                 playerServiceScope = service.playerServiceScope,
                 resetInactivityTimer = { service.inactivityTimer?.resetTimer() },
-                getAutoRewindEnabled = {
-                    // Get auto rewind setting from preferences
+                getResumeRewindSeconds = {
+                    // Long-pause resume rewind setting (0/5/10/30 sec).
                     try {
                         kotlinx.coroutines.runBlocking {
                             service.settingsRepository.userPreferences
                                 .first()
-                                .autoRewindOnPause
+                                .resumeRewindSeconds
                         }
                     } catch (e: Exception) {
-                        false // Default: disabled
+                        10
                     }
                 },
             )
+
+        // 3.1 SleepTimerManager
+        service.sleepTimerManager =
+            SleepTimerManager(
+                context = service,
+                packageName = service.packageName,
+                playerServiceScope = service.playerServiceScope,
+                getActivePlayer = { service.getActivePlayer() },
+                sendBroadcast = { service.sendBroadcast(it) },
+                isShakeToExtendEnabled = {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.userPreferences
+                                .first()
+                                .sleepTimerShakeExtendEnabled
+                        }
+                    } catch (e: Exception) {
+                        true
+                    }
+                },
+            )
+        service.sleepTimerManager?.restoreTimerState()
 
         // 4. PlaylistManager (Complex dependencies)
         service.playlistManager =
@@ -273,10 +296,10 @@ public class AudioPlayerServiceInitializer(
             // Reserve space for skip buttons in notification (prevents jumping when buttons change)
             // Following Media3 official pattern from DemoPlaybackService
             service.mediaLibrarySession?.sessionExtras =
-                androidx.core.os.bundleOf(
-                    androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV to true,
-                    androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT to true,
-                )
+                Bundle().apply {
+                    putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, true)
+                    putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, true)
+                }
 
             // Assign to legacy field for compatibility
             service.mediaSession = service.mediaLibrarySession

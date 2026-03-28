@@ -34,6 +34,7 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.capitalizeFirst
 import dagger.hilt.android.AndroidEntryPoint
@@ -41,6 +42,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -90,6 +93,9 @@ public class AudioPlayerService : MediaLibraryService() {
     public lateinit var playbackPositionRepository: com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 
     @Inject
+    public lateinit var listeningSessionRepository: com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
+
+    @Inject
     public lateinit var audioOutputManager: AudioOutputManager
 
     @Inject
@@ -97,6 +103,9 @@ public class AudioPlayerService : MediaLibraryService() {
 
     @Inject
     public lateinit var audioPreferences: com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences
+
+    @Inject
+    public lateinit var audioVisualizerStateBridge: AudioVisualizerStateBridge
 
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
@@ -160,6 +169,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // Audio visualizer manager
     internal var audioVisualizerManager: AudioVisualizerManager? = null
+    private var visualizerBridgeJob: kotlinx.coroutines.Job? = null
 
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null
@@ -305,13 +315,24 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // Periodic position saving designated to PlaybackPositionRepository
     private var positionSaveJob: kotlinx.coroutines.Job? = null
+    private val periodicPositionSaveIntervalMs: Long = 5_000L
+    private val listeningSessionTracker: ListeningSessionTracker by lazy {
+        ListeningSessionTracker(
+            repository = listeningSessionRepository,
+            scope = playerServiceScope,
+            getCurrentBookId = { currentGroupPath },
+            getCurrentPositionMs = { getActivePlayer().currentPosition },
+            getCurrentSpeed = { getActivePlayer().playbackParameters.speed },
+            getCurrentChapterIndex = { getActivePlayer().currentMediaItemIndex },
+        )
+    }
 
     private fun startPeriodicPositionSaving() {
         positionSaveJob?.cancel()
         positionSaveJob =
             playerServiceScope.launch {
                 while (coroutineContext[kotlinx.coroutines.Job]?.isActive == true) {
-                    kotlinx.coroutines.delay(10000L) // Save every 10 seconds
+                    kotlinx.coroutines.delay(periodicPositionSaveIntervalMs)
                     savePositionToRepository()
                 }
             }
@@ -623,6 +644,15 @@ public class AudioPlayerService : MediaLibraryService() {
             // Initialize AudioVisualizerManager
             LogUtils.e("JABOOK_SERVICE", "Initializing AudioVisualizerManager...")
             audioVisualizerManager = AudioVisualizerManager(this)
+            visualizerBridgeJob?.cancel()
+            visualizerBridgeJob =
+                playerServiceScope.launch {
+                    audioVisualizerManager
+                        ?.waveformData
+                        ?.collect { waveform ->
+                            audioVisualizerStateBridge.updateWaveform(waveform)
+                        }
+                }
             // Visualizer will be enabled when playback starts (requires audio session)
             LogUtils.e("JABOOK_SERVICE", "[OK] AudioVisualizerManager initialized")
 
@@ -756,6 +786,42 @@ public class AudioPlayerService : MediaLibraryService() {
     internal fun updateActualTrackIndex(index: Int) {
         playlistManager?.actualTrackIndex = index
         LogUtils.d("AudioPlayerService", "Updated actualTrackIndex to $index")
+        updateCrashPlaybackContext()
+    }
+
+    private fun updateCrashPlaybackContext() {
+        val player = getActivePlayer()
+        val effectiveTitle =
+            currentMetadata?.get("title")
+                ?: currentMetadata?.get("bookTitle")
+                ?: currentMetadata?.get("album")
+                ?: player.mediaMetadata.albumTitle?.toString()
+                ?: player.mediaMetadata.title?.toString()
+        val sleepMode =
+            when {
+                isSleepTimerEndOfChapter() -> "chapter_end"
+                isSleepTimerEndOfTrack() -> "track_end"
+                isSleepTimerActive() -> "fixed"
+                else -> "none"
+            }
+        CrashDiagnostics.setPlaybackContext(
+            bookTitle = effectiveTitle,
+            playerState = player.playbackState.toString(),
+            playbackSpeed = player.playbackParameters.speed,
+            sleepMode = sleepMode,
+        )
+    }
+
+    private fun resetBookCompletionIfNeeded(actionLabel: String) {
+        if (!isBookCompleted) {
+            return
+        }
+        LogUtils.i(
+            "AudioPlayerService",
+            "$actionLabel called after book completion, resetting completion flag",
+        )
+        isBookCompleted = false
+        lastCompletedTrackIndex = -1
     }
 
     /**
@@ -809,24 +875,18 @@ public class AudioPlayerService : MediaLibraryService() {
         trackIndex: Int,
         positionMs: Long,
     ) {
-        // Reset book completion flag on manual track switch
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "Manual seekToTrackAndPosition($trackIndex, $positionMs) called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("Manual seekToTrackAndPosition($trackIndex, $positionMs)")
         playbackController?.seekToTrackAndPosition(trackIndex, positionMs) ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
     }
 
-    public fun updateMetadata(metadata: Map<String, String>): Unit =
+    public fun updateMetadata(metadata: Map<String, String>) {
         metadataManager?.updateMetadata(metadata) ?: run {
             LogUtils.e("AudioPlayerService", "MetadataManager not initialized")
         }
+        updateCrashPlaybackContext()
+    }
 
     /**
      * Sets notification type (full or minimal).
@@ -845,15 +905,7 @@ public class AudioPlayerService : MediaLibraryService() {
         get() = getActivePlayer().isPlaying
 
     public fun play() {
-        // Reset book completion flag on play (user wants to restart)
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "play() called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("play()")
 
         playbackController?.play() ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
@@ -863,7 +915,9 @@ public class AudioPlayerService : MediaLibraryService() {
         // Start listening for phone calls when playback starts
         phoneCallListener?.startListening()
 
+        listeningSessionTracker.onPlaybackStarted()
         startPeriodicPositionSaving()
+        updateCrashPlaybackContext()
     }
 
     public fun pause() {
@@ -872,9 +926,11 @@ public class AudioPlayerService : MediaLibraryService() {
             return
         }
 
+        listeningSessionTracker.onPlaybackStopped(reason = "pause")
         savePositionToRepository()
         // storeCurrentMediaItem()
         stopPeriodicPositionSaving()
+        updateCrashPlaybackContext()
     }
 
     public fun stop() {
@@ -886,9 +942,15 @@ public class AudioPlayerService : MediaLibraryService() {
         // Stop listening for phone calls when playback stops
         phoneCallListener?.stopListening()
 
+        listeningSessionTracker.onPlaybackStopped(reason = "stop")
         savePositionToRepository()
         // storeCurrentMediaItem()
         stopPeriodicPositionSaving()
+        updateCrashPlaybackContext()
+    }
+
+    internal fun finishListeningSessionIfActive(reason: String) {
+        listeningSessionTracker.onPlaybackStopped(reason)
     }
 
     /**
@@ -930,10 +992,12 @@ public class AudioPlayerService : MediaLibraryService() {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
-    public fun setSpeed(speed: Float): Unit =
+    public fun setSpeed(speed: Float) {
         playbackController?.setSpeed(speed) ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
+        updateCrashPlaybackContext()
+    }
 
     public fun setRepeatMode(repeatMode: Int): Unit =
         playbackController?.setRepeatMode(repeatMode) ?: run {
@@ -960,6 +1024,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun setSleepTimerMinutes(minutes: Int) {
         sleepTimerManager?.setSleepTimerMinutes(minutes)
+        updateCrashPlaybackContext()
     }
 
     /**
@@ -969,6 +1034,26 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun setSleepTimerEndOfChapter() {
         sleepTimerManager?.setSleepTimerEndOfChapter()
+        updateCrashPlaybackContext()
+    }
+
+    /**
+     * Sets sleep timer to end of chapter when chapter boundaries are available.
+     * Falls back to end of track otherwise.
+     *
+     * @return true when chapter-end mode is active, false when fallback to track-end was applied
+     */
+    public fun setSleepTimerEndOfChapterOrFallback(): Boolean {
+        val hasChapterModeSupport = getActivePlayer().mediaItemCount > 1
+        return sleepTimerManager?.setSleepTimerEndOfChapterOrFallback(hasChapterModeSupport) ?: false
+    }
+
+    /**
+     * Sets sleep timer to expire at end of current track.
+     */
+    public fun setSleepTimerEndOfTrack() {
+        sleepTimerManager?.setSleepTimerEndOfTrack()
+        updateCrashPlaybackContext()
     }
 
     /**
@@ -976,6 +1061,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun cancelSleepTimer() {
         sleepTimerManager?.cancelSleepTimer()
+        updateCrashPlaybackContext()
     }
 
     /**
@@ -996,6 +1082,11 @@ public class AudioPlayerService : MediaLibraryService() {
      * Checks if sleep timer is set to end of chapter.
      */
     public fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
+
+    /**
+     * Checks if sleep timer is set to end of track.
+     */
+    public fun isSleepTimerEndOfTrack(): Boolean = sleepTimerManager?.sleepTimerEndOfTrack == true
 
     /**
      * Gets the audio session ID from ExoPlayer.
@@ -1027,45 +1118,21 @@ public class AudioPlayerService : MediaLibraryService() {
     }
 
     public fun next() {
-        // Reset book completion flag on manual track switch
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "Manual next() called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("Manual next()")
         playbackController?.next() ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
     }
 
     public fun previous() {
-        // Reset book completion flag on manual track switch
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "Manual previous() called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("Manual previous()")
         playbackController?.previous() ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
     }
 
     public fun seekToTrack(index: Int) {
-        // Reset book completion flag on manual track switch
-        if (isBookCompleted) {
-            LogUtils.i(
-                "AudioPlayerService",
-                "Manual seekToTrack($index) called after book completion, resetting completion flag",
-            )
-            isBookCompleted = false
-            lastCompletedTrackIndex = -1
-        }
+        resetBookCompletionIfNeeded("Manual seekToTrack($index)")
         playbackController?.seekToTrack(index) ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
@@ -1687,109 +1754,84 @@ public class AudioPlayerService : MediaLibraryService() {
      * calls onCreate() multiple times without onDestroy().
      */
     private fun cleanupExistingComponents() {
-        // Only cleanup if components already exist (onCreate called multiple times)
-        if (mediaLibrarySession != null || serviceMediaController != null || crossFadePlayer != null) {
+        val hasExistingComponents =
+            mediaLibrarySession != null ||
+                serviceMediaController != null ||
+                crossFadePlayer != null ||
+                audioVisualizerManager != null ||
+                positionSaveJob != null ||
+                updateLayoutJob != null ||
+                visualizerBridgeJob != null
+        if (hasExistingComponents) {
             LogUtils.w(
                 "AudioPlayerService",
-                "onCreate() called multiple times, cleaning up existing components",
+                "onCreate() called with existing runtime components, performing pre-init cleanup",
             )
-
-            // Release MediaController
-            serviceMediaController?.release()
-            serviceMediaController = null
-
-            // Release MediaLibrarySession
-            mediaLibrarySession?.release()
-            mediaLibrarySession = null
-            mediaSession = null
-
-            // Release CrossFadePlayer
-            crossFadePlayer?.release()
-            crossFadePlayer = null
-
-            // Release MediaSessionManager
-            mediaSessionManager?.release()
-            mediaSessionManager = null
-
-            // Stop and release other components
-            playerNotificationManager?.setPlayer(null)
-            playerNotificationManager = null
-
-            audioOutputManager.stopMonitoring()
-
-            playbackEnhancerService.release()
-
-            sleepTimerManager?.release()
-            sleepTimerManager = null
-
-            inactivityTimer?.release()
-            inactivityTimer = null
-
-            playbackTimer?.release()
-            playbackTimer = null
-
-            audioVisualizerManager?.release()
-            audioVisualizerManager = null
-
-            phoneCallListener?.stopListening()
-            phoneCallListener = null
-
-            headsetAutoplayHandler?.stopListening()
-            headsetAutoplayHandler = null
-
-            // Cancel jobs
-            updateLayoutJob?.cancel()
-            updateLayoutJob = null
-
-            // Reset initialization flag
-            isFullyInitializedFlag = false
-
+        }
+        releaseRuntimeComponents(cancelServiceScopeChildren = true)
+        if (hasExistingComponents) {
             LogUtils.i("AudioPlayerService", "Existing components cleaned up")
         }
     }
 
     override fun onDestroy() {
-        // Clean up PlayerNotificationManager
-        playerNotificationManager?.setPlayer(null)
-        playerNotificationManager = null
-
-        // Stop proximity monitoring
-        audioOutputManager.stopMonitoring()
-
-        // Release PlaybackEnhancerService resources
-        playbackEnhancerService.release()
-
-        // Release SleepTimerManager (listeners/sensors)
-        sleepTimerManager?.release()
-        sleepTimerManager = null
-
-        // Release InactivityTimer
-        inactivityTimer?.release()
-        inactivityTimer = null
-
-        // Release PlaybackTimer
-        playbackTimer?.release()
-        playbackTimer = null
-
-        // Release audio visualizer
-        audioVisualizerManager?.release()
-        audioVisualizerManager = null
-
-        // Stop listening for phone calls
-        phoneCallListener?.stopListening()
-        phoneCallListener = null
-
-        // Release service MediaController
-        serviceMediaController?.release()
-        serviceMediaController = null
-
-        // Cancel debounced layout updates
-        updateLayoutJob?.cancel()
-        updateLayoutJob = null
-
+        releaseRuntimeComponents(cancelServiceScopeChildren = true)
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()
         super.onDestroy()
+    }
+
+    private fun releaseRuntimeComponents(cancelServiceScopeChildren: Boolean) {
+        stopPeriodicPositionSaving()
+        if (cancelServiceScopeChildren) {
+            playerServiceScope.coroutineContext.cancelChildren()
+        }
+
+        playerNotificationManager?.setPlayer(null)
+        playerNotificationManager = null
+
+        audioOutputManager.stopMonitoring()
+        playbackEnhancerService.release()
+
+        sleepTimerManager?.release()
+        sleepTimerManager = null
+
+        inactivityTimer?.release()
+        inactivityTimer = null
+
+        playbackTimer?.release()
+        playbackTimer = null
+
+        crossFadePlayer?.release()
+        crossFadePlayer = null
+        crossfadeHandler = null
+
+        audioVisualizerManager?.release()
+        audioVisualizerManager = null
+        visualizerBridgeJob?.cancel()
+        visualizerBridgeJob = null
+        audioVisualizerStateBridge.reset()
+
+        phoneCallListener?.stopListening()
+        phoneCallListener = null
+
+        headsetAutoplayHandler?.stopListening()
+        headsetAutoplayHandler = null
+
+        serviceMediaController?.release()
+        serviceMediaController = null
+
+        mediaSessionManager?.release()
+        mediaSessionManager = null
+
+        mediaLibrarySession?.release()
+        mediaLibrarySession = null
+        mediaSession = null
+
+        updateLayoutJob?.cancel()
+        updateLayoutJob = null
+
+        isFullyInitializedFlag = false
     }
 
     /**
@@ -1799,5 +1841,21 @@ public class AudioPlayerService : MediaLibraryService() {
      * This can happen when:
      * - Notification permission is not granted (Android 13+)
      */
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
+        val session = mediaLibrarySession
+        if (session == null) {
+            LogUtils.w(
+                "AudioPlayerService",
+                "Rejecting controller ${controllerInfo.packageName}: MediaLibrarySession is not ready yet",
+            )
+            return null
+        }
+        if (!isFullyInitialized()) {
+            LogUtils.w(
+                "AudioPlayerService",
+                "Accepting controller ${controllerInfo.packageName} with partially initialized service; session is available",
+            )
+        }
+        return session
+    }
 }

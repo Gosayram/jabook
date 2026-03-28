@@ -73,6 +73,7 @@ public class PlayerViewModel
         private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
         private val playbackPositionRepository: PlaybackPositionRepository,
         private val lyricsRepository: com.jabook.app.jabook.data.lyrics.LyricsRepository,
+        private val audioVisualizerStateBridge: com.jabook.app.jabook.audio.AudioVisualizerStateBridge,
         private val loggerFactory: LoggerFactory,
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
@@ -87,6 +88,7 @@ public class PlayerViewModel
 
         // Player Stats for Nerds
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
+        public val visualizerWaveformData: StateFlow<FloatArray> = audioVisualizerStateBridge.waveformData
 
         // Saved position from database (restored on init)
         private var savedPosition: Long = 0L
@@ -151,6 +153,7 @@ public class PlayerViewModel
                 playerController.isPlaying,
                 playerController.currentPosition,
                 playerController.currentChapterIndex,
+                playerController.currentBookId,
                 settingsRepository.userPreferences,
                 userPreferencesRepository.userData.map { it.playbackSpeed },
             ) { args ->
@@ -161,8 +164,9 @@ public class PlayerViewModel
                 val playing = args[2] as Boolean
                 val controllerPosition = args[3] as Long
                 val controllerChapterIndex = args[4] as Int
-                val preferences = args[5] as com.jabook.app.jabook.compose.data.preferences.UserPreferences
-                val playbackSpeed = args[6] as Float
+                val controllerBookId = args[5] as String?
+                val preferences = args[6] as com.jabook.app.jabook.compose.data.preferences.UserPreferences
+                val playbackSpeed = args[7] as Float
 
                 if (book == null) {
                     PlayerUiState.Error("Book not found")
@@ -176,16 +180,32 @@ public class PlayerViewModel
                         book.forwardDuration
                             ?: if (preferences.forwardDurationSeconds > 0) preferences.forwardDurationSeconds else 30
 
-                    // Use saved position from database if player hasn't loaded yet
-                    // This ensures position is restored even if player hasn't started
-                    val position = if (controllerPosition > 0 || isBookLoaded) controllerPosition else savedPosition
+                    val maxChapterIndex = (chapters.size - 1).coerceAtLeast(0)
+                    val safeSavedChapterIndex = savedChapterIndex.coerceIn(0, maxChapterIndex)
+                    val isControllerBoundToCurrentBook = controllerBookId == bookId
+                    val hasControllerStateForCurrentBook =
+                        isControllerBoundToCurrentBook &&
+                            (
+                                isBookLoaded ||
+                                    controllerPosition > 0L ||
+                                    controllerChapterIndex > 0 ||
+                                    playing
+                            )
+
                     val chapterIndex =
-                        if (controllerChapterIndex > 0 ||
-                            isBookLoaded
-                        ) {
-                            controllerChapterIndex
+                        if (hasControllerStateForCurrentBook) {
+                            controllerChapterIndex.coerceIn(0, maxChapterIndex)
                         } else {
-                            savedChapterIndex.coerceIn(0, chapters.size - 1)
+                            safeSavedChapterIndex
+                        }
+
+                    // Prefer controller position only when it's clearly bound to this book;
+                    // otherwise keep DB-restored position to avoid transient UI jumps.
+                    val position =
+                        if (hasControllerStateForCurrentBook) {
+                            controllerPosition.coerceAtLeast(0L)
+                        } else {
+                            savedPosition.coerceAtLeast(0L)
                         }
 
                     PlayerUiState.Success(
@@ -328,6 +348,10 @@ public class PlayerViewModel
             val volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel =
                 com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
             val skipSilence: Boolean = false,
+            val skipSilenceThresholdDb: Float = -32.0f,
+            val skipSilenceMinMs: Int = 250,
+            val skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode =
+                com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP,
             val normalizeVolume: Boolean = true,
             val speechEnhancer: Boolean = false,
             val autoVolumeLeveling: Boolean = false,
@@ -349,6 +373,9 @@ public class PlayerViewModel
                                 com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
                             },
                         skipSilence = prefs.skipSilence,
+                        skipSilenceThresholdDb = prefs.skipSilenceThresholdDb,
+                        skipSilenceMinMs = prefs.skipSilenceMinMs,
+                        skipSilenceMode = prefs.skipSilenceMode,
                         normalizeVolume = prefs.normalizeVolume,
                         speechEnhancer = prefs.speechEnhancer,
                         autoVolumeLeveling = prefs.autoVolumeLeveling,
@@ -465,12 +492,24 @@ public class PlayerViewModel
             playerController.setPitchCorrectionEnabled(enabled)
         }
 
+        public fun initializeVisualizer() {
+            playerController.initializeVisualizer()
+        }
+
+        public fun setVisualizerEnabled(enabled: Boolean) {
+            playerController.setVisualizerEnabled(enabled)
+        }
+
         public fun startSleepTimer(minutes: Int) {
             sleepTimerRepository.startTimer(minutes)
         }
 
         public fun startSleepTimerEndOfChapter() {
             sleepTimerRepository.startTimerEndOfChapter()
+        }
+
+        public fun startSleepTimerEndOfTrack() {
+            sleepTimerRepository.startTimerEndOfTrack()
         }
 
         public fun cancelSleepTimer() {
@@ -495,6 +534,9 @@ public class PlayerViewModel
         public fun updateAudioSettings(
             volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel? = null,
             skipSilence: Boolean? = null,
+            skipSilenceThresholdDb: Float? = null,
+            skipSilenceMinMs: Int? = null,
+            skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode? = null,
             normalizeVolume: Boolean? = null,
             speechEnhancer: Boolean? = null,
             autoVolumeLeveling: Boolean? = null,
@@ -503,6 +545,9 @@ public class PlayerViewModel
                 settingsRepository.updateAudioSettings(
                     volumeBoost = volumeBoostLevel?.name,
                     skipSilence = skipSilence,
+                    skipSilenceThresholdDb = skipSilenceThresholdDb,
+                    skipSilenceMinMs = skipSilenceMinMs,
+                    skipSilenceMode = skipSilenceMode,
                     normalizeVolume = normalizeVolume,
                     speechEnhancer = speechEnhancer,
                     autoVolumeLeveling = autoVolumeLeveling,

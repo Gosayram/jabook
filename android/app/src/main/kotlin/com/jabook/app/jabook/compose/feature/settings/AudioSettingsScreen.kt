@@ -14,7 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
@@ -84,12 +88,39 @@ public fun AudioSettingsScreen(
             SettingsSection(title = stringResource(R.string.playback_general), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             // Auto-rewind on pause
+            SettingsItem(
+                title = stringResource(R.string.resume_rewind_title),
+                subtitle = stringResource(R.string.resume_rewind_desc),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val options = listOf(0, 5, 10, 30)
+                    options.forEach { seconds ->
+                        FilterChip(
+                            selected = protoSettings.resumeRewindSeconds == seconds,
+                            onClick = {
+                                viewModel.updateAudioSettings(resumeRewindSeconds = seconds)
+                            },
+                            label = {
+                                Text(
+                                    stringResource(
+                                        R.string.resume_rewind_option_seconds,
+                                        seconds,
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
             SettingsSwitchItem(
-                title = stringResource(R.string.auto_rewind_title),
-                subtitle = stringResource(R.string.auto_rewind_desc),
-                checked = protoSettings.autoRewindOnPause,
+                title = stringResource(R.string.sleep_timer_shake_extend_title),
+                subtitle = stringResource(R.string.sleep_timer_shake_extend_desc),
+                checked = protoSettings.sleepTimerShakeExtendEnabled,
                 onCheckedChange = {
-                    viewModel.updateAudioSettings(rewindSeconds = if (it) 2 else 0)
+                    viewModel.updateAudioSettings(sleepTimerShakeExtendEnabled = it)
                 },
                 contentPadding = contentPadding,
                 itemSpacing = itemSpacing,
@@ -139,6 +170,66 @@ public fun AudioSettingsScreen(
                 itemSpacing = itemSpacing,
                 smallSpacing = smallSpacing,
             )
+
+            if (protoSettings.skipSilence) {
+                SettingsSliderItem(
+                    title = stringResource(R.string.skip_silence_threshold_title),
+                    subtitle = stringResource(R.string.skip_silence_threshold_desc),
+                    sliderValue = protoSettings.skipSilenceThresholdDb,
+                    onValueChange = { viewModel.updateAudioSettings(skipSilenceThresholdDb = it) },
+                    valueRange = -40f..-20f,
+                    steps = 19,
+                    valueFormatter = { "${it.toInt()} dB" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+
+                SettingsSliderItem(
+                    title = stringResource(R.string.skip_silence_min_ms_title),
+                    subtitle = stringResource(R.string.skip_silence_min_ms_desc),
+                    sliderValue = protoSettings.skipSilenceMinMs.toFloat(),
+                    onValueChange = { viewModel.updateAudioSettings(skipSilenceMinMs = it.toInt()) },
+                    valueRange = 150f..300f,
+                    steps = 14,
+                    valueFormatter = { "${it.toInt()} ms" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+
+                SettingsItem(
+                    title = stringResource(R.string.skip_silence_mode_title),
+                    subtitle = stringResource(R.string.skip_silence_mode_desc),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(
+                            selected =
+                                protoSettings.skipSilenceMode ==
+                                    com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP,
+                            onClick = {
+                                viewModel.updateAudioSettings(
+                                    skipSilenceMode = com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP,
+                                )
+                            },
+                            label = { Text(stringResource(R.string.skip_silence_mode_skip)) },
+                        )
+                        FilterChip(
+                            selected =
+                                protoSettings.skipSilenceMode ==
+                                    com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP,
+                            onClick = {
+                                viewModel.updateAudioSettings(
+                                    skipSilenceMode = com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP,
+                                )
+                            },
+                            label = { Text(stringResource(R.string.skip_silence_mode_speed_up)) },
+                        )
+                    }
+                }
+            }
 
             // Volume Normalization
             SettingsSwitchItem(

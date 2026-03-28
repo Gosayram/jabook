@@ -17,10 +17,12 @@ package com.jabook.app.jabook.audio.data.local.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.data.local.dao.ChapterMetadataDao
+import com.jabook.app.jabook.audio.data.local.dao.ListeningSessionDao
 import com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao
 import com.jabook.app.jabook.audio.data.local.dao.PlaylistDao
 import com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao
 import com.jabook.app.jabook.audio.data.local.database.entity.ChapterMetadataEntity
+import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaybackPositionEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaylistEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEntity
@@ -36,8 +38,9 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
         PlaylistEntity::class,
         ChapterMetadataEntity::class,
         SavedPlayerStateEntity::class,
+        ListeningSessionEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 public abstract class AudioDatabase : RoomDatabase() {
@@ -48,4 +51,6 @@ public abstract class AudioDatabase : RoomDatabase() {
     public abstract fun chapterMetadataDao(): ChapterMetadataDao
 
     public abstract fun savedPlayerStateDao(): SavedPlayerStateDao
+
+    public abstract fun listeningSessionDao(): ListeningSessionDao
 }

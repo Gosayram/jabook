@@ -283,6 +283,40 @@ public interface BooksDao {
     public fun searchBooksFlow(query: String): Flow<List<BookEntity>>
 
     /**
+     * Searches books by title or author with optional transliterated fallback query.
+     */
+    @Query(
+        """
+        SELECT * FROM books
+        WHERE title LIKE '%' || :query || '%'
+           OR author LIKE '%' || :query || '%'
+           OR title LIKE '%' || :fallbackQuery || '%'
+           OR author LIKE '%' || :fallbackQuery || '%'
+        ORDER BY title ASC
+        """,
+    )
+    public fun searchBooksFlowWithFallback(
+        query: String,
+        fallbackQuery: String,
+    ): Flow<List<BookEntity>>
+
+    /**
+     * Searches books via FTS5 index.
+     *
+     * @param ftsQuery Query in SQLite FTS5 MATCH format
+     */
+    @Query(
+        """
+        SELECT b.*
+        FROM books b
+        JOIN books_fts f ON b.rowid = f.rowid
+        WHERE books_fts MATCH :ftsQuery
+        ORDER BY b.title ASC
+        """,
+    )
+    public fun searchBooksByFtsFlow(ftsQuery: String): Flow<List<BookEntity>>
+
+    /**
      * Updates per-book playback settings.
      */
     @Query("UPDATE books SET rewind_duration = :rewindDuration, forward_duration = :forwardDuration WHERE id = :bookId")

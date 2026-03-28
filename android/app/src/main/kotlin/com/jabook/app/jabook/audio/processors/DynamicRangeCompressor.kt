@@ -111,12 +111,12 @@ public class DynamicRangeCompressor(
             val sampleRate = inputAudioFormat.sampleRate
 
             // Convert threshold from dB to linear
-            thresholdLinear = 10.0.pow((thresholdDb / 20.0).toDouble()).toFloat()
+            thresholdLinear = 10.0.pow((thresholdDb / 20.0f).toDouble()).toFloat()
 
             // Calculate attack and release coefficients
             // Using exponential smoothing: coeff = 1 - exp(-1 / (time * sampleRate))
-            attackCoeff = 1.0f - kotlin.math.exp(-1.0f / (attackMs * sampleRate / 1000.0f)).toFloat()
-            releaseCoeff = 1.0f - kotlin.math.exp(-1.0f / (releaseMs * sampleRate / 1000.0f)).toFloat()
+            attackCoeff = 1.0f - kotlin.math.exp(-1.0f / (attackMs * sampleRate / 1000.0f))
+            releaseCoeff = 1.0f - kotlin.math.exp(-1.0f / (releaseMs * sampleRate / 1000.0f))
 
             // Calculate makeup gain (compensate for average level reduction)
             // Approximate: makeup = sqrt(ratio) for gentle compensation
@@ -272,6 +272,7 @@ public class DynamicRangeCompressor(
 
     override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
 
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
         envelopeLevel = 0.0f
         gainReduction = 0.0f

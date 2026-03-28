@@ -27,6 +27,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.room.RoomDatabase
+import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMigrations
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.utils.PerformanceClass
 import com.jabook.app.jabook.utils.PerformanceUtils
@@ -378,6 +379,8 @@ public object AudioDataModule {
             android.util.Log.d("Room", "BuildConfig not available, skipping query callback", e)
         }
 
+        builder.addMigrations(AudioDatabaseMigrations.MIGRATION_2_3)
+
         return builder.build()
     }
 
@@ -401,6 +404,12 @@ public object AudioRepositoryModule {
     public fun providePlaybackPositionDao(
         database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
     ): com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao = database.playbackPositionDao()
+
+    @Provides
+    @Singleton
+    public fun provideListeningSessionDao(
+        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
+    ): com.jabook.app.jabook.audio.data.local.dao.ListeningSessionDao = database.listeningSessionDao()
 
     @Provides
     @Singleton

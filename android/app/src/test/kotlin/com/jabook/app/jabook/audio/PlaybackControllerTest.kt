@@ -87,7 +87,7 @@ class PlaybackControllerTest {
         val resetTimer: () -> Unit = { resetTimerCallCount++ }
 
         val getActivePlayer = { exoPlayer }
-        playbackController = PlaybackController(getActivePlayer, testScope, resetTimer, { false })
+        playbackController = PlaybackController(getActivePlayer, testScope, resetTimer, { 10 })
     }
 
     @After
@@ -459,7 +459,7 @@ class PlaybackControllerTest {
         }
 
     @Test
-    fun `seekToTrackAndPosition seeks to track and position`() =
+    fun `seekToTrackAndPosition applies chapter seek backtrack guard`() =
         runTest(testDispatcher) {
             // Given
             whenever(exoPlayer.mediaItemCount).thenReturn(5)
@@ -472,8 +472,19 @@ class PlaybackControllerTest {
             advanceTimeBy(150)
 
             // Then
-            verify(exoPlayer).seekTo(trackIndex, positionMs)
+            verify(exoPlayer).seekTo(trackIndex, 29700L)
             assertEquals(1, resetTimerCallCount)
+        }
+
+    @Test
+    fun `seekToTrackAndPosition clamps chapter seek backtrack at zero`() =
+        runTest(testDispatcher) {
+            whenever(exoPlayer.mediaItemCount).thenReturn(5)
+            whenever(exoPlayer.playWhenReady).thenReturn(false)
+
+            playbackController.seekToTrackAndPosition(trackIndex = 2, positionMs = 120L)
+
+            verify(exoPlayer).seekTo(2, 0L)
         }
 
     @Test
@@ -616,7 +627,7 @@ class PlaybackControllerTest {
             playbackController.applyInitialPosition(trackIndex, positionMs, null)
 
             // Then
-            verify(exoPlayer).seekTo(trackIndex, positionMs)
+            verify(exoPlayer).seekTo(trackIndex, 29700L)
         }
 
     @Test
@@ -640,6 +651,6 @@ class PlaybackControllerTest {
             playbackController.applyInitialPosition(trackIndex, positionMs, null)
 
             // Then - should eventually seek
-            verify(exoPlayer, times(1)).seekTo(trackIndex, positionMs)
+            verify(exoPlayer, times(1)).seekTo(trackIndex, 29700L)
         }
 }

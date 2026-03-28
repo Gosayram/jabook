@@ -50,13 +50,13 @@ public class MediaSessionSettingsSync(
                     // Extract intervals with safe defaults
                     val rewindSeconds =
                         if (prefs.rewindDurationSeconds > 0) {
-                            prefs.rewindDurationSeconds.toInt()
+                            prefs.rewindDurationSeconds
                         } else {
                             10 // Default 10s
                         }
                     val forwardSeconds =
                         if (prefs.forwardDurationSeconds > 0) {
-                            prefs.forwardDurationSeconds.toInt()
+                            prefs.forwardDurationSeconds
                         } else {
                             30 // Default 30s
                         }
@@ -107,6 +107,19 @@ public class MediaSessionSettingsSync(
                         speechEnhancer = prefs.speechEnhancer,
                         autoVolumeLeveling = prefs.autoVolumeLeveling,
                         skipSilence = prefs.skipSilence,
+                        skipSilenceThresholdNormalized =
+                            com.jabook.app.jabook.audio.processors.SkipSilenceThresholdPolicy
+                                .toNormalizedAmplitude(prefs.skipSilenceThresholdDb),
+                        skipSilenceMinDurationMs =
+                            com.jabook.app.jabook.audio.processors.SkipSilenceThresholdPolicy
+                                .sanitizeMinSilenceMs(prefs.skipSilenceMinMs),
+                        skipSilenceMode =
+                            when (prefs.skipSilenceMode) {
+                                com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP ->
+                                    com.jabook.app.jabook.audio.processors.SkipSilenceMode.SPEED_UP
+                                else ->
+                                    com.jabook.app.jabook.audio.processors.SkipSilenceMode.SKIP
+                            },
                         isCrossfadeEnabled = prefs.crossfadeEnabled,
                         crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
                     )

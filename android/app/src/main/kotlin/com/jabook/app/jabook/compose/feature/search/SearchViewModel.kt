@@ -205,7 +205,7 @@ public class SearchViewModel
                         }
                         is Result.Error -> {
                             // Get error message from typed error
-                            val errorMessage = result.error.message ?: "Unknown error"
+                            val errorMessage = result.error.message
                             val errorCause = result.error.cause
                             logger.e(
                                 errorCause,

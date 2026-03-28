@@ -43,6 +43,15 @@ class SleepTimerStateTest {
     }
 
     @Test
+    fun `EndOfTrack state equality should include fallback flag`() {
+        val eot1 = SleepTimerState.EndOfTrack(fallbackFromChapter = false)
+        val eot2 = SleepTimerState.EndOfTrack(fallbackFromChapter = false)
+        val eot3 = SleepTimerState.EndOfTrack(fallbackFromChapter = true)
+        assertEquals(eot1, eot2)
+        assertTrue(eot1 != eot3)
+    }
+
+    @Test
     fun `Active state should format time correctly for minutes and seconds`() {
         val state = SleepTimerState.Active(remainingSeconds = 125) // 2:05
         assertEquals("02:05", state.formattedTime)
@@ -80,23 +89,27 @@ class SleepTimerStateTest {
                     SleepTimerState.Idle,
                     SleepTimerState.Active(60),
                     SleepTimerState.EndOfChapter,
+                    SleepTimerState.EndOfTrack(),
                 )
 
             var idleCount = 0
             var activeCount = 0
             var eocCount = 0
+            var eotCount = 0
 
             states.forEach { state ->
                 when (state) {
                     is SleepTimerState.Idle -> idleCount++
                     is SleepTimerState.Active -> activeCount++
                     is SleepTimerState.EndOfChapter -> eocCount++
+                    is SleepTimerState.EndOfTrack -> eotCount++
                 }
             }
 
             assertEquals(1, idleCount)
             assertEquals(1, activeCount)
             assertEquals(1, eocCount)
+            assertEquals(1, eotCount)
         }
 
     @Test

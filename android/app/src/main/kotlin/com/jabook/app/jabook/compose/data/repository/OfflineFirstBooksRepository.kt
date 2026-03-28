@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.audio.CompletionStatusHelper
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.local.search.TransliterationSearchPolicy
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
@@ -171,7 +172,24 @@ public class OfflineFirstBooksRepository
 
         override fun getChapters(bookId: String): Flow<List<Chapter>> = booksDao.getChaptersForBookFlow(bookId).map { it.toChapters() }
 
-        override fun searchBooks(query: String): Flow<List<Book>> = booksDao.searchBooksFlow(query).map { it.toBooks() }
+        override fun searchBooks(query: String): Flow<List<Book>> {
+            val variants = TransliterationSearchPolicy.buildVariants(query)
+            val primary = variants.firstOrNull().orEmpty()
+            val fallback = variants.getOrNull(1).orEmpty()
+            val ftsMatchQuery = TransliterationSearchPolicy.buildFtsMatchQuery(variants)
+
+            if (ftsMatchQuery.isBlank()) {
+                return booksDao
+                    .searchBooksFlowWithFallback(
+                        query = primary,
+                        fallbackQuery = fallback,
+                    ).map { it.toBooks() }
+            }
+
+            return booksDao
+                .searchBooksByFtsFlow(ftsMatchQuery)
+                .map { it.toBooks() }
+        }
 
         override suspend fun addBook(book: Book) {
             booksDao.insertBook(book.toEntity())

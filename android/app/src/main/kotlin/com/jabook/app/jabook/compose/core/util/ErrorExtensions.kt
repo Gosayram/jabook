@@ -61,7 +61,7 @@ public fun Throwable?.getErrorMessage(): String =
         is RuTrackerError.BadRequest -> "Bad request"
         is RuTrackerError.Forbidden -> "Access forbidden"
         is RuTrackerError.ParsingError -> this.message
-        is RuTrackerError.Unknown -> this.message ?: "Unknown error"
+        is RuTrackerError.Unknown -> this.message
         else -> this?.message ?: "Something went wrong"
     }
 

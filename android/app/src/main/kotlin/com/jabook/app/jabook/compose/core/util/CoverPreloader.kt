@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import coil3.SingletonImageLoader
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -159,6 +160,15 @@ private class CoverPreloader(
                 } catch (e: Exception) {
                     // Silently fail - covers will load on demand
                     coverPreloaderLogger.e({ "Failed to preload cover for ${book.title}" }, e)
+                    CrashDiagnostics.reportNonFatal(
+                        tag = "cover_preload_failed",
+                        throwable = e,
+                        attributes =
+                            mapOf(
+                                "book_id" to book.id,
+                                "book_title" to book.title,
+                            ),
+                    )
                 }
             }
 

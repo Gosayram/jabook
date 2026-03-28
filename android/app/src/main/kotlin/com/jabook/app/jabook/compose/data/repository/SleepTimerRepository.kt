@@ -41,6 +41,11 @@ public interface SleepTimerRepository {
     public fun startTimerEndOfChapter()
 
     /**
+     * Start sleep timer for end of track.
+     */
+    public fun startTimerEndOfTrack()
+
+    /**
      * Cancel active timer.
      */
     public fun cancelTimer()

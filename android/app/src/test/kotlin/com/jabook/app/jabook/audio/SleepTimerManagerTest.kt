@@ -34,6 +34,7 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -130,12 +131,59 @@ class SleepTimerManagerTest {
         }
 
     @Test
+    fun `triggerShakeForTesting does not extend timer when shake-to-extend is disabled`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                    isShakeToExtendEnabled = { false },
+                )
+
+            manager.setSleepTimerMinutes(1)
+            manager.triggerShakeForTesting(nowMillis = 1_000L)
+            advanceUntilIdle()
+
+            assertEquals(60, manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
+    fun `triggerShakeForTesting does not extend timer in power save mode`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                    isPowerSaveModeEnabled = { true },
+                )
+
+            manager.setSleepTimerMinutes(1)
+            manager.triggerShakeForTesting(nowMillis = 1_000L)
+            advanceUntilIdle()
+
+            assertEquals(60, manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
     fun `restoreTimerState restores end of chapter mode`() =
         runTest(testDispatcher) {
             timerPrefs()
                 .edit()
                 .putLong(SleepTimerPersistence.KEY_END_TIME, 0L)
                 .putBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, true)
+                .putString(SleepTimerPersistence.KEY_MODE, SleepTimerMode.CHAPTER_END.name)
                 .putBoolean(SleepTimerPersistence.KEY_PAUSED, false)
                 .putLong(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS, SleepTimerPersistence.NO_REMAINING_MILLIS)
                 .apply()
@@ -156,6 +204,68 @@ class SleepTimerManagerTest {
 
             assertTrue(manager.isSleepTimerActive())
             assertEquals(null, manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
+    fun `set end of track survives process recreation`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val creator =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            creator.setSleepTimerEndOfTrack()
+
+            val restored =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            restored.restoreTimerState()
+
+            assertTrue(restored.isSleepTimerActive())
+            assertTrue(restored.sleepTimerEndOfTrack)
+            assertEquals(null, restored.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
+    fun `set end of chapter survives process recreation without fixed timer listener`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val creator =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            creator.setSleepTimerEndOfChapter()
+
+            val restored =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            restored.restoreTimerState()
+
+            assertTrue(restored.isSleepTimerActive())
+            assertEquals(null, restored.getSleepTimerRemainingSeconds())
+            verify(player, never()).addListener(org.mockito.kotlin.any())
         }
 
     @Test

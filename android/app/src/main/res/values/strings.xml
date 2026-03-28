@@ -297,6 +297,11 @@
     <string name="playback_general">General Playback</string>
     <string name="auto_rewind_title">Rewind on Pause</string>
     <string name="auto_rewind_desc">Rewind 2 seconds when resuming after a long pause</string>
+    <string name="resume_rewind_title">Resume Rewind After Long Pause</string>
+    <string name="resume_rewind_desc">If paused for more than 30 minutes, rewind by selected value when resuming</string>
+    <string name="resume_rewind_option_seconds">%1$d s</string>
+    <string name="sleep_timer_shake_extend_title">Shake To Extend Sleep Timer</string>
+    <string name="sleep_timer_shake_extend_desc">Shake device to add 5 minutes to active sleep timer (fixed mode)</string>
     
     <string name="audio_quality_title">Audio Quality</string>
     <string name="crossfade_title">Crossfade</string>
@@ -305,6 +310,14 @@
     
     <string name="skip_silence_title">Skip Silence</string>
     <string name="skip_silence_desc">Skip silent parts during playback</string>
+    <string name="skip_silence_threshold_title">Silence Threshold</string>
+    <string name="skip_silence_threshold_desc">Lower value keeps more quiet speech, higher value skips more pauses</string>
+    <string name="skip_silence_min_ms_title">Min Silence Duration</string>
+    <string name="skip_silence_min_ms_desc">Silence shorter than this value will not be skipped</string>
+    <string name="skip_silence_mode_title">Skip Silence Mode</string>
+    <string name="skip_silence_mode_desc">Skip removes long pauses completely, Speed-up shortens them</string>
+    <string name="skip_silence_mode_skip">Skip</string>
+    <string name="skip_silence_mode_speed_up">Speed-up</string>
     <!-- Title for audio enhancement settings -->
     <string name="audioEnhancementTitle">Audio Enhancement</string>
     <!-- Description for audio enhancement settings -->
@@ -1351,6 +1364,8 @@
     <string name="cancelTimerButton">Cancel timer</string>
     <!-- Label for end of chapter -->
     <string name="endOfChapterLabel">End of chapter</string>
+    <string name="endOfTrackLabel">End of track</string>
+    <string name="endOfTrackFallbackLabel">End of track (chapter metadata unavailable)</string>
     <!-- Label for at end of chapter -->
     <string name="atEndOfChapterLabel">At end of chapter</string>
     <!-- Tooltip for sleep timer with duration -->

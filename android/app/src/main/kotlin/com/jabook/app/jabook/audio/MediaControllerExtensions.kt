@@ -112,6 +112,18 @@ public object MediaControllerExtensions {
     }
 
     /**
+     * Sets sleep timer to end of track.
+     */
+    public fun setSleepTimerEndOfTrack(controller: MediaController): ListenableFuture<SessionResult> {
+        val command =
+            SessionCommand(
+                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_TRACK,
+                Bundle.EMPTY,
+            )
+        return controller.sendCustomCommand(command, Bundle.EMPTY)
+    }
+
+    /**
      * Cancels sleep timer.
      */
     public fun cancelSleepTimer(controller: MediaController): ListenableFuture<SessionResult> {
@@ -201,6 +213,30 @@ public object MediaControllerExtensions {
         }
 
     /**
+     * Checks if sleep timer is set to end of track.
+     */
+    public suspend fun isSleepTimerEndOfTrack(controller: MediaController): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                val command =
+                    SessionCommand(
+                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_TRACK,
+                        Bundle.EMPTY,
+                    )
+                val future = controller.sendCustomCommand(command, Bundle.EMPTY)
+                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
+                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
+                    result.extras.getBoolean(AudioPlayerLibrarySessionCallback.ARG_RESULT_END_OF_TRACK, false)
+                } else {
+                    false
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("MediaControllerExtensions", "Failed to check sleep timer end of track", e)
+                false
+            }
+        }
+
+    /**
      * Gets current group path (book ID).
      */
     public suspend fun getCurrentGroupPath(controller: MediaController): String? =
@@ -247,4 +283,35 @@ public object MediaControllerExtensions {
                 null
             }
         }
+
+    /**
+     * Initializes visualizer inside AudioPlayerService.
+     */
+    public fun initializeVisualizer(controller: MediaController): ListenableFuture<SessionResult> {
+        val command =
+            SessionCommand(
+                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_INITIALIZE_VISUALIZER,
+                Bundle.EMPTY,
+            )
+        return controller.sendCustomCommand(command, Bundle.EMPTY)
+    }
+
+    /**
+     * Enables or disables visualizer inside AudioPlayerService.
+     */
+    public fun setVisualizerEnabled(
+        controller: MediaController,
+        enabled: Boolean,
+    ): ListenableFuture<SessionResult> {
+        val args =
+            Bundle().apply {
+                putBoolean(AudioPlayerLibrarySessionCallback.ARG_VISUALIZER_ENABLED, enabled)
+            }
+        val command =
+            SessionCommand(
+                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_VISUALIZER_ENABLED,
+                args,
+            )
+        return controller.sendCustomCommand(command, Bundle.EMPTY)
+    }
 }

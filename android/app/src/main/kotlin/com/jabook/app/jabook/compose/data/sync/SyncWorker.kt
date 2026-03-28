@@ -127,29 +127,22 @@ public class SyncWorker
 
                             // Update cover URL if missing
                             if (matchedBook.coverUrl.isNullOrEmpty() && !details.coverUrl.isNullOrEmpty()) {
-                                // We need to execute an update query
-                                details.coverUrl?.let { url ->
-                                    booksDao.updateCoverUrl(matchedBook.id, url)
-                                    logger.i { "Updated cover URL for ${matchedBook.title}" }
-                                }
+                                booksDao.updateCoverUrl(matchedBook.id, details.coverUrl)
+                                logger.i { "Updated cover URL for ${matchedBook.title}" }
                             }
 
                             // Update author if missing or generic
                             if ((matchedBook.author.isEmpty() || matchedBook.author == "Unknown Author") &&
                                 !details.author.isNullOrEmpty()
                             ) {
-                                details.author?.let { author ->
-                                    booksDao.updateAuthor(matchedBook.id, author)
-                                    logger.i { "Updated author for ${matchedBook.title}: $author" }
-                                }
+                                booksDao.updateAuthor(matchedBook.id, details.author)
+                                logger.i { "Updated author for ${matchedBook.title}: ${details.author}" }
                             }
 
                             // Update description if missing
                             if (matchedBook.description.isNullOrEmpty() && !details.description.isNullOrEmpty()) {
-                                details.description?.let { description ->
-                                    booksDao.updateDescription(matchedBook.id, description)
-                                    logger.i { "Updated description for ${matchedBook.title}" }
-                                }
+                                booksDao.updateDescription(matchedBook.id, details.description)
+                                logger.i { "Updated description for ${matchedBook.title}" }
                             }
                         }
                     }
@@ -167,7 +160,7 @@ public class SyncWorker
             val booksNeedCover =
                 books.filter {
                     !it.coverUrl.isNullOrEmpty() &&
-                        (it.coverPath.isNullOrEmpty() || !java.io.File(it.coverPath!!).exists())
+                        (it.coverPath.isNullOrEmpty() || !java.io.File(it.coverPath).exists())
                 }
 
             logger.d { "Found ${booksNeedCover.size} books needing cover download" }

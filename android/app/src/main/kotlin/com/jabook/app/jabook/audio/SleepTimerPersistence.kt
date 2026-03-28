@@ -17,13 +17,14 @@ package com.jabook.app.jabook.audio
 internal data class SleepTimerPersistedState(
     val endTimeMillis: Long,
     val endOfChapter: Boolean,
+    val mode: SleepTimerMode?,
     val paused: Boolean,
     val pausedRemainingMillis: Long,
 )
 
 internal data class SleepTimerRuntimeState(
     val endTimeMillis: Long,
-    val endOfChapter: Boolean,
+    val mode: SleepTimerMode,
     val fixedDurationPaused: Boolean,
     val fixedDurationPausedRemainingMillis: Long?,
 )
@@ -32,6 +33,8 @@ internal sealed class SleepTimerRestorePlan {
     internal data object None : SleepTimerRestorePlan()
 
     internal data object EndOfChapter : SleepTimerRestorePlan()
+
+    internal data object EndOfTrack : SleepTimerRestorePlan()
 
     internal data class FixedDuration(
         val remainingMillis: Long,
@@ -43,6 +46,7 @@ internal object SleepTimerPersistence {
     internal const val PREFS_NAME: String = "jabook_timer_prefs"
     internal const val KEY_END_TIME: String = "sleepTimerEndTime"
     internal const val KEY_END_OF_CHAPTER: String = "sleepTimerEndOfChapter"
+    internal const val KEY_MODE: String = "sleepTimerMode"
     internal const val KEY_PAUSED: String = "sleepTimerPaused"
     internal const val KEY_PAUSED_REMAINING_MILLIS: String = "sleepTimerPausedRemainingMillis"
     internal const val NO_REMAINING_MILLIS: Long = -1L
@@ -50,7 +54,8 @@ internal object SleepTimerPersistence {
     internal fun toPersistedState(runtimeState: SleepTimerRuntimeState): SleepTimerPersistedState =
         SleepTimerPersistedState(
             endTimeMillis = runtimeState.endTimeMillis,
-            endOfChapter = runtimeState.endOfChapter,
+            endOfChapter = runtimeState.mode == SleepTimerMode.CHAPTER_END,
+            mode = runtimeState.mode,
             paused = runtimeState.fixedDurationPaused,
             pausedRemainingMillis = runtimeState.fixedDurationPausedRemainingMillis ?: NO_REMAINING_MILLIS,
         )
@@ -59,8 +64,16 @@ internal object SleepTimerPersistence {
         persistedState: SleepTimerPersistedState,
         nowMillis: Long,
     ): SleepTimerRestorePlan {
-        if (persistedState.endOfChapter) {
-            return SleepTimerRestorePlan.EndOfChapter
+        val persistedMode =
+            persistedState.mode ?: if (persistedState.endOfChapter) SleepTimerMode.CHAPTER_END else SleepTimerMode.NONE
+        when (persistedMode) {
+            SleepTimerMode.CHAPTER_END -> return SleepTimerRestorePlan.EndOfChapter
+            SleepTimerMode.TRACK_END -> return SleepTimerRestorePlan.EndOfTrack
+            SleepTimerMode.NONE,
+            SleepTimerMode.FIXED_DURATION,
+            -> {
+                // Continue with fixed/none path below.
+            }
         }
 
         if (persistedState.endTimeMillis <= 0L) {

@@ -39,7 +39,7 @@ public object TrackAvailabilityChecker {
             return false
         }
 
-        val mediaItem = player.getMediaItemAt(index) ?: return false
+        val mediaItem = player.getMediaItemAt(index)
         val uri = mediaItem.localConfiguration?.uri ?: return false
 
         return when {

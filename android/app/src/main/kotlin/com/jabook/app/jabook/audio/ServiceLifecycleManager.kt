@@ -18,6 +18,7 @@ import androidx.annotation.OptIn
 import androidx.core.app.ServiceCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.cancel
 
 /**
@@ -30,6 +31,18 @@ internal class ServiceLifecycleManager(
         android.util.Log.i("AudioPlayerService", "onTaskRemoved called")
 
         try {
+            // Best-effort immediate save to avoid losing progress when app is swiped away.
+            service.saveCurrentPosition()
+        } catch (e: Exception) {
+            android.util.Log.w("AudioPlayerService", "Failed to save position in onTaskRemoved", e)
+            CrashDiagnostics.reportNonFatal(
+                tag = "service_on_task_removed_save_failed",
+                throwable = e,
+                attributes = mapOf("service" to "AudioPlayerService"),
+            )
+        }
+
+        try {
             // If player is not playing, stop the service
             val player = service.getActivePlayer()
             if (!player.playWhenReady ||
@@ -37,6 +50,7 @@ internal class ServiceLifecycleManager(
                 player.playbackState == Player.STATE_ENDED
             ) {
                 android.util.Log.i("AudioPlayerService", "Stopping service onTaskRemoved because not playing")
+                service.finishListeningSessionIfActive(reason = "task_removed")
                 // CRITICAL: Explicitly cancel notification to prevent it from getting stuck
                 // This mimics the behavior of Rhythm and other well-behaved players
                 ServiceCompat.stopForeground(service, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -46,6 +60,11 @@ internal class ServiceLifecycleManager(
             }
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Error in onTaskRemoved", e)
+            CrashDiagnostics.reportNonFatal(
+                tag = "service_on_task_removed_failed",
+                throwable = e,
+                attributes = mapOf("service" to "AudioPlayerService"),
+            )
             // Safety: stop service if we can't check player state
             service.stopSelf()
         }
@@ -64,8 +83,14 @@ internal class ServiceLifecycleManager(
         try {
             android.util.Log.d("AudioPlayerService", "Saving position before service destruction")
             service.saveCurrentPosition()
+            service.finishListeningSessionIfActive(reason = "on_destroy")
         } catch (e: Exception) {
             android.util.Log.w("AudioPlayerService", "Failed to save position in onDestroy", e)
+            CrashDiagnostics.reportNonFatal(
+                tag = "service_on_destroy_save_failed",
+                throwable = e,
+                attributes = mapOf("service" to "AudioPlayerService"),
+            )
         }
 
         // Sleep timer is automatically managed by SuspendableCountDownTimer
@@ -179,6 +204,11 @@ internal class ServiceLifecycleManager(
             android.util.Log.d("AudioPlayerService", "Player stopped and resources released")
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to stop and cleanup", e)
+            CrashDiagnostics.reportNonFatal(
+                tag = "service_stop_and_cleanup_failed",
+                throwable = e,
+                attributes = mapOf("service" to "AudioPlayerService"),
+            )
             ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop and cleanup execution")
         }
     }
