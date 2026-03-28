@@ -23,6 +23,8 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     continue-on-error: true
+    env:
+      CODEQL_ACTION_FILE_COVERAGE_ON_PRS: "true"
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
     #   - https://gh.io/supported-runners-and-hardware-resources
