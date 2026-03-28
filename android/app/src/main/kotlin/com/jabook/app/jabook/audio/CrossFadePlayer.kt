@@ -40,6 +40,16 @@ public class CrossFadePlayer(
     private val context: Context,
     private val playerFactory: (Context) -> ExoPlayer,
 ) {
+    private sealed interface PendingPreloadRequest {
+        data class MediaItemRequest(
+            val mediaItem: androidx.media3.common.MediaItem,
+        ) : PendingPreloadRequest
+
+        data class MediaSourceRequest(
+            val mediaSource: MediaSource,
+        ) : PendingPreloadRequest
+    }
+
     private var playerA: ExoPlayer = playerFactory(context)
     private var playerB: ExoPlayer = playerFactory(context)
 
@@ -50,6 +60,7 @@ public class CrossFadePlayer(
     private var currentAnimator: ValueAnimator? = null
     private var isCrossFading = false
     private var crossFadeOutPlayer: ExoPlayer? = null
+    private var pendingPreloadRequest: PendingPreloadRequest? = null
 
     public var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
 
@@ -57,20 +68,14 @@ public class CrossFadePlayer(
      * Prepares the next player with the given media item.
      */
     public fun setNextTrack(mediaItem: androidx.media3.common.MediaItem) {
-        val targetPlayer = resolvePreloadTargetPlayer()
-        targetPlayer.setMediaItem(mediaItem)
-        targetPlayer.prepare()
-        android.util.Log.d("CrossFadePlayer", "Next track prepared on $targetPlayer")
+        enqueueOrApplyPreloadRequest(PendingPreloadRequest.MediaItemRequest(mediaItem))
     }
 
     /**
      * Prepares the next player with the given media source.
      */
     public fun setNextMediaSource(mediaSource: MediaSource) {
-        val targetPlayer = resolvePreloadTargetPlayer()
-        targetPlayer.setMediaSource(mediaSource)
-        targetPlayer.prepare()
-        android.util.Log.d("CrossFadePlayer", "Next media source prepared on $targetPlayer")
+        enqueueOrApplyPreloadRequest(PendingPreloadRequest.MediaSourceRequest(mediaSource))
     }
 
     /**
@@ -99,6 +104,7 @@ public class CrossFadePlayer(
         currentAnimator = null
         isCrossFading = false
         crossFadeOutPlayer = null
+        pendingPreloadRequest = null
         playerA.release()
         playerB.release()
     }
@@ -157,6 +163,7 @@ public class CrossFadePlayer(
 
                             // Swap players
                             swapPlayers()
+                            applyPendingPreloadIfNeeded()
                             crossFadeOutPlayer = null
                             onComplete()
                             android.util.Log.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
@@ -175,6 +182,36 @@ public class CrossFadePlayer(
         } else {
             nextPlayer
         }
+    }
+
+    private fun enqueueOrApplyPreloadRequest(request: PendingPreloadRequest) {
+        if (isCrossFading) {
+            // Keep only the latest preload request while transition is active.
+            pendingPreloadRequest = request
+            android.util.Log.d("CrossFadePlayer", "Queued preload during active crossfade")
+            return
+        }
+        val targetPlayer = resolvePreloadTargetPlayer()
+        applyPreloadRequest(targetPlayer, request)
+    }
+
+    private fun applyPendingPreloadIfNeeded() {
+        val pendingRequest = pendingPreloadRequest ?: return
+        pendingPreloadRequest = null
+        applyPreloadRequest(nextPlayer, pendingRequest)
+    }
+
+    private fun applyPreloadRequest(
+        targetPlayer: ExoPlayer,
+        request: PendingPreloadRequest,
+    ) {
+        targetPlayer.clearMediaItems()
+        when (request) {
+            is PendingPreloadRequest.MediaItemRequest -> targetPlayer.setMediaItem(request.mediaItem)
+            is PendingPreloadRequest.MediaSourceRequest -> targetPlayer.setMediaSource(request.mediaSource)
+        }
+        targetPlayer.prepare()
+        android.util.Log.d("CrossFadePlayer", "Preload request applied on $targetPlayer")
     }
 
     private fun swapPlayers() {

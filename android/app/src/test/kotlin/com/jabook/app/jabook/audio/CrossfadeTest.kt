@@ -25,6 +25,8 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLooper
@@ -79,6 +81,7 @@ class CrossfadeTest {
         crossFadePlayer.setNextTrack(mediaItem)
 
         // Then (assuming playerA is active, playerB is next)
+        verify(playerB).clearMediaItems()
         verify(playerB).setMediaItem(mediaItem)
         verify(playerB).prepare()
     }
@@ -99,19 +102,41 @@ class CrossfadeTest {
     fun `Prepare next MediaSource sets source on idle player`() {
         val mediaSource = mock<MediaSource>()
         crossFadePlayer.setNextMediaSource(mediaSource)
+        verify(playerB).clearMediaItems()
         verify(playerB).setMediaSource(mediaSource)
         verify(playerB).prepare()
     }
 
     @Test
-    fun `setNextTrack during crossfade preloads outgoing player for next queue slot`() {
+    fun `setNextTrack during crossfade queues and applies preload after swap`() {
         val queuedAfterCrossfade = MediaItem.fromUri("file://queued_after_crossfade.mp3")
 
         crossFadePlayer.startCrossFade()
         crossFadePlayer.setNextTrack(queuedAfterCrossfade)
 
-        // During active crossfade, the outgoing player becomes standby after swap.
+        // While crossfade is active request is queued, not applied immediately.
+        verify(playerA, never()).setMediaItem(queuedAfterCrossfade)
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        // After swap, outgoing player becomes standby and receives queued preload.
+        // Once from crossfade cleanup + once from applying the queued preload.
+        verify(playerA, times(2)).clearMediaItems()
         verify(playerA).setMediaItem(queuedAfterCrossfade)
         verify(playerA).prepare()
+    }
+
+    @Test
+    fun `latest queued preload wins during crossfade`() {
+        val first = MediaItem.fromUri("file://first.mp3")
+        val second = MediaItem.fromUri("file://second.mp3")
+
+        crossFadePlayer.startCrossFade()
+        crossFadePlayer.setNextTrack(first)
+        crossFadePlayer.setNextTrack(second)
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        verify(playerA, never()).setMediaItem(first)
+        verify(playerA).setMediaItem(second)
     }
 }
