@@ -92,6 +92,9 @@ public class AudioPlayerService : MediaLibraryService() {
     public lateinit var playbackPositionRepository: com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 
     @Inject
+    public lateinit var listeningSessionRepository: com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
+
+    @Inject
     public lateinit var audioOutputManager: AudioOutputManager
 
     @Inject
@@ -311,6 +314,16 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // Periodic position saving designated to PlaybackPositionRepository
     private var positionSaveJob: kotlinx.coroutines.Job? = null
+    private val listeningSessionTracker: ListeningSessionTracker by lazy {
+        ListeningSessionTracker(
+            repository = listeningSessionRepository,
+            scope = playerServiceScope,
+            getCurrentBookId = { currentGroupPath },
+            getCurrentPositionMs = { getActivePlayer().currentPosition },
+            getCurrentSpeed = { getActivePlayer().playbackParameters.speed },
+            getCurrentChapterIndex = { getActivePlayer().currentMediaItemIndex },
+        )
+    }
 
     private fun startPeriodicPositionSaving() {
         positionSaveJob?.cancel()
@@ -874,6 +887,7 @@ public class AudioPlayerService : MediaLibraryService() {
         // Start listening for phone calls when playback starts
         phoneCallListener?.startListening()
 
+        listeningSessionTracker.onPlaybackStarted()
         startPeriodicPositionSaving()
     }
 
@@ -883,6 +897,7 @@ public class AudioPlayerService : MediaLibraryService() {
             return
         }
 
+        listeningSessionTracker.onPlaybackStopped(reason = "pause")
         savePositionToRepository()
         // storeCurrentMediaItem()
         stopPeriodicPositionSaving()
@@ -897,9 +912,14 @@ public class AudioPlayerService : MediaLibraryService() {
         // Stop listening for phone calls when playback stops
         phoneCallListener?.stopListening()
 
+        listeningSessionTracker.onPlaybackStopped(reason = "stop")
         savePositionToRepository()
         // storeCurrentMediaItem()
         stopPeriodicPositionSaving()
+    }
+
+    internal fun finishListeningSessionIfActive(reason: String) {
+        listeningSessionTracker.onPlaybackStopped(reason)
     }
 
     /**

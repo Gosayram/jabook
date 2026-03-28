@@ -44,6 +44,7 @@ internal class ServiceLifecycleManager(
                 player.playbackState == Player.STATE_ENDED
             ) {
                 android.util.Log.i("AudioPlayerService", "Stopping service onTaskRemoved because not playing")
+                service.finishListeningSessionIfActive(reason = "task_removed")
                 // CRITICAL: Explicitly cancel notification to prevent it from getting stuck
                 // This mimics the behavior of Rhythm and other well-behaved players
                 ServiceCompat.stopForeground(service, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -71,6 +72,7 @@ internal class ServiceLifecycleManager(
         try {
             android.util.Log.d("AudioPlayerService", "Saving position before service destruction")
             service.saveCurrentPosition()
+            service.finishListeningSessionIfActive(reason = "on_destroy")
         } catch (e: Exception) {
             android.util.Log.w("AudioPlayerService", "Failed to save position in onDestroy", e)
         }

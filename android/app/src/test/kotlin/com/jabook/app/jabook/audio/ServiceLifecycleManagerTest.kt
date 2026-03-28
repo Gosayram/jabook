@@ -49,6 +49,7 @@ class ServiceLifecycleManagerTest {
         manager.onTaskRemoved()
 
         verify(service, times(1)).saveCurrentPosition()
+        verify(service, never()).finishListeningSessionIfActive("task_removed")
         verify(service, never()).stopSelf()
     }
 
@@ -60,6 +61,7 @@ class ServiceLifecycleManagerTest {
         manager.onTaskRemoved()
 
         verify(service, times(1)).saveCurrentPosition()
+        verify(service, times(1)).finishListeningSessionIfActive("task_removed")
         verify(service, times(1)).stopSelf()
     }
 }
