@@ -24,6 +24,8 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
@@ -80,7 +82,7 @@ class PlayerStateSyncTest {
             // Then: State should be consistent
             // Verify that final state is correct
             val finalState = exoPlayer.isPlaying
-            assert(finalState == false || finalState == true) // Should be consistent
+            assertFalse(finalState)
         }
 
     @Test
@@ -107,10 +109,10 @@ class PlayerStateSyncTest {
 
             // When: Accessing player state
             // In real scenario, this would be through MediaController
-            val player = exoPlayer
+            val player: ExoPlayer? = exoPlayer
 
             // Then: Should use MediaController, not getInstance()
             // Verify that we're not using static instance
-            assert(player != null)
+            assertNotNull(player)
         }
 }
