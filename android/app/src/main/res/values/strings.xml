@@ -297,6 +297,9 @@
     <string name="playback_general">General Playback</string>
     <string name="auto_rewind_title">Rewind on Pause</string>
     <string name="auto_rewind_desc">Rewind 2 seconds when resuming after a long pause</string>
+    <string name="resume_rewind_title">Resume Rewind After Long Pause</string>
+    <string name="resume_rewind_desc">If paused for more than 30 minutes, rewind by selected value when resuming</string>
+    <string name="resume_rewind_option_seconds">%1$d s</string>
     
     <string name="audio_quality_title">Audio Quality</string>
     <string name="crossfade_title">Crossfade</string>

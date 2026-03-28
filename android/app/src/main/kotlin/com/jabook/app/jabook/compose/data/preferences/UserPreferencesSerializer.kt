@@ -52,6 +52,7 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setSkipSilenceThresholdDb(-32.0f)
             .setSkipSilenceMinMs(250)
             .setSkipSilenceMode(SkipSilenceMode.SKIP)
+            .setResumeRewindSeconds(10)
             .build()
 
     override suspend fun readFrom(input: InputStream): UserPreferences =

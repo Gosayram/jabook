@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 internal class AudioFocusDuckingController(
     private val getActivePlayer: () -> ExoPlayer,
     private val scope: CoroutineScope?,
+    private val onDuckApplied: (() -> Unit)? = null,
     private val duckVolume: Float = 0.2f,
     private val restoreDurationMs: Long = 500L,
     private val restoreSteps: Int = 10,
@@ -58,7 +59,8 @@ internal class AudioFocusDuckingController(
 
         val player = getActivePlayer()
         val currentVolume = player.volume.coerceIn(0f, 1f)
-        if (!isDucked) {
+        val wasDucked = isDucked
+        if (!wasDucked) {
             volumeBeforeDuck = currentVolume
         }
 
@@ -67,6 +69,9 @@ internal class AudioFocusDuckingController(
             player.volume = targetVolume
         }
         isDucked = true
+        if (!wasDucked) {
+            onDuckApplied?.invoke()
+        }
     }
 
     private fun restoreIfNeeded() {

@@ -62,6 +62,7 @@ public interface SettingsRepository {
     public suspend fun updateAudioSettings(
         rewindSeconds: Int? = null,
         forwardSeconds: Int? = null,
+        resumeRewindSeconds: Int? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
         speechEnhancer: Boolean? = null,
@@ -192,6 +193,7 @@ public class ProtoSettingsRepository
         override suspend fun updateAudioSettings(
             rewindSeconds: Int?,
             forwardSeconds: Int?,
+            resumeRewindSeconds: Int?,
             volumeBoost: String?,
             drcLevel: String?,
             speechEnhancer: Boolean?,
@@ -208,6 +210,7 @@ public class ProtoSettingsRepository
                 val builder = preferences.toBuilder()
                 rewindSeconds?.let { builder.setRewindDurationSeconds(it) }
                 forwardSeconds?.let { builder.setForwardDurationSeconds(it) }
+                resumeRewindSeconds?.let { builder.setResumeRewindSeconds(it) }
                 volumeBoost?.let { builder.setVolumeBoostLevel(it) }
                 drcLevel?.let { builder.setDrcLevel(it) }
                 speechEnhancer?.let { builder.setSpeechEnhancer(it) }

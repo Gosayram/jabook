@@ -65,16 +65,16 @@ public class AudioPlayerServiceInitializer(
                 getActivePlayer = { service.getActivePlayer() },
                 playerServiceScope = service.playerServiceScope,
                 resetInactivityTimer = { service.inactivityTimer?.resetTimer() },
-                getAutoRewindEnabled = {
-                    // Get auto rewind setting from preferences
+                getResumeRewindSeconds = {
+                    // Long-pause resume rewind setting (0/5/10/30 sec).
                     try {
                         kotlinx.coroutines.runBlocking {
                             service.settingsRepository.userPreferences
                                 .first()
-                                .autoRewindOnPause
+                                .resumeRewindSeconds
                         }
                     } catch (e: Exception) {
-                        false // Default: disabled
+                        10
                     }
                 },
             )

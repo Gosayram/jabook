@@ -216,6 +216,7 @@ public class SettingsViewModel
         public fun updateAudioSettings(
             rewindSeconds: Int? = null,
             forwardSeconds: Int? = null,
+            resumeRewindSeconds: Int? = null,
             volumeBoost: String? = null,
             drcLevel: String? = null,
             speechEnhancer: Boolean? = null,
@@ -232,6 +233,7 @@ public class SettingsViewModel
                 settingsRepository.updateAudioSettings(
                     rewindSeconds = rewindSeconds,
                     forwardSeconds = forwardSeconds,
+                    resumeRewindSeconds = resumeRewindSeconds,
                     volumeBoost = volumeBoost,
                     drcLevel = drcLevel,
                     speechEnhancer = speechEnhancer,

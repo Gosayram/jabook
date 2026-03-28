@@ -88,17 +88,32 @@ public fun AudioSettingsScreen(
             SettingsSection(title = stringResource(R.string.playback_general), contentPadding = contentPadding, itemSpacing = itemSpacing)
 
             // Auto-rewind on pause
-            SettingsSwitchItem(
-                title = stringResource(R.string.auto_rewind_title),
-                subtitle = stringResource(R.string.auto_rewind_desc),
-                checked = protoSettings.autoRewindOnPause,
-                onCheckedChange = {
-                    viewModel.updateAudioSettings(rewindSeconds = if (it) 2 else 0)
-                },
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
+            SettingsItem(
+                title = stringResource(R.string.resume_rewind_title),
+                subtitle = stringResource(R.string.resume_rewind_desc),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val options = listOf(0, 5, 10, 30)
+                    options.forEach { seconds ->
+                        FilterChip(
+                            selected = protoSettings.resumeRewindSeconds == seconds,
+                            onClick = {
+                                viewModel.updateAudioSettings(resumeRewindSeconds = seconds)
+                            },
+                            label = {
+                                Text(
+                                    stringResource(
+                                        R.string.resume_rewind_option_seconds,
+                                        seconds,
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
 
             // Audio Quality (Phase 1.2 features)
             HorizontalDivider()

@@ -80,6 +80,24 @@ class AudioFocusDuckingControllerTest {
             assertEquals(0.1f, currentVolume(), 0.0001f)
         }
 
+    @Test
+    fun `duck invokes callback once when entering duck state`() =
+        runTest {
+            val (player, _) = createPlayer(initialVolume = 1.0f)
+            var callbackCount = 0
+            val controller =
+                AudioFocusDuckingController(
+                    getActivePlayer = { player },
+                    scope = TestScope(StandardTestDispatcher(testScheduler)),
+                    onDuckApplied = { callbackCount++ },
+                )
+
+            controller.onPlaybackSuppressionReasonChanged(Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS)
+            controller.onPlaybackSuppressionReasonChanged(Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS)
+
+            assertEquals(1, callbackCount)
+        }
+
     private fun createPlayer(initialVolume: Float): Pair<ExoPlayer, () -> Float> {
         var volume = initialVolume
         val player: ExoPlayer = mock()

@@ -314,6 +314,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // Periodic position saving designated to PlaybackPositionRepository
     private var positionSaveJob: kotlinx.coroutines.Job? = null
+    private val periodicPositionSaveIntervalMs: Long = 5_000L
     private val listeningSessionTracker: ListeningSessionTracker by lazy {
         ListeningSessionTracker(
             repository = listeningSessionRepository,
@@ -330,7 +331,7 @@ public class AudioPlayerService : MediaLibraryService() {
         positionSaveJob =
             playerServiceScope.launch {
                 while (coroutineContext[kotlinx.coroutines.Job]?.isActive == true) {
-                    kotlinx.coroutines.delay(10000L) // Save every 10 seconds
+                    kotlinx.coroutines.delay(periodicPositionSaveIntervalMs)
                     savePositionToRepository()
                 }
             }

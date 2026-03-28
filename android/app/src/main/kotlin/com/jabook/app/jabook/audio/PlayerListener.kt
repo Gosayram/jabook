@@ -99,6 +99,10 @@ internal class PlayerListener(
         AudioFocusDuckingController(
             getActivePlayer = getActivePlayer,
             scope = coroutineScope,
+            onDuckApplied = {
+                saveCurrentPosition()
+                LogUtils.d("AudioPlayerService", "Saved position on transient audio focus duck event")
+            },
         )
 
     /**

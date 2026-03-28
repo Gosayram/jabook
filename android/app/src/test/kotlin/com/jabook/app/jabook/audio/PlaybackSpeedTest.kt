@@ -40,7 +40,7 @@ class PlaybackSpeedTest {
         val getActivePlayer = { exoPlayer }
         val resetTimer = {}
 
-        playbackController = PlaybackController(getActivePlayer, testScope, resetTimer, { false })
+        playbackController = PlaybackController(getActivePlayer, testScope, resetTimer, { 10 })
     }
 
     @Test
