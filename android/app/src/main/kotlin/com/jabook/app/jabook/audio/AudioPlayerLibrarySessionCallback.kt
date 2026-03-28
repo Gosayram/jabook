@@ -318,7 +318,7 @@ public class AudioPlayerLibrarySessionCallback(
             try {
                 val parsedArgs = SetPlaylistCommandArgsParser.parse(args)
                 if (parsedArgs == null) {
-                    return@future SessionResult(SessionError.ERROR_BAD_VALUE)
+                    return@future SetPlaylistCommandResultPolicy.badValue()
                 }
 
                 // Use CompletableDeferred to wait for callback
@@ -341,27 +341,31 @@ public class AudioPlayerLibrarySessionCallback(
                 )
 
                 // Wait for callback with timeout
-                val success =
+                val result =
                     try {
-                        withTimeout(30000) {
-                            // 30 seconds timeout
-                            deferred.await()
+                        val success =
+                            withTimeout(30000) {
+                                // 30 seconds timeout
+                                deferred.await()
+                            }
+                        if (success) {
+                            SetPlaylistCommandResultPolicy.success()
+                        } else {
+                            SetPlaylistCommandResultPolicy.callbackFailed()
                         }
                     } catch (e: TimeoutCancellationException) {
                         android.util.Log.e("AudioPlayerService", "setPlaylist timeout", e)
-                        false
+                        SetPlaylistCommandResultPolicy.timeout()
                     }
 
-                if (success) {
+                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
                     // Notify connected browsers that root children changed after playlist update.
                     notifyLibraryRootsChanged(session)
-                    SessionResult(SessionResult.RESULT_SUCCESS)
-                } else {
-                    SessionResult(SessionError.ERROR_UNKNOWN)
                 }
+                result
             } catch (e: Exception) {
                 android.util.Log.e("AudioPlayerService", "Error in handleSetPlaylistCommand", e)
-                SessionResult(SessionError.ERROR_UNKNOWN)
+                SetPlaylistCommandResultPolicy.exception(e)
             }
         }
 
