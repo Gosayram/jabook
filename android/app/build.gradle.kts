@@ -406,6 +406,8 @@ dependencies {
     implementation(libs.bundles.network)
     // Jsoup for HTML parsing (Rutracker scraping)
     implementation(libs.jsoup)
+    // Jsoup optional regex backend required for R8 minify (Re2jRegex)
+    implementation(libs.re2j)
 
     // libtorrent4j for torrent downloads
     implementation(libs.bundles.libtorrent4j)

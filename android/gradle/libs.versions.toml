@@ -55,6 +55,7 @@ media3 = "1.10.0-rc02"
 okhttp = "5.3.2"
 retrofit = "3.0.0"
 jsoup = "1.22.1"
+re2j = "1.8"
 
 # Image Loading
 coil3 = "3.4.0"
@@ -164,6 +165,7 @@ retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = 
 retrofit-converter-kotlinx-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
 retrofit-converter-scalars = { group = "com.squareup.retrofit2", name = "converter-scalars", version.ref = "retrofit" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+re2j = { group = "com.google.re2j", name = "re2j", version.ref = "re2j" }
 
 # Kotlinx
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
