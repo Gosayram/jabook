@@ -176,11 +176,19 @@ public class OfflineFirstBooksRepository
             val variants = TransliterationSearchPolicy.buildVariants(query)
             val primary = variants.firstOrNull().orEmpty()
             val fallback = variants.getOrNull(1).orEmpty()
+            val ftsMatchQuery = TransliterationSearchPolicy.buildFtsMatchQuery(variants)
+
+            if (ftsMatchQuery.isBlank()) {
+                return booksDao
+                    .searchBooksFlowWithFallback(
+                        query = primary,
+                        fallbackQuery = fallback,
+                    ).map { it.toBooks() }
+            }
+
             return booksDao
-                .searchBooksFlowWithFallback(
-                    query = primary,
-                    fallbackQuery = fallback,
-                ).map { it.toBooks() }
+                .searchBooksByFtsFlow(ftsMatchQuery)
+                .map { it.toBooks() }
         }
 
         override suspend fun addBook(book: Book) {

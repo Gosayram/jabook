@@ -40,4 +40,17 @@ class TransliterationSearchPolicyTest {
         val variants = TransliterationSearchPolicy.buildVariants("   ")
         assertEquals(emptyList<String>(), variants)
     }
+
+    @Test
+    fun `buildFtsMatchQuery builds prefix query for transliterated variants`() {
+        val query = TransliterationSearchPolicy.buildFtsMatchQuery("tolstoy")
+        assertTrue(query.contains("\"tolstoy*\""))
+        assertTrue(query.contains("\"толстой*\""))
+        assertTrue(query.contains("OR"))
+    }
+
+    @Test
+    fun `buildFtsMatchQuery returns empty for blank input`() {
+        assertEquals("", TransliterationSearchPolicy.buildFtsMatchQuery("  "))
+    }
 }

@@ -116,6 +116,33 @@ public object TransliterationSearchPolicy {
             .toList()
     }
 
+    public fun buildFtsMatchQuery(query: String): String = buildFtsMatchQuery(buildVariants(query))
+
+    public fun buildFtsMatchQuery(variants: List<String>): String {
+        val variantQueries =
+            variants
+                .asSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .map { variant ->
+                    variant
+                        .split(WHITESPACE_REGEX)
+                        .mapNotNull { token ->
+                            val normalized = token.trim().lowercase()
+                            if (normalized.isBlank()) null else "\"${escapeToken(normalized)}*\""
+                        }.distinct()
+                        .joinToString(" AND ")
+                }.filter { it.isNotBlank() }
+                .distinct()
+                .toList()
+
+        if (variantQueries.isEmpty()) {
+            return ""
+        }
+
+        return variantQueries.joinToString(" OR ", prefix = "(", postfix = ")")
+    }
+
     private fun transliterateToLatin(input: String): String {
         val result = StringBuilder(input.length * 2)
         for (char in input) {
@@ -146,4 +173,8 @@ public object TransliterationSearchPolicy {
         }
         return builder.toString()
     }
+
+    private fun escapeToken(token: String): String = token.replace("\"", "\"\"")
+
+    private val WHITESPACE_REGEX = "\\s+".toRegex()
 }

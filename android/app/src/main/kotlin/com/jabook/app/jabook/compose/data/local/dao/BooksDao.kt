@@ -301,6 +301,22 @@ public interface BooksDao {
     ): Flow<List<BookEntity>>
 
     /**
+     * Searches books via FTS5 index.
+     *
+     * @param ftsQuery Query in SQLite FTS5 MATCH format
+     */
+    @Query(
+        """
+        SELECT b.*
+        FROM books b
+        JOIN books_fts f ON b.rowid = f.rowid
+        WHERE books_fts MATCH :ftsQuery
+        ORDER BY b.title ASC
+        """,
+    )
+    public fun searchBooksByFtsFlow(ftsQuery: String): Flow<List<BookEntity>>
+
+    /**
      * Updates per-book playback settings.
      */
     @Query("UPDATE books SET rewind_duration = :rewindDuration, forward_duration = :forwardDuration WHERE id = :bookId")
