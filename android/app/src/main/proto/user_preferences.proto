@@ -60,6 +60,7 @@ message UserPreferences {
   // Skip Silence advanced tuning
   float skip_silence_threshold_db = 31; // Recommended range: -40 .. -20 dB
   int32 skip_silence_min_ms = 32; // Recommended range: 150 .. 300 ms
+  SkipSilenceMode skip_silence_mode = 33;
 }
 
 // Theme mode enum
@@ -68,4 +69,9 @@ enum ThemeMode {
   LIGHT = 1;
   DARK = 2;
   AMOLED = 3;
+}
+
+enum SkipSilenceMode {
+  SKIP = 0;
+  SPEED_UP = 1;
 }

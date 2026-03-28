@@ -30,6 +30,7 @@ public class SkipSilenceAudioProcessor(
     private val enabled: Boolean,
     silenceThresholdNormalized: Float,
     minSilenceDurationMs: Int,
+    private val mode: SkipSilenceMode = SkipSilenceMode.SKIP,
 ) : AudioProcessor {
     private val thresholdNormalized = silenceThresholdNormalized.coerceIn(0.0001f, 0.1f)
     private val minimumSilenceMs = minSilenceDurationMs.coerceIn(1, 2000)
@@ -142,12 +143,19 @@ public class SkipSilenceAudioProcessor(
                 consecutiveSilentFrames++
                 if (consecutiveSilentFrames <= minSilenceFrames) {
                     copyFrame(input, output, frameStart, frameEnd)
+                } else if (mode == SkipSilenceMode.SPEED_UP && shouldKeepFrameInSpeedUpMode()) {
+                    copyFrame(input, output, frameStart, frameEnd)
                 }
             } else {
                 consecutiveSilentFrames = 0
                 copyFrame(input, output, frameStart, frameEnd)
             }
         }
+    }
+
+    private fun shouldKeepFrameInSpeedUpMode(): Boolean {
+        val silentFramesPastMinimum = (consecutiveSilentFrames - minSilenceFrames).coerceAtLeast(0)
+        return silentFramesPastMinimum % SPEED_UP_KEEP_EVERY_NTH_FRAME == 0
     }
 
     private fun copyFrame(
@@ -186,6 +194,7 @@ public class SkipSilenceAudioProcessor(
 
     private companion object {
         private const val PCM_16_BIT_BYTES = 2
+        private const val SPEED_UP_KEEP_EVERY_NTH_FRAME = 2
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

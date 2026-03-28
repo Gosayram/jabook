@@ -288,6 +288,10 @@
     <string name="skip_silence_threshold_desc">Ниже значение — сохраняет больше тихой речи, выше — сильнее пропускает паузы</string>
     <string name="skip_silence_min_ms_title">Мин. длительность тишины</string>
     <string name="skip_silence_min_ms_desc">Тишина короче этого значения не будет пропускаться</string>
+    <string name="skip_silence_mode_title">Режим пропуска тишины</string>
+    <string name="skip_silence_mode_desc">Пропуск полностью убирает длинные паузы, Ускорение только сокращает их</string>
+    <string name="skip_silence_mode_skip">Пропуск</string>
+    <string name="skip_silence_mode_speed_up">Ускорение</string>
     <!-- Заголовок настроек улучшения звука -->
     <string name="audioEnhancementTitle">Улучшение звука</string>
     <!-- Описание настроек улучшения звука -->

@@ -51,6 +51,7 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setAutoSwitchMirror(true) // Default: enabled (user can disable if needed)
             .setSkipSilenceThresholdDb(-32.0f)
             .setSkipSilenceMinMs(250)
+            .setSkipSilenceMode(SkipSilenceMode.SKIP)
             .build()
 
     override suspend fun readFrom(input: InputStream): UserPreferences =

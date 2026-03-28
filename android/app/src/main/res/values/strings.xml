@@ -309,6 +309,10 @@
     <string name="skip_silence_threshold_desc">Lower value keeps more quiet speech, higher value skips more pauses</string>
     <string name="skip_silence_min_ms_title">Min Silence Duration</string>
     <string name="skip_silence_min_ms_desc">Silence shorter than this value will not be skipped</string>
+    <string name="skip_silence_mode_title">Skip Silence Mode</string>
+    <string name="skip_silence_mode_desc">Skip removes long pauses completely, Speed-up shortens them</string>
+    <string name="skip_silence_mode_skip">Skip</string>
+    <string name="skip_silence_mode_speed_up">Speed-up</string>
     <!-- Title for audio enhancement settings -->
     <string name="audioEnhancementTitle">Audio Enhancement</string>
     <!-- Description for audio enhancement settings -->

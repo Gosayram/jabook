@@ -70,6 +70,7 @@ public interface SettingsRepository {
         skipSilence: Boolean? = null,
         skipSilenceThresholdDb: Float? = null,
         skipSilenceMinMs: Int? = null,
+        skipSilenceMode: SkipSilenceMode? = null,
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
     )
@@ -199,6 +200,7 @@ public class ProtoSettingsRepository
             skipSilence: Boolean?,
             skipSilenceThresholdDb: Float?,
             skipSilenceMinMs: Int?,
+            skipSilenceMode: SkipSilenceMode?,
             crossfadeEnabled: Boolean?,
             crossfadeDurationMs: Long?,
         ) {
@@ -214,6 +216,7 @@ public class ProtoSettingsRepository
                 skipSilence?.let { builder.setSkipSilence(it) }
                 skipSilenceThresholdDb?.let { builder.setSkipSilenceThresholdDb(it) }
                 skipSilenceMinMs?.let { builder.setSkipSilenceMinMs(it) }
+                skipSilenceMode?.let { builder.setSkipSilenceMode(it) }
                 crossfadeEnabled?.let { builder.setCrossfadeEnabled(it) }
                 crossfadeDurationMs?.let { builder.setCrossfadeDurationMs(it) }
                 builder.build()

@@ -123,6 +123,7 @@ public object AudioProcessorFactory {
                             enabled = true,
                             silenceThresholdNormalized = settings.skipSilenceThresholdNormalized,
                             minSilenceDurationMs = settings.skipSilenceMinDurationMs,
+                            mode = settings.skipSilenceMode,
                         )
                     processors.add(silenceSkippingProcessor)
 
@@ -163,6 +164,7 @@ public data class AudioProcessingSettings(
     val skipSilence: Boolean = false,
     val skipSilenceThresholdNormalized: Float = 0.015f,
     val skipSilenceMinDurationMs: Int = 250,
+    val skipSilenceMode: SkipSilenceMode = SkipSilenceMode.SKIP,
     val isCrossfadeEnabled: Boolean = false,
     val crossfadeDurationMs: Long = 0L,
 ) {
@@ -180,10 +182,16 @@ public data class AudioProcessingSettings(
                 skipSilence = false,
                 skipSilenceThresholdNormalized = 0.015f,
                 skipSilenceMinDurationMs = 250,
+                skipSilenceMode = SkipSilenceMode.SKIP,
                 isCrossfadeEnabled = false,
                 crossfadeDurationMs = 2000L,
             )
     }
+}
+
+public enum class SkipSilenceMode {
+    SKIP,
+    SPEED_UP,
 }
 
 /**

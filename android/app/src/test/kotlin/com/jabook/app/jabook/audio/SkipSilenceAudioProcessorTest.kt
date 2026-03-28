@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import android.media.AudioFormat
 import androidx.media3.common.audio.AudioProcessor
 import com.jabook.app.jabook.audio.processors.SkipSilenceAudioProcessor
+import com.jabook.app.jabook.audio.processors.SkipSilenceMode
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -87,6 +88,44 @@ class SkipSilenceAudioProcessorTest {
         val samples = ShortArray(output.remaining() / 2) { output.short }
 
         assertArrayEquals(shortArrayOf(1000, 0, 0, 1000), samples)
+    }
+
+    @Test
+    fun `speed up mode keeps more silence frames than skip mode`() {
+        val skipProcessor =
+            SkipSilenceAudioProcessor(
+                enabled = true,
+                silenceThresholdNormalized = 0.02f,
+                minSilenceDurationMs = 3,
+                mode = SkipSilenceMode.SKIP,
+            )
+        val speedUpProcessor =
+            SkipSilenceAudioProcessor(
+                enabled = true,
+                silenceThresholdNormalized = 0.02f,
+                minSilenceDurationMs = 3,
+                mode = SkipSilenceMode.SPEED_UP,
+            )
+        val format =
+            AudioProcessor.AudioFormat(
+                1000,
+                1,
+                AudioFormat.ENCODING_PCM_16BIT,
+            )
+        skipProcessor.configure(format)
+        speedUpProcessor.configure(format)
+
+        val input = pcm16Buffer(1000, 0, 0, 0, 0, 0, 0, 0, 0, 1000)
+        skipProcessor.queueInput(input.duplicate())
+        speedUpProcessor.queueInput(input.duplicate())
+
+        val skipOut = skipProcessor.getOutput().order(ByteOrder.nativeOrder())
+        val speedOut = speedUpProcessor.getOutput().order(ByteOrder.nativeOrder())
+        val skipSamples = ShortArray(skipOut.remaining() / 2) { skipOut.short }
+        val speedSamples = ShortArray(speedOut.remaining() / 2) { speedOut.short }
+
+        assertTrue(speedSamples.size > skipSamples.size)
+        assertTrue(speedSamples.size < 10)
     }
 
     @Test

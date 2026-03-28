@@ -224,6 +224,7 @@ public class SettingsViewModel
             skipSilence: Boolean? = null,
             skipSilenceThresholdDb: Float? = null,
             skipSilenceMinMs: Int? = null,
+            skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode? = null,
             crossfadeEnabled: Boolean? = null,
             crossfadeDurationMs: Long? = null,
         ) {
@@ -239,6 +240,7 @@ public class SettingsViewModel
                     skipSilence = skipSilence,
                     skipSilenceThresholdDb = skipSilenceThresholdDb,
                     skipSilenceMinMs = skipSilenceMinMs,
+                    skipSilenceMode = skipSilenceMode,
                     crossfadeEnabled = crossfadeEnabled,
                     crossfadeDurationMs = crossfadeDurationMs,
                 )

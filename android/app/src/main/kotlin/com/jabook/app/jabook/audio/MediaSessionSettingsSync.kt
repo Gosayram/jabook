@@ -113,6 +113,13 @@ public class MediaSessionSettingsSync(
                         skipSilenceMinDurationMs =
                             com.jabook.app.jabook.audio.processors.SkipSilenceThresholdPolicy
                                 .sanitizeMinSilenceMs(prefs.skipSilenceMinMs),
+                        skipSilenceMode =
+                            when (prefs.skipSilenceMode) {
+                                com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP ->
+                                    com.jabook.app.jabook.audio.processors.SkipSilenceMode.SPEED_UP
+                                else ->
+                                    com.jabook.app.jabook.audio.processors.SkipSilenceMode.SKIP
+                            },
                         isCrossfadeEnabled = prefs.crossfadeEnabled,
                         crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
                     )

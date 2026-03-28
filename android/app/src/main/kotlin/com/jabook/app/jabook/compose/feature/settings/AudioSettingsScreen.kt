@@ -14,7 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
@@ -166,6 +170,38 @@ public fun AudioSettingsScreen(
                     itemSpacing = itemSpacing,
                     smallSpacing = smallSpacing,
                 )
+
+                SettingsItem(
+                    title = stringResource(R.string.skip_silence_mode_title),
+                    subtitle = stringResource(R.string.skip_silence_mode_desc),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(
+                            selected =
+                                protoSettings.skipSilenceMode ==
+                                    com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP,
+                            onClick = {
+                                viewModel.updateAudioSettings(
+                                    skipSilenceMode = com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP,
+                                )
+                            },
+                            label = { Text(stringResource(R.string.skip_silence_mode_skip)) },
+                        )
+                        FilterChip(
+                            selected =
+                                protoSettings.skipSilenceMode ==
+                                    com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP,
+                            onClick = {
+                                viewModel.updateAudioSettings(
+                                    skipSilenceMode = com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP,
+                                )
+                            },
+                            label = { Text(stringResource(R.string.skip_silence_mode_speed_up)) },
+                        )
+                    }
+                }
             }
 
             // Volume Normalization
