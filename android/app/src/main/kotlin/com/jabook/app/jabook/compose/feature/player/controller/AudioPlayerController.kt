@@ -624,6 +624,10 @@ public class AudioPlayerController
             resetRetryState: Boolean,
         ) {
             if (resetRetryState) {
+                // New user-initiated load should invalidate any previously scheduled retry.
+                loadBookRetryJob?.cancel()
+                loadBookRetryJob = null
+                pendingLoadRequest = null
                 loadBookRetryAttempts = 0
             }
 
@@ -703,6 +707,7 @@ public class AudioPlayerController
                         if (request.autoPlay && !controller.isPlaying) {
                             controller.play()
                         }
+                        pendingLoadRequest = null
                         loadBookRetryAttempts = 0
                         return@launch
                     }
@@ -732,6 +737,7 @@ public class AudioPlayerController
                         scheduleLoadBookRetry(request, "result=${result.resultCode}")
                         return@launch
                     }
+                    pendingLoadRequest = null
                     loadBookRetryAttempts = 0
                 } catch (e: Exception) {
                     logger.e({ "Error in loadBook" }, e)
