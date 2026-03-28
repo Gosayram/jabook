@@ -121,4 +121,10 @@ public class AudioPlayerNotificationProvider(
         action: String,
         extras: Bundle,
     ): Boolean = defaultProvider.handleCustomCommand(session, action, extras)
+
+    override fun getNotificationChannelInfo(): MediaNotification.Provider.NotificationChannelInfo =
+        MediaNotification.Provider.NotificationChannelInfo(
+            NotificationHelper.CHANNEL_ID,
+            service.getString(com.jabook.app.jabook.R.string.notification_channel_name),
+        )
 }
