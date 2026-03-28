@@ -18,6 +18,7 @@ import androidx.annotation.OptIn
 import androidx.core.app.ServiceCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.cancel
 
 /**
@@ -34,6 +35,11 @@ internal class ServiceLifecycleManager(
             service.saveCurrentPosition()
         } catch (e: Exception) {
             android.util.Log.w("AudioPlayerService", "Failed to save position in onTaskRemoved", e)
+            CrashDiagnostics.reportNonFatal(
+                tag = "service_on_task_removed_save_failed",
+                throwable = e,
+                attributes = mapOf("service" to "AudioPlayerService"),
+            )
         }
 
         try {
@@ -54,6 +60,11 @@ internal class ServiceLifecycleManager(
             }
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Error in onTaskRemoved", e)
+            CrashDiagnostics.reportNonFatal(
+                tag = "service_on_task_removed_failed",
+                throwable = e,
+                attributes = mapOf("service" to "AudioPlayerService"),
+            )
             // Safety: stop service if we can't check player state
             service.stopSelf()
         }
@@ -75,6 +86,11 @@ internal class ServiceLifecycleManager(
             service.finishListeningSessionIfActive(reason = "on_destroy")
         } catch (e: Exception) {
             android.util.Log.w("AudioPlayerService", "Failed to save position in onDestroy", e)
+            CrashDiagnostics.reportNonFatal(
+                tag = "service_on_destroy_save_failed",
+                throwable = e,
+                attributes = mapOf("service" to "AudioPlayerService"),
+            )
         }
 
         // Sleep timer is automatically managed by SuspendableCountDownTimer
@@ -188,6 +204,11 @@ internal class ServiceLifecycleManager(
             android.util.Log.d("AudioPlayerService", "Player stopped and resources released")
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to stop and cleanup", e)
+            CrashDiagnostics.reportNonFatal(
+                tag = "service_stop_and_cleanup_failed",
+                throwable = e,
+                attributes = mapOf("service" to "AudioPlayerService"),
+            )
             ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop and cleanup execution")
         }
     }

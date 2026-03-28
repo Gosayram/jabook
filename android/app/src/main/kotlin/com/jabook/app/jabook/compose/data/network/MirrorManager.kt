@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.network
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -153,6 +154,11 @@ public class MirrorManager
                 } catch (e: Exception) {
                     // Individual mirror unavailable is normal, not a warning
                     logger.i { "Mirror $domain unavailable (timeout or unreachable): ${e.message}" }
+                    CrashDiagnostics.reportNonFatal(
+                        tag = "mirror_health_check_failed",
+                        throwable = e,
+                        attributes = mapOf("mirror_domain" to domain),
+                    )
                     false
                 }
             }

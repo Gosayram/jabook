@@ -34,6 +34,7 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.capitalizeFirst
 import dagger.hilt.android.AndroidEntryPoint
@@ -785,6 +786,30 @@ public class AudioPlayerService : MediaLibraryService() {
     internal fun updateActualTrackIndex(index: Int) {
         playlistManager?.actualTrackIndex = index
         LogUtils.d("AudioPlayerService", "Updated actualTrackIndex to $index")
+        updateCrashPlaybackContext()
+    }
+
+    private fun updateCrashPlaybackContext() {
+        val player = getActivePlayer()
+        val effectiveTitle =
+            currentMetadata?.get("title")
+                ?: currentMetadata?.get("bookTitle")
+                ?: currentMetadata?.get("album")
+                ?: player.mediaMetadata.albumTitle?.toString()
+                ?: player.mediaMetadata.title?.toString()
+        val sleepMode =
+            when {
+                isSleepTimerEndOfChapter() -> "chapter_end"
+                isSleepTimerEndOfTrack() -> "track_end"
+                isSleepTimerActive() -> "fixed"
+                else -> "none"
+            }
+        CrashDiagnostics.setPlaybackContext(
+            bookTitle = effectiveTitle,
+            playerState = player.playbackState.toString(),
+            playbackSpeed = player.playbackParameters.speed,
+            sleepMode = sleepMode,
+        )
     }
 
     private fun resetBookCompletionIfNeeded(actionLabel: String) {
@@ -856,10 +881,12 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    public fun updateMetadata(metadata: Map<String, String>): Unit =
+    public fun updateMetadata(metadata: Map<String, String>) {
         metadataManager?.updateMetadata(metadata) ?: run {
             LogUtils.e("AudioPlayerService", "MetadataManager not initialized")
         }
+        updateCrashPlaybackContext()
+    }
 
     /**
      * Sets notification type (full or minimal).
@@ -890,6 +917,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
         listeningSessionTracker.onPlaybackStarted()
         startPeriodicPositionSaving()
+        updateCrashPlaybackContext()
     }
 
     public fun pause() {
@@ -902,6 +930,7 @@ public class AudioPlayerService : MediaLibraryService() {
         savePositionToRepository()
         // storeCurrentMediaItem()
         stopPeriodicPositionSaving()
+        updateCrashPlaybackContext()
     }
 
     public fun stop() {
@@ -917,6 +946,7 @@ public class AudioPlayerService : MediaLibraryService() {
         savePositionToRepository()
         // storeCurrentMediaItem()
         stopPeriodicPositionSaving()
+        updateCrashPlaybackContext()
     }
 
     internal fun finishListeningSessionIfActive(reason: String) {
@@ -962,10 +992,12 @@ public class AudioPlayerService : MediaLibraryService() {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
 
-    public fun setSpeed(speed: Float): Unit =
+    public fun setSpeed(speed: Float) {
         playbackController?.setSpeed(speed) ?: run {
             LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
         }
+        updateCrashPlaybackContext()
+    }
 
     public fun setRepeatMode(repeatMode: Int): Unit =
         playbackController?.setRepeatMode(repeatMode) ?: run {
@@ -992,6 +1024,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun setSleepTimerMinutes(minutes: Int) {
         sleepTimerManager?.setSleepTimerMinutes(minutes)
+        updateCrashPlaybackContext()
     }
 
     /**
@@ -1001,6 +1034,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun setSleepTimerEndOfChapter() {
         sleepTimerManager?.setSleepTimerEndOfChapter()
+        updateCrashPlaybackContext()
     }
 
     /**
@@ -1019,6 +1053,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun setSleepTimerEndOfTrack() {
         sleepTimerManager?.setSleepTimerEndOfTrack()
+        updateCrashPlaybackContext()
     }
 
     /**
@@ -1026,6 +1061,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun cancelSleepTimer() {
         sleepTimerManager?.cancelSleepTimer()
+        updateCrashPlaybackContext()
     }
 
     /**
