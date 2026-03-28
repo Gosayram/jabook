@@ -14,8 +14,8 @@
 
 package com.jabook.app.jabook.audio
 
-import android.net.Uri
 import java.io.File
+import java.net.URI
 
 internal object NotificationChapterSubtitlePolicy {
     fun resolveSubtitle(
@@ -30,11 +30,11 @@ internal object NotificationChapterSubtitlePolicy {
 
         val fileBasedTitle =
             if (path.startsWith("http://") || path.startsWith("https://")) {
-                Uri
-                    .parse(path)
-                    .lastPathSegment
-                    ?.substringBeforeLast('.')
-                    .orEmpty()
+                runCatching {
+                    URI(path).path
+                        .substringAfterLast('/')
+                        .substringBeforeLast('.')
+                }.getOrDefault("")
             } else {
                 File(path).nameWithoutExtension
             }.trim()
