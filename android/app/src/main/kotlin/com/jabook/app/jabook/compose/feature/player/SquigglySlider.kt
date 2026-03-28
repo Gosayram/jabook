@@ -75,8 +75,10 @@ public fun SquigglySlider(
     squiggleWavelength: Dp = 20.dp,
     trackHeight: Dp = 4.dp, // Standard Material track is roughly 4dp
     thumbRadius: Dp = 10.dp,
+    chapterMarkersFractions: List<Float> = emptyList(),
     activeTrackColor: Color = MaterialTheme.colorScheme.primary,
     inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    chapterMarkerColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
 ) {
     val normalizedRange =
         remember(valueRange) {
@@ -203,6 +205,21 @@ public fun SquigglySlider(
                                 width = trackHeight.toPx(),
                                 cap = StrokeCap.Round,
                             ),
+                    )
+                }
+            }
+
+            // Draw chapter markers over the track.
+            val markerHalfHeight = (trackHeight.toPx() * 1.5f).coerceAtLeast(3f)
+            chapterMarkersFractions.forEach { fraction ->
+                if (fraction.isFinite() && fraction > 0f && fraction < 1f) {
+                    val markerX = width * fraction
+                    drawLine(
+                        color = chapterMarkerColor,
+                        start = Offset(markerX, centerY - markerHalfHeight),
+                        end = Offset(markerX, centerY + markerHalfHeight),
+                        strokeWidth = 1.5.dp.toPx(),
+                        cap = StrokeCap.Round,
                     )
                 }
             }

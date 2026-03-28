@@ -644,6 +644,7 @@ private fun PlayerContent(
 
     // Lyrics visibility state
     var showLyrics by remember { mutableStateOf(false) }
+    val seekScope = rememberCoroutineScope()
 
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
@@ -819,16 +820,18 @@ private fun PlayerContent(
                             .fillMaxWidth()
                             .padding(horizontal = if (isCompact) 4.dp else 0.dp),
                 ) {
-                    // Progress bar with local state to prevent conflicts during dragging
-                    // Using derivedStateOf for performance optimization (inspired by Flow pattern)
-                    val durationMs = state.currentChapter?.duration?.inWholeMilliseconds ?: 0L
-                    val playerProgress by remember(state.currentPosition, durationMs) {
+                    val chapterTimeline by remember(state.chapters, state.currentChapterIndex, state.currentPosition) {
                         derivedStateOf {
-                            if (durationMs > 0 && state.currentPosition >= 0) {
-                                (state.currentPosition.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-                            } else {
-                                0f
-                            }
+                            ChapterSeekbarPolicy.buildTimeline(
+                                chapters = state.chapters,
+                                currentChapterIndex = state.currentChapterIndex,
+                                currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
+                            )
+                        }
+                    }
+                    val playerProgress by remember(chapterTimeline) {
+                        derivedStateOf {
+                            chapterTimeline.progress
                         }
                     }
 
@@ -836,6 +839,28 @@ private fun PlayerContent(
                     var isDragging by remember { mutableStateOf(false) }
                     var sliderPosition by remember { mutableStateOf(playerProgress) }
                     var awaitingSeekSync by remember { mutableStateOf(false) }
+                    val previewSeekTarget by remember(state.chapters, sliderPosition) {
+                        derivedStateOf {
+                            ChapterSeekbarPolicy.resolveSeekTarget(
+                                chapters = state.chapters,
+                                progress = sliderPosition,
+                            )
+                        }
+                    }
+                    val currentGlobalPositionMs by remember(
+                        isDragging,
+                        sliderPosition,
+                        chapterTimeline.totalDurationMs,
+                        chapterTimeline.globalPositionMs,
+                    ) {
+                        derivedStateOf {
+                            if (isDragging && chapterTimeline.totalDurationMs > 0) {
+                                (sliderPosition.coerceIn(0f, 1f) * chapterTimeline.totalDurationMs.toFloat()).toLong()
+                            } else {
+                                chapterTimeline.globalPositionMs
+                            }
+                        }
+                    }
 
                     // Update slider position from player when not dragging.
                     // After seek, wait briefly for player progress to converge near target to avoid jump-back jitter.
@@ -868,20 +893,29 @@ private fun PlayerContent(
                         },
                         onValueChangeFinished = {
                             // Seek only when user finishes dragging
-                            state.currentChapter?.let { chapter ->
-                                val durationMs = chapter.duration.inWholeMilliseconds
-                                if (durationMs > 0 && sliderPosition.isFinite()) {
-                                    val clampedProgress = sliderPosition.coerceIn(0f, 1f)
-                                    val seekPosition = (clampedProgress * durationMs.toFloat()).toLong().coerceAtLeast(0L)
-                                    awaitingSeekSync = true
-                                    onSeek(seekPosition)
+                            if (chapterTimeline.totalDurationMs > 0 && sliderPosition.isFinite()) {
+                                val target =
+                                    ChapterSeekbarPolicy.resolveSeekTarget(
+                                        chapters = state.chapters,
+                                        progress = sliderPosition,
+                                    )
+                                awaitingSeekSync = true
+                                if (target.chapterIndex != state.currentChapterIndex) {
+                                    onSelectChapter(target.chapterIndex)
+                                    seekScope.launch {
+                                        delay(80L)
+                                        onSeek(target.chapterPositionMs)
+                                    }
                                 } else {
-                                    awaitingSeekSync = false
+                                    onSeek(target.chapterPositionMs)
                                 }
+                            } else {
+                                awaitingSeekSync = false
                             }
                             isDragging = false
                         },
                         isPlaying = state.isPlaying,
+                        chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
                         activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
                         inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
                         modifier =
@@ -889,11 +923,30 @@ private fun PlayerContent(
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
                                 .semantics {
-                                    val current = formatDuration(state.currentPosition)
-                                    val total = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0)
+                                    val current = formatDuration(currentGlobalPositionMs)
+                                    val total = formatDuration(chapterTimeline.totalDurationMs)
                                     stateDescription = "$current of $total"
                                 },
                     )
+
+                    if (isDragging) {
+                        val previewTitle =
+                            state.chapters
+                                .getOrNull(previewSeekTarget.chapterIndex)
+                                ?.title
+                                .orEmpty()
+                        Text(
+                            text = "${previewSeekTarget.chapterIndex + 1}. $previewTitle",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(bottom = 4.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
 
                     // Time labels
                     Row(
@@ -901,13 +954,13 @@ private fun PlayerContent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = formatDuration(state.currentPosition),
+                            text = formatDuration(currentGlobalPositionMs),
                             style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
 
                         Text(
-                            text = formatDuration(state.currentChapter?.duration?.inWholeMilliseconds ?: 0),
+                            text = formatDuration(chapterTimeline.totalDurationMs),
                             style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -924,16 +977,12 @@ private fun PlayerContent(
                         val chapterText =
                             stringResource(
                                 R.string.chapterOf,
-                                state.currentChapterIndex + 1,
+                                (if (isDragging) previewSeekTarget.chapterIndex else state.currentChapterIndex) + 1,
                                 state.chapters.size,
                             )
 
                         // Calculate finish time
-                        val remainingMs =
-                            state.currentChapter
-                                ?.duration
-                                ?.inWholeMilliseconds
-                                ?.minus(state.currentPosition) ?: 0
+                        val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
                         val speed = state.playbackSpeed
                         // Avoid division by zero
                         val realRemainingMs = if (speed > 0) (remainingMs / speed).toLong() else remainingMs
