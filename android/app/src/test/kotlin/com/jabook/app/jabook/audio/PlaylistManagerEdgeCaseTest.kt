@@ -198,4 +198,42 @@ class PlaylistManagerEdgeCaseTest {
             verify(exoPlayer, times(1)).seekToDefaultPosition(eq(targetIndex))
             verify(exoPlayer).seekTo(eq(targetIndex), eq(targetPosition))
         }
+
+    @Test
+    fun `preparePlaybackOptimized retries seek when verifyPosition detects index mismatch`() =
+        testScope.runTest {
+            val largePlaylist = (0 until 50).map { index -> "/storage/book/$index.mp3" }
+            val targetIndex = 4
+            val targetPosition = 2_345L
+            var indexReadCount = 0
+            val indexSequence = listOf(0, targetIndex, targetIndex - 1, targetIndex)
+
+            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
+            whenever(exoPlayer.mediaItemCount).thenReturn(largePlaylist.size)
+            whenever(exoPlayer.currentPosition).thenReturn(0L)
+            whenever(exoPlayer.getMediaItemAt(any())).thenReturn(MediaItem.fromUri("file:///storage/book/placeholder.mp3"))
+            whenever(exoPlayer.currentMediaItemIndex).thenAnswer {
+                val value =
+                    if (indexReadCount < indexSequence.size) {
+                        indexSequence[indexReadCount]
+                    } else {
+                        targetIndex
+                    }
+                indexReadCount++
+                value
+            }
+
+            playlistManager.preparePlaybackOptimized(
+                filePaths = largePlaylist,
+                metadata = null,
+                initialTrackIndex = targetIndex,
+                initialPosition = targetPosition,
+            )
+            advanceUntilIdle()
+
+            // First call is from switchToTargetTrack, second is retry in verifyPositionApplied.
+            verify(exoPlayer, times(2)).seekToDefaultPosition(eq(targetIndex))
+            // First call applies initial position, second call is retry.
+            verify(exoPlayer, times(2)).seekTo(eq(targetIndex), eq(targetPosition))
+        }
 }

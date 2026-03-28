@@ -207,6 +207,21 @@ class RutrackerParserTest {
         assertEquals("UploaderNick", results[0].author)
     }
 
+    @Test
+    fun `parseSearchResults fixture snapshot remains stable`() {
+        val html = readFixture("fixtures/rutracker/parser_search_fixture.html")
+
+        val results = parser.parseSearchResults(html)
+
+        assertEquals(2, results.size)
+        assertEquals("900001", results[0].topicId)
+        assertEquals(42, results[0].seeders)
+        assertEquals(7, results[0].leechers)
+        assertEquals("UploaderOne", results[0].uploader)
+        assertEquals("900002", results[1].topicId)
+        assertEquals("UploaderTwo", results[1].uploader)
+    }
+
     // ============ Title Cleaning Tests ============
 
     @Test
@@ -263,6 +278,29 @@ class RutrackerParserTest {
             assertTrue(it.genres.contains("Fiction"))
             assertTrue(it.genres.contains("Drama"))
         }
+    }
+
+    @Test
+    fun `parseTopicDetails fixture snapshot remains stable`() {
+        val html = readFixture("fixtures/rutracker/parser_topic_fixture.html")
+
+        val details = parser.parseTopicDetails(html, "topic-fixture")
+
+        assertNotNull(details)
+        details?.let {
+            assertEquals("topic-fixture", it.topicId)
+            assertEquals("Терри Пратчетт - Цвет волшебства", it.title)
+            assertEquals("Терри Пратчетт", it.author)
+            assertEquals("Александр Клюквин", it.performer)
+            assertTrue(it.genres.contains("Фэнтези"))
+            assertTrue(it.magnetUrl?.contains("magnet:?xt=urn:btih:fixturehash123") == true)
+        }
+    }
+
+    private fun readFixture(path: String): String {
+        val resource = javaClass.classLoader?.getResource(path)
+        check(resource != null) { "Fixture not found: $path" }
+        return resource.readText()
     }
 
     @Test
