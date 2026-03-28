@@ -27,6 +27,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -102,5 +104,48 @@ class PlaylistManagerEdgeCaseTest {
 
             verify(exoPlayer).setMediaItems(any(), eq(0), eq(1234L))
             verify(exoPlayer).prepare()
+        }
+
+    @Test
+    fun `preparePlaybackOptimized uses async strategy for large playlist`() =
+        testScope.runTest {
+            val largePlaylist = (0 until 60).map { index -> "/storage/book/$index.mp3" }
+            whenever(exoPlayer.currentMediaItemIndex).thenReturn(0)
+            whenever(exoPlayer.currentPosition).thenReturn(0L)
+
+            playlistManager.preparePlaybackOptimized(
+                filePaths = largePlaylist,
+                metadata = null,
+                initialTrackIndex = null,
+                initialPosition = null,
+            )
+            advanceUntilIdle()
+
+            verify(exoPlayer).clearMediaItems()
+            verify(exoPlayer).addMediaSource(eq(0), any())
+            verify(exoPlayer).prepare()
+            verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
+        }
+
+    @Test
+    fun `setPlaylist short-circuits duplicate call when loading already in progress`() =
+        testScope.runTest {
+            playlistManager.isPlaylistLoading = true
+            var callbackSuccess: Boolean? = null
+            var callbackError: Exception? = null
+
+            playlistManager.setPlaylist(
+                filePaths = listOf("/storage/book/ch1.mp3"),
+                callback = { success, error ->
+                    callbackSuccess = success
+                    callbackError = error
+                },
+            )
+            advanceUntilIdle()
+
+            assertTrue(callbackSuccess == true)
+            assertNull(callbackError)
+            verify(exoPlayer, never()).clearMediaItems()
+            verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
         }
 }
