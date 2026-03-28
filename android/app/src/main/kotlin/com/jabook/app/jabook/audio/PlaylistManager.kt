@@ -33,6 +33,7 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.jabook.app.jabook.audio.ErrorHandler
 import com.jabook.app.jabook.audio.SavedPlaybackState
+import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -1374,9 +1375,9 @@ internal class PlaylistManager(
         private val okHttpClient by lazy {
             OkHttpClient
                 .Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
+                .connectTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .readTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .writeTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .build()
         }
 

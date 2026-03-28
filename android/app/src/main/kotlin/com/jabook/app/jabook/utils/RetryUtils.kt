@@ -16,6 +16,7 @@ package com.jabook.app.jabook.utils
 
 import kotlinx.coroutines.delay
 import kotlin.math.pow
+import kotlin.random.Random
 
 /**
  * Retry utilities (inspired by Flow pattern).
@@ -38,8 +39,10 @@ public data class RetryConfig(
     val maxDelayMs: Long = 120_000L,
     val maxElapsedTimeMs: Long = Long.MAX_VALUE,
     val backoffMultiplier: Double = 2.0,
+    val jitterRatio: Double = 0.0,
     val shouldRetry: (Throwable) -> Boolean = { it is java.io.IOException || it is java.net.SocketTimeoutException },
     val delayOverrideMs: (Throwable, Int) -> Long? = { _, _ -> null },
+    val jitterRandomProvider: () -> Double = { Random.nextDouble() },
     val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     val delayProvider: suspend (Long) -> Unit = { delay(it) },
 ) {
@@ -52,6 +55,18 @@ public data class RetryConfig(
     public fun calculateDelay(attempt: Int): Long {
         val delay = (initialDelayMs * backoffMultiplier.pow(attempt.toDouble())).toLong()
         return delay.coerceAtMost(maxDelayMs)
+    }
+
+    public fun calculateDelayWithJitter(attempt: Int): Long {
+        val baseDelay = calculateDelay(attempt)
+        if (jitterRatio <= 0.0) return baseDelay
+
+        val boundedJitter = jitterRatio.coerceIn(0.0, 1.0)
+        val minFactor = 1.0 - boundedJitter
+        val maxFactor = 1.0 + boundedJitter
+        val random = jitterRandomProvider().coerceIn(0.0, 1.0)
+        val factor = minFactor + ((maxFactor - minFactor) * random)
+        return (baseDelay * factor).toLong().coerceIn(0L, maxDelayMs)
     }
 }
 
@@ -102,7 +117,7 @@ public suspend fun <T> retryWithBackoff(
                 val delayMs =
                     (
                         config.delayOverrideMs(e, attempt)
-                            ?: config.calculateDelay(attempt)
+                            ?: config.calculateDelayWithJitter(attempt)
                     ).coerceAtMost(config.maxDelayMs)
 
                 if (elapsedMs + delayMs > config.maxElapsedTimeMs) {

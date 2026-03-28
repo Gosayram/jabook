@@ -14,16 +14,95 @@
 
 package com.jabook.app.jabook.utils
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RetryUtilsTest {
+    @Test
+    fun `retryWithBackoff applies jitter to delay when enabled`() =
+        runTest {
+            val delays = mutableListOf<Long>()
+            var attempts = 0
+
+            val result =
+                retryWithBackoff(
+                    RetryConfig(
+                        maxRetries = 1,
+                        initialDelayMs = 1_000L,
+                        jitterRatio = 0.5,
+                        jitterRandomProvider = { 0.0 },
+                        shouldRetry = { it is IOException },
+                        delayProvider = { delayMs -> delays += delayMs },
+                    ),
+                ) {
+                    attempts++
+                    if (attempts == 1) throw IOException("transient")
+                    "ok"
+                }
+
+            assertEquals("ok", result)
+            assertEquals(listOf(500L), delays)
+        }
+
+    @Test
+    fun `retryWithBackoff does not retry non-retriable 4xx status`() =
+        runTest {
+            var attempts = 0
+            val expected = RetryableHttpException(statusCode = 400)
+
+            try {
+                retryWithBackoff(
+                    RetryConfig(
+                        maxRetries = 3,
+                        shouldRetry = {
+                            (it as? RetryableHttpException)?.statusCode in setOf(429, 503)
+                        },
+                    ),
+                ) {
+                    attempts++
+                    throw expected
+                }
+                fail("Expected exception to be thrown")
+            } catch (actual: RetryableHttpException) {
+                assertSame(expected, actual)
+                assertEquals(1, attempts)
+            }
+        }
+
+    @Test
+    fun `retryWithBackoff stops on cancellation during delay`() =
+        runTest {
+            var attempts = 0
+            val job =
+                launch {
+                    retryWithBackoff(
+                        RetryConfig(
+                            maxRetries = 2,
+                            initialDelayMs = 10,
+                            shouldRetry = { it is IOException },
+                            delayProvider = { throw CancellationException("cancelled") },
+                        ),
+                    ) {
+                        attempts++
+                        throw IOException("transient")
+                    }
+                }
+
+            job.join()
+
+            assertTrue(job.isCancelled)
+            assertEquals(1, attempts)
+        }
+
     @Test
     fun `retryWithBackoff uses retry-after delay override when provided`() =
         runTest {

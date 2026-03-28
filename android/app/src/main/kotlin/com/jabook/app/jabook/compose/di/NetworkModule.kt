@@ -23,6 +23,7 @@ import com.jabook.app.jabook.compose.data.network.NetworkTelemetryEventListenerF
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
+import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -100,8 +101,10 @@ public object NetworkModule {
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
+                .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .readTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .writeTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .eventListenerFactory(networkTelemetryEventListenerFactory)
                 .build()
 
@@ -147,10 +150,10 @@ public object NetworkModule {
             .addInterceptor(dynamicBaseUrlInterceptor) // Dynamic base URL for mirrors
             .addInterceptor(loggingInterceptor) // Logging last for complete request/response
             // Improved timeouts with better defaults
-            .callTimeout(90, TimeUnit.SECONDS) // Total time for entire call
-            .connectTimeout(15, TimeUnit.SECONDS) // Time to establish connection - reduced for faster failure detection
-            .readTimeout(45, TimeUnit.SECONDS) // Time to read response - increased for large responses
-            .writeTimeout(15, TimeUnit.SECONDS) // Time to write request - reduced for faster failure detection
+            .callTimeout(NetworkRuntimePolicy.API_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectTimeout(NetworkRuntimePolicy.API_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(NetworkRuntimePolicy.API_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(NetworkRuntimePolicy.API_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             // OkHttp defaults (explicit for clarity):
             // - retryOnConnectionFailure = true (retry on connection failures)
             // - followRedirects = true (follow HTTP redirects)
