@@ -45,6 +45,10 @@ public class PermissionManager
         @ApplicationContext context: Context,
     ) {
         private val context: Context = context
+        private val externalStoragePreflightChecker =
+            ExternalStoragePreflightChecker(
+                hasFullStoragePermission = { hasStoragePermission() },
+            )
 
         /**
          * Checks if the app has the comprehensive storage permission required for operation.
@@ -124,4 +128,16 @@ public class PermissionManager
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.parse("package:${context.packageName}")
             }
+
+        public fun preflightExternalDirectory(path: String?): StoragePathPreflightResult =
+            externalStoragePreflightChecker.checkDirectory(path)
+
+        public fun preflightTransferIntegrity(
+            sourcePath: String,
+            targetPath: String,
+        ): StorageTransferPreflightResult =
+            externalStoragePreflightChecker.verifyTransferIntegrity(
+                sourcePath = sourcePath,
+                targetPath = targetPath,
+            )
     }
