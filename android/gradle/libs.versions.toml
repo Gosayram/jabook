@@ -34,7 +34,7 @@ androidxNavigation = "2.9.7"
 androidxRoom = "2.8.4"
 
 # AndroidX DataStore
-androidxDatastore = "1.2.0"
+androidxDatastore = "1.2.1"
 androidxDatastorePreferences = "1.2.1"
 
 # AndroidX Work
