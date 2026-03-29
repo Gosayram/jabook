@@ -467,6 +467,7 @@ dependencies {
 
     // Testing dependencies
     testImplementation(libs.bundles.test)
+    testImplementation(libs.androidx.work.testing)
     testImplementation(libs.jimfs)
 
     // Firebase - Import the Firebase BoM to manage library versions

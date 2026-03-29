@@ -37,7 +37,7 @@ import java.io.File
  * Player event listener with improved error handling and retry logic.
  *
  * Inspired by lissen-android implementation for better error recovery.
- * Uses onEvents() for more efficient event handling (Media3 1.8+).
+ * Uses onEvents() for efficient consolidated event handling (Media3 1.10+ contract).
  */
 internal class PlayerListener(
     private val context: Context,
