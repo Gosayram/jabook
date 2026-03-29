@@ -75,4 +75,32 @@ class SliderSeekSyncPolicyTest {
         assertEquals(0.79f, result.sliderPosition, 0.0001f)
         assertFalse(result.awaitingSeekSync)
     }
+
+    @Test
+    fun `sanitizes non finite current slider position`() {
+        val result =
+            SliderSeekSyncPolicy.resolveFromPlayerProgress(
+                playerProgress = Float.NaN,
+                currentSliderPosition = Float.POSITIVE_INFINITY,
+                isDragging = false,
+                awaitingSeekSync = true,
+            )
+
+        assertEquals(0f, result.sliderPosition, 0.0001f)
+        assertTrue(result.awaitingSeekSync)
+    }
+
+    @Test
+    fun `clamps player progress to valid range`() {
+        val result =
+            SliderSeekSyncPolicy.resolveFromPlayerProgress(
+                playerProgress = 1.7f,
+                currentSliderPosition = 0.3f,
+                isDragging = false,
+                awaitingSeekSync = false,
+            )
+
+        assertEquals(1f, result.sliderPosition, 0.0001f)
+        assertFalse(result.awaitingSeekSync)
+    }
 }

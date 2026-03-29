@@ -15,25 +15,91 @@
 package com.jabook.app.jabook.compose.data.auth
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
+import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.preferencesDataStoreFile
 import com.google.crypto.tink.Aead
 import com.google.crypto.tink.aead.AeadConfig
 import com.google.crypto.tink.aead.AesGcmKeyManager
 import com.google.crypto.tink.integration.android.AndroidKeysetManager
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Extension property for DataStore
-private val Context.credentialsDataStore: DataStore<Preferences> by preferencesDataStore(
-    name = "secure_credentials",
-)
+private const val TELEMETRY_TAG = "secure_credentials"
+
+internal object SecureCredentialStorageFactories {
+    @VisibleForTesting
+    internal var dataStoreFactoryOverride: ((Context) -> DataStore<Preferences>)? = null
+
+    @VisibleForTesting
+    internal var aeadFactoryOverride: ((Context) -> Aead)? = null
+
+    internal fun dataStore(context: Context): DataStore<Preferences> =
+        dataStoreFactoryOverride?.invoke(context) ?: createCredentialsDataStore(context)
+
+    internal fun aead(context: Context): Aead = aeadFactoryOverride?.invoke(context) ?: createDefaultAead(context)
+}
+
+internal fun secureCredentialsCorruptionHandler(): ReplaceFileCorruptionHandler<Preferences> =
+    ReplaceFileCorruptionHandler { corruption ->
+        reportSecureStorageNonFatal(
+            stage = "datastore_corruption",
+            throwable = corruption,
+        )
+        emptyPreferences()
+    }
+
+private fun createCredentialsDataStore(context: Context): DataStore<Preferences> =
+    PreferenceDataStoreFactory.create(
+        corruptionHandler = secureCredentialsCorruptionHandler(),
+        scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+        produceFile = { context.preferencesDataStoreFile("secure_credentials") },
+    )
+
+private fun createDefaultAead(context: Context): Aead {
+    AeadConfig.register()
+
+    val keysetHandle =
+        AndroidKeysetManager
+            .Builder()
+            .withSharedPref(context, SecureCredentialStorage.KEYSET_NAME, SecureCredentialStorage.PREFERENCE_FILE)
+            .withKeyTemplate(AesGcmKeyManager.aes256GcmTemplate())
+            .withMasterKeyUri(SecureCredentialStorage.MASTER_KEY_URI)
+            .build()
+            .keysetHandle
+
+    @Suppress("DEPRECATION")
+    return keysetHandle.getPrimitive(Aead::class.java)
+}
+
+private fun reportSecureStorageNonFatal(
+    stage: String,
+    throwable: Throwable,
+) {
+    CrashDiagnostics.reportNonFatal(
+        tag = "${TELEMETRY_TAG}_$stage",
+        throwable = throwable,
+        attributes =
+            mapOf(
+                "component" to "SecureCredentialStorage",
+                "stage" to stage,
+            ),
+    )
+}
 
 /**
  * Securely stores user credentials using DataStore + Tink encryption.
@@ -51,31 +117,23 @@ public class SecureCredentialStorage
         @param:ApplicationContext private val context: Context,
     ) {
         public companion object {
-            private const val KEYSET_NAME = "credentials_keyset"
-            private const val PREFERENCE_FILE = "secure_credentials_prefs"
-            private const val MASTER_KEY_URI = "android-keystore://credentials_master_key"
+            internal const val KEYSET_NAME = "credentials_keyset"
+            internal const val PREFERENCE_FILE = "secure_credentials_prefs"
+            internal const val MASTER_KEY_URI = "android-keystore://credentials_master_key"
 
             private val KEY_USERNAME = stringPreferencesKey("encrypted_username")
             private val KEY_PASSWORD = stringPreferencesKey("encrypted_password")
         }
 
-        private val dataStore = context.credentialsDataStore
-
-        // Initialize Tink
-        @Suppress("DEPRECATION") // getPrimitive is deprecated but still the correct API for Tink 1.15.0
-        private val aead: Aead by lazy {
-            AeadConfig.register()
-
-            val keysetHandle =
-                AndroidKeysetManager
-                    .Builder()
-                    .withSharedPref(context, KEYSET_NAME, PREFERENCE_FILE)
-                    .withKeyTemplate(AesGcmKeyManager.aes256GcmTemplate())
-                    .withMasterKeyUri(MASTER_KEY_URI)
-                    .build()
-                    .keysetHandle
-
-            keysetHandle.getPrimitive(Aead::class.java)
+        private val dataStore: DataStore<Preferences> by lazy { SecureCredentialStorageFactories.dataStore(context) }
+        private val aeadOrNull: Aead? by lazy {
+            runCatching { SecureCredentialStorageFactories.aead(context) }
+                .onFailure {
+                    reportSecureStorageNonFatal(
+                        stage = "keyset_init_failed",
+                        throwable = it,
+                    )
+                }.getOrNull()
         }
 
         /**
@@ -83,14 +141,20 @@ public class SecureCredentialStorage
          * Uses Tink for encryption before storing in DataStore.
          */
         public suspend fun saveCredentials(credentials: UserCredentials) {
-            // Encrypt credentials
-            val encryptedUsername = encrypt(credentials.username)
-            val encryptedPassword = encrypt(credentials.password)
+            val encryptedUsername = encrypt(credentials.username) ?: return
+            val encryptedPassword = encrypt(credentials.password) ?: return
 
             // Store in DataStore
-            dataStore.edit { prefs ->
-                prefs[KEY_USERNAME] = encryptedUsername
-                prefs[KEY_PASSWORD] = encryptedPassword
+            runCatching {
+                dataStore.edit { prefs ->
+                    prefs[KEY_USERNAME] = encryptedUsername
+                    prefs[KEY_PASSWORD] = encryptedPassword
+                }
+            }.onFailure {
+                reportSecureStorageNonFatal(
+                    stage = "save_failed",
+                    throwable = it,
+                )
             }
         }
 
@@ -99,7 +163,22 @@ public class SecureCredentialStorage
          * @return UserCredentials or null if not found.
          */
         public suspend fun getCredentials(): UserCredentials? {
-            val prefs = dataStore.data.first()
+            val prefs =
+                try {
+                    dataStore.data.first()
+                } catch (error: CorruptionException) {
+                    reportSecureStorageNonFatal(
+                        stage = "datastore_read_corruption",
+                        throwable = error,
+                    )
+                    return null
+                } catch (error: Exception) {
+                    reportSecureStorageNonFatal(
+                        stage = "datastore_read_failed",
+                        throwable = error,
+                    )
+                    return null
+                }
 
             val encryptedUsername = prefs[KEY_USERNAME]
             val encryptedPassword = prefs[KEY_PASSWORD]
@@ -115,10 +194,15 @@ public class SecureCredentialStorage
                 if (username.isNotBlank() && password.isNotBlank()) {
                     UserCredentials(username, password)
                 } else {
+                    clearCredentialsSafely()
                     null
                 }
             } catch (e: Exception) {
-                // Decryption failed
+                reportSecureStorageNonFatal(
+                    stage = "decrypt_failed",
+                    throwable = e,
+                )
+                clearCredentialsSafely()
                 null
             }
         }
@@ -127,26 +211,63 @@ public class SecureCredentialStorage
          * Clear stored credentials.
          */
         public suspend fun clearCredentials() {
+            clearCredentialsSafely()
+        }
+
+        @VisibleForTesting
+        internal suspend fun replaceEncryptedCredentialsForTesting(
+            encryptedUsername: String,
+            encryptedPassword: String,
+        ) {
             dataStore.edit { prefs ->
-                prefs.remove(KEY_USERNAME)
-                prefs.remove(KEY_PASSWORD)
+                prefs[KEY_USERNAME] = encryptedUsername
+                prefs[KEY_PASSWORD] = encryptedPassword
+            }
+        }
+
+        @VisibleForTesting
+        internal suspend fun hasEncryptedCredentialsForTesting(): Boolean {
+            val prefs = dataStore.data.first()
+            return prefs[KEY_USERNAME] != null || prefs[KEY_PASSWORD] != null
+        }
+
+        private suspend fun clearCredentialsSafely() {
+            runCatching {
+                dataStore.edit { prefs ->
+                    prefs.remove(KEY_USERNAME)
+                    prefs.remove(KEY_PASSWORD)
+                }
+            }.onFailure {
+                reportSecureStorageNonFatal(
+                    stage = "clear_failed",
+                    throwable = it,
+                )
             }
         }
 
         /**
          * Encrypt string using Tink AEAD.
          */
-        private fun encrypt(plaintext: String): String {
-            val encrypted = aead.encrypt(plaintext.toByteArray(), null)
-            return android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)
+        private fun encrypt(plaintext: String): String? {
+            val localAead = aeadOrNull ?: return null
+            return runCatching {
+                val encrypted = localAead.encrypt(plaintext.toByteArray(), null)
+                android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)
+            }.onFailure {
+                reportSecureStorageNonFatal(
+                    stage = "encrypt_failed",
+                    throwable = it,
+                )
+            }.getOrNull()
         }
 
         /**
          * Decrypt string using Tink AEAD.
          */
         private fun decrypt(ciphertext: String): String {
+            val localAead = aeadOrNull ?: throw IllegalStateException("AEAD is not initialized")
             val encrypted = android.util.Base64.decode(ciphertext, android.util.Base64.NO_WRAP)
-            val decrypted = aead.decrypt(encrypted, null)
+            val decrypted = localAead.decrypt(encrypted, null)
             return String(decrypted)
         }
     }

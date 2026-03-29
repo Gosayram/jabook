@@ -16,9 +16,9 @@ package com.jabook.app.jabook.compose.data.network
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -63,10 +62,9 @@ public class MirrorManager
                 )
 
             private const val DEFAULT_MIRROR = "rutracker.me"
-            private const val HEALTH_CHECK_TIMEOUT_SECONDS = 5L
         }
 
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val scope = CoroutineScope(SupervisorJob() + NetworkRuntimePolicy.ioDispatcher)
 
         private val _currentMirror = MutableStateFlow(DEFAULT_MIRROR)
 
@@ -126,17 +124,9 @@ public class MirrorManager
          * @return true if mirror responds within timeout, false otherwise
          */
         public suspend fun checkMirrorHealth(domain: String): Boolean =
-            withContext(Dispatchers.IO) {
+            withContext(NetworkRuntimePolicy.ioDispatcher) {
                 try {
                     logger.d { "Checking health of mirror: $domain" }
-
-                    // Create a dedicated client with short timeout for health checks
-                    val healthCheckClient =
-                        okHttpClient
-                            .newBuilder()
-                            .connectTimeout(HEALTH_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                            .readTimeout(HEALTH_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                            .build()
 
                     val request =
                         Request
@@ -145,7 +135,7 @@ public class MirrorManager
                             .head() // HEAD request for faster response
                             .build()
 
-                    val response = healthCheckClient.newCall(request).execute()
+                    val response = okHttpClient.newCall(request).execute()
                     val isHealthy: Boolean = response.isSuccessful
                     logger.d { "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})" }
                     response.close()

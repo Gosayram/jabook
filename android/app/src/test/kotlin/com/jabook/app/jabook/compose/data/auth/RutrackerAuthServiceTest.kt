@@ -211,6 +211,27 @@ class RutrackerAuthServiceTest {
             assertEquals(3, mockWebServer.requestCount)
         }
 
+    @Test
+    fun `login retries when server returns 429 with retry-after`() =
+        runTest {
+            mockWebServer.enqueue(
+                MockResponse()
+                    .setResponseCode(429)
+                    .setHeader("Retry-After", "0")
+                    .setBody("Too Many Requests"),
+            )
+            enqueueHtmlFixture("login_success.html")
+
+            val result =
+                authService.login(
+                    credentials = UserCredentials(username = "retry-after-user", password = "retry-after-pass"),
+                )
+
+            assertEquals(RutrackerAuthService.AuthResult.Success, result)
+            assertNull(authService.lastAuthError)
+            assertEquals(2, mockWebServer.requestCount)
+        }
+
     private fun createApi(): RutrackerApi =
         Retrofit
             .Builder()

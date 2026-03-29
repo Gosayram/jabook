@@ -363,7 +363,7 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
 
-    // Media3 - Native audio player (using 1.8.0 version, same as lissen-android)
+    // Media3 - Native audio player (stable 1.10.0)
     implementation(libs.bundles.media3)
 
     // Audio metadata parsing using KTagLib (TagLib Kotlin bindings)
@@ -394,9 +394,7 @@ dependencies {
 
     // Security & Encryption - Modern approach with Tink (replaces deprecated EncryptedSharedPreferences)
     implementation(libs.tink.android)
-    // Note: Media3 1.8.0 is the current stable version with full Android 14+ support
-    // Previous alpha/beta versions (1.3.0, 1.4.0) had compatibility issues
-    // Version 1.8.0 includes all Android 14+ fixes and is production-ready
+    // Media3 is pinned via version catalog (stable 1.10.0)
 
     // Media library for MediaStyle notification (required for MediaStyle class)
     // MediaStyle is part of androidx.media, not androidx.core
@@ -406,6 +404,8 @@ dependencies {
     implementation(libs.bundles.network)
     // Jsoup for HTML parsing (Rutracker scraping)
     implementation(libs.jsoup)
+    // Jsoup optional regex backend required for R8 minify (Re2jRegex)
+    implementation(libs.re2j)
 
     // libtorrent4j for torrent downloads
     implementation(libs.bundles.libtorrent4j)
@@ -467,6 +467,7 @@ dependencies {
 
     // Testing dependencies
     testImplementation(libs.bundles.test)
+    testImplementation(libs.androidx.work.testing)
     testImplementation(libs.jimfs)
 
     // Firebase - Import the Firebase BoM to manage library versions

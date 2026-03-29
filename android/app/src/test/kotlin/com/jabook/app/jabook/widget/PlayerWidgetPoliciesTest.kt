@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.widget
 
+import android.net.Uri
 import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -26,6 +27,25 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class PlayerWidgetPoliciesTest {
+    @Test
+    fun `cover policy accepts known schemes for glide`() {
+        assertTrue(WidgetCoverLoadPolicy.shouldLoadWithGlide(Uri.parse("https://example.com/cover.jpg")))
+        assertTrue(WidgetCoverLoadPolicy.shouldLoadWithGlide(Uri.parse("content://media/external/images/1")))
+        assertTrue(WidgetCoverLoadPolicy.shouldLoadWithGlide(Uri.parse("file:///storage/emulated/0/cover.jpg")))
+    }
+
+    @Test
+    fun `cover policy rejects unsupported schemes for glide`() {
+        assertFalse(WidgetCoverLoadPolicy.shouldLoadWithGlide(Uri.parse("ftp://example.com/cover.jpg")))
+    }
+
+    @Test
+    fun `cover policy uri fallback is local only`() {
+        assertTrue(WidgetCoverLoadPolicy.shouldUseUriFallback(Uri.parse("content://media/external/images/1")))
+        assertTrue(WidgetCoverLoadPolicy.shouldUseUriFallback(Uri.parse("file:///storage/emulated/0/cover.jpg")))
+        assertFalse(WidgetCoverLoadPolicy.shouldUseUriFallback(Uri.parse("https://example.com/cover.jpg")))
+    }
+
     @Test
     fun `controller snapshot with media item does not fallback`() {
         val shouldFallback =

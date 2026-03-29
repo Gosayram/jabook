@@ -1,3 +1,17 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package com.jabook.app.jabook.crash
 
 import org.junit.After
@@ -55,6 +69,63 @@ class CrashDiagnosticsTest {
         assertEquals("2", fakeSink.keys["nf_attempt"])
         assertTrue(fakeSink.logs.any { it.contains("non_fatal:mirror_health_check_failed") })
         assertEquals(error, fakeSink.recorded.single())
+    }
+
+    @Test
+    fun `configureRuntimeContext stores expected runtime keys`() {
+        CrashDiagnostics.configureRuntimeContext(
+            buildType = "release",
+            flavor = "prod",
+            versionName = "1.2.3",
+            versionCode = 123L,
+        )
+
+        assertEquals("release", fakeSink.keys["build_type"])
+        assertEquals("prod", fakeSink.keys["flavor"])
+        assertEquals("1.2.3", fakeSink.keys["version_name"])
+        assertEquals("123", fakeSink.keys["version_code"])
+        assertTrue(fakeSink.logs.any { it.contains("crash_diagnostics_initialized") })
+    }
+
+    @Test
+    fun `reportUncaughtException stores thread and records throwable`() {
+        val error = RuntimeException("fatal")
+
+        CrashDiagnostics.reportUncaughtException(
+            threadName = "main",
+            throwable = error,
+            attributes = mapOf("source" to "global_exception_handler"),
+        )
+
+        assertEquals("main", fakeSink.keys["uncaught_thread_name"])
+        assertEquals("global_exception_handler", fakeSink.keys["ue_source"])
+        assertEquals(error, fakeSink.recorded.single())
+        assertTrue(fakeSink.logs.any { it.contains("uncaught_exception") })
+    }
+
+    @Test
+    fun `telemetry calls are safe no-op when diagnostics disabled`() {
+        CrashDiagnostics.isEnabledOverride = false
+
+        CrashDiagnostics.configureRuntimeContext(
+            buildType = "release",
+            flavor = "prod",
+            versionName = "1.2.3",
+            versionCode = 123L,
+        )
+        CrashDiagnostics.log("hello")
+        CrashDiagnostics.reportNonFatal(
+            tag = "disabled_path",
+            throwable = IllegalStateException("skip"),
+        )
+        CrashDiagnostics.reportUncaughtException(
+            threadName = "main",
+            throwable = IllegalStateException("skip"),
+        )
+
+        assertTrue(fakeSink.keys.isEmpty())
+        assertTrue(fakeSink.logs.isEmpty())
+        assertTrue(fakeSink.recorded.isEmpty())
     }
 }
 

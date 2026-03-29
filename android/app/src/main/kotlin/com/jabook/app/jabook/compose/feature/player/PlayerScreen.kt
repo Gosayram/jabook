@@ -877,6 +877,15 @@ private fun PlayerContent(
                         awaitingSeekSync = result.awaitingSeekSync
                     }
 
+                    // Reset stale drag-seek state on chapter/duration changes to avoid jump-back race
+                    // when player timeline is rebuilt after chapter switch.
+                    LaunchedEffect(chapterTimeline.totalDurationMs, state.currentChapterIndex) {
+                        if (!isDragging) {
+                            sliderPosition = playerProgress
+                            awaitingSeekSync = false
+                        }
+                    }
+
                     // Guard against stale awaiting flag if player progress update is delayed.
                     LaunchedEffect(awaitingSeekSync) {
                         if (awaitingSeekSync) {

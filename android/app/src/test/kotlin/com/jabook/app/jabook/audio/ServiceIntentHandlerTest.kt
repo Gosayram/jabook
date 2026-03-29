@@ -58,6 +58,7 @@ class ServiceIntentHandlerTest {
                         nowMsProvider = { nowMs },
                         dedupeWindowsMs = mapOf(PlayerWidgetProvider.ACTION_PLAY_PAUSE to 200L),
                     ),
+                nowMsProvider = { nowMs },
             )
     }
 
@@ -147,6 +148,35 @@ class ServiceIntentHandlerTest {
         assertTrue(telemetryMessages.single().contains("deduplicated=true"))
 
         verify(service, times(1)).play()
+    }
+
+    @Test
+    fun `stale widget action is ignored and triggers widget refresh`() {
+        nowMs = WidgetActionStalenessPolicy.MAX_ACTION_AGE_MS + 100_000L
+        val staleIntent =
+            Intent(PlayerWidgetProvider.ACTION_NEXT).apply {
+                putExtra(PlayerWidgetProvider.EXTRA_APP_WIDGET_ID, 51)
+                putExtra(
+                    PlayerWidgetProvider.EXTRA_WIDGET_ACTION_CREATED_AT_MS,
+                    nowMs - WidgetActionStalenessPolicy.MAX_ACTION_AGE_MS - 1L,
+                )
+            }
+
+        handler.handleStartCommand(staleIntent, flags = 0, startId = 22)
+
+        verify(service, never()).next()
+        verify(service, times(1)).sendBroadcast(
+            org.mockito.kotlin.check {
+                assertEquals(PlayerWidgetProvider.ACTION_UPDATE_WIDGET, it.action)
+            },
+        )
+
+        val telemetryMessages =
+            ShadowLog
+                .getLogsForTag("AudioPlayerService")
+                .map { it.msg }
+                .filter { it.contains("widget_service_event=") }
+        assertTrue(telemetryMessages.any { it.contains("widget_service_event=action_ignored_stale") })
     }
 
     @Test

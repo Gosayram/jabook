@@ -17,8 +17,6 @@ package com.jabook.app.jabook.crash
 import android.app.Application
 import android.content.Intent
 import android.os.Process
-import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.jabook.app.jabook.BuildConfig
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.system.exitProcess
@@ -37,15 +35,11 @@ public class GlobalExceptionHandler(
         try {
             // Log the exception
             android.util.Log.e("GlobalExceptionHandler", "Uncaught exception", throwable)
-            if (BuildConfig.HAS_GOOGLE_SERVICES && !BuildConfig.DEBUG) {
-                FirebaseCrashlytics.getInstance().apply {
-                    setCustomKey("uncaught_thread_name", thread.name)
-                    setCustomKey("build_type", BuildConfig.BUILD_TYPE)
-                    setCustomKey("flavor", BuildConfig.FLAVOR)
-                    log("uncaught_exception_captured_by_global_handler")
-                    recordException(throwable)
-                }
-            }
+            CrashDiagnostics.reportUncaughtException(
+                threadName = thread.name,
+                throwable = throwable,
+                attributes = mapOf("source" to "global_exception_handler"),
+            )
 
             // Launch CrashActivity
             val intent =

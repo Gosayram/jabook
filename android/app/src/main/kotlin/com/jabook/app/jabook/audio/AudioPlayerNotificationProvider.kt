@@ -21,7 +21,7 @@ import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.BitmapLoader // Deprecated but still used in Media3 1.8.0
+import androidx.media3.session.BitmapLoader // Deprecated but still required by current Media3 API
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaNotification

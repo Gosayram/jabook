@@ -1,0 +1,18 @@
+scan:
+  scanners:
+    - vuln
+  skip-dirs:
+    - "**/build/**"
+    - ".idea"
+
+pkg:
+  types:
+    - library
+
+vulnerability:
+  ignore-unfixed: true
+
+severity:
+  - MEDIUM
+  - HIGH
+  - CRITICAL

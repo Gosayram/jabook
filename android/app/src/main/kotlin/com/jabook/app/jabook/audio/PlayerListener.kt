@@ -37,7 +37,7 @@ import java.io.File
  * Player event listener with improved error handling and retry logic.
  *
  * Inspired by lissen-android implementation for better error recovery.
- * Uses onEvents() for more efficient event handling (Media3 1.8+).
+ * Uses onEvents() for efficient consolidated event handling (Media3 1.10+ contract).
  */
 internal class PlayerListener(
     private val context: Context,
@@ -1230,7 +1230,7 @@ internal class PlayerListener(
 
     override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
         // Metadata (including embedded artwork) was extracted from audio file
-        // Media3 1.8: artworkData and artworkUri are NOT deprecated - use them directly
+        // Media3: artworkData and artworkUri are NOT deprecated - use them directly
         // Inspired by lissen-android: prefer artworkUri over artworkData for better performance
         val title = mediaMetadata.title?.toString() ?: "Unknown"
         val artist = mediaMetadata.artist?.toString() ?: "Unknown"

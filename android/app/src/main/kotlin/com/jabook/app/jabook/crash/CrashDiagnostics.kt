@@ -47,6 +47,50 @@ public object CrashDiagnostics {
         }
     }
 
+    public fun configureRuntimeContext(
+        buildType: String,
+        flavor: String,
+        versionName: String,
+        versionCode: Long,
+    ) {
+        if (!isEnabled()) return
+        safeRun {
+            val sink = sinkFactory()
+            sink.setCustomKey("build_type", sanitize(buildType))
+            sink.setCustomKey("flavor", sanitize(flavor))
+            sink.setCustomKey("version_name", sanitize(versionName))
+            sink.setCustomKey("version_code", versionCode.toString())
+            sink.log("crash_diagnostics_initialized")
+        }
+    }
+
+    public fun log(message: String) {
+        if (!isEnabled()) return
+        safeRun {
+            sinkFactory().log(sanitize(message))
+        }
+    }
+
+    public fun reportUncaughtException(
+        threadName: String,
+        throwable: Throwable,
+        attributes: Map<String, Any?> = emptyMap(),
+    ) {
+        if (!isEnabled()) return
+        safeRun {
+            val sink = sinkFactory()
+            sink.setCustomKey("uncaught_thread_name", sanitize(threadName))
+            attributes.entries
+                .sortedBy { it.key }
+                .take(MAX_EXTRA_ATTRIBUTES)
+                .forEach { (key, value) ->
+                    sink.setCustomKey("ue_${key.take(32)}", sanitize(value))
+                }
+            sink.log("uncaught_exception")
+            sink.recordException(throwable)
+        }
+    }
+
     public fun reportNonFatal(
         tag: String,
         throwable: Throwable,

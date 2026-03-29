@@ -780,6 +780,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 this.action = action
                 `package` = context.packageName
                 putExtra(EXTRA_APP_WIDGET_ID, appWidgetId)
+                putExtra(EXTRA_WIDGET_ACTION_CREATED_AT_MS, System.currentTimeMillis())
             }
 
         return PendingIntent.getService(
@@ -824,6 +825,11 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             return
         }
 
+        if (!WidgetCoverLoadPolicy.shouldLoadWithGlide(artworkUri)) {
+            views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
+            return
+        }
+
         try {
             val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
             Glide.with(context.applicationContext).clear(widgetTarget)
@@ -834,16 +840,23 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 .load(artworkUri)
                 .override(WidgetCoverLoadPolicy.COVER_SIZE_PX, WidgetCoverLoadPolicy.COVER_SIZE_PX)
                 .timeout(WidgetCoverLoadPolicy.COVER_TIMEOUT_MS)
+                .diskCacheStrategy(WidgetCoverLoadPolicy.DISK_CACHE_STRATEGY)
+                .skipMemoryCache(false)
+                .dontAnimate()
                 .centerCrop()
                 .fallback(R.drawable.ic_launcher_foreground)
                 .error(R.drawable.ic_launcher_foreground)
                 .into(widgetTarget)
         } catch (e: Exception) {
             android.util.Log.w("PlayerWidget", "Failed to load cover with Glide, trying URI fallback", e)
-            try {
-                views.setImageViewUri(R.id.widget_cover, artworkUri)
-            } catch (e2: Exception) {
-                android.util.Log.w("PlayerWidget", "Failed to set cover URI fallback", e2)
+            if (WidgetCoverLoadPolicy.shouldUseUriFallback(artworkUri)) {
+                try {
+                    views.setImageViewUri(R.id.widget_cover, artworkUri)
+                } catch (e2: Exception) {
+                    android.util.Log.w("PlayerWidget", "Failed to set cover URI fallback", e2)
+                    views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
+                }
+            } else {
                 views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
             }
         }
@@ -858,6 +871,8 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         public const val ACTION_SPEED: String = "com.jabook.app.jabook.WIDGET_SPEED"
         public const val ACTION_TIMER: String = "com.jabook.app.jabook.WIDGET_TIMER"
         public const val EXTRA_APP_WIDGET_ID: String = "com.jabook.app.jabook.EXTRA_APP_WIDGET_ID"
+        public const val EXTRA_WIDGET_ACTION_CREATED_AT_MS: String =
+            "com.jabook.app.jabook.EXTRA_WIDGET_ACTION_CREATED_AT_MS"
 
         /**
          * Requests widget update from anywhere in the app.

@@ -22,6 +22,16 @@ internal data class SliderSeekSyncResult(
 internal object SliderSeekSyncPolicy {
     private const val DEFAULT_CONVERGENCE_THRESHOLD = 0.02f
 
+    private fun sanitizeProgress(
+        value: Float,
+        fallback: Float = 0f,
+    ): Float =
+        if (value.isFinite()) {
+            value.coerceIn(0f, 1f)
+        } else {
+            fallback.coerceIn(0f, 1f)
+        }
+
     fun resolveFromPlayerProgress(
         playerProgress: Float,
         currentSliderPosition: Float,
@@ -29,14 +39,15 @@ internal object SliderSeekSyncPolicy {
         awaitingSeekSync: Boolean,
         convergenceThreshold: Float = DEFAULT_CONVERGENCE_THRESHOLD,
     ): SliderSeekSyncResult {
+        val sanitizedSliderPosition = sanitizeProgress(currentSliderPosition)
         if (!playerProgress.isFinite() || isDragging) {
             return SliderSeekSyncResult(
-                sliderPosition = currentSliderPosition,
+                sliderPosition = sanitizedSliderPosition,
                 awaitingSeekSync = awaitingSeekSync,
             )
         }
 
-        val clampedProgress = playerProgress.coerceIn(0f, 1f)
+        val clampedProgress = sanitizeProgress(playerProgress, fallback = sanitizedSliderPosition)
         if (!awaitingSeekSync) {
             return SliderSeekSyncResult(
                 sliderPosition = clampedProgress,
@@ -44,14 +55,14 @@ internal object SliderSeekSyncPolicy {
             )
         }
 
-        return if (kotlin.math.abs(clampedProgress - currentSliderPosition) <= convergenceThreshold) {
+        return if (kotlin.math.abs(clampedProgress - sanitizedSliderPosition) <= convergenceThreshold) {
             SliderSeekSyncResult(
                 sliderPosition = clampedProgress,
                 awaitingSeekSync = false,
             )
         } else {
             SliderSeekSyncResult(
-                sliderPosition = currentSliderPosition,
+                sliderPosition = sanitizedSliderPosition,
                 awaitingSeekSync = true,
             )
         }

@@ -17,7 +17,9 @@ package com.jabook.app.jabook.compose.data.sync
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
@@ -42,6 +44,7 @@ public class SyncManager
 
         public companion object {
             private const val SYNC_INTERVAL_HOURS = 6L
+            private const val IMMEDIATE_SYNC_WORK_NAME = "sync_work_immediate"
         }
 
         /**
@@ -92,10 +95,19 @@ public class SyncManager
          */
         public fun syncNow() {
             logger.d { "Triggering immediate sync" }
-            val syncRequest = androidx.work.OneTimeWorkRequestBuilder<SyncWorker>().build()
+            val constraints =
+                Constraints
+                    .Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            val syncRequest =
+                OneTimeWorkRequestBuilder<SyncWorker>()
+                    .setConstraints(constraints)
+                    .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
-                "sync_work_immediate",
-                androidx.work.ExistingWorkPolicy.KEEP,
+                IMMEDIATE_SYNC_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
                 syncRequest,
             )
         }
