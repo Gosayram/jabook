@@ -392,6 +392,56 @@ public class PlayerViewModel
         public val sleepTimerState: StateFlow<com.jabook.app.jabook.compose.domain.model.SleepTimerState> =
             sleepTimerRepository.timerState
 
+        // Unified player command dispatcher (incremental PlayerIntent migration)
+        public fun dispatch(intent: PlayerIntent) {
+            logger.d { "PlayerIntent received: $intent" }
+            when (intent) {
+                PlayerIntent.InitializePlayer -> initializePlayer()
+                PlayerIntent.TogglePlayPause -> {
+                    val state = uiState.value
+                    if (state is PlayerUiState.Success && state.isPlaying) {
+                        pause()
+                    } else {
+                        play()
+                    }
+                }
+                PlayerIntent.Play -> play()
+                PlayerIntent.Pause -> pause()
+                PlayerIntent.SkipNext -> skipToNext()
+                PlayerIntent.SkipPrevious -> skipToPrevious()
+                is PlayerIntent.SeekTo -> seekTo(intent.positionMs)
+                PlayerIntent.SeekForward -> seekForward()
+                PlayerIntent.SeekBackward -> seekBackward()
+                is PlayerIntent.SelectChapter -> skipToChapter(intent.chapterIndex)
+                PlayerIntent.ToggleChapterRepeat -> toggleChapterRepeat()
+                PlayerIntent.InitializeVisualizer -> initializeVisualizer()
+                is PlayerIntent.SetVisualizerEnabled -> setVisualizerEnabled(intent.enabled)
+                is PlayerIntent.SetPlaybackSpeed -> setPlaybackSpeed(intent.speed)
+                is PlayerIntent.SetPitchCorrectionEnabled -> setPitchCorrectionEnabled(intent.enabled)
+                is PlayerIntent.StartSleepTimer -> startSleepTimer(intent.minutes)
+                PlayerIntent.StartSleepTimerEndOfChapter -> startSleepTimerEndOfChapter()
+                PlayerIntent.StartSleepTimerEndOfTrack -> startSleepTimerEndOfTrack()
+                PlayerIntent.CancelSleepTimer -> cancelSleepTimer()
+                is PlayerIntent.UpdateBookSeekSettings ->
+                    updateBookSeekSettings(
+                        rewindSeconds = intent.rewindSeconds,
+                        forwardSeconds = intent.forwardSeconds,
+                    )
+                PlayerIntent.ResetBookSeekSettings -> resetBookSeekSettings()
+                is PlayerIntent.UpdateAudioSettings ->
+                    updateAudioSettings(
+                        volumeBoostLevel = intent.volumeBoostLevel,
+                        skipSilence = intent.skipSilence,
+                        skipSilenceThresholdDb = intent.skipSilenceThresholdDb,
+                        skipSilenceMinMs = intent.skipSilenceMinMs,
+                        skipSilenceMode = intent.skipSilenceMode,
+                        normalizeVolume = intent.normalizeVolume,
+                        speechEnhancer = intent.speechEnhancer,
+                        autoVolumeLeveling = intent.autoVolumeLeveling,
+                    )
+            }
+        }
+
         // Player control methods delegated to controller
 
         public fun play() {

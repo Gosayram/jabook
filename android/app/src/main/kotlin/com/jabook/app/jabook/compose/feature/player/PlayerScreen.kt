@@ -175,7 +175,7 @@ public fun PlayerScreen(
         }
     androidx.compose.runtime.LaunchedEffect(shouldInitializePlayer) {
         if (shouldInitializePlayer) {
-            viewModel.initializePlayer()
+            viewModel.dispatch(PlayerIntent.InitializePlayer)
         }
     }
 
@@ -271,7 +271,7 @@ public fun PlayerScreen(
                 hasRecordAudioPermission = granted
                 if (granted) {
                     playerScreenLogger.d { "RECORD_AUDIO permission granted by user intent" }
-                    viewModel.initializeVisualizer()
+                    viewModel.dispatch(PlayerIntent.InitializeVisualizer)
                 } else {
                     playerScreenLogger.w { "RECORD_AUDIO permission denied by user intent" }
                     scope.launch {
@@ -305,7 +305,7 @@ public fun PlayerScreen(
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         if (alreadyGranted) {
             hasRecordAudioPermission = true
-            viewModel.initializeVisualizer()
+            viewModel.dispatch(PlayerIntent.InitializeVisualizer)
         } else {
             recordAudioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
         }
@@ -357,8 +357,12 @@ public fun PlayerScreen(
         PlaybackSpeedSheet(
             currentSpeed = playbackSpeed,
             pitchCorrectionEnabled = pitchCorrectionEnabled,
-            onSpeedSelected = viewModel::setPlaybackSpeed,
-            onPitchCorrectionChanged = viewModel::setPitchCorrectionEnabled,
+            onSpeedSelected = { speed ->
+                viewModel.dispatch(PlayerIntent.SetPlaybackSpeed(speed))
+            },
+            onPitchCorrectionChanged = { enabled ->
+                viewModel.dispatch(PlayerIntent.SetPitchCorrectionEnabled(enabled))
+            },
             onDismiss = { showSpeedSheet = false },
             sheetState = speedSheetState,
         )
@@ -368,10 +372,16 @@ public fun PlayerScreen(
     if (showSleepTimerSheet) {
         SleepTimerSheet(
             currentState = sleepTimerState,
-            onStartTimer = viewModel::startSleepTimer,
-            onStartTimerEndOfChapter = viewModel::startSleepTimerEndOfChapter,
-            onStartTimerEndOfTrack = viewModel::startSleepTimerEndOfTrack,
-            onCancelTimer = viewModel::cancelSleepTimer,
+            onStartTimer = { minutes ->
+                viewModel.dispatch(PlayerIntent.StartSleepTimer(minutes))
+            },
+            onStartTimerEndOfChapter = {
+                viewModel.dispatch(PlayerIntent.StartSleepTimerEndOfChapter)
+            },
+            onStartTimerEndOfTrack = {
+                viewModel.dispatch(PlayerIntent.StartSleepTimerEndOfTrack)
+            },
+            onCancelTimer = { viewModel.dispatch(PlayerIntent.CancelSleepTimer) },
             onDismiss = { showSleepTimerSheet = false },
         )
     }
@@ -383,8 +393,15 @@ public fun PlayerScreen(
         val state = uiState as PlayerUiState.Success
         PlayerSettingsSheet(
             book = state.book,
-            onUpdateSettings = viewModel::updateBookSeekSettings,
-            onResetSettings = viewModel::resetBookSeekSettings,
+            onUpdateSettings = { rewindSeconds, forwardSeconds ->
+                viewModel.dispatch(
+                    PlayerIntent.UpdateBookSeekSettings(
+                        rewindSeconds = rewindSeconds,
+                        forwardSeconds = forwardSeconds,
+                    ),
+                )
+            },
+            onResetSettings = { viewModel.dispatch(PlayerIntent.ResetBookSeekSettings) },
             onDismiss = { showSettingsSheet = false },
             isVinylMode = isVinylMode,
             onVinylModeChange = { isVinylMode = it },
@@ -395,7 +412,29 @@ public fun PlayerScreen(
     if (showAudioSettingsSheet) {
         AudioSettingsSheet(
             state = audioSettings,
-            onUpdateSettings = viewModel::updateAudioSettings,
+            onUpdateSettings = {
+                volumeBoostLevel,
+                skipSilence,
+                skipSilenceThresholdDb,
+                skipSilenceMinMs,
+                skipSilenceMode,
+                normalizeVolume,
+                speechEnhancer,
+                autoVolumeLeveling,
+                ->
+                viewModel.dispatch(
+                    PlayerIntent.UpdateAudioSettings(
+                        volumeBoostLevel = volumeBoostLevel,
+                        skipSilence = skipSilence,
+                        skipSilenceThresholdDb = skipSilenceThresholdDb,
+                        skipSilenceMinMs = skipSilenceMinMs,
+                        skipSilenceMode = skipSilenceMode,
+                        normalizeVolume = normalizeVolume,
+                        speechEnhancer = speechEnhancer,
+                        autoVolumeLeveling = autoVolumeLeveling,
+                    ),
+                )
+            },
             onDismiss = { showAudioSettingsSheet = false },
         )
     }
@@ -455,23 +494,27 @@ public fun PlayerScreen(
                                         visualizerWaveformData = visualizerWaveformData,
                                         onPlayPause = {
                                             clickDebouncer.debounce {
-                                                if (state.isPlaying) viewModel.pause() else viewModel.play()
+                                                viewModel.dispatch(PlayerIntent.TogglePlayPause)
                                             }
                                         },
                                         onSkipNext = {
-                                            clickDebouncer.debounce { viewModel.skipToNext() }
+                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
                                         },
                                         onSkipPrevious = {
-                                            clickDebouncer.debounce { viewModel.skipToPrevious() }
+                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
                                         },
-                                        onSeek = viewModel::seekTo,
+                                        onSeek = { positionMs ->
+                                            viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
+                                        },
                                         onSeekForward = {
-                                            clickDebouncer.debounce { viewModel.seekForward() }
+                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
                                         },
                                         onSeekBackward = {
-                                            clickDebouncer.debounce { viewModel.seekBackward() }
+                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
                                         },
-                                        onSelectChapter = viewModel::skipToChapter,
+                                        onSelectChapter = { chapterIndex ->
+                                            viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
+                                        },
                                         onChapterClick = {
                                             // Toggle chapters pane on medium/expanded screens
                                             clickDebouncer.debounce {
@@ -491,14 +534,18 @@ public fun PlayerScreen(
                                         onSleepTimerClick = { showSleepTimerSheet = true },
                                         onChapterRepeatClick = {
                                             clickDebouncer.debounce {
-                                                viewModel.toggleChapterRepeat()
+                                                viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
                                             }
                                         },
                                         onStatsClick = { showStatsOverlay = true },
                                         hasRecordAudioPermission = hasRecordAudioPermission,
                                         onRequestRecordAudioPermission = requestRecordAudioPermission,
-                                        onInitializeVisualizer = viewModel::initializeVisualizer,
-                                        onSetVisualizerEnabled = viewModel::setVisualizerEnabled,
+                                        onInitializeVisualizer = {
+                                            viewModel.dispatch(PlayerIntent.InitializeVisualizer)
+                                        },
+                                        onSetVisualizerEnabled = { enabled ->
+                                            viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
+                                        },
                                         sharedTransitionScope = sharedTransitionScope,
                                         animatedVisibilityScope = animatedVisibilityScope,
                                     )
@@ -527,7 +574,7 @@ public fun PlayerScreen(
                         normalizeEnabled = normalizeEnabled,
                         onChapterClick = { chapterIndex ->
                             // Start playback immediately (skipToChapter now includes play())
-                            viewModel.skipToChapter(chapterIndex)
+                            viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
                             // On compact screens, smoothly close the pane after selection
                             scope.launch {
                                 // Small delay to ensure playback starts before closing
@@ -836,80 +883,88 @@ private fun PlayerContent(
                         }
                     }
 
-                    // Local state for smooth slider interaction
-                    var isDragging by remember { mutableStateOf(false) }
-                    var sliderPosition by remember { mutableStateOf(playerProgress) }
-                    var awaitingSeekSync by remember { mutableStateOf(false) }
-                    val previewSeekTarget by remember(state.chapters, sliderPosition) {
+                    // Slider state-machine v2:
+                    // - livePosition = playerProgress (single source from player timeline)
+                    // - dragPosition = transient local drag value
+                    // - pendingSeekPosition = last user seek target until player converges
+                    var dragPosition by remember { mutableStateOf<Float?>(null) }
+                    var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
+                    val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
+                    val displayedProgress by remember(playerProgress, dragPosition, pendingSeekPosition) {
+                        derivedStateOf { dragPosition ?: pendingSeekPosition ?: playerProgress }
+                    }
+                    val previewSeekTarget by remember(state.chapters, displayedProgress) {
                         derivedStateOf {
                             ChapterSeekbarPolicy.resolveSeekTarget(
                                 chapters = state.chapters,
-                                progress = sliderPosition,
+                                progress = displayedProgress,
                             )
                         }
                     }
                     val currentGlobalPositionMs by remember(
                         isDragging,
-                        sliderPosition,
+                        displayedProgress,
                         chapterTimeline.totalDurationMs,
                         chapterTimeline.globalPositionMs,
                     ) {
                         derivedStateOf {
                             if (isDragging && chapterTimeline.totalDurationMs > 0) {
-                                (sliderPosition.coerceIn(0f, 1f) * chapterTimeline.totalDurationMs.toFloat()).toLong()
+                                (displayedProgress.coerceIn(0f, 1f) * chapterTimeline.totalDurationMs.toFloat()).toLong()
                             } else {
                                 chapterTimeline.globalPositionMs
                             }
                         }
                     }
 
-                    // Update slider position from player when not dragging.
-                    // After seek, wait briefly for player progress to converge near target to avoid jump-back jitter.
-                    LaunchedEffect(playerProgress, isDragging, awaitingSeekSync) {
-                        val result =
-                            SliderSeekSyncPolicy.resolveFromPlayerProgress(
-                                playerProgress = playerProgress,
-                                currentSliderPosition = sliderPosition,
-                                isDragging = isDragging,
-                                awaitingSeekSync = awaitingSeekSync,
-                            )
-                        sliderPosition = result.sliderPosition
-                        awaitingSeekSync = result.awaitingSeekSync
+                    // Keep pending seek state until player progress converges near user target
+                    // to avoid post-seek jump-back jitter.
+                    LaunchedEffect(playerProgress, pendingSeekPosition, isDragging) {
+                        if (!isDragging && pendingSeekPosition != null) {
+                            val result =
+                                SliderSeekSyncPolicy.resolveFromPlayerProgress(
+                                    playerProgress = playerProgress,
+                                    currentSliderPosition = pendingSeekPosition ?: playerProgress,
+                                    isDragging = false,
+                                    awaitingSeekSync = true,
+                                )
+                            if (!result.awaitingSeekSync) {
+                                pendingSeekPosition = null
+                            }
+                        }
                     }
 
                     // Reset stale drag-seek state on chapter/duration changes to avoid jump-back race
                     // when player timeline is rebuilt after chapter switch.
                     LaunchedEffect(chapterTimeline.totalDurationMs, state.currentChapterIndex) {
                         if (!isDragging) {
-                            sliderPosition = playerProgress
-                            awaitingSeekSync = false
+                            pendingSeekPosition = null
                         }
                     }
 
-                    // Guard against stale awaiting flag if player progress update is delayed.
-                    LaunchedEffect(awaitingSeekSync) {
-                        if (awaitingSeekSync) {
+                    // Guard against stale pending seek flag if player progress update is delayed.
+                    LaunchedEffect(pendingSeekPosition) {
+                        if (pendingSeekPosition != null) {
                             delay(1500L)
-                            awaitingSeekSync = false
+                            pendingSeekPosition = null
                         }
                     }
 
                     SquigglySlider(
-                        value = sliderPosition,
+                        value = displayedProgress,
                         onValueChange = { newProgress ->
-                            isDragging = true
-                            awaitingSeekSync = false
-                            sliderPosition = newProgress.coerceIn(0f, 1f)
+                            pendingSeekPosition = null
+                            dragPosition = newProgress.coerceIn(0f, 1f)
                         },
                         onValueChangeFinished = {
                             // Seek only when user finishes dragging
-                            if (chapterTimeline.totalDurationMs > 0 && sliderPosition.isFinite()) {
+                            val targetProgress = dragPosition ?: displayedProgress
+                            if (chapterTimeline.totalDurationMs > 0 && targetProgress.isFinite()) {
                                 val target =
                                     ChapterSeekbarPolicy.resolveSeekTarget(
                                         chapters = state.chapters,
-                                        progress = sliderPosition,
+                                        progress = targetProgress,
                                     )
-                                awaitingSeekSync = true
+                                pendingSeekPosition = targetProgress
                                 if (target.chapterIndex != state.currentChapterIndex) {
                                     onSelectChapter(target.chapterIndex)
                                     seekScope.launch {
@@ -919,10 +974,8 @@ private fun PlayerContent(
                                 } else {
                                     onSeek(target.chapterPositionMs)
                                 }
-                            } else {
-                                awaitingSeekSync = false
                             }
-                            isDragging = false
+                            dragPosition = null
                         },
                         isPlaying = state.isPlaying,
                         chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
