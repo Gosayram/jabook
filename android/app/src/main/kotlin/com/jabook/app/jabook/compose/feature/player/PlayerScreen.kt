@@ -102,6 +102,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
@@ -165,6 +166,8 @@ public fun PlayerScreen(
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
     val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
+
+    val navigationClickGuard = remember { NavigationClickGuard() }
 
     // Auto-initialize player when book data is ready
     // Only initialize once when we have Success state with actual chapters
@@ -347,7 +350,7 @@ public fun PlayerScreen(
                 scaffoldNavigator.navigateBack()
             }
         } else {
-            onNavigateBack()
+            navigationClickGuard.run { onNavigateBack() }
         }
     }
 
@@ -555,7 +558,7 @@ public fun PlayerScreen(
                             is PlayerUiState.Error -> {
                                 ErrorScreen(
                                     message = state.message,
-                                    onRetry = onNavigateBack,
+                                    onRetry = { navigationClickGuard.run(onNavigateBack) },
                                 )
                             }
                         }

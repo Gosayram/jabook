@@ -118,6 +118,9 @@ public fun TopicScreen(
     val isLoadingMoreComments by viewModel.isLoadingMoreComments.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
+    val safeNavigateToTopic: (String) -> Unit = { topicId ->
+        navigationClickGuard.run { onNavigateToTopic(topicId) }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var commentsExpanded by remember { mutableStateOf(false) }
@@ -211,7 +214,7 @@ public fun TopicScreen(
                     isRefreshing = isRefreshing,
                     isLoadingMoreComments = isLoadingMoreComments,
                     onRefresh = { viewModel.refreshTopicDetails(silent = true) },
-                    onNavigateToTopic = onNavigateToTopic,
+                    onNavigateToTopic = safeNavigateToTopic,
                     commentsExpanded = commentsExpanded,
                     onCommentsExpandedChange = { commentsExpanded = it },
                     modifier = Modifier.padding(padding),

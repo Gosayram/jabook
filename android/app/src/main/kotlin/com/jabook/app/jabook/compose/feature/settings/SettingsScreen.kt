@@ -75,8 +75,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
@@ -143,6 +145,14 @@ public fun SettingsScreen(
 
     val userPreferences by viewModel.userPreferences.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
+    val safeNavigateToDebug = dropUnlessResumed { navigationClickGuard.run(onNavigateToDebug) }
+    val safeNavigateToScanSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToScanSettings) }
+    val safeNavigateToAudioSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToAudioSettings) }
+    val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -174,7 +184,7 @@ public fun SettingsScreen(
                     SettingsItem(
                         title = stringResource(R.string.loginToRutracker),
                         subtitle = stringResource(R.string.requiredToDownloadTorrents),
-                        onClick = { onNavigateToAuth() },
+                        onClick = { safeNavigateToAuth() },
                     )
                 }
             }
@@ -566,7 +576,7 @@ public fun SettingsScreen(
             SettingsItem(
                 title = stringResource(R.string.libraryFoldersTitle),
                 subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
-                onClick = onNavigateToScanSettings,
+                onClick = { safeNavigateToScanSettings() },
             )
 
             // Chapter Normalization Toggle
@@ -589,7 +599,7 @@ public fun SettingsScreen(
             SettingsItem(
                 title = stringResource(R.string.audioSettingsTitle),
                 subtitle = stringResource(R.string.audioDescription),
-                onClick = onNavigateToAudioSettings,
+                onClick = { safeNavigateToAudioSettings() },
             )
 
             HorizontalDivider()
@@ -612,7 +622,7 @@ public fun SettingsScreen(
                         } else {
                             stringResource(R.string.downloads_paused_or_queued, activeDownloads.size)
                         },
-                    onClick = onNavigateToDownloads,
+                    onClick = { safeNavigateToDownloads() },
                 ) {
                     androidx.compose.material3.LinearProgressIndicator(
                         modifier =
@@ -1164,7 +1174,7 @@ public fun SettingsScreen(
             SettingsItem(
                 title = stringResource(R.string.debugToolsTitle),
                 subtitle = stringResource(R.string.viewLogsTestMirrorsCheckCache),
-                onClick = onNavigateToDebug,
+                onClick = { safeNavigateToDebug() },
             )
 
             Spacer(modifier = Modifier.height(itemSpacing))
