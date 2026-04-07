@@ -201,14 +201,43 @@ public class MirrorManager
          *
          * @param domain Custom mirror domain (e.g., "rutracker.nl")
          */
-        public suspend fun addCustomMirror(domain: String) {
-            if (domain.isBlank() || domain in _availableMirrors.value) {
-                logger.w { "Custom mirror already exists or is blank: $domain" }
-                return
+
+        /**
+         * Add a custom mirror domain.
+         *
+         * The input is validated and sanitized via [MirrorDomainValidationPolicy]:
+         * - Protocol prefixes, paths, ports, and fragments are stripped
+         * - Local/private addresses are rejected
+         * - Non-rutracker domains are accepted but logged as a warning
+         *
+         * @param domain Raw user input (e.g., "https://rutracker.nl/forum/")
+         * @return [MirrorDomainValidationPolicy.ValidationResult] indicating success or rejection
+         */
+        public suspend fun addCustomMirror(domain: String): MirrorDomainValidationPolicy.ValidationResult {
+            val validation = MirrorDomainValidationPolicy.validate(domain)
+
+            val sanitized = validation.sanitizedDomain
+            if (sanitized == null) {
+                logger.w { "Custom mirror rejected: ${validation.rejectionReason}" }
+                return validation
             }
 
-            settingsRepository.addCustomMirror(domain)
-            logger.i { "Added custom mirror: $domain" }
+            if (sanitized in _availableMirrors.value) {
+                logger.w { "Custom mirror already exists: $sanitized" }
+                return MirrorDomainValidationPolicy.ValidationResult(
+                    sanitizedDomain = null,
+                    isWarning = false,
+                    rejectionReason = "Mirror already exists: $sanitized",
+                )
+            }
+
+            if (validation.isWarning) {
+                logger.w { "Custom mirror does not look like a RuTracker domain: $sanitized" }
+            }
+
+            settingsRepository.addCustomMirror(sanitized)
+            logger.i { "Added custom mirror: $sanitized" }
+            return validation
         }
 
         /**

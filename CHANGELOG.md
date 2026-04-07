@@ -16,82 +16,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add audiobooks scenario and enhance topic deduplication logic
-- Add categories, posts, profiles extraction and enhance topic/forum parsing
-- Add comments indexing with quality scoring and scope-based search
-- Add debounce policy for foreground notification re-promotion
-- Add detailed post extraction with quotes, spoilers, images, links and formatting stats
-- Add foreground notification coordinator with fallback support
-- Add gradle wrapper scripts to android project
-- Add incremental indexing with quality scoring and lazy storage handles
-- Add min quality score filtering and max base records limit to search index
-- Add parallel tracker harvesting with configurable workers
-- Add preflight checks, rollback, and checksum to migration
-- Add rutracker_parser module for rutracker.org crawling
-- Add scope filtering for audiobooks crawl mode
-- Add search indexing and local lookup for audiobooks
-- Add storage fallback mode and refactor adaptive utilities
-- Add structured telemetry logging for widget operations
-- Add widget action deduplication to prevent double-tap
-- Handle queue preload during active crossfade transition
-- Integrate firebase crashlytics sdk and exception handling
-
 ### Changed
 
-- Apply Kotlin DSL formatting to build.gradle.kts chains
-- Apply consistent import ordering and code formatting
+- Arch changement and test management; (#64)
 - Bump android-actions/setup-android from 3.2.2 to 4.0.0 (#53)
+- Bump android-actions/setup-android from 4.0.0 to 4.0.1 (#91)
 - Bump androidx.activity:activity-compose in /android (#65)
+- Bump androidx.compose.material3:material3-adaptive-navigation-suite (#77)
 - Bump androidx.compose.ui:ui-text-google-fonts in /android (#58)
 - Bump androidx.compose.ui:ui-text-google-fonts in /android (#73)
+- Bump androidx.compose:compose-bom in /android (#85)
 - Bump androidx.core:core-ktx from 1.13.1 to 1.18.0 in /android (#70)
+- Bump androidx.datastore:datastore from 1.2.0 to 1.2.1 in /android (#87)
 - Bump androidx.datastore:datastore-preferences in /android (#66)
 - Bump androidx.navigation:navigation-compose in /android (#68)
+- Bump androidx.work:work-runtime from 2.11.0 to 2.11.2 in /android (#83)
 - Bump androidxComposeMaterial3Adaptive in /android (#71)
+- Bump app.cash.turbine:turbine from 1.2.0 to 1.2.1 in /android (#81)
+- Bump coil3 from 3.3.0 to 3.4.0 in /android (#78)
 - Bump com.android.application from 8.13.1 to 9.1.0 in /android (#69)
+- Bump com.google.crypto.tink:tink-android in /android (#79)
 - Bump com.google.devtools.ksp from 2.3.3 to 2.3.6 in /android (#62)
 - Bump com.google.firebase:firebase-bom from 34.7.0 to 34.11.0 in /android (#63)
+- Bump com.google.jimfs:jimfs from 1.3.0 to 1.3.1 in /android (#90)
 - Bump com.google.protobuf from 0.9.5 to 0.9.6 in /android (#56)
 - Bump com.google.protobuf:protobuf-javalite in /android (#72)
 - Bump dev.chrisbanes.haze:haze from 1.7.1 to 1.7.2 in /android (#74)
 - Bump hilt from 2.57.2 to 2.59.2 in /android (#60)
+- Bump hiltExt from 1.2.0 to 1.3.0 in /android (#76)
 - Bump kotlin from 2.2.21 to 2.3.20 in /android (#54)
 - Bump kotlinTest from 2.2.21 to 2.3.20 in /android (#57)
 - Bump kotlinxSerialization from 1.9.0 to 1.10.0 in /android (#59)
 - Bump libtorrent4j from 2.1.0-38 to 2.1.0-39 in /android (#61)
+- Bump media3 from 1.10.0-rc02 to 1.10.0 in /android (#88)
 - Bump media3 from 1.8.0 to 1.9.3 in /android (#55)
 - Bump org.jlleitschuh.gradle.ktlint from 14.0.1 to 14.2.0 in /android (#67)
+- Bump org.jsoup:jsoup from 1.21.2 to 1.22.1 in /android (#82)
+- Bump org.mockito.kotlin:mockito-kotlin from 6.1.0 to 6.3.0 in /android (#84)
+- Bump org.mockito:mockito-core from 5.21.0 to 5.23.0 in /android (#80)
+- Bump org.robolectric:robolectric from 4.16 to 4.16.1 in /android (#89)
+- Bump patch version to 1.2.7+97; (#75)
 - Bump softprops/action-gh-release from 2.5.0 to 2.6.1 (#52)
-- Document high-performance indexing with parallel engine and comments search
-- Enhance rutracker parser extraction and add interrupt handling
-- Extract notification invalidate policy to separate class
-- Extract notification invalidation listener and sink
-- Extract player notification invalidation coordinator
-- Extract player notification invalidation pipeline
-- Extract protobuf logic into custom Gradle task class
-- Extract sleep timer persistence logic into dedicated module with sealed restore plan
-- Extract widget job registry and deep link policy
-- Extract widget policies and fix intent routing
-- Improve topic field extraction with better filtering and deduplication
-- Move Room schema location to build/generated/room-schemas
 - Refactor audio player service architecture (#47)
-- Remove flutter configs and rename android themes
-- Remove redundant null elvis operators and add Robolectric runner
-- Remove uncaught_thread_id from crashlytics custom keys
-- Replace protobuf plugin with custom protoc tasks and update Gradle to 9.4.1
-- Separate permission requests: notifications on entry, audio on user intent
-- Update Makefile compile target to clean schemas and fail on error
-- Update readme reflecting flutter to kotlin compose migration
-
-### Fixed
-
-- Fix sleep timer state persistence across process death with paused time tracking
-
-### Security
-
-- Refactor grid layout and secure migration
 
 ## [1.2.6] - 2025-12-06
 
