@@ -58,7 +58,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
@@ -88,6 +90,9 @@ public fun TorrentDownloadsScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val showCompletedOnly by viewModel.showCompletedOnly.collectAsStateWithLifecycle()
+
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
 
     var downloadToDelete by remember { mutableStateOf<TorrentDownload?>(null) }
 
@@ -212,7 +217,7 @@ public fun TorrentDownloadsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.torrent_downloads)) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = safeNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.back),

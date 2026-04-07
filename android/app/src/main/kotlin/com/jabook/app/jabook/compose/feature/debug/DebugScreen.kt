@@ -61,7 +61,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.data.debug.toIcon
 import kotlinx.coroutines.launch
 
@@ -75,6 +77,9 @@ public fun DebugScreen(
     viewModel: DebugViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
 ) {
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
+
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs =
         listOf(
@@ -101,7 +106,7 @@ public fun DebugScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.debugToolsTitle)) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = safeNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
