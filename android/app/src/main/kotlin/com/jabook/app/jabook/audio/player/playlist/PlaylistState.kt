@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio.player.playlist
 
+import com.jabook.app.jabook.audio.core.model.Chapter
 import com.jabook.app.jabook.audio.core.model.Playlist
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -72,6 +73,83 @@ public class PlaylistState {
      * Gets the current track index.
      */
     public fun getCurrentTrackIndex(): Int = _actualTrackIndex.value
+
+    /**
+     * Queue operations (Queue Engine v2 foundation).
+     */
+    public fun addChapter(
+        chapter: Chapter,
+        index: Int? = null,
+    ): Boolean =
+        synchronized(this) {
+            val current = _playlist.value ?: return false
+            val updated =
+                try {
+                    current.addChapter(chapter, index)
+                } catch (_: IllegalArgumentException) {
+                    return false
+                }
+            _playlist.value = updated
+            _actualTrackIndex.value = updated.currentIndex
+            true
+        }
+
+    public fun removeChapterAt(index: Int): Boolean =
+        synchronized(this) {
+            val current = _playlist.value ?: return false
+            val updated =
+                try {
+                    current.removeChapterAt(index)
+                } catch (_: IllegalArgumentException) {
+                    return false
+                }
+            _playlist.value = updated
+            _actualTrackIndex.value = updated.currentIndex
+            true
+        }
+
+    public fun moveChapter(
+        fromIndex: Int,
+        toIndex: Int,
+    ): Boolean =
+        synchronized(this) {
+            val current = _playlist.value ?: return false
+            val updated =
+                try {
+                    current.moveChapter(fromIndex, toIndex)
+                } catch (_: IllegalArgumentException) {
+                    return false
+                }
+            _playlist.value = updated
+            _actualTrackIndex.value = updated.currentIndex
+            true
+        }
+
+    public fun replaceChapters(
+        chapters: List<Chapter>,
+        playAtIndex: Int? = null,
+    ): Boolean =
+        synchronized(this) {
+            val current = _playlist.value ?: return false
+            val updated = current.replaceChapters(chapters, playAtIndex)
+            _playlist.value = updated
+            _actualTrackIndex.value = updated.currentIndex
+            true
+        }
+
+    public fun playAt(index: Int): Boolean =
+        synchronized(this) {
+            val current = _playlist.value ?: return false
+            val updated =
+                try {
+                    current.playAt(index)
+                } catch (_: IllegalArgumentException) {
+                    return false
+                }
+            _playlist.value = updated
+            _actualTrackIndex.value = updated.currentIndex
+            true
+        }
 
     /**
      * Resets the state.

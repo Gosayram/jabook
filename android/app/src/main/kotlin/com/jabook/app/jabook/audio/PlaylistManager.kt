@@ -102,6 +102,12 @@ internal class PlaylistManager(
     private val playbackController: PlaybackController,
     private val getCurrentTrackIndex: () -> Int = { 0 }, // fallback
 ) {
+    internal data class QueueSnapshot(
+        val filePaths: List<String>,
+        val currentIndex: Int,
+        val generation: Long,
+    )
+
     // State managed by PlaylistManager
     var currentFilePaths: List<String>? = null
         private set
@@ -133,6 +139,50 @@ internal class PlaylistManager(
 
     // Mutex to synchronize playlist loading operations and prevent race conditions
     private val playlistLoadMutex = Mutex()
+    private var lastQueueMutationKey: String? = null
+    private var lastQueueMutationAtMs: Long = 0L
+
+    /**
+     * Applies queue mutation atomically against in-memory queue state.
+     *
+     * This is a Queue Engine v2 foundation and does not yet mutate MediaSession playlist directly.
+     */
+    internal suspend fun mutateQueueAtomically(operation: PlaylistQueueOperation): QueueSnapshot? =
+        playlistLoadMutex.withLock {
+            val currentPaths = currentFilePaths ?: return null
+            val operationKey = PlaylistQueueMutationCoalescingPolicy.operationKey(operation)
+            val nowMs = System.currentTimeMillis()
+            if (
+                PlaylistQueueMutationCoalescingPolicy.shouldDropDuplicate(
+                    previousOperationKey = lastQueueMutationKey,
+                    previousMutationAtMs = lastQueueMutationAtMs,
+                    operationKey = operationKey,
+                    nowMs = nowMs,
+                )
+            ) {
+                return QueueSnapshot(
+                    filePaths = currentPaths,
+                    currentIndex = actualTrackIndex.coerceIn(0, (currentPaths.size - 1).coerceAtLeast(0)),
+                    generation = playlistLoadGeneration,
+                )
+            }
+            val mutation =
+                PlaylistQueueMutationPolicy.apply(
+                    currentPaths = currentPaths,
+                    currentIndex = actualTrackIndex.coerceIn(0, (currentPaths.size - 1).coerceAtLeast(0)),
+                    operation = operation,
+                )
+            currentFilePaths = mutation.paths
+            actualTrackIndex = mutation.currentIndex
+            lastQueueMutationKey = operationKey
+            lastQueueMutationAtMs = nowMs
+            val generation = ++playlistLoadGeneration
+            QueueSnapshot(
+                filePaths = mutation.paths,
+                currentIndex = mutation.currentIndex,
+                generation = generation,
+            )
+        }
 
     /**
      * Sets playlist from file paths or URLs.

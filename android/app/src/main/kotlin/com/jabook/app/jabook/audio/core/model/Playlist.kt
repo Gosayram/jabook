@@ -23,6 +23,15 @@ public data class Playlist(
     val chapters: List<Chapter>,
     val currentIndex: Int = 0,
 ) {
+    private fun normalizeIndexForSize(
+        desiredIndex: Int,
+        size: Int = chapters.size,
+    ): Int =
+        when {
+            size <= 0 -> 0
+            else -> desiredIndex.coerceIn(0, size - 1)
+        }
+
     /**
      * Returns the current chapter, if available.
      */
@@ -64,7 +73,101 @@ public data class Playlist(
      * Creates a copy of this playlist with a new current index.
      */
     public fun withCurrentIndex(index: Int): Playlist {
+        if (chapters.isEmpty()) {
+            require(index == 0) { "Index $index is out of bounds for empty playlist" }
+            return copy(currentIndex = 0)
+        }
         require(index in chapters.indices) { "Index $index is out of bounds for playlist of size ${chapters.size}" }
         return copy(currentIndex = index)
     }
+
+    /**
+     * Inserts a chapter at [index] (or at the end when null).
+     */
+    public fun addChapter(
+        chapter: Chapter,
+        index: Int? = null,
+    ): Playlist {
+        val insertIndex = index ?: chapters.size
+        require(insertIndex in 0..chapters.size) {
+            "Index $insertIndex is out of bounds for insertion into playlist of size ${chapters.size}"
+        }
+        val updated = chapters.toMutableList().apply { add(insertIndex, chapter) }
+        val adjustedIndex =
+            if (insertIndex <= currentIndex) {
+                currentIndex + 1
+            } else {
+                currentIndex
+            }
+        return copy(chapters = updated, currentIndex = normalizeIndexForSize(adjustedIndex, updated.size))
+    }
+
+    /**
+     * Removes chapter at [index].
+     */
+    public fun removeChapterAt(index: Int): Playlist {
+        require(index in chapters.indices) { "Index $index is out of bounds for playlist of size ${chapters.size}" }
+        val updated = chapters.toMutableList().apply { removeAt(index) }
+        if (updated.isEmpty()) {
+            return copy(chapters = emptyList(), currentIndex = 0)
+        }
+        val adjustedIndex =
+            when {
+                index < currentIndex -> currentIndex - 1
+                index == currentIndex -> currentIndex.coerceAtMost(updated.lastIndex)
+                else -> currentIndex
+            }
+        return copy(chapters = updated, currentIndex = normalizeIndexForSize(adjustedIndex, updated.size))
+    }
+
+    /**
+     * Moves chapter from [fromIndex] to [toIndex].
+     */
+    public fun moveChapter(
+        fromIndex: Int,
+        toIndex: Int,
+    ): Playlist {
+        require(fromIndex in chapters.indices) {
+            "fromIndex $fromIndex is out of bounds for playlist of size ${chapters.size}"
+        }
+        require(toIndex in chapters.indices) {
+            "toIndex $toIndex is out of bounds for playlist of size ${chapters.size}"
+        }
+        if (fromIndex == toIndex) {
+            return this
+        }
+
+        val updated = chapters.toMutableList()
+        val moved = updated.removeAt(fromIndex)
+        updated.add(toIndex, moved)
+
+        val adjustedIndex =
+            when {
+                currentIndex == fromIndex -> toIndex
+                fromIndex < currentIndex && toIndex >= currentIndex -> currentIndex - 1
+                fromIndex > currentIndex && toIndex <= currentIndex -> currentIndex + 1
+                else -> currentIndex
+            }
+
+        return copy(chapters = updated, currentIndex = normalizeIndexForSize(adjustedIndex, updated.size))
+    }
+
+    /**
+     * Replaces chapters and optionally sets active item.
+     */
+    public fun replaceChapters(
+        newChapters: List<Chapter>,
+        playAtIndex: Int? = null,
+    ): Playlist {
+        val targetIndex = playAtIndex ?: currentIndex
+        return copy(
+            chapters = newChapters,
+            currentIndex = normalizeIndexForSize(targetIndex, newChapters.size),
+        )
+    }
+
+    /**
+     * Selects active chapter index.
+     */
+    public fun playAt(index: Int): Playlist = withCurrentIndex(index)
 }
