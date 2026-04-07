@@ -124,7 +124,7 @@ class ServiceIntentHandlerTest {
     }
 
     @Test
-    fun `deduplicated widget action logs only deduplicated telemetry without update request`() {
+    fun `deduplicated widget action logs only ignored-deduplicated telemetry without update request`() {
         val intent =
             Intent(PlayerWidgetProvider.ACTION_PLAY_PAUSE).apply {
                 putExtra(PlayerWidgetProvider.EXTRA_APP_WIDGET_ID, 41)
@@ -143,7 +143,7 @@ class ServiceIntentHandlerTest {
 
         assertEquals(1, allLogs.size)
         assertEquals(1, telemetryMessages.size)
-        assertTrue(telemetryMessages.single().contains("widget_service_event=action_deduplicated"))
+        assertTrue(telemetryMessages.single().contains("widget_service_event=action_ignored_deduplicated"))
         assertTrue(telemetryMessages.single().contains("widgetId=41"))
         assertTrue(telemetryMessages.single().contains("deduplicated=true"))
 
@@ -151,7 +151,7 @@ class ServiceIntentHandlerTest {
     }
 
     @Test
-    fun `stale widget action is ignored and triggers widget refresh`() {
+    fun `stale widget action is ignored logs retry and triggers widget refresh`() {
         nowMs = WidgetActionStalenessPolicy.MAX_ACTION_AGE_MS + 100_000L
         val staleIntent =
             Intent(PlayerWidgetProvider.ACTION_NEXT).apply {
@@ -177,6 +177,7 @@ class ServiceIntentHandlerTest {
                 .map { it.msg }
                 .filter { it.contains("widget_service_event=") }
         assertTrue(telemetryMessages.any { it.contains("widget_service_event=action_ignored_stale") })
+        assertTrue(telemetryMessages.any { it.contains("widget_service_event=action_retry_requested") })
     }
 
     @Test

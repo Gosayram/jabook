@@ -150,6 +150,12 @@ internal class PlaylistManager(
     internal suspend fun mutateQueueAtomically(operation: PlaylistQueueOperation): QueueSnapshot? =
         playlistLoadMutex.withLock {
             val currentPaths = currentFilePaths ?: return null
+            val previousIndex = actualTrackIndex.coerceIn(0, (currentPaths.size - 1).coerceAtLeast(0))
+            val previousCurrentPath = currentPaths.getOrNull(previousIndex)
+            val previousPositionMs =
+                runCatching { getActivePlayer().currentPosition }
+                    .getOrDefault(0L)
+                    .coerceAtLeast(0L)
             val operationKey = PlaylistQueueMutationCoalescingPolicy.operationKey(operation)
             val nowMs = System.currentTimeMillis()
             if (
@@ -177,12 +183,81 @@ internal class PlaylistManager(
             lastQueueMutationKey = operationKey
             lastQueueMutationAtMs = nowMs
             val generation = ++playlistLoadGeneration
+
+            syncQueueWithPlayerAndPersistence(
+                updatedPaths = mutation.paths,
+                updatedIndex = mutation.currentIndex,
+                previousCurrentPath = previousCurrentPath,
+                previousPositionMs = previousPositionMs,
+            )
+
             QueueSnapshot(
                 filePaths = mutation.paths,
                 currentIndex = mutation.currentIndex,
                 generation = generation,
             )
         }
+
+    private suspend fun syncQueueWithPlayerAndPersistence(
+        updatedPaths: List<String>,
+        updatedIndex: Int,
+        previousCurrentPath: String?,
+        previousPositionMs: Long,
+    ) {
+        if (updatedPaths.isEmpty()) {
+            withContext(Dispatchers.Main) {
+                val player = getActivePlayer()
+                player.playWhenReady = false
+                player.clearMediaItems()
+            }
+            return
+        }
+
+        val normalizedIndex = updatedIndex.coerceIn(0, updatedPaths.size - 1)
+        val selectedPath = updatedPaths[normalizedIndex]
+        val restoredPositionMs =
+            if (selectedPath == previousCurrentPath) {
+                previousPositionMs
+            } else {
+                0L
+            }
+        val dataSourceFactory = SimpleMediaDataSourceFactory()
+        val mediaItems =
+            updatedPaths.mapIndexed { index, path ->
+                createMediaItemForPath(path, index, currentMetadata, dataSourceFactory)
+            }
+
+        withContext(Dispatchers.Main) {
+            val player = getActivePlayer()
+            val wasPlaying = player.playWhenReady
+            player.setMediaItems(mediaItems, normalizedIndex, restoredPositionMs)
+            player.prepare()
+            player.playWhenReady = wasPlaying
+        }
+
+        val metadata = currentMetadata
+        val groupPath = currentGroupPath
+        val title = metadata?.get("title") ?: File(selectedPath).nameWithoutExtension
+        val artist = metadata?.get("artist").orEmpty()
+        val artworkPath = metadata?.get("coverPath").orEmpty()
+        val durationMs =
+            runCatching { getActivePlayer().duration }
+                .getOrDefault(0L)
+                .coerceAtLeast(0L)
+
+        playerPersistenceManager.saveCurrentMediaItem(
+            mediaId = selectedPath,
+            positionMs = restoredPositionMs,
+            durationMs = durationMs,
+            artworkPath = artworkPath,
+            title = title,
+            artist = artist,
+            groupPath = groupPath.orEmpty(),
+        )
+        if (!groupPath.isNullOrBlank()) {
+            playerPersistenceManager.saveGroupPathToSharedPreferences(groupPath)
+        }
+    }
 
     /**
      * Sets playlist from file paths or URLs.

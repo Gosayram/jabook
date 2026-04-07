@@ -63,6 +63,15 @@ internal class ServiceIntentHandler(
                         deduplicated = false,
                     ),
                 )
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    WidgetObservabilityPolicy.serviceMessage(
+                        event = "action_retry_requested",
+                        action = action,
+                        widgetId = widgetId,
+                        deduplicated = false,
+                    ),
+                )
                 PlayerWidgetProvider.requestUpdate(service)
                 return true
             }
@@ -72,7 +81,7 @@ internal class ServiceIntentHandler(
                 android.util.Log.d(
                     "AudioPlayerService",
                     WidgetObservabilityPolicy.serviceMessage(
-                        event = "action_deduplicated",
+                        event = "action_ignored_deduplicated",
                         action = action,
                         widgetId = widgetId,
                         deduplicated = true,

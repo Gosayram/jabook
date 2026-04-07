@@ -614,9 +614,10 @@ public class PlayerViewModel
             if (state is PlayerUiState.Success && !isBookLoaded) {
                 val filePaths = state.chapters.mapNotNull { it.fileUrl }
                 if (filePaths.isNotEmpty()) {
-                    // Use saved position from database if available, otherwise use current position
-                    val initialChapterIndex = if (savedChapterIndex > 0) savedChapterIndex else state.currentChapterIndex
-                    val initialPosition = if (savedPosition > 0) savedPosition else state.currentPosition
+                    // Single source-of-truth: initialize from unified uiState (controller/service-driven
+                    // when bound, DB-restored only as bootstrap fallback before controller binds).
+                    val initialChapterIndex = state.currentChapterIndex
+                    val initialPosition = state.currentPosition
 
                     logger.d {
                         "Initializing player: chapter=$initialChapterIndex, position=${initialPosition}ms"
