@@ -75,4 +75,30 @@ class PlaylistQueueMutationPolicyTest {
         assertEquals(0, implicit.currentIndex)
         assertEquals(1, explicit.currentIndex)
     }
+
+    @Test
+    fun `move no-op when indices are equal`() {
+        val result =
+            PlaylistQueueMutationPolicy.apply(
+                currentPaths = listOf("a.mp3", "b.mp3", "c.mp3"),
+                currentIndex = 1,
+                operation = PlaylistQueueOperation.Move(fromIndex = 1, toIndex = 1),
+            )
+
+        assertEquals(listOf("a.mp3", "b.mp3", "c.mp3"), result.paths)
+        assertEquals(1, result.currentIndex)
+    }
+
+    @Test
+    fun `remove last remaining item resets queue index to zero`() {
+        val result =
+            PlaylistQueueMutationPolicy.apply(
+                currentPaths = listOf("only.mp3"),
+                currentIndex = 0,
+                operation = PlaylistQueueOperation.Remove(index = 0),
+            )
+
+        assertEquals(emptyList<String>(), result.paths)
+        assertEquals(0, result.currentIndex)
+    }
 }

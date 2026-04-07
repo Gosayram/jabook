@@ -103,4 +103,32 @@ class SliderSeekSyncPolicyTest {
         assertEquals(1f, result.sliderPosition, 0.0001f)
         assertFalse(result.awaitingSeekSync)
     }
+
+    @Test
+    fun `keeps awaiting seek sync during drag cancel window`() {
+        val result =
+            SliderSeekSyncPolicy.resolveFromPlayerProgress(
+                playerProgress = 0.5f,
+                currentSliderPosition = 0.75f,
+                isDragging = true,
+                awaitingSeekSync = true,
+            )
+
+        assertEquals(0.75f, result.sliderPosition, 0.0001f)
+        assertTrue(result.awaitingSeekSync)
+    }
+
+    @Test
+    fun `finishes seek sync after drag when converged on next tick`() {
+        val result =
+            SliderSeekSyncPolicy.resolveFromPlayerProgress(
+                playerProgress = 0.601f,
+                currentSliderPosition = 0.6f,
+                isDragging = false,
+                awaitingSeekSync = true,
+            )
+
+        assertEquals(0.601f, result.sliderPosition, 0.0001f)
+        assertFalse(result.awaitingSeekSync)
+    }
 }
