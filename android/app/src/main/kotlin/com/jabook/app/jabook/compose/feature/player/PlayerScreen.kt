@@ -889,9 +889,16 @@ private fun PlayerContent(
                     // - pendingSeekPosition = last user seek target until player converges
                     var dragPosition by remember { mutableStateOf<Float?>(null) }
                     var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
+                    var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
                     val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
-                    val displayedProgress by remember(playerProgress, dragPosition, pendingSeekPosition) {
-                        derivedStateOf { dragPosition ?: pendingSeekPosition ?: playerProgress }
+                    val displayedProgress by remember(coalescedPlayerProgress, dragPosition, pendingSeekPosition) {
+                        derivedStateOf {
+                            PlayerSliderStateMachinePolicy.displayedProgress(
+                                liveProgress = coalescedPlayerProgress,
+                                dragProgress = dragPosition,
+                                pendingSeekProgress = pendingSeekPosition,
+                            )
+                        }
                     }
                     val previewSeekTarget by remember(state.chapters, displayedProgress) {
                         derivedStateOf {
@@ -916,6 +923,16 @@ private fun PlayerContent(
                         }
                     }
 
+                    // Coalesce rapid progress deltas to reduce jitter/recomposition pressure on slider.
+                    LaunchedEffect(playerProgress, chapterTimeline.totalDurationMs) {
+                        coalescedPlayerProgress =
+                            PlayerSliderStateMachinePolicy.coalesceLiveProgress(
+                                previousProgress = coalescedPlayerProgress,
+                                incomingProgress = playerProgress,
+                                totalDurationMs = chapterTimeline.totalDurationMs,
+                            )
+                    }
+
                     // Keep pending seek state until player progress converges near user target
                     // to avoid post-seek jump-back jitter.
                     LaunchedEffect(playerProgress, pendingSeekPosition, isDragging) {
@@ -937,6 +954,7 @@ private fun PlayerContent(
                     // when player timeline is rebuilt after chapter switch.
                     LaunchedEffect(chapterTimeline.totalDurationMs, state.currentChapterIndex) {
                         if (!isDragging) {
+                            coalescedPlayerProgress = playerProgress
                             pendingSeekPosition = null
                         }
                     }
