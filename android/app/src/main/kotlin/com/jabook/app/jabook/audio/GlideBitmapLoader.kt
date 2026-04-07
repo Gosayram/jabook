@@ -41,6 +41,7 @@ import java.util.concurrent.Executors
  * - Efficient bitmap decoding and resizing
  * - Support for remote URLs (book cover APIs)
  * - Proper error handling with fallbacks
+ * - Artwork payload size guarding via [ArtworkPayloadPolicy]
  *
  * @param context Application context for Glide initialization
  */
@@ -119,13 +120,24 @@ public class GlideBitmapLoader(
     /**
      * Decodes bitmap from raw byte data using Glide.
      * This is used for embedded artwork in audio files.
+     * Oversized payloads are rejected early via [ArtworkPayloadPolicy].
      */
     override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> {
         val future = SettableFuture.create<Bitmap>()
 
         executorService.execute {
             try {
-                android.util.Log.d("GlideBitmapLoader", "Decoding bitmap from byte array: ${data.size} bytes")
+                // Guard oversized artwork payloads early
+                val safeData = ArtworkPayloadPolicy.sanitizeArtworkData(data)
+                if (safeData == null) {
+                    android.util.Log.w(
+                        "GlideBitmapLoader",
+                        "Artwork payload too large (${data.size} bytes), skipping decode",
+                    )
+                    future.setException(Exception("Artwork payload exceeds safe limit"))
+                    return@execute
+                }
+                android.util.Log.d("GlideBitmapLoader", "Decoding bitmap from byte array: ${safeData.size} bytes")
 
                 val requestOptions =
                     RequestOptions()
@@ -178,7 +190,7 @@ public class GlideBitmapLoader(
             return loadBitmap(artworkUri)
         }
 
-        // Fallback to artworkData
+        // Fallback to artworkData (guarded by ArtworkPayloadPolicy in decodeBitmap)
         val artworkData = metadata.artworkData
         if (artworkData != null && artworkData.isNotEmpty()) {
             android.util.Log.d(

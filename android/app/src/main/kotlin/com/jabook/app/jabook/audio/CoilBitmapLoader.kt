@@ -116,7 +116,17 @@ public class CoilBitmapLoader(
 
         scope.launch {
             try {
-                android.util.Log.d("CoilBitmapLoader", "Decoding bitmap from byte array: ${data.size} bytes")
+                // Guard oversized artwork payloads early
+                val safeData = ArtworkPayloadPolicy.sanitizeArtworkData(data)
+                if (safeData == null) {
+                    android.util.Log.w(
+                        "CoilBitmapLoader",
+                        "Artwork payload too large (${data.size} bytes), skipping decode",
+                    )
+                    future.setException(Exception("Artwork payload exceeds safe limit"))
+                    return@launch
+                }
+                android.util.Log.d("CoilBitmapLoader", "Decoding bitmap from byte array: ${safeData.size} bytes")
 
                 val loader = SingletonImageLoader.get(context)
                 val request =
