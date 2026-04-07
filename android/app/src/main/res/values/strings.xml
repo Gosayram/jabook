@@ -2229,8 +2229,8 @@
     <string name="internalAppStorageDefault">Internal App Storage (Default)</string>
     <!-- Jabook Backup -->
     <string name="jabookBackup">Jabook Backup</string>
-    <!-- Jabook needs access to your files to download books, manage torrents, and scan your local library. -->
-    <string name="jabookNeedsAccessToYourFilesToDownloadBooksManageT">Jabook needs access to your files to download books, manage torrents, and scan your local library.</string>
+    <!-- JaBook needs full file access to manage your audiobook library. This enables browsing any folder, USB/OTG storage support, torrent downloads, and seamless file transfers between storage locations. -->
+    <string name="jabookNeedsAccessToYourFilesToDownloadBooksManageT">JaBook needs full file access to manage your audiobook library. This enables browsing any folder, USB/OTG storage support, torrent downloads, and seamless file transfers between storage locations.</string>
     <string name="jetpackComposeWorks">Jetpack Compose works! 🎉</string>
     <!-- Last Cleanup -->
     <string name="lastCleanup">Last Cleanup</string>
@@ -2582,4 +2582,14 @@
     <string name="login_description_placeholder">Sign in to access your library</string>
     <!-- Separator text 'or' -->
     <string name="or">Or</string>
+
+    <string name="limitedModeWarningTitle">Limited mode restrictions</string>
+    <string name="limitedModeWarningDescription">Without full access, the following features will be unavailable:</string>
+    <string name="limitedModeConfirmTitle">Use limited mode?</string>
+    <string name="limitedModeConfirmMessage">You will not be able to browse external folders, use USB/OTG storage, or download torrents to custom locations. You can always upgrade later in Settings.</string>
+    <string name="fullAccessRecommended">Full Access (Recommended)</string>
+    <string name="limitedModeOption">Limited Mode (app storage only)</string>
+    <string name="continueWithLimitedMode">Continue with limited mode</string>
+    <string name="grantFullAccessInstead">Grant full access instead</string>
+    <string name="limitedModeActiveDescription">You are using limited mode. USB/OTG storage, external folder browsing, and custom download locations are not available.</string>
 </resources>

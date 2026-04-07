@@ -19,7 +19,10 @@ import android.os.Environment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.permissions.PermissionManager
+import com.jabook.app.jabook.compose.data.permissions.StorageAccessLevel
+import com.jabook.app.jabook.compose.data.permissions.StorageAccessLevelPolicy
 import com.jabook.app.jabook.compose.data.permissions.StorageAccessRequest
+import com.jabook.app.jabook.compose.data.permissions.StorageCapability
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -36,6 +39,9 @@ public data class PermissionUiState(
     val hasStorageFallbackEnabled: Boolean = false,
     val hasStoragePermission: Boolean = false,
     val hasNotificationPermission: Boolean = false,
+    val storageAccessLevel: StorageAccessLevel = StorageAccessLevel.LIMITED,
+    val limitedModeRestrictions: List<StorageCapability> = StorageAccessLevelPolicy.limitedModeRestrictions,
+    val isFullAccessRecommended: Boolean = StorageAccessLevelPolicy.isFullAccessRecommended(),
 )
 
 @HiltViewModel
@@ -67,6 +73,11 @@ public class PermissionViewModel
                         hasStorageFallbackEnabled = hasStorageFallbackEnabled,
                         hasStoragePermission = storage,
                         hasNotificationPermission = notification,
+                        storageAccessLevel =
+                            StorageAccessLevelPolicy.resolveAccessLevel(
+                                hasFullStoragePermission = hasFullStoragePermission,
+                                hasStorageFallbackEnabled = hasStorageFallbackEnabled,
+                            ),
                     )
             }
         }
