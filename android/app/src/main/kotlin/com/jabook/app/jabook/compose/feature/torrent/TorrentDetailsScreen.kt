@@ -42,7 +42,6 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,6 +50,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.torrent.TorrentFile
 import kotlinx.coroutines.flow.collect
@@ -74,7 +76,10 @@ public fun TorrentDetailsScreen(
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
-    val download by viewModel.download.collectAsState()
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
+
+    val download by viewModel.download.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { bookId: String ->
@@ -92,7 +97,7 @@ public fun TorrentDetailsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = safeNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -119,7 +124,7 @@ public fun TorrentDetailsScreen(
                 CircularProgressIndicator()
             }
         } else {
-            val isBuffering by viewModel.isBuffering.collectAsState()
+            val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
 
             if (isBuffering) {
                 androidx.compose.material3.AlertDialog(

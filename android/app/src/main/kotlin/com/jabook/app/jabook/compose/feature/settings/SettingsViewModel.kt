@@ -17,6 +17,8 @@ package com.jabook.app.jabook.compose.feature.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
@@ -113,14 +115,23 @@ public class SettingsViewModel
                 // Folders configured - proceed with scan
                 val workRequest =
                     OneTimeWorkRequestBuilder<LibraryScanWorker>()
-                        .addTag("library_scan")
-                        .build()
-                workManager.enqueue(workRequest)
+                        .addTag(LibraryScanWorker.WORK_TAG)
+                        .setConstraints(
+                            Constraints
+                                .Builder()
+                                .setRequiresStorageNotLow(true)
+                                .build(),
+                        ).build()
+                workManager.enqueueUniqueWork(
+                    LibraryScanWorker.WORK_NAME,
+                    ExistingWorkPolicy.KEEP,
+                    workRequest,
+                )
             }
         }
 
         public fun cancelScan() {
-            workManager.cancelAllWorkByTag("library_scan")
+            workManager.cancelUniqueWork(LibraryScanWorker.WORK_NAME)
         }
 
         // Exposure of auth status for UI

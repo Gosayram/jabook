@@ -20,6 +20,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.ContentDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.FileDataSource
@@ -32,6 +33,7 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.jabook.app.jabook.audio.ErrorHandler
 import com.jabook.app.jabook.audio.SavedPlaybackState
+import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +49,38 @@ import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
+
+internal enum class MediaDataSourceRoute {
+    NETWORK_CACHED,
+    LOCAL_FILE,
+    LOCAL_CONTENT,
+    DEFAULT,
+}
+
+internal fun buildPlaybackUri(path: String): Uri {
+    val isUrl = path.startsWith("http://") || path.startsWith("https://")
+    if (isUrl || path.startsWith("content://") || path.startsWith("file://")) {
+        return Uri.parse(path)
+    }
+
+    return Uri.fromFile(File(path))
+}
+
+internal fun resolveMediaDataSourceRoute(uri: Uri): MediaDataSourceRoute =
+    when (uri.scheme) {
+        "http",
+        "https",
+        -> MediaDataSourceRoute.NETWORK_CACHED
+
+        "file",
+        null,
+        -> MediaDataSourceRoute.LOCAL_FILE
+
+        "content",
+        -> MediaDataSourceRoute.LOCAL_CONTENT
+
+        else -> MediaDataSourceRoute.DEFAULT
+    }
 
 /**
  * Manages playlist preparation and MediaSource creation.
@@ -68,6 +102,12 @@ internal class PlaylistManager(
     private val playbackController: PlaybackController,
     private val getCurrentTrackIndex: () -> Int = { 0 }, // fallback
 ) {
+    internal data class QueueSnapshot(
+        val filePaths: List<String>,
+        val currentIndex: Int,
+        val generation: Long,
+    )
+
     // State managed by PlaylistManager
     var currentFilePaths: List<String>? = null
         private set
@@ -99,6 +139,134 @@ internal class PlaylistManager(
 
     // Mutex to synchronize playlist loading operations and prevent race conditions
     private val playlistLoadMutex = Mutex()
+    private var lastQueueMutationKey: String? = null
+    private var lastQueueMutationAtMs: Long = 0L
+
+    /**
+     * Applies queue mutation atomically against in-memory queue state.
+     *
+     * This is a Queue Engine v2 foundation and does not yet mutate MediaSession playlist directly.
+     */
+    internal suspend fun mutateQueueAtomically(operation: PlaylistQueueOperation): QueueSnapshot? =
+        playlistLoadMutex.withLock {
+            val currentPaths = currentFilePaths ?: return null
+            val previousIndex = actualTrackIndex.coerceIn(0, (currentPaths.size - 1).coerceAtLeast(0))
+            val previousCurrentPath = currentPaths.getOrNull(previousIndex)
+            val previousPositionMs =
+                runCatching { getActivePlayer().currentPosition }
+                    .getOrDefault(0L)
+                    .coerceAtLeast(0L)
+            val operationKey = PlaylistQueueMutationCoalescingPolicy.operationKey(operation)
+            val nowMs = System.currentTimeMillis()
+            if (
+                PlaylistQueueMutationCoalescingPolicy.shouldDropDuplicate(
+                    previousOperationKey = lastQueueMutationKey,
+                    previousMutationAtMs = lastQueueMutationAtMs,
+                    operationKey = operationKey,
+                    nowMs = nowMs,
+                )
+            ) {
+                return QueueSnapshot(
+                    filePaths = currentPaths,
+                    currentIndex = actualTrackIndex.coerceIn(0, (currentPaths.size - 1).coerceAtLeast(0)),
+                    generation = playlistLoadGeneration,
+                )
+            }
+            val mutation =
+                PlaylistQueueMutationPolicy.apply(
+                    currentPaths = currentPaths,
+                    currentIndex = actualTrackIndex.coerceIn(0, (currentPaths.size - 1).coerceAtLeast(0)),
+                    operation = operation,
+                )
+            currentFilePaths = mutation.paths
+            actualTrackIndex = mutation.currentIndex
+            lastQueueMutationKey = operationKey
+            lastQueueMutationAtMs = nowMs
+            val generation = ++playlistLoadGeneration
+
+            syncQueueWithPlayerAndPersistence(
+                updatedPaths = mutation.paths,
+                updatedIndex = mutation.currentIndex,
+                previousCurrentPath = previousCurrentPath,
+                previousPositionMs = previousPositionMs,
+            )
+
+            QueueSnapshot(
+                filePaths = mutation.paths,
+                currentIndex = mutation.currentIndex,
+                generation = generation,
+            )
+        }
+
+    private suspend fun syncQueueWithPlayerAndPersistence(
+        updatedPaths: List<String>,
+        updatedIndex: Int,
+        previousCurrentPath: String?,
+        previousPositionMs: Long,
+    ) {
+        if (updatedPaths.isEmpty()) {
+            withContext(Dispatchers.Main) {
+                val player = getActivePlayer()
+                player.playWhenReady = false
+                player.clearMediaItems()
+            }
+            return
+        }
+
+        val normalizedIndex = updatedIndex.coerceIn(0, updatedPaths.size - 1)
+        val selectedPath = updatedPaths[normalizedIndex]
+        val restoredPositionMs =
+            if (selectedPath == previousCurrentPath) {
+                previousPositionMs
+            } else {
+                0L
+            }
+        val dataSourceFactory = SimpleMediaDataSourceFactory()
+        val mediaItems =
+            updatedPaths.mapIndexed { index, path ->
+                createMediaItemForPath(path, index, currentMetadata, dataSourceFactory)
+            }
+
+        withContext(Dispatchers.Main) {
+            val player = getActivePlayer()
+            val wasPlaying = player.playWhenReady
+            player.setMediaItems(mediaItems, normalizedIndex, restoredPositionMs)
+            player.prepare()
+            player.playWhenReady = wasPlaying
+        }
+
+        val metadata = currentMetadata
+        val groupPath = currentGroupPath
+        val title = metadata?.get("title") ?: File(selectedPath).nameWithoutExtension
+        val artist = metadata?.get("artist").orEmpty()
+        val artworkPath = metadata?.get("coverPath").orEmpty()
+        val durationMs =
+            runCatching { getActivePlayer().duration }
+                .getOrDefault(0L)
+                .coerceAtLeast(0L)
+
+        playerPersistenceManager.saveCurrentMediaItem(
+            mediaId = selectedPath,
+            positionMs = restoredPositionMs,
+            durationMs = durationMs,
+            artworkPath = artworkPath,
+            title = title,
+            artist = artist,
+            groupPath = groupPath.orEmpty(),
+        )
+        if (!groupPath.isNullOrBlank()) {
+            playerPersistenceManager.saveGroupPathToSharedPreferences(groupPath)
+        }
+        playerPersistenceManager.savePersistedPlayerState(
+            PlayerPersistenceManager.PersistedPlayerState(
+                groupPath = groupPath.orEmpty(),
+                filePaths = updatedPaths,
+                currentIndex = normalizedIndex,
+                currentPosition = restoredPositionMs,
+                metadata = metadata,
+            ),
+        )
+    }
 
     /**
      * Sets playlist from file paths or URLs.
@@ -1175,16 +1343,14 @@ internal class PlaylistManager(
      * Helper method to avoid code duplication.
      */
     private fun createUriForPath(path: String): Uri {
-        val isUrl = path.startsWith("http://") || path.startsWith("https://")
-        return if (isUrl) {
-            Uri.parse(path)
-        } else {
-            val file = File(path)
-            if (!file.exists()) {
+        val uri = buildPlaybackUri(path)
+        if (uri.scheme == "file" || uri.scheme == null) {
+            val localPath = uri.path
+            if (localPath.isNullOrEmpty() || !File(localPath).exists()) {
                 LogUtils.w("AudioPlayerService", "File does not exist: $path")
             }
-            Uri.fromFile(file)
         }
+        return uri
     }
 
     /**
@@ -1343,9 +1509,9 @@ internal class PlaylistManager(
         private val okHttpClient by lazy {
             OkHttpClient
                 .Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
+                .connectTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .readTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .writeTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .build()
         }
 
@@ -1374,18 +1540,19 @@ internal class PlaylistManager(
             FileDataSource.Factory()
         }
 
+        private val contentDataSourceFactory by lazy {
+            DataSource.Factory { ContentDataSource(context) }
+        }
+
         override fun createDataSource(): DataSource = defaultFactory.createDataSource()
 
-        public fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory {
-            val isNetworkUri = uri.scheme == "http" || uri.scheme == "https"
-            val isLocalFile = uri.scheme == "file" || uri.scheme == null
-
-            return when {
-                isNetworkUri -> cacheFactory
-                isLocalFile -> fileDataSourceFactory
-                else -> defaultFactory
+        public fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory =
+            when (resolveMediaDataSourceRoute(uri)) {
+                MediaDataSourceRoute.NETWORK_CACHED -> cacheFactory
+                MediaDataSourceRoute.LOCAL_FILE -> fileDataSourceFactory
+                MediaDataSourceRoute.LOCAL_CONTENT -> contentDataSourceFactory
+                MediaDataSourceRoute.DEFAULT -> defaultFactory
             }
-        }
     }
 
     /**

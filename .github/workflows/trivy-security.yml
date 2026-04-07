@@ -1,0 +1,135 @@
+name: "Trivy Security"
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: '23 16 * * 2'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  trivy-scan:
+    name: Trivy Scan
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Run Trivy vulnerability scan (non-blocking)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'android'
+          trivy-config: 'trivy.yaml'
+          cache: 'false'
+          format: 'sarif'
+          output: 'trivy-android.sarif'
+          exit-code: '0'
+
+      - name: Run Trivy vulnerability scan for Python deps (non-blocking)
+        if: always()
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'rutracker_parser'
+          trivy-config: 'trivy.yaml'
+          cache: 'false'
+          format: 'sarif'
+          output: 'trivy-python.sarif'
+          exit-code: '0'
+
+      - name: Upload Trivy SARIF (Android)
+        if: always() && hashFiles('trivy-android.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          sarif_file: trivy-android.sarif
+          category: "/trivy-android"
+
+      - name: Upload Trivy SARIF (Python)
+        if: always() && hashFiles('trivy-python.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          sarif_file: trivy-python.sarif
+          category: "/trivy-python"
+
+      - name: Run Trivy Android table report (non-blocking)
+        if: always()
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'android'
+          trivy-config: 'trivy.yaml'
+          cache: 'false'
+          format: 'table'
+          output: 'trivy-android.txt'
+          exit-code: '0'
+
+      - name: Run Trivy Python table report (non-blocking)
+        if: always()
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: 'fs'
+          scan-ref: 'rutracker_parser'
+          trivy-config: 'trivy.yaml'
+          cache: 'false'
+          format: 'table'
+          output: 'trivy-python.txt'
+          exit-code: '0'
+
+      - name: Publish Trivy summary
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          {
+            echo "## Trivy report"
+            echo
+            if [ -f trivy-android.txt ]; then
+              echo "### Android (Kotlin/Java deps)"
+              echo
+              echo '```text'
+              sed -n '1,120p' trivy-android.txt
+              echo '```'
+              echo
+            fi
+            if [ -f trivy-python.txt ]; then
+              echo "### Python deps"
+              echo
+              echo '```text'
+              sed -n '1,120p' trivy-python.txt
+              echo '```'
+              echo
+            else
+              echo "Trivy text reports were not generated."
+            fi
+            echo "_Full reports are attached as workflow artifacts._"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Trivy artifacts
+        if: always() && (hashFiles('trivy-*.sarif') != '' || hashFiles('trivy-*.txt') != '')
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trivy-security-report
+          path: |
+            trivy-android.sarif
+            trivy-python.sarif
+            trivy-android.txt
+            trivy-python.txt
+          if-no-files-found: ignore

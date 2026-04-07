@@ -1,28 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Network Security Configuration for Jabook
-    
-    This configuration allows the app to:
-    - Use cleartext traffic for HTTP connections (required for some RuTracker mirrors)
-    - Trust system certificates
-    - Support both HTTP and HTTPS connections
-    
+    Network Security Configuration for JaBook
+
+    Security policy:
+    - Base config: cleartext traffic DENIED by default (HTTPS required)
+    - Only known RuTracker mirror domains are allowlisted for HTTP cleartext
+    - System certificate trust anchors for all connections
+
     For Android 9+ (API 28+), cleartext traffic is disabled by default.
-    This configuration enables it for RuTracker domains.
+    Domain-specific overrides are the minimal exception set for mirrors
+    that do not yet support HTTPS.
 -->
 <network-security-config>
-    <!-- Base configuration: trust system certificates -->
-    <base-config cleartextTrafficPermitted="true">
+    <!-- Base configuration: deny cleartext for all domains by default -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-    
-    <!-- Domain-specific configuration for RuTracker mirrors -->
+
+    <!--
+        Domain-specific allowlist for RuTracker mirrors.
+        Only these domains are permitted to use cleartext HTTP.
+        All other connections must use HTTPS.
+    -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">rutracker.net</domain>
         <domain includeSubdomains="true">rutracker.org</domain>
         <domain includeSubdomains="true">rutracker.me</domain>
+        <domain includeSubdomains="true">rutracker.nl</domain>
+        <domain includeSubdomains="true">rutracker.ru</domain>
+        <domain includeSubdomains="true">rutracker.lib</domain>
+        <domain includeSubdomains="true">rutracker.info</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

@@ -49,8 +49,10 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -85,6 +87,9 @@ public fun WebViewScreen(
             URLDecoder.decode(route.url, StandardCharsets.UTF_8.toString())
         }
 
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
+
     var webView by remember { mutableStateOf<WebView?>(null) }
     var pageTitle by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -112,7 +117,7 @@ public fun WebViewScreen(
                             if (canGoBack) {
                                 webView?.goBack()
                             } else {
-                                onNavigateBack()
+                                safeNavigateBack()
                             }
                         }) {
                             Icon(
@@ -122,7 +127,7 @@ public fun WebViewScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = onNavigateBack) {
+                        IconButton(onClick = safeNavigateBack) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
                                 contentDescription = stringResource(R.string.close),

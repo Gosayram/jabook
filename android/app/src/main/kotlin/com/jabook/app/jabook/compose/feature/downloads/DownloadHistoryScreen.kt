@@ -46,7 +46,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
@@ -85,9 +85,9 @@ public fun DownloadHistoryScreen(
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val sortOrder by viewModel.sortOrder.collectAsState()
-    val history by viewModel.history.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
 
     var showSortMenu by remember { mutableStateOf(false) }
     var showOptionsMenu by remember { mutableStateOf(false) }

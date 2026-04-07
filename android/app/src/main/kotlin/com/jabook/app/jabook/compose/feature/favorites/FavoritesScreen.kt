@@ -58,7 +58,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.ui.favorites.FavoritesViewModel
 
@@ -77,6 +79,9 @@ public fun FavoritesScreen(
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
 
     var isSelectionMode by remember { mutableStateOf(false) }
     val selectedIds = remember { mutableSetOf<String>() }
@@ -140,7 +145,7 @@ public fun FavoritesScreen(
                                 isSelectionMode = false
                                 selectedIds.clear()
                             } else {
-                                onNavigateBack()
+                                safeNavigateBack()
                             }
                         },
                     ) {

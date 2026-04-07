@@ -2615,4 +2615,14 @@
     <string name="onboardingPermissionsTitle">Будьте на связи и сохраняйте</string>
     <string name="onboardingPermissionsDesc">Нам нужен доступ к хранилищу для сохранения книг и к уведомлениям для управления плеером.</string>
     <string name="onboardingGrantAccess">Предоставить доступ</string>
+
+    <string name="limitedModeWarningTitle">Ограничения ограниченного режима</string>
+    <string name="limitedModeWarningDescription">Без полного доступа следующие функции будут недоступны:</string>
+    <string name="limitedModeConfirmTitle">Использовать ограниченный режим?</string>
+    <string name="limitedModeConfirmMessage">Вы не сможете просматривать внешние папки, использовать USB/OTG-накопители или загружать торренты в произвольные папки. Вы всегда можете переключиться в настройках.</string>
+    <string name="fullAccessRecommended">Полный доступ (Рекомендуется)</string>
+    <string name="limitedModeOption">Ограниченный режим (только хранилище приложения)</string>
+    <string name="continueWithLimitedMode">Продолжить в ограниченном режиме</string>
+    <string name="grantFullAccessInstead">Предоставить полный доступ</string>
+    <string name="limitedModeActiveDescription">Вы используете ограниченный режим. USB/OTG-накопители, просмотр внешних папок и пользовательские расположения загрузок недоступны.</string>
 </resources>

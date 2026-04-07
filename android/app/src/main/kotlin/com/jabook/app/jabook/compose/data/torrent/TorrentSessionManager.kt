@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.torrent
 
 import android.content.Context
+import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -640,6 +641,12 @@ public class TorrentSessionManager
 
                 val workRequest =
                     OneTimeWorkRequestBuilder<LibraryScanWorker>()
+                        .setConstraints(
+                            Constraints
+                                .Builder()
+                                .setRequiresStorageNotLow(true)
+                                .build(),
+                        ).addTag(LibraryScanWorker.WORK_TAG)
                         .addTag("torrent-finished-sync")
                         .build()
 

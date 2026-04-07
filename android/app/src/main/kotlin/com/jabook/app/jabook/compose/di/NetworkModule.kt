@@ -14,13 +14,16 @@
 
 package com.jabook.app.jabook.compose.di
 
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.data.network.AuthInterceptor
 import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
+import com.jabook.app.jabook.compose.data.network.NetworkTelemetryEventListenerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
+import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -68,7 +71,16 @@ public object NetworkModule {
     @Singleton
     public fun provideLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY // Use BASIC or HEADERS for production
+            level =
+                if (BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.BODY
+                } else {
+                    HttpLoggingInterceptor.Level.BASIC
+                }
+            redactHeader("Authorization")
+            redactHeader("Cookie")
+            redactHeader("Set-Cookie")
+            redactHeader("X-Api-Key")
         }
 
     /**
@@ -82,29 +94,22 @@ public object NetworkModule {
         settingsRepository: SettingsRepository,
         cookieJar: PersistentCookieJar,
         loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
+        networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
         val healthCheckClient =
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
+                .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .readTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .writeTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .eventListenerFactory(networkTelemetryEventListenerFactory)
                 .build()
 
         return MirrorManager(settingsRepository, healthCheckClient, loggerFactory)
     }
-
-    /**
-     * Provide RetryInterceptor with exponential backoff.
-     */
-    @Provides
-    @Singleton
-    public fun provideRetryInterceptor(
-        loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
-    ): com.jabook.app.jabook.compose.data.network.RetryInterceptor =
-        com.jabook.app.jabook.compose.data.network
-            .RetryInterceptor(loggerFactory)
 
     /**
      * Provide DynamicBaseUrlInterceptor.
@@ -127,29 +132,28 @@ public object NetworkModule {
         loggingInterceptor: HttpLoggingInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
-        retryInterceptor: com.jabook.app.jabook.compose.data.network.RetryInterceptor,
+        networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
     ): OkHttpClient =
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
+            .eventListenerFactory(networkTelemetryEventListenerFactory)
             // Interceptor order matters! They are called in order:
             // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)
             // 2. RutrackerHeadersInterceptor - Adds User-Agent, Accept, Accept-Language (NO Accept-Encoding!)
-            // 3. RetryInterceptor - Retries failed requests with exponential backoff
-            // 4. AuthInterceptor - Handles session expiry and re-authentication
-            // 5. DynamicBaseUrlInterceptor - Switches between RuTracker mirrors
-            // 6. LoggingInterceptor - Last to log final request/response
+            // 3. AuthInterceptor - Handles session expiry and re-authentication
+            // 4. DynamicBaseUrlInterceptor - Switches between RuTracker mirrors
+            // 5. LoggingInterceptor - Last to log final request/response
             .addInterceptor(BrotliInterceptor) // Automatic Brotli decompression (MUST be first to add Accept-Encoding!)
             .addInterceptor(rutrackerHeadersInterceptor) // Add browser-like headers (NO Accept-Encoding - BrotliInterceptor handles it)
-            .addInterceptor(retryInterceptor) // Retry with exponential backoff
             .addInterceptor(authInterceptor) // Auto re-authentication
             .addInterceptor(dynamicBaseUrlInterceptor) // Dynamic base URL for mirrors
             .addInterceptor(loggingInterceptor) // Logging last for complete request/response
             // Improved timeouts with better defaults
-            .callTimeout(90, TimeUnit.SECONDS) // Total time for entire call (including retries/redirects) - increased for retries
-            .connectTimeout(15, TimeUnit.SECONDS) // Time to establish connection - reduced for faster failure detection
-            .readTimeout(45, TimeUnit.SECONDS) // Time to read response - increased for large responses
-            .writeTimeout(15, TimeUnit.SECONDS) // Time to write request - reduced for faster failure detection
+            .callTimeout(NetworkRuntimePolicy.API_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectTimeout(NetworkRuntimePolicy.API_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(NetworkRuntimePolicy.API_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(NetworkRuntimePolicy.API_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             // OkHttp defaults (explicit for clarity):
             // - retryOnConnectionFailure = true (retry on connection failures)
             // - followRedirects = true (follow HTTP redirects)

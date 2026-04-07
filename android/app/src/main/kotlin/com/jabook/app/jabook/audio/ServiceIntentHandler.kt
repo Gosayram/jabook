@@ -26,6 +26,7 @@ import com.jabook.app.jabook.widget.WidgetObservabilityPolicy
 internal class ServiceIntentHandler(
     private val service: AudioPlayerService,
     private val widgetActionDeduplicator: WidgetActionDeduplicator = WidgetActionDeduplicator(),
+    private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
 ) {
     public fun handleStartCommand(
         intent: Intent?,
@@ -47,12 +48,40 @@ internal class ServiceIntentHandler(
         }
 
         if (action != null && WidgetActionDeduplicator.isWidgetAction(action)) {
+            val actionCreatedAtMs =
+                intent.getLongExtra(
+                    PlayerWidgetProvider.EXTRA_WIDGET_ACTION_CREATED_AT_MS,
+                    0L,
+                )
+            if (WidgetActionStalenessPolicy.shouldIgnore(actionCreatedAtMs = actionCreatedAtMs, nowMs = nowMsProvider())) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    WidgetObservabilityPolicy.serviceMessage(
+                        event = "action_ignored_stale",
+                        action = action,
+                        widgetId = widgetId,
+                        deduplicated = false,
+                    ),
+                )
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    WidgetObservabilityPolicy.serviceMessage(
+                        event = "action_retry_requested",
+                        action = action,
+                        widgetId = widgetId,
+                        deduplicated = false,
+                    ),
+                )
+                PlayerWidgetProvider.requestUpdate(service)
+                return true
+            }
+
             val shouldHandle = widgetActionDeduplicator.shouldHandle(action, widgetId)
             if (!shouldHandle) {
                 android.util.Log.d(
                     "AudioPlayerService",
                     WidgetObservabilityPolicy.serviceMessage(
-                        event = "action_deduplicated",
+                        event = "action_ignored_deduplicated",
                         action = action,
                         widgetId = widgetId,
                         deduplicated = true,
@@ -221,5 +250,23 @@ internal class ServiceIntentHandler(
             }
 
         return handled
+    }
+}
+
+internal object WidgetActionStalenessPolicy {
+    internal const val MAX_ACTION_AGE_MS: Long = 12L * 60L * 60L * 1000L // 12h
+
+    internal fun shouldIgnore(
+        actionCreatedAtMs: Long,
+        nowMs: Long,
+    ): Boolean {
+        if (actionCreatedAtMs <= 0L) {
+            return false
+        }
+        val ageMs = nowMs - actionCreatedAtMs
+        if (ageMs < 0L) {
+            return false
+        }
+        return ageMs > MAX_ACTION_AGE_MS
     }
 }

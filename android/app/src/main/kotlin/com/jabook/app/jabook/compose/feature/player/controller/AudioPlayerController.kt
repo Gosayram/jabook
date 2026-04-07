@@ -324,10 +324,6 @@ public class AudioPlayerController
                         // Skip if no change to avoid interruptions (although setPlaybackParameters checks internally)
                         val params = androidx.media3.common.PlaybackParameters(speed, pitch)
                         mediaController?.playbackParameters = params
-                        // Fallback to exoPlayer during migration
-                        if (mediaController == null) {
-                            exoPlayer.playbackParameters = params
-                        }
                     }
             }
         }
@@ -467,12 +463,19 @@ public class AudioPlayerController
                 return
             }
             if (nextRetryCount > maxRetries) {
-                Log.e("JABOOK_CONTROLLER", "❌ FAILED after $maxRetries retries ($reason), using ExoPlayer fallback")
+                Log.e("JABOOK_CONTROLLER", "❌ FAILED after $maxRetries retries ($reason), retrying controller bootstrap cycle")
                 logger.e {
-                    "MediaController initialization failed after $maxRetries retries ($reason), using fallback"
+                    "MediaController initialization failed after $maxRetries retries ($reason), keeping queued commands and restarting retry cycle"
                 }
-                _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
-                initializeFromExoPlayer()
+                _connectionState.value = ConnectionState.DISCONNECTED
+                mediaControllerRetryJob?.cancel()
+                mediaControllerRetryJob =
+                    scope.launch {
+                        delay(retryDelayMs)
+                        if (mediaController == null) {
+                            initMediaController(retryCount = 0)
+                        }
+                    }
                 return
             }
             mediaControllerRetryJob?.cancel()
@@ -481,32 +484,6 @@ public class AudioPlayerController
                     delay(retryDelayMs)
                     initMediaController(nextRetryCount)
                 }
-        }
-
-        /**
-         * Fallback initialization from ExoPlayer during migration period.
-         */
-        private fun initializeFromExoPlayer() {
-            Log.e("JABOOK_CONTROLLER", "⚠️ FALLBACK: Using direct ExoPlayer (service may not be connected!)")
-            Log.e(
-                "JABOOK_CONTROLLER",
-                "ExoPlayer instance: ${System.identityHashCode(
-                    exoPlayer,
-                )}, isPlaying=${exoPlayer.isPlaying}, mediaItemCount=${exoPlayer.mediaItemCount}",
-            )
-            logger.w { "Using ExoPlayer fallback during MediaController initialization" }
-            // Attach listener to singleton ExoPlayer as fallback
-            if (!exoFallbackListenerAttached) {
-                exoPlayer.addListener(mediaControllerListener)
-                exoFallbackListenerAttached = true
-            }
-            // Initialize state
-            _isPlaying.value = exoPlayer.isPlaying
-            _currentPosition.value = exoPlayer.currentPosition
-            _duration.value = exoPlayer.duration.coerceAtLeast(0)
-            _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
-            updateStats(exoPlayer)
-            Log.e("JABOOK_CONTROLLER", "Fallback initialized: isPlaying=${_isPlaying.value}, position=${_currentPosition.value}")
         }
 
         private fun enqueueCommand(

@@ -21,6 +21,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.torrent.TorrentManager
 import com.jabook.app.jabook.torrent.data.TorrentState
 import dagger.assisted.Assisted
@@ -67,8 +68,10 @@ public class DownloadWorker
             val magnetUri = inputData.getString(KEY_MAGNET_URI) ?: return Result.failure()
             val savePath = inputData.getString(KEY_SAVE_PATH) ?: return Result.failure()
             val bookTitle = inputData.getString(KEY_BOOK_TITLE) ?: "Unknown Book"
+            val attempt = runAttemptCount + 1
+            val stopReasonAtStart = runCatching { stopReason }.getOrDefault(-1)
 
-            Log.d(TAG, "Starting download: $bookTitle")
+            Log.i(TAG, "Starting download: $bookTitle (attempt=$attempt, stopReason=$stopReasonAtStart)")
             Log.d(TAG, "Magnet URI: $magnetUri")
             Log.d(TAG, "Save path: $savePath")
 
@@ -84,6 +87,16 @@ public class DownloadWorker
                 monitorDownloadProgress(infoHash, bookTitle)
             } catch (e: Exception) {
                 Log.e(TAG, "Download failed", e)
+                CrashDiagnostics.reportNonFatal(
+                    tag = "download_worker_failure",
+                    throwable = e,
+                    attributes =
+                        mapOf(
+                            "attempt" to attempt,
+                            "stop_reason" to runCatching { stopReason }.getOrDefault(-1),
+                            "book_title" to bookTitle,
+                        ),
+                )
                 Result.failure(
                     workDataOf(
                         "error" to (e.message ?: "Unknown error"),
@@ -119,6 +132,7 @@ public class DownloadWorker
                 when (progress.state) {
                     TorrentState.FINISHED -> {
                         Log.i(TAG, "Download completed: $bookTitle")
+                        Log.i(TAG, "Download worker success stopReason=${runCatching { stopReason }.getOrDefault(-1)}")
                         result =
                             Result.success(
                                 workDataOf(
@@ -130,6 +144,17 @@ public class DownloadWorker
                     }
                     TorrentState.ERROR -> {
                         Log.e(TAG, "Download failed: $bookTitle")
+                        CrashDiagnostics.reportNonFatal(
+                            tag = "download_worker_torrent_error",
+                            throwable = IllegalStateException("Torrent entered ERROR state"),
+                            attributes =
+                                mapOf(
+                                    "attempt" to (runAttemptCount + 1),
+                                    "stop_reason" to runCatching { stopReason }.getOrDefault(-1),
+                                    "book_title" to bookTitle,
+                                    "info_hash" to infoHash,
+                                ),
+                        )
                         result =
                             Result.failure(
                                 workDataOf(

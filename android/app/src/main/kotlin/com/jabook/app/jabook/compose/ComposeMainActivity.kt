@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -25,8 +26,20 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionResult
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.audio.AudioPlayerService
+import com.jabook.app.jabook.audio.MediaControllerConstants
+import com.jabook.app.jabook.audio.MediaControllerExtensions
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
@@ -97,6 +110,12 @@ public class ComposeMainActivity : ComponentActivity() {
      * @param intent The intent to handle
      */
     private fun handleIntent(intent: Intent?) {
+        val externalAudioUris = ExternalAudioIntentPolicy.extractAudioUris(intent)
+        if (externalAudioUris.isNotEmpty()) {
+            handleExternalAudioIntent(externalAudioUris)
+            return
+        }
+
         val data: Uri = intent?.data ?: return
 
         logger.d { "Handling intent with data: $data, scheme: ${data.scheme}" }
@@ -177,5 +196,82 @@ public class ComposeMainActivity : ComponentActivity() {
 
         // Navigation is handled by JabookApp's NavHost which observes deepLinkIntent.
         // This method serves as an interception point for logging or analytics.
+    }
+
+    private fun handleExternalAudioIntent(audioUris: List<Uri>) {
+        val urisAsPaths = audioUris.map { it.toString() }
+        val groupPath = ExternalAudioIntentPolicy.buildExternalGroupPath(audioUris)
+        logger.i { "Handling external audio intent: uris=${audioUris.size}, groupPath=$groupPath" }
+
+        // Keep playback path unified through AudioPlayerService + MediaController custom command.
+        startService(Intent(this, AudioPlayerService::class.java))
+
+        lifecycleScope.launch {
+            var controllerFuture: ListenableFuture<MediaController>? = null
+            var controller: MediaController? = null
+            try {
+                val sessionToken =
+                    SessionToken(
+                        this@ComposeMainActivity,
+                        android.content.ComponentName(this@ComposeMainActivity, AudioPlayerService::class.java),
+                    )
+                controllerFuture =
+                    MediaController
+                        .Builder(this@ComposeMainActivity, sessionToken)
+                        .buildAsync()
+                controller =
+                    withContext(Dispatchers.IO) {
+                        controllerFuture.get(
+                            MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(),
+                            TimeUnit.SECONDS,
+                        )
+                    }
+
+                val result =
+                    withContext(Dispatchers.IO) {
+                        val playlistResultFuture =
+                            MediaControllerExtensions.setPlaylist(
+                                controller = controller,
+                                filePaths = urisAsPaths,
+                                initialTrackIndex = 0,
+                                initialPosition = 0L,
+                                groupPath = groupPath,
+                            )
+                        playlistResultFuture.get(
+                            MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(),
+                            TimeUnit.SECONDS,
+                        )
+                    }
+
+                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
+                    controller.play()
+                    Toast
+                        .makeText(
+                            this@ComposeMainActivity,
+                            "Playing shared audio",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                } else {
+                    logger.e { "Failed to play shared audio: resultCode=${result.resultCode}" }
+                    Toast
+                        .makeText(
+                            this@ComposeMainActivity,
+                            "Cannot play this audio",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
+            } catch (t: Throwable) {
+                logger.e(t) { "Failed to handle external audio intent" }
+                Toast
+                    .makeText(
+                        this@ComposeMainActivity,
+                        "Cannot play this audio",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+            } finally {
+                controller?.release()
+                controllerFuture?.let { MediaController.releaseFuture(it) }
+            }
+        }
     }
 }

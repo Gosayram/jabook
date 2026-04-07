@@ -28,6 +28,7 @@ import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
@@ -54,8 +55,16 @@ public class LibraryScanWorker
     ) : CoroutineWorker(appContext, params) {
         private val logger = loggerFactory.get("LibraryScanWorker")
 
+        public companion object {
+            public const val WORK_NAME: String = "library_scan_work"
+            public const val WORK_TAG: String = "library_scan"
+        }
+
         override suspend fun doWork(): ListenableWorker.Result =
             withContext(Dispatchers.IO) {
+                val attempt = runAttemptCount + 1
+                val stopReasonAtStart = runCatching { stopReason }.getOrDefault(-1)
+                logger.i { "Library scan started attempt=$attempt stopReason=$stopReasonAtStart" }
                 try {
                     setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_starting)))
 
@@ -265,26 +274,54 @@ public class LibraryScanWorker
                                 }
                             }
 
+                            logger.i { "Library scan success attempt=$attempt booksFound=${books.size}" }
                             ListenableWorker.Result.success(
                                 workDataOf("booksFound" to books.size),
                             )
                         }
                         is DomainResult.Error -> {
+                            logger.w {
+                                "Library scan failure result attempt=$attempt stopReason=${runCatching { stopReason }.getOrDefault(-1)}"
+                            }
                             ListenableWorker.Result.failure(
                                 workDataOf("error" to result.error.message),
                             )
                         }
                         is DomainResult.Loading -> {
+                            val currentStopReason = runCatching { stopReason }.getOrDefault(-1)
+                            logger.w {
+                                "Library scan returned loading, retrying attempt=$attempt stopReason=$currentStopReason"
+                            }
+                            CrashDiagnostics.reportNonFatal(
+                                tag = "library_scan_retry",
+                                throwable = IllegalStateException("Library scan returned loading result"),
+                                attributes =
+                                    mapOf(
+                                        "attempt" to attempt,
+                                        "stop_reason" to currentStopReason,
+                                    ),
+                            )
                             ListenableWorker.Result.retry()
                         }
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) {
-                        logger.w { "Scan cancelled (Watchdog or User)" }
+                        logger.w {
+                            "Scan cancelled (Watchdog or User) attempt=$attempt stopReason=${runCatching { stopReason }.getOrDefault(-1)}"
+                        }
                         // Return failure so it doesn't retry automatically if cancelled by user/watchdog
                         return@withContext ListenableWorker.Result.failure()
                     }
                     logger.e({ "Scan failed" }, e)
+                    CrashDiagnostics.reportNonFatal(
+                        tag = "library_scan_failure",
+                        throwable = e,
+                        attributes =
+                            mapOf(
+                                "attempt" to attempt,
+                                "stop_reason" to runCatching { stopReason }.getOrDefault(-1),
+                            ),
+                    )
                     ListenableWorker.Result.failure(
                         workDataOf("error" to (e.message ?: applicationContext.getString(R.string.libraryUnknownError))),
                     )
