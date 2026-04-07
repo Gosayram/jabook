@@ -159,6 +159,27 @@
                 <data android:scheme="magnet" />
             </intent-filter>
 
+            <!-- Open external audio files in shared playback pipeline -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+
             <!-- Custom jabook:// scheme for app-specific deep links -->
             <!-- Examples: jabook://library, jabook://player/bookId, jabook://settings -->
             <intent-filter>

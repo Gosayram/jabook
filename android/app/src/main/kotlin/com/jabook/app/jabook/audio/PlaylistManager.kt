@@ -257,6 +257,15 @@ internal class PlaylistManager(
         if (!groupPath.isNullOrBlank()) {
             playerPersistenceManager.saveGroupPathToSharedPreferences(groupPath)
         }
+        playerPersistenceManager.savePersistedPlayerState(
+            PlayerPersistenceManager.PersistedPlayerState(
+                groupPath = groupPath.orEmpty(),
+                filePaths = updatedPaths,
+                currentIndex = normalizedIndex,
+                currentPosition = restoredPositionMs,
+                metadata = metadata,
+            ),
+        )
     }
 
     /**

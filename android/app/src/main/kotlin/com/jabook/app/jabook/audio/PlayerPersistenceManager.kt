@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,6 +42,17 @@ public class PlayerPersistenceManager
             private const val KEY_RESUMPTION_ARTIST = "playback_resumption_artist"
             private const val KEY_RESUMPTION_GROUP_PATH = "playback_resumption_group_path"
             private const val KEY_LAST_PLAYED_BOOK_ID = "last_played_book_id" // NEW for mini player
+            private const val LEGACY_KEY_PLAYER_STATE = "flutter.player_state"
+            private const val PLAYBACK_SNAPSHOT_VERSION_V1 = 1
+            private const val KEY_PLAYBACK_SNAPSHOT_VERSION = "playback_snapshot_version"
+            private const val KEY_PLAYBACK_SNAPSHOT_GROUP_PATH = "playback_snapshot_group_path"
+            private const val KEY_PLAYBACK_SNAPSHOT_FILE_PATHS = "playback_snapshot_file_paths"
+            private const val KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX = "playback_snapshot_current_index"
+            private const val KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION = "playback_snapshot_current_position"
+            private const val KEY_PLAYBACK_SNAPSHOT_METADATA = "playback_snapshot_metadata"
+            private const val KEY_PLAYBACK_SNAPSHOT_CORRUPTION_COUNT = "playback_snapshot_corruption_count"
+            private const val KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_REASON = "playback_snapshot_last_corruption_reason"
+            private const val KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_AT = "playback_snapshot_last_corruption_at"
         }
 
         // NEW: StateFlow for last played book ID (for mini player)
@@ -121,39 +133,34 @@ public class PlayerPersistenceManager
 
         public suspend fun retrievePersistedPlayerState(): PersistedPlayerState? =
             withContext(Dispatchers.IO) {
-                try {
-                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val jsonString = prefs.getString("flutter.player_state", null) ?: return@withContext null
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-                    val json = JSONObject(jsonString)
-                    val groupPath = json.getString("groupPath")
-                    val currentIndex = json.optInt("currentIndex", 0)
-                    val currentPosition = json.optLong("currentPosition", 0L)
+                readVersionedSnapshot(prefs)?.let { return@withContext it }
 
-                    val filePathsJson = json.getJSONArray("filePaths")
-                    val filePaths = mutableListOf<String>()
-                    for (i in 0 until filePathsJson.length()) {
-                        filePaths.add(filePathsJson.getString(i))
-                    }
-
-                    val metadataJson = json.optJSONObject("metadata")
-                    val metadata =
-                        if (metadataJson != null) {
-                            val map = mutableMapOf<String, String>()
-                            val keys = metadataJson.keys()
-                            while (keys.hasNext()) {
-                                val key = keys.next()
-                                map[key] = metadataJson.getString(key)
-                            }
-                            map
-                        } else {
-                            null
+                val legacyJson = prefs.getString(LEGACY_KEY_PLAYER_STATE, null) ?: return@withContext null
+                val legacyState =
+                    runCatching { parseLegacySnapshot(legacyJson) }
+                        .getOrElse { error ->
+                            recordCorruption(
+                                prefs = prefs,
+                                reason = "legacy_snapshot_parse_failed",
+                                error = error,
+                            )
+                            prefs.edit().remove(LEGACY_KEY_PLAYER_STATE).apply()
+                            return@withContext null
                         }
 
-                    PersistedPlayerState(groupPath, filePaths, currentIndex, currentPosition, metadata)
+                saveVersionedSnapshot(prefs = prefs, state = legacyState)
+                legacyState
+            }
+
+        public suspend fun savePersistedPlayerState(state: PersistedPlayerState): Unit =
+            withContext(Dispatchers.IO) {
+                try {
+                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    saveVersionedSnapshot(prefs = prefs, state = state)
                 } catch (e: Exception) {
-                    android.util.Log.e("PlayerPersistence", "Failed to parse player_state JSON", e)
-                    null
+                    android.util.Log.w("PlayerPersistence", "Failed to save persisted player snapshot", e)
                 }
             }
 
@@ -282,6 +289,150 @@ public class PlayerPersistenceManager
         }
 
         private fun sanitizeGroupPath(path: String): String = path.replace(Regex("[^\\w\\-.]"), "_")
+
+        private fun readVersionedSnapshot(prefs: android.content.SharedPreferences): PersistedPlayerState? {
+            val storedVersion = prefs.getInt(KEY_PLAYBACK_SNAPSHOT_VERSION, 0)
+            if (storedVersion <= 0) {
+                return null
+            }
+
+            if (storedVersion != PLAYBACK_SNAPSHOT_VERSION_V1) {
+                recordCorruption(
+                    prefs = prefs,
+                    reason = "unsupported_snapshot_version_$storedVersion",
+                    error = null,
+                )
+                clearVersionedSnapshot(prefs)
+                return null
+            }
+
+            return runCatching {
+                val groupPath = prefs.getString(KEY_PLAYBACK_SNAPSHOT_GROUP_PATH, null).orEmpty()
+                if (groupPath.isEmpty()) {
+                    error("groupPath is missing")
+                }
+
+                val filePathsJson = prefs.getString(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS, null).orEmpty()
+                if (filePathsJson.isEmpty()) {
+                    error("filePaths is missing")
+                }
+
+                val filePathsArray = JSONArray(filePathsJson)
+                val filePaths =
+                    buildList {
+                        for (i in 0 until filePathsArray.length()) {
+                            add(filePathsArray.getString(i))
+                        }
+                    }
+                if (filePaths.isEmpty()) {
+                    error("filePaths is empty")
+                }
+
+                val metadataJson = prefs.getString(KEY_PLAYBACK_SNAPSHOT_METADATA, null)
+                val metadata = parseMetadataJson(metadataJson)
+
+                PersistedPlayerState(
+                    groupPath = groupPath,
+                    filePaths = filePaths,
+                    currentIndex = prefs.getInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, 0),
+                    currentPosition = prefs.getLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, 0L),
+                    metadata = metadata,
+                )
+            }.getOrElse { error ->
+                recordCorruption(
+                    prefs = prefs,
+                    reason = "versioned_snapshot_parse_failed",
+                    error = error,
+                )
+                clearVersionedSnapshot(prefs)
+                null
+            }
+        }
+
+        private fun saveVersionedSnapshot(
+            prefs: android.content.SharedPreferences,
+            state: PersistedPlayerState,
+        ) {
+            val metadataJson =
+                state.metadata
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { JSONObject(it).toString() }
+            prefs
+                .edit()
+                .putInt(KEY_PLAYBACK_SNAPSHOT_VERSION, PLAYBACK_SNAPSHOT_VERSION_V1)
+                .putString(KEY_PLAYBACK_SNAPSHOT_GROUP_PATH, state.groupPath)
+                .putString(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS, JSONArray(state.filePaths).toString())
+                .putInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, state.currentIndex)
+                .putLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, state.currentPosition)
+                .putString(KEY_PLAYBACK_SNAPSHOT_METADATA, metadataJson)
+                .apply()
+        }
+
+        private fun clearVersionedSnapshot(prefs: android.content.SharedPreferences) {
+            prefs
+                .edit()
+                .remove(KEY_PLAYBACK_SNAPSHOT_VERSION)
+                .remove(KEY_PLAYBACK_SNAPSHOT_GROUP_PATH)
+                .remove(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS)
+                .remove(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX)
+                .remove(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION)
+                .remove(KEY_PLAYBACK_SNAPSHOT_METADATA)
+                .apply()
+        }
+
+        private fun parseLegacySnapshot(legacyJson: String): PersistedPlayerState {
+            val json = JSONObject(legacyJson)
+            val groupPath = json.getString("groupPath")
+            val currentIndex = json.optInt("currentIndex", 0)
+            val currentPosition = json.optLong("currentPosition", 0L)
+            val filePathsJson = json.getJSONArray("filePaths")
+            val filePaths =
+                buildList {
+                    for (i in 0 until filePathsJson.length()) {
+                        add(filePathsJson.getString(i))
+                    }
+                }
+            if (filePaths.isEmpty()) {
+                error("legacy snapshot contains empty filePaths")
+            }
+
+            return PersistedPlayerState(
+                groupPath = groupPath,
+                filePaths = filePaths,
+                currentIndex = currentIndex,
+                currentPosition = currentPosition,
+                metadata = parseMetadataJson(json.optJSONObject("metadata")?.toString()),
+            )
+        }
+
+        private fun parseMetadataJson(metadataJson: String?): Map<String, String>? {
+            if (metadataJson.isNullOrBlank()) {
+                return null
+            }
+            val metadataObject = JSONObject(metadataJson)
+            val metadata = mutableMapOf<String, String>()
+            val keys = metadataObject.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                metadata[key] = metadataObject.getString(key)
+            }
+            return metadata.ifEmpty { null }
+        }
+
+        private fun recordCorruption(
+            prefs: android.content.SharedPreferences,
+            reason: String,
+            error: Throwable?,
+        ) {
+            val count = prefs.getInt(KEY_PLAYBACK_SNAPSHOT_CORRUPTION_COUNT, 0) + 1
+            prefs
+                .edit()
+                .putInt(KEY_PLAYBACK_SNAPSHOT_CORRUPTION_COUNT, count)
+                .putString(KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_REASON, reason)
+                .putLong(KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_AT, System.currentTimeMillis())
+                .apply()
+            android.util.Log.w("PlayerPersistence", "Playback snapshot corruption detected: $reason", error)
+        }
     }
 
 /**

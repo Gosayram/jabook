@@ -30,12 +30,14 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -50,6 +52,7 @@ class PlaylistManagerEdgeCaseTest {
     private lateinit var context: Context
     private lateinit var exoPlayer: ExoPlayer
     private lateinit var playlistManager: PlaylistManager
+    private lateinit var playerPersistenceManager: PlayerPersistenceManager
     private val testDispatcher = StandardTestDispatcher()
     private val testScope = TestScope(testDispatcher)
 
@@ -61,6 +64,9 @@ class PlaylistManagerEdgeCaseTest {
         whenever(exoPlayer.playbackState).thenReturn(Player.STATE_IDLE)
         whenever(exoPlayer.mediaItemCount).thenReturn(0)
         whenever(exoPlayer.playWhenReady).thenReturn(false)
+        whenever(exoPlayer.duration).thenReturn(0L)
+        whenever(exoPlayer.currentPosition).thenReturn(0L)
+        playerPersistenceManager = mock()
 
         playlistManager =
             PlaylistManager(
@@ -71,7 +77,7 @@ class PlaylistManagerEdgeCaseTest {
                 mediaItemDispatcher = testDispatcher,
                 getFlavorSuffix = { "" },
                 durationManager = mock(),
-                playerPersistenceManager = mock(),
+                playerPersistenceManager = playerPersistenceManager,
                 playbackController = mock(),
                 getCurrentTrackIndex = { 0 },
             )
@@ -235,5 +241,51 @@ class PlaylistManagerEdgeCaseTest {
             verify(exoPlayer, times(2)).seekToDefaultPosition(eq(targetIndex))
             // First call applies initial position, second call is retry.
             verify(exoPlayer, times(2)).seekTo(eq(targetIndex), eq(targetPosition))
+        }
+
+    @Test
+    fun `mutateQueueAtomically syncs queue snapshot to persistence`() =
+        testScope.runTest {
+            whenever(exoPlayer.currentPosition).thenReturn(2_500L)
+            whenever(exoPlayer.duration).thenReturn(30_000L)
+            whenever(exoPlayer.mediaItemCount).thenReturn(2)
+            whenever(exoPlayer.currentMediaItemIndex).thenReturn(0)
+            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
+
+            playlistManager.setPlaylist(
+                filePaths = listOf("/storage/book/1.mp3", "/storage/book/2.mp3"),
+                metadata = mapOf("title" to "Queue Book", "artist" to "Narrator"),
+                groupPath = "book://queue",
+            )
+            advanceUntilIdle()
+
+            val snapshot =
+                playlistManager.mutateQueueAtomically(
+                    PlaylistQueueOperation.Add(path = "/storage/book/3.mp3", index = 2),
+                )
+
+            assertTrue(snapshot != null)
+            assertEquals(3, snapshot?.filePaths?.size)
+            assertEquals(0, snapshot?.currentIndex)
+
+            val persistedCaptor = argumentCaptor<PlayerPersistenceManager.PersistedPlayerState>()
+            verify(playerPersistenceManager).savePersistedPlayerState(persistedCaptor.capture())
+
+            val persisted = persistedCaptor.firstValue
+            assertEquals("book://queue", persisted.groupPath)
+            assertEquals(listOf("/storage/book/1.mp3", "/storage/book/2.mp3", "/storage/book/3.mp3"), persisted.filePaths)
+            assertEquals(0, persisted.currentIndex)
+            assertEquals(2_500L, persisted.currentPosition)
+            assertEquals("Queue Book", persisted.metadata?.get("title"))
+
+            verify(playerPersistenceManager).saveCurrentMediaItem(
+                mediaId = "/storage/book/1.mp3",
+                positionMs = 2_500L,
+                durationMs = 30_000L,
+                artworkPath = "",
+                title = "Queue Book",
+                artist = "Narrator",
+                groupPath = "book://queue",
+            )
         }
 }
