@@ -155,7 +155,11 @@ public class RutrackerRepositoryImpl
                             // Add ordering and limit
                             sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
 
-                            val simpleQuery = androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray())
+                            val simpleQuery =
+                                androidx.sqlite.db.SimpleSQLiteQuery(
+                                    sqlBuilder.toString(),
+                                    args.toArray(),
+                                )
 
                             // Emit Flow from Room
                             offlineSearchDao

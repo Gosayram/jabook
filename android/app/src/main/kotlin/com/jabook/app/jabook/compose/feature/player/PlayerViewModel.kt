@@ -103,7 +103,9 @@ public class PlayerViewModel
 
         // Dynamic Theme Colors
         private val _themeColors = MutableStateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?>(null)
-        public val themeColors: StateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?> = _themeColors.asStateFlow()
+        public val themeColors: StateFlow<com.jabook.app.jabook.compose.core.theme.PlayerThemeColors?> =
+            _themeColors
+                .asStateFlow()
 
         init {
             // CRITICAL: Restore saved position from database on init
@@ -141,7 +143,8 @@ public class PlayerViewModel
         }
 
         // Store lyrics in a separate flow to avoid re-parsing on every seeking
-        private val lyricsState = MutableStateFlow<List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
+        private val lyricsState =
+            MutableStateFlow<List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
 
         /**
          * Combined UI state from book data, playback state, and settings.

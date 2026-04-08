@@ -26,8 +26,10 @@ import android.widget.RemoteViews
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.AppWidgetTarget
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.toBitmap
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
@@ -176,7 +178,14 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                         )
 
                     if (controller != null) {
-                        updateWidgetFromController(context, views, controller, widgetSize, appWidgetManager, appWidgetId)
+                        updateWidgetFromController(
+                            context,
+                            views,
+                            controller,
+                            widgetSize,
+                            appWidgetManager,
+                            appWidgetId,
+                        )
                     } else {
                         android.util.Log.w(
                             "PlayerWidget",
@@ -211,11 +220,10 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     }
                 }
 
-                // Update widget immediately (Glide will update cover asynchronously)
+                // Update widget immediately (Coil will update cover asynchronously)
                 appWidgetManager.updateAppWidget(appWidgetId, views)
 
-                // Note: Glide will update cover asynchronously via AppWidgetTarget
-                // No need for second update - Glide handles it automatically
+                // Note: Coil will update cover asynchronously and re-post the widget
             } catch (e: Exception) {
                 android.util.Log.e(
                     "PlayerWidget",
@@ -340,7 +348,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        // Update cover image (if present in layout) - load with Glide for better compatibility
+        // Update cover image (if present in layout) - load with Coil for better compatibility
         val artworkUri = mediaMetadata?.artworkUri
         safeUpdateView(views, R.id.widget_cover) {
             updateCoverImage(context, views, appWidgetId, artworkUri)
@@ -466,7 +474,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            // Update cover image (if present in layout) - load with Glide
+            // Update cover image (if present in layout) - load with Coil
             safeUpdateView(views, R.id.widget_cover) {
                 updateCoverImage(context, views, appWidgetId, coverUri)
             }
@@ -497,11 +505,11 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             // Set up click intents
             setupClickIntents(context, views, currentBookId, appWidgetId)
 
-            // Update widget immediately (Glide will update cover asynchronously)
+            // Update widget immediately (Coil will update cover asynchronously)
             appWidgetManager.updateAppWidget(appWidgetId, views)
 
-            // Note: Glide will update cover asynchronously via AppWidgetTarget
-            // No need for second update - Glide handles it automatically
+            // Note: Coil will update cover asynchronously
+            // No need for second update - Coil handles it automatically
 
             android.util.Log.d(
                 "PlayerWidget",
@@ -814,6 +822,10 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         )
     }
 
+    /**
+     * Loads cover image via Coil3 (unified image pipeline).
+     * Falls back to URI-based loading for local content, then to placeholder.
+     */
     private fun updateCoverImage(
         context: Context,
         views: RemoteViews,
@@ -825,40 +837,65 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             return
         }
 
-        if (!WidgetCoverLoadPolicy.shouldLoadWithGlide(artworkUri)) {
+        // Check if URI scheme is supported by our image pipeline
+        if (!WidgetCoverLoadPolicy.shouldLoadWithCoil(artworkUri)) {
             views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
             return
         }
 
-        try {
-            val widgetTarget = AppWidgetTarget(context, appWidgetId, views, R.id.widget_cover)
-            Glide.with(context.applicationContext).clear(widgetTarget)
+        // Load cover asynchronously via Coil3
+        scope.launch(Dispatchers.IO) {
+            try {
+                val loader = SingletonImageLoader.get(context.applicationContext)
+                val request =
+                    ImageRequest
+                        .Builder(context.applicationContext)
+                        .data(artworkUri)
+                        .size(WidgetCoverLoadPolicy.COVER_SIZE_PX, WidgetCoverLoadPolicy.COVER_SIZE_PX)
+                        .build()
 
-            Glide
-                .with(context.applicationContext)
-                .asBitmap()
-                .load(artworkUri)
-                .override(WidgetCoverLoadPolicy.COVER_SIZE_PX, WidgetCoverLoadPolicy.COVER_SIZE_PX)
-                .timeout(WidgetCoverLoadPolicy.COVER_TIMEOUT_MS)
-                .diskCacheStrategy(WidgetCoverLoadPolicy.DISK_CACHE_STRATEGY)
-                .skipMemoryCache(false)
-                .dontAnimate()
-                .centerCrop()
-                .fallback(R.drawable.ic_launcher_foreground)
-                .error(R.drawable.ic_launcher_foreground)
-                .into(widgetTarget)
-        } catch (e: Exception) {
-            android.util.Log.w("PlayerWidget", "Failed to load cover with Glide, trying URI fallback", e)
-            if (WidgetCoverLoadPolicy.shouldUseUriFallback(artworkUri)) {
-                try {
-                    views.setImageViewUri(R.id.widget_cover, artworkUri)
-                } catch (e2: Exception) {
-                    android.util.Log.w("PlayerWidget", "Failed to set cover URI fallback", e2)
-                    views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
+                val result = loader.execute(request)
+                if (result is SuccessResult) {
+                    val bitmap = result.image.toBitmap()
+                    val updatedViews =
+                        RemoteViews(
+                            context.packageName,
+                            getLayoutForSize(
+                                getWidgetSize(context, AppWidgetManager.getInstance(context), appWidgetId),
+                            ),
+                        )
+                    updatedViews.setImageViewBitmap(R.id.widget_cover, bitmap)
+                    AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, updatedViews)
+                } else {
+                    applyCoverFallback(context, views, appWidgetId, artworkUri)
                 }
-            } else {
+            } catch (e: Exception) {
+                android.util.Log.w("PlayerWidget", "Failed to load cover via Coil, trying fallback", e)
+                applyCoverFallback(context, views, appWidgetId, artworkUri)
+            }
+        }
+    }
+
+    /**
+     * Applies fallback cover loading strategy when Coil fails.
+     * Tries URI-based loading for local content, then placeholder.
+     */
+    private fun applyCoverFallback(
+        context: Context,
+        views: RemoteViews,
+        appWidgetId: Int,
+        artworkUri: Uri,
+    ) {
+        if (WidgetCoverLoadPolicy.shouldUseUriFallback(artworkUri)) {
+            try {
+                views.setImageViewUri(R.id.widget_cover, artworkUri)
+                AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, views)
+            } catch (e2: Exception) {
+                android.util.Log.w("PlayerWidget", "Failed to set cover URI fallback", e2)
                 views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
             }
+        } else {
+            views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
         }
     }
 

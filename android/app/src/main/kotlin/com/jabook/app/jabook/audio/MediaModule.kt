@@ -238,7 +238,10 @@ public object MediaModule {
                         )
 
                 if (processors.isNotEmpty()) {
-                    android.util.Log.d("MediaModule", "Attach ${processors.size} AudioProcessors to ExoPlayer via custom RenderersFactory")
+                    android.util.Log.d(
+                        "MediaModule",
+                        "Attach ${processors.size} AudioProcessors to ExoPlayer via custom RenderersFactory",
+                    )
                 }
 
                 builder.build()

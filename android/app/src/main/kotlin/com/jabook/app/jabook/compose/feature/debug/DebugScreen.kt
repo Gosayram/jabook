@@ -295,7 +295,14 @@ private fun MirrorsTab(
                                     fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                                 )
                                 Text(
-                                    text = if (isReachable) stringResource(R.string.reachable) else stringResource(R.string.unreachable),
+                                    text =
+                                        if (isReachable) {
+                                            stringResource(
+                                                R.string.reachable,
+                                            )
+                                        } else {
+                                            stringResource(R.string.unreachable)
+                                        },
                                     style = MaterialTheme.typography.bodySmall,
                                     color =
                                         if (isReachable) {

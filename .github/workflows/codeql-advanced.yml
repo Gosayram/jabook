@@ -108,7 +108,7 @@ jobs:
           reviewdog_filter: nofilter
           fail_on_error: false
           detekt_config: default-detekt-config.yml
-          detekt_build_upon_default_config: true
+          detekt_build_upon_default_config: false
           detekt_parallel: true
           detekt_excludes: '**/build/**,**/.idea/**'
           detekt_input: android

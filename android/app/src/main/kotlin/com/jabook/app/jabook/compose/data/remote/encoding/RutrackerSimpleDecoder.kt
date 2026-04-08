@@ -86,7 +86,9 @@ public class RutrackerSimpleDecoder
                 } catch (e: Exception) {
                     // Log decoding error only when it occurs
                     logger.e(
-                        { "Decoding error: ${e.javaClass.simpleName}: ${e.message} (bytes: ${bytes.size}, encoding: $detectedEncoding)" },
+                        {
+                            "Decoding error: ${e.javaClass.simpleName}: ${e.message} (bytes: ${bytes.size}, encoding: $detectedEncoding)"
+                        },
                         e,
                     )
                     // Fallback to UTF-8 if Windows-1251 fails

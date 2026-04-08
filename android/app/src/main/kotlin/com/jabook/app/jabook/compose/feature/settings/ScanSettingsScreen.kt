@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -47,7 +48,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +60,9 @@ public fun ScanSettingsScreen(
 ) {
     val scanPaths by viewModel.scanPaths.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    val navigationClickGuard = remember { NavigationClickGuard() }
+    val safeNavigateUp = dropUnlessResumed { navigationClickGuard.run(onNavigateUp) }
 
     val folderPickerLauncher =
         rememberLauncherForActivityResult(
@@ -81,7 +87,7 @@ public fun ScanSettingsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.libraryFoldersTitle)) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateUp) {
+                    IconButton(onClick = { safeNavigateUp() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.backButton),

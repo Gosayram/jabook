@@ -19,8 +19,8 @@ help:
 	@echo "Development Commands:"
 	@echo "  make clean                         - Clean build artifacts"
 	@echo "  make compile                       - Compile Kotlin code (for syntax checking)"
-	@echo "  make fmt-kotlin                    - Format Kotlin code (ktlint format)"
-	@echo "  make lint-kotlin                   - Lint Kotlin code (ktlint check)"
+	@echo "  make fmt-kotlin                    - Format Kotlin code (ktlint + detekt auto-correct)"
+	@echo "  make lint-kotlin                   - Lint Kotlin code (ktlint + detekt check)"
 	@echo "  make ktlint-strace                 - Lint Kotlin code with stacktrace"
 	@echo ""
 	@echo "Build Commands:"
@@ -109,28 +109,28 @@ compile:
 	fi; \
 	exit $$EXIT_CODE
 
-# Lint Kotlin code
+# Lint Kotlin code (ktlint + detekt check)
 .PHONY: lint-kotlin
 lint-kotlin:
-	@echo "Linting Kotlin code with ktlint..."
-	@(cd android && ./gradlew :app:ktlintCheck --no-daemon); \
+	@echo "Linting Kotlin code with ktlint + detekt..."
+	@(cd android && ./gradlew :app:ktlintCheck :app:detekt --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
-		echo "✅ Kotlin linting passed"; \
+		echo "✅ Kotlin linting passed (ktlint + detekt)"; \
 	else \
 		echo "❌ Kotlin linting failed with exit code $$EXIT_CODE"; \
 		echo "Run 'make fmt-kotlin' to auto-fix issues"; \
 	fi; \
 	exit $$EXIT_CODE
 
-# Format Kotlin code
+# Format Kotlin code (ktlint + detekt auto-correct)
 .PHONY: fmt-kotlin
 fmt-kotlin:
-	@echo "Formatting Kotlin code with ktlint..."
-	@(cd android && ./gradlew :app:ktlintFormat --no-daemon); \
+	@echo "Formatting Kotlin code with ktlint + detekt..."
+	@(cd android && ./gradlew :app:ktlintFormat :app:detekt --auto-correct --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
-		echo "✅ Kotlin code formatted successfully"; \
+		echo "✅ Kotlin code formatted successfully (ktlint + detekt)"; \
 	else \
 		echo "❌ Kotlin formatting failed with exit code $$EXIT_CODE"; \
 	fi; \
@@ -607,6 +607,19 @@ dev: fmt-kotlin compile-dev install-dev
 .PHONY: beta
 beta: fmt-kotlin compile-beta install-beta
 	@echo "✅ Beta workflow complete - app installed and ready to test"
+
+# Run detekt static analysis
+.PHONY: detekt
+detekt:
+	@echo "Running detekt static analysis..."
+	@(cd android && ./gradlew :app:detekt --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Detekt analysis passed"; \
+	else \
+		echo "❌ Detekt analysis failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
 
 # Show warnings count
 .PHONY: warnings

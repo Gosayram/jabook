@@ -195,7 +195,10 @@ public fun MiniPlayer(
                             offsetX = 0f
                             offsetY = 0f
                         },
-                    ) { change: androidx.compose.ui.input.pointer.PointerInputChange, dragAmount: androidx.compose.ui.geometry.Offset ->
+                    ) {
+                        change: androidx.compose.ui.input.pointer.PointerInputChange,
+                        dragAmount: androidx.compose.ui.geometry.Offset,
+                        ->
                         change.consume()
 
                         // Update offsets

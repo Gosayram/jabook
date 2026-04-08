@@ -245,7 +245,11 @@ public class RutrackerParser
                         if (result != null) {
                             results.add(result)
                             if (index < 3) {
-                                logger.d { "✅ Row $index parsed: topicId=${result.topicId}, title='${result.title.take(40)}'" }
+                                logger.d {
+                                    "✅ Row $index parsed: topicId=${result.topicId}, title='${result.title.take(
+                                        40,
+                                    )}'"
+                                }
                             }
                         } else {
                             // Only warn if we failed to parse a row that we thought was valid
@@ -639,7 +643,9 @@ public class RutrackerParser
                         result.data
                     }
                     is ParsingResult.Failure -> {
-                        logger.e { "❌ Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)" }
+                        logger.e {
+                            "❌ Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)"
+                        }
                         result.errors.take(10).forEach { error ->
                             // Limit to first 10 errors to avoid log spam
                             logger.e {
@@ -702,7 +708,11 @@ public class RutrackerParser
                     } else {
                         // Method 2: Check pagination text "Страница X из Y"
                         val paginationText = document.select("#pagination, .nav").toStr()
-                        val pageMatch = Regex("Страница\\s+\\d+\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE).find(paginationText)
+                        val pageMatch =
+                            Regex(
+                                "Страница\\s+\\d+\\s+из\\s+(\\d+)",
+                                RegexOption.IGNORE_CASE,
+                            ).find(paginationText)
                         if (pageMatch != null) {
                             val currentPage =
                                 Regex("Страница\\s+(\\d+)", RegexOption.IGNORE_CASE)
@@ -713,12 +723,16 @@ public class RutrackerParser
                                     ?: 1
                             val totalPages = pageMatch.groupValues[1].toIntOrNull() ?: 1
                             val hasMore = currentPage < totalPages
-                            logger.d { "Forum $forumId: pagination shows page $currentPage of $totalPages, hasMore=$hasMore" }
+                            logger.d {
+                                "Forum $forumId: pagination shows page $currentPage of $totalPages, hasMore=$hasMore"
+                            }
                             hasMore
                         } else {
                             // Method 3: If we got topics and count matches TOPICS_PER_PAGE, likely more pages
                             val likelyHasMore = topics.size >= 50 // TOPICS_PER_PAGE
-                            logger.d { "Forum $forumId: no pagination found, assuming hasMore=$likelyHasMore (topics: ${topics.size})" }
+                            logger.d {
+                                "Forum $forumId: no pagination found, assuming hasMore=$likelyHasMore (topics: ${topics.size})"
+                            }
                             likelyHasMore
                         }
                     }
@@ -998,7 +1012,11 @@ public class RutrackerParser
                                 fromNested
                             } else {
                                 // Debug: check if var.postImg exists at all in the row
-                                val hasPostImg = row.select("var.postImg, var.postImgAligned, var[class*='postImg']").isNotEmpty()
+                                val hasPostImg =
+                                    row
+                                        .select(
+                                            "var.postImg, var.postImgAligned, var[class*='postImg']",
+                                        ).isNotEmpty()
                                 if (hasPostImg) {
                                     logger.w {
                                         "var.postImg found in row for topic $topicId but extract() returned null - checking attributes..."
@@ -1012,10 +1030,14 @@ public class RutrackerParser
                                             val url = varElement.attr("title")
                                             if (url.isNotBlank()) {
                                                 val normalized = coverExtractor.normalizeUrl(url)
-                                                logger.d { "Cover extracted directly from var.postImg for topic $topicId: $normalized" }
+                                                logger.d {
+                                                    "Cover extracted directly from var.postImg for topic $topicId: $normalized"
+                                                }
                                                 normalized
                                             } else {
-                                                logger.w { "var.postImg found but title attribute is blank for topic $topicId" }
+                                                logger.w {
+                                                    "var.postImg found but title attribute is blank for topic $topicId"
+                                                }
                                                 null
                                             }
                                         }
@@ -1327,11 +1349,13 @@ public class RutrackerParser
                             metadata["author"] = if (current.isEmpty()) value else "$current $value"
                         }
                         // Performer
-                        label.contains("Исполнитель", ignoreCase = true) || label.contains("Narrator", ignoreCase = true) -> {
+                        label.contains("Исполнитель", ignoreCase = true) ||
+                            label.contains("Narrator", ignoreCase = true) -> {
                             metadata["performer"] = value
                         }
                         // Duration
-                        label.contains("Время звучания", ignoreCase = true) || label.contains("Duration", ignoreCase = true) -> {
+                        label.contains("Время звучания", ignoreCase = true) ||
+                            label.contains("Duration", ignoreCase = true) -> {
                             metadata["duration"] = value
                         }
                         // Audio Codec
@@ -1346,7 +1370,11 @@ public class RutrackerParser
                             metadata["bitrateMode"] = value
                         }
                         // Bitrate
-                        label.contains("Битрейт", ignoreCase = true) || label.contains("Bitrate", ignoreCase = true) -> {
+                        label.contains(
+                            "Битрейт",
+                            ignoreCase = true,
+                        ) ||
+                            label.contains("Bitrate", ignoreCase = true) -> {
                             val current = metadata["bitrate"]
                             val valueLooksLikeNumericBitrate =
                                 value.contains(Regex("\\d")) &&
@@ -1356,15 +1384,23 @@ public class RutrackerParser
                                     ?.contains(Regex("\\d"))
                                     ?.let { hasDigits ->
                                         hasDigits &&
-                                            current.contains(Regex("(kbps|mbps|kbit|кбит|бит)", RegexOption.IGNORE_CASE))
+                                            current.contains(
+                                                Regex("(kbps|mbps|kbit|кбит|бит)", RegexOption.IGNORE_CASE),
+                                            )
                                     } == true
 
-                            if (current.isNullOrBlank() || (!currentLooksLikeNumericBitrate && valueLooksLikeNumericBitrate)) {
+                            if (current.isNullOrBlank() ||
+                                (!currentLooksLikeNumericBitrate && valueLooksLikeNumericBitrate)
+                            ) {
                                 metadata["bitrate"] = value
                             }
                         }
                         // Year/Date
-                        label.contains("Год выпуска", ignoreCase = true) || label.contains("Year", ignoreCase = true) -> {
+                        label.contains(
+                            "Год выпуска",
+                            ignoreCase = true,
+                        ) ||
+                            label.contains("Year", ignoreCase = true) -> {
                             metadata["addedDate"] = value
                         }
                         // Series/Cycle
@@ -1376,21 +1412,28 @@ public class RutrackerParser
                             metadata["genre"] = value
                         }
                         // Publisher
-                        label.contains("Издательство", ignoreCase = true) || label.contains("Publisher", ignoreCase = true) -> {
+                        label.contains("Издательство", ignoreCase = true) ||
+                            label.contains("Publisher", ignoreCase = true) -> {
                             metadata["publisher"] = value
                         }
                         // Correction (Корректор)
-                        label.contains("Корректор", ignoreCase = true) || label.contains("Correction", ignoreCase = true) -> {
+                        label.contains("Корректор", ignoreCase = true) ||
+                            label.contains("Correction", ignoreCase = true) -> {
                             metadata["correction"] = value
                         }
                         // Poster Author (Авторский постер)
                         // Handle tricky cases like "Авторский постер: :"
-                        label.contains("Авторский постер", ignoreCase = true) || label.contains("Poster", ignoreCase = true) -> {
+                        label.contains("Авторский постер", ignoreCase = true) ||
+                            label.contains("Poster", ignoreCase = true) -> {
                             val cleanValue = value.removePrefix(":").trim()
                             metadata["poster_author"] = cleanValue
                         }
                         // Book Type (Тип аудиокниги)
-                        label.contains("Тип аудиокниги", ignoreCase = true) || label.contains("Type", ignoreCase = true) -> {
+                        label.contains(
+                            "Тип аудиокниги",
+                            ignoreCase = true,
+                        ) ||
+                            label.contains("Type", ignoreCase = true) -> {
                             metadata["book_type"] = value
                         }
                         // Music (Музыка)
@@ -1841,8 +1884,10 @@ public class RutrackerParser
                                 // Convert <br> tags to newlines, then extract text
                                 htmlContent
                                     .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-                                    .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "\n")
-                                    .let {
+                                    .replace(
+                                        Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE),
+                                        "\n",
+                                    ).let {
                                         org.jsoup.Jsoup
                                             .parse(it)
                                             .toStr()
@@ -1942,8 +1987,10 @@ public class RutrackerParser
                             // Convert <br> tags to newlines, then extract text
                             htmlContent
                                 .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-                                .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "\n")
-                                .let {
+                                .replace(
+                                    Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE),
+                                    "\n",
+                                ).let {
                                     org.jsoup.Jsoup
                                         .parse(it)
                                         .toStr()

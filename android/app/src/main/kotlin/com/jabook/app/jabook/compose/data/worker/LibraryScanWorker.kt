@@ -215,7 +215,10 @@ public class LibraryScanWorker
                                                         }
                                                     }
                                                 } catch (e: Exception) {
-                                                    logger.e({ "Failed to extract embedded cover for ${book.title}" }, e)
+                                                    logger.e(
+                                                        { "Failed to extract embedded cover for ${book.title}" },
+                                                        e,
+                                                    )
                                                 } finally {
                                                     retriever.release()
                                                 }
@@ -281,7 +284,11 @@ public class LibraryScanWorker
                         }
                         is DomainResult.Error -> {
                             logger.w {
-                                "Library scan failure result attempt=$attempt stopReason=${runCatching { stopReason }.getOrDefault(-1)}"
+                                "Library scan failure result attempt=$attempt stopReason=${runCatching {
+                                    stopReason
+                                }.getOrDefault(
+                                    -1,
+                                )}"
                             }
                             ListenableWorker.Result.failure(
                                 workDataOf("error" to result.error.message),
@@ -307,7 +314,11 @@ public class LibraryScanWorker
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) {
                         logger.w {
-                            "Scan cancelled (Watchdog or User) attempt=$attempt stopReason=${runCatching { stopReason }.getOrDefault(-1)}"
+                            "Scan cancelled (Watchdog or User) attempt=$attempt stopReason=${runCatching {
+                                stopReason
+                            }.getOrDefault(
+                                -1,
+                            )}"
                         }
                         // Return failure so it doesn't retry automatically if cancelled by user/watchdog
                         return@withContext ListenableWorker.Result.failure()
@@ -323,7 +334,9 @@ public class LibraryScanWorker
                             ),
                     )
                     ListenableWorker.Result.failure(
-                        workDataOf("error" to (e.message ?: applicationContext.getString(R.string.libraryUnknownError))),
+                        workDataOf(
+                            "error" to (e.message ?: applicationContext.getString(R.string.libraryUnknownError)),
+                        ),
                     )
                 }
             }

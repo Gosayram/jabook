@@ -72,7 +72,8 @@ class PermissionViewModelTest {
         runTest {
             whenever(permissionManager.hasStoragePermission()).thenReturn(false)
 
-            val viewModel = PermissionViewModel(context, permissionManager, userPreferencesRepository, settingsRepository)
+            val viewModel =
+                PermissionViewModel(context, permissionManager, userPreferencesRepository, settingsRepository)
             advanceUntilIdle()
 
             val state = viewModel.uiState.value
@@ -87,7 +88,8 @@ class PermissionViewModelTest {
             whenever(permissionManager.hasStoragePermission()).thenReturn(false)
             userDataFlow.value = UserData(storageFallbackEnabled = true)
 
-            val viewModel = PermissionViewModel(context, permissionManager, userPreferencesRepository, settingsRepository)
+            val viewModel =
+                PermissionViewModel(context, permissionManager, userPreferencesRepository, settingsRepository)
             advanceUntilIdle()
 
             val state = viewModel.uiState.value
@@ -105,7 +107,8 @@ class PermissionViewModelTest {
                 Unit
             }.whenever(userPreferencesRepository).setStorageFallbackEnabled(true)
 
-            val viewModel = PermissionViewModel(context, permissionManager, userPreferencesRepository, settingsRepository)
+            val viewModel =
+                PermissionViewModel(context, permissionManager, userPreferencesRepository, settingsRepository)
             advanceUntilIdle()
             assertFalse(viewModel.uiState.value.hasStoragePermission)
 

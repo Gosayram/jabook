@@ -53,7 +53,9 @@ public class DebugViewModel
         public val logs: StateFlow<String> = _logs.asStateFlow()
 
         private val _authDebugInfo = MutableStateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?>(null)
-        public val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> = _authDebugInfo.asStateFlow()
+        public val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> =
+            _authDebugInfo
+                .asStateFlow()
 
         init {
             // Delay initialization until viewModelScope is fully ready
@@ -187,7 +189,11 @@ public class DebugViewModel
                                         com.jabook.app.jabook.compose.data.debug.ValidationResults(
                                             profilePageCheck = isAuthenticated,
                                             searchPageCheck = isAuthenticated,
-                                            indexPageCheck = connectivity.isNotEmpty() && connectivity.values.any { it },
+                                            indexPageCheck =
+                                                connectivity.isNotEmpty() &&
+                                                    connectivity.values.any {
+                                                        it
+                                                    },
                                             lastValidation = System.currentTimeMillis(),
                                         ),
                                 )
@@ -304,7 +310,8 @@ public class DebugViewModel
                 emptyMap()
             }
 
-        private val _cacheStats = MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
+        private val _cacheStats =
+            MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
         public val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
             _cacheStats
                 .asStateFlow()
@@ -316,7 +323,12 @@ public class DebugViewModel
                         val stats = rutrackerRepository.getCacheStatistics()
                         _cacheStats.value = stats
                     } catch (e: NullPointerException) {
-                        logger.e({ "NullPointerException while loading cache stats - repository or cache may not be initialized" }, e)
+                        logger.e(
+                            {
+                                "NullPointerException while loading cache stats - repository or cache may not be initialized"
+                            },
+                            e,
+                        )
                         _cacheStats.value = null
                     } catch (e: Exception) {
                         logger.e({ "Failed to load cache stats" }, e)

@@ -20,10 +20,13 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.jabook.app.jabook.audio.ForegroundServiceStartPolicy
+import com.jabook.app.jabook.audio.ForegroundStartOutcome
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.torrent.TorrentManager
 import com.jabook.app.jabook.torrent.data.TorrentState
@@ -97,6 +100,12 @@ public class DownloadForegroundService : Service() {
     @Inject
     public lateinit var torrentManager: TorrentManager
 
+    private val foregroundStartPolicy =
+        ForegroundServiceStartPolicy(
+            logDebug = { message -> Log.d(TAG, message) },
+            logWarn = { message, throwable -> Log.w(TAG, message, throwable) },
+        )
+
     private var notificationManager: AndroidNotificationManager? = null
     private var isServiceRunning = false
 
@@ -139,12 +148,19 @@ public class DownloadForegroundService : Service() {
 
         // CRITICAL FIX: Start foreground immediately for Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            try {
-                val notification = createDownloadNotification("Initializing downloads...", 0f)
-                startForeground(NOTIFICATION_ID, notification)
-                Log.d(TAG, "startForeground() called in onCreate()")
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to call startForeground() in onCreate()", e)
+            val notification = createDownloadNotification("Initializing downloads...", 0f)
+            val outcome =
+                foregroundStartPolicy.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                    "onCreate",
+                )
+            if (outcome == ForegroundStartOutcome.SUCCESS) {
+                Log.d(TAG, "startForeground() completed via policy in onCreate()")
+            } else {
+                Log.w(TAG, "startForeground() failed in onCreate(): outcome=$outcome")
             }
         }
     }
@@ -156,12 +172,19 @@ public class DownloadForegroundService : Service() {
     ): Int {
         // Ensure foreground for Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !isServiceRunning) {
-            try {
-                val notification = createDownloadNotification("Downloads ready", 0f)
-                startForeground(NOTIFICATION_ID, notification)
-                Log.d(TAG, "startForeground() called in onStartCommand()")
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to ensure startForeground()", e)
+            val notification = createDownloadNotification("Downloads ready", 0f)
+            val outcome =
+                foregroundStartPolicy.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                    "onStartCommand",
+                )
+            if (outcome == ForegroundStartOutcome.SUCCESS) {
+                Log.d(TAG, "startForeground() completed via policy in onStartCommand()")
+            } else {
+                Log.w(TAG, "startForeground() failed in onStartCommand(): outcome=$outcome")
             }
         }
 

@@ -40,7 +40,7 @@ public class TorrentManager
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
-        private val sessionManager: TorrentSessionManager,
+        private val session: TorrentSession,
         private val repository: TorrentDownloadRepository,
         private val settingsRepository: SettingsRepository,
         private val networkMonitor: NetworkMonitor,
@@ -50,7 +50,7 @@ public class TorrentManager
 
         /** Current downloads */
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
-            get() = sessionManager.downloadsFlow
+            get() = session.downloadsFlow
 
         private var isInitialized = false
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -65,7 +65,7 @@ public class TorrentManager
             }
 
             try {
-                sessionManager.initSession()
+                session.initSession()
                 isInitialized = true
                 logger.i { "TorrentManager initialized" }
 
@@ -97,7 +97,7 @@ public class TorrentManager
         ): Result<String> {
             ensureInitialized()
 
-            val result = sessionManager.addTorrent(magnetUri, savePath, selectedFileIndices, topicId)
+            val result = session.addTorrent(magnetUri, savePath, selectedFileIndices, topicId)
 
             if (result.isSuccess) {
                 // Start foreground service
@@ -114,7 +114,7 @@ public class TorrentManager
             hash: String,
             deleteFiles: Boolean = false,
         ) {
-            sessionManager.removeTorrent(hash, deleteFiles)
+            session.removeTorrent(hash, deleteFiles)
 
             // Stop service if no active downloads
             if (downloadsFlow.value.isEmpty()) {
@@ -126,14 +126,14 @@ public class TorrentManager
          * Pause torrent
          */
         public fun pauseTorrent(hash: String) {
-            sessionManager.pauseTorrent(hash)
+            session.pauseTorrent(hash)
         }
 
         /**
          * Resume torrent
          */
         public fun resumeTorrent(hash: String) {
-            sessionManager.resumeTorrent(hash)
+            session.resumeTorrent(hash)
         }
 
         /**
@@ -143,14 +143,14 @@ public class TorrentManager
             hash: String,
             deleteFiles: Boolean = false,
         ) {
-            sessionManager.removeTorrent(hash, deleteFiles)
+            session.removeTorrent(hash, deleteFiles)
         }
 
         /**
          * Pause all torrents
          */
         public fun pauseAll() {
-            sessionManager.pauseAll()
+            session.pauseAll()
         }
 
         /**
@@ -160,26 +160,26 @@ public class TorrentManager
             hash: String,
             newPath: String,
         ) {
-            sessionManager.moveTorrentStorage(hash, newPath)
+            session.moveTorrentStorage(hash, newPath)
         }
 
         /**
          * Resume all torrents
          */
         public fun resumeAll() {
-            sessionManager.resumeAll()
+            session.resumeAll()
         }
 
         /**
          * Get specific download
          */
-        public fun getDownload(hash: String): TorrentDownload? = sessionManager.getDownload(hash)
+        public fun getDownload(hash: String): TorrentDownload? = session.getDownload(hash)
 
         /**
          * Enable streaming mode for torrent
          */
         public fun enableStreaming(hash: String) {
-            sessionManager.setSequentialDownload(hash, true)
+            session.setSequentialDownload(hash, true)
         }
 
         /**
@@ -190,7 +190,7 @@ public class TorrentManager
             fileIndex: Int,
             priority: Int,
         ) {
-            sessionManager.prioritizeFile(hash, fileIndex, priority)
+            session.prioritizeFile(hash, fileIndex, priority)
         }
 
         /**
@@ -200,7 +200,7 @@ public class TorrentManager
             hash: String,
             priorities: List<Int>,
         ) {
-            sessionManager.setFilePriorities(hash, priorities)
+            session.setFilePriorities(hash, priorities)
         }
 
         /**
@@ -209,7 +209,7 @@ public class TorrentManager
         public fun isFileReadyForStreaming(
             hash: String,
             fileIndex: Int,
-        ): Boolean = sessionManager.isFileReadyForStreaming(hash, fileIndex)
+        ): Boolean = session.isFileReadyForStreaming(hash, fileIndex)
 
         /**
          * Get downloaded bytes
@@ -217,7 +217,7 @@ public class TorrentManager
         public fun getDownloadedBytes(
             hash: String,
             fileIndex: Int,
-        ): Long = sessionManager.getDownloadedBytes(hash, fileIndex)
+        ): Long = session.getDownloadedBytes(hash, fileIndex)
 
         /**
          * Delete all torrents
@@ -225,7 +225,7 @@ public class TorrentManager
         public fun deleteAllTorrents(deleteFiles: Boolean = false) {
             val hashes = downloadsFlow.value.keys.toList()
             hashes.forEach { hash ->
-                sessionManager.removeTorrent(hash, deleteFiles)
+                session.removeTorrent(hash, deleteFiles)
             }
             stopDownloadService()
         }
@@ -235,7 +235,7 @@ public class TorrentManager
          */
         public fun shutdown() {
             try {
-                sessionManager.stopSession()
+                session.stopSession()
                 stopDownloadService()
                 isInitialized = false
                 logger.i { "TorrentManager shut down" }
@@ -250,7 +250,9 @@ public class TorrentManager
                     initialize()
                     // Check if initialization actually succeeded
                     if (!isInitialized) {
-                        throw IllegalStateException("TorrentManager initialization failed - libtorrent4j may not be available")
+                        throw IllegalStateException(
+                            "TorrentManager initialization failed - libtorrent4j may not be available",
+                        )
                     }
                 } catch (e: Exception) {
                     logger.e({ "Failed to ensure initialization" }, e)

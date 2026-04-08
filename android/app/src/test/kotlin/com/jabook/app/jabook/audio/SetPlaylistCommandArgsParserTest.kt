@@ -47,7 +47,10 @@ class SetPlaylistCommandArgsParserTest {
     fun `parse returns null for out of bounds initial track index`() {
         val args =
             Bundle().apply {
-                putStringArray(AudioPlayerLibrarySessionCallback.ARG_FILE_PATHS, arrayOf("/book/ch1.mp3", "/book/ch2.mp3"))
+                putStringArray(
+                    AudioPlayerLibrarySessionCallback.ARG_FILE_PATHS,
+                    arrayOf("/book/ch1.mp3", "/book/ch2.mp3"),
+                )
                 putInt(AudioPlayerLibrarySessionCallback.ARG_INITIAL_TRACK_INDEX, 5)
             }
 

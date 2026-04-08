@@ -51,6 +51,7 @@ public class DirectFileSystemScanner
         private val encodingDetector: com.jabook.app.jabook.compose.data.local.parser.EncodingDetector,
         private val metadataCache: com.jabook.app.jabook.compose.data.local.parser.MetadataCache,
         private val loggerFactory: LoggerFactory,
+        private val incrementalScanPolicy: IncrementalScanPolicy,
     ) : LocalBookScanner {
         private val logger = loggerFactory.get("DirectFileSystemScanner")
 
@@ -95,8 +96,48 @@ public class DirectFileSystemScanner
                     val totalFiles = fastFiles.size
                     logger.i { "Found $totalFiles audio files (fast scan)" }
 
+                    // PHASE 1.5: INCREMENTAL SCAN FILTER
+                    // Build a map of path -> lastScanTimestamp for incremental filtering
+                    val pathEntities = scanPathDao.getAllPathsList()
+                    val pathTimestampMap = pathEntities.associate { it.path to it.lastScanTimestamp }
+
+                    // Group fast files by their root scan path for per-path filtering
+                    val filteredFiles = mutableListOf<FastFileInfo>()
+                    for (path in customPaths) {
+                        val lastTimestamp = pathTimestampMap[path]
+                        val filesForPath = fastFiles.filter { it.filePath.startsWith(path) }
+                        val scanInfos =
+                            filesForPath.map {
+                                IncrementalScanPolicy.FileScanInfo(
+                                    filePath = it.filePath,
+                                    displayName = it.displayName,
+                                    directory = it.directory,
+                                    size = it.size,
+                                    lastModified = it.lastModified,
+                                )
+                            }
+                        val filterResult = incrementalScanPolicy.filterChangedFiles(scanInfos, lastTimestamp)
+                        if (filterResult.isFullScan) {
+                            filteredFiles.addAll(filesForPath)
+                        } else {
+                            // Add only changed files (map back to FastFileInfo)
+                            val changedPaths = filterResult.filesToScan.map { it.filePath }.toSet()
+                            filteredFiles.addAll(filesForPath.filter { it.filePath in changedPaths })
+                        }
+                        if (filterResult.skippedCount > 0) {
+                            logger.i {
+                                "⚡ Incremental: skipped ${filterResult.skippedCount} unchanged files in $path"
+                            }
+                        }
+                    }
+
+                    val effectiveFiles = filteredFiles
+                    logger.i {
+                        "⚡ Incremental scan: ${effectiveFiles.size}/$totalFiles files need processing"
+                    }
+
                     // PHASE 2: GROUP by directory
-                    val groupedByDir = fastFiles.groupBy { it.directory }
+                    val groupedByDir = effectiveFiles.groupBy { it.directory }
                     logger.i {
                         "📚 Grouped into ${groupedByDir.size} books (by directory)"
                     }
@@ -231,6 +272,13 @@ public class DirectFileSystemScanner
                     logger.i { "Scan complete: ${scannedBooks.size} books successfully created" }
 
                     _scanProgress.value = ScanProgress.Saving
+
+                    // Update last_scan_timestamp for all scan paths after successful scan
+                    val now = System.currentTimeMillis()
+                    for (path in customPaths) {
+                        scanPathDao.updateLastScanTimestamp(path, now)
+                    }
+                    logger.i { "Updated scan timestamps for ${customPaths.size} paths" }
 
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {

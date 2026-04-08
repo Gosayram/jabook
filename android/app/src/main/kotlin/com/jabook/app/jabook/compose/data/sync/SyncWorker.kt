@@ -71,7 +71,11 @@ public class SyncWorker
             } catch (e: Exception) {
                 logger.e({ "Sync failed" }, e)
                 if (runAttemptCount < 3) {
-                    logger.w { "Sync scheduled for retry attempt=$attempt stopReason=${runCatching { stopReason }.getOrDefault(-1)}" }
+                    logger.w {
+                        "Sync scheduled for retry attempt=$attempt stopReason=${runCatching { stopReason }.getOrDefault(
+                            -1,
+                        )}"
+                    }
                     CrashDiagnostics.reportNonFatal(
                         tag = "sync_worker_retry",
                         throwable = e,

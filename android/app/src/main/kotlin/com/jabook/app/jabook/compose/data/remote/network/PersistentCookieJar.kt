@@ -146,7 +146,9 @@ public class PersistentCookieJar
                     when {
                         trimmed.startsWith("domain=") -> domain = trimmed.substringAfter("domain=")
                         trimmed.startsWith("path=") -> path = trimmed.substringAfter("path=")
-                        trimmed.startsWith("expires=") -> expiresAt = trimmed.substringAfter("expires=").toLongOrNull() ?: Long.MIN_VALUE
+                        trimmed.startsWith("expires=") ->
+                            expiresAt =
+                                trimmed.substringAfter("expires=").toLongOrNull() ?: Long.MIN_VALUE
                         trimmed == "secure" -> secure = true
                         trimmed == "httponly" -> httpOnly = true
                     }

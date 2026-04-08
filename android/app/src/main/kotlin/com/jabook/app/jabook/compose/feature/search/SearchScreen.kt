@@ -214,7 +214,10 @@ public fun SearchScreen(
                                     // Sort Button
                                     Box {
                                         IconButton(onClick = { showSortMenu = true }) {
-                                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort))
+                                            Icon(
+                                                Icons.AutoMirrored.Filled.Sort,
+                                                contentDescription = stringResource(R.string.sort),
+                                            )
                                         }
                                         DropdownMenu(
                                             expanded = showSortMenu,
@@ -250,7 +253,10 @@ public fun SearchScreen(
                                             }
                                         },
                                     ) {
-                                        Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.filters))
+                                        Icon(
+                                            Icons.Filled.FilterList,
+                                            contentDescription = stringResource(R.string.filters),
+                                        )
                                     }
                                 },
                                 colors =

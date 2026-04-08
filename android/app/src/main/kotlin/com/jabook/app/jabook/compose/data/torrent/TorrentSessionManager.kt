@@ -262,12 +262,18 @@ public class TorrentSessionManager
                 )
 
             return try {
-                logger.d { "addTorrent called: magnetUri=${magnetUri.take(100)}..., savePath=$savePath, topicId=$topicId" }
+                logger.d {
+                    "addTorrent called: magnetUri=${magnetUri.take(
+                        100,
+                    )}..., savePath=$savePath, topicId=$topicId"
+                }
 
                 // Validate magnet URI format
                 if (!magnetUri.startsWith("magnet:", ignoreCase = true)) {
                     logger.e { "Invalid magnet URI format: $magnetUri" }
-                    return Result.failure(IllegalArgumentException("Invalid magnet URI format. Must start with 'magnet:'"))
+                    return Result.failure(
+                        IllegalArgumentException("Invalid magnet URI format. Must start with 'magnet:'"),
+                    )
                 }
 
                 // Parse magnet URI to get info hash
@@ -343,7 +349,9 @@ public class TorrentSessionManager
                         }
 
                     session.download(magnetUri, saveDir, flags)
-                    logger.i { "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert..." }
+                    logger.i {
+                        "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert..."
+                    }
                     // Note: The actual torrent handle will be available in ADD_TORRENT alert
                     // We return the hash now, but the torrent won't be in torrents map until alert fires
                     Result.success(hash)
@@ -1148,6 +1156,150 @@ public class TorrentSessionManager
             return if (fileIndex < progress.size) progress[fileIndex] else 0L
         }
 
+        // ========================================
+        // Streaming-specific operations
+        // ========================================
+
+        /**
+         * Set sequential download range for a specific piece range.
+         *
+         * Limits sequential download to [range] pieces only, leaving the rest
+         * of the torrent in normal download mode. Pass `null` to reset.
+         */
+        public fun setSequentialRange(
+            hash: String,
+            range: Pair<Int, Int>?,
+        ) {
+            val handle = torrents[hash] ?: return
+            try {
+                if (range != null) {
+                    // Enable sequential for the torrent, then set piece priorities
+                    // to only sequence within the specified range
+                    val flags = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
+                    val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
+                    handle.setFlags(flags, mask)
+
+                    val ti = handle.torrentFile()
+                    if (ti != null) {
+                        val totalPieces = ti.numPieces()
+                        // Lower priority for pieces outside the range
+                        for (i in 0 until range.first) {
+                            if (i < totalPieces) {
+                                handle.piecePriority(i, org.libtorrent4j.Priority.LOW)
+                            }
+                        }
+                        for (i in (range.second + 1) until totalPieces) {
+                            handle.piecePriority(i, org.libtorrent4j.Priority.LOW)
+                        }
+                    }
+                    logger.i { "Set sequential range for $hash: ${range.first}..${range.second}" }
+                } else {
+                    // Reset: disable sequential and restore normal priorities
+                    val flags = org.libtorrent4j.swig.torrent_flags_t()
+                    val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
+                    handle.setFlags(flags, mask)
+                    logger.i { "Reset sequential range for $hash" }
+                }
+            } catch (e: Exception) {
+                logger.e({ "Failed to set sequential range for $hash" }, e)
+            }
+        }
+
+        /**
+         * Set a deadline for a specific piece.
+         *
+         * Time-critical pieces with sooner deadlines are prioritized by libtorrent.
+         * A deadline of 0 means immediate/highest priority.
+         */
+        public fun setPieceDeadline(
+            hash: String,
+            pieceIndex: Int,
+            deadlineMs: Int,
+        ) {
+            val handle = torrents[hash] ?: return
+            try {
+                handle.setPieceDeadline(pieceIndex, deadlineMs)
+                logger.d { "Set piece deadline: hash=$hash piece=$pieceIndex deadline=${deadlineMs}ms" }
+            } catch (e: Exception) {
+                logger.e({ "Failed to set piece deadline for $hash piece $pieceIndex" }, e)
+            }
+        }
+
+        /**
+         * Clear all piece deadlines for a torrent.
+         */
+        public fun clearPieceDeadlines(hash: String) {
+            val handle = torrents[hash] ?: return
+            try {
+                handle.clearPieceDeadlines()
+                logger.d { "Cleared piece deadlines for $hash" }
+            } catch (e: Exception) {
+                logger.e({ "Failed to clear piece deadlines for $hash" }, e)
+            }
+        }
+
+        /**
+         * Check if a specific piece has been downloaded.
+         */
+        public fun havePiece(
+            hash: String,
+            pieceIndex: Int,
+        ): Boolean {
+            val handle = torrents[hash] ?: return false
+            return try {
+                handle.havePiece(pieceIndex)
+            } catch (e: Exception) {
+                logger.e({ "Failed to check piece $pieceIndex for $hash" }, e)
+                false
+            }
+        }
+
+        /**
+         * Read data from a downloaded piece.
+         *
+         * Returns empty array if the piece is not available or read fails.
+         */
+        public fun readPiece(
+            hash: String,
+            pieceIndex: Int,
+        ): ByteArray {
+            val handle = torrents[hash] ?: return ByteArray(0)
+            return try {
+                if (!handle.havePiece(pieceIndex)) return ByteArray(0)
+                // Synchronous piece read: readPiece in libtorrent4j is async (fires alert).
+                // For now, return empty — a proper async read-queue will be built in TS-B.
+                // TODO(TS-B): Implement async piece read with ReadPieceAlert listener.
+                ByteArray(0)
+            } catch (e: Exception) {
+                logger.e({ "Failed to read piece $pieceIndex for $hash" }, e)
+                ByteArray(0)
+            }
+        }
+
+        /**
+         * Get the piece range `(firstPiece..lastPiece)` for a file within a torrent.
+         *
+         * Returns null if metadata is not yet available.
+         */
+        public fun getFilePieceRange(
+            hash: String,
+            fileIndex: Int,
+        ): Pair<Int, Int>? {
+            val handle = torrents[hash] ?: return null
+            return try {
+                val ti = handle.torrentFile() ?: return null
+                if (fileIndex < 0 || fileIndex >= ti.numFiles()) return null
+                val firstPiece = ti.mapFile(fileIndex, 0, 0).piece()
+                val fileSize = ti.files().fileSize(fileIndex)
+                val lastByteOffset = (fileSize - 1).coerceAtLeast(0)
+                val lastPiece = ti.mapFile(fileIndex, lastByteOffset, 0).piece()
+                Pair(firstPiece, lastPiece)
+            } catch (e: Exception) {
+                logger.e({ "Failed to get piece range for file $fileIndex in $hash" }, e)
+                null
+            }
+        }
+
         private fun calculateEta(status: TorrentStatus): Long {
             val remaining = status.totalWanted() - status.totalWantedDone()
             val speed = status.downloadRate()
@@ -1182,7 +1334,10 @@ public class TorrentSessionManager
                     magnetUri.lowercase()
                 } else {
                     // Try to extract from any URI format
-                    val anyHashRegex = "(?:urn:btih:|btih:)?([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})".toRegex(RegexOption.IGNORE_CASE)
+                    val anyHashRegex =
+                        "(?:urn:btih:|btih:)?([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})".toRegex(
+                            RegexOption.IGNORE_CASE,
+                        )
                     anyHashRegex
                         .find(magnetUri)
                         ?.groupValues

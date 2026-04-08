@@ -674,7 +674,10 @@ internal class PlayerListener(
                     LogUtils.i("AudioPlayerService", "Audio focus lost, position saved")
                 }
                 Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY -> {
-                    LogUtils.i("AudioPlayerService", "Audio becoming noisy (e.g., headphones unplugged), position saved")
+                    LogUtils.i(
+                        "AudioPlayerService",
+                        "Audio becoming noisy (e.g., headphones unplugged), position saved",
+                    )
                 }
                 Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> {
                     LogUtils.d("AudioPlayerService", "User paused playback, position saved")

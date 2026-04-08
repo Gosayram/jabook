@@ -73,7 +73,11 @@ public class EncodingDetector
             }
 
             // Check for BOMs (Byte Order Marks)
-            if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) {
+            if (bytes.size >= 3 &&
+                bytes[0] == 0xEF.toByte() &&
+                bytes[1] == 0xBB.toByte() &&
+                bytes[2] == 0xBF.toByte()
+            ) {
                 return Charsets.UTF_8
             }
             if (bytes.size >= 2) {
@@ -411,7 +415,9 @@ public class EncodingDetector
 
                         if (conf > 0.6 && conf > currentConf) { // Threshold 0.6
                             logger.e {
-                                "Fixed garbled text: $source -> $target (confidence: $conf | original: ${cleanText.take(50)})"
+                                "Fixed garbled text: $source -> $target (confidence: $conf | original: ${cleanText.take(
+                                    50,
+                                )})"
                             }
                             return Pair(fixed, "$source->$target")
                         }

@@ -108,7 +108,14 @@ internal fun ExpandableSpoiler(
             )
             Icon(
                 imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                contentDescription = if (expanded) stringResource(R.string.collapse) else stringResource(R.string.expand),
+                contentDescription =
+                    if (expanded) {
+                        stringResource(
+                            R.string.collapse,
+                        )
+                    } else {
+                        stringResource(R.string.expand)
+                    },
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

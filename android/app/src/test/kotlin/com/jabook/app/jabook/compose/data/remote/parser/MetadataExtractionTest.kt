@@ -123,6 +123,9 @@ class MetadataExtractionTest {
         assertTrue("Description should not contain Year: $desc", !desc.contains("Год выпуска"))
         assertTrue("Description should not contain Authors: $desc", !desc.contains("Авторы"))
         // It SHOULD contain "От издателя" content or at least the text
-        assertTrue("Description should contain description text. Actual: '$desc'", desc.contains("Жизнь Саши Самохиной"))
+        assertTrue(
+            "Description should contain description text. Actual: '$desc'",
+            desc.contains("Жизнь Саши Самохиной"),
+        )
     }
 }

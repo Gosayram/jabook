@@ -80,7 +80,8 @@ public object ChapterUtils {
         // Group 1: Prefix
         // Group 2: Number
         // Group 3: Remainder (suffix)
-        val genericPattern = Regex("""^(?:Chapter|Глава|Ch|Гл|Track|File|Audio)[ ._-]*(\d+)(.*)$""", RegexOption.IGNORE_CASE)
+        val genericPattern =
+            Regex("""^(?:Chapter|Глава|Ch|Гл|Track|File|Audio)[ ._-]*(\d+)(.*)$""", RegexOption.IGNORE_CASE)
         val match = genericPattern.find(chapter.title)
 
         if (match != null) {

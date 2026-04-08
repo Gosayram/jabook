@@ -16,6 +16,8 @@ package com.jabook.app.jabook.compose.core.navigation
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicInteger
 
 class NavigationClickGuardTest {
     @Test
@@ -62,5 +64,53 @@ class NavigationClickGuardTest {
 
         assertEquals(1, firstInvocations)
         assertEquals(1, secondInvocations)
+    }
+
+    @Test
+    fun `run accepts click exactly at interval boundary`() {
+        var now = 4_000L
+        val guard = NavigationClickGuard(minIntervalMs = 350L, nowMsProvider = { now })
+        var invocations = 0
+
+        guard.run { invocations++ } // accepted
+        now += 350L // exactly at boundary
+        guard.run { invocations++ } // accepted (>= interval)
+
+        assertEquals(2, invocations)
+    }
+
+    @Test
+    fun `run handles burst of many rapid clicks accepting only first`() {
+        var now = 7_000L
+        val guard = NavigationClickGuard(minIntervalMs = 500L, nowMsProvider = { now })
+        var invocations = 0
+
+        repeat(20) {
+            guard.run { invocations++ }
+            now += 25L // well within interval
+        }
+
+        assertEquals(1, invocations)
+    }
+
+    @Test
+    fun `run is thread-safe under concurrent access`() {
+        val guard = NavigationClickGuard(minIntervalMs = 100L, nowMsProvider = { System.currentTimeMillis() })
+        val invocations = AtomicInteger(0)
+        val threadCount = 10
+        val latch = CountDownLatch(threadCount)
+        val threads =
+            (0 until threadCount).map {
+                Thread {
+                    guard.run { invocations.incrementAndGet() }
+                    latch.countDown()
+                }
+            }
+
+        threads.forEach { it.start() }
+        latch.await()
+
+        // Only one invocation should succeed (all threads start nearly simultaneously)
+        assertEquals(1, invocations.get())
     }
 }

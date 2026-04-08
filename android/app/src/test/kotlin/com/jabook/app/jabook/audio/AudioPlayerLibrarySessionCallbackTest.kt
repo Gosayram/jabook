@@ -20,10 +20,10 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import androidx.test.core.app.ApplicationProvider
-import com.jabook.app.jabook.audio.MediaSessionManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Before
@@ -72,6 +72,11 @@ class AudioPlayerLibrarySessionCallbackTest {
         // Default durations
         whenever(mediaSessionManager.getRewindDuration()).thenReturn(15L)
         whenever(mediaSessionManager.getForwardDuration()).thenReturn(30L)
+
+        // Mock repository flows to prevent NPE in notifyLibraryRootsChanged
+        whenever(torrentRepository.getAllFlow()).thenReturn(flowOf(emptyList()))
+        // Note: retrievePersistedPlayerState() is a suspend function and doesn't need mocking here
+        // because notifyLibraryRootsChanged() returns early when session is not MediaLibrarySession
 
         session = mock()
         controller = mock()

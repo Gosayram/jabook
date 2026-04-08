@@ -220,8 +220,12 @@ private fun StateBadge(
             TorrentState.ERROR -> stringResource(R.string.error_state) to MaterialTheme.colorScheme.error
             TorrentState.SEEDING -> stringResource(R.string.seeding_state) to MaterialTheme.colorScheme.tertiary
             TorrentState.STREAMING -> stringResource(R.string.streaming_state) to MaterialTheme.colorScheme.secondary
-            TorrentState.CHECKING -> stringResource(R.string.checking_state) to MaterialTheme.colorScheme.onSurfaceVariant
-            TorrentState.DOWNLOADING_METADATA -> stringResource(R.string.metadata_state) to MaterialTheme.colorScheme.onSurfaceVariant
+            TorrentState.CHECKING ->
+                stringResource(R.string.checking_state) to
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            TorrentState.DOWNLOADING_METADATA ->
+                stringResource(R.string.metadata_state) to
+                    MaterialTheme.colorScheme.onSurfaceVariant
             TorrentState.QUEUED -> stringResource(R.string.queued_state) to MaterialTheme.colorScheme.onSurfaceVariant
             TorrentState.STOPPED -> stringResource(R.string.stopped_state) to MaterialTheme.colorScheme.onSurfaceVariant
         }

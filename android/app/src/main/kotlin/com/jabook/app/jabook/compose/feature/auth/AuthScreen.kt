@@ -76,6 +76,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 
@@ -91,6 +92,8 @@ public fun AuthScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    val navigationClickGuard = remember { NavigationClickGuard() }
+
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(true) }
@@ -103,7 +106,7 @@ public fun AuthScreen(
     // Handle WebView Login Navigation
     LaunchedEffect(uiState.showWebViewLogin) {
         if (uiState.showWebViewLogin) {
-            onNavigateToWebView(viewModel.getLoginUrl())
+            navigationClickGuard.run { onNavigateToWebView(viewModel.getLoginUrl()) }
         }
     }
 
@@ -131,7 +134,7 @@ public fun AuthScreen(
 
     LaunchedEffect(authStatus) {
         if (authStatus is AuthStatus.Authenticated) {
-            onNavigateBack()
+            navigationClickGuard.run { onNavigateBack() }
         }
     }
 

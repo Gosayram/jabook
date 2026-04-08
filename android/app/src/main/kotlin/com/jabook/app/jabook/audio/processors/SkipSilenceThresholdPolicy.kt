@@ -24,6 +24,15 @@ internal object SkipSilenceThresholdPolicy {
     private const val MAX_SILENCE_MS = 300
     private const val DEFAULT_MIN_SILENCE_MS = 250
 
+    /** Minimum retain window in ms (below this, speech-to-silence transitions clip). */
+    private const val MIN_RETAIN_WINDOW_MS = 50
+
+    /** Maximum retain window in ms (above this, skip-silence effectiveness drops). */
+    private const val MAX_RETAIN_WINDOW_MS = 80
+
+    /** Default retain window: 65 ms — a good balance between smoothness and skip efficiency. */
+    private const val DEFAULT_RETAIN_WINDOW_MS = 65
+
     fun toNormalizedAmplitude(thresholdDb: Float): Float {
         val clampedDb =
             if (thresholdDb.isFinite()) {
@@ -39,5 +48,19 @@ internal object SkipSilenceThresholdPolicy {
             DEFAULT_MIN_SILENCE_MS
         } else {
             valueMs.coerceIn(MIN_SILENCE_MS, MAX_SILENCE_MS)
+        }
+
+    /**
+     * Sanitizes the retain-window duration in milliseconds.
+     *
+     * The retain window determines how many milliseconds of silence are kept
+     * before speech resumes, preventing harsh clipping. Values outside the
+     * 50–80 ms range are clamped; non-positive values fall back to the default.
+     */
+    fun sanitizeRetainWindowMs(valueMs: Int): Int =
+        if (valueMs <= 0) {
+            DEFAULT_RETAIN_WINDOW_MS
+        } else {
+            valueMs.coerceIn(MIN_RETAIN_WINDOW_MS, MAX_RETAIN_WINDOW_MS)
         }
 }
