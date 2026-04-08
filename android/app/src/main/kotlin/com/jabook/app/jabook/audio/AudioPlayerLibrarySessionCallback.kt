@@ -330,7 +330,7 @@ public class AudioPlayerLibrarySessionCallback(
         session: MediaSession,
         args: Bundle,
     ): ListenableFuture<SessionResult> =
-        service.playerServiceScope.future(Dispatchers.IO) {
+        service.playerServiceScope.future {
             try {
                 val parsedArgs = SetPlaylistCommandArgsParser.parse(args)
                 if (parsedArgs == null) {
