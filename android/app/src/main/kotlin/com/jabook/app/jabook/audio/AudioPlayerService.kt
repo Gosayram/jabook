@@ -1801,10 +1801,10 @@ public class AudioPlayerService : MediaLibraryService() {
 
         playbackTimer?.release()
         playbackTimer = null
-
+        crossfadeHandler?.stopMonitoring()
+        crossfadeHandler = null
         crossFadePlayer?.release()
         crossFadePlayer = null
-        crossfadeHandler = null
 
         audioVisualizerManager?.release()
         audioVisualizerManager = null
@@ -1830,6 +1830,8 @@ public class AudioPlayerService : MediaLibraryService() {
 
         updateLayoutJob?.cancel()
         updateLayoutJob = null
+
+        playerConfigurator?.release()
 
         isFullyInitializedFlag = false
     }

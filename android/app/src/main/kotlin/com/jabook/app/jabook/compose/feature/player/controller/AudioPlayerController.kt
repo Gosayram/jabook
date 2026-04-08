@@ -276,6 +276,70 @@ public class AudioPlayerController
                 }
             }
 
+        /**
+         * ExoPlayer fallback listener for UI state updates when MediaController is not connected.
+         *
+         * This listener is attached to the injected ExoPlayer singleton when:
+         * - Controller is first initialized (before MediaController connects)
+         * - MediaController fails to connect after all retries
+         *
+         * It is detached when MediaController successfully connects to avoid
+         * double-updating the same StateFlows from two different player sources.
+         */
+        private val exoPlayerFallbackListener =
+            object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    _isPlaying.value = isPlaying
+                }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    _duration.value = exoPlayer.duration.coerceAtLeast(0)
+                    if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
+                        _currentPosition.value = exoPlayer.currentPosition
+                    }
+                }
+
+                override fun onPositionDiscontinuity(
+                    oldPosition: Player.PositionInfo,
+                    newPosition: Player.PositionInfo,
+                    reason: Int,
+                ) {
+                    _currentPosition.value = exoPlayer.currentPosition
+                    _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
+                }
+
+                override fun onMediaItemTransition(
+                    mediaItem: MediaItem?,
+                    reason: Int,
+                ) {
+                    _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
+                    _duration.value = exoPlayer.duration.coerceAtLeast(0)
+                    updateStats(exoPlayer)
+                }
+
+                override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                    updateStats(exoPlayer)
+                }
+
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    updateStats(exoPlayer)
+                }
+            }
+
+        private fun attachExoPlayerFallbackListener() {
+            if (exoFallbackListenerAttached) return
+            exoPlayer.addListener(exoPlayerFallbackListener)
+            exoFallbackListenerAttached = true
+            logger.d { "ExoPlayer fallback listener attached" }
+        }
+
+        private fun detachExoPlayerFallbackListener() {
+            if (!exoFallbackListenerAttached) return
+            exoPlayer.removeListener(exoPlayerFallbackListener)
+            exoFallbackListenerAttached = false
+            logger.d { "ExoPlayer fallback listener detached" }
+        }
+
         private fun updateStats(controller: Player = mediaController ?: exoPlayer) {
             // audioFormat and audioSessionId are only available in ExoPlayer, not in Player interface
             // Use exoPlayer as fallback for stats when using MediaController
@@ -308,6 +372,10 @@ public class AudioPlayerController
         }
 
         init {
+            // Attach ExoPlayer fallback listener immediately so UI gets state updates
+            // even when MediaController is not yet connected
+            attachExoPlayerFallbackListener()
+
             // Initialize MediaController for proper Media3 integration
             initMediaController()
 
@@ -392,10 +460,7 @@ public class AudioPlayerController
                             }
                             mediaController = controller
                             // MediaController connected: detach fallback listener to avoid double updates.
-                            if (exoFallbackListenerAttached) {
-                                exoPlayer.removeListener(mediaControllerListener)
-                                exoFallbackListenerAttached = false
-                            }
+                            detachExoPlayerFallbackListener()
                             controller?.addListener(mediaControllerListener)
 
                             // Initialize state from MediaController
@@ -467,7 +532,9 @@ public class AudioPlayerController
                 logger.e {
                     "MediaController initialization failed after $maxRetries retries ($reason), keeping queued commands and restarting retry cycle"
                 }
-                _connectionState.value = ConnectionState.DISCONNECTED
+                _connectionState.value = ConnectionState.FAILED_USING_FALLBACK
+                // Re-attach ExoPlayer fallback listener so UI continues receiving state updates
+                attachExoPlayerFallbackListener()
                 mediaControllerRetryJob?.cancel()
                 mediaControllerRetryJob =
                     scope.launch {
@@ -909,10 +976,7 @@ public class AudioPlayerController
             loadBookRetryAttempts = 0
             pendingCommands.clear()
 
-            if (exoFallbackListenerAttached) {
-                exoPlayer.removeListener(mediaControllerListener)
-                exoFallbackListenerAttached = false
-            }
+            detachExoPlayerFallbackListener()
             mediaController?.removeListener(mediaControllerListener)
             mediaController?.release()
             mediaController = null
