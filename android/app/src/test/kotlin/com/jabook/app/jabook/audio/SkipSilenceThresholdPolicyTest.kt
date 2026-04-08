@@ -40,4 +40,20 @@ class SkipSilenceThresholdPolicyTest {
         assertEquals(250, SkipSilenceThresholdPolicy.sanitizeMinSilenceMs(250))
         assertEquals(300, SkipSilenceThresholdPolicy.sanitizeMinSilenceMs(500))
     }
+
+    @Test
+    fun `sanitizeRetainWindowMs returns default for non-positive values`() {
+        assertEquals(65, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(0))
+        assertEquals(65, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(-1))
+        assertEquals(65, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(-100))
+    }
+
+    @Test
+    fun `sanitizeRetainWindowMs clamps to 50-80 ms range`() {
+        assertEquals(50, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(10))
+        assertEquals(50, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(50))
+        assertEquals(65, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(65))
+        assertEquals(80, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(80))
+        assertEquals(80, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(200))
+    }
 }

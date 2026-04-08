@@ -124,12 +124,13 @@ public object AudioProcessorFactory {
                             silenceThresholdNormalized = settings.skipSilenceThresholdNormalized,
                             minSilenceDurationMs = settings.skipSilenceMinDurationMs,
                             mode = settings.skipSilenceMode,
+                            retainWindowMs = settings.retainWindowMs,
                         )
                     processors.add(silenceSkippingProcessor)
 
                     android.util.Log.d(
                         "AudioProcessorFactory",
-                        "Added SkipSilenceAudioProcessor to chain (threshold=${settings.skipSilenceThresholdNormalized}, minMs=${settings.skipSilenceMinDurationMs})",
+                        "Added SkipSilenceAudioProcessor to chain (threshold=${settings.skipSilenceThresholdNormalized}, minMs=${settings.skipSilenceMinDurationMs}, retainMs=${settings.retainWindowMs})",
                     )
                 } catch (e: Exception) {
                     android.util.Log.e("AudioProcessorFactory", "Failed to create SkipSilenceAudioProcessor", e)
@@ -165,10 +166,21 @@ public data class AudioProcessingSettings(
     val skipSilenceThresholdNormalized: Float = 0.015f,
     val skipSilenceMinDurationMs: Int = 250,
     val skipSilenceMode: SkipSilenceMode = SkipSilenceMode.SKIP,
+    /**
+     * Duration in ms of silence retained before speech resumes.
+     *
+     * Keeps the last [retainWindowMs] of each silence block so that
+     * silence→speech transitions sound natural rather than clipped.
+     * Range: 50–80 ms (default 65 ms).
+     */
+    val retainWindowMs: Int = DEFAULT_RETAIN_WINDOW_MS,
     val isCrossfadeEnabled: Boolean = false,
     val crossfadeDurationMs: Long = 0L,
 ) {
     public companion object {
+        /** Default retain window (65 ms) — balance between smoothness and skip efficiency. */
+        public const val DEFAULT_RETAIN_WINDOW_MS: Int = 65
+
         /**
          * Creates default settings (all features disabled).
          */
@@ -183,6 +195,7 @@ public data class AudioProcessingSettings(
                 skipSilenceThresholdNormalized = 0.015f,
                 skipSilenceMinDurationMs = 250,
                 skipSilenceMode = SkipSilenceMode.SKIP,
+                retainWindowMs = DEFAULT_RETAIN_WINDOW_MS,
                 isCrossfadeEnabled = false,
                 crossfadeDurationMs = 2000L,
             )
