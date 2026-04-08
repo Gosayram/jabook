@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
@@ -303,15 +304,16 @@ public class AudioPlayerService : MediaLibraryService() {
 
     private val foregroundNotificationCoordinator by lazy {
         ForegroundNotificationCoordinator(
-            startForegroundCall = { notificationId, notification ->
-                startForeground(notificationId, notification)
-            },
-            logDebug = { message ->
-                LogUtils.d("AudioPlayerService", message)
-            },
-            logWarn = { message, throwable ->
-                LogUtils.w("AudioPlayerService", message, throwable)
-            },
+            policy =
+                ForegroundServiceStartPolicy(
+                    logDebug = { message ->
+                        LogUtils.d("AudioPlayerService", message)
+                    },
+                    logWarn = { message, throwable ->
+                        LogUtils.w("AudioPlayerService", message, throwable)
+                    },
+                ),
+            serviceType = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
         )
     }
 
@@ -529,6 +531,7 @@ public class AudioPlayerService : MediaLibraryService() {
                 }
             val foregroundStartResult =
                 foregroundNotificationCoordinator.startWithFallback(
+                    service = this,
                     notificationId = NotificationHelper.NOTIFICATION_ID,
                     primaryNotification = initialNotification,
                     fallbackNotificationProvider = { helper.createFallbackNotification() },
@@ -1691,6 +1694,7 @@ public class AudioPlayerService : MediaLibraryService() {
                                     }.build()
 
                             foregroundNotificationCoordinator.startWithFallback(
+                                service = this@AudioPlayerService,
                                 notificationId = notificationId,
                                 primaryNotification = nonDismissibleNotification,
                                 fallbackNotificationProvider = {

@@ -27,6 +27,8 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.ForegroundServiceStartPolicy
+import com.jabook.app.jabook.audio.ForegroundStartOutcome
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.AndroidEntryPoint
@@ -55,6 +57,12 @@ public class TorrentDownloadService : Service() {
     private val logger = loggerFactory.get("TorrentDownloadService")
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var wakeLock: PowerManager.WakeLock? = null
+
+    private val foregroundStartPolicy =
+        ForegroundServiceStartPolicy(
+            logDebug = { message -> logger.i { message } },
+            logWarn = { message, throwable -> logger.e({ message }, throwable) },
+        )
 
     override fun onCreate() {
         super.onCreate()
@@ -126,17 +134,20 @@ public class TorrentDownloadService : Service() {
 
         val notification = createForegroundNotification()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
+        val outcome =
+            foregroundStartPolicy.startForeground(
+                this,
                 NOTIFICATION_ID_FOREGROUND,
                 notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                "torrent-onCreate",
             )
-        } else {
-            startForeground(NOTIFICATION_ID_FOREGROUND, notification)
-        }
 
-        acquireWakeLock()
+        if (outcome == ForegroundStartOutcome.SUCCESS) {
+            acquireWakeLock()
+        } else {
+            logger.e { "startForeground() failed with outcome=$outcome, service may be killed" }
+        }
     }
 
     private fun createNotificationChannel() {

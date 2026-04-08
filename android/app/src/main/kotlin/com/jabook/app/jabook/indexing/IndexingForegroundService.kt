@@ -20,11 +20,14 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.ForegroundServiceStartPolicy
+import com.jabook.app.jabook.audio.ForegroundStartOutcome
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
@@ -52,6 +55,12 @@ public class IndexingForegroundService : Service() {
 
     @Inject
     public lateinit var authRepository: AuthRepository
+
+    private val foregroundStartPolicy =
+        ForegroundServiceStartPolicy(
+            logDebug = { message -> Log.d(TAG, message) },
+            logWarn = { message, throwable -> Log.w(TAG, message, throwable) },
+        )
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var indexingJob: Job? = null
@@ -198,13 +207,26 @@ public class IndexingForegroundService : Service() {
      */
     private fun startForegroundWithNotification() {
         Log.i(TAG, "Starting foreground service with notification ID: $NOTIFICATION_ID")
-        try {
-            val notification = createNotification(IndexingProgress.Idle)
-            startForeground(NOTIFICATION_ID, notification)
-            Log.i(TAG, "✅ Foreground service started successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to start foreground service", e)
-            throw e
+        val notification = createNotification(IndexingProgress.Idle)
+        val outcome =
+            foregroundStartPolicy.startForeground(
+                this,
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                "indexing-start",
+            )
+        when (outcome) {
+            ForegroundStartOutcome.SUCCESS ->
+                Log.i(TAG, "✅ Foreground service started successfully via policy")
+            ForegroundStartOutcome.DENIED_BY_SYSTEM -> {
+                Log.e(TAG, "❌ Foreground service denied by system (Android 14+ permission issue)")
+                stopSelf()
+            }
+            ForegroundStartOutcome.FAILED -> {
+                Log.e(TAG, "❌ Foreground service start failed unexpectedly")
+                stopSelf()
+            }
         }
     }
 
