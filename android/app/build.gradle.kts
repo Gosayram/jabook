@@ -92,6 +92,7 @@ plugins {
     // REMOVED: kotlin-kapt - migrated to KSP for Kotlin 2.0+ compatibility
     // id("kotlin-kapt")
     id("org.jlleitschuh.gradle.ktlint")
+    id("io.gitlab.arturbosch.detekt")
     // Kotlinx serialization for type-safe navigation
     id("org.jetbrains.kotlin.plugin.serialization")
     // Compose Compiler (required for Kotlin 2.0+)
@@ -500,6 +501,22 @@ ktlint {
         include("**/kotlin/**")
     }
 }
+
+// Detekt configuration for static analysis (complements ktlint)
+// Config file: default-detekt-config.yml in project root
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    config.setFrom(files("${rootProject.projectDir}/../default-detekt-config.yml"))
+    baseline = file("${rootProject.projectDir}/../detekt-baseline.xml")
+
+    source.setFrom(
+        files(
+            "src/main/kotlin",
+        ),
+    )
+}
+
 // JaCoCo configuration for test coverage
 jacoco {
     toolVersion = "0.8.14"

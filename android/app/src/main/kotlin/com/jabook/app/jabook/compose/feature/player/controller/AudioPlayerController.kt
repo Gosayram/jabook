@@ -17,7 +17,6 @@ package com.jabook.app.jabook.compose.feature.player.controller
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -418,8 +417,7 @@ public class AudioPlayerController
                 return
             }
 
-            // CRITICAL: Use Log.e to bypass LogUtils filtering for debugging
-            Log.e("JABOOK_CONTROLLER", "initMediaController START (attempt ${retryCount + 1}/$maxRetries)")
+            logger.d { "initMediaController START (attempt ${retryCount + 1}/$maxRetries)" }
             _connectionState.value = ConnectionState.CONNECTING
 
             try {
@@ -433,7 +431,7 @@ public class AudioPlayerController
                         context,
                         ComponentName(context, AudioPlayerService::class.java),
                     )
-                Log.e("JABOOK_CONTROLLER", "SessionToken created: ${sessionToken.packageName}/${sessionToken.serviceName}")
+                logger.d { "SessionToken created: ${sessionToken.packageName}/${sessionToken.serviceName}" }
 
                 mediaControllerFuture =
                     MediaController
@@ -441,7 +439,7 @@ public class AudioPlayerController
                         .setApplicationLooper(context.mainLooper)
                         .buildAsync()
 
-                Log.e("JABOOK_CONTROLLER", "MediaController.Builder.buildAsync() called, waiting for result...")
+                logger.d { "MediaController.Builder.buildAsync() called, waiting for result..." }
 
                 mediaControllerFuture?.addListener(
                     {
@@ -474,13 +472,10 @@ public class AudioPlayerController
                                 mediaControllerRetryJob?.cancel()
                                 mediaControllerRetryJob = null
                                 flushPendingOperations(ctrl)
-                                Log.e(
-                                    "JABOOK_CONTROLLER",
-                                    "✅ MediaController CONNECTED! isPlaying=${ctrl.isPlaying}, mediaItemCount=${ctrl.mediaItemCount}",
-                                )
+                                logger.i { "MediaController CONNECTED! isPlaying=${ctrl.isPlaying}, mediaItemCount=${ctrl.mediaItemCount}" }
                                 logger.i { "MediaController initialized successfully" }
                             } ?: run {
-                                Log.e("JABOOK_CONTROLLER", "❌ MediaController is null after get()!")
+                                logger.e { "MediaController is null after get()!" }
                                 throw IllegalStateException("MediaController is null after get()")
                             }
                         } catch (e: java.util.concurrent.TimeoutException) {
@@ -494,7 +489,7 @@ public class AudioPlayerController
                                 reason = "timeout",
                             )
                         } catch (e: Exception) {
-                            Log.e("JABOOK_CONTROLLER", "❌ Exception in MediaController init: ${e.message}", e)
+                            logger.e(e) { "Exception in MediaController init: ${e.message}" }
                             logger.e(e) { "Error initializing MediaController" }
                             scheduleMediaControllerRetry(
                                 nextRetryCount = retryCount + 1,
@@ -507,7 +502,7 @@ public class AudioPlayerController
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
-                Log.e("JABOOK_CONTROLLER", "❌ Failed to create SessionToken/MediaController: ${e.message}", e)
+                logger.e(e) { "Failed to create SessionToken/MediaController: ${e.message}" }
                 logger.e(e) { "Failed to create MediaController" }
                 scheduleMediaControllerRetry(
                     nextRetryCount = retryCount + 1,
@@ -528,7 +523,7 @@ public class AudioPlayerController
                 return
             }
             if (nextRetryCount > maxRetries) {
-                Log.e("JABOOK_CONTROLLER", "❌ FAILED after $maxRetries retries ($reason), retrying controller bootstrap cycle")
+                logger.e { "FAILED after $maxRetries retries ($reason), retrying controller bootstrap cycle" }
                 logger.e {
                     "MediaController initialization failed after $maxRetries retries ($reason), keeping queued commands and restarting retry cycle"
                 }
