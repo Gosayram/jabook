@@ -51,106 +51,59 @@ public object CoverUtils {
     /**
      * Gets the cover image model for use with Coil AsyncImage.
      *
-     * Priority (most reliable first):
-     * 1. {bookId}.jpg in app storage (extracted from ID3 tags - embedded covers from MP3 files)
-     * 2. cover.jpg in book folder (from torrent/user - external files)
-     * 3. coverUrl from DB (for online books)
-     *
-     * Embedded covers from ID3 tags have highest priority as they are part of the audio file
-     * and are most reliable source of cover art.
+     * Delegates to [CoverWaterfallPolicy] for the full waterfall resolution:
+     * 1. Embedded covers (ID3 tags extracted during scan)
+     * 2. Folder images (cover.jpg, folder.jpg, etc.)
+     * 3. Online URL from database
+     * 4. Deterministic placeholder (always returns a non-null model)
      *
      * @param book The book to get cover for
      * @param context Android context (needed to access app storage)
-     * @return File pointing to cover, or coverUrl, or null
+     * @return File, URL string, or placeholder key (never null when using policy)
      */
     public fun getCoverModel(
         book: Book,
         context: android.content.Context,
     ): Any? {
-        // Priority 1: App storage (extracted from ID3 tags during scan)
-        // Embedded covers from MP3 files are most reliable as they're part of the audio file
         val coversDir = File(context.filesDir, "covers")
-        val appCover = File(coversDir, "${book.id}.jpg")
-        if (appCover.exists() && appCover.length() > 0) {
-            return appCover
+        val result =
+            CoverWaterfallPolicy.resolveCover(
+                bookId = book.id,
+                localPath = book.localPath,
+                coverUrl = book.coverUrl,
+                coversDir = coversDir,
+            )
+
+        // Placeholder source returns a key string — Coil can't load it directly,
+        // so we return null to let the caller use fallback/error drawables.
+        // The placeholder key is available via result.data if the caller wants custom handling.
+        return when (result.source) {
+            CoverWaterfallPolicy.CoverSource.PLACEHOLDER -> null
+            else -> result.data
         }
+    }
 
-        // Priority 2: cover.jpg in book folder (torrent/user provided - external files)
-        // Check for common cover files in the book folder
-        book.localPath?.let { path ->
-            val folder = File(path)
-            if (folder.exists() && folder.isDirectory) {
-                // Common names to check (case-insensitive approach below)
-                val commonNames = setOf("cover", "folder", "album", "front", "art")
-                val extensions = setOf("jpg", "jpeg", "png", "webp")
-
-                // First, check exact matches (fastest)
-                val candidates =
-                    commonNames.flatMap { name ->
-                        extensions.map { ext -> "$name.$ext" }
-                    }
-
-                // Check strict case first (Linux/Android is case sensitive)
-                for (name in candidates) {
-                    val file = File(folder, name)
-                    if (file.exists()) return file
-                }
-
-                // Fallback: simple case-insensitive search if directory listing isn't too huge
-                // This handles "Cover.jpg", "FOLDER.JPG", etc.
-                val files = folder.listFiles()
-                val imageFiles = mutableListOf<File>()
-
-                if (files != null) {
-                    for (file in files) {
-                        if (file.isFile) {
-                            val nameWithoutExt = file.nameWithoutExtension.lowercase()
-                            val ext = file.extension.lowercase()
-
-                            // Check common names
-                            if (nameWithoutExt in commonNames && ext in extensions) {
-                                return file
-                            }
-
-                            // Collect any valid image for fallback
-                            if (ext in extensions) {
-                                imageFiles.add(file)
-                            }
-                        }
-                    }
-                }
-
-                // Final Fallback: Random filename?
-                // Pick the largest image file (likely the high-res cover)
-                if (imageFiles.isNotEmpty()) {
-                    return imageFiles.maxByOrNull { it.length() }
-                }
-            }
-        }
-
-        // Priority 3: coverUrl for online books
-        // Ensure coverUrl is not blank and is a valid URL
-        // Note: For absolute URLs, use as-is. For relative URLs, they should already be normalized
-        // by CoverUrlExtractor during parsing. If not, we'll use a fallback.
-        val coverUrl = book.coverUrl
-        if (!coverUrl.isNullOrBlank()) {
-            // If already absolute, use as-is
-            if (coverUrl.startsWith("http://") || coverUrl.startsWith("https://")) {
-                return coverUrl
-            }
-            // For protocol-relative URLs
-            if (coverUrl.startsWith("//")) {
-                return "https:$coverUrl"
-            }
-            // For relative URLs, assume they were normalized during parsing
-            // If not normalized, this is a fallback (shouldn't happen in normal flow)
-            // We can't use MirrorManager here as this is an object, not a class with DI
-            // The URL should already be normalized by CoverUrlExtractor during parsing
-            return coverUrl
-        }
-
-        // No cover available
-        return null
+    /**
+     * Gets the full waterfall result including source metadata.
+     *
+     * Use this when the caller needs to know which source matched,
+     * or wants access to the deterministic placeholder key.
+     *
+     * @param book The book to get cover for
+     * @param context Android context
+     * @return [CoverWaterfallPolicy.CoverWaterfallResult] with source and data
+     */
+    public fun getCoverWaterfallResult(
+        book: Book,
+        context: android.content.Context,
+    ): CoverWaterfallPolicy.CoverWaterfallResult {
+        val coversDir = File(context.filesDir, "covers")
+        return CoverWaterfallPolicy.resolveCover(
+            bookId = book.id,
+            localPath = book.localPath,
+            coverUrl = book.coverUrl,
+            coversDir = coversDir,
+        )
     }
 
     /**
