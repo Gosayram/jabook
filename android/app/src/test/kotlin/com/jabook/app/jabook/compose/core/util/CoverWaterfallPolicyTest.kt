@@ -29,7 +29,6 @@ import java.io.File
  * Verifies each level of the cover waterfall independently and the full chain.
  */
 class CoverWaterfallPolicyTest {
-
     private val tempFolder = TemporaryFolder()
 
     @Before
@@ -220,12 +219,13 @@ class CoverWaterfallPolicyTest {
         val bookDir = tempFolder.newFolder("book")
         File(bookDir, "cover.jpg").writeBytes(ByteArray(2048))
 
-        val result = CoverWaterfallPolicy.resolveCover(
-            "book-42",
-            bookDir.absolutePath,
-            null,
-            coversDir,
-        )
+        val result =
+            CoverWaterfallPolicy.resolveCover(
+                "book-42",
+                bookDir.absolutePath,
+                null,
+                coversDir,
+            )
 
         assertEquals(CoverWaterfallPolicy.CoverSource.EMBEDDED, result.source)
         assertEquals(embeddedCover, result.data)
@@ -237,12 +237,13 @@ class CoverWaterfallPolicyTest {
         val bookDir = tempFolder.newFolder("book")
         File(bookDir, "cover.jpg").writeBytes(ByteArray(512))
 
-        val result = CoverWaterfallPolicy.resolveCover(
-            "book-99",
-            bookDir.absolutePath,
-            "https://example.com/cover.jpg",
-            coversDir,
-        )
+        val result =
+            CoverWaterfallPolicy.resolveCover(
+                "book-99",
+                bookDir.absolutePath,
+                "https://example.com/cover.jpg",
+                coversDir,
+            )
 
         assertEquals(CoverWaterfallPolicy.CoverSource.FOLDER_IMAGE, result.source)
     }
@@ -252,12 +253,13 @@ class CoverWaterfallPolicyTest {
         val coversDir = tempFolder.newFolder("covers")
         val bookDir = tempFolder.newFolder("book")
 
-        val result = CoverWaterfallPolicy.resolveCover(
-            "book-99",
-            bookDir.absolutePath,
-            "https://example.com/cover.jpg",
-            coversDir,
-        )
+        val result =
+            CoverWaterfallPolicy.resolveCover(
+                "book-99",
+                bookDir.absolutePath,
+                "https://example.com/cover.jpg",
+                coversDir,
+            )
 
         assertEquals(CoverWaterfallPolicy.CoverSource.ONLINE_URL, result.source)
         assertEquals("https://example.com/cover.jpg", result.data)
@@ -268,12 +270,13 @@ class CoverWaterfallPolicyTest {
         val coversDir = tempFolder.newFolder("covers")
         val bookDir = tempFolder.newFolder("book")
 
-        val result = CoverWaterfallPolicy.resolveCover(
-            "book-99",
-            bookDir.absolutePath,
-            null,
-            coversDir,
-        )
+        val result =
+            CoverWaterfallPolicy.resolveCover(
+                "book-99",
+                bookDir.absolutePath,
+                null,
+                coversDir,
+            )
 
         assertEquals(CoverWaterfallPolicy.CoverSource.PLACEHOLDER, result.source)
     }
@@ -282,12 +285,13 @@ class CoverWaterfallPolicyTest {
     fun `resolveCover with null localPath skips folder level`() {
         val coversDir = tempFolder.newFolder("covers")
 
-        val result = CoverWaterfallPolicy.resolveCover(
-            "book-99",
-            null,
-            "https://example.com/cover.jpg",
-            coversDir,
-        )
+        val result =
+            CoverWaterfallPolicy.resolveCover(
+                "book-99",
+                null,
+                "https://example.com/cover.jpg",
+                coversDir,
+            )
 
         assertEquals(CoverWaterfallPolicy.CoverSource.ONLINE_URL, result.source)
     }

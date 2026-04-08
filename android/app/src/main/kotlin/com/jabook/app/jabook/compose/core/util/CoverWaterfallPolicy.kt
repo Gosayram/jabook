@@ -32,7 +32,6 @@ import java.security.MessageDigest
  * which level matched and what data to load.
  */
 public object CoverWaterfallPolicy {
-
     /** Common image file basenames to search for in book directories (lowercase). */
     public val COMMON_COVER_NAMES: Set<String> = setOf("cover", "folder", "album", "front", "art")
 
@@ -57,10 +56,13 @@ public object CoverWaterfallPolicy {
     public enum class CoverSource {
         /** Cover extracted from audio file metadata tags (ID3/Vorbis). */
         EMBEDDED,
+
         /** Cover image file found in the book's local directory. */
         FOLDER_IMAGE,
+
         /** Remote cover URL from database / online source. */
         ONLINE_URL,
+
         /** Deterministic placeholder based on book identity. */
         PLACEHOLDER,
     }
@@ -102,7 +104,10 @@ public object CoverWaterfallPolicy {
      * @param coversDir app-local covers directory
      * @return result with [CoverSource.EMBEDDED] if found, null otherwise
      */
-    public fun resolveEmbedded(bookId: String, coversDir: File): CoverWaterfallResult? {
+    public fun resolveEmbedded(
+        bookId: String,
+        coversDir: File,
+    ): CoverWaterfallResult? {
         val coverFile = File(coversDir, "$bookId.jpg")
         if (coverFile.exists() && coverFile.length() > 0) {
             return CoverWaterfallResult(CoverSource.EMBEDDED, coverFile)
@@ -126,9 +131,10 @@ public object CoverWaterfallPolicy {
         if (!folder.exists() || !folder.isDirectory) return null
 
         // Step 1: Exact case match (fastest path on case-sensitive filesystems)
-        val exactCandidates = COMMON_COVER_NAMES.flatMap { name ->
-            COVER_EXTENSIONS.map { ext -> "$name.$ext" }
-        }
+        val exactCandidates =
+            COMMON_COVER_NAMES.flatMap { name ->
+                COVER_EXTENSIONS.map { ext -> "$name.$ext" }
+            }
         for (candidate in exactCandidates) {
             val file = File(folder, candidate)
             if (file.exists() && file.isFile) {
@@ -180,11 +186,12 @@ public object CoverWaterfallPolicy {
     public fun resolveOnlineUrl(coverUrl: String?): CoverWaterfallResult? {
         if (coverUrl.isNullOrBlank()) return null
 
-        val normalized = when {
-            coverUrl.startsWith("http://") || coverUrl.startsWith("https://") -> coverUrl
-            coverUrl.startsWith("//") -> "https:$coverUrl"
-            else -> coverUrl // already normalized during parsing
-        }
+        val normalized =
+            when {
+                coverUrl.startsWith("http://") || coverUrl.startsWith("https://") -> coverUrl
+                coverUrl.startsWith("//") -> "https:$coverUrl"
+                else -> coverUrl // already normalized during parsing
+            }
 
         return CoverWaterfallResult(CoverSource.ONLINE_URL, normalized)
     }
@@ -212,11 +219,12 @@ public object CoverWaterfallPolicy {
      * @return placeholder key string (e.g., "placeholder:abc123:af3b")
      */
     public fun generatePlaceholderKey(bookId: String): String {
-        val hash = MessageDigest
-            .getInstance("SHA-256")
-            .digest(bookId.toByteArray())
-            .take(2)
-            .joinToString("") { "%02x".format(it) }
+        val hash =
+            MessageDigest
+                .getInstance("SHA-256")
+                .digest(bookId.toByteArray())
+                .take(2)
+                .joinToString("") { "%02x".format(it) }
         return "placeholder:$bookId:$hash"
     }
 
