@@ -106,7 +106,9 @@ public class AudioPlayerController
                 com.jabook.app.jabook.compose.feature.player
                     .PlayerStats(),
             )
-        public val playerStats: StateFlow<com.jabook.app.jabook.compose.feature.player.PlayerStats> = _playerStats.asStateFlow()
+        public val playerStats: StateFlow<com.jabook.app.jabook.compose.feature.player.PlayerStats> =
+            _playerStats
+                .asStateFlow()
 
         // Current Book ID for isolation - ensures we don't mix data between books
         private val _currentBookId = MutableStateFlow<String?>(null)
@@ -472,7 +474,9 @@ public class AudioPlayerController
                                 mediaControllerRetryJob?.cancel()
                                 mediaControllerRetryJob = null
                                 flushPendingOperations(ctrl)
-                                logger.i { "MediaController CONNECTED! isPlaying=${ctrl.isPlaying}, mediaItemCount=${ctrl.mediaItemCount}" }
+                                logger.i {
+                                    "MediaController CONNECTED! isPlaying=${ctrl.isPlaying}, mediaItemCount=${ctrl.mediaItemCount}"
+                                }
                                 logger.i { "MediaController initialized successfully" }
                             } ?: run {
                                 logger.e { "MediaController is null after get()!" }

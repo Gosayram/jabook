@@ -53,7 +53,10 @@ public class AuthRepositoryImpl
         private val _authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Unauthenticated)
         override val authStatus: StateFlow<AuthStatus> = _authStatus.asStateFlow()
 
-        private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+        private val scope =
+            kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
+            )
 
         /**
          * Mutex to prevent concurrent login attempts.
@@ -160,7 +163,9 @@ public class AuthRepositoryImpl
                                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                                     logger.e({ "[$operationId] Validation timeout - provider may be blocking" }, e)
                                     _authStatus.value =
-                                        AuthStatus.Error("Таймаут при проверке авторизации. Возможно, провайдер блокирует соединение.")
+                                        AuthStatus.Error(
+                                            "Таймаут при проверке авторизации. Возможно, провайдер блокирует соединение.",
+                                        )
                                     return@withLock Result.failure(Exception("Authentication validation timeout"))
                                 } catch (e: Exception) {
                                     logger.e({ "[$operationId] Validation error" }, e)
@@ -182,7 +187,8 @@ public class AuthRepositoryImpl
                             } else {
                                 // Login appeared to succeed but validation failed
                                 logger.w { "[$operationId] Login succeeded but validation failed" }
-                                _authStatus.value = AuthStatus.Error("Проверка авторизации не прошла. Попробуйте еще раз.")
+                                _authStatus.value =
+                                    AuthStatus.Error("Проверка авторизации не прошла. Попробуйте еще раз.")
                                 Result.failure(Exception("Authentication validation failed"))
                             }
                         }

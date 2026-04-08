@@ -136,7 +136,10 @@ public fun TorrentDetailsScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             CircularProgressIndicator()
-                            Text("Please wait while we buffer enough data for smooth playback.", modifier = Modifier.padding(top = 8.dp))
+                            Text(
+                                "Please wait while we buffer enough data for smooth playback.",
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
                         }
                     },
                     confirmButton = {},
@@ -156,7 +159,10 @@ public fun TorrentDetailsScreen(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(contentPadding)) {
                             Text("State: ${state.state}", style = MaterialTheme.typography.bodyMedium)
-                            Text("Progress: ${(state.progress * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "Progress: ${(state.progress * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                             Text("Size: ${formatSize(state.totalSize)}", style = MaterialTheme.typography.bodyMedium)
 
                             if (state.eta > 0) {

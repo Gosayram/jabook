@@ -62,5 +62,6 @@ performance:
 style:
   active: false
 
-# We already use ktlint, so keep detekt focused on high-signal bug-prone rules.
-# formatting rules are handled by ktlint
+# We already use ktlint directly via Gradle, so detekt stays focused on
+# high-signal bug-prone rules. The formatting rule-set is not available in
+# the local Gradle detekt plugin — ktlint handles all formatting concerns.

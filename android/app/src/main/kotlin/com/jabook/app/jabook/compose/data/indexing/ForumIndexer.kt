@@ -219,7 +219,13 @@ public class ForumIndexer
 
                 for (forumId in forumIdList) {
                     try {
-                        val (updated, covers) = updateForumIncremental(forumId, maxAgeMs, currentIndexVersion, onProgress)
+                        val (updated, covers) =
+                            updateForumIncremental(
+                                forumId,
+                                maxAgeMs,
+                                currentIndexVersion,
+                                onProgress,
+                            )
                         totalUpdated += updated
                         coversToPreload.addAll(covers)
                         logger.i { "Updated forum $forumId: $updated topics" }
@@ -262,7 +268,9 @@ public class ForumIndexer
                     val fetchTime = System.currentTimeMillis() - pageStartTime
 
                     if (!response.isSuccessful) {
-                        logger.w { "Failed to fetch forum $forumId page $page: HTTP ${response.code()} (took ${fetchTime}ms)" }
+                        logger.w {
+                            "Failed to fetch forum $forumId page $page: HTTP ${response.code()} (took ${fetchTime}ms)"
+                        }
                         break
                     }
 
@@ -276,7 +284,9 @@ public class ForumIndexer
                     hasMorePages = pageResult.hasMorePages
 
                     if (topics.isEmpty()) {
-                        logger.d { "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)" }
+                        logger.d {
+                            "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)"
+                        }
                         hasMorePages = false
                     } else {
                         val validTopics = topics.filter { it.toDomain().isValid() }
@@ -303,7 +313,9 @@ public class ForumIndexer
                     }
                 } catch (e: Exception) {
                     val isNetworkError =
-                        e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketTimeoutException
+                        e is java.net.UnknownHostException ||
+                            e is java.net.ConnectException ||
+                            e is java.net.SocketTimeoutException
                     if (isNetworkError) {
                         logger.w { "Network error indexing forum $forumId page $page: ${e.message}" }
                         // Retry logic simplified for restoration; original had complex mirror switching

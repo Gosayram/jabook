@@ -251,9 +251,12 @@ public fun PlayerScreen(
                             if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                                 try {
                                     val intent =
-                                        android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                            data = android.net.Uri.fromParts("package", context.packageName, null)
-                                        }
+                                        android.content
+                                            .Intent(
+                                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                            ).apply {
+                                                data = android.net.Uri.fromParts("package", context.packageName, null)
+                                            }
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
                                     playerScreenLogger.e(e) { "Failed to open settings" }
@@ -287,9 +290,12 @@ public fun PlayerScreen(
                         if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                             try {
                                 val intent =
-                                    android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                        data = android.net.Uri.fromParts("package", context.packageName, null)
-                                    }
+                                    android.content
+                                        .Intent(
+                                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        ).apply {
+                                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                                        }
                                 context.startActivity(intent)
                             } catch (e: Exception) {
                                 playerScreenLogger.e(e) { "Failed to open settings" }
@@ -595,7 +601,10 @@ public fun PlayerScreen(
     )
 }
 
-@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
+@OptIn(
+    androidx.compose.animation.ExperimentalSharedTransitionApi::class,
+    ExperimentalMaterial3WindowSizeClassApi::class,
+)
 @Composable
 private fun PlayerContent(
     state: PlayerUiState.Success,
@@ -637,7 +646,8 @@ private fun PlayerContent(
     val windowSizeClass = AdaptiveUtils.resolveWindowSizeClass(rawWindowSizeClass, context)
 
     // Adaptive sizes for compact screens (phones)
-    val isCompact = windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+    val isCompact =
+        windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
     val playPauseButtonSize = if (isCompact) 72.dp else 80.dp
     val skipButtonSize = if (isCompact) 56.dp else 64.dp
     val seekButtonSize = if (isCompact) 48.dp else 56.dp
@@ -919,7 +929,12 @@ private fun PlayerContent(
                     ) {
                         derivedStateOf {
                             if (isDragging && chapterTimeline.totalDurationMs > 0) {
-                                (displayedProgress.coerceIn(0f, 1f) * chapterTimeline.totalDurationMs.toFloat()).toLong()
+                                (
+                                    displayedProgress.coerceIn(
+                                        0f,
+                                        1f,
+                                    ) * chapterTimeline.totalDurationMs.toFloat()
+                                ).toLong()
                             } else {
                                 chapterTimeline.globalPositionMs
                             }
@@ -1001,7 +1016,10 @@ private fun PlayerContent(
                         isPlaying = state.isPlaying,
                         chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
                         activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
+                        inactiveTrackColor =
+                            (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(
+                                alpha = 0.24f,
+                            ),
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -1075,7 +1093,12 @@ private fun PlayerContent(
                             java.util.Calendar.getInstance().apply {
                                 add(java.util.Calendar.MILLISECOND, realRemainingMs.toInt())
                             }
-                        val formattedTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(finishTime.time)
+                        val formattedTime =
+                            java.text
+                                .SimpleDateFormat(
+                                    "HH:mm",
+                                    java.util.Locale.getDefault(),
+                                ).format(finishTime.time)
                         val finishText = stringResource(R.string.finishAt, formattedTime)
 
                         Text(
@@ -1303,7 +1326,11 @@ private fun PlayerContent(
                         // First row: Speed, EQ & Repeat
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
+                            horizontalArrangement =
+                                Arrangement.spacedBy(
+                                    controlButtonSpacing,
+                                    Alignment.CenterHorizontally,
+                                ),
                         ) {
                             // Playback Speed Button
                             FilledTonalButton(
@@ -1390,7 +1417,11 @@ private fun PlayerContent(
                         // Second row: Timer & Lyrics (if available)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
+                            horizontalArrangement =
+                                Arrangement.spacedBy(
+                                    controlButtonSpacing,
+                                    Alignment.CenterHorizontally,
+                                ),
                         ) {
                             // Sleep Timer Button
                             FilledTonalButton(
@@ -1448,7 +1479,11 @@ private fun PlayerContent(
                     // Larger screens: Single row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(controlButtonSpacing, Alignment.CenterHorizontally),
+                        horizontalArrangement =
+                            Arrangement.spacedBy(
+                                controlButtonSpacing,
+                                Alignment.CenterHorizontally,
+                            ),
                     ) {
                         // Playback Speed Button
                         FilledTonalButton(
@@ -1469,7 +1504,10 @@ private fun PlayerContent(
                                             } else {
                                                 val locale = java.util.Locale.getDefault()
                                                 val isRussian = locale.language == "ru"
-                                                val symbols = java.text.DecimalFormatSymbols(if (isRussian) locale else java.util.Locale.US)
+                                                val symbols =
+                                                    java.text.DecimalFormatSymbols(
+                                                        if (isRussian) locale else java.util.Locale.US,
+                                                    )
                                                 java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
                                             }
                                         "${formattedSpeed}x"

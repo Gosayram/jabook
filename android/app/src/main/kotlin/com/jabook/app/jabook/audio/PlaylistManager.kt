@@ -527,7 +527,13 @@ internal class PlaylistManager(
         try {
             if (isSmallPlaylist) {
                 // Use simplified synchronous loading for small playlists (like Rhythm)
-                preparePlaybackSynchronous(filePaths, metadata, initialTrackIndex, initialPosition, playlistLoadStartTime)
+                preparePlaybackSynchronous(
+                    filePaths,
+                    metadata,
+                    initialTrackIndex,
+                    initialPosition,
+                    playlistLoadStartTime,
+                )
             } else {
                 // Use optimized async loading for large playlists
                 preparePlaybackAsync(
@@ -1432,7 +1438,14 @@ internal class PlaylistManager(
 
         LogUtils.d(
             "AudioPlayerService",
-            "Creating MediaSource $index from ${if (path.startsWith("http")) "URL" else "file"}: ${path.substringAfterLast('/')}",
+            "Creating MediaSource $index from ${if (path.startsWith(
+                    "http",
+                )
+            ) {
+                "URL"
+            } else {
+                "file"
+            }}: ${path.substringAfterLast('/')}",
         )
 
         val mediaItem =
@@ -1571,7 +1584,10 @@ internal class PlaylistManager(
             }
 
         if (nextTrackIndex < 0 || nextTrackIndex >= filePaths.size) {
-            LogUtils.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: index out of bounds (size=${filePaths.size})")
+            LogUtils.w(
+                "AudioPlayerService",
+                "Cannot preload track $nextTrackIndex: index out of bounds (size=${filePaths.size})",
+            )
             return
         }
 
@@ -1626,7 +1642,10 @@ internal class PlaylistManager(
                         player.addMediaSource(nextTrackIndex, mediaSource)
                         LogUtils.i("AudioPlayerService", "✅ Preloaded track $nextTrackIndex for smooth transition")
                     } else {
-                        LogUtils.v("AudioPlayerService", "Track $nextTrackIndex was loaded by another process, skipping")
+                        LogUtils.v(
+                            "AudioPlayerService",
+                            "Track $nextTrackIndex was loaded by another process, skipping",
+                        )
                     }
                 }
             } catch (e: Exception) {

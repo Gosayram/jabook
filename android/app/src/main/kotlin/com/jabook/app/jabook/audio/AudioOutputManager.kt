@@ -139,12 +139,18 @@ public class AudioOutputManager
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                     // API 31+ (Android 12+)
                     val devices = audioManager.availableCommunicationDevices
-                    val earpiece = devices.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
+                    val earpiece =
+                        devices.firstOrNull {
+                            it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+                        }
                     if (earpiece != null) {
                         try {
                             val result = audioManager.setCommunicationDevice(earpiece)
                             if (!result) {
-                                android.util.Log.w("AudioOutputManager", "Failed to set communication device to earpiece")
+                                android.util.Log.w(
+                                    "AudioOutputManager",
+                                    "Failed to set communication device to earpiece",
+                                )
                             }
                         } catch (e: Exception) {
                             android.util.Log.e("AudioOutputManager", "Error setting communication device", e)

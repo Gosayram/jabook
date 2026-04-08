@@ -407,8 +407,9 @@ public class AudioPlayerLibrarySessionCallback(
         if (includeSleepTimerCommands) {
             builder
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_TRACK, Bundle.EMPTY))
+                .add(
+                    androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_CHAPTER, Bundle.EMPTY),
+                ).add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_SLEEP_TIMER_END_OF_TRACK, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_CANCEL_SLEEP_TIMER, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE, Bundle.EMPTY))
@@ -805,7 +806,8 @@ public class AudioPlayerLibrarySessionCallback(
                                 // Download status
                                 val isDownloaded =
                                     download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.COMPLETED ||
-                                        download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.SEEDING
+                                        download.state ==
+                                        com.jabook.app.jabook.compose.data.torrent.TorrentState.SEEDING
                                 MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
 
                                 MediaMetadataExtrasHelper.run {
@@ -942,7 +944,10 @@ public class AudioPlayerLibrarySessionCallback(
                             ).apply {
                                 val isDownloaded = persistedState.filePaths.all { File(it).exists() }
                                 MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
-                                persistedState.metadata?.get("series")?.let { MediaMetadataExtrasHelper.run { addContentGroup(it) } }
+                                persistedState.metadata
+                                    ?.get(
+                                        "series",
+                                    )?.let { MediaMetadataExtrasHelper.run { addContentGroup(it) } }
                                 val isExplicit = persistedState.metadata?.get("isExplicit")?.toBoolean() ?: false
                                 MediaMetadataExtrasHelper.run { addExplicitFlag(isExplicit) }
                             }

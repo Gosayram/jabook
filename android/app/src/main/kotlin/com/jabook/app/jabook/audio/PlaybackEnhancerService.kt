@@ -169,7 +169,11 @@ public class PlaybackEnhancerService
                     }
                 }
             } catch (ex: Exception) {
-                android.util.Log.e("PlaybackEnhancerService", "Unable to update volume gain with $value: ${ex.message}", ex)
+                android.util.Log.e(
+                    "PlaybackEnhancerService",
+                    "Unable to update volume gain with $value: ${ex.message}",
+                    ex,
+                )
             }
         }
 

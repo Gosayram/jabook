@@ -170,7 +170,11 @@ public fun SettingsScreen(
         ) {
             // Authentication Section
             val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
-            SettingsSection(title = stringResource(R.string.account), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.account),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             when (val status = authStatus) {
                 is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> {
@@ -202,7 +206,11 @@ public fun SettingsScreen(
             var healthCheckInProgress by remember { mutableStateOf<String?>(null) }
             val healthStatus = remember { mutableStateOf<Map<String, Boolean?>>(emptyMap()) }
 
-            SettingsSection(title = stringResource(R.string.networkAndMirrors), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.networkAndMirrors),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             SettingsItem(
                 title = stringResource(R.string.currentMirror),
@@ -273,12 +281,18 @@ public fun SettingsScreen(
                             viewModel.addCustomMirror(domain)
                             showAddMirrorDialog = false
                             android.widget.Toast
-                                .makeText(context, context.getString(R.string.mirrorAddedFormat), android.widget.Toast.LENGTH_SHORT)
-                                .show()
+                                .makeText(
+                                    context,
+                                    context.getString(R.string.mirrorAddedFormat),
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
                         } else if (domain in availableMirrors) {
                             android.widget.Toast
-                                .makeText(context, context.getString(R.string.mirrorAlreadyAddedError), android.widget.Toast.LENGTH_SHORT)
-                                .show()
+                                .makeText(
+                                    context,
+                                    context.getString(R.string.mirrorAlreadyAddedError),
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
                         } else {
                             android.widget.Toast
                                 .makeText(
@@ -303,7 +317,11 @@ public fun SettingsScreen(
 
             var showIndexingDialog by remember { mutableStateOf(false) }
             var indexSize by remember { mutableStateOf(0) }
-            var indexMetadata by remember { mutableStateOf<com.jabook.app.jabook.compose.data.local.dao.IndexMetadata?>(null) }
+            var indexMetadata by remember {
+                mutableStateOf<com.jabook.app.jabook.compose.data.local.dao.IndexMetadata?>(
+                    null,
+                )
+            }
             var elapsedTimeStr by remember { mutableStateOf("") }
 
             // Timer for elapsed time
@@ -394,7 +412,9 @@ public fun SettingsScreen(
                         },
                 ) {
                     // Show progress bar during indexing or clearing
-                    if (isIndexing && indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress) {
+                    if (isIndexing &&
+                        indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
+                    ) {
                         val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
                         val progressValue = progress.currentForumIndex.toFloat() / progress.totalForums.toFloat()
 
@@ -496,7 +516,9 @@ public fun SettingsScreen(
             }
 
             // Indexing progress dialog
-            if (showIndexingDialog && indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle) {
+            if (showIndexingDialog &&
+                indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle
+            ) {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
                     progress = indexingProgress,
@@ -523,7 +545,11 @@ public fun SettingsScreen(
             HorizontalDivider()
 
             // Library Section
-            SettingsSection(title = stringResource(R.string.library), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.library),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             // Scan Progress
             val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
@@ -533,7 +559,13 @@ public fun SettingsScreen(
                     when (val p = scanProgress) {
                         is ScanProgress.Idle -> stringResource(R.string.tap_to_scan_now)
                         is ScanProgress.Discovery -> stringResource(R.string.scan_status_discovery, p.fileCount)
-                        is ScanProgress.Parsing -> stringResource(R.string.scan_status_parsing, p.currentBook, p.progress, p.total)
+                        is ScanProgress.Parsing ->
+                            stringResource(
+                                R.string.scan_status_parsing,
+                                p.currentBook,
+                                p.progress,
+                                p.total,
+                            )
                         is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
                         is ScanProgress.Completed -> stringResource(R.string.scan_status_complete, p.booksAdded)
                         is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
@@ -550,7 +582,10 @@ public fun SettingsScreen(
             ) {
                 // Show progress bar for active states
                 // Show progress bar for active states
-                if (scanProgress is ScanProgress.Discovery || scanProgress is ScanProgress.Parsing || scanProgress is ScanProgress.Saving) {
+                if (scanProgress is ScanProgress.Discovery ||
+                    scanProgress is ScanProgress.Parsing ||
+                    scanProgress is ScanProgress.Saving
+                ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         androidx.compose.material3.LinearProgressIndicator(
                             modifier =
@@ -594,7 +629,11 @@ public fun SettingsScreen(
             HorizontalDivider()
 
             // Audio Section
-            SettingsSection(title = stringResource(R.string.audioTitle), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.audioTitle),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             SettingsItem(
                 title = stringResource(R.string.audioSettingsTitle),
@@ -618,7 +657,11 @@ public fun SettingsScreen(
                     title = stringResource(R.string.active_downloads),
                     subtitle =
                         if (downloadCount > 0) {
-                            stringResource(R.string.downloading_count_speed, downloadCount, formatBytes(totalSpeed.toLong()) + "/s")
+                            stringResource(
+                                R.string.downloading_count_speed,
+                                downloadCount,
+                                formatBytes(totalSpeed.toLong()) + "/s",
+                            )
                         } else {
                             stringResource(R.string.downloads_paused_or_queued, activeDownloads.size)
                         },
@@ -639,7 +682,11 @@ public fun SettingsScreen(
             }
 
             // Downloads Section
-            SettingsSection(title = stringResource(R.string.downloads), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.downloads),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             val folderLauncher =
                 androidx.activity.compose.rememberLauncherForActivityResult(
@@ -764,7 +811,11 @@ public fun SettingsScreen(
             HorizontalDivider()
 
             // Backup & Restore Section
-            SettingsSection(title = stringResource(R.string.backupRestoreTitle), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.backupRestoreTitle),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             val backupState by viewModel.backupState.collectAsStateWithLifecycle()
 
@@ -879,7 +930,11 @@ public fun SettingsScreen(
             HorizontalDivider()
 
             // Cache Management Section
-            SettingsSection(title = stringResource(R.string.cacheManagement), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.cacheManagement),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
             val cacheOperation by viewModel.cacheOperation.collectAsStateWithLifecycle()
@@ -922,7 +977,13 @@ public fun SettingsScreen(
             // Clear all cache button
             SettingsItem(
                 title = stringResource(R.string.clearAllCacheButton),
-                subtitle = cacheStats?.let { stringResource(R.string.freeUpCacheSize, formatBytes(it.totalSize)) } ?: "",
+                subtitle =
+                    cacheStats?.let {
+                        stringResource(
+                            R.string.freeUpCacheSize,
+                            formatBytes(it.totalSize),
+                        )
+                    } ?: "",
                 onClick = {
                     if (cacheOperation != CacheOperationState.Clearing) {
                         showClearCacheDialog = true
@@ -966,8 +1027,11 @@ public fun SettingsScreen(
                 when (cacheOperation) {
                     is CacheOperationState.Success -> {
                         android.widget.Toast
-                            .makeText(context, context.getString(R.string.cacheClearedSuccessMessage), android.widget.Toast.LENGTH_SHORT)
-                            .show()
+                            .makeText(
+                                context,
+                                context.getString(R.string.cacheClearedSuccessMessage),
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
                         viewModel.resetCacheOperation()
                     }
                     is CacheOperationState.Error -> {
@@ -984,7 +1048,11 @@ public fun SettingsScreen(
             HorizontalDivider()
 
             // Appearance Section
-            SettingsSection(title = stringResource(R.string.appearance), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.appearance),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             SettingsItem(
                 title = stringResource(R.string.themeTitle),
@@ -1015,7 +1083,11 @@ public fun SettingsScreen(
             HorizontalDivider()
 
             // Playback Section
-            SettingsSection(title = stringResource(R.string.playback), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.playback),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             SettingsSwitchItem(
                 title = stringResource(R.string.autoplayNextChapter),
@@ -1102,7 +1174,11 @@ public fun SettingsScreen(
             HorizontalDivider()
 
             // About Section
-            SettingsSection(title = stringResource(R.string.aboutTitle), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.aboutTitle),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             SettingsItem(
                 title = stringResource(R.string.version),
@@ -1169,7 +1245,11 @@ public fun SettingsScreen(
             )
 
             // Developer Tools Section
-            SettingsSection(title = stringResource(R.string.developer), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.developer),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             SettingsItem(
                 title = stringResource(R.string.debugToolsTitle),

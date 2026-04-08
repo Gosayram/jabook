@@ -98,19 +98,52 @@ public fun AudioSettingsSheet(
                     VolumeBoostChip(
                         label = "+50%",
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost50,
-                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost50, null, null, null, null, null, null, null) },
+                        onClick = {
+                            onUpdateSettings(
+                                VolumeBoostLevel.Boost50,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                            )
+                        },
                     )
                     VolumeBoostChip(
                         label = "+100%",
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost100,
-                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost100, null, null, null, null, null, null, null) },
+                        onClick = {
+                            onUpdateSettings(
+                                VolumeBoostLevel.Boost100,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                            )
+                        },
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     VolumeBoostChip(
                         label = "+200%",
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost200,
-                        onClick = { onUpdateSettings(VolumeBoostLevel.Boost200, null, null, null, null, null, null, null) },
+                        onClick = {
+                            onUpdateSettings(
+                                VolumeBoostLevel.Boost200,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                            )
+                        },
                     )
                     VolumeBoostChip(
                         label = "Auto",

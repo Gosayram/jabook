@@ -98,7 +98,13 @@ public class AuthViewModel
                         _uiState.update { it.copy(isLoading = false, captchaData = null, error = null) }
                     }.onFailure { e ->
                         if (e is CaptchaRequiredException) {
-                            _uiState.update { it.copy(isLoading = false, captchaData = e.captchaData, error = "Captcha required") }
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    captchaData = e.captchaData,
+                                    error = "Captcha required",
+                                )
+                            }
                         } else {
                             _uiState.update { it.copy(isLoading = false, error = e.message ?: "Unknown error") }
                         }

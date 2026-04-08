@@ -118,7 +118,13 @@ public fun ChapterSelectorSheet(
                     chapters
                         .mapIndexed { index, chapter -> index to chapter }
                         .filter { (index, chapter) ->
-                            val chapterName = ChapterUtils.formatChapterName(chapter, index, chapterPrefix, normalizeEnabled)
+                            val chapterName =
+                                ChapterUtils.formatChapterName(
+                                    chapter,
+                                    index,
+                                    chapterPrefix,
+                                    normalizeEnabled,
+                                )
                             val chapterNumber = ChapterUtils.extractChapterNumber(chapter.title, index)
                             searchQuery.toIntOrNull()?.let { searchNum ->
                                 chapterNumber == searchNum
@@ -340,7 +346,13 @@ private fun ChapterSelectorItem(
         // Chapter info
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = ChapterUtils.formatChapterName(chapter, index, stringResource(R.string.chapter_prefix), normalizeEnabled),
+                text =
+                    ChapterUtils.formatChapterName(
+                        chapter,
+                        index,
+                        stringResource(R.string.chapter_prefix),
+                        normalizeEnabled,
+                    ),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight =
                     if (isCurrent) {
@@ -370,7 +382,10 @@ private fun ChapterSelectorItem(
         if (isEditing) {
             Row {
                 androidx.compose.material3.IconButton(onClick = onMoveUp) {
-                    Icon(androidx.compose.material.icons.Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.moveUp))
+                    Icon(
+                        androidx.compose.material.icons.Icons.Default.ArrowUpward,
+                        contentDescription = stringResource(R.string.moveUp),
+                    )
                 }
                 androidx.compose.material3.IconButton(onClick = onMoveDown) {
                     Icon(

@@ -269,7 +269,9 @@ public object DatabaseModule {
             )
 
             // Create indices for search_query_map
-            db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_query_map_topic_id` ON `search_query_map` (`topic_id`)")
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_search_query_map_topic_id` ON `search_query_map` (`topic_id`)",
+            )
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_query_map_query` ON `search_query_map` (`query`)")
         }
 

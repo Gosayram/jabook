@@ -151,7 +151,9 @@ public class DebugLogService
                     logs.append("Board: ${android.os.Build.BOARD}\n")
                     logs.append("Hardware: ${android.os.Build.HARDWARE}\n")
                     logs.append("Build: ${android.os.Build.FINGERPRINT}\n")
-                    logs.append("Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})\n\n")
+                    logs.append(
+                        "Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})\n\n",
+                    )
 
                     logs.append("🖥️ DISPLAY & SCREEN\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
@@ -161,7 +163,10 @@ public class DebugLogService
 
                     logs.append("💾 MEMORY\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                    val activityManager =
+                        context.getSystemService(
+                            Context.ACTIVITY_SERVICE,
+                        ) as android.app.ActivityManager
                     val memInfo = android.app.ActivityManager.MemoryInfo()
                     activityManager.getMemoryInfo(memInfo)
                     logs.append("Total RAM: ${memInfo.totalMem / (1024 * 1024)}MB\n")

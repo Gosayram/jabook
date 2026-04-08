@@ -149,7 +149,12 @@ class PlayerNotificationInvalidationCoordinatorTest {
                 logs.indexOfFirst {
                     it.contains("onPlaybackStateChanged: READY: canceled pending debounced invalidate")
                 }
-            val immediateIndex = logs.indexOfFirst { it.contains("onPlaybackStateChanged: READY: invalidating immediately") }
+            val immediateIndex =
+                logs.indexOfFirst {
+                    it.contains(
+                        "onPlaybackStateChanged: READY: invalidating immediately",
+                    )
+                }
             assertTrue(coalescedIndex >= 0)
             assertTrue(canceledIndex > coalescedIndex)
             assertTrue(immediateIndex > canceledIndex)

@@ -91,7 +91,11 @@ public fun AudioSettingsScreen(
                     .verticalScroll(rememberScrollState()),
         ) {
             // General Playback
-            SettingsSection(title = stringResource(R.string.playback_general), contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.playback_general),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             // Auto-rewind on pause
             SettingsItem(

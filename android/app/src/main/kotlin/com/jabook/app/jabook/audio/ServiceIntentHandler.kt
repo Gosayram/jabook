@@ -53,7 +53,11 @@ internal class ServiceIntentHandler(
                     PlayerWidgetProvider.EXTRA_WIDGET_ACTION_CREATED_AT_MS,
                     0L,
                 )
-            if (WidgetActionStalenessPolicy.shouldIgnore(actionCreatedAtMs = actionCreatedAtMs, nowMs = nowMsProvider())) {
+            if (WidgetActionStalenessPolicy.shouldIgnore(
+                    actionCreatedAtMs = actionCreatedAtMs,
+                    nowMs = nowMsProvider(),
+                )
+            ) {
                 android.util.Log.d(
                     "AudioPlayerService",
                     WidgetObservabilityPolicy.serviceMessage(
@@ -235,7 +239,14 @@ internal class ServiceIntentHandler(
                     val currentTimerMinutes = if (remainingSeconds != null) remainingSeconds / 60 else 0
                     val timerOptions = listOf(0, 15, 30, 45, 60)
                     val currentIndex = timerOptions.indexOf(currentTimerMinutes)
-                    val nextIndex = if (currentIndex >= 0 && currentIndex < timerOptions.size - 1) currentIndex + 1 else 0
+                    val nextIndex =
+                        if (currentIndex >= 0 &&
+                            currentIndex < timerOptions.size - 1
+                        ) {
+                            currentIndex + 1
+                        } else {
+                            0
+                        }
                     val newTimerMinutes = timerOptions[nextIndex]
 
                     if (newTimerMinutes > 0) {

@@ -77,7 +77,12 @@ public object HtmlToAnnotatedString {
                                 append("\n")
                             }
                             "sp-head" -> {
-                                withStyle(SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = linkColor)) {
+                                withStyle(
+                                    SpanStyle(
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                        color = linkColor,
+                                    ),
+                                ) {
                                     append("[ ")
                                     node.childNodes().forEach { processNode(it, linkColor) }
                                     append(" ]")

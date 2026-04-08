@@ -74,7 +74,9 @@ public class DynamicBaseUrlInterceptor
 
                 // Log successful requests (only for important endpoints)
                 if (response.isSuccessful && originalUrl.encodedPath.contains("search.php")) {
-                    logger.d { "✅ Request succeeded: ${response.code} (${requestDuration}ms) - ${originalUrl.encodedPath}" }
+                    logger.d {
+                        "✅ Request succeeded: ${response.code} (${requestDuration}ms) - ${originalUrl.encodedPath}"
+                    }
                 }
 
                 // If auto-switch is enabled and request failed, try switching mirror
@@ -122,7 +124,9 @@ public class DynamicBaseUrlInterceptor
                             val retryResponse = chain.proceed(retryRequest)
                             val retryDuration = System.currentTimeMillis() - retryStartTime
                             if (retryResponse.isSuccessful) {
-                                logger.i { "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror" }
+                                logger.i {
+                                    "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
+                                }
                             }
                             return retryResponse
                         } else {
@@ -193,11 +197,15 @@ public class DynamicBaseUrlInterceptor
                             val retryResponse = chain.proceed(retryRequest)
                             val retryDuration = System.currentTimeMillis() - retryStartTime
                             if (retryResponse.isSuccessful) {
-                                logger.i { "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror" }
+                                logger.i {
+                                    "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
+                                }
                             }
                             return retryResponse
                         } catch (retryException: Exception) {
-                            logger.e { "❌ Retry also failed with ${retryException.javaClass.simpleName}: ${retryException.message}" }
+                            logger.e {
+                                "❌ Retry also failed with ${retryException.javaClass.simpleName}: ${retryException.message}"
+                            }
                             throw retryException
                         }
                     } else {
@@ -210,7 +218,9 @@ public class DynamicBaseUrlInterceptor
                             "⚠️ Network/DNS error detected (${e.javaClass.simpleName}), but auto-switch is disabled. User must switch mirror manually."
                         }
                     } else {
-                        logger.d { "Auto-switch is disabled, not attempting mirror switch for ${e.javaClass.simpleName}" }
+                        logger.d {
+                            "Auto-switch is disabled, not attempting mirror switch for ${e.javaClass.simpleName}"
+                        }
                     }
                 }
 

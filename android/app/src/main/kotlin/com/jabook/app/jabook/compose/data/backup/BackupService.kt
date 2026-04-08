@@ -517,7 +517,11 @@ public class BackupService
                         position = backup.lastPosition.toLong(),
                         progress = backup.totalProgress,
                         chapterIndex = 0,
-                        timestamp = backup.lastPlayedTimestamp.takeIf { it > 0 }?.toLong() ?: System.currentTimeMillis(),
+                        timestamp =
+                            backup.lastPlayedTimestamp
+                                .takeIf {
+                                    it > 0
+                                }?.toLong() ?: System.currentTimeMillis(),
                     )
                     dao.updateBookSettings(
                         bookId = backup.id,

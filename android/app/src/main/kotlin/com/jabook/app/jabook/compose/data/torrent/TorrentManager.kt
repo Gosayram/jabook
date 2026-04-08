@@ -250,7 +250,9 @@ public class TorrentManager
                     initialize()
                     // Check if initialization actually succeeded
                     if (!isInitialized) {
-                        throw IllegalStateException("TorrentManager initialization failed - libtorrent4j may not be available")
+                        throw IllegalStateException(
+                            "TorrentManager initialization failed - libtorrent4j may not be available",
+                        )
                     }
                 } catch (e: Exception) {
                     logger.e({ "Failed to ensure initialization" }, e)

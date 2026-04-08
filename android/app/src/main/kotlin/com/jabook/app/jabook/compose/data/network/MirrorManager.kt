@@ -185,7 +185,9 @@ public class MirrorManager
 
                 if (checkMirrorHealth(mirror)) {
                     val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
-                    logger.i { "✅ Mirror $mirror is healthy (health check: ${healthCheckDuration}ms), switching and saving to settings..." }
+                    logger.i {
+                        "✅ Mirror $mirror is healthy (health check: ${healthCheckDuration}ms), switching and saving to settings..."
+                    }
                     setMirror(mirror) // This will save to settings via settingsRepository.updateSelectedMirror()
                     logger.i { "✅ Successfully switched from $currentDomain to $mirror and saved to settings" }
                     return true

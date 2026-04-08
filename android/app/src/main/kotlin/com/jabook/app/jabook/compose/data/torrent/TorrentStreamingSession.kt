@@ -48,7 +48,9 @@ public interface TorrentStreamingSession {
 
         init {
             require(firstPiece >= 0) { "firstPiece must be >= 0, got $firstPiece" }
-            require(lastPiece >= firstPiece) { "lastPiece must be >= firstPiece, got last=$lastPiece first=$firstPiece" }
+            require(
+                lastPiece >= firstPiece,
+            ) { "lastPiece must be >= firstPiece, got last=$lastPiece first=$firstPiece" }
         }
     }
 

@@ -140,7 +140,12 @@ public fun GestureOverlay(
                                         val delta = totalDragY / screenHeight
 
                                         activity?.window?.let { window ->
-                                            val newBrightness = gestureHandler.adjustBrightness(delta, window, initialBrightness)
+                                            val newBrightness =
+                                                gestureHandler.adjustBrightness(
+                                                    delta,
+                                                    window,
+                                                    initialBrightness,
+                                                )
                                             gestureState = gestureState.copy(value = newBrightness)
                                         }
                                     }

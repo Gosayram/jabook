@@ -262,12 +262,18 @@ public class TorrentSessionManager
                 )
 
             return try {
-                logger.d { "addTorrent called: magnetUri=${magnetUri.take(100)}..., savePath=$savePath, topicId=$topicId" }
+                logger.d {
+                    "addTorrent called: magnetUri=${magnetUri.take(
+                        100,
+                    )}..., savePath=$savePath, topicId=$topicId"
+                }
 
                 // Validate magnet URI format
                 if (!magnetUri.startsWith("magnet:", ignoreCase = true)) {
                     logger.e { "Invalid magnet URI format: $magnetUri" }
-                    return Result.failure(IllegalArgumentException("Invalid magnet URI format. Must start with 'magnet:'"))
+                    return Result.failure(
+                        IllegalArgumentException("Invalid magnet URI format. Must start with 'magnet:'"),
+                    )
                 }
 
                 // Parse magnet URI to get info hash
@@ -343,7 +349,9 @@ public class TorrentSessionManager
                         }
 
                     session.download(magnetUri, saveDir, flags)
-                    logger.i { "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert..." }
+                    logger.i {
+                        "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert..."
+                    }
                     // Note: The actual torrent handle will be available in ADD_TORRENT alert
                     // We return the hash now, but the torrent won't be in torrents map until alert fires
                     Result.success(hash)
@@ -1326,7 +1334,10 @@ public class TorrentSessionManager
                     magnetUri.lowercase()
                 } else {
                     // Try to extract from any URI format
-                    val anyHashRegex = "(?:urn:btih:|btih:)?([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})".toRegex(RegexOption.IGNORE_CASE)
+                    val anyHashRegex =
+                        "(?:urn:btih:|btih:)?([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})".toRegex(
+                            RegexOption.IGNORE_CASE,
+                        )
                     anyHashRegex
                         .find(magnetUri)
                         ?.groupValues

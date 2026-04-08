@@ -90,10 +90,12 @@ public class AudioPlayerService : MediaLibraryService() {
     public lateinit var settingsRepository: com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 
     @Inject
-    public lateinit var playbackPositionRepository: com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+    public lateinit var playbackPositionRepository:
+        com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 
     @Inject
-    public lateinit var listeningSessionRepository: com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
+    public lateinit var listeningSessionRepository:
+        com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 
     @Inject
     public lateinit var audioOutputManager: AudioOutputManager
@@ -620,7 +622,10 @@ public class AudioPlayerService : MediaLibraryService() {
             // CRITICAL: Disable PlayerNotificationManager when MediaLibrarySession is active
             // to prevent duplicate notifications and ensure system media player has priority
             if (mediaLibrarySession == null) {
-                LogUtils.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
+                LogUtils.w(
+                    "AudioPlayerService",
+                    "MediaLibrarySession not available, using PlayerNotificationManager as fallback",
+                )
                 setupPlayerNotificationManager()
             } else {
                 LogUtils.i(
@@ -1664,7 +1669,8 @@ public class AudioPlayerService : MediaLibraryService() {
                                                         @Suppress("DEPRECATION")
                                                         extras.getParcelable<android.os.Parcelable>(mediaSessionKey)
                                                     }
-                                                val compactActions = extras.getIntArray(compactActionsKey) ?: intArrayOf()
+                                                val compactActions =
+                                                    extras.getIntArray(compactActionsKey) ?: intArrayOf()
                                                 setStyle(
                                                     MediaNotificationCompat
                                                         .MediaStyle()

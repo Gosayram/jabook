@@ -216,7 +216,9 @@ public class RutrackerRepository
                             logger.e { "❌ ALL results filtered out! First DTO: ${dtoResults.first()}" }
                         }
                     } else {
-                        logger.d { "Domain mapping: ${dtoResults.size} → ${domainResults.size} in ${domainMapDuration}ms (no filtering)" }
+                        logger.d {
+                            "Domain mapping: ${dtoResults.size} → ${domainResults.size} in ${domainMapDuration}ms (no filtering)"
+                        }
                     }
 
                     val totalDuration = System.currentTimeMillis() - searchStartTime
@@ -302,7 +304,11 @@ public class RutrackerRepository
                             // Add ordering and limit
                             sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
 
-                            val simpleQuery = androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray())
+                            val simpleQuery =
+                                androidx.sqlite.db.SimpleSQLiteQuery(
+                                    sqlBuilder.toString(),
+                                    args.toArray(),
+                                )
 
                             // Emit Flow from Room
                             offlineSearchDao
@@ -387,7 +393,11 @@ public class RutrackerRepository
 
             // === HTTP RESPONSE LOGGING ===
             val networkDuration = System.currentTimeMillis() - networkStartTime
-            logger.logWithDuration(opId, "Response received: HTTP ${response.code()} ${response.message()}", networkDuration)
+            logger.logWithDuration(
+                opId,
+                "Response received: HTTP ${response.code()} ${response.message()}",
+                networkDuration,
+            )
             logger.log(opId, "Final URL: ${response.raw().request.url}", LogLevel.DEBUG)
 
             if (!response.isSuccessful) {
@@ -397,7 +407,9 @@ public class RutrackerRepository
                         403 -> RuTrackerError.Forbidden
                         404 -> RuTrackerError.NotFound
                         400 -> {
-                            logger.w { "⚠️ HTTP 400 Bad Request for query '$query' - returning empty list instead of error" }
+                            logger.w {
+                                "⚠️ HTTP 400 Bad Request for query '$query' - returning empty list instead of error"
+                            }
                             // For bad request, return empty list instead of error
                             // This prevents showing confusing error to user
                             if (operationId == null) logger.endOperation(opId, success = false)
@@ -429,7 +441,9 @@ public class RutrackerRepository
             val contentEncoding = headers["Content-Encoding"]
             logger.w { "🔍 Content-Encoding: $contentEncoding" }
             if (contentEncoding != null && contentEncoding.contains("br", ignoreCase = true)) {
-                logger.w { "⚠️ WARNING: Content-Encoding still contains 'br' - BrotliInterceptor may not have processed it!" }
+                logger.w {
+                    "⚠️ WARNING: Content-Encoding still contains 'br' - BrotliInterceptor may not have processed it!"
+                }
             }
 
             // CRITICAL: ResponseBody can only be read once!
@@ -545,7 +559,11 @@ public class RutrackerRepository
                         opId,
                         "Partial success: parsed $resultCount results with ${parsingResult.errors.size} errors (${dtoResults.size} DTO, $resultCount valid domain)",
                     )
-                    if (operationId == null) logger.endOperation(opId, success = true, "Found $resultCount results (partial)")
+                    if (operationId ==
+                        null
+                    ) {
+                        logger.endOperation(opId, success = true, "Found $resultCount results (partial)")
+                    }
                     Result.success(domainResults)
                 }
                 is ParsingResult.Failure -> {
@@ -577,7 +595,11 @@ public class RutrackerRepository
                         logger.w { "   Error details: $errorMessage" }
                         // Return empty list instead of error for bad request
                         // This prevents showing "bad request" error to user when it's just an empty/invalid result
-                        if (operationId == null) logger.endOperation(opId, success = false, "Bad request - returning empty")
+                        if (operationId ==
+                            null
+                        ) {
+                            logger.endOperation(opId, success = false, "Bad request - returning empty")
+                        }
                         Result.success(emptyList())
                     } else {
                         val error = RuTrackerError.ParsingError(errorMessage)
@@ -626,7 +648,11 @@ public class RutrackerRepository
                     try {
                         // Validate input
                         if (topicId.isBlank()) {
-                            logger.logError(operationId, "Topic ID is blank", IllegalArgumentException("Topic ID cannot be blank"))
+                            logger.logError(
+                                operationId,
+                                "Topic ID is blank",
+                                IllegalArgumentException("Topic ID cannot be blank"),
+                            )
                             return@withOperation Result.failure(IllegalArgumentException("Topic ID cannot be blank"))
                         }
 
@@ -650,7 +676,11 @@ public class RutrackerRepository
                             // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
                             val rawBytes = response.body()?.bytes() ?: byteArrayOf()
                             if (rawBytes.isEmpty()) {
-                                logger.logError(operationId, "Empty response body", IllegalArgumentException("Response body is empty"))
+                                logger.logError(
+                                    operationId,
+                                    "Empty response body",
+                                    IllegalArgumentException("Response body is empty"),
+                                )
                                 return@withOperation Result.failure(IllegalArgumentException("Response body is empty"))
                             }
 
@@ -661,7 +691,10 @@ public class RutrackerRepository
                                 // Map DTO to domain model with validation
                                 val domainDetails = dtoDetails.toDomain()
                                 if (domainDetails.isValid()) {
-                                    logger.logSuccess(operationId, "Topic details parsed and validated: ${domainDetails.title}")
+                                    logger.logSuccess(
+                                        operationId,
+                                        "Topic details parsed and validated: ${domainDetails.title}",
+                                    )
                                     Result.success(domainDetails)
                                 } else {
                                     logger.logWarning(operationId, "Topic details parsed but failed validation")
@@ -731,7 +764,8 @@ public class RutrackerRepository
                                     Result.success(parsingResult.data)
                                 }
                                 is ParsingResult.Failure -> {
-                                    val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Failed to parse categories"
+                                    val errorMessage =
+                                        parsingResult.errors.firstOrNull()?.reason ?: "Failed to parse categories"
                                     logger.logError(
                                         operationId,
                                         "Categories parsing failed: $errorMessage",

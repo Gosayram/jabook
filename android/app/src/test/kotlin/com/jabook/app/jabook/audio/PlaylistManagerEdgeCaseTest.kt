@@ -186,7 +186,9 @@ class PlaylistManagerEdgeCaseTest {
             whenever(exoPlayer.mediaItemCount).thenReturn(largePlaylist.size)
             whenever(exoPlayer.currentMediaItemIndex).thenReturn(0, 0, targetIndex, targetIndex)
             whenever(exoPlayer.currentPosition).thenReturn(0L)
-            whenever(exoPlayer.getMediaItemAt(any())).thenReturn(MediaItem.fromUri("file:///storage/book/placeholder.mp3"))
+            whenever(
+                exoPlayer.getMediaItemAt(any()),
+            ).thenReturn(MediaItem.fromUri("file:///storage/book/placeholder.mp3"))
 
             timeoutFallbackManager.preparePlaybackOptimized(
                 filePaths = largePlaylist,
@@ -217,7 +219,9 @@ class PlaylistManagerEdgeCaseTest {
             whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
             whenever(exoPlayer.mediaItemCount).thenReturn(largePlaylist.size)
             whenever(exoPlayer.currentPosition).thenReturn(0L)
-            whenever(exoPlayer.getMediaItemAt(any())).thenReturn(MediaItem.fromUri("file:///storage/book/placeholder.mp3"))
+            whenever(
+                exoPlayer.getMediaItemAt(any()),
+            ).thenReturn(MediaItem.fromUri("file:///storage/book/placeholder.mp3"))
             whenever(exoPlayer.currentMediaItemIndex).thenAnswer {
                 val value =
                     if (indexReadCount < indexSequence.size) {
@@ -273,7 +277,10 @@ class PlaylistManagerEdgeCaseTest {
 
             val persisted = persistedCaptor.firstValue
             assertEquals("book://queue", persisted.groupPath)
-            assertEquals(listOf("/storage/book/1.mp3", "/storage/book/2.mp3", "/storage/book/3.mp3"), persisted.filePaths)
+            assertEquals(
+                listOf("/storage/book/1.mp3", "/storage/book/2.mp3", "/storage/book/3.mp3"),
+                persisted.filePaths,
+            )
             assertEquals(0, persisted.currentIndex)
             assertEquals(2_500L, persisted.currentPosition)
             assertEquals("Queue Book", persisted.metadata?.get("title"))

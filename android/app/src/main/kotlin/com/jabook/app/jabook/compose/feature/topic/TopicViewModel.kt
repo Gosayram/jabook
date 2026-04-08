@@ -399,11 +399,15 @@ public class TopicViewModel
                     _message.value = context.getString(R.string.authenticationRequired)
                 } catch (e: IllegalStateException) {
                     logger.e(e) { "Illegal state during torrent download" }
-                    _message.value = context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
+                    _message.value =
+                        context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
                 } catch (e: Exception) {
                     logger.e(e) { "Unexpected error starting torrent download" }
                     _message.value =
-                        context.getString(R.string.failedToStartDownloadWithError, e.message ?: context.getString(R.string.unknownError))
+                        context.getString(
+                            R.string.failedToStartDownloadWithError,
+                            e.message ?: context.getString(R.string.unknownError),
+                        )
                 }
             }
         }
@@ -443,7 +447,8 @@ public class TopicViewModel
                             }
                         } else {
                             logger.e { "Failed to download torrent file: ${response.code()}" }
-                            _message.value = context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code())
+                            _message.value =
+                                context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code())
                         }
                     }
                 } catch (e: RuTrackerError.Unauthorized) {

@@ -176,7 +176,14 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                         )
 
                     if (controller != null) {
-                        updateWidgetFromController(context, views, controller, widgetSize, appWidgetManager, appWidgetId)
+                        updateWidgetFromController(
+                            context,
+                            views,
+                            controller,
+                            widgetSize,
+                            appWidgetManager,
+                            appWidgetId,
+                        )
                     } else {
                         android.util.Log.w(
                             "PlayerWidget",

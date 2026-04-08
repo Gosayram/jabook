@@ -776,7 +776,8 @@ private fun ExpandableDescription(
             calculateWindowSizeClass(it)
         }
     val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
-    val isCompact = windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+    val isCompact =
+        windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
 
     // Adaptive preview length based on screen size
     val maxPreviewLength = if (isCompact) 80 else 100
@@ -814,8 +815,10 @@ private fun ExpandableDescription(
                     // Clean HTML description before parsing
                     val cleanedHtml =
                         descriptionHtml
-                            .replace(Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL), "<br>")
-                            .replace(Regex("<br\\s*/?>\\s*<br\\s*/?>+"), "<br><br>") // Normalize multiple <br> tags
+                            .replace(
+                                Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL),
+                                "<br>",
+                            ).replace(Regex("<br\\s*/?>\\s*<br\\s*/?>+"), "<br><br>") // Normalize multiple <br> tags
                             .trim()
                     com.jabook.app.jabook.compose.core.util.HtmlBlockParser
                         .parse(cleanedHtml, linkColor)
@@ -897,7 +900,11 @@ private fun ExpandableComments(
 
     // Auto-load more when scrolled near bottom
     LaunchedEffect(listState.canScrollForward, listState.isScrollInProgress) {
-        if (!listState.canScrollForward && !listState.isScrollInProgress && !isLoadingMore && currentPage < totalPages) {
+        if (!listState.canScrollForward &&
+            !listState.isScrollInProgress &&
+            !isLoadingMore &&
+            currentPage < totalPages
+        ) {
             onLoadMore?.invoke()
         }
     }

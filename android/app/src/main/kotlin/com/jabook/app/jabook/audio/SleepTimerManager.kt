@@ -392,7 +392,10 @@ internal class SleepTimerManager(
                 try {
                     Toast.makeText(context, R.string.sleepTimerExtended, Toast.LENGTH_SHORT).show()
                 } catch (toastError: Exception) {
-                    LogUtils.w("AudioPlayerService", "Failed to show sleep timer extension toast: ${toastError.message}")
+                    LogUtils.w(
+                        "AudioPlayerService",
+                        "Failed to show sleep timer extension toast: ${toastError.message}",
+                    )
                 }
             }
 
@@ -445,7 +448,10 @@ internal class SleepTimerManager(
                 SleepTimerPersistedState(
                     endTimeMillis = prefs.getLong(SleepTimerPersistence.KEY_END_TIME, 0L),
                     endOfChapter = prefs.getBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, false),
-                    mode = prefs.getString(SleepTimerPersistence.KEY_MODE, null)?.let { modeName -> enumValueOfOrNull(modeName) },
+                    mode =
+                        prefs.getString(SleepTimerPersistence.KEY_MODE, null)?.let { modeName ->
+                            enumValueOfOrNull(modeName)
+                        },
                     paused = prefs.getBoolean(SleepTimerPersistence.KEY_PAUSED, false),
                     pausedRemainingMillis =
                         prefs.getLong(

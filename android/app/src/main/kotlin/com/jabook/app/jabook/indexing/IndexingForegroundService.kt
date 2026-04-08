@@ -335,8 +335,9 @@ public class IndexingForegroundService : Service() {
             is IndexingProgress.Completed -> {
                 builder
                     .setContentTitle("Индексация завершена")
-                    .setContentText("Проиндексировано: ${progress.totalTopics} тем за ${progress.durationMs / 1000} сек")
-                    .setProgress(0, 0, false)
+                    .setContentText(
+                        "Проиндексировано: ${progress.totalTopics} тем за ${progress.durationMs / 1000} сек",
+                    ).setProgress(0, 0, false)
                     .setStyle(
                         NotificationCompat
                             .BigTextStyle()

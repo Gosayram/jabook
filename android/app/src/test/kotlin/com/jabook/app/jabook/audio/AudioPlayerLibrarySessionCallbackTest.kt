@@ -20,7 +20,6 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import androidx.test.core.app.ApplicationProvider
-import com.jabook.app.jabook.audio.MediaSessionManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

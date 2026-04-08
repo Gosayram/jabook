@@ -38,7 +38,8 @@ private val navigationLogger = LoggerFactoryImpl().get("Navigation")
 @Composable
 public fun rememberJabookAppState(
     navController: NavHostController = rememberNavController(),
-    snackbarHostState: androidx.compose.material3.SnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() },
+    snackbarHostState: androidx.compose.material3.SnackbarHostState =
+        remember { androidx.compose.material3.SnackbarHostState() },
 ): JabookAppState =
     remember(navController, snackbarHostState) {
         JabookAppState(navController, snackbarHostState)

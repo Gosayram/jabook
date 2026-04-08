@@ -46,7 +46,8 @@ public class DataMigrationManager
             private const val KEY_PLAYER_STATE = "flutter.player_state"
             private const val KEY_MIGRATION_COMPLETED = "migration_completed_v1"
             private val ALLOWED_STORAGE_ROOTS: List<String> = listOf("/storage", "/sdcard", "/mnt/media_rw")
-            private val BLOCKED_SYSTEM_ROOTS: List<String> = listOf("/proc", "/sys", "/dev", "/system", "/apex", "/vendor")
+            private val BLOCKED_SYSTEM_ROOTS: List<String> =
+                listOf("/proc", "/sys", "/dev", "/system", "/apex", "/vendor")
         }
 
         public suspend fun needsMigration(): Boolean =
@@ -94,7 +95,8 @@ public class DataMigrationManager
                     // Metadata
                     val metadataJson = json.optJSONObject("metadata")
                     val album = metadataJson?.optNormalizedString("album")
-                    val artist = metadataJson?.optNormalizedString("artist") ?: metadataJson?.optNormalizedString("albumArtist")
+                    val artist =
+                        metadataJson?.optNormalizedString("artist") ?: metadataJson?.optNormalizedString("albumArtist")
                     val title = metadataJson?.optNormalizedString("title") ?: File(groupPath).name
 
                     // Generate ID consistent with Scanner

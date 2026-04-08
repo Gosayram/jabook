@@ -158,7 +158,9 @@ public fun JabookApp(
             is MainActivityUiState.Success -> {
                 val theme = (uiState as MainActivityUiState.Success).userData.theme
                 when (theme) {
-                    com.jabook.app.jabook.compose.data.model.AppTheme.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+                    com.jabook.app.jabook.compose.data.model.AppTheme.SYSTEM ->
+                        androidx.compose.foundation
+                            .isSystemInDarkTheme()
                     com.jabook.app.jabook.compose.data.model.AppTheme.LIGHT -> false
                     com.jabook.app.jabook.compose.data.model.AppTheme.DARK,
                     com.jabook.app.jabook.compose.data.model.AppTheme.AMOLED,

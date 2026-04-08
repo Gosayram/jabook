@@ -151,7 +151,14 @@ public fun FavoritesScreen(
                     ) {
                         Icon(
                             if (isSelectionMode) Icons.Default.Close else Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = if (isSelectionMode) stringResource(R.string.cancel) else stringResource(R.string.back),
+                            contentDescription =
+                                if (isSelectionMode) {
+                                    stringResource(
+                                        R.string.cancel,
+                                    )
+                                } else {
+                                    stringResource(R.string.back)
+                                },
                         )
                     }
                 },

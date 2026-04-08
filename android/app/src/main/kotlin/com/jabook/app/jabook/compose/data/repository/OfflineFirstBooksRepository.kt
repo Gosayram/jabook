@@ -64,10 +64,11 @@ public class OfflineFirstBooksRepository
                                 val status =
                                     if (state != null) {
                                         val percentage =
-                                            com.jabook.app.jabook.audio.CompletionStatusHelper.calculateCompletionPercentage(
-                                                state.positionMs,
-                                                state.durationMs,
-                                            )
+                                            com.jabook.app.jabook.audio.CompletionStatusHelper
+                                                .calculateCompletionPercentage(
+                                                    state.positionMs,
+                                                    state.durationMs,
+                                                )
                                         com.jabook.app.jabook.audio.CompletionStatusHelper
                                             .getCompletionStatus(percentage)
                                     } else {
@@ -149,7 +150,9 @@ public class OfflineFirstBooksRepository
                         }
                     }.thenBy { book ->
                         // Tertiary: For Not Started - alphabetical by title
-                        if (book.completionStatus == androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED) {
+                        if (book.completionStatus ==
+                            androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED
+                        ) {
                             book.book.title.lowercase()
                         } else {
                             ""
@@ -160,7 +163,9 @@ public class OfflineFirstBooksRepository
                         // If we want "recently completed" at the very bottom, we sort by completedTimestamp ASCENDING.
                         // If A completed today (large TS) and B completed yesterday (small TS).
                         // We want A below B. So Ascending TS.
-                        if (book.completionStatus == androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED) {
+                        if (book.completionStatus ==
+                            androidx.media3.session.MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+                        ) {
                             book.completedTimestamp
                         } else {
                             0L
@@ -170,7 +175,10 @@ public class OfflineFirstBooksRepository
 
         override fun getBook(bookId: String): Flow<Book?> = booksDao.getBookFlow(bookId).map { it?.toBook() }
 
-        override fun getChapters(bookId: String): Flow<List<Chapter>> = booksDao.getChaptersForBookFlow(bookId).map { it.toChapters() }
+        override fun getChapters(bookId: String): Flow<List<Chapter>> =
+            booksDao.getChaptersForBookFlow(bookId).map {
+                it.toChapters()
+            }
 
         override fun searchBooks(query: String): Flow<List<Book>> {
             val variants = TransliterationSearchPolicy.buildVariants(query)

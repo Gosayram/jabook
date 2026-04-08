@@ -70,7 +70,11 @@ import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 /**
  * Screen for managing torrent downloads
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalFoundationApi::class,
+    ExperimentalMaterial3WindowSizeClassApi::class,
+)
 @Composable
 public fun TorrentDownloadsScreen(
     onNavigateBack: () -> Unit,

@@ -48,7 +48,10 @@ public object TrackAvailabilityChecker {
                 val file = File(uri.path ?: return false)
                 val exists = file.exists() && file.isFile && file.canRead()
                 if (!exists) {
-                    android.util.Log.w("TrackAvailabilityChecker", "Track $index not available: file does not exist: ${uri.path}")
+                    android.util.Log.w(
+                        "TrackAvailabilityChecker",
+                        "Track $index not available: file does not exist: ${uri.path}",
+                    )
                 }
                 exists
             }
@@ -57,7 +60,10 @@ public object TrackAvailabilityChecker {
                 true
             }
             else -> {
-                android.util.Log.w("TrackAvailabilityChecker", "Track $index not available: unsupported URI scheme: ${uri.scheme}")
+                android.util.Log.w(
+                    "TrackAvailabilityChecker",
+                    "Track $index not available: unsupported URI scheme: ${uri.scheme}",
+                )
                 false
             }
         }

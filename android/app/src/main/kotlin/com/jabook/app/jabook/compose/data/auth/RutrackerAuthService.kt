@@ -88,7 +88,9 @@ public class RutrackerAuthService
                     val encodeStart = System.currentTimeMillis()
                     val postData = buildPostData(credentials, captchaCode, captchaData)
                     val encodeDuration = System.currentTimeMillis() - encodeStart
-                    logger.d { "[$operationId] Credentials encoded to CP1251 (${encodeDuration}ms), data length: ${postData.length}" }
+                    logger.d {
+                        "[$operationId] Credentials encoded to CP1251 (${encodeDuration}ms), data length: ${postData.length}"
+                    }
 
                     // Step 2: Build request body
                     val body = postData.toRequestBody(MEDIA_TYPE_FORM)
