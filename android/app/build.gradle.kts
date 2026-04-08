@@ -455,11 +455,6 @@ dependencies {
     // Coil3 network support with OkHttp (uses existing OkHttpClient)
     implementation(libs.coil3.network.okhttp)
 
-    // Glide for optimized artwork loading in notifications
-    // Used specifically for Media3 BitmapLoader and notification cover art
-    implementation(libs.glide)
-    ksp(libs.glide.ksp)
-
     // Lyricist dependency removed
 
     // Note: Google Play Core is NOT needed as a dependency

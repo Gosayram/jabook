@@ -59,7 +59,6 @@ re2j = "1.8"
 
 # Image Loading
 coil3 = "3.4.0"
-glide = "5.0.5"
 
 # Serialization
 protobuf = "4.34.1"
@@ -177,8 +176,6 @@ kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # Image Loading
 coil3-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil3" }
 coil3-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil3" }
-glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
-glide-ksp = { group = "com.github.bumptech.glide", name = "ksp", version.ref = "glide" }
 
 # Serialization
 protobuf-javalite = { group = "com.google.protobuf", name = "protobuf-javalite", version.ref = "protobuf" }

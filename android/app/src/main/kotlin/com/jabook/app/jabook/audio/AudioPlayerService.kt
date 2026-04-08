@@ -34,6 +34,10 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.toBitmap
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
@@ -1493,22 +1497,26 @@ public class AudioPlayerService : MediaLibraryService() {
                             callback: PlayerNotificationManager.BitmapCallback,
                         ): android.graphics.Bitmap? {
                             player.mediaMetadata.artworkUri?.let { artworkUri ->
-                                com.bumptech.glide.Glide
-                                    .with(this@AudioPlayerService)
-                                    .asBitmap()
-                                    .load(artworkUri)
-                                    .into(
-                                        object : com.bumptech.glide.request.target.CustomTarget<android.graphics.Bitmap>() {
-                                            override fun onResourceReady(
-                                                resource: android.graphics.Bitmap,
-                                                transition: com.bumptech.glide.request.transition.Transition<in android.graphics.Bitmap>?,
-                                            ) {
-                                                callback.onBitmap(resource)
+                                // Load cover bitmap via Coil3 (unified image pipeline)
+                                kotlinx.coroutines
+                                    .CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+                                    .launch {
+                                        try {
+                                            val loader = coil3.SingletonImageLoader.get(this@AudioPlayerService)
+                                            val request =
+                                                coil3.request.ImageRequest
+                                                    .Builder(this@AudioPlayerService)
+                                                    .data(artworkUri)
+                                                    .size(512, 512)
+                                                    .build()
+                                            val result = loader.execute(request)
+                                            if (result is SuccessResult) {
+                                                callback.onBitmap(result.image!!.toBitmap())
                                             }
-
-                                            override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {}
-                                        },
-                                    )
+                                        } catch (e: Exception) {
+                                            android.util.Log.w("AudioPlayerService", "Failed to load large icon via Coil", e)
+                                        }
+                                    }
                             }
                             return null
                         }

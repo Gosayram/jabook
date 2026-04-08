@@ -16,7 +16,6 @@ package com.jabook.app.jabook.widget
 
 import android.net.Uri
 import androidx.media3.common.Player
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 
 internal object WidgetControllerSnapshotPolicy {
     internal fun shouldFallbackToService(
@@ -60,16 +59,16 @@ internal object WidgetActionRoutingPolicy {
 internal object WidgetCoverLoadPolicy {
     internal const val COVER_SIZE_PX: Int = 512
     internal const val COVER_TIMEOUT_MS: Int = 1500
-    internal val DISK_CACHE_STRATEGY: DiskCacheStrategy = DiskCacheStrategy.AUTOMATIC
 
-    private val GLIDE_SUPPORTED_SCHEMES: Set<String> =
+    private val COIL_SUPPORTED_SCHEMES: Set<String> =
         setOf("http", "https", "content", "file", "android.resource")
     private val URI_FALLBACK_SCHEMES: Set<String> =
         setOf("content", "file", "android.resource")
 
-    internal fun shouldLoadWithGlide(uri: Uri): Boolean {
+    /** Checks if the URI scheme is supported by the Coil image pipeline. */
+    internal fun shouldLoadWithCoil(uri: Uri): Boolean {
         val scheme = uri.scheme ?: return true
-        return scheme in GLIDE_SUPPORTED_SCHEMES
+        return scheme in COIL_SUPPORTED_SCHEMES
     }
 
     internal fun shouldUseUriFallback(uri: Uri): Boolean {

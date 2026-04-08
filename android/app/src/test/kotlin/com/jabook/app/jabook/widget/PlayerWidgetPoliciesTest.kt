@@ -28,15 +28,15 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class PlayerWidgetPoliciesTest {
     @Test
-    fun `cover policy accepts known schemes for glide`() {
-        assertTrue(WidgetCoverLoadPolicy.shouldLoadWithGlide(Uri.parse("https://example.com/cover.jpg")))
-        assertTrue(WidgetCoverLoadPolicy.shouldLoadWithGlide(Uri.parse("content://media/external/images/1")))
-        assertTrue(WidgetCoverLoadPolicy.shouldLoadWithGlide(Uri.parse("file:///storage/emulated/0/cover.jpg")))
+    fun `cover policy accepts known schemes for coil`() {
+        assertTrue(WidgetCoverLoadPolicy.shouldLoadWithCoil(Uri.parse("https://example.com/cover.jpg")))
+        assertTrue(WidgetCoverLoadPolicy.shouldLoadWithCoil(Uri.parse("content://media/external/images/1")))
+        assertTrue(WidgetCoverLoadPolicy.shouldLoadWithCoil(Uri.parse("file:///storage/emulated/0/cover.jpg")))
     }
 
     @Test
-    fun `cover policy rejects unsupported schemes for glide`() {
-        assertFalse(WidgetCoverLoadPolicy.shouldLoadWithGlide(Uri.parse("ftp://example.com/cover.jpg")))
+    fun `cover policy rejects unsupported schemes for coil`() {
+        assertFalse(WidgetCoverLoadPolicy.shouldLoadWithCoil(Uri.parse("ftp://example.com/cover.jpg")))
     }
 
     @Test
