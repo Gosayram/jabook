@@ -58,6 +58,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 14: Added search indices on title, author, timestamp, and seeders for faster queries.
  * Database version 15: Update cached_topics with fallback category for RuTracker search fix.
  * Database version 16: Added books_fts (FTS virtual index) for fast local library search.
+ * Database version 17: Added last_scan_timestamp to scan_paths for incremental scanning.
  */
 @Database(
     entities = [
@@ -74,7 +75,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {

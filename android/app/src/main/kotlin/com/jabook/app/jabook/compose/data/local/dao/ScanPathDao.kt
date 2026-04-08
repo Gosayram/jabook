@@ -41,4 +41,14 @@ public interface ScanPathDao {
 
     @Query("DELETE FROM scan_paths WHERE path = :path")
     public suspend fun deletePathByString(path: String)
+
+    /**
+     * Updates the last scan timestamp for a specific path.
+     * Called after a successful scan to enable incremental scanning on the next run.
+     */
+    @Query("UPDATE scan_paths SET last_scan_timestamp = :timestamp WHERE path = :path")
+    public suspend fun updateLastScanTimestamp(
+        path: String,
+        timestamp: Long,
+    )
 }

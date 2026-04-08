@@ -28,4 +28,7 @@ public data class ScanPathEntity(
     val path: String,
     @ColumnInfo(name = "added_date")
     val addedDate: Long = System.currentTimeMillis(),
+    /** Timestamp of the last successful scan for this path (0 = never scanned). */
+    @ColumnInfo(name = "last_scan_timestamp", defaultValue = "0")
+    val lastScanTimestamp: Long = 0L,
 )
