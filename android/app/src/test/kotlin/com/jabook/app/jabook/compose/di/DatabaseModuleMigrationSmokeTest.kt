@@ -45,11 +45,11 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `database initializes at version 17 with required tables`() {
+    fun `database initializes at version 18 with required tables`() {
         database = DatabaseModule.provideJabookDatabase(context)
         val sqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(17, pragmaUserVersion(sqlDb))
+        assertEquals(18, pragmaUserVersion(sqlDb))
         assertTrue(tableExists(sqlDb, "books"))
         assertTrue(tableExists(sqlDb, "chapters"))
         assertTrue(tableExists(sqlDb, "cached_topics"))
@@ -57,11 +57,12 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `migration contract includes 14 to 15 and 15 to 16 and 16 to 17 and migration updates blank category`() {
+    fun `migration contract includes 14 to 15 and 15 to 16 and 16 to 17 and 17 to 18 and migration updates blank category`() {
         val migrationPairs = DatabaseModule.configuredMigrations.map { it.startVersion to it.endVersion }
         assertTrue(migrationPairs.contains(14 to 15))
         assertTrue(migrationPairs.contains(15 to 16))
         assertTrue(migrationPairs.contains(16 to 17))
+        assertTrue(migrationPairs.contains(17 to 18))
 
         database = DatabaseModule.provideJabookDatabase(context)
         val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
@@ -110,7 +111,7 @@ class DatabaseModuleMigrationSmokeTest {
         database = DatabaseModule.provideJabookDatabase(context)
         val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(17, pragmaUserVersion(migratedSqlDb))
+        assertEquals(18, pragmaUserVersion(migratedSqlDb))
         assertEquals(
             "Аудиокниги",
             querySingleString(
