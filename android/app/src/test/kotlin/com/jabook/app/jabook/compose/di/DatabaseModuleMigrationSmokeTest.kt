@@ -54,6 +54,12 @@ class DatabaseModuleMigrationSmokeTest {
         assertTrue(tableExists(sqlDb, "chapters"))
         assertTrue(tableExists(sqlDb, "cached_topics"))
         assertTrue(tableExists(sqlDb, "books_fts"))
+        assertTrue(indexExists(sqlDb, "index_books_is_favorite"))
+        assertTrue(indexExists(sqlDb, "index_books_last_played_date"))
+        assertTrue(indexExists(sqlDb, "index_books_download_status"))
+        assertTrue(indexExists(sqlDb, "index_books_source_url"))
+        assertTrue(indexExists(sqlDb, "index_books_added_date"))
+        assertTrue(indexExists(sqlDb, "index_chapters_book_id_chapter_index"))
     }
 
     @Test
@@ -123,6 +129,8 @@ class DatabaseModuleMigrationSmokeTest {
                 """.trimIndent(),
             ),
         )
+        assertTrue(indexExists(migratedSqlDb, "index_books_is_favorite"))
+        assertTrue(indexExists(migratedSqlDb, "index_chapters_book_id_chapter_index"))
     }
 
     private fun tableExists(
@@ -130,6 +138,14 @@ class DatabaseModuleMigrationSmokeTest {
         tableName: String,
     ): Boolean =
         database.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$tableName'").use { cursor ->
+            cursor.count > 0
+        }
+
+    private fun indexExists(
+        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        indexName: String,
+    ): Boolean =
+        database.query("SELECT name FROM sqlite_master WHERE type = 'index' AND name = '$indexName'").use { cursor ->
             cursor.count > 0
         }
 
