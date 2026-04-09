@@ -340,10 +340,9 @@ public object DatabaseModule {
                 // This replaces the need for setQueryExecutor and provides better performance
                 .setQueryCoroutineContext(Dispatchers.IO)
                 // PreparedStatementCache is enabled by default (size 25) for better query performance
-                // This caches prepared SQL statements to avoid recompilation overhead
-                // JournalMode.AUTOMATIC is the default - Room chooses WAL on modern devices, TRUNCATE on low-RAM
-                // WAL provides better concurrency, TRUNCATE is more memory-efficient
-                .setJournalMode(RoomDatabase.JournalMode.AUTOMATIC)
+                // This caches prepared SQL statements to avoid recompilation overhead.
+                // Enforce WAL explicitly for deterministic behavior and improved read/write concurrency.
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         // In-memory invalidation tracking is enabled by default (better performance)
         // Can be disabled with setInMemoryTrackingMode(false) if memory is a concern
         // requireMigration is true by default - ensures migrations are always provided for safety

@@ -335,9 +335,9 @@ public object AudioDataModule {
                 )
                 // Use coroutine context for queries (better integration with coroutines)
                 .setQueryCoroutineContext(kotlinx.coroutines.Dispatchers.IO)
-                // PreparedStatementCache is enabled by default (size 25) for better query performance
-                // JournalMode.AUTOMATIC is the default - Room chooses WAL on modern devices
-                .setJournalMode(RoomDatabase.JournalMode.AUTOMATIC)
+                // PreparedStatementCache is enabled by default (size 25) for better query performance.
+                // Enforce WAL explicitly for deterministic behavior and improved read/write concurrency.
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
 
         // Add callback for database lifecycle events
         builder.addCallback(
