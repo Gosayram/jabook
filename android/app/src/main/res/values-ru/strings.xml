@@ -2409,6 +2409,10 @@
     <string name="seekForwardDescription">Вперед на %d секунд</string>
     <!-- Описание кнопки назад -->
     <string name="seekBackwardDescription">Назад на %d секунд</string>
+    <string name="cacheSizeLabel">Кэш: %1$s</string>
+    <string name="dataSizeLabel">Данные: %1$s</string>
+    <string name="totalSizeLabel">Итого: %1$s</string>
+    <string name="cacheClearErrorMessage">Ошибка очистки кэша: %1$s</string>
     <!-- Настройки книги -->
     <string name="overrideBookSettings">Настройки книги</string>
     <!-- Использовать общие настройки -->

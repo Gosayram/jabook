@@ -21,6 +21,7 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.jabook.app.jabook.R
@@ -46,6 +47,7 @@ public class DataManagementActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContentView(R.layout.activity_data_management)
 
         // Initialize views
@@ -82,9 +84,9 @@ public class DataManagementActivity : AppCompatActivity() {
                 val totalSize = cacheSize + dataSize
 
                 runOnUiThread {
-                    cacheSizeText.text = "Cache: ${formatSize(cacheSize)}"
-                    dataSizeText.text = "Data: ${formatSize(dataSize)}"
-                    totalSizeText.text = "Total: ${formatSize(totalSize)}"
+                    cacheSizeText.text = getString(R.string.cacheSizeLabel, formatSize(cacheSize))
+                    dataSizeText.text = getString(R.string.dataSizeLabel, formatSize(dataSize))
+                    totalSizeText.text = getString(R.string.totalSizeLabel, formatSize(totalSize))
                     progressBar.visibility = View.GONE
                 }
             } catch (e: Exception) {
@@ -221,8 +223,6 @@ public class DataManagementActivity : AppCompatActivity() {
                     }
                 }
 
-                val clearedSizeFormatted = formatSize(clearedSize)
-
                 runOnUiThread {
                     progressBar.visibility = View.GONE
                     clearCacheButton.isEnabled = true
@@ -244,7 +244,10 @@ public class DataManagementActivity : AppCompatActivity() {
                     Toast
                         .makeText(
                             this@DataManagementActivity,
-                            "Error clearing cache: ${e.message}",
+                            getString(
+                                R.string.cacheClearErrorMessage,
+                                e.message ?: getString(R.string.unknownError),
+                            ),
                             Toast.LENGTH_SHORT,
                         ).show()
                 }

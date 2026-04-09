@@ -2406,6 +2406,10 @@
     <string name="seekForwardDescription">Seek forward %d seconds</string>
     <!-- Description for seek backward button -->
     <string name="seekBackwardDescription">Seek backward %d seconds</string>
+    <string name="cacheSizeLabel">Cache: %1$s</string>
+    <string name="dataSizeLabel">Data: %1$s</string>
+    <string name="totalSizeLabel">Total: %1$s</string>
+    <string name="cacheClearErrorMessage">Error clearing cache: %1$s</string>
     <!-- Override book settings title -->
     <string name="overrideBookSettings">Override book settings</string>
     <!-- Use global settings option -->
