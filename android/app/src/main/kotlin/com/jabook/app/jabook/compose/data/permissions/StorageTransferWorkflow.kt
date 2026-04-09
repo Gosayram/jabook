@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.permissions
 
+import kotlinx.coroutines.CancellationException
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -130,7 +131,10 @@ public class StorageTransferWorkflow(
                 isSuccess = true,
                 targetPath = targetPath,
             )
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            if (e is CancellationException) {
+                throw e
+            }
             rollbackPerformed = true
             restoreBackupOrDeleteTarget(targetFile = targetFile, backupTarget = backupTarget)
             StorageTransferWorkflowResult(

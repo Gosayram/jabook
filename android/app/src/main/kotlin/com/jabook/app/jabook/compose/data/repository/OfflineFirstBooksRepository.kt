@@ -375,24 +375,7 @@ public class OfflineFirstBooksRepository
         override suspend fun updateChapterOrder(
             bookId: String,
             newOrderedIds: List<String>,
-        ) {
-            val chapters = chaptersDao.getChaptersByBookId(bookId)
-            if (chapters.isEmpty()) return
-
-            val chapterMap = chapters.associateBy { it.id }
-            val updatedChapters = mutableListOf<com.jabook.app.jabook.compose.data.local.entity.ChapterEntity>()
-
-            newOrderedIds.forEachIndexed { index, id ->
-                val chapter = chapterMap[id]
-                if (chapter != null && chapter.chapterIndex != index) {
-                    updatedChapters.add(chapter.copy(chapterIndex = index))
-                }
-            }
-
-            if (updatedChapters.isNotEmpty()) {
-                chaptersDao.insertAll(updatedChapters)
-            }
-        }
+        ): Unit = chaptersDao.reorderChaptersByIds(bookId = bookId, newOrderedIds = newOrderedIds)
 
         override fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?> =
             booksDao.getBookBySourceUrlFlow(sourceUrl).map { it?.toBook() }

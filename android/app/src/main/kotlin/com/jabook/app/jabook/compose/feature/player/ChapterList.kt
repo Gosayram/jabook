@@ -54,7 +54,10 @@ public fun ChapterList(
             androidx.compose.foundation.layout
                 .PaddingValues(bottom = 16.dp),
     ) {
-        itemsIndexed(chapters) { index, chapter ->
+        itemsIndexed(
+            items = chapters,
+            key = { _, chapter -> chapter.id },
+        ) { index, chapter ->
             ChapterItem(
                 chapter = chapter,
                 index = index + 1,

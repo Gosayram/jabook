@@ -14,9 +14,11 @@
 
 package com.jabook.app.jabook.compose.data.permissions
 
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -104,6 +106,35 @@ class StorageTransferWorkflowTest {
             result.failureReason,
         )
         assertEquals("existing", target.readText())
+
+        source.delete()
+        target.delete()
+        targetDir.deleteRecursively()
+    }
+
+    @Test
+    fun `transferFile rethrows cancellation exception`() {
+        val source = createTempFileWithContent("source-audio-content")
+        val targetDir = Files.createTempDirectory("jabook-target").toFile()
+        val target = File(targetDir, "book.mp3")
+        val workflow =
+            StorageTransferWorkflow(
+                preflightChecker = checker,
+                postCopyHook = {
+                    throw CancellationException("cancel transfer")
+                },
+            )
+
+        try {
+            workflow.transferFile(
+                sourcePath = source.absolutePath,
+                targetPath = target.absolutePath,
+                overwrite = false,
+            )
+            fail("Expected cancellation to be rethrown")
+        } catch (actual: CancellationException) {
+            assertEquals("cancel transfer", actual.message)
+        }
 
         source.delete()
         target.delete()

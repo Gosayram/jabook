@@ -263,7 +263,10 @@ public fun ChapterSelectorSheet(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
             ) {
-                itemsIndexed(displayChapters) { listIndex, (originalIndex, chapter) ->
+                itemsIndexed(
+                    items = displayChapters,
+                    key = { _, item -> item.second.id },
+                ) { listIndex, (originalIndex, chapter) ->
                     ChapterSelectorItem(
                         chapter = chapter,
                         index = if (isEditing) listIndex else originalIndex,

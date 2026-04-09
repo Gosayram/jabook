@@ -140,7 +140,10 @@ public fun ScanSettingsScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    items(scanPaths) { path ->
+                    items(
+                        items = scanPaths,
+                        key = { path -> path },
+                    ) { path ->
                         ScanPathItem(
                             path = path,
                             onDelete = { viewModel.removeScanPath(path) },
