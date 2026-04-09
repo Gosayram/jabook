@@ -162,15 +162,17 @@ flowchart TB
     REPO[Repository]
     ROOM[(Room)]
     DS[(Proto DataStore)]
-    NET[Network (Retrofit/OkHttp/Jsoup)]
+    NET["Network (Retrofit/OkHttp/Jsoup)"]
 
     UI --> VM --> UC --> REPO
     REPO --> ROOM
     REPO --> DS
     REPO --> NET
-    ROOM -.Flow.-> REPO
-    DS -.Flow.-> REPO
-    REPO -.Flow.-> UC -.StateFlow.-> VM -.State.-> UI
+    ROOM -.-> REPO
+    DS -.-> REPO
+    REPO -.-> UC
+    UC -.-> VM
+    VM -.-> UI
 ```
 
 ## Project Map
