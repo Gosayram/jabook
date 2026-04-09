@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -531,10 +532,10 @@ private fun TopicDetailsContent(
                         modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
-                items(
+                itemsIndexed(
                     items = mediaInfo.video,
-                    key = { video -> "${video.codec}_${video.resolution}_${video.bitrate}" },
-                ) { video ->
+                    key = { index, video -> "${video.codec}_${video.resolution}_${video.bitrate}_$index" },
+                ) { _, video ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors =
@@ -578,10 +579,10 @@ private fun TopicDetailsContent(
                         modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
-                items(
+                itemsIndexed(
                     items = mediaInfo.audio,
-                    key = { audio -> "${audio.codec}_${audio.bitrate}_${audio.channels}_${audio.language}" },
-                ) { audio ->
+                    key = { index, audio -> "${audio.codec}_${audio.bitrate}_${audio.channels}_${audio.language}_$index" },
+                ) { _, audio ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors =
@@ -956,12 +957,12 @@ private fun ExpandableComments(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 // Comments (newest to oldest)
-                items(
-                    count = comments.size,
-                    key = { index -> comments[index].author + comments[index].date },
-                ) { index ->
+                itemsIndexed(
+                    items = comments,
+                    key = { index, comment -> "${comment.author}_${comment.date}_${comment.text.hashCode()}_$index" },
+                ) { _, comment ->
                     CommentItem(
-                        comment = comments[index],
+                        comment = comment,
                         onNavigateToTopic = onNavigateToTopic,
                     )
                 }

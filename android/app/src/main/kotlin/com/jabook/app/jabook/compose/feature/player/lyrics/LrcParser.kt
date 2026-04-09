@@ -14,9 +14,12 @@
 
 package com.jabook.app.jabook.compose.feature.player.lyrics
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents a single line of synchronized lyrics.
  */
+@Immutable
 public data class LyricLine(
     val timeMs: Long,
     val text: String,

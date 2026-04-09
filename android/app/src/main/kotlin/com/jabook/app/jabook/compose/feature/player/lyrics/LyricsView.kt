@@ -88,7 +88,10 @@ public fun LyricsView(
             contentPadding = contentPadding,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            itemsIndexed(lyrics) { index, line ->
+            itemsIndexed(
+                items = lyrics,
+                key = { _, line -> "${line.timeMs}_${line.text}" },
+            ) { index, line ->
                 val isCurrent = index == currentIndex
 
                 // Animate properties for smooth transition

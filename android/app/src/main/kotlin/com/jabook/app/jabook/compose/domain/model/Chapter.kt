@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -34,6 +35,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property isCompleted Whether chapter has been fully played
  * @property isDownloaded Whether audio file is downloaded
  */
+@Immutable
 public data class Chapter(
     val id: String,
     val bookId: String,

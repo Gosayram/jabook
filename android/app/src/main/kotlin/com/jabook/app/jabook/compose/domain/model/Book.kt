@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.model.DownloadStatus
 import kotlin.time.Duration
@@ -43,6 +44,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property isFavorite Whether user has favorited this book
  * @property sourceUrl Source URL where book was obtained
  */
+@Immutable
 public data class Book(
     val id: String,
     val title: String,
