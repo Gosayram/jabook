@@ -18,7 +18,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 
-private val logger = LoggerFactoryImpl().get("Room")
+private val logger by lazy { LoggerFactoryImpl().get("Room") }
 
 /**
  * Migration from database version 14 to 15.

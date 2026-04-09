@@ -32,6 +32,8 @@ import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -227,7 +229,7 @@ public class PlayerViewModel
 
                     PlayerUiState.Success(
                         book = book,
-                        chapters = chapters,
+                        chapters = chapters.toImmutableList(),
                         isPlaying = playing,
                         currentPosition = position,
                         currentChapterIndex = chapterIndex,
@@ -752,7 +754,7 @@ public sealed interface PlayerUiState {
      */
     public data class Success(
         val book: Book,
-        val chapters: List<Chapter>,
+        val chapters: ImmutableList<Chapter>,
         val isPlaying: Boolean,
         val currentPosition: Long, // milliseconds
         val currentChapterIndex: Int,

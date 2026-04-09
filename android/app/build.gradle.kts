@@ -377,6 +377,7 @@ dependencies {
     // Add coroutines support for proper async handling
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.guava)
+    implementation(libs.kotlinx.collections.immutable)
 
     // Kotlinx serialization (required by Room 2.8.4+)
     // Room uses setClassDiscriminatorMode which requires kotlinx.serialization 1.6.0+
@@ -465,6 +466,7 @@ dependencies {
     testImplementation(libs.bundles.test)
     testImplementation(libs.androidx.work.testing)
     testImplementation(libs.jimfs)
+    testImplementation(libs.kotest.property)
 
     // Firebase - Import the Firebase BoM to manage library versions
     implementation(platform(libs.firebase.bom))

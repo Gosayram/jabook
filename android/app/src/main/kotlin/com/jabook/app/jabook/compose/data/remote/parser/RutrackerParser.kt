@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.remote.parser
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.util.PerfTrace
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.model.RelatedBook
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
@@ -105,13 +106,14 @@ public class RutrackerParser
         public fun parseSearchResultsWithEncoding(
             bytes: ByteArray,
             contentType: String? = null,
-        ): ParsingResult<List<SearchResult>> {
-            // Decode with simple decoder (matching Flutter implementation)
-            val decodedHtml = decoder.decode(bytes, contentType)
+        ): ParsingResult<List<SearchResult>> =
+            PerfTrace.section(name = "RutrackerParser.parseSearchResultsWithEncoding") {
+                // Decode with simple decoder (matching Flutter implementation)
+                val decodedHtml = decoder.decode(bytes, contentType)
 
-            // Parse the decoded HTML
-            return parseSearchResultsDefensive(decodedHtml, bytes)
-        }
+                // Parse the decoded HTML
+                parseSearchResultsDefensive(decodedHtml, bytes)
+            }
 
         /**
          * Parse search results with graceful error handling.
@@ -131,7 +133,10 @@ public class RutrackerParser
 
             try {
                 // Parse with baseUri for proper absolute URL resolution (using current mirror)
-                val document = Jsoup.parse(html, getBaseUrl())
+                val document =
+                    PerfTrace.section(name = "RutrackerParser.jsoupParseSearch") {
+                        Jsoup.parse(html, getBaseUrl())
+                    }
 
                 // Check if it's a valid search page first (before strict validation)
                 // This allows empty results to pass through
@@ -1101,107 +1106,112 @@ public class RutrackerParser
             html: String,
             topicId: String,
         ): TopicDetails? {
-            try {
-                // Validate HTML content before parsing
-                val validationError = ParsingValidators.validateTopicDetails(html)
-                if (validationError != null) {
-                    logger.w { "Topic $topicId validation failed: ${validationError.message}" }
-                    return null
-                }
-
-                // Parse with baseUri for proper absolute URL resolution (using current mirror)
-                val document = Jsoup.parse(html, getBaseUrl())
-
-                // Extract title
-                val titleElement = document.selectFirst(MAIN_TITLE_SELECTOR) ?: return null
-                val title = titleElement.toStr()
-
-                // Try to extract author from detailed title as well
-                val titleAuthor = extractAuthorFromTitle(cleanTitle(title))
-
-                // Extract post body for metadata
-                val postBody = document.selectFirst(POST_BODY_SELECTOR)
-
-                // Extract size
-                val sizeElement = document.selectFirst(TOR_SIZE_SELECTOR)
-                val size = sizeElement?.toStr() ?: "Unknown"
-
-                // Extract magnet link
-                // Use absUrl() for proper absolute URL resolution (magnet: links are already absolute)
-                val magnetElement = document.selectFirst(MAGNET_LINK_SELECTOR)
-                val magnetUrl = magnetElement?.absUrl("href") ?: magnetElement?.attr("href")
-
-                // Extract torrent URL
-                // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-                val downloadElement = document.selectFirst(DOWNLOAD_HREF_SELECTOR)
-                val torrentUrl = downloadElement?.absUrl("href") ?: ""
-
-                // Extract seeders and leechers from document (not just post body)
-                val seeders = extractSeeders(document)
-                val leechers = extractLeechers(document)
-
-                // Extract additional stats (Registered date, Downloads count)
-                val (registeredDate, downloadsCount) = extractTopicStats(document)
-
-                // Extract metadata from post body
-                val metadata = extractMetadata(postBody)
-
-                // Clean the title
-                val cleanedTitle = cleanTitle(title)
-
-                val descriptionHtml =
-                    postBody?.html()?.let { html ->
-                        // Clean HTML: using DOM manipulation
-                        val cleaned = cleanDescriptionHtml(html, metadata)
-                        // Ensure all links have absolute URLs (now handled in cleanDescriptionHtml)
-                        cleaned
+            return PerfTrace.section(name = "RutrackerParser.parseTopicDetails") {
+                try {
+                    // Validate HTML content before parsing
+                    val validationError = ParsingValidators.validateTopicDetails(html)
+                    if (validationError != null) {
+                        logger.w { "Topic $topicId validation failed: ${validationError.message}" }
+                        return@section null
                     }
 
-                // Extract description - clean text from cleaned HTML
-                val rawDescriptionText = postBody?.text() ?: "" // fallback
-                val descriptionText = cleanDescription(rawDescriptionText, metadata, descriptionHtml)
-                val parsedMediaInfo = mediaInfoParser.parse(rawDescriptionText)
+                    // Parse with baseUri for proper absolute URL resolution (using current mirror)
+                    val document =
+                        PerfTrace.section(name = "RutrackerParser.jsoupParseTopic") {
+                            Jsoup.parse(html, getBaseUrl())
+                        }
 
-                // Extract series/cycle
-                val series = metadata["series"] ?: extractSeries(postBody)
+                    // Extract title
+                    val titleElement = document.selectFirst(MAIN_TITLE_SELECTOR) ?: return null
+                    val title = titleElement.toStr()
 
-                // Extract comments (skip first post_body which is the main post)
-                val comments = extractComments(document, topicId)
+                    // Try to extract author from detailed title as well
+                    val titleAuthor = extractAuthorFromTitle(cleanTitle(title))
 
-                val (currentPage, totalPages) = extractTopicPagination(document)
+                    // Extract post body for metadata
+                    val postBody = document.selectFirst(POST_BODY_SELECTOR)
 
-                return TopicDetails(
-                    topicId = topicId,
-                    title = cleanedTitle,
-                    author = metadata["author"],
-                    performer = metadata["performer"],
-                    category = "Audiobooks",
-                    size = size,
-                    seeders = seeders,
-                    leechers = leechers,
-                    magnetUrl = magnetUrl,
-                    torrentUrl = torrentUrl,
-                    coverUrl = postBody?.let { coverExtractor.extract(it) },
-                    genres = extractGenres(postBody),
-                    addedDate = metadata["addedDate"],
-                    duration = metadata["duration"],
-                    bitrate = metadata["bitrate"],
-                    audioCodec = metadata["codec"],
-                    description = descriptionText,
-                    descriptionHtml = descriptionHtml,
-                    mediaInfo = parsedMediaInfo,
-                    relatedBooks = extractRelatedBooks(postBody),
-                    series = series,
-                    comments = comments,
-                    registeredDate = registeredDate,
-                    downloadsCount = downloadsCount,
-                    currentPage = currentPage,
-                    totalPages = totalPages,
-                    allMetadata = metadata,
-                )
-            } catch (e: Exception) {
-                logger.e({ "Failed to parse topic details" }, e)
-                return null
+                    // Extract size
+                    val sizeElement = document.selectFirst(TOR_SIZE_SELECTOR)
+                    val size = sizeElement?.toStr() ?: "Unknown"
+
+                    // Extract magnet link
+                    // Use absUrl() for proper absolute URL resolution (magnet: links are already absolute)
+                    val magnetElement = document.selectFirst(MAGNET_LINK_SELECTOR)
+                    val magnetUrl = magnetElement?.absUrl("href") ?: magnetElement?.attr("href")
+
+                    // Extract torrent URL
+                    // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
+                    val downloadElement = document.selectFirst(DOWNLOAD_HREF_SELECTOR)
+                    val torrentUrl = downloadElement?.absUrl("href") ?: ""
+
+                    // Extract seeders and leechers from document (not just post body)
+                    val seeders = extractSeeders(document)
+                    val leechers = extractLeechers(document)
+
+                    // Extract additional stats (Registered date, Downloads count)
+                    val (registeredDate, downloadsCount) = extractTopicStats(document)
+
+                    // Extract metadata from post body
+                    val metadata = extractMetadata(postBody)
+
+                    // Clean the title
+                    val cleanedTitle = cleanTitle(title)
+
+                    val descriptionHtml =
+                        postBody?.html()?.let { html ->
+                            // Clean HTML: using DOM manipulation
+                            val cleaned = cleanDescriptionHtml(html, metadata)
+                            // Ensure all links have absolute URLs (now handled in cleanDescriptionHtml)
+                            cleaned
+                        }
+
+                    // Extract description - clean text from cleaned HTML
+                    val rawDescriptionText = postBody?.text() ?: "" // fallback
+                    val descriptionText = cleanDescription(rawDescriptionText, metadata, descriptionHtml)
+                    val parsedMediaInfo = mediaInfoParser.parse(rawDescriptionText)
+
+                    // Extract series/cycle
+                    val series = metadata["series"] ?: extractSeries(postBody)
+
+                    // Extract comments (skip first post_body which is the main post)
+                    val comments = extractComments(document, topicId)
+
+                    val (currentPage, totalPages) = extractTopicPagination(document)
+
+                    TopicDetails(
+                        topicId = topicId,
+                        title = cleanedTitle,
+                        author = metadata["author"],
+                        performer = metadata["performer"],
+                        category = "Audiobooks",
+                        size = size,
+                        seeders = seeders,
+                        leechers = leechers,
+                        magnetUrl = magnetUrl,
+                        torrentUrl = torrentUrl,
+                        coverUrl = postBody?.let { coverExtractor.extract(it) },
+                        genres = extractGenres(postBody),
+                        addedDate = metadata["addedDate"],
+                        duration = metadata["duration"],
+                        bitrate = metadata["bitrate"],
+                        audioCodec = metadata["codec"],
+                        description = descriptionText,
+                        descriptionHtml = descriptionHtml,
+                        mediaInfo = parsedMediaInfo,
+                        relatedBooks = extractRelatedBooks(postBody),
+                        series = series,
+                        comments = comments,
+                        registeredDate = registeredDate,
+                        downloadsCount = downloadsCount,
+                        currentPage = currentPage,
+                        totalPages = totalPages,
+                        allMetadata = metadata,
+                    )
+                } catch (e: Exception) {
+                    logger.e({ "Failed to parse topic details" }, e)
+                    null
+                }
             }
         }
 

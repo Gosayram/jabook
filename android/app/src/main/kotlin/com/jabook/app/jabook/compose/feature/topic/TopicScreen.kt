@@ -376,7 +376,7 @@ private fun TopicDetailsContent(
                 ) {
                     AssistChip(
                         onClick = {},
-                        label = { Text("${details.seeders}") },
+                        label = { Text(details.seeders.toString()) },
                         leadingIcon = {
                             Icon(
                                 Icons.Filled.ArrowUpward,
@@ -388,7 +388,7 @@ private fun TopicDetailsContent(
 
                     AssistChip(
                         onClick = {},
-                        label = { Text("${details.leechers}") },
+                        label = { Text(details.leechers.toString()) },
                         leadingIcon = {
                             Icon(
                                 Icons.Filled.ArrowDownward,
@@ -640,7 +640,7 @@ private fun SeedersLeechersChip(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         AssistChip(
             onClick = {},
-            label = { Text("$seeders") },
+            label = { Text(seeders.toString()) },
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowUpward,
@@ -652,7 +652,7 @@ private fun SeedersLeechersChip(
 
         AssistChip(
             onClick = {},
-            label = { Text("$leechers") },
+            label = { Text(leechers.toString()) },
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowDownward,
@@ -965,7 +965,7 @@ private fun ExpandableComments(
                 // Comments (newest to oldest)
                 itemsIndexed(
                     items = comments,
-                    key = { index, comment -> "${comment.author}_${comment.date}_${comment.text.hashCode()}_$index" },
+                    key = { _, comment -> comment.id },
                 ) { _, comment ->
                     CommentItem(
                         comment = comment,

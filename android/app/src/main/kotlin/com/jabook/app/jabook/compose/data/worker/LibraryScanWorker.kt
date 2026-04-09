@@ -22,6 +22,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.util.PerfTrace
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
@@ -71,7 +72,9 @@ public class LibraryScanWorker
                     // Watchdog: Cancel scan if no progress for 3 minutes
                     val scannerJob =
                         async {
-                            bookScanner.scanAudiobooks()
+                            PerfTrace.section(name = "LibraryScanWorker.scanAudiobooks") {
+                                bookScanner.scanAudiobooks()
+                            }
                         }
 
                     val watchdogJob =
@@ -135,18 +138,23 @@ public class LibraryScanWorker
                             // CRITICAL FIX: Clean up books whose directories were deleted
                             // This ensures DB reflects actual filesystem state
                             logger.d { "Checking for deleted books..." }
-                            val existingBooks = booksDao.getAllBookPaths()
+                            val existingBooks =
+                                PerfTrace.section(name = "LibraryScanWorker.loadExistingBookPaths") {
+                                    booksDao.getAllBookPaths()
+                                }
                             var deletedCount = 0
 
-                            for (book in existingBooks) {
-                                if (book.localPath != null) {
-                                    val bookDir = java.io.File(book.localPath)
-                                    if (!bookDir.exists() || !bookDir.isDirectory) {
-                                        logger.i {
-                                            "Deleting book with non-existent path: ${book.localPath}"
+                            PerfTrace.section(name = "LibraryScanWorker.cleanupDeletedBooks") {
+                                for (book in existingBooks) {
+                                    if (book.localPath != null) {
+                                        val bookDir = java.io.File(book.localPath)
+                                        if (!bookDir.exists() || !bookDir.isDirectory) {
+                                            logger.i {
+                                                "Deleting book with non-existent path: ${book.localPath}"
+                                            }
+                                            booksDao.deleteById(book.id)
+                                            deletedCount++
                                         }
-                                        booksDao.deleteById(book.id)
-                                        deletedCount++
                                     }
                                 }
                             }
@@ -262,7 +270,9 @@ public class LibraryScanWorker
 
                                 // 3. Batch Upsert (insert or update) - faster for re-scans
                                 if (bookEntities.isNotEmpty()) {
-                                    booksDao.upsertBooksWithChapters(bookEntities, chapterEntities)
+                                    PerfTrace.section(name = "LibraryScanWorker.upsertBatch") {
+                                        booksDao.upsertBooksWithChapters(bookEntities, chapterEntities)
+                                    }
                                     booksSaved += bookEntities.size
 
                                     setProgress(

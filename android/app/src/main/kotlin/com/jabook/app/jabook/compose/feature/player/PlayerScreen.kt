@@ -127,7 +127,7 @@ import java.io.File
 /**
  * Logger for PlayerScreen Composable functions.
  */
-private val playerScreenLogger = LoggerFactoryImpl().get("PlayerScreen")
+private val playerScreenLogger by lazy { LoggerFactoryImpl().get("PlayerScreen") }
 
 /**
  * EntryPoint to access AudioMetadataParser from Hilt in Composable.
@@ -1155,7 +1155,7 @@ private fun PlayerContent(
                                 contentDescription = null,
                                 modifier = Modifier.padding(end = 8.dp),
                             )
-                            Text(text = "Enable visualizer")
+                            Text(text = stringResource(R.string.enableVisualizer))
                         }
                     }
                 }
@@ -1374,7 +1374,7 @@ private fun PlayerContent(
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Tune, // Or Equalizer if available
-                                    contentDescription = "Audio Settings", // TODO: strings.xml
+                                    contentDescription = stringResource(R.string.audioSettingsTitle),
                                     modifier = Modifier.size(controlButtonIconSize),
                                 )
                             }
@@ -1527,7 +1527,7 @@ private fun PlayerContent(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Tune,
-                                contentDescription = "Audio Settings", // TODO: strings.xml
+                                contentDescription = stringResource(R.string.audioSettingsTitle),
                                 modifier = Modifier.size(controlButtonIconSize),
                             )
                         }

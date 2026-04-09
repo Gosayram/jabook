@@ -47,7 +47,7 @@ public object DatabaseModule {
     /**
      * Logger for DatabaseModule.
      */
-    private val logger = LoggerFactoryImpl().get("Room")
+    private val logger by lazy { LoggerFactoryImpl().get("Room") }
 
     /**
      * Helper function to wrap migration with logging.

@@ -15,6 +15,13 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import com.jabook.app.jabook.compose.domain.model.Chapter
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.float
+import io.kotest.property.arbitrary.int
+import io.kotest.property.arbitrary.list
+import io.kotest.property.arbitrary.long
+import io.kotest.property.checkAll
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -72,6 +79,49 @@ class ChapterSeekbarPolicyTest {
         assertEquals(0L, timeline.totalDurationMs)
         assertEquals(0L, timeline.globalPositionMs)
         assertTrue(timeline.chapterMarkersFractions.isEmpty())
+    }
+
+    @Test
+    fun `property - buildTimeline keeps progress and markers in valid bounds`() {
+        runBlocking {
+            checkAll(
+                Arb.list(Arb.long(min = 0L, max = 300_000L), range = 1..8),
+                Arb.int(min = -10, max = 20),
+                Arb.long(min = -120_000L, max = 600_000L),
+            ) { durations, chapterIndex, chapterPositionMs ->
+                val generatedChapters = durations.mapIndexed { index, duration -> chapter(index, duration) }
+                val timeline =
+                    ChapterSeekbarPolicy.buildTimeline(
+                        chapters = generatedChapters,
+                        currentChapterIndex = chapterIndex,
+                        currentChapterPositionMs = chapterPositionMs,
+                    )
+
+                assertTrue(timeline.totalDurationMs >= 0L)
+                assertTrue(timeline.globalPositionMs in 0L..timeline.totalDurationMs)
+                assertTrue(timeline.progress in 0f..1f)
+                assertTrue(timeline.chapterMarkersFractions.all { it in 0f..1f })
+                assertTrue(timeline.chapterMarkersFractions.zipWithNext().all { (a, b) -> b > a })
+            }
+        }
+    }
+
+    @Test
+    fun `property - resolveSeekTarget always returns in-range index and chapter position`() {
+        runBlocking {
+            checkAll(
+                Arb.list(Arb.long(min = 0L, max = 300_000L), range = 1..8),
+                Arb.float(min = -5f, max = 5f),
+            ) { durations, progress ->
+                val generatedChapters = durations.mapIndexed { index, duration -> chapter(index, duration) }
+                val target = ChapterSeekbarPolicy.resolveSeekTarget(generatedChapters, progress)
+                val safeIndex = target.chapterIndex
+                assertTrue(safeIndex in generatedChapters.indices)
+
+                val chapterDuration = generatedChapters[safeIndex].duration.inWholeMilliseconds.coerceAtLeast(0L)
+                assertTrue(target.chapterPositionMs in 0L..chapterDuration)
+            }
+        }
     }
 
     private fun chapter(

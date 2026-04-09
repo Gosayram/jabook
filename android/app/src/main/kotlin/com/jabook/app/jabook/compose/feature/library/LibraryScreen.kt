@@ -45,6 +45,7 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,6 +84,7 @@ public fun LibraryScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToFavorites: () -> Unit = {},
+    onFirstMeaningfulContentDrawn: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
@@ -105,6 +107,19 @@ public fun LibraryScreen(
     val scanFailedMessageTemplate = stringResource(R.string.scanFailedMessage)
     val noFoldersConfiguredMessage = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings)
     val scanCompleteNoBooksMessage = stringResource(R.string.scanCompleteNoBooks)
+    var hasReportedMeaningfulContent by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState) {
+        if (hasReportedMeaningfulContent) return@LaunchedEffect
+        val isMeaningfulState =
+            uiState is LibraryUiState.Success ||
+                uiState is LibraryUiState.Empty ||
+                uiState is LibraryUiState.Error
+        if (isMeaningfulState) {
+            hasReportedMeaningfulContent = true
+            onFirstMeaningfulContentDrawn()
+        }
+    }
 
     // Permission launcher for scanning
     val permissionLauncher =

@@ -60,7 +60,7 @@ import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 /**
  * Logger for UnifiedBookCard Composable functions.
  */
-private val unifiedBookCardLogger = LoggerFactoryImpl().get("UnifiedBookCard")
+private val unifiedBookCardLogger by lazy { LoggerFactoryImpl().get("UnifiedBookCard") }
 
 /**
  * Unified book card component that adapts its layout based on display mode.

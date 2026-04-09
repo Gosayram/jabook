@@ -211,7 +211,7 @@ private fun LogsTab(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                "Error: ${uiState.message}",
+                text = stringResource(R.string.errorWithMessage, uiState.message),
                 color = MaterialTheme.colorScheme.error,
             )
         }

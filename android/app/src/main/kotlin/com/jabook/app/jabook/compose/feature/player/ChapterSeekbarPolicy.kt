@@ -71,7 +71,9 @@ internal object ChapterSeekbarPolicy {
             if (i > 0) {
                 val fraction = (cumulative.toFloat() / totalDuration.toFloat()).coerceIn(0f, 1f)
                 if (fraction > 0f && fraction < 1f) {
-                    markers += fraction
+                    if (markers.lastOrNull() != fraction) {
+                        markers += fraction
+                    }
                 }
             }
             cumulative += durations[i]

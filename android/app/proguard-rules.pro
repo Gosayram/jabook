@@ -70,6 +70,11 @@
 # -------- DataStore Proto --------
 -keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences { *; }
 -keep class com.jabook.app.jabook.compose.data.preferences.UserPreferences$* { *; }
+# Keep protobuf-lite runtime/message members used by generated serializers and reflection bridges
+-keep class com.google.protobuf.** { *; }
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
+    *;
+}
 
 # -------- Retrofit / OkHttp --------
 -keepattributes Signature, InnerClasses, EnclosingMethod
@@ -99,6 +104,13 @@
 # Don't warn about missing classes (native library handles this)
 -dontwarn org.libtorrent4j.**
 -dontwarn org.libtorrent4j.swig.**
+
+# -------- KTagLib JNI bridge --------
+# Keep ktaglib API/jni-facing symbols stable for native calls
+-keep class com.simplecityapps.ktaglib.** { *; }
+-keepclasseswithmembernames class com.simplecityapps.ktaglib.** {
+    native <methods>;
+}
 
 # -------- Entry Points (Activities) --------
 -keep class com.jabook.app.jabook.MainActivity

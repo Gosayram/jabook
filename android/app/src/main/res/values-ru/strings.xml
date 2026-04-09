@@ -97,6 +97,8 @@
     <string name="bufferHealth">Здоровье буфера</string>
     <string name="audioSessionId">ID аудиосессии</string>
     <string name="decoder">Декодер</string>
+    <string name="droppedFrames">Пропущенные кадры</string>
+    <string name="enableVisualizer">Включить визуализатор</string>
 
     <string name="sleepTimerExtended">Таймер сна продлен на 5 минут</string>
     <string name="shakeToExtendEnabled">Встряхните чтобы продлить</string>
@@ -1102,6 +1104,23 @@
     <string name="migrationCompletedSuccessMessage">Перенос успешно завершен</string>
     <!-- Сообщение об ошибке при неудачном переносе -->
     <string name="migrationFailedMessage">Перенос не удался</string>
+    <string name="migrationCheckingForData">Проверка необходимости переноса данных...</string>
+    <string name="migrationInProgress">Переносим ваши данные...</string>
+    <string name="migrationMayTakeMoments">Это может занять некоторое время</string>
+    <string name="migrationCompleteTitle">Перенос завершён!</string>
+    <string name="migrationCompletedDetails">Перенесено: %1$s и %2$s</string>
+    <plurals name="migratedBooksCount">
+        <item quantity="one">%d книга</item>
+        <item quantity="few">%d книги</item>
+        <item quantity="many">%d книг</item>
+        <item quantity="other">%d книги</item>
+    </plurals>
+    <plurals name="migratedChaptersCount">
+        <item quantity="one">%d глава</item>
+        <item quantity="few">%d главы</item>
+        <item quantity="many">%d глав</item>
+        <item quantity="other">%d главы</item>
+    </plurals>
     <!-- Заголовок диалога подтверждения удаления -->
     <string name="deleteConfirmationTitle">Удалить аудиокнигу?</string>
     <!-- Сообщение диалога подтверждения удаления -->
@@ -2340,6 +2359,7 @@
     <string name="mirrorAddedFormat">Зеркало $domain добавлено</string>
     <!-- Играть -->
     <string name="play">Играть</string>
+    <string name="torrentDetailsTitle">Детали торрента</string>
     <!-- Назад -->
     <string name="backButton">Назад</string>
     <!-- Настройки -->
@@ -2523,6 +2543,7 @@
     <string name="jumpToChapterNumber">Перейти к главе №...</string>
     <!-- Строки панели фильтров поиска -->
     <string name="sizeRange">Диапазон размера</string>
+    <string name="sizeRangeWithBounds">Диапазон размера: %1$s - %2$s</string>
     <!-- Помощники форматирования длительности - не отображаются напрямую, а используются в коде -->
     <string name="durationHoursMinutes">%1$dч %2$dм</string>
     <string name="durationMinutes">%1$dм</string>

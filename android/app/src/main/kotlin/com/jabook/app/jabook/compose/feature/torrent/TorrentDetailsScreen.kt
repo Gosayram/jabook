@@ -94,13 +94,13 @@ public fun TorrentDetailsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = download?.name ?: "Torrent Details",
+                        text = download?.name ?: stringResource(R.string.torrentDetailsTitle),
                         maxLines = 1,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = safeNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
@@ -240,7 +240,7 @@ private fun FileItem(
         trailingContent = {
             if (isAudio) {
                 IconButton(onClick = onPlay) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = "Play")
+                    Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.play))
                 }
             }
         },

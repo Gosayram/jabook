@@ -39,7 +39,7 @@ import com.jabook.app.jabook.compose.feature.webview.WebViewScreen
 /**
  * Logger for Navigation.
  */
-private val navigationLogger = LoggerFactoryImpl().get("Navigation")
+private val navigationLogger by lazy { LoggerFactoryImpl().get("Navigation") }
 
 /**
  * Jabook app navigation graph.
@@ -56,6 +56,7 @@ public fun JabookNavHost(
     appState: JabookAppState,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    onFirstMeaningfulContentDrawn: () -> Unit = {},
 ) {
     val navController = appState.navController
 
@@ -144,6 +145,7 @@ public fun JabookNavHost(
                 onNavigateToFavorites = {
                     navController.navigate(FavoritesRoute)
                 },
+                onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
             )

@@ -82,7 +82,7 @@ import kotlinx.coroutines.launch
 /**
  * Logger for SearchScreen Composable functions.
  */
-private val searchScreenLogger = LoggerFactoryImpl().get("SearchScreen")
+private val searchScreenLogger by lazy { LoggerFactoryImpl().get("SearchScreen") }
 
 /**
  * Search screen for finding audiobooks.

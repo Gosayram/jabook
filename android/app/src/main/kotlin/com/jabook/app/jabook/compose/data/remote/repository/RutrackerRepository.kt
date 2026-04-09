@@ -41,6 +41,7 @@ import com.jabook.app.jabook.compose.data.remote.parser.ParsingResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
+import dagger.Lazy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -66,8 +67,8 @@ public class RutrackerRepository
     @Inject
     constructor(
         private val api: RutrackerApi,
-        private val parser: RutrackerParser,
-        private val categoryParser: CategoryParser,
+        private val parser: Lazy<RutrackerParser>,
+        private val categoryParser: Lazy<CategoryParser>,
         private val authService: RutrackerAuthService,
         private val searchCache: RutrackerSearchCache,
         private val offlineSearchDao: OfflineSearchDao,
@@ -79,6 +80,10 @@ public class RutrackerRepository
         }
 
         private val logger = loggerFactory.get(TAG)
+        private val rutrackerParser: RutrackerParser
+            get() = parser.get()
+        private val rutrackerCategoryParser: CategoryParser
+            get() = categoryParser.get()
 
         /**
          * Search for audiobooks using ONLY indexed topics (offline, no network).
@@ -510,7 +515,7 @@ public class RutrackerRepository
             // Note: After BrotliInterceptor decompression, bytes are ready for charset decoding
             val contentType = response.headers()["Content-Type"]
             // Parse with encoding detection (RutrackerSimpleDecoder will decode bytes with Windows-1251)
-            val parsingResult = parser.parseSearchResultsWithEncoding(rawBytes, contentType)
+            val parsingResult = rutrackerParser.parseSearchResultsWithEncoding(rawBytes, contentType)
 
             return when (parsingResult) {
                 is ParsingResult.Success -> {
@@ -685,7 +690,7 @@ public class RutrackerRepository
                             }
 
                             val html = String(rawBytes, charset("windows-1251"))
-                            val dtoDetails = parser.parseTopicDetails(html, topicId)
+                            val dtoDetails = rutrackerParser.parseTopicDetails(html, topicId)
 
                             if (dtoDetails != null) {
                                 // Map DTO to domain model with validation
@@ -749,7 +754,7 @@ public class RutrackerRepository
                             // Decode HTML (CategoryParser expects decoded string)
                             val html = String(rawBytes, Charsets.UTF_8)
 
-                            val parsingResult = categoryParser.parseCategories(html)
+                            val parsingResult = rutrackerCategoryParser.parseCategories(html)
 
                             when (parsingResult) {
                                 is ParsingResult.Success -> {

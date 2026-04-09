@@ -30,7 +30,7 @@ import kotlinx.coroutines.withContext
 /**
  * Logger for CoverPreloader.
  */
-private val coverPreloaderLogger = LoggerFactoryImpl().get("CoverPreloader")
+private val coverPreloaderLogger by lazy { LoggerFactoryImpl().get("CoverPreloader") }
 
 /**
  * Preloads cover images for books that are about to become visible in the list.
@@ -109,7 +109,7 @@ private class CoverPreloader(
     private val context: Context,
     private val preloadAhead: Int,
 ) {
-    private val imageLoader = SingletonImageLoader.get(context)
+    private val imageLoader by lazy { SingletonImageLoader.get(context) }
     private val preloadedIds = mutableSetOf<String>()
 
     /**

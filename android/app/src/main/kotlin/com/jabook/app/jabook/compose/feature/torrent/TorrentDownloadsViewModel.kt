@@ -28,6 +28,8 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.navigation.DownloadsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,10 +50,10 @@ public sealed interface TorrentDownloadsUiState {
     public data object Loading : TorrentDownloadsUiState
 
     public data class Success(
-        val activeDownloads: List<TorrentDownload>,
-        val pausedDownloads: List<TorrentDownload>,
-        val completedDownloads: List<TorrentDownload>,
-        val errorDownloads: List<TorrentDownload>,
+        val activeDownloads: ImmutableList<TorrentDownload>,
+        val pausedDownloads: ImmutableList<TorrentDownload>,
+        val completedDownloads: ImmutableList<TorrentDownload>,
+        val errorDownloads: ImmutableList<TorrentDownload>,
     ) : TorrentDownloadsUiState
 
     public data object Empty : TorrentDownloadsUiState
@@ -132,10 +134,10 @@ public class TorrentDownloadsViewModel
                         val errors = allDownloads.filter { it.state == TorrentState.ERROR }
 
                         TorrentDownloadsUiState.Success(
-                            activeDownloads = active,
-                            pausedDownloads = paused,
-                            completedDownloads = completed,
-                            errorDownloads = errors,
+                            activeDownloads = active.toImmutableList(),
+                            pausedDownloads = paused.toImmutableList(),
+                            completedDownloads = completed.toImmutableList(),
+                            errorDownloads = errors.toImmutableList(),
                         )
                     }
                 } catch (e: Exception) {

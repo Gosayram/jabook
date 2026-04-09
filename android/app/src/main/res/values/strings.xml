@@ -95,6 +95,8 @@
     <string name="bufferHealth">Buffer Health</string>
     <string name="audioSessionId">Audio Session ID</string>
     <string name="decoder">Decoder</string>
+    <string name="droppedFrames">Dropped Frames</string>
+    <string name="enableVisualizer">Enable visualizer</string>
 
     <string name="sleepTimerExtended">Sleep timer extended by 5 minutes</string>
     <string name="shakeToExtendEnabled">Shake to extend enabled</string>
@@ -1136,6 +1138,26 @@
     <string name="migrationCompletedSuccessMessage">Migration completed successfully</string>
     <!-- Error message when migration fails -->
     <string name="migrationFailedMessage">Migration failed</string>
+    <!-- Title shown while checking whether data migration is needed -->
+    <string name="migrationCheckingForData">Checking for data migration...</string>
+    <!-- Title shown while data migration is in progress -->
+    <string name="migrationInProgress">Migrating your data...</string>
+    <!-- Subtitle shown during migration -->
+    <string name="migrationMayTakeMoments">This may take a few moments</string>
+    <!-- Title shown when migration has completed -->
+    <string name="migrationCompleteTitle">Migration complete!</string>
+    <!-- Combined migration details line -->
+    <string name="migrationCompletedDetails">Migrated %1$s and %2$s</string>
+    <!-- Plural for migrated books count -->
+    <plurals name="migratedBooksCount">
+        <item quantity="one">%d book</item>
+        <item quantity="other">%d books</item>
+    </plurals>
+    <!-- Plural for migrated chapters count -->
+    <plurals name="migratedChaptersCount">
+        <item quantity="one">%d chapter</item>
+        <item quantity="other">%d chapters</item>
+    </plurals>
     <!-- Title for delete confirmation dialog -->
     <string name="deleteConfirmationTitle">Delete Audiobook?</string>
     <!-- Message for delete confirmation dialog -->
@@ -2343,6 +2365,7 @@
     <string name="loadingEllipsis">Loading...</string>
     <string name="mirrorAddedFormat">Mirror $domain added</string>
     <string name="play">Play</string>
+    <string name="torrentDetailsTitle">Torrent Details</string>
     <string name="backButton">Back</string>
     <string name="settings">Settings</string>
     <string name="invalidUrlFormatError">Invalid URL. Use format: rutracker.example</string>
@@ -2517,6 +2540,7 @@
     <string name="jumpToChapterNumber">Jump to chapter #...</string>
     <!-- Search filters pane strings -->
     <string name="sizeRange">Size Range</string>
+    <string name="sizeRangeWithBounds">Size Range: %1$s - %2$s</string>
     <!-- Duration format helpers - not directly displayed but used in code -->
     <string name="durationHoursMinutes">%1$dh %2$dm</string>
     <string name="durationMinutes">%1$dm</string>

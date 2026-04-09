@@ -36,6 +36,8 @@ import com.jabook.app.jabook.compose.domain.usecase.library.GetRecentlyPlayedBoo
 import com.jabook.app.jabook.compose.domain.usecase.library.SearchBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -126,7 +128,7 @@ public class LibraryViewModel
                             if (filteredBooks.isEmpty()) {
                                 LibraryUiState.Empty
                             } else {
-                                LibraryUiState.Success(filteredBooks)
+                                LibraryUiState.Success(filteredBooks.toImmutableList())
                             }
                         } catch (e: Exception) {
                             LibraryUiState.Error(e.message ?: "Unknown error")
@@ -362,7 +364,7 @@ public sealed interface LibraryUiState {
      * Success state with books.
      */
     public data class Success(
-        val books: List<Book>,
+        val books: ImmutableList<Book>,
     ) : LibraryUiState
 
     /**

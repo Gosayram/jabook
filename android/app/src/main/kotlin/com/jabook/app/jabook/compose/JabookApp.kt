@@ -68,6 +68,7 @@ import kotlinx.coroutines.launch
 public fun JabookApp(
     windowSizeClass: WindowSizeClass,
     intent: android.content.Intent? = null,
+    onFirstMeaningfulContentDrawn: () -> Unit = {},
     appState: JabookAppState = rememberJabookAppState(),
     viewModel: MainViewModel = hiltViewModel(),
     permissionViewModel: com.jabook.app.jabook.compose.feature.permissions.PermissionViewModel = hiltViewModel(),
@@ -282,6 +283,7 @@ public fun JabookApp(
                                 appState = appState,
                                 modifier = Modifier.fillMaxSize(),
                                 sharedTransitionScope = this,
+                                onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
                             )
                         }
 

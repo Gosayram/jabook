@@ -14,6 +14,10 @@
 
 package com.jabook.app.jabook.compose.data.local.search
 
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.string
+import io.kotest.property.checkAll
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -52,5 +56,37 @@ class TransliterationSearchPolicyTest {
     @Test
     fun `buildFtsMatchQuery returns empty for blank input`() {
         assertEquals("", TransliterationSearchPolicy.buildFtsMatchQuery("  "))
+    }
+
+    @Test
+    fun `property - buildVariants returns unique normalized variants`() {
+        runBlocking {
+            checkAll(Arb.string(minSize = 0, maxSize = 64)) { raw ->
+                val variants = TransliterationSearchPolicy.buildVariants(raw)
+                assertEquals(variants.distinct().size, variants.size)
+                assertTrue(variants.all { it == it.trim().lowercase() })
+                if (raw.trim().isBlank()) {
+                    assertTrue(variants.isEmpty())
+                } else {
+                    assertTrue(variants.isNotEmpty())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `property - fts query is empty only when variants are empty`() {
+        runBlocking {
+            checkAll(Arb.string(minSize = 0, maxSize = 64)) { raw ->
+                val variants = TransliterationSearchPolicy.buildVariants(raw)
+                val fts = TransliterationSearchPolicy.buildFtsMatchQuery(variants)
+                if (variants.isEmpty()) {
+                    assertEquals("", fts)
+                } else {
+                    assertTrue(fts.startsWith("("))
+                    assertTrue(fts.endsWith(")"))
+                }
+            }
+        }
     }
 }

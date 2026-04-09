@@ -30,7 +30,7 @@ import com.jabook.app.jabook.ui.theme.InterFontFamily
 /**
  * Logger for FontUtils.
  */
-private val fontUtilsLogger = LoggerFactoryImpl().get("FontUtils")
+private val fontUtilsLogger by lazy { LoggerFactoryImpl().get("FontUtils") }
 
 /**
  * Utility for creating FontFamily based on AppFont selection.
