@@ -1513,7 +1513,7 @@ public class AudioPlayerService : MediaLibraryService() {
                                                 .build()
                                         val result = loader.execute(request)
                                         if (result is SuccessResult) {
-                                            callback.onBitmap(result.image!!.toBitmap())
+                                            callback.onBitmap(result.image.toBitmap())
                                         }
                                     } catch (e: Exception) {
                                         android.util.Log.w("AudioPlayerService", "Failed to load large icon via Coil", e)
@@ -1810,8 +1810,12 @@ public class AudioPlayerService : MediaLibraryService() {
         playerNotificationManager?.setPlayer(null)
         playerNotificationManager = null
 
-        audioOutputManager.stopMonitoring()
-        playbackEnhancerService.release()
+        if (::audioOutputManager.isInitialized) {
+            audioOutputManager.stopMonitoring()
+        }
+        if (::playbackEnhancerService.isInitialized) {
+            playbackEnhancerService.release()
+        }
 
         sleepTimerManager?.release()
         sleepTimerManager = null
