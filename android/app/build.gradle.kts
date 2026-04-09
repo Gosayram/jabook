@@ -92,7 +92,7 @@ plugins {
     // REMOVED: kotlin-kapt - migrated to KSP for Kotlin 2.0+ compatibility
     // id("kotlin-kapt")
     id("org.jlleitschuh.gradle.ktlint")
-    id("io.gitlab.arturbosch.detekt")
+    id("dev.detekt")
     // Kotlinx serialization for type-safe navigation
     id("org.jetbrains.kotlin.plugin.serialization")
     // Compose Compiler (required for Kotlin 2.0+)
@@ -502,8 +502,15 @@ ktlint {
 detekt {
     buildUponDefaultConfig = true
     allRules = false
-    config.setFrom(files("${rootProject.projectDir}/../default-detekt-config.yml"))
-    baseline = file("${rootProject.projectDir}/../detekt-baseline.xml")
+    config.setFrom(
+        rootProject.layout.projectDirectory
+            .file("../default-detekt-config.yml")
+            .asFile,
+    )
+    baseline =
+        rootProject.layout.projectDirectory
+            .file("../detekt-baseline.xml")
+            .asFile
 
     source.setFrom(
         files(
