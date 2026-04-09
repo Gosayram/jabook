@@ -167,7 +167,7 @@ val generateProtoLite by tasks.registering(GenerateProtoLiteTask::class) {
 
 android {
     namespace = "com.jabook.app.jabook"
-    compileSdk = 36 // Android 16 (required by androidx.activity:1.12.1)
+    compileSdk = 37 // Android 16+ (required by material3-adaptive 1.3.0-alpha10)
     // ndkVersion no longer needed without Flutter
 
     compileOptions {

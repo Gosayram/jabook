@@ -1,7 +1,7 @@
 [versions]
 # Android
 androidGradlePlugin = "9.1.0"
-compileSdk = "36"
+compileSdk = "37"
 minSdk = "30"
 targetSdk = "36"
 
