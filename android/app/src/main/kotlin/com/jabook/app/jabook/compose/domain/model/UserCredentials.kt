@@ -14,9 +14,12 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * User credentials for Rutracker authentication.
  */
+@Immutable
 public data class UserCredentials(
     val username: String,
     val password: String,

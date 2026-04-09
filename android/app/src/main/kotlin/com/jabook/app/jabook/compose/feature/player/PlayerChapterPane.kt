@@ -212,7 +212,7 @@ public fun PlayerChapterPane(
         ) {
             items(
                 count = filteredChapters.size,
-                key = { index -> filteredChapters[index].first },
+                key = { index -> filteredChapters[index].second.id },
             ) { listIndex ->
                 val (originalIndex, chapter) = filteredChapters[listIndex]
                 ChapterListItem(
