@@ -289,15 +289,13 @@ public fun SearchScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                     ) {
                                         Text(
-                                            text = "Индекс не создан",
+                                            text = stringResource(R.string.indexNotCreatedTitle),
                                             style = MaterialTheme.typography.titleMedium,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            text =
-                                                "Для поиска аудиокниг необходимо создать индекс форумов. " +
-                                                    "Индексация работает в фоне, вы можете продолжать использовать приложение.",
+                                            text = stringResource(R.string.indexNotCreatedDescriptionLong),
                                             style = MaterialTheme.typography.bodySmall,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         )
@@ -307,7 +305,7 @@ public fun SearchScreen(
                                                 indexingViewModel.startIndexing(context)
                                             },
                                         ) {
-                                            Text("Начать индексацию")
+                                            Text(stringResource(R.string.startIndexing))
                                         }
                                     }
                                 }
@@ -348,9 +346,9 @@ public fun SearchScreen(
                                             Text(
                                                 text =
                                                     if (isIndexingNow) {
-                                                        "Индексация в процессе..."
+                                                        stringResource(R.string.indexingInProgressTitle)
                                                     } else {
-                                                        "Индекс не создан"
+                                                        stringResource(R.string.indexNotCreatedTitle)
                                                     },
                                                 style = MaterialTheme.typography.titleSmall,
                                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -359,11 +357,9 @@ public fun SearchScreen(
                                             Text(
                                                 text =
                                                     if (isIndexingNow) {
-                                                        "Пожалуйста, подождите завершения индексации. " +
-                                                            "Прогресс можно увидеть в уведомлениях."
+                                                        stringResource(R.string.indexingInProgressDescription)
                                                     } else {
-                                                        "Для онлайн поиска необходимо создать индекс. " +
-                                                            "Локальный поиск работает всегда."
+                                                        stringResource(R.string.indexRequiredForOnlineSearchDescription)
                                                     },
                                                 style = MaterialTheme.typography.bodySmall,
                                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,

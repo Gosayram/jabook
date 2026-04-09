@@ -65,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -283,13 +284,13 @@ public fun RutrackerSearchScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            text = "Индекс не создан",
+                            text = stringResource(R.string.indexNotCreatedTitle),
                             style = MaterialTheme.typography.titleMedium,
                             textAlign = TextAlign.Center,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Для быстрого поиска необходимо создать индекс форумов",
+                            text = stringResource(R.string.indexNotCreatedDescriptionShort),
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center,
                         )
@@ -300,7 +301,7 @@ public fun RutrackerSearchScreen(
                                 indexingViewModel.startIndexing(context)
                             },
                         ) {
-                            Text("Начать индексацию")
+                            Text(stringResource(R.string.startIndexing))
                         }
                     }
                 }
@@ -319,12 +320,18 @@ public fun RutrackerSearchScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
+                            val indexTopicsCount =
+                                pluralStringResource(
+                                    R.plurals.indexTopicsCount,
+                                    indexSize.value,
+                                    indexSize.value,
+                                )
                             Text(
-                                text = "Индекс: ${indexSize.value} тем",
+                                text = stringResource(R.string.indexStatusWithTopics, indexTopicsCount),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
-                                text = "Поиск работает офлайн",
+                                text = stringResource(R.string.searchWorksOffline),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -335,7 +342,7 @@ public fun RutrackerSearchScreen(
                                 indexingViewModel.startIndexing(context)
                             },
                         ) {
-                            Text("Обновить")
+                            Text(stringResource(R.string.updateAction))
                         }
                     }
                 }

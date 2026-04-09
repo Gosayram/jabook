@@ -2632,9 +2632,40 @@
     <string name="continueWithLimitedMode">Continue with limited mode</string>
     <string name="grantFullAccessInstead">Grant full access instead</string>
     <string name="limitedModeActiveDescription">You are using limited mode. USB/OTG storage, external folder browsing, and custom download locations are not available.</string>
+    <string name="indexNotCreatedTitle">Index is not created</string>
+    <string name="indexNotCreatedDescriptionShort">Create a forum index for faster search</string>
+    <string name="indexNotCreatedDescriptionLong">To search audiobooks, you need to create a forum index. Indexing runs in background, and you can keep using the app.</string>
+    <string name="startIndexing">Start indexing</string>
+    <string name="indexStatusWithTopics">Index: %1$s</string>
+    <string name="searchWorksOffline">Search works offline</string>
+    <string name="updateAction">Update</string>
+    <string name="indexingInProgressTitle">Indexing in progress...</string>
+    <string name="indexingInProgressDescription">Please wait until indexing is complete. Progress is available in notifications.</string>
+    <string name="indexRequiredForOnlineSearchDescription">Online search requires index creation. Local search is always available.</string>
+    <string name="indexingDialogTitle">Indexing</string>
+    <string name="indexingCompletedTitle">Indexing completed</string>
+    <string name="indexingErrorTitle">Indexing error</string>
+    <string name="indexingPreparing">Preparing indexing...</string>
+    <string name="indexingStatusForum">Indexing forum: %1$s</string>
+    <string name="indexingStatusForumProgress">Forum %1$d of %2$d</string>
+    <string name="indexingStatusPage">Page %1$d</string>
+    <string name="indexingCompletedHeadline">Indexing completed!</string>
+    <string name="indexingDurationSeconds">Time: %1$d sec</string>
+    <string name="indexingForumLabel">Forum: %1$s</string>
+    <string name="hideAction">Hide</string>
+    <string name="cannotShareLogsActivityRequired">Cannot share logs: activity context required</string>
     <string name="autoLabel">Auto</string>
     <string name="smartEffectsTitle">Smart Effects</string>
     <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
     <string name="audioVisualizerPermissionHint">Audio visualizer needs microphone permission</string>
     <string name="loadingPlayer">Loading player...</string>
+
+    <plurals name="indexTopicsCount">
+        <item quantity="one">%d topic</item>
+        <item quantity="other">%d topics</item>
+    </plurals>
+    <plurals name="indexTopicsIndexed">
+        <item quantity="one">Indexed: %d topic</item>
+        <item quantity="other">Indexed: %d topics</item>
+    </plurals>
 </resources>

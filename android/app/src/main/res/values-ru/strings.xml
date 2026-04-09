@@ -2678,9 +2678,44 @@
     <string name="continueWithLimitedMode">Продолжить в ограниченном режиме</string>
     <string name="grantFullAccessInstead">Предоставить полный доступ</string>
     <string name="limitedModeActiveDescription">Вы используете ограниченный режим. USB/OTG-накопители, просмотр внешних папок и пользовательские расположения загрузок недоступны.</string>
+    <string name="indexNotCreatedTitle">Индекс не создан</string>
+    <string name="indexNotCreatedDescriptionShort">Для быстрого поиска необходимо создать индекс форумов</string>
+    <string name="indexNotCreatedDescriptionLong">Для поиска аудиокниг необходимо создать индекс форумов. Индексация работает в фоне, вы можете продолжать использовать приложение.</string>
+    <string name="startIndexing">Начать индексацию</string>
+    <string name="indexStatusWithTopics">Индекс: %1$s</string>
+    <string name="searchWorksOffline">Поиск работает офлайн</string>
+    <string name="updateAction">Обновить</string>
+    <string name="indexingInProgressTitle">Индексация в процессе...</string>
+    <string name="indexingInProgressDescription">Пожалуйста, подождите завершения индексации. Прогресс можно увидеть в уведомлениях.</string>
+    <string name="indexRequiredForOnlineSearchDescription">Для онлайн поиска необходимо создать индекс. Локальный поиск работает всегда.</string>
+    <string name="indexingDialogTitle">Индексация</string>
+    <string name="indexingCompletedTitle">Индексация завершена</string>
+    <string name="indexingErrorTitle">Ошибка индексации</string>
+    <string name="indexingPreparing">Подготовка к индексации...</string>
+    <string name="indexingStatusForum">Индексируем форум: %1$s</string>
+    <string name="indexingStatusForumProgress">Форум %1$d из %2$d</string>
+    <string name="indexingStatusPage">Страница %1$d</string>
+    <string name="indexingCompletedHeadline">Индексация завершена!</string>
+    <string name="indexingDurationSeconds">Время: %1$d сек</string>
+    <string name="indexingForumLabel">Форум: %1$s</string>
+    <string name="hideAction">Скрыть</string>
+    <string name="cannotShareLogsActivityRequired">Не удалось поделиться логами: требуется Activity-контекст</string>
     <string name="autoLabel">Авто</string>
     <string name="smartEffectsTitle">Умные эффекты</string>
     <string name="notificationPermissionPlaybackHint">Уведомления помогают управлять воспроизведением из панели уведомлений</string>
     <string name="audioVisualizerPermissionHint">Аудиовизуализатору нужно разрешение на микрофон</string>
     <string name="loadingPlayer">Загрузка плеера...</string>
+
+    <plurals name="indexTopicsCount">
+        <item quantity="one">%d тема</item>
+        <item quantity="few">%d темы</item>
+        <item quantity="many">%d тем</item>
+        <item quantity="other">%d темы</item>
+    </plurals>
+    <plurals name="indexTopicsIndexed">
+        <item quantity="one">Проиндексировано: %d тема</item>
+        <item quantity="few">Проиндексировано: %d темы</item>
+        <item quantity="many">Проиндексировано: %d тем</item>
+        <item quantity="other">Проиндексировано: %d темы</item>
+    </plurals>
 </resources>

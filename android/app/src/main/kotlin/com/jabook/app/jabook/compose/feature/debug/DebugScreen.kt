@@ -93,6 +93,7 @@ public fun DebugScreen(
     val logs by viewModel.logs.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val cannotShareLogsActivityRequired = stringResource(R.string.cannotShareLogsActivityRequired)
 
     // Show error messages
     LaunchedEffect(uiState) {
@@ -138,7 +139,9 @@ public fun DebugScreen(
                             } else {
                                 // Show error if no activity available
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("Cannot share logs: Activity context required")
+                                    snackbarHostState.showSnackbar(
+                                        cannotShareLogsActivityRequired,
+                                    )
                                 }
                             }
                         }
