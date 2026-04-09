@@ -50,6 +50,12 @@
     <string name="performerLabel">Исполнитель</string>
     <string name="seriesLabel">Цикл/серия</string>
     <string name="commentsLabel">Комментарии (%d)</string>
+    <plurals name="comments_label_plural">
+        <item quantity="one">Комментарий (%1$d)</item>
+        <item quantity="few">Комментарии (%1$d)</item>
+        <item quantity="many">Комментарии (%1$d)</item>
+        <item quantity="other">Комментарии (%1$d)</item>
+    </plurals>
     <!-- Метка для поля размера -->
     <string name="sizeLabel">Размер</string>
     <string name="durationLabel">Длительность</string>
@@ -2477,6 +2483,12 @@
     <string name="scan_status_parsing">Парсинг: %1$s (%2$d/%3$d)</string>
     <string name="scan_status_saving">Сохранение в базу данных...</string>
     <string name="scan_status_complete">Сканирование завершено. Добавлено книг: %1$d.</string>
+    <plurals name="scan_status_complete_plural">
+        <item quantity="one">Сканирование завершено. Добавлена %1$d книга.</item>
+        <item quantity="few">Сканирование завершено. Добавлены %1$d книги.</item>
+        <item quantity="many">Сканирование завершено. Добавлено %1$d книг.</item>
+        <item quantity="other">Сканирование завершено. Добавлены %1$d книги.</item>
+    </plurals>
     <string name="scan_status_error">Ошибка: %1$s</string>
     <!-- Описание кнопки перемещения главы вверх -->
     <string name="moveUp">Переместить вверх</string>
@@ -2491,6 +2503,12 @@
     <string name="scan_status_preparing">Подготовка %1$d книг для базы данных...</string>
     <string name="scan_status_processing_covers">Обработка обложек...</string>
     <string name="scan_status_completed_saving">Завершено сохранение %1$d книг</string>
+    <plurals name="scan_status_completed_saving_plural">
+        <item quantity="one">Завершено сохранение %1$d книги</item>
+        <item quantity="few">Завершено сохранение %1$d книг</item>
+        <item quantity="many">Завершено сохранение %1$d книг</item>
+        <item quantity="other">Завершено сохранение %1$d книги</item>
+    </plurals>
     <string name="libraryUnknownError">Неизвестная ошибка</string>
     <!-- Строки панели деталей книги -->
     <string name="selectBookToViewDetails">Выберите книгу для просмотра деталей</string>
@@ -2572,6 +2590,12 @@
     <string name="active_downloads">Активные загрузки</string>
     <string name="downloading_count_speed">%1$d загружается • %2$s</string>
     <string name="downloads_paused_or_queued">%1$d загрузок активно</string>
+    <plurals name="downloads_active_plural">
+        <item quantity="one">Активна %1$d загрузка</item>
+        <item quantity="few">Активны %1$d загрузки</item>
+        <item quantity="many">Активны %1$d загрузок</item>
+        <item quantity="other">Активны %1$d загрузки</item>
+    </plurals>
 
     <!-- Диалог добавления торрента -->
     <string name="add_torrent_title">Добавить торрент</string>

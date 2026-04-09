@@ -50,6 +50,10 @@
     <string name="performerLabel">Performer</string>
     <string name="seriesLabel">Series</string>
     <string name="commentsLabel">Comments (%d)</string>
+    <plurals name="comments_label_plural">
+        <item quantity="one">Comment (%1$d)</item>
+        <item quantity="other">Comments (%1$d)</item>
+    </plurals>
     <!-- Label for size field -->
     <string name="sizeLabel">Size</string>
     <string name="durationLabel">Duration</string>
@@ -602,6 +606,10 @@
     <string name="active_downloads">Active Downloads</string>
     <string name="downloading_count_speed">%1$d downloading • %2$s</string>
     <string name="downloads_paused_or_queued">%1$d downloads active</string>
+    <plurals name="downloads_active_plural">
+        <item quantity="one">%1$d download active</item>
+        <item quantity="other">%1$d downloads active</item>
+    </plurals>
     <!-- Label for magnet link -->
     <string name="magnetLinkLabelText">Magnet link</string>
     <!-- Message for magnet link copied -->
@@ -2474,6 +2482,10 @@
     <string name="scan_status_parsing">Parsing: %1$s (%2$d/%3$d)</string>
     <string name="scan_status_saving">Saving to database...</string>
     <string name="scan_status_complete">Scan complete. Added %1$d books.</string>
+    <plurals name="scan_status_complete_plural">
+        <item quantity="one">Scan complete. Added %1$d book.</item>
+        <item quantity="other">Scan complete. Added %1$d books.</item>
+    </plurals>
     <string name="scan_status_error">Error: %1$s</string>
     <!-- Content description for move chapter up button -->
     <string name="moveUp">Move Up</string>
@@ -2488,6 +2500,10 @@
     <string name="scan_status_preparing">Preparing %1$d books for database...</string>
     <string name="scan_status_processing_covers">Processing cover art...</string>
     <string name="scan_status_completed_saving">Completed saving %1$d books</string>
+    <plurals name="scan_status_completed_saving_plural">
+        <item quantity="one">Completed saving %1$d book</item>
+        <item quantity="other">Completed saving %1$d books</item>
+    </plurals>
     <string name="libraryUnknownError">Unknown error</string>
     <!-- Book detail pane strings -->
     <string name="selectBookToViewDetails">Select a book to view details</string>

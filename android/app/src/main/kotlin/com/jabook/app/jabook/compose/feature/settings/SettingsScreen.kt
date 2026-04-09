@@ -71,6 +71,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -561,7 +562,12 @@ public fun SettingsScreen(
                                 p.total,
                             )
                         is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
-                        is ScanProgress.Completed -> stringResource(R.string.scan_status_complete, p.booksAdded)
+                        is ScanProgress.Completed ->
+                            pluralStringResource(
+                                R.plurals.scan_status_complete_plural,
+                                p.booksAdded,
+                                p.booksAdded,
+                            )
                         is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
                     },
                 onClick =
@@ -657,7 +663,11 @@ public fun SettingsScreen(
                                 formatBytes(totalSpeed.toLong()) + "/s",
                             )
                         } else {
-                            stringResource(R.string.downloads_paused_or_queued, activeDownloads.size)
+                            pluralStringResource(
+                                R.plurals.downloads_active_plural,
+                                activeDownloads.size,
+                                activeDownloads.size,
+                            )
                         },
                     onClick = { safeNavigateToDownloads() },
                 ) {

@@ -80,6 +80,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -918,7 +919,12 @@ private fun ExpandableComments(
         ) {
             Column {
                 Text(
-                    text = stringResource(R.string.commentsLabel, comments.size),
+                    text =
+                        pluralStringResource(
+                            R.plurals.comments_label_plural,
+                            comments.size,
+                            comments.size,
+                        ),
                     style = MaterialTheme.typography.titleSmall,
                 )
                 if (totalPages > 1 && expanded) {

@@ -268,8 +268,9 @@ public class LibraryScanWorker
                                     setProgress(
                                         workDataOf(
                                             "status" to
-                                                applicationContext.getString(
-                                                    R.string.scan_status_completed_saving,
+                                                applicationContext.resources.getQuantityString(
+                                                    R.plurals.scan_status_completed_saving_plural,
+                                                    booksSaved,
                                                     booksSaved,
                                                 ),
                                         ),
