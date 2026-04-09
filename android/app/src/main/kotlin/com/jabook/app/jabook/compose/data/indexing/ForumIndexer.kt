@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,7 +78,10 @@ public class ForumIndexer
         private val logger = loggerFactory.get("ForumIndexer")
 
         // Background scope for non-blocking operations (cover preloading)
-        private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val backgroundScope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ForumIndexer"),
+            )
 
         public companion object {
             private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size

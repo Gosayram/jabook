@@ -19,6 +19,7 @@ import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -59,7 +60,10 @@ public class AudioEqualizerManager
         private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository,
         private val eqFactory: (Int) -> Equalizer = { sessionId -> Equalizer(0, sessionId) },
     ) {
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.Default + loggingCoroutineExceptionHandler("AudioEqualizerManager"),
+            )
 
         /** The current system Equalizer, or null if disabled / not yet attached. */
         private var equalizer: Equalizer? = null

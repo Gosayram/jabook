@@ -31,6 +31,7 @@ import com.jabook.app.jabook.audio.ForegroundServiceStartPolicy
 import com.jabook.app.jabook.audio.ForegroundStartOutcome
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,7 +56,10 @@ public class TorrentDownloadService : Service() {
     public lateinit var loggerFactory: LoggerFactory
 
     private val logger = loggerFactory.get("TorrentDownloadService")
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val serviceScope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("TorrentDownloadService"),
+        )
     private var wakeLock: PowerManager.WakeLock? = null
 
     private val foregroundStartPolicy =

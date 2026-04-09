@@ -21,6 +21,7 @@ import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,7 +69,10 @@ public class PhoneCallListener(
     private val telephonyManager: TelephonyManager? =
         context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val scope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("PhoneCallListener"),
+        )
 
     // Modern API (API 31+)
     private var telephonyCallback: TelephonyCallback? = null

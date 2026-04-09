@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import android.util.Log
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,7 +55,10 @@ public class ThrottledSeekHandler
             public const val DEFAULT_THROTTLE_MS: Long = 0L
         }
 
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("ThrottledSeekHandler"),
+            )
         private var pendingSeekJob: Job? = null
         private var lastSeekPosition: Long = 0L
 

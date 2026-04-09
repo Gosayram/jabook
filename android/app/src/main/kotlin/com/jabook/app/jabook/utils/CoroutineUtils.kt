@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.utils
 
+import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
@@ -90,3 +92,26 @@ public fun <T : Any> SingleItemMutableSharedFlow(): MutableSharedFlow<T> =
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
+
+/**
+ * Creates a [CoroutineExceptionHandler] that logs uncaught exceptions via [LogUtils].
+ *
+ * Without an explicit handler, exceptions that escape a `SupervisorJob`-based scope
+ * are silently dropped on Android (no crash, no log). This handler guarantees that
+ * every uncaught exception is at least logged at ERROR level — making production
+ * debugging significantly easier.
+ *
+ * @param tag Log tag used in [LogUtils.e]. Defaults to "CoroutineException".
+ * @return A [CoroutineExceptionHandler] suitable for inclusion in a scope context.
+ *
+ * Usage:
+ * ```kotlin
+ * private val scope = CoroutineScope(
+ *     SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("MyService")
+ * )
+ * ```
+ */
+public fun loggingCoroutineExceptionHandler(tag: String = "CoroutineException"): CoroutineExceptionHandler =
+    CoroutineExceptionHandler { _, throwable ->
+        LogUtils.e(tag, "Uncaught coroutine exception", throwable)
+    }

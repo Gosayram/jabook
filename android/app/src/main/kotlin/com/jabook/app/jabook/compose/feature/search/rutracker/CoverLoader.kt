@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.search.rutracker
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,7 +43,10 @@ public class CoverLoader
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("CoverLoader")
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("CoverLoader"),
+            )
         private val loadQueue = Channel<String>(Channel.UNLIMITED)
         private val activeLoads = ConcurrentHashMap.newKeySet<String>()
         private val loadedCache = ConcurrentHashMap.newKeySet<String>() // Simple memory cache for session

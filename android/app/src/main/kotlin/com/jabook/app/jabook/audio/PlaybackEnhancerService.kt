@@ -20,6 +20,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,7 +77,10 @@ public class PlaybackEnhancerService
         private val player: ExoPlayer,
         private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository,
     ) {
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.Default + loggingCoroutineExceptionHandler("PlaybackEnhancerService"),
+            )
 
         private var enhancer: LoudnessEnhancer? = null
 
