@@ -37,11 +37,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.abs
 import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
 
 /**
@@ -146,6 +148,18 @@ public class PlayerViewModel
         private val lyricsState =
             MutableStateFlow<List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
 
+        // Backpressure guard for seekbar/UI: keep only latest position updates and
+        // suppress jittery micro-updates that don't change visible state.
+        private val uiPositionFlow: StateFlow<Long> =
+            playerController.currentPosition
+                .map { it.coerceAtLeast(0L) }
+                .distinctUntilChanged { previous, current -> abs(current - previous) < POSITION_UI_EPSILON_MS }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = playerController.currentPosition.value.coerceAtLeast(0L),
+                )
+
         /**
          * Combined UI state from book data, playback state, and settings.
          */
@@ -154,7 +168,7 @@ public class PlayerViewModel
                 getBookDetailsUseCase(bookId),
                 getChaptersUseCase(bookId),
                 playerController.isPlaying,
-                playerController.currentPosition,
+                uiPositionFlow,
                 playerController.currentChapterIndex,
                 playerController.currentBookId,
                 settingsRepository.userPreferences,
@@ -258,6 +272,10 @@ public class PlayerViewModel
                     }
                 }
             }
+        }
+
+        private companion object {
+            private const val POSITION_UI_EPSILON_MS: Long = 150L
         }
 
         private suspend fun loadLyrics(audioPath: String) {
