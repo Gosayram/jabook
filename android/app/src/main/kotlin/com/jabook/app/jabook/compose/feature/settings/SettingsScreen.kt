@@ -21,6 +21,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -330,14 +331,7 @@ public fun SettingsScreen(
                     while (true) {
                         val duration = System.currentTimeMillis() - indexingStartTime!!
                         val seconds = duration / 1000
-                        val minutes = seconds / 60
-                        val hours = minutes / 60
-                        elapsedTimeStr =
-                            if (hours > 0) {
-                                String.format("%d:%02d:%02d", hours, minutes % 60, seconds % 60)
-                            } else {
-                                String.format("%02d:%02d", minutes % 60, seconds % 60)
-                            }
+                        elapsedTimeStr = DateUtils.formatElapsedTime(seconds)
                         kotlinx.coroutines.delay(1000L)
                     }
                 } else {

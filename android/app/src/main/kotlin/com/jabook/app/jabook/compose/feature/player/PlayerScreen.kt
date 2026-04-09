@@ -1436,7 +1436,7 @@ private fun PlayerContent(
                                 if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
                                     val activeState = sleepTimerState
                                     Text(
-                                        activeState.formattedTime,
+                                        formatSleepTimerRemaining(activeState.remainingSeconds),
                                         fontSize = controlButtonTextSize,
                                     )
                                 }
@@ -1579,7 +1579,7 @@ private fun PlayerContent(
                             if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
                                 val activeState = sleepTimerState
                                 Text(
-                                    activeState.formattedTime,
+                                    formatSleepTimerRemaining(activeState.remainingSeconds),
                                     fontSize = controlButtonTextSize,
                                 )
                             }

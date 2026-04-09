@@ -34,13 +34,15 @@ public sealed interface SleepTimerState {
         val remainingSeconds: Int,
     ) : SleepTimerState {
         /**
-         * Formatted time string (MM:SS).
+         * Legacy formatted time (MM:SS) for compatibility with existing tests/consumers.
+         * UI formatting should prefer platform-aware formatter in presentation layer.
          */
         public val formattedTime: String
             get() {
-                val minutes = remainingSeconds / 60
-                val seconds = remainingSeconds % 60
-                return String.format("%02d:%02d", minutes, seconds)
+                val safeSeconds = remainingSeconds.coerceAtLeast(0)
+                val minutes = safeSeconds / 60
+                val seconds = safeSeconds % 60
+                return "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
             }
     }
 

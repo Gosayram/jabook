@@ -144,7 +144,7 @@ public fun SleepTimerSheet(
                 is SleepTimerState.Active -> {
                     // Show countdown
                     ActiveTimerContent(
-                        timeText = currentState.formattedTime,
+                        timeText = formatSleepTimerRemaining(currentState.remainingSeconds),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )
