@@ -48,6 +48,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -176,26 +177,31 @@ public fun PlayerChapterPane(
 
         // Filter chapters
         val chapterPrefix = stringResource(R.string.chapter_prefix)
-        val filteredChapters =
-            remember(chapters, searchQuery, normalizeEnabled, chapterPrefix) {
-                chapters
-                    .mapIndexed { index, chapter -> index to chapter }
-                    .filter { (index, chapter) ->
-                        if (searchQuery.isBlank()) {
-                            true
-                        } else {
-                            val titleToSearch =
-                                com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
-                                    chapter = chapter,
-                                    index = index,
-                                    localizedPrefix = chapterPrefix,
-                                    normalizeEnabled = normalizeEnabled,
-                                )
+        val indexedChapters by remember(chapters) {
+            derivedStateOf { chapters.mapIndexed { index, chapter -> index to chapter } }
+        }
+        val filteredChapters by
+            remember(indexedChapters, searchQuery, normalizeEnabled, chapterPrefix) {
+                derivedStateOf {
+                    val normalizedSearchQuery = searchQuery.trim()
+                    indexedChapters
+                        .filter { (index, chapter) ->
+                            if (normalizedSearchQuery.isBlank()) {
+                                true
+                            } else {
+                                val titleToSearch =
+                                    com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                                        chapter = chapter,
+                                        index = index,
+                                        localizedPrefix = chapterPrefix,
+                                        normalizeEnabled = normalizeEnabled,
+                                    )
 
-                            (index + 1).toString().contains(searchQuery) ||
-                                titleToSearch.contains(searchQuery, ignoreCase = true)
+                                (index + 1).toString().contains(normalizedSearchQuery) ||
+                                    titleToSearch.contains(normalizedSearchQuery, ignoreCase = true)
+                            }
                         }
-                    }
+                }
             }
 
         // Chapter list

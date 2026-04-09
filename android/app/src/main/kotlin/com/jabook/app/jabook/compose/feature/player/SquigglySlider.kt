@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -84,6 +85,16 @@ public fun SquigglySlider(
         remember(valueRange) {
             normalizeValueRange(valueRange)
         }
+    val sanitizedChapterMarkers by remember(chapterMarkersFractions) {
+        derivedStateOf {
+            chapterMarkersFractions
+                .asSequence()
+                .filter { marker -> marker.isFinite() && marker > 0f && marker < 1f }
+                .distinct()
+                .sorted()
+                .toList()
+        }
+    }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val isDragged by interactionSource.collectIsDraggedAsState()
@@ -211,17 +222,15 @@ public fun SquigglySlider(
 
             // Draw chapter markers over the track.
             val markerHalfHeight = (trackHeight.toPx() * 1.5f).coerceAtLeast(3f)
-            chapterMarkersFractions.forEach { fraction ->
-                if (fraction.isFinite() && fraction > 0f && fraction < 1f) {
-                    val markerX = width * fraction
-                    drawLine(
-                        color = chapterMarkerColor,
-                        start = Offset(markerX, centerY - markerHalfHeight),
-                        end = Offset(markerX, centerY + markerHalfHeight),
-                        strokeWidth = 1.5.dp.toPx(),
-                        cap = StrokeCap.Round,
-                    )
-                }
+            sanitizedChapterMarkers.forEach { markerFraction ->
+                val markerX = width * markerFraction
+                drawLine(
+                    color = chapterMarkerColor,
+                    start = Offset(markerX, centerY - markerHalfHeight),
+                    end = Offset(markerX, centerY + markerHalfHeight),
+                    strokeWidth = 1.5.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
             }
         }
 

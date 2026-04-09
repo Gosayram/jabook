@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Domain model for RuTracker search result.
  *
@@ -25,6 +27,7 @@ package com.jabook.app.jabook.compose.domain.model
  * - Independent of data source (network, database, cache)
  * - Validated and normalized
  */
+@Immutable
 public data class RutrackerSearchResult(
     /** Unique topic ID */
     val topicId: String,

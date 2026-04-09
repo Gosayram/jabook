@@ -44,6 +44,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -106,30 +107,35 @@ public fun ChapterSelectorSheet(
 
     // Filter chapters by search query (only valid when not editing)
     val chapterPrefix = stringResource(R.string.chapter_prefix)
-    val displayChapters =
-        remember(chapters, editedChapters, searchQuery, isEditing, chapterPrefix) {
-            if (isEditing) {
-                // Return all chapters in current edited order
-                editedChapters.mapIndexed { index, chapter -> index to chapter }
-            } else {
-                if (searchQuery.isBlank()) {
-                    chapters.mapIndexed { index, chapter -> index to chapter }
+    val indexedChapters by remember(chapters) {
+        derivedStateOf { chapters.mapIndexed { index, chapter -> index to chapter } }
+    }
+    val displayChapters by
+        remember(indexedChapters, editedChapters, searchQuery, isEditing, chapterPrefix, normalizeEnabled) {
+            derivedStateOf {
+                val normalizedSearchQuery = searchQuery.trim()
+                if (isEditing) {
+                    // Return all chapters in current edited order
+                    editedChapters.mapIndexed { index, chapter -> index to chapter }
                 } else {
-                    chapters
-                        .mapIndexed { index, chapter -> index to chapter }
-                        .filter { (index, chapter) ->
-                            val chapterName =
-                                ChapterUtils.formatChapterName(
-                                    chapter,
-                                    index,
-                                    chapterPrefix,
-                                    normalizeEnabled,
-                                )
-                            val chapterNumber = ChapterUtils.extractChapterNumber(chapter.title, index)
-                            searchQuery.toIntOrNull()?.let { searchNum ->
-                                chapterNumber == searchNum
-                            } ?: chapterName.contains(searchQuery, ignoreCase = true)
-                        }
+                    if (normalizedSearchQuery.isBlank()) {
+                        indexedChapters
+                    } else {
+                        indexedChapters
+                            .filter { (index, chapter) ->
+                                val chapterName =
+                                    ChapterUtils.formatChapterName(
+                                        chapter,
+                                        index,
+                                        chapterPrefix,
+                                        normalizeEnabled,
+                                    )
+                                val chapterNumber = ChapterUtils.extractChapterNumber(chapter.title, index)
+                                normalizedSearchQuery.toIntOrNull()?.let { searchNum ->
+                                    chapterNumber == searchNum
+                                } ?: chapterName.contains(normalizedSearchQuery, ignoreCase = true)
+                            }
+                    }
                 }
             }
         }

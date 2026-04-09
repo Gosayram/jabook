@@ -14,11 +14,14 @@
 
 package com.jabook.app.jabook.compose.data.remote.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Search result item from Rutracker.
  *
  * Represents a single audiobook found in search results.
  */
+@Immutable
 public data class SearchResult(
     /** Unique topic ID */
     val topicId: String,
@@ -107,6 +110,7 @@ public data class TopicDetails(
 /**
  * Comment from topic page.
  */
+@Immutable
 public data class Comment(
     /** Comment ID */
     val id: String,
@@ -125,6 +129,7 @@ public data class Comment(
 /**
  * Related audiobook from the same series/cycle.
  */
+@Immutable
 public data class RelatedBook(
     /** Topic ID */
     val topicId: String,
@@ -149,6 +154,7 @@ public data class TorrentInfo(
 /**
  * File within a torrent.
  */
+@Immutable
 public data class TorrentFile(
     /** File path within torrent */
     val path: String,

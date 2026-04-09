@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Domain model for RuTracker topic details.
  *
@@ -117,6 +119,7 @@ public data class RutrackerTopicDetails(
 /**
  * Domain model for related audiobook.
  */
+@Immutable
 public data class RutrackerRelatedBook(
     /** Topic ID */
     val topicId: String,
@@ -134,6 +137,7 @@ public data class RutrackerRelatedBook(
 /**
  * Domain model for comment.
  */
+@Immutable
 public data class RutrackerComment(
     /** Comment ID */
     val id: String,
