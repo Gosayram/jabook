@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.audio.CompletionStatusHelper
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.local.QueryResultSizeGuardPolicy
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.search.TransliterationSearchPolicy
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
@@ -48,11 +50,15 @@ public class OfflineFirstBooksRepository
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
         private val localBookScanner: com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner,
+        private val loggerFactory: LoggerFactory,
     ) : BooksRepository {
+        private val logger = loggerFactory.get("OfflineFirstBooksRepository")
+
         override fun getScanProgress(): Flow<com.jabook.app.jabook.compose.data.model.ScanProgress> = localBookScanner.scanProgress
 
         override fun getAllBooks(sortOrder: BookSortOrder): Flow<List<Book>> =
             booksDao.getAllBooksFlow().map { entities ->
+                warnOnLargeResult(path = "getAllBooksFlow", rowCount = entities.size)
                 val books = entities.toBooks()
                 when (sortOrder) {
                     BookSortOrder.BY_ACTIVITY -> {
@@ -177,6 +183,7 @@ public class OfflineFirstBooksRepository
 
         override fun getChapters(bookId: String): Flow<List<Chapter>> =
             booksDao.getChaptersForBookFlow(bookId).map {
+                warnOnLargeResult(path = "getChaptersForBookFlow", rowCount = it.size)
                 it.toChapters()
             }
 
@@ -191,12 +198,29 @@ public class OfflineFirstBooksRepository
                     .searchBooksFlowWithFallback(
                         query = primary,
                         fallbackQuery = fallback,
-                    ).map { it.toBooks() }
+                    ).map {
+                        warnOnLargeResult(path = "searchBooksFlowWithFallback", rowCount = it.size)
+                        it.toBooks()
+                    }
             }
 
             return booksDao
                 .searchBooksByFtsFlow(ftsMatchQuery)
-                .map { it.toBooks() }
+                .map {
+                    warnOnLargeResult(path = "searchBooksByFtsFlow", rowCount = it.size)
+                    it.toBooks()
+                }
+        }
+
+        private fun warnOnLargeResult(
+            path: String,
+            rowCount: Int,
+        ) {
+            if (QueryResultSizeGuardPolicy.shouldWarn(rowCount)) {
+                logger.w {
+                    "Large query result detected: path=$path rowCount=$rowCount threshold=${QueryResultSizeGuardPolicy.WARN_THRESHOLD_ROWS}"
+                }
+            }
         }
 
         override suspend fun addBook(book: Book) {

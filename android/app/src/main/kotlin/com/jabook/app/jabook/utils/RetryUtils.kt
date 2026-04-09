@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.utils
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlin.math.pow
 import kotlin.random.Random
@@ -105,6 +106,9 @@ public suspend fun <T> retryWithBackoff(
         try {
             return block()
         } catch (e: Throwable) {
+            if (e is CancellationException) {
+                throw e
+            }
             lastException = e
 
             // Check if we should retry
@@ -163,6 +167,11 @@ public suspend fun <T> retryWithBackoffResult(
     config: RetryConfig = RetryConfig(),
     block: suspend () -> T,
 ): Result<T> =
-    kotlin.runCatching {
-        retryWithBackoff(config, block)
+    try {
+        Result.success(retryWithBackoff(config, block))
+    } catch (e: Throwable) {
+        if (e is CancellationException) {
+            throw e
+        }
+        Result.failure(e)
     }
