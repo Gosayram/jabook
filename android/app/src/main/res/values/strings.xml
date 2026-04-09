@@ -2632,4 +2632,9 @@
     <string name="continueWithLimitedMode">Continue with limited mode</string>
     <string name="grantFullAccessInstead">Grant full access instead</string>
     <string name="limitedModeActiveDescription">You are using limited mode. USB/OTG storage, external folder browsing, and custom download locations are not available.</string>
+    <string name="autoLabel">Auto</string>
+    <string name="smartEffectsTitle">Smart Effects</string>
+    <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
+    <string name="audioVisualizerPermissionHint">Audio visualizer needs microphone permission</string>
+    <string name="loadingPlayer">Loading player...</string>
 </resources>

@@ -197,6 +197,9 @@ public fun PlayerScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val openSettingsLabel = stringResource(R.string.openSettings)
+    val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
+    val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
 
     // Check for Power Save Mode to disable expensive visual effects
     val isPowerSaveMode by remember(context) {
@@ -245,8 +248,8 @@ public fun PlayerScreen(
                         scope.launch {
                             val snackResult =
                                 snackbarHostState.showSnackbar(
-                                    message = "Notifications help control playback from the notification bar",
-                                    actionLabel = "Settings",
+                                    message = notificationPermissionPlaybackHint,
+                                    actionLabel = openSettingsLabel,
                                     duration = androidx.compose.material3.SnackbarDuration.Long,
                                 )
                             if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
@@ -284,8 +287,8 @@ public fun PlayerScreen(
                     scope.launch {
                         val snackResult =
                             snackbarHostState.showSnackbar(
-                                message = "Audio visualizer needs microphone permission",
-                                actionLabel = "Settings",
+                                message = audioVisualizerPermissionHint,
+                                actionLabel = openSettingsLabel,
                                 duration = androidx.compose.material3.SnackbarDuration.Long,
                             )
                         if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
@@ -476,7 +479,7 @@ public fun PlayerScreen(
                     ) {
                         when (val state = uiState) {
                             is PlayerUiState.Loading -> {
-                                LoadingScreen(message = "Loading player...")
+                                LoadingScreen(message = stringResource(R.string.loadingPlayer))
                             }
 
                             is PlayerUiState.Success -> {

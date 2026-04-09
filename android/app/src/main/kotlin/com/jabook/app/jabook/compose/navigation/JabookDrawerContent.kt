@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
+import com.jabook.app.jabook.R
 
 /**
  * Content for the Jabook Navigation Drawer.
@@ -105,7 +106,7 @@ public fun JabookDrawerContent(
 
             // Settings
             NavigationDrawerItem(
-                label = { Text("Settings") }, // TODO: strings.xml
+                label = { Text(stringResource(R.string.settings)) },
                 icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
                 selected = false,
                 onClick = onNavigateToSettings,
@@ -114,7 +115,7 @@ public fun JabookDrawerContent(
 
             // About
             NavigationDrawerItem(
-                label = { Text("About") }, // TODO: strings.xml
+                label = { Text(stringResource(R.string.aboutApp)) },
                 icon = { Icon(Icons.Filled.Info, contentDescription = null) },
                 selected = false,
                 onClick = onNavigateToAbout,

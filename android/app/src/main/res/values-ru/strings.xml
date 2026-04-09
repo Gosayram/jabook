@@ -2678,4 +2678,9 @@
     <string name="continueWithLimitedMode">Продолжить в ограниченном режиме</string>
     <string name="grantFullAccessInstead">Предоставить полный доступ</string>
     <string name="limitedModeActiveDescription">Вы используете ограниченный режим. USB/OTG-накопители, просмотр внешних папок и пользовательские расположения загрузок недоступны.</string>
+    <string name="autoLabel">Авто</string>
+    <string name="smartEffectsTitle">Умные эффекты</string>
+    <string name="notificationPermissionPlaybackHint">Уведомления помогают управлять воспроизведением из панели уведомлений</string>
+    <string name="audioVisualizerPermissionHint">Аудиовизуализатору нужно разрешение на микрофон</string>
+    <string name="loadingPlayer">Загрузка плеера...</string>
 </resources>
