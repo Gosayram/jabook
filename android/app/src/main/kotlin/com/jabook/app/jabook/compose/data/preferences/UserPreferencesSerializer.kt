@@ -54,6 +54,7 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setSkipSilenceMode(SkipSilenceMode.SKIP)
             .setResumeRewindSeconds(10)
             .setSleepTimerShakeExtendEnabled(true)
+            .setEqualizerPreset("FLAT")
             .build()
 
     override suspend fun readFrom(input: InputStream): UserPreferences =

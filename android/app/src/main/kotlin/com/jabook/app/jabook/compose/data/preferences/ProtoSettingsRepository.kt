@@ -153,6 +153,11 @@ public interface SettingsRepository {
     public suspend fun updateLibrarySortOrder(sortOrder: String)
 
     /**
+     * Update equalizer preset.
+     */
+    public suspend fun updateEqualizerPreset(preset: String)
+
+    /**
      * Update onboarding completion status.
      */
     public suspend fun updateOnboardingCompleted(completed: Boolean)
@@ -331,6 +336,12 @@ public class ProtoSettingsRepository
         override suspend fun updateLibrarySortOrder(sortOrder: String) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setLibrarySortOrder(sortOrder).build()
+            }
+        }
+
+        override suspend fun updateEqualizerPreset(preset: String) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setEqualizerPreset(preset).build()
             }
         }
 
