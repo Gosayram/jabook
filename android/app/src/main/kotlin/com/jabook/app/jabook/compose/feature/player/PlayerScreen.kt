@@ -88,6 +88,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -1716,7 +1717,12 @@ public fun PlayerSettingsSheet(
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        text = String.format(stringResource(R.string.secondsSuffix), rewindSeconds.toInt()),
+                        text =
+                            pluralStringResource(
+                                R.plurals.durationSecondsFull,
+                                rewindSeconds.toInt(),
+                                rewindSeconds.toInt(),
+                            ),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.width(48.dp),
                         textAlign = TextAlign.End,
@@ -1740,7 +1746,12 @@ public fun PlayerSettingsSheet(
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        text = String.format(stringResource(R.string.secondsSuffix), forwardSeconds.toInt()),
+                        text =
+                            pluralStringResource(
+                                R.plurals.durationSecondsFull,
+                                forwardSeconds.toInt(),
+                                forwardSeconds.toInt(),
+                            ),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.width(48.dp),
                         textAlign = TextAlign.End,

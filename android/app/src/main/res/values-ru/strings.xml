@@ -2508,6 +2508,18 @@
     <string name="durationHoursMinutes">%1$dч %2$dм</string>
     <string name="durationMinutes">%1$dм</string>
     <string name="durationSeconds">%1$dс</string>
+    <plurals name="durationMinutesFull">
+        <item quantity="one">%1$d минута</item>
+        <item quantity="few">%1$d минуты</item>
+        <item quantity="many">%1$d минут</item>
+        <item quantity="other">%1$d минуты</item>
+    </plurals>
+    <plurals name="durationSecondsFull">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="few">%1$d секунды</item>
+        <item quantity="many">%1$d секунд</item>
+        <item quantity="other">%1$d секунды</item>
+    </plurals>
     <!-- Поиск в RuTracker-->
     <string name="search_rutracker">Поиск в RuTracker</string>
     <string name="search_query">Поиск запроса</string>
