@@ -2033,6 +2033,7 @@
     <string name="errorWithMessage">Ошибка: %1$s</string>
     <!-- Строки экрана аутентификации -->
     <string name="rutrackerAuth">Rutracker Auth</string>
+    <string name="rutrackernl">rutracker.nl</string>
     <string name="username">Имя пользователя</string>
     <string name="password">Пароль</string>
     <string name="rememberMe">Запомнить меня</string>

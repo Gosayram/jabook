@@ -62,12 +62,22 @@ lint-kotlin: ## Lint Kotlin code (ktlint + detekt check)
 	@(cd android && ./gradlew :app:ktlintCheck :app:detekt --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
-		echo "✅ Kotlin linting passed (ktlint + detekt)"; \
+		./scripts/check-i18n-keys.sh; \
+		EXIT_CODE=$$?; \
+		if [ $$EXIT_CODE -eq 0 ]; then \
+			echo "✅ Kotlin linting passed (ktlint + detekt + i18n keys)"; \
+		else \
+			echo "❌ i18n key check failed with exit code $$EXIT_CODE"; \
+		fi; \
 	else \
 		echo "❌ Kotlin linting failed with exit code $$EXIT_CODE"; \
 		echo "Run 'make fmt-kotlin' to auto-fix issues"; \
 	fi; \
 	exit $$EXIT_CODE
+
+.PHONY: check-i18n-keys
+check-i18n-keys: ## Verify base values keys are present in values-ru
+	@./scripts/check-i18n-keys.sh
 
 .PHONY: ktlint-strace
 ktlint-strace: ## Run ktlint format with stacktrace (debug formatting issues)
