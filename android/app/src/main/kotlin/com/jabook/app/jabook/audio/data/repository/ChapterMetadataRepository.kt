@@ -83,7 +83,19 @@ public class ChapterMetadataRepository
          */
         public suspend fun saveChapters(chapters: List<ChapterMetadataEntity>): Result<Unit> =
             try {
-                chapterDao.upsertChapters(chapters)
+                if (chapters.isEmpty()) {
+                    return Result.Success(Unit)
+                }
+
+                val bookIds = chapters.map { it.bookId }.distinct()
+                require(bookIds.size == 1) {
+                    "saveChapters expects chapters from a single book, got bookIds=$bookIds"
+                }
+
+                chapterDao.replaceChaptersForBook(
+                    bookId = bookIds.first(),
+                    chapters = chapters,
+                )
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Error(e)
