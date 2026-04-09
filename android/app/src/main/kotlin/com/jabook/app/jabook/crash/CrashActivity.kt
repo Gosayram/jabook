@@ -21,6 +21,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,10 +47,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.ui.theme.JabookTheme
 
@@ -59,9 +62,10 @@ import com.jabook.app.jabook.ui.theme.JabookTheme
  */
 public class CrashActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        val stackTrace = intent.getStringExtra(EXTRA_STACK_TRACE) ?: "No stack trace available."
+        val stackTrace = intent.getStringExtra(EXTRA_STACK_TRACE) ?: getString(R.string.crashNoStackTrace)
 
         setContent {
             JabookTheme(darkTheme = true) {
@@ -94,7 +98,7 @@ public class CrashActivity : ComponentActivity() {
 
     private fun copyToClipboard(text: String) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Jabook Crash Log", text)
+        val clip = ClipData.newPlainText(getString(R.string.crashLogLabel), text)
         clipboard.setPrimaryClip(clip)
     }
 
@@ -102,10 +106,10 @@ public class CrashActivity : ComponentActivity() {
         val sendIntent: Intent =
             Intent().apply {
                 action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_TEXT, "Jabook Crash Log:\n\n$text")
+                putExtra(Intent.EXTRA_TEXT, getString(R.string.crashLogBodyFormat, text))
                 type = "text/plain"
             }
-        val shareIntent = Intent.createChooser(sendIntent, "Share Crash Log")
+        val shareIntent = Intent.createChooser(sendIntent, getString(R.string.shareCrashLog))
         startActivity(shareIntent)
     }
 
@@ -145,13 +149,13 @@ public fun CrashScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Jabook Crashed",
+                text = stringResource(R.string.crashTitle),
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
 
             Text(
-                text = "We apologize for the inconvenience.",
+                text = stringResource(R.string.crashSubtitle),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
             )
@@ -196,7 +200,7 @@ public fun CrashScreen(
                             contentColor = MaterialTheme.colorScheme.onErrorContainer,
                         ),
                 ) {
-                    Text("Copy Log")
+                    Text(stringResource(R.string.copyLog))
                 }
 
                 OutlinedButton(
@@ -207,7 +211,7 @@ public fun CrashScreen(
                             contentColor = MaterialTheme.colorScheme.onErrorContainer,
                         ),
                 ) {
-                    Text("Share")
+                    Text(stringResource(R.string.share))
                 }
             }
 
@@ -222,7 +226,7 @@ public fun CrashScreen(
                         contentColor = MaterialTheme.colorScheme.onError,
                     ),
             ) {
-                Text("Restart App")
+                Text(stringResource(R.string.restartApp))
             }
         }
     }

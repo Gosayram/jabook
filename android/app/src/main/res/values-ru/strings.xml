@@ -965,6 +965,18 @@
     <string name="downloadViaMagnet">Скачать через Magnet</string>
     <!-- Сообщение о начале загрузки -->
     <string name="downloadStarted">Загрузка начата</string>
+    <!-- Сообщение о старте воспроизведения переданного аудио -->
+    <string name="playingSharedAudio">Воспроизводим переданное аудио</string>
+    <!-- Сообщение об ошибке воспроизведения переданного аудио -->
+    <string name="cannotPlaySharedAudio">Не удалось воспроизвести это аудио</string>
+    <string name="crashNoStackTrace">Стек ошибки недоступен.</string>
+    <string name="crashLogLabel">Лог падения Jabook</string>
+    <string name="crashLogBodyFormat">Лог падения Jabook:\n\n%1$s</string>
+    <string name="shareCrashLog">Поделиться логом падения</string>
+    <string name="crashTitle">Jabook аварийно завершился</string>
+    <string name="crashSubtitle">Приносим извинения за неудобства.</string>
+    <string name="copyLog">Копировать лог</string>
+    <string name="restartApp">Перезапустить приложение</string>
     <string name="refreshChaptersFromTorrent">Обновить главы из торрента</string>
     <string name="chaptersRefreshed">Главы обновлены из торрента</string>
     <string name="failedToRefreshChapters">Не удалось обновить главы</string>

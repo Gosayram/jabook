@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -186,15 +187,8 @@ private fun formatDate(timestamp: Long): String {
  * Format duration in seconds to HH:MM:SS or MM:SS.
  */
 private fun formatDuration(seconds: Long): String {
-    val hours = seconds / 3600
-    val minutes = (seconds % 3600) / 60
-    val secs = seconds % 60
-
-    return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, secs)
-    } else {
-        String.format("%d:%02d", minutes, secs)
-    }
+    val safeSeconds = seconds.coerceAtLeast(0L)
+    return DateUtils.formatElapsedTime(safeSeconds)
 }
 
 /**

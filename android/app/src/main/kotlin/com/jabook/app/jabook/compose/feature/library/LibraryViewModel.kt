@@ -301,6 +301,7 @@ public class LibraryViewModel
                             Constraints
                                 .Builder()
                                 .setRequiresStorageNotLow(true)
+                                .setRequiresBatteryNotLow(true)
                                 .build(),
                         ).build()
 

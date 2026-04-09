@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import android.os.PowerManager
+import android.text.format.DateUtils
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -121,7 +122,6 @@ import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Logger for PlayerScreen Composable functions.
@@ -1775,11 +1775,9 @@ public fun PlayerSettingsSheet(
 }
 
 /**
- * Format duration in milliseconds to MM:SS format.
+ * Format duration in milliseconds to elapsed-time format.
  */
 internal fun formatDuration(durationMs: Long): String {
-    val duration = durationMs.milliseconds
-    val minutes = duration.inWholeMinutes
-    val seconds = duration.inWholeSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
+    val totalSeconds = (durationMs.coerceAtLeast(0L) / 1000L)
+    return DateUtils.formatElapsedTime(totalSeconds)
 }

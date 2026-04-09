@@ -653,6 +653,7 @@ public class TorrentSessionManager
                             Constraints
                                 .Builder()
                                 .setRequiresStorageNotLow(true)
+                                .setRequiresBatteryNotLow(true)
                                 .build(),
                         ).addTag(LibraryScanWorker.WORK_TAG)
                         .addTag("torrent-finished-sync")

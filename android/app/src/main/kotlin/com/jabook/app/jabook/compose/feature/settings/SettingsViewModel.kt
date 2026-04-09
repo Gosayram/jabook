@@ -120,6 +120,7 @@ public class SettingsViewModel
                             Constraints
                                 .Builder()
                                 .setRequiresStorageNotLow(true)
+                                .setRequiresBatteryNotLow(true)
                                 .build(),
                         ).build()
                 workManager.enqueueUniqueWork(

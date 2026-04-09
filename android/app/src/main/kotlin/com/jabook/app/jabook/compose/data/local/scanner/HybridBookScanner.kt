@@ -52,7 +52,7 @@ public class HybridBookScanner
             merge(mediaStoreScanner.scanProgress, directScanner.scanProgress)
                 .stateIn(
                     scope = CoroutineScope(Dispatchers.Default),
-                    started = SharingStarted.Lazily,
+                    started = SharingStarted.WhileSubscribed(5_000),
                     initialValue = ScanProgress.Idle,
                 )
 

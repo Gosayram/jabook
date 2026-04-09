@@ -997,6 +997,18 @@
     <string name="downloadViaMagnet">Download via Magnet</string>
     <!-- Message for download start -->
     <string name="downloadStarted">Download started</string>
+    <!-- Message when shared external audio playback starts -->
+    <string name="playingSharedAudio">Playing shared audio</string>
+    <!-- Message when shared external audio cannot be played -->
+    <string name="cannotPlaySharedAudio">Cannot play this audio</string>
+    <string name="crashNoStackTrace">No stack trace available.</string>
+    <string name="crashLogLabel">Jabook Crash Log</string>
+    <string name="crashLogBodyFormat">Jabook Crash Log:\n\n%1$s</string>
+    <string name="shareCrashLog">Share Crash Log</string>
+    <string name="crashTitle">Jabook Crashed</string>
+    <string name="crashSubtitle">We apologize for the inconvenience.</string>
+    <string name="copyLog">Copy Log</string>
+    <string name="restartApp">Restart App</string>
     <string name="refreshChaptersFromTorrent">Refresh chapters from torrent</string>
     <string name="chaptersRefreshed">Chapters refreshed from torrent</string>
     <string name="failedToRefreshChapters">Failed to refresh chapters</string>

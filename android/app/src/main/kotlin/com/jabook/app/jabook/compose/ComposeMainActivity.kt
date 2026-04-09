@@ -23,14 +23,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
@@ -64,6 +67,7 @@ public class ComposeMainActivity : ComponentActivity() {
     private val logger by lazy { loggerFactory.get("ComposeMainActivity") }
 
     private var deepLinkIntent by androidx.compose.runtime.mutableStateOf<Intent?>(null)
+    private var hasReportedFullyDrawn: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Handle splash screen transition
@@ -80,6 +84,14 @@ public class ComposeMainActivity : ComponentActivity() {
         handleIntentExtras(intent)
 
         setContent {
+            LaunchedEffect(Unit) {
+                if (!hasReportedFullyDrawn) {
+                    // Wait for first composed frame to be scheduled before reporting startup complete.
+                    withFrameNanos { /* frame boundary */ }
+                    reportFullyDrawn()
+                    hasReportedFullyDrawn = true
+                }
+            }
             val windowSizeClass =
                 androidx.compose.material3.windowsizeclass
                     .calculateWindowSizeClass(this)
@@ -168,7 +180,7 @@ public class ComposeMainActivity : ComponentActivity() {
         android.widget.Toast
             .makeText(
                 this,
-                "Download started",
+                getString(R.string.downloadStarted),
                 android.widget.Toast.LENGTH_SHORT,
             ).show()
 
@@ -248,7 +260,7 @@ public class ComposeMainActivity : ComponentActivity() {
                     Toast
                         .makeText(
                             this@ComposeMainActivity,
-                            "Playing shared audio",
+                            getString(R.string.playingSharedAudio),
                             Toast.LENGTH_SHORT,
                         ).show()
                 } else {
@@ -256,7 +268,7 @@ public class ComposeMainActivity : ComponentActivity() {
                     Toast
                         .makeText(
                             this@ComposeMainActivity,
-                            "Cannot play this audio",
+                            getString(R.string.cannotPlaySharedAudio),
                             Toast.LENGTH_SHORT,
                         ).show()
                 }
@@ -265,7 +277,7 @@ public class ComposeMainActivity : ComponentActivity() {
                 Toast
                     .makeText(
                         this@ComposeMainActivity,
-                        "Cannot play this audio",
+                        getString(R.string.cannotPlaySharedAudio),
                         Toast.LENGTH_SHORT,
                     ).show()
             } finally {
