@@ -2700,6 +2700,31 @@
     <string name="indexingForumLabel">Форум: %1$s</string>
     <string name="hideAction">Скрыть</string>
     <string name="cannotShareLogsActivityRequired">Не удалось поделиться логами: требуется Activity-контекст</string>
+    <string name="torrentBufferingTitle">Буферизация...</string>
+    <string name="torrentBufferingDescription">Подождите, пока загрузится достаточно данных для плавного воспроизведения.</string>
+    <string name="torrentStateLabel">Состояние: %1$s</string>
+    <string name="torrentProgressLabel">Прогресс: %1$d%%</string>
+    <string name="torrentSizeLabel">Размер: %1$s</string>
+    <string name="torrentEtaLabel">Осталось: %1$s</string>
+    <string name="manageFiles">Управление файлами</string>
+    <string name="deleteDownloadConfirmMessage">Вы уверены, что хотите удалить "%1$s"?</string>
+    <string name="deleteDownloadWithFiles">Также удалить загруженные файлы</string>
+    <string name="indexingForumsSectionTitle">Индексация форумов</string>
+    <string name="indexTapToCreate">Нажмите для создания индекса</string>
+    <string name="indexTapToUpdate">Нажмите для обновления индекса</string>
+    <string name="indexClearingTitle">Очистка индекса...</string>
+    <string name="pleaseWait">Пожалуйста, подождите...</string>
+    <string name="indexingStatusTitle">Статус индексации</string>
+    <string name="indexingCompactStatus">Индексируем: %1$s (%2$d/%3$d)%4$s</string>
+    <string name="indexCompletedCompactStatus">Завершено: %1$s%2$s</string>
+    <string name="indexReadyToStart">Готово к индексации</string>
+    <string name="indexProgressWithTopics">Прогресс: %1$d%% • Тем: %2$s</string>
+    <string name="resetIndexTitle">Сбросить индекс</string>
+    <string name="resetIndexSubtitle">Удалить все проиндексированные темы (%1$s)</string>
+    <string name="resetIndexDialogTitle">Сбросить индекс?</string>
+    <string name="resetIndexDialogMessage">Это действие удалит все проиндексированные темы (%1$s). Для поиска потребуется создать новый индекс.</string>
+    <string name="indexCheckTitle">Проверка индекса</string>
+    <string name="indexCheckSubtitle">Тем: %1$s | Старые: %2$s | Новые: %3$s</string>
     <string name="autoLabel">Авто</string>
     <string name="smartEffectsTitle">Умные эффекты</string>
     <string name="notificationPermissionPlaybackHint">Уведомления помогают управлять воспроизведением из панели уведомлений</string>
@@ -2717,5 +2742,11 @@
         <item quantity="few">Проиндексировано: %d темы</item>
         <item quantity="many">Проиндексировано: %d тем</item>
         <item quantity="other">Проиндексировано: %d темы</item>
+    </plurals>
+    <plurals name="selectedItemsCount">
+        <item quantity="one">Выбрана %d запись</item>
+        <item quantity="few">Выбрано %d записи</item>
+        <item quantity="many">Выбрано %d записей</item>
+        <item quantity="other">Выбрано %d записи</item>
     </plurals>
 </resources>

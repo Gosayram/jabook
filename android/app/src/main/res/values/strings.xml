@@ -2654,6 +2654,31 @@
     <string name="indexingForumLabel">Forum: %1$s</string>
     <string name="hideAction">Hide</string>
     <string name="cannotShareLogsActivityRequired">Cannot share logs: activity context required</string>
+    <string name="torrentBufferingTitle">Buffering...</string>
+    <string name="torrentBufferingDescription">Please wait while we buffer enough data for smooth playback.</string>
+    <string name="torrentStateLabel">State: %1$s</string>
+    <string name="torrentProgressLabel">Progress: %1$d%%</string>
+    <string name="torrentSizeLabel">Size: %1$s</string>
+    <string name="torrentEtaLabel">ETA: %1$s</string>
+    <string name="manageFiles">Manage files</string>
+    <string name="deleteDownloadConfirmMessage">Are you sure you want to delete "%1$s"?</string>
+    <string name="deleteDownloadWithFiles">Also delete downloaded files</string>
+    <string name="indexingForumsSectionTitle">Forum indexing</string>
+    <string name="indexTapToCreate">Tap to create index</string>
+    <string name="indexTapToUpdate">Tap to update index</string>
+    <string name="indexClearingTitle">Clearing index...</string>
+    <string name="pleaseWait">Please wait...</string>
+    <string name="indexingStatusTitle">Indexing status</string>
+    <string name="indexingCompactStatus">Indexing: %1$s (%2$d/%3$d)%4$s</string>
+    <string name="indexCompletedCompactStatus">Completed: %1$s%2$s</string>
+    <string name="indexReadyToStart">Ready to index</string>
+    <string name="indexProgressWithTopics">Progress: %1$d%% • Topics: %2$s</string>
+    <string name="resetIndexTitle">Reset index</string>
+    <string name="resetIndexSubtitle">Delete all indexed topics (%1$s)</string>
+    <string name="resetIndexDialogTitle">Reset index?</string>
+    <string name="resetIndexDialogMessage">This action will delete all indexed topics (%1$s). You will need to create a new index for search.</string>
+    <string name="indexCheckTitle">Index check</string>
+    <string name="indexCheckSubtitle">Topics: %1$s | Oldest: %2$s | Newest: %3$s</string>
     <string name="autoLabel">Auto</string>
     <string name="smartEffectsTitle">Smart Effects</string>
     <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
@@ -2667,5 +2692,9 @@
     <plurals name="indexTopicsIndexed">
         <item quantity="one">Indexed: %d topic</item>
         <item quantity="other">Indexed: %d topics</item>
+    </plurals>
+    <plurals name="selectedItemsCount">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
     </plurals>
 </resources>

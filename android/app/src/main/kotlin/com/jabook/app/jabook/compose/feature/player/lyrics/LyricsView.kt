@@ -49,7 +49,7 @@ public fun LyricsView(
     currentPosition: Long,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(top = 100.dp, bottom = 100.dp, start = 16.dp, end = 16.dp),
+    contentPadding: PaddingValues = PaddingValues(vertical = 100.dp, horizontal = 16.dp),
 ) {
     val listState = rememberLazyListState()
     val density = LocalDensity.current

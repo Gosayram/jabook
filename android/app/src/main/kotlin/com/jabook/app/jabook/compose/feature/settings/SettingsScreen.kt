@@ -354,12 +354,27 @@ public fun SettingsScreen(
                 }
             }
 
-            SettingsSection(title = "Индексация форумов", contentPadding = contentPadding, itemSpacing = itemSpacing)
+            SettingsSection(
+                title = stringResource(R.string.indexingForumsSectionTitle),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
 
             val context = androidx.compose.ui.platform.LocalContext.current
+            val indexTopicsCount = pluralStringResource(R.plurals.indexTopicsCount, indexSize, indexSize)
             SettingsItem(
-                title = if (indexSize == 0) "Индекс не создан" else "Индекс: $indexSize тем",
-                subtitle = if (indexSize == 0) "Нажмите для создания индекса" else "Нажмите для обновления индекса",
+                title =
+                    if (indexSize == 0) {
+                        stringResource(R.string.indexNotCreatedTitle)
+                    } else {
+                        stringResource(R.string.indexStatusWithTopics, indexTopicsCount)
+                    },
+                subtitle =
+                    if (indexSize == 0) {
+                        stringResource(R.string.indexTapToCreate)
+                    } else {
+                        stringResource(R.string.indexTapToUpdate)
+                    },
                 onClick = {
                     // Check and request notification permission on Android 13+
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -376,14 +391,25 @@ public fun SettingsScreen(
 
             if (isIndexing || indexSize > 0 || clearingInProgress) {
                 SettingsItem(
-                    title = if (clearingInProgress) "Очистка индекса..." else "Статус индексации",
+                    title =
+                        if (clearingInProgress) {
+                            stringResource(R.string.indexClearingTitle)
+                        } else {
+                            stringResource(R.string.indexingStatusTitle)
+                        },
                     subtitle =
                         when {
-                            clearingInProgress -> "Пожалуйста, подождите..."
+                            clearingInProgress -> stringResource(R.string.pleaseWait)
                             indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress -> {
                                 val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
                                 val timeText = if (elapsedTimeStr.isNotEmpty()) " • $elapsedTimeStr" else ""
-                                "Индексируем: ${progress.currentForum} (${progress.currentForumIndex + 1}/${progress.totalForums})$timeText"
+                                stringResource(
+                                    R.string.indexingCompactStatus,
+                                    progress.currentForum,
+                                    progress.currentForumIndex + 1,
+                                    progress.totalForums,
+                                    timeText,
+                                )
                             }
                             indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed -> {
                                 // Use indexSize from database as single source of truth
@@ -399,11 +425,20 @@ public fun SettingsScreen(
                                     (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed)
                                         .durationMs
                                 val durationText = if (durationMs > 0) " за ${durationMs / 1000} сек" else ""
-                                "Завершено: $displayCount тем$durationText"
+                                val completedTopicsCount =
+                                    pluralStringResource(
+                                        R.plurals.indexTopicsCount,
+                                        displayCount,
+                                        displayCount,
+                                    )
+                                stringResource(R.string.indexCompletedCompactStatus, completedTopicsCount, durationText)
                             }
                             indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error ->
-                                "Ошибка: ${(indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error).message}"
-                            else -> "Готово к индексации"
+                                stringResource(
+                                    R.string.errorWithMessage,
+                                    (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error).message,
+                                )
+                            else -> stringResource(R.string.indexReadyToStart)
                         },
                 ) {
                     // Show progress bar during indexing or clearing
@@ -422,8 +457,19 @@ public fun SettingsScreen(
                                         .padding(top = 8.dp),
                             )
                             // Progress text
+                            val indexedTopics =
+                                pluralStringResource(
+                                    R.plurals.indexTopicsCount,
+                                    progress.topicsIndexed,
+                                    progress.topicsIndexed,
+                                )
                             Text(
-                                text = "Прогресс: ${(progressValue * 100).toInt()}% • Тем: ${progress.topicsIndexed}",
+                                text =
+                                    stringResource(
+                                        R.string.indexProgressWithTopics,
+                                        (progressValue * 100).toInt(),
+                                        indexedTopics,
+                                    ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 4.dp),
@@ -444,8 +490,8 @@ public fun SettingsScreen(
                     var showClearConfirmDialog by remember { mutableStateOf(false) }
 
                     SettingsItem(
-                        title = "Сбросить индекс",
-                        subtitle = "Удалить все проиндексированные темы ($indexSize тем)",
+                        title = stringResource(R.string.resetIndexTitle),
+                        subtitle = stringResource(R.string.resetIndexSubtitle, indexTopicsCount),
                         onClick = {
                             showClearConfirmDialog = true
                         },
@@ -454,11 +500,10 @@ public fun SettingsScreen(
                     if (showClearConfirmDialog) {
                         androidx.compose.material3.AlertDialog(
                             onDismissRequest = { showClearConfirmDialog = false },
-                            title = { Text("Сбросить индекс?") },
+                            title = { Text(stringResource(R.string.resetIndexDialogTitle)) },
                             text = {
                                 Text(
-                                    "Это действие удалит все $indexSize проиндексированных тем. " +
-                                        "Для поиска потребуется создать новый индекс.",
+                                    stringResource(R.string.resetIndexDialogMessage, indexTopicsCount),
                                 )
                             },
                             confirmButton = {
@@ -474,12 +519,12 @@ public fun SettingsScreen(
                                         }
                                     },
                                 ) {
-                                    Text("Сбросить")
+                                    Text(stringResource(R.string.reset))
                                 }
                             },
                             dismissButton = {
                                 androidx.compose.material3.TextButton(onClick = { showClearConfirmDialog = false }) {
-                                    Text("Отмена")
+                                    Text(stringResource(R.string.cancel))
                                 }
                             },
                         )
@@ -494,17 +539,17 @@ public fun SettingsScreen(
                                 java.text
                                     .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
                                     .format(java.util.Date(timestamp))
-                            } ?: "неизвестно"
+                            } ?: stringResource(R.string.unknown)
                         val newestDate =
                             metadata.newest?.let { timestamp ->
                                 java.text
                                     .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
                                     .format(java.util.Date(timestamp))
-                            } ?: "неизвестно"
+                            } ?: stringResource(R.string.unknown)
 
                         SettingsItem(
-                            title = "Проверка индекса",
-                            subtitle = "Тем: $indexSize | Старые: $oldestDate | Новые: $newestDate",
+                            title = stringResource(R.string.indexCheckTitle),
+                            subtitle = stringResource(R.string.indexCheckSubtitle, indexTopicsCount, oldestDate, newestDate),
                         )
                     }
                 }
