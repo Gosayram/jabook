@@ -17,6 +17,24 @@ class BookFavoriteMappingTest {
     }
 
     @Test
+    fun `toFavoriteItem returns null for malformed sourceUrl`() {
+        val book = sampleBook(sourceUrl = "not-a-uri")
+
+        val result = book.toFavoriteItem(addedToFavorites = "2026-04-11T00:00:00Z")
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `toFavoriteItem returns null for non magnet sourceUrl`() {
+        val book = sampleBook(sourceUrl = "https://example.com/book")
+
+        val result = book.toFavoriteItem(addedToFavorites = "2026-04-11T00:00:00Z")
+
+        assertNull(result)
+    }
+
+    @Test
     fun `toFavoriteItem uses injected timestamp and source url`() {
         val book = sampleBook(sourceUrl = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567")
 
@@ -26,6 +44,16 @@ class BookFavoriteMappingTest {
         assertEquals("2026-04-11T00:00:00Z", result.addedToFavorites)
         assertEquals(book.sourceUrl, result.magnetUrl)
         assertEquals(book.id, result.topicId)
+    }
+
+    @Test
+    fun `toFavoriteItem trims whitespace around valid magnet url`() {
+        val book = sampleBook(sourceUrl = "  magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567  ")
+
+        val result = book.toFavoriteItem(addedToFavorites = "2026-04-11T00:00:00Z")
+
+        requireNotNull(result)
+        assertEquals("magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567", result.magnetUrl)
     }
 
     private fun sampleBook(sourceUrl: String?): Book =

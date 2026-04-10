@@ -670,7 +670,9 @@ public class BackupService
             favorites.forEach { fav ->
                 val existing = favoriteDao.getFavoriteById(fav.bookId)
                 val localTimestamp =
-                    existing?.addedToFavorites?.let(DateTimeFormatter::parseISO8601ToMillis) ?: 0L
+                    existing?.addedToFavorites?.let { dateStr ->
+                        runCatching { DateTimeFormatter.parseISO8601ToMillis(dateStr) }.getOrNull()
+                    } ?: 0L
                 val shouldApplyIncoming =
                     ConflictResolutionResolver.shouldUseIncoming(
                         policy = policy,
@@ -723,21 +725,21 @@ public class BackupService
                     .groupBy { it.query }
                     .mapValues { entry -> entry.value.maxOfOrNull { it.timestamp } ?: 0L }
 
-            history.forEach { item ->
-                val localTimestamp = existingByQuery[item.query] ?: 0L
-                val localExists = localTimestamp > 0L
-                val shouldApplyIncoming =
-                    ConflictResolutionResolver.shouldUseIncoming(
-                        policy = policy,
-                        localExists = localExists,
-                        localTimestamp = localTimestamp,
-                        incomingTimestamp = item.timestamp,
-                    )
-                if (!shouldApplyIncoming) {
-                    return@forEach
-                }
+            database.withTransaction {
+                history.forEach { item ->
+                    val localTimestamp = existingByQuery[item.query] ?: 0L
+                    val localExists = localTimestamp > 0L
+                    val shouldApplyIncoming =
+                        ConflictResolutionResolver.shouldUseIncoming(
+                            policy = policy,
+                            localExists = localExists,
+                            localTimestamp = localTimestamp,
+                            incomingTimestamp = item.timestamp,
+                        )
+                    if (!shouldApplyIncoming) {
+                        return@forEach
+                    }
 
-                database.withTransaction {
                     if (localExists) {
                         dao.deleteByQuery(item.query)
                     }
@@ -761,21 +763,21 @@ public class BackupService
         ) {
             val dao = database.scanPathDao()
             val existingByPath = dao.getAllPathsList().associateBy({ it.path }, { it.addedDate })
-            paths.forEach { item ->
-                val localTimestamp = existingByPath[item.path] ?: 0L
-                val localExists = existingByPath.containsKey(item.path)
-                val shouldApplyIncoming =
-                    ConflictResolutionResolver.shouldUseIncoming(
-                        policy = policy,
-                        localExists = localExists,
-                        localTimestamp = localTimestamp,
-                        incomingTimestamp = item.addedDate,
-                    )
-                if (!shouldApplyIncoming) {
-                    return@forEach
-                }
+            database.withTransaction {
+                paths.forEach { item ->
+                    val localTimestamp = existingByPath[item.path] ?: 0L
+                    val localExists = existingByPath.containsKey(item.path)
+                    val shouldApplyIncoming =
+                        ConflictResolutionResolver.shouldUseIncoming(
+                            policy = policy,
+                            localExists = localExists,
+                            localTimestamp = localTimestamp,
+                            incomingTimestamp = item.addedDate,
+                        )
+                    if (!shouldApplyIncoming) {
+                        return@forEach
+                    }
 
-                database.withTransaction {
                     if (localExists) {
                         dao.deletePathByString(item.path)
                     }

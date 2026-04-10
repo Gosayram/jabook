@@ -83,7 +83,6 @@ reviews:
     - "!.kotlin-version"
     - "!.release-version"
     - "!android/app/proguard-rules.pro"
-    - "!android/app/src/main/res/**"
     - "!android/app/src/test/**"
     - "!android/app/src/androidTest/**"
     - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/library/**"
@@ -144,13 +143,13 @@ reviews:
       mode: "warning"
     custom_checks:
       - name: "Android Quality Gates"
-        mode: "warning"
+        mode: "error"
         instructions: |
           Pass only if PR changes align with repository quality gates:
           - Kotlin/Android code changes should include or update tests where behavior changed.
           - Flag risky changes that bypass existing static checks (ktlint/detekt) without justification.
       - name: "Security Sensitive Changes"
-        mode: "warning"
+        mode: "error"
         instructions: |
           For changes touching auth, storage permissions, intent handling, network config, cryptography, or backup:
           - Ensure no sensitive data is logged.
@@ -176,5 +175,7 @@ knowledge_base:
   code_guidelines:
     enabled: true
     filePatterns:
-      - "android/app/src/main/kotlin/**/*.kt"
-      - "android/app/src/main/proto/**/*.proto"
+      - ".github/copilot-instructions.md"
+      - ".github/instructions/*.instructions.md"
+      - "**/AGENTS.md"
+      - "**/.cursorrules"

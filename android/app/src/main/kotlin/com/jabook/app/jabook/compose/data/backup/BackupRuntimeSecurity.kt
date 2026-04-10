@@ -84,7 +84,7 @@ public class BackupRuntimeSecurity
                 val signatureBytes =
                     Base64.decode(
                         metadata.signatureBase64,
-                        Base64.DEFAULT,
+                        Base64.NO_WRAP,
                     )
 
                 val verified =
@@ -105,6 +105,7 @@ public class BackupRuntimeSecurity
             }.getOrDefault(BackupIntegrityVerificationResult.SIGNATURE_INVALID)
         }
 
+        @Synchronized
         private fun ensureSigningKey(keyStore: KeyStore) {
             if (keyStore.containsAlias(KEY_ALIAS)) {
                 return

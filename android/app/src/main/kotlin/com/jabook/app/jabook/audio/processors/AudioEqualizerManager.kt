@@ -22,13 +22,13 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -60,10 +60,12 @@ public class AudioEqualizerManager
         private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository,
         private val eqFactory: (Int) -> Equalizer = { sessionId -> Equalizer(0, sessionId) },
     ) {
+        private val scopeJob = SupervisorJob()
         private val scope =
             CoroutineScope(
-                SupervisorJob() + Dispatchers.Default + loggingCoroutineExceptionHandler("AudioEqualizerManager"),
+                scopeJob + Dispatchers.Main.immediate + loggingCoroutineExceptionHandler("AudioEqualizerManager"),
             )
+        private var presetCollectionJob: Job? = null
 
         /** The current system Equalizer, or null if disabled / not yet attached. */
         private var equalizer: Equalizer? = null
@@ -93,17 +95,18 @@ public class AudioEqualizerManager
         public fun initialize() {
             player.addListener(playerListener)
 
-            // Read initial preset synchronously (avoids race with first frame)
-            currentPreset = readCurrentPreset()
+            // Attach with currently known preset; collector below applies persisted preset once emitted.
             attachEqualizer(player.audioSessionId, currentPreset)
 
             // Observe preference changes
-            scope.launch {
-                presetFlow.collectLatest { preset ->
-                    currentPreset = preset
-                    applyPreset(preset)
+            presetCollectionJob?.cancel()
+            presetCollectionJob =
+                scope.launch {
+                    presetFlow.collectLatest { preset ->
+                        currentPreset = preset
+                        applyPreset(preset)
+                    }
                 }
-            }
         }
 
         /**
@@ -112,8 +115,11 @@ public class AudioEqualizerManager
          */
         public fun release() {
             player.removeListener(playerListener)
+            presetCollectionJob?.cancel()
+            presetCollectionJob = null
             equalizer?.release()
             equalizer = null
+            scope.cancel()
             Log.d(TAG, "Equalizer released")
         }
 
@@ -232,16 +238,6 @@ public class AudioEqualizerManager
             equalizer = null
         }
 
-        private fun readCurrentPreset(): EqualizerPreset =
-            try {
-                runBlocking {
-                    val prefs = settingsRepository.userPreferences.firstOrNull()
-                    prefs?.let { mapPresetName(it.equalizerPreset) } ?: EqualizerPreset.DEFAULT
-                }
-            } catch (_: Exception) {
-                EqualizerPreset.DEFAULT
-            }
-
         private companion object {
             private const val TAG = "AudioEqualizerManager"
         }
@@ -251,10 +247,4 @@ public class AudioEqualizerManager
  * Maps a preference string to [EqualizerPreset].
  * Falls back to [EqualizerPreset.DEFAULT] for unknown values.
  */
-public fun mapPresetName(name: String): EqualizerPreset =
-    when (name) {
-        "FLAT" -> EqualizerPreset.FLAT
-        "VOICE_CLARITY" -> EqualizerPreset.VOICE_CLARITY
-        "NIGHT" -> EqualizerPreset.NIGHT
-        else -> EqualizerPreset.DEFAULT
-    }
+public fun mapPresetName(name: String): EqualizerPreset = EqualizerPreset.entries.find { it.name == name } ?: EqualizerPreset.DEFAULT

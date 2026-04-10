@@ -215,6 +215,18 @@ android {
             val resolvedStorePassword = keystoreProperties.getProperty("storePassword") ?: envStorePassword
             val resolvedKeyAlias = keystoreProperties.getProperty("keyAlias") ?: envKeyAlias
             val resolvedKeyPassword = keystoreProperties.getProperty("keyPassword") ?: envKeyPassword
+            val signingProps =
+                mapOf(
+                    "storeFile" to resolvedStoreFile,
+                    "storePassword" to resolvedStorePassword,
+                    "keyAlias" to resolvedKeyAlias,
+                    "keyPassword" to resolvedKeyPassword,
+                )
+            val hasAnySigningConfig = signingProps.values.any { !it.isNullOrBlank() }
+            val missingSigningProps =
+                signingProps
+                    .filterValues { it.isNullOrBlank() }
+                    .keys
 
             if (
                 !resolvedStoreFile.isNullOrBlank() &&
@@ -226,6 +238,10 @@ android {
                 storePassword = resolvedStorePassword
                 keyAlias = resolvedKeyAlias
                 keyPassword = resolvedKeyPassword
+            } else if (hasAnySigningConfig) {
+                logger.warn(
+                    "Release signing config is incomplete; missing: ${missingSigningProps.joinToString(", ")}",
+                )
             }
         }
     }

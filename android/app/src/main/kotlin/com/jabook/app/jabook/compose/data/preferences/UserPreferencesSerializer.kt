@@ -60,15 +60,7 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
 
     override suspend fun readFrom(input: InputStream): UserPreferences =
         try {
-            UserPreferences
-                .parseFrom(input)
-                .let { parsed ->
-                    if (parsed.schemaVersion < UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION) {
-                        UserPreferencesDataMigration().migrate(parsed)
-                    } else {
-                        parsed
-                    }
-                }
+            UserPreferences.parseFrom(input)
         } catch (exception: InvalidProtocolBufferException) {
             throw CorruptionException("Cannot read proto.", exception)
         }

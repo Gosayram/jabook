@@ -1118,15 +1118,17 @@ public fun SettingsScreen(
                 )
             }
 
-            SettingsSwitchItem(
-                title = stringResource(R.string.dynamicColorsTitle),
-                subtitle = stringResource(R.string.dynamicColorsDescription),
-                checked = protoSettings.useDynamicColors,
-                onCheckedChange = viewModel::updateDynamicColors,
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.dynamicColorsTitle),
+                    subtitle = stringResource(R.string.dynamicColorsDescription),
+                    checked = protoSettings.useDynamicColors,
+                    onCheckedChange = viewModel::updateDynamicColors,
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+            }
 
             SettingsItem(
                 title = stringResource(R.string.languageSettingsLabel),

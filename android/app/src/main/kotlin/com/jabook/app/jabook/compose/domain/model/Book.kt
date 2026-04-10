@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.domain.model
 import androidx.compose.runtime.Immutable
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.model.DownloadStatus
+import java.net.URI
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -194,7 +195,16 @@ public fun Book.toFavoriteItem(
             .now()
             .toString(),
 ): FavoriteItem? {
-    val validatedSourceUrl = sourceUrl?.takeIf { it.isNotBlank() } ?: return null
+    val validatedSourceUrl =
+        sourceUrl
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.takeIf { rawUrl ->
+                runCatching {
+                    val parsed = URI(rawUrl)
+                    parsed.scheme?.equals("magnet", ignoreCase = true) == true && !parsed.schemeSpecificPart.isNullOrBlank()
+                }.getOrDefault(false)
+            } ?: return null
     return FavoriteItem(
         topicId = id,
         title = title,

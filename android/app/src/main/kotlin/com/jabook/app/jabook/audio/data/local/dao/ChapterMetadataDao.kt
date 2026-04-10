@@ -62,6 +62,9 @@ public interface ChapterMetadataDao {
         bookId: String,
         chapters: List<ChapterMetadataEntity>,
     ) {
+        require(chapters.all { it.bookId == bookId }) {
+            "replaceChaptersForBook expects all chapters to match bookId=$bookId"
+        }
         deleteChapters(bookId)
         if (chapters.isNotEmpty()) {
             upsertChapters(chapters)

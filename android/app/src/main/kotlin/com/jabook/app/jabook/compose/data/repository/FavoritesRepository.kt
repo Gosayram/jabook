@@ -18,6 +18,7 @@ import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
 import com.jabook.app.jabook.compose.data.local.entity.toFavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.toFavoriteItem
 import com.jabook.app.jabook.compose.domain.model.FavoriteItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -54,8 +55,13 @@ public class FavoritesRepository
          */
         public suspend fun addToFavorites(favorite: FavoriteItem): Result<Unit> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                try {
                     favoriteDao.insertFavorite(favorite.toFavoriteEntity())
+                    Result.success(Unit)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
                 }
             }
 
@@ -64,8 +70,13 @@ public class FavoritesRepository
          */
         public suspend fun removeFromFavorites(topicId: String): Result<Unit> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                try {
                     favoriteDao.deleteFavorite(topicId)
+                    Result.success(Unit)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
                 }
             }
 
@@ -74,8 +85,13 @@ public class FavoritesRepository
          */
         public suspend fun removeMultipleFavorites(topicIds: List<String>): Result<Unit> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                try {
                     favoriteDao.deleteFavorites(topicIds)
+                    Result.success(Unit)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
                 }
             }
 
@@ -84,8 +100,13 @@ public class FavoritesRepository
          */
         public suspend fun clearAllFavorites(): Result<Unit> =
             withContext(Dispatchers.IO) {
-                runCatching {
+                try {
                     favoriteDao.clearAllFavorites()
+                    Result.success(Unit)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
                 }
             }
 

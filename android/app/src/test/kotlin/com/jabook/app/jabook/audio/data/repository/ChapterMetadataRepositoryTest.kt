@@ -38,7 +38,7 @@ class ChapterMetadataRepositoryTest {
                     chapter(id = "c2", bookId = "book-1", fileIndex = 1),
                 )
 
-            val result = repository.saveChapters(chapters)
+            val result = repository.saveChapters(bookId = "book-1", chapters = chapters)
 
             assertTrue(result is Result.Success)
             verify(dao).replaceChaptersForBook(eq("book-1"), eq(chapters))
@@ -46,15 +46,15 @@ class ChapterMetadataRepositoryTest {
         }
 
     @Test
-    fun `saveChapters with empty input is no-op success`() =
+    fun `saveChapters with empty input clears existing chapters for book`() =
         runTest {
             val dao = mock<ChapterMetadataDao>()
             val repository = ChapterMetadataRepository(dao)
 
-            val result = repository.saveChapters(emptyList())
+            val result = repository.saveChapters(bookId = "book-1", chapters = emptyList())
 
             assertTrue(result is Result.Success)
-            verify(dao, never()).replaceChaptersForBook(any(), any())
+            verify(dao).replaceChaptersForBook(eq("book-1"), eq(emptyList()))
         }
 
     @Test
@@ -68,7 +68,7 @@ class ChapterMetadataRepositoryTest {
                     chapter(id = "c2", bookId = "book-2", fileIndex = 1),
                 )
 
-            val result = repository.saveChapters(chapters)
+            val result = repository.saveChapters(bookId = "book-1", chapters = chapters)
 
             assertTrue(result is Result.Error)
             verify(dao, never()).replaceChaptersForBook(any(), any())

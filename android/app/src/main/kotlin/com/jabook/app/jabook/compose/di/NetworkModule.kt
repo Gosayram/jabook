@@ -49,6 +49,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 public object NetworkModule {
+    private val rutrackerCertificatePinner by lazy {
+        RutrackerCertificatePinningPolicy.buildCertificatePinner()
+    }
+
     /**
      * Provide JSON serializer for Retrofit.
      */
@@ -102,7 +106,7 @@ public object NetworkModule {
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
-                .certificatePinner(RutrackerCertificatePinningPolicy.buildCertificatePinner())
+                .certificatePinner(rutrackerCertificatePinner)
                 .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .readTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -139,7 +143,7 @@ public object NetworkModule {
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
-            .certificatePinner(RutrackerCertificatePinningPolicy.buildCertificatePinner())
+            .certificatePinner(rutrackerCertificatePinner)
             .eventListenerFactory(networkTelemetryEventListenerFactory)
             // Interceptor order matters! They are called in order:
             // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)
