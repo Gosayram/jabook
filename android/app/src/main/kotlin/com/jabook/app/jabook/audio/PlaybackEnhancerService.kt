@@ -83,6 +83,7 @@ public class PlaybackEnhancerService
             )
 
         private var enhancer: LoudnessEnhancer? = null
+        private var volumeBoostJob: kotlinx.coroutines.Job? = null
 
         /**
          * Flow of volume boost levels from user preferences.
@@ -113,7 +114,7 @@ public class PlaybackEnhancerService
             attachEnhancer(player.audioSessionId, currentBoost)
 
             // Observe changes in volume boost settings
-            scope.launch {
+            volumeBoostJob = scope.launch {
                 volumeBoostFlow.collectLatest { boost ->
                     updateGain(boost)
                 }
@@ -204,6 +205,8 @@ public class PlaybackEnhancerService
          * Should be called when service is destroyed.
          */
         public fun release() {
+            volumeBoostJob?.cancel()
+            volumeBoostJob = null
             player.removeListener(playerListener)
             enhancer?.release()
             enhancer = null

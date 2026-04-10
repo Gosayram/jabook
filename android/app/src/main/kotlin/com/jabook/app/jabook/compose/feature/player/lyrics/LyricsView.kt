@@ -90,7 +90,7 @@ public fun LyricsView(
         ) {
             itemsIndexed(
                 items = lyrics,
-                key = { _, line -> "${line.timeMs}_${line.text}" },
+                key = { index, line -> "${index}_${line.timeMs}_${line.text}" },
             ) { index, line ->
                 val isCurrent = index == currentIndex
 

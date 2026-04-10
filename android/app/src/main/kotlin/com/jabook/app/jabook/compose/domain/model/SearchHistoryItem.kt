@@ -4,8 +4,8 @@ import androidx.compose.runtime.Immutable
 
 @Immutable
 public data class SearchHistoryItem(
-    val id: Int = 0,
+    val id: Long = 0L,
     val query: String,
-    val timestamp: Long = System.currentTimeMillis(),
+    val timestamp: Long,
     val resultCount: Int = 0,
 )

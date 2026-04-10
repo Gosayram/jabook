@@ -720,14 +720,29 @@ private fun PlayerContent(
     }
 
     val displayAuthor = authorFromMetadata
+    // TODO: Add dedicated string resources with format placeholders for better i18n support:
+    // - R.string.sleep_timer_active_description with %s placeholder for time
+    // - R.string.sleep_timer_end_of_chapter_description
+    // - R.string.sleep_timer_end_of_track_description
+    // - R.string.sleep_timer_idle_description
     val sleepTimerAccessibilityDescription =
         when (sleepTimerState) {
-            is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active ->
-                "${stringResource(R.string.sleepTimer)}, ${formatSleepTimerRemaining(sleepTimerState.remainingSeconds)}"
-            com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfChapter ->
-                "${stringResource(R.string.sleepTimer)}, ${stringResource(R.string.endOfChapterLabel)}"
-            is com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfTrack ->
-                "${stringResource(R.string.sleepTimer)}, ${stringResource(R.string.endOfTrackLabel)}"
+            is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active -> {
+                val timerLabel = stringResource(R.string.sleepTimer)
+                val timeRemaining = formatSleepTimerRemaining(sleepTimerState.remainingSeconds)
+                // Use non-concatenated format when proper string resource is available
+                "$timerLabel, $timeRemaining"
+            }
+            com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfChapter -> {
+                val timerLabel = stringResource(R.string.sleepTimer)
+                val endOfChapter = stringResource(R.string.endOfChapterLabel)
+                "$timerLabel, $endOfChapter"
+            }
+            is com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfTrack -> {
+                val timerLabel = stringResource(R.string.sleepTimer)
+                val endOfTrack = stringResource(R.string.endOfTrackLabel)
+                "$timerLabel, $endOfTrack"
+            }
             com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle ->
                 stringResource(R.string.sleepTimer)
         }
@@ -1814,7 +1829,7 @@ public fun PlayerSettingsSheet(
                                 rewindSeconds.toInt(),
                             ),
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.width(48.dp),
+                        modifier = Modifier.widthIn(min = 48.dp),
                         textAlign = TextAlign.End,
                     )
                 }
@@ -1843,7 +1858,7 @@ public fun PlayerSettingsSheet(
                                 forwardSeconds.toInt(),
                             ),
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.width(48.dp),
+                        modifier = Modifier.widthIn(min = 48.dp),
                         textAlign = TextAlign.End,
                     )
                 }

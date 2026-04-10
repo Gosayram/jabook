@@ -18,6 +18,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -65,13 +66,25 @@ public interface SearchHistoryDao {
      */
     @Query(
         """
-        DELETE FROM search_history 
+        DELETE FROM search_history
         WHERE id NOT IN (
-            SELECT id FROM search_history 
-            ORDER BY timestamp DESC 
+            SELECT id FROM search_history
+            ORDER BY timestamp DESC
             LIMIT :keepCount
         )
         """,
     )
     public suspend fun trimHistory(keepCount: Int = 50)
+
+    /**
+     * Insert a search and trim history atomically.
+     */
+    @Transaction
+    public suspend fun insertAndTrim(
+        searchEntity: SearchHistoryEntity,
+        keepCount: Int,
+    ) {
+        insertSearch(searchEntity)
+        trimHistory(keepCount)
+    }
 }

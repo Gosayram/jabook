@@ -23,6 +23,7 @@ import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.firstOrNull
@@ -62,7 +63,7 @@ public class AudioEqualizerManager
     ) {
         private val scope =
             CoroutineScope(
-                SupervisorJob() + Dispatchers.Default + loggingCoroutineExceptionHandler("AudioEqualizerManager"),
+                SupervisorJob() + Dispatchers.Main.immediate + loggingCoroutineExceptionHandler("AudioEqualizerManager"),
             )
 
         /** The current system Equalizer, or null if disabled / not yet attached. */
@@ -90,10 +91,10 @@ public class AudioEqualizerManager
          *
          * Registers a player listener and subscribes to EQ preference changes.
          */
-        public fun initialize() {
+        public suspend fun initialize() {
             player.addListener(playerListener)
 
-            // Read initial preset synchronously (avoids race with first frame)
+            // Read initial preset
             currentPreset = readCurrentPreset()
             attachEqualizer(player.audioSessionId, currentPreset)
 
@@ -111,6 +112,7 @@ public class AudioEqualizerManager
          * Call from `AudioPlayerService.onDestroy()`.
          */
         public fun release() {
+            scope.cancel()
             player.removeListener(playerListener)
             equalizer?.release()
             equalizer = null
@@ -232,12 +234,10 @@ public class AudioEqualizerManager
             equalizer = null
         }
 
-        private fun readCurrentPreset(): EqualizerPreset =
+        private suspend fun readCurrentPreset(): EqualizerPreset =
             try {
-                runBlocking {
-                    val prefs = settingsRepository.userPreferences.firstOrNull()
-                    prefs?.let { mapPresetName(it.equalizerPreset) } ?: EqualizerPreset.DEFAULT
-                }
+                val prefs = settingsRepository.userPreferences.firstOrNull()
+                prefs?.let { mapPresetName(it.equalizerPreset) } ?: EqualizerPreset.DEFAULT
             } catch (_: Exception) {
                 EqualizerPreset.DEFAULT
             }
@@ -252,9 +252,4 @@ public class AudioEqualizerManager
  * Falls back to [EqualizerPreset.DEFAULT] for unknown values.
  */
 public fun mapPresetName(name: String): EqualizerPreset =
-    when (name) {
-        "FLAT" -> EqualizerPreset.FLAT
-        "VOICE_CLARITY" -> EqualizerPreset.VOICE_CLARITY
-        "NIGHT" -> EqualizerPreset.NIGHT
-        else -> EqualizerPreset.DEFAULT
-    }
+    EqualizerPreset.entries.find { it.name == name } ?: EqualizerPreset.DEFAULT

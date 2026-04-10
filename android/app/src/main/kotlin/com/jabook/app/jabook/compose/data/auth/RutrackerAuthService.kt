@@ -270,7 +270,10 @@ public class RutrackerAuthService
                     }
                 } finally {
                     bytes.fill(0)
-                    Arrays.fill(chars, '\u0000')
+                    // Clear the ByteBuffer's backing array if it has one
+                    if (byteBuffer.hasArray()) {
+                        Arrays.fill(byteBuffer.array(), 0)
+                    }
                 }
             }
 

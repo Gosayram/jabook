@@ -41,8 +41,11 @@ public object RutrackerCertificatePinningPolicy {
     public val hostPins: Map<String, Set<String>> =
         mapOf(
             MIRROR_ORG to setOf(PIN_LEAF_ORG, PIN_INTERMEDIATE_WE1),
+            "*.rutracker.org" to setOf(PIN_LEAF_ORG, PIN_INTERMEDIATE_WE1),
             MIRROR_NET to setOf(PIN_LEAF_NET, PIN_INTERMEDIATE_WE1),
+            "*.rutracker.net" to setOf(PIN_LEAF_NET, PIN_INTERMEDIATE_WE1),
             MIRROR_ME to setOf(PIN_LEAF_ME, PIN_INTERMEDIATE_WE1),
+            "*.rutracker.me" to setOf(PIN_LEAF_ME, PIN_INTERMEDIATE_WE1),
         )
 
     public val pinnedHosts: Set<String> = hostPins.keys

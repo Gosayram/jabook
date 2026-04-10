@@ -62,6 +62,14 @@ public interface ChapterMetadataDao {
         bookId: String,
         chapters: List<ChapterMetadataEntity>,
     ) {
+        // Validate that all chapters belong to the specified bookId
+        val mismatchedChapters = chapters.filter { it.bookId != bookId }
+        if (mismatchedChapters.isNotEmpty()) {
+            throw IllegalArgumentException(
+                "All chapters must have bookId=$bookId, found mismatched bookIds: ${mismatchedChapters.map { it.bookId }.distinct()}",
+            )
+        }
+
         deleteChapters(bookId)
         if (chapters.isNotEmpty()) {
             upsertChapters(chapters)

@@ -116,10 +116,19 @@ public fun AuthScreen(
 
     // Protect credentials screen from screenshots/recording while it is visible.
     DisposableEffect(currentView) {
-        val window = currentView.context.componentActivity.window
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        try {
+            val window = currentView.context.componentActivity.window
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            onDispose {
+                try {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } catch (e: Exception) {
+                    android.util.Log.w("AuthScreen", "Failed to clear FLAG_SECURE", e)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("AuthScreen", "Failed to set FLAG_SECURE", e)
+            onDispose { }
         }
     }
 

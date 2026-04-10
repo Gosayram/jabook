@@ -91,6 +91,7 @@ public class BackupService
                             json.encodeToString(
                                 BackupIntegrityEnvelope(
                                     payload = backupData,
+                                    payloadJson = payloadJson,
                                     integrity = integrityMetadata,
                                 ),
                             )
@@ -188,12 +189,14 @@ public class BackupService
                 return json.decodeFromString(rawJson)
             }
 
-            val payloadJson = json.encodeToString(integrityEnvelope.payload)
             val integrity = integrityEnvelope.integrity
             if (integrity == null) {
                 logger.w { "Backup integrity metadata is missing, proceeding with payload import" }
                 return integrityEnvelope.payload
             }
+
+            // Use the stored payloadJson for signature verification
+            val payloadJson = integrityEnvelope.payloadJson
 
             return when (
                 backupRuntimeSecurity.verifyIntegrity(

@@ -264,6 +264,7 @@ public class SecureCredentialStorage
 
         /**
          * Encrypt char array using Tink AEAD and clear intermediate buffers.
+         * Destroys the plaintext input.
          */
         private fun encrypt(plaintext: CharArray): String? {
             val byteBuffer = Charsets.UTF_8.encode(CharBuffer.wrap(plaintext))
@@ -273,6 +274,10 @@ public class SecureCredentialStorage
                 encrypt(bytes)
             } finally {
                 bytes.fill(0)
+                // Clear the ByteBuffer's backing array if it has one
+                if (byteBuffer.hasArray()) {
+                    Arrays.fill(byteBuffer.array(), 0)
+                }
                 Arrays.fill(plaintext, '\u0000')
             }
         }

@@ -20,6 +20,7 @@ import kotlinx.serialization.Serializable
 public data class BackupIntegrityEnvelope(
     val envelopeVersion: String = "1.0.0",
     val payload: BackupData,
+    val payloadJson: String,
     val integrity: BackupIntegrityMetadata? = null,
 )
 

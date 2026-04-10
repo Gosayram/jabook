@@ -37,8 +37,10 @@ public class SearchHistoryRepository
         /**
          * Get recent searches as Flow.
          */
-        public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryItem>> =
-            searchHistoryDao.getRecentSearches(limit).map { history -> history.map { it.toSearchHistoryItem() } }
+        public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryItem>> {
+            val validLimit = if (limit <= 0) 10 else limit
+            return searchHistoryDao.getRecentSearches(validLimit).map { history -> history.map { it.toSearchHistoryItem() } }
+        }
 
         /**
          * Save a search query to history.
@@ -47,15 +49,14 @@ public class SearchHistoryRepository
             query: String,
             resultCount: Int = 0,
         ) {
-            searchHistoryDao.insertSearch(
+            searchHistoryDao.insertAndTrim(
                 SearchHistoryItem(
                     query = query,
                     timestamp = System.currentTimeMillis(),
                     resultCount = resultCount,
                 ).toSearchHistoryEntity(),
+                keepCount = 50,
             )
-            // Trim old history to keep database size manageable
-            searchHistoryDao.trimHistory(keepCount = 50)
         }
 
         /**

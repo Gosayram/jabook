@@ -55,7 +55,12 @@ public object MagnetUriValidationPolicy {
                 }?.substringAfter("=", "")
                 ?.trim()
                 ?: return null
-        val xt = URLDecoder.decode(xtEncoded, StandardCharsets.UTF_8.name())
+        val xt =
+            try {
+                URLDecoder.decode(xtEncoded, StandardCharsets.UTF_8.name())
+            } catch (e: IllegalArgumentException) {
+                return null
+            }
         if (!xt.startsWith("urn:btih:", ignoreCase = true)) return null
         val infoHash = xt.substringAfter("urn:btih:", "").trim()
         return when {

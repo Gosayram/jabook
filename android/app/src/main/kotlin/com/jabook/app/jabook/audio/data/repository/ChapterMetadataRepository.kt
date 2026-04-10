@@ -81,23 +81,27 @@ public class ChapterMetadataRepository
         /**
          * Saves multiple chapters.
          */
-        public suspend fun saveChapters(chapters: List<ChapterMetadataEntity>): Result<Unit> =
+        public suspend fun saveChapters(
+            bookId: String,
+            chapters: List<ChapterMetadataEntity>,
+        ): Result<Unit> =
             try {
-                if (chapters.isEmpty()) {
-                    return Result.Success(Unit)
-                }
-
-                val bookIds = chapters.map { it.bookId }.distinct()
-                require(bookIds.size == 1) {
-                    "saveChapters expects chapters from a single book, got bookIds=$bookIds"
+                if (chapters.isNotEmpty()) {
+                    val bookIds = chapters.map { it.bookId }.distinct()
+                    require(bookIds.size == 1 && bookIds.first() == bookId) {
+                        "saveChapters expects chapters from bookId=$bookId, got bookIds=$bookIds"
+                    }
                 }
 
                 chapterDao.replaceChaptersForBook(
-                    bookId = bookIds.first(),
+                    bookId = bookId,
                     chapters = chapters,
                 )
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) {
+                    throw e
+                }
                 Result.Error(e)
             }
 

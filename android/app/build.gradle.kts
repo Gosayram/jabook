@@ -216,16 +216,27 @@ android {
             val resolvedKeyAlias = keystoreProperties.getProperty("keyAlias") ?: envKeyAlias
             val resolvedKeyPassword = keystoreProperties.getProperty("keyPassword") ?: envKeyPassword
 
-            if (
-                !resolvedStoreFile.isNullOrBlank() &&
-                !resolvedStorePassword.isNullOrBlank() &&
-                !resolvedKeyAlias.isNullOrBlank() &&
-                !resolvedKeyPassword.isNullOrBlank()
-            ) {
+            val hasStoreFile = !resolvedStoreFile.isNullOrBlank()
+            val hasStorePassword = !resolvedStorePassword.isNullOrBlank()
+            val hasKeyAlias = !resolvedKeyAlias.isNullOrBlank()
+            val hasKeyPassword = !resolvedKeyPassword.isNullOrBlank()
+
+            if (hasStoreFile && hasStorePassword && hasKeyAlias && hasKeyPassword) {
                 storeFile = file(resolvedStoreFile)
                 storePassword = resolvedStorePassword
                 keyAlias = resolvedKeyAlias
                 keyPassword = resolvedKeyPassword
+            } else if (hasStoreFile || hasStorePassword || hasKeyAlias || hasKeyPassword) {
+                // Partial config detected
+                val missingProps = mutableListOf<String>()
+                if (!hasStoreFile) missingProps.add("storeFile")
+                if (!hasStorePassword) missingProps.add("storePassword")
+                if (!hasKeyAlias) missingProps.add("keyAlias")
+                if (!hasKeyPassword) missingProps.add("keyPassword")
+                logger.warn(
+                    "Release signing config is incomplete. Missing properties: ${missingProps.joinToString(", ")}. " +
+                        "Release builds will not be signed. Please provide all four properties in key.properties or environment variables.",
+                )
             }
         }
     }
