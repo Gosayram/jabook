@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.bundling.AbstractArchiveTask
+
 buildscript {
     repositories {
         google()
@@ -22,7 +24,14 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Ensure archive-producing tasks are byte-for-byte reproducible.
+subprojects {
+    tasks.withType<AbstractArchiveTask>().configureEach {
+        isPreserveFileTimestamps = false
+        isReproducibleFileOrder = true
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
-

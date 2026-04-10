@@ -59,13 +59,67 @@ fmt-kotlin: ## Format Kotlin code (ktlint + detekt auto-correct)
 .PHONY: lint-kotlin
 lint-kotlin: ## Lint Kotlin code (ktlint + detekt check)
 	@echo "Linting Kotlin code with ktlint + detekt..."
+	@echo "Checking coroutine test discipline (no Thread.sleep in unit tests)..."
+	@if rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin >/dev/null; then \
+		rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin; \
+		echo "❌ Found Thread.sleep(...) in unit tests. Use runTest + advanceTimeBy/advanceUntilIdle instead."; \
+		exit 1; \
+	fi
 	@(cd android && ./gradlew :app:ktlintCheck :app:detekt --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		./scripts/check-i18n-keys.sh; \
 		EXIT_CODE=$$?; \
 		if [ $$EXIT_CODE -eq 0 ]; then \
-			echo "✅ Kotlin linting passed (ktlint + detekt + i18n keys)"; \
+			./scripts/check-logging-guard.sh; \
+			EXIT_CODE=$$?; \
+			if [ $$EXIT_CODE -eq 0 ]; then \
+				./scripts/check-backup-rules.sh; \
+				EXIT_CODE=$$?; \
+				if [ $$EXIT_CODE -eq 0 ]; then \
+					./scripts/check-deterministic-build.sh; \
+					EXIT_CODE=$$?; \
+					if [ $$EXIT_CODE -eq 0 ]; then \
+						./scripts/check-module-graph.sh; \
+						EXIT_CODE=$$?; \
+						if [ $$EXIT_CODE -eq 0 ]; then \
+							./scripts/check-plugin-version-lock.sh; \
+							EXIT_CODE=$$?; \
+							if [ $$EXIT_CODE -eq 0 ]; then \
+								./scripts/check-receiver-export-guard.sh; \
+								EXIT_CODE=$$?; \
+								if [ $$EXIT_CODE -eq 0 ]; then \
+									./scripts/check-edge-to-edge.sh; \
+									EXIT_CODE=$$?; \
+									if [ $$EXIT_CODE -eq 0 ]; then \
+										./scripts/check-no-entity-in-presentation.sh; \
+										EXIT_CODE=$$?; \
+										if [ $$EXIT_CODE -eq 0 ]; then \
+											echo "✅ Kotlin linting passed (ktlint + detekt + i18n keys + logging guard + backup audit + deterministic build guard + module graph guard + plugin/version lock guard + receiver export guard + edge-to-edge guard + entity presentation guard)"; \
+										else \
+											echo "❌ Entity presentation guard failed with exit code $$EXIT_CODE"; \
+										fi; \
+									else \
+										echo "❌ Edge-to-edge guard failed with exit code $$EXIT_CODE"; \
+									fi; \
+								else \
+									echo "❌ Receiver export guard failed with exit code $$EXIT_CODE"; \
+								fi; \
+							else \
+								echo "❌ Plugin/version lock guard failed with exit code $$EXIT_CODE"; \
+							fi; \
+						else \
+							echo "❌ Module graph guard failed with exit code $$EXIT_CODE"; \
+						fi; \
+					else \
+						echo "❌ Deterministic build guard failed with exit code $$EXIT_CODE"; \
+					fi; \
+				else \
+					echo "❌ Backup rules audit failed with exit code $$EXIT_CODE"; \
+				fi; \
+			else \
+				echo "❌ Logging guard failed with exit code $$EXIT_CODE"; \
+			fi; \
 		else \
 			echo "❌ i18n key check failed with exit code $$EXIT_CODE"; \
 		fi; \
@@ -102,6 +156,18 @@ detekt: ## Run detekt static analysis
 	fi; \
 	exit $$EXIT_CODE
 
+.PHONY: hilt-graph-check
+hilt-graph-check: ## Validate Hilt dependency graph for beta/prod debug variants
+	@echo "Validating Hilt dependency graph..."
+	@(cd android && ./gradlew :app:hiltAggregateDepsBetaDebug :app:hiltAggregateDepsProdDebug --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Hilt graph validation passed"; \
+	else \
+		echo "❌ Hilt graph validation failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
 .PHONY: test
 test: ## Run unit tests (beta + prod)
 	@echo "Running unit tests..."
@@ -111,6 +177,55 @@ test: ## Run unit tests (beta + prod)
 		echo "✅ Unit tests passed"; \
 	else \
 		echo "❌ Unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: test-audio
+test-audio: ## Run audio-focused unit tests (beta + prod)
+	@echo "Running audio-focused unit tests..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+		--tests "com.jabook.app.jabook.audio.*" \
+		--tests "com.jabook.app.jabook.audio.*.*" \
+		--tests "com.jabook.app.jabook.download.*" \
+		--no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Audio-focused unit tests passed"; \
+	else \
+		echo "❌ Audio-focused unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: test-storage
+test-storage: ## Run storage/data-layer unit tests (beta + prod)
+	@echo "Running storage-focused unit tests..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+		--tests "com.jabook.app.jabook.compose.data.local.*" \
+		--tests "com.jabook.app.jabook.compose.data.local.*.*" \
+		--tests "com.jabook.app.jabook.compose.data.repository.*" \
+		--tests "com.jabook.app.jabook.migration.*" \
+		--no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Storage-focused unit tests passed"; \
+	else \
+		echo "❌ Storage-focused unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: test-player
+test-player: ## Run player feature unit tests (beta + prod)
+	@echo "Running player-focused unit tests..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+		--tests "com.jabook.app.jabook.compose.feature.player.*" \
+		--tests "com.jabook.app.jabook.compose.feature.player.*.*" \
+		--tests "com.jabook.app.jabook.audio.*" \
+		--no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Player-focused unit tests passed"; \
+	else \
+		echo "❌ Player-focused unit tests failed with exit code $$EXIT_CODE"; \
 	fi; \
 	exit $$EXIT_CODE
 

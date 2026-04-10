@@ -10,6 +10,14 @@ changelog: ## Generate CHANGELOG.md from git history
 	@bash hack/generate-changelog.sh
 	@echo "✅ CHANGELOG.md generated"
 
+.PHONY: module-graph
+module-graph: ## Generate module dependency graph (dot)
+	@./scripts/generate-module-graph.sh
+
+.PHONY: check-module-graph
+check-module-graph: ## Verify module dependency graph baseline is up to date
+	@./scripts/check-module-graph.sh
+
 .PHONY: check-copyright
 check-copyright: ## Check copyright headers in source files
 	@echo "Checking copyright headers..."

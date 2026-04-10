@@ -201,14 +201,31 @@ android {
     signingConfigs {
         create("release") {
             val keystorePropertiesFile = rootProject.file("key.properties")
+            val keystoreProperties = Properties()
             if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = Properties()
                 keystoreProperties.load(keystorePropertiesFile.inputStream())
+            }
 
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
+            val envStoreFile = System.getenv("JABOOK_KEYSTORE_FILE")
+            val envStorePassword = System.getenv("JABOOK_KEYSTORE_PASSWORD")
+            val envKeyAlias = System.getenv("JABOOK_KEY_ALIAS")
+            val envKeyPassword = System.getenv("JABOOK_KEY_PASSWORD")
+
+            val resolvedStoreFile = keystoreProperties.getProperty("storeFile") ?: envStoreFile
+            val resolvedStorePassword = keystoreProperties.getProperty("storePassword") ?: envStorePassword
+            val resolvedKeyAlias = keystoreProperties.getProperty("keyAlias") ?: envKeyAlias
+            val resolvedKeyPassword = keystoreProperties.getProperty("keyPassword") ?: envKeyPassword
+
+            if (
+                !resolvedStoreFile.isNullOrBlank() &&
+                !resolvedStorePassword.isNullOrBlank() &&
+                !resolvedKeyAlias.isNullOrBlank() &&
+                !resolvedKeyPassword.isNullOrBlank()
+            ) {
+                storeFile = file(resolvedStoreFile)
+                storePassword = resolvedStorePassword
+                keyAlias = resolvedKeyAlias
+                keyPassword = resolvedKeyPassword
             }
         }
     }
@@ -276,6 +293,13 @@ android {
         // Enable explicit intent handling for Android 14+
         manifestPlaceholders["enableExplicitIntentHandling"] = "true"
         buildConfigField("boolean", "HAS_GOOGLE_SERVICES", hasGoogleServicesJson.toString())
+    }
+
+    lint {
+        checkDependencies = true
+        abortOnError = true
+        warningsAsErrors = true
+        baseline = file("lint-baseline.xml")
     }
 
     flavorDimensions += "default"
