@@ -265,7 +265,9 @@ public class TorrentDownloadsViewModel
                 route.magnetLink?.let { magnetLink ->
                     prepareAddTorrent(magnetLink)
                 }
-            } catch (e: Exception) {
+            } catch (_: IllegalArgumentException) {
+                // Ignore if route args are absent or malformed
+            } catch (_: IllegalStateException) {
                 // Ignore if not navigated via route with args
             }
         }

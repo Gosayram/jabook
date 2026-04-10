@@ -228,16 +228,18 @@ public class LibraryViewModel
                 if (isFavorite) {
                     // Add to favorites storage if book exists
                     if (book != null) {
-                        val favoriteItem = book.toFavoriteItem()
-                        favoritesRepository.addToFavorites(favoriteItem)
+                        book.toFavoriteItem()?.let { favoriteItem ->
+                            favoritesRepository.addToFavorites(favoriteItem)
+                        }
                     } else {
                         // If book not found in current list, try to get it from database directly
                         // This can happen if book is filtered out by search
                         val allBooks = getLibraryUseCase(BookSortOrder.BY_ACTIVITY).first()
                         val foundBook = allBooks.find { it.id == bookId }
                         if (foundBook != null) {
-                            val favoriteItem = foundBook.toFavoriteItem()
-                            favoritesRepository.addToFavorites(favoriteItem)
+                            foundBook.toFavoriteItem()?.let { favoriteItem ->
+                                favoritesRepository.addToFavorites(favoriteItem)
+                            }
                         }
                     }
                 } else {

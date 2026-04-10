@@ -2392,6 +2392,10 @@
     <string name="systemThemeName">Системная</string>
     <string name="nextChapterTitle">Следующая глава</string>
     <string name="timerActive">Таймер активен</string>
+    <string name="sleep_timer_active">%1$s</string>
+    <string name="sleep_timer_end_of_chapter">%1$s</string>
+    <string name="sleep_timer_end_of_track">%1$s</string>
+    <string name="sleep_timer_idle">Не активен</string>
     <string name="sleepTimerTitle">Таймер сна</string>
     <string name="currentMirror">Текущее зеркало</string>
     <string name="theme">Тема</string>
@@ -2747,6 +2751,7 @@
     <string name="indexingStatusTitle">Статус индексации</string>
     <string name="indexingCompactStatus">Индексируем: %1$s (%2$d/%3$d)%4$s</string>
     <string name="indexCompletedCompactStatus">Завершено: %1$s%2$s</string>
+    <string name="indexDurationSeconds"> за %1$d сек</string>
     <string name="indexReadyToStart">Готово к индексации</string>
     <string name="indexProgressWithTopics">Прогресс: %1$d%% • Тем: %2$s</string>
     <string name="resetIndexTitle">Сбросить индекс</string>
@@ -2756,6 +2761,8 @@
     <string name="indexCheckTitle">Проверка индекса</string>
     <string name="indexCheckSubtitle">Тем: %1$s | Старые: %2$s | Новые: %3$s</string>
     <string name="autoLabel">Авто</string>
+    <string name="off">Выкл</string>
+    <string name="volumeBoostPercent">+%1$d%%</string>
     <string name="smartEffectsTitle">Умные эффекты</string>
     <string name="notificationPermissionPlaybackHint">Уведомления помогают управлять воспроизведением из панели уведомлений</string>
     <string name="audioVisualizerPermissionHint">Аудиовизуализатору нужно разрешение на микрофон</string>

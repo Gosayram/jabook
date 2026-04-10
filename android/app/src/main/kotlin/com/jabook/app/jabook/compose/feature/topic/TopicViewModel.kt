@@ -297,11 +297,7 @@ public class TopicViewModel
                         return@launch
                     }
 
-                    // Validate URL format
-                    if (!MagnetUriValidationPolicy.isValidMagnetUri(downloadUrl) &&
-                        !downloadUrl.startsWith("http://", ignoreCase = true) &&
-                        !downloadUrl.startsWith("https://", ignoreCase = true)
-                    ) {
+                    if (!MagnetUriValidationPolicy.isValidMagnetUri(downloadUrl)) {
                         logger.e { "Invalid download URL format: $downloadUrl" }
                         _message.value = context.getString(R.string.invalidDownloadUrl)
                         return@launch
@@ -355,17 +351,6 @@ public class TopicViewModel
 
                     val savePath = bookFolder.absolutePath
                     logger.d { "Saving torrent to: $savePath" }
-
-                    // TorrentManager.addTorrent only accepts strict magnet URIs.
-                    if (!MagnetUriValidationPolicy.isValidMagnetUri(downloadUrl)) {
-                        logger.e { "downloadTorrentRelease only supports magnet URIs, got: $downloadUrl" }
-                        _message.value =
-                            context.getString(
-                                R.string.failedToStartDownloadWithError,
-                                "Only magnet links are supported for torrent downloads",
-                            )
-                        return@launch
-                    }
 
                     // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
                     withAuthorisedCheckUseCase(operationId = "download_torrent_$topicId") {

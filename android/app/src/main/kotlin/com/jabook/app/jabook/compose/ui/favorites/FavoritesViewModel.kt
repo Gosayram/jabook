@@ -65,7 +65,7 @@ public class FavoritesViewModel
                 _sortOrder,
             ) { onlineFavorites, localFavoriteBooks, query, order ->
                 // Convert local favorite books to domain favorite items
-                val localFavorites = localFavoriteBooks.map { it.toFavoriteItem() }
+                val localFavorites = localFavoriteBooks.mapNotNull { it.toFavoriteItem() }
 
                 // Combine online and local favorites, avoiding duplicates (prefer online if exists)
                 val favoriteIds = onlineFavorites.map { it.topicId }.toSet()

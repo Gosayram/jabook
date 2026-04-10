@@ -67,4 +67,3 @@ class DownloadHistoryRepositoryTest {
             verify(dao).deleteOlderThan(123L)
         }
 }
-

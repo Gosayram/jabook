@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.data.backup
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import androidx.room.withTransaction
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
@@ -736,16 +737,18 @@ public class BackupService
                     return@forEach
                 }
 
-                if (localExists) {
-                    dao.deleteByQuery(item.query)
+                database.withTransaction {
+                    if (localExists) {
+                        dao.deleteByQuery(item.query)
+                    }
+                    dao.insertSearch(
+                        SearchHistoryEntity(
+                            query = item.query,
+                            timestamp = item.timestamp,
+                            resultCount = item.resultCount,
+                        ),
+                    )
                 }
-                dao.insertSearch(
-                    SearchHistoryEntity(
-                        query = item.query,
-                        timestamp = item.timestamp,
-                        resultCount = item.resultCount,
-                    ),
-                )
             }
         }
 
@@ -772,15 +775,17 @@ public class BackupService
                     return@forEach
                 }
 
-                if (localExists) {
-                    dao.deletePathByString(item.path)
+                database.withTransaction {
+                    if (localExists) {
+                        dao.deletePathByString(item.path)
+                    }
+                    dao.insertPath(
+                        ScanPathEntity(
+                            path = item.path,
+                            addedDate = item.addedDate,
+                        ),
+                    )
                 }
-                dao.insertPath(
-                    ScanPathEntity(
-                        path = item.path,
-                        addedDate = item.addedDate,
-                    ),
-                )
             }
         }
 

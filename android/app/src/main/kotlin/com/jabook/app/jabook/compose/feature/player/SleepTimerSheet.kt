@@ -151,7 +151,11 @@ public fun SleepTimerSheet(
                 is SleepTimerState.Active -> {
                     // Show countdown
                     ActiveTimerContent(
-                        timeText = formatSleepTimerRemaining(currentState.remainingSeconds),
+                        timeText =
+                            stringResource(
+                                R.string.sleep_timer_active,
+                                formatSleepTimerRemaining(currentState.remainingSeconds),
+                            ),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )
@@ -160,7 +164,11 @@ public fun SleepTimerSheet(
                 is SleepTimerState.EndOfChapter -> {
                     // Show End of Chapter status
                     ActiveTimerContent(
-                        timeText = stringResource(R.string.endOfChapterLabel),
+                        timeText =
+                            stringResource(
+                                R.string.sleep_timer_end_of_chapter,
+                                stringResource(R.string.endOfChapterLabel),
+                            ),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )
@@ -169,11 +177,14 @@ public fun SleepTimerSheet(
                 is SleepTimerState.EndOfTrack -> {
                     ActiveTimerContent(
                         timeText =
-                            if (currentState.fallbackFromChapter) {
-                                stringResource(R.string.endOfTrackFallbackLabel)
-                            } else {
-                                stringResource(R.string.endOfTrackLabel)
-                            },
+                            stringResource(
+                                R.string.sleep_timer_end_of_track,
+                                if (currentState.fallbackFromChapter) {
+                                    stringResource(R.string.endOfTrackFallbackLabel)
+                                } else {
+                                    stringResource(R.string.endOfTrackLabel)
+                                },
+                            ),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )

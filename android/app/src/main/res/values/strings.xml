@@ -2392,6 +2392,10 @@
     <string name="systemThemeName">System</string>
     <string name="nextChapterTitle">Next chapter</string>
     <string name="timerActive">Timer Active</string>
+    <string name="sleep_timer_active">%1$s</string>
+    <string name="sleep_timer_end_of_chapter">%1$s</string>
+    <string name="sleep_timer_end_of_track">%1$s</string>
+    <string name="sleep_timer_idle">Not active</string>
     <string name="sleepTimerTitle">Sleep Timer</string>
     <string name="currentMirror">Current Mirror</string>
     <string name="theme">Theme</string>
@@ -2704,6 +2708,7 @@
     <string name="indexingStatusTitle">Indexing status</string>
     <string name="indexingCompactStatus">Indexing: %1$s (%2$d/%3$d)%4$s</string>
     <string name="indexCompletedCompactStatus">Completed: %1$s%2$s</string>
+    <string name="indexDurationSeconds"> in %1$d sec</string>
     <string name="indexReadyToStart">Ready to index</string>
     <string name="indexProgressWithTopics">Progress: %1$d%% • Topics: %2$s</string>
     <string name="resetIndexTitle">Reset index</string>
@@ -2713,6 +2718,8 @@
     <string name="indexCheckTitle">Index check</string>
     <string name="indexCheckSubtitle">Topics: %1$s | Oldest: %2$s | Newest: %3$s</string>
     <string name="autoLabel">Auto</string>
+    <string name="off">Off</string>
+    <string name="volumeBoostPercent">+%1$d%%</string>
     <string name="smartEffectsTitle">Smart Effects</string>
     <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
     <string name="audioVisualizerPermissionHint">Audio visualizer needs microphone permission</string>

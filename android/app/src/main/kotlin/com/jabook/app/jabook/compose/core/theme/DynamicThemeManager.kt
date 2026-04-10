@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.core.theme
 
 import android.graphics.Bitmap
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.palette.graphics.Palette
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,7 @@ import kotlinx.coroutines.withContext
  * @property onSurfaceColor Content color on surface.
  * @property containerColor Dominant color for container or gradient start.
  */
+@Immutable
 public data class PlayerThemeColors(
     val primaryColor: Color = Color(0xFF6750A4), // Default Purple40
     val onPrimaryColor: Color = Color.White,

@@ -31,4 +31,3 @@ class BackupRuntimeSecurityTest {
         assertEquals(BackupIntegrityVerificationResult.UNSUPPORTED_ALGORITHM, result)
     }
 }
-

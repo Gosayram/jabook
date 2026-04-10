@@ -102,6 +102,7 @@ public object NetworkModule {
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
+                .certificatePinner(RutrackerCertificatePinningPolicy.buildCertificatePinner())
                 .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .readTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)

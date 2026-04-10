@@ -33,7 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -85,16 +84,10 @@ public fun SquigglySlider(
         remember(valueRange) {
             normalizeValueRange(valueRange)
         }
-    val sanitizedChapterMarkers by remember(chapterMarkersFractions) {
-        derivedStateOf {
-            chapterMarkersFractions
-                .asSequence()
-                .filter { marker -> marker.isFinite() && marker > 0f && marker < 1f }
-                .distinct()
-                .sorted()
-                .toList()
+    val sanitizedChapterMarkers =
+        remember(chapterMarkersFractions.toList()) {
+            sanitizeChapterMarkersFractions(chapterMarkersFractions)
         }
-    }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val isDragged by interactionSource.collectIsDraggedAsState()
@@ -261,6 +254,14 @@ public fun SquigglySlider(
         )
     }
 }
+
+internal fun sanitizeChapterMarkersFractions(markers: List<Float>): List<Float> =
+    markers
+        .asSequence()
+        .filter { marker -> marker.isFinite() && marker > 0f && marker < 1f }
+        .distinct()
+        .sorted()
+        .toList()
 
 private fun normalizeValueRange(valueRange: ClosedFloatingPointRange<Float>): ClosedFloatingPointRange<Float> {
     val start =

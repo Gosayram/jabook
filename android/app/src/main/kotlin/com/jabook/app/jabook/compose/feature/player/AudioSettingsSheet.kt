@@ -93,12 +93,12 @@ public fun AudioSettingsSheet(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     VolumeBoostChip(
-                        label = "Off",
+                        label = stringResource(R.string.off),
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Off,
                         onClick = { onUpdateSettings(VolumeBoostLevel.Off, null, null, null, null, null, null, null) },
                     )
                     VolumeBoostChip(
-                        label = "+50%",
+                        label = stringResource(R.string.volumeBoostPercent, 50),
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost50,
                         onClick = {
                             onUpdateSettings(
@@ -114,7 +114,7 @@ public fun AudioSettingsSheet(
                         },
                     )
                     VolumeBoostChip(
-                        label = "+100%",
+                        label = stringResource(R.string.volumeBoostPercent, 100),
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost100,
                         onClick = {
                             onUpdateSettings(
@@ -132,7 +132,7 @@ public fun AudioSettingsSheet(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     VolumeBoostChip(
-                        label = "+200%",
+                        label = stringResource(R.string.volumeBoostPercent, 200),
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost200,
                         onClick = {
                             onUpdateSettings(

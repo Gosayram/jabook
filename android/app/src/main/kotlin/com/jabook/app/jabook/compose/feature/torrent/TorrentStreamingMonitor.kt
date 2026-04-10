@@ -57,7 +57,7 @@ public class TorrentStreamingMonitor
 
         private val scope =
             CoroutineScope(
-                SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("TorrentStreamingMonitor"),
+                SupervisorJob() + Dispatchers.Default + loggingCoroutineExceptionHandler("TorrentStreamingMonitor"),
             )
         private var monitoringJob: Job? = null
 
@@ -98,7 +98,11 @@ public class TorrentStreamingMonitor
             monitoringJob =
                 scope.launch {
                     while (isActive) {
-                        checkBufferState()
+                        try {
+                            checkBufferState()
+                        } catch (e: Exception) {
+                            logger.e({ "Buffer state check failed: ${e.message}" }, e)
+                        }
                         delay(POLLING_INTERVAL_MS)
                     }
                 }

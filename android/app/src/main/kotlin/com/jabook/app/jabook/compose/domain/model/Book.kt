@@ -188,11 +188,13 @@ public fun List<BookEntity>.toBooks(): List<Book> = map { it.toBook() }
  * Extension function to convert domain Book to FavoriteItem.
  * Used for synchronizing local library favorites with favorites repository.
  */
-public fun Book.toFavoriteItem(): FavoriteItem {
-    val now =
+public fun Book.toFavoriteItem(
+    addedToFavorites: String =
         java.time.Instant
             .now()
-            .toString()
+            .toString(),
+): FavoriteItem? {
+    val validatedSourceUrl = sourceUrl?.takeIf { it.isNotBlank() } ?: return null
     return FavoriteItem(
         topicId = id,
         title = title,
@@ -201,7 +203,7 @@ public fun Book.toFavoriteItem(): FavoriteItem {
         size = "", // Size not available for local books
         seeders = 0,
         leechers = 0,
-        magnetUrl = sourceUrl ?: "",
+        magnetUrl = validatedSourceUrl,
         coverUrl = coverUrl,
         performer = null,
         genres = null,
@@ -209,7 +211,7 @@ public fun Book.toFavoriteItem(): FavoriteItem {
             java.time.Instant
                 .ofEpochMilli(addedDate)
                 .toString(),
-        addedToFavorites = now,
+        addedToFavorites = addedToFavorites,
         duration = null,
         bitrate = null,
         audioCodec = null,

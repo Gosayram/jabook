@@ -424,7 +424,12 @@ public fun SettingsScreen(
                                 val durationMs =
                                     (indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed)
                                         .durationMs
-                                val durationText = if (durationMs > 0) " за ${durationMs / 1000} сек" else ""
+                                val durationText =
+                                    if (durationMs > 0) {
+                                        stringResource(R.string.indexDurationSeconds, durationMs / 1000)
+                                    } else {
+                                        ""
+                                    }
                                 val completedTopicsCount =
                                     pluralStringResource(
                                         R.plurals.indexTopicsCount,
