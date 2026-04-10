@@ -15,11 +15,20 @@ trap 'rm -f "$TMP_CURRENT" "$TMP_EXTRA"' EXIT
 
 cd "$ROOT_DIR"
 
-rg -n "\bprintln\(|android\.util\.Log\.|\bLog\.(v|d|i|w|e)\(" \
-  android/app/src/main/kotlin \
-  --glob '!**/util/LogUtils.kt' \
-  --glob '!**/compose/core/logger/AndroidLogger.kt' \
-  | cut -d: -f1 | sort -u > "$TMP_CURRENT"
+SEARCH_PATTERN='println\(|android\.util\.Log\.|(^|[^A-Za-z0-9_])Log\.(v|d|i|w|e)\('
+
+if command -v rg >/dev/null 2>&1; then
+  rg -n "$SEARCH_PATTERN" \
+    android/app/src/main/kotlin \
+    --glob '!**/util/LogUtils.kt' \
+    --glob '!**/compose/core/logger/AndroidLogger.kt' \
+    | cut -d: -f1 | sort -u > "$TMP_CURRENT"
+else
+  grep -R -n -E "$SEARCH_PATTERN" android/app/src/main/kotlin \
+    --exclude='LogUtils.kt' \
+    --exclude='AndroidLogger.kt' \
+    | cut -d: -f1 | sort -u > "$TMP_CURRENT" || true
+fi
 
 comm -23 "$TMP_CURRENT" "$BASELINE_FILE" > "$TMP_EXTRA" || true
 
