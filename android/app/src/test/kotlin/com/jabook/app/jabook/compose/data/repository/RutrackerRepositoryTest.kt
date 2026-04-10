@@ -20,7 +20,7 @@ import com.jabook.app.jabook.compose.data.remote.model.Comment
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.Result
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -49,7 +49,7 @@ class RutrackerRepositoryTest {
 
     @Test
     fun `getTopicDetailsPage returns success for page 2 with comments only`() =
-        runBlocking {
+        runTest {
             // Arrange
             val topicId = "123"
             val page = 2

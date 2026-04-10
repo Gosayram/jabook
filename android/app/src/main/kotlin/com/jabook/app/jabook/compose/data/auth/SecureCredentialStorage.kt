@@ -36,6 +36,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import java.nio.CharBuffer
+import java.util.Arrays
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -142,7 +144,10 @@ public class SecureCredentialStorage
          */
         public suspend fun saveCredentials(credentials: UserCredentials) {
             val encryptedUsername = encrypt(credentials.username) ?: return
-            val encryptedPassword = encrypt(credentials.password) ?: return
+            val encryptedPassword =
+                credentials.withPasswordChars { passwordChars ->
+                    encrypt(passwordChars)
+                } ?: return
 
             // Store in DataStore
             runCatching {
@@ -249,9 +254,33 @@ public class SecureCredentialStorage
          * Encrypt string using Tink AEAD.
          */
         private fun encrypt(plaintext: String): String? {
+            val bytes = plaintext.toByteArray()
+            return try {
+                encrypt(bytes)
+            } finally {
+                bytes.fill(0)
+            }
+        }
+
+        /**
+         * Encrypt char array using Tink AEAD and clear intermediate buffers.
+         */
+        private fun encrypt(plaintext: CharArray): String? {
+            val byteBuffer = Charsets.UTF_8.encode(CharBuffer.wrap(plaintext))
+            val bytes = ByteArray(byteBuffer.remaining())
+            byteBuffer.get(bytes)
+            return try {
+                encrypt(bytes)
+            } finally {
+                bytes.fill(0)
+                Arrays.fill(plaintext, '\u0000')
+            }
+        }
+
+        private fun encrypt(plaintextBytes: ByteArray): String? {
             val localAead = aeadOrNull ?: return null
             return runCatching {
-                val encrypted = localAead.encrypt(plaintext.toByteArray(), null)
+                val encrypted = localAead.encrypt(plaintextBytes, null)
                 android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)
             }.onFailure {
                 reportSecureStorageNonFatal(

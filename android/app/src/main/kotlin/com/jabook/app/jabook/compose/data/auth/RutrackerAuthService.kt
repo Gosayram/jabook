@@ -34,7 +34,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.nio.CharBuffer
 import java.nio.charset.Charset
+import java.util.Arrays
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -249,13 +251,32 @@ public class RutrackerAuthService
             fun encode(s: String): String {
                 val bytes = s.toByteArray(CP1251)
                 // Manual percent encoding for CP1251 bytes
-                return bytes.joinToString("") { byte ->
-                    "%" + "%02X".format(byte)
+                return try {
+                    bytes.joinToString("") { byte ->
+                        "%" + "%02X".format(byte)
+                    }
+                } finally {
+                    bytes.fill(0)
+                }
+            }
+
+            fun encode(chars: CharArray): String {
+                val byteBuffer = CP1251.encode(CharBuffer.wrap(chars))
+                val bytes = ByteArray(byteBuffer.remaining())
+                byteBuffer.get(bytes)
+                return try {
+                    bytes.joinToString("") { byte ->
+                        "%" + "%02X".format(byte)
+                    }
+                } finally {
+                    bytes.fill(0)
+                    Arrays.fill(chars, '\u0000')
                 }
             }
 
             sb.append("login_username=").append(encode(credentials.username))
-            sb.append("&login_password=").append(encode(credentials.password))
+            val encodedPassword = credentials.withPasswordChars { passwordChars -> encode(passwordChars) }
+            sb.append("&login_password=").append(encodedPassword)
             sb.append("&login=").append(encode("Вход"))
 
             if (captchaCode != null && captchaData != null) {

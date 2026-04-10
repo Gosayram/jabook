@@ -20,6 +20,7 @@ import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkTelemetryEventListenerFactory
+import com.jabook.app.jabook.compose.data.network.RutrackerCertificatePinningPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
@@ -137,6 +138,7 @@ public object NetworkModule {
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
+            .certificatePinner(RutrackerCertificatePinningPolicy.buildCertificatePinner())
             .eventListenerFactory(networkTelemetryEventListenerFactory)
             // Interceptor order matters! They are called in order:
             // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)
