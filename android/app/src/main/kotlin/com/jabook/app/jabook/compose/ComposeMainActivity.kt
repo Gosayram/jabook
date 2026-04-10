@@ -36,6 +36,7 @@ import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.torrent.MagnetUriValidationPolicy
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -67,6 +68,31 @@ public class ComposeMainActivity : ComponentActivity() {
     private var deepLinkIntent by androidx.compose.runtime.mutableStateOf<Intent?>(null)
     private var hasReportedFullyDrawn: Boolean = false
 
+    private companion object {
+        private val ALLOWED_JABOOK_HOSTS =
+            setOf(
+                "library",
+                "settings",
+                "downloads",
+                "player",
+                "webview",
+                "search",
+                "favorites",
+                "auth",
+            )
+        private val ALLOWED_JABOOK_PATH_PREFIXES =
+            listOf(
+                "/library",
+                "/settings",
+                "/downloads",
+                "/player",
+                "/webview",
+                "/search",
+                "/favorites",
+                "/auth",
+            )
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Handle splash screen transition
         // This must be called before super.onCreate()
@@ -77,7 +103,7 @@ public class ComposeMainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         // Handle initial intent
-        deepLinkIntent = intent
+        deepLinkIntent = sanitizeNavigableIntent(intent)
         handleIntent(intent)
         handleIntentExtras(intent)
 
@@ -102,7 +128,7 @@ public class ComposeMainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         // Update state to trigger recomposition in JabookApp
-        deepLinkIntent = intent
+        deepLinkIntent = sanitizeNavigableIntent(intent)
         // Handle intent when activity is already running (singleTop mode)
         handleIntent(intent)
         handleIntentExtras(intent)
@@ -130,10 +156,18 @@ public class ComposeMainActivity : ComponentActivity() {
 
         when (data.scheme) {
             "magnet" -> {
-                handleMagnetLink(data)
+                if (isValidMagnetUri(data)) {
+                    handleMagnetLink(data)
+                } else {
+                    logger.w { "Rejected invalid magnet URI: $data" }
+                }
             }
             "jabook" -> {
-                handleJabookDeepLink(data)
+                if (isAllowedJabookDeepLink(data)) {
+                    handleJabookDeepLink(data)
+                } else {
+                    logger.w { "Rejected untrusted jabook deep link: $data" }
+                }
             }
             else -> {
                 logger.w { "Unknown scheme: ${data.scheme}" }
@@ -205,6 +239,47 @@ public class ComposeMainActivity : ComponentActivity() {
         // Navigation is handled by JabookApp's NavHost which observes deepLinkIntent.
         // This method serves as an interception point for logging or analytics.
     }
+
+    private fun sanitizeNavigableIntent(intent: Intent?): Intent? {
+        val incomingIntent = intent ?: return null
+        if (incomingIntent.action != Intent.ACTION_VIEW) {
+            return incomingIntent
+        }
+        val uri = incomingIntent.data ?: return incomingIntent
+        return when (uri.scheme) {
+            "jabook" -> {
+                if (isAllowedJabookDeepLink(uri)) {
+                    incomingIntent
+                } else {
+                    logger.w { "Dropping untrusted jabook navigation intent: $uri" }
+                    null
+                }
+            }
+            "magnet" -> {
+                if (isValidMagnetUri(uri)) {
+                    incomingIntent
+                } else {
+                    logger.w { "Dropping invalid magnet navigation intent: $uri" }
+                    null
+                }
+            }
+            else -> incomingIntent
+        }
+    }
+
+    private fun isAllowedJabookDeepLink(uri: Uri): Boolean {
+        if (uri.scheme != "jabook") return false
+        val host = uri.host?.lowercase().orEmpty()
+        val path = uri.path.orEmpty()
+        val hasAllowedHost = host in ALLOWED_JABOOK_HOSTS
+        val hasAllowedPath =
+            ALLOWED_JABOOK_PATH_PREFIXES.any { prefix ->
+                path.startsWith(prefix, ignoreCase = true)
+            }
+        return hasAllowedHost || hasAllowedPath
+    }
+
+    private fun isValidMagnetUri(uri: Uri): Boolean = MagnetUriValidationPolicy.isValidMagnetUri(uri)
 
     private fun handleExternalAudioIntent(audioUris: List<Uri>) {
         val urisAsPaths = audioUris.map { it.toString() }

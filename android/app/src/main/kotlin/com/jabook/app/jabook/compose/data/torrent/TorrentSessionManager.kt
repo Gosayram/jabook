@@ -15,12 +15,12 @@
 package com.jabook.app.jabook.compose.data.torrent
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
+import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -269,10 +269,10 @@ public class TorrentSessionManager
                 }
 
                 // Validate magnet URI format
-                if (!magnetUri.startsWith("magnet:", ignoreCase = true)) {
+                if (!MagnetUriValidationPolicy.isValidMagnetUri(magnetUri)) {
                     logger.e { "Invalid magnet URI format: $magnetUri" }
                     return Result.failure(
-                        IllegalArgumentException("Invalid magnet URI format. Must start with 'magnet:'"),
+                        IllegalArgumentException("Invalid magnet URI format. Expected magnet:?xt=urn:btih:<hash>"),
                     )
                 }
 
@@ -649,13 +649,8 @@ public class TorrentSessionManager
 
                 val workRequest =
                     OneTimeWorkRequestBuilder<LibraryScanWorker>()
-                        .setConstraints(
-                            Constraints
-                                .Builder()
-                                .setRequiresStorageNotLow(true)
-                                .setRequiresBatteryNotLow(true)
-                                .build(),
-                        ).addTag(LibraryScanWorker.WORK_TAG)
+                        .setConstraints(WorkConstraintsPolicy.libraryScan())
+                        .addTag(LibraryScanWorker.WORK_TAG)
                         .addTag("torrent-finished-sync")
                         .build()
 
@@ -1314,37 +1309,7 @@ public class TorrentSessionManager
 
         private fun parseMagnetHash(magnetUri: String): String? =
             try {
-                // Try to parse as magnet URI
-                if (magnetUri.startsWith("magnet:", ignoreCase = true)) {
-                    // Support both 40-char hex and 32-char base32 hashes
-                    val hexRegex = "urn:btih:([a-fA-F0-9]{40})".toRegex()
-                    val base32Regex = "urn:btih:([a-zA-Z2-7]{32})".toRegex()
-
-                    hexRegex
-                        .find(magnetUri)
-                        ?.groupValues
-                        ?.get(1)
-                        ?.lowercase()
-                        ?: base32Regex
-                            .find(magnetUri)
-                            ?.groupValues
-                            ?.get(1)
-                            ?.uppercase()
-                } else if (magnetUri.length == 40 && magnetUri.matches(Regex("[a-fA-F0-9]{40}"))) {
-                    // Already a hex hash
-                    magnetUri.lowercase()
-                } else {
-                    // Try to extract from any URI format
-                    val anyHashRegex =
-                        "(?:urn:btih:|btih:)?([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})".toRegex(
-                            RegexOption.IGNORE_CASE,
-                        )
-                    anyHashRegex
-                        .find(magnetUri)
-                        ?.groupValues
-                        ?.get(1)
-                        ?.lowercase()
-                }
+                MagnetUriValidationPolicy.extractInfoHash(magnetUri)
             } catch (e: Exception) {
                 logger.e({ "Failed to parse magnet hash from: $magnetUri" }, e)
                 null

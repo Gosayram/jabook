@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.torrent.MagnetUriValidationPolicy
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
@@ -297,7 +298,7 @@ public class TopicViewModel
                     }
 
                     // Validate URL format
-                    if (!downloadUrl.startsWith("magnet:", ignoreCase = true) &&
+                    if (!MagnetUriValidationPolicy.isValidMagnetUri(downloadUrl) &&
                         !downloadUrl.startsWith("http://", ignoreCase = true) &&
                         !downloadUrl.startsWith("https://", ignoreCase = true)
                     ) {
@@ -355,9 +356,8 @@ public class TopicViewModel
                     val savePath = bookFolder.absolutePath
                     logger.d { "Saving torrent to: $savePath" }
 
-                    // Check if downloadUrl is a magnet URI or HTTP/HTTPS URL
-                    // TorrentManager.addTorrent only accepts magnet URIs
-                    if (!downloadUrl.startsWith("magnet:", ignoreCase = true)) {
+                    // TorrentManager.addTorrent only accepts strict magnet URIs.
+                    if (!MagnetUriValidationPolicy.isValidMagnetUri(downloadUrl)) {
                         logger.e { "downloadTorrentRelease only supports magnet URIs, got: $downloadUrl" }
                         _message.value =
                             context.getString(
