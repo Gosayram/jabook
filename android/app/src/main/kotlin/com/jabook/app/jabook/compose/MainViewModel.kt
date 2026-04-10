@@ -17,10 +17,12 @@ package com.jabook.app.jabook.compose
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.model.UserData
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
@@ -33,6 +35,7 @@ public sealed interface MainActivityUiState {
 
     public data class Success(
         val userData: UserData,
+        val useDynamicColors: Boolean,
     ) : MainActivityUiState
 }
 
@@ -44,13 +47,20 @@ public class MainViewModel
     @Inject
     constructor(
         userPreferencesRepository: UserPreferencesRepository,
+        settingsRepository: SettingsRepository,
     ) : ViewModel() {
         public val uiState: StateFlow<MainActivityUiState> =
-            userPreferencesRepository.userData
-                .map { userData -> MainActivityUiState.Success(userData) }
-                .stateIn(
-                    scope = viewModelScope,
-                    initialValue = MainActivityUiState.Loading,
-                    started = SharingStarted.WhileSubscribed(5_000),
+            combine(
+                userPreferencesRepository.userData,
+                settingsRepository.userPreferences.map { it.useDynamicColors },
+            ) { userData, useDynamicColors ->
+                MainActivityUiState.Success(
+                    userData = userData,
+                    useDynamicColors = useDynamicColors,
                 )
+            }.stateIn(
+                scope = viewModelScope,
+                initialValue = MainActivityUiState.Loading,
+                started = SharingStarted.WhileSubscribed(5_000),
+            )
     }

@@ -292,6 +292,9 @@
     <string name="themeAmoled">AMOLED / Pure Black</string>
     <string name="vinylMode">Vinyl Mode</string>
     <string name="lyrics">Lyrics</string>
+    <string name="toggleLyricsView">Toggle lyrics view</string>
+    <string name="lyricsVisibleState">Lyrics visible</string>
+    <string name="lyricsHiddenState">Lyrics hidden</string>
     <!-- Label for high contrast -->
     <string name="highContrast">High contrast</string>
     <!-- Title for audio settings -->
@@ -1996,6 +1999,7 @@
     <!-- Step 3 for One UI settings -->
     <!-- Track position indicator -->
     <string name="trackOfTotal">Track {currentTrack} of {totalTracks}</string>
+    <string name="playbackPositionLabel">Playback position</string>
     <!-- Tracks section title with plural -->
     <string name="tracksTitle">{count, plural, =0{No tracks} =1{Track} other{Tracks}}</string>
     <!-- No repeat mode -->
@@ -2228,6 +2232,8 @@
     <!-- Chapter $number -->
     <!-- Choose app theme -->
     <string name="chooseAppTheme">Choose app theme</string>
+    <string name="dynamicColorsTitle">Dynamic colors (Material You)</string>
+    <string name="dynamicColorsDescription">Adapt app colors to your wallpaper on Android 12+</string>
     <!-- Font settings title -->
     <string name="fontTitle">Font</string>
     <!-- Choose font family -->
@@ -2481,6 +2487,9 @@
     <string name="sort_by_date_added">Date Added</string>
     <!-- Book Properties Dialog -->
     <string name="bookProperties">Book Properties</string>
+    <string name="changeCover">Change cover</string>
+    <string name="coverUpdated">Cover updated</string>
+    <string name="coverUpdateFailed">Failed to update cover</string>
     <string name="title">Title</string>
     <string name="author">Author</string>
     <string name="dateAdded">Date Added</string>

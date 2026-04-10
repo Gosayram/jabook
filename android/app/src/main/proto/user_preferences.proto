@@ -70,6 +70,9 @@ message UserPreferences {
 
   // Equalizer preset: "FLAT", "VOICE_CLARITY", "NIGHT"
   string equalizer_preset = 36;
+
+  // Internal schema version for explicit Proto DataStore migrations.
+  int32 schema_version = 37;
 }
 
 // Theme mode enum

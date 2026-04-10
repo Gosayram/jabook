@@ -21,7 +21,7 @@ import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.list
 import io.kotest.property.arbitrary.long
 import io.kotest.property.checkAll
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -83,7 +83,7 @@ class ChapterSeekbarPolicyTest {
 
     @Test
     fun `property - buildTimeline keeps progress and markers in valid bounds`() {
-        runBlocking {
+        runTest {
             checkAll(
                 Arb.list(Arb.long(min = 0L, max = 300_000L), range = 1..8),
                 Arb.int(min = -10, max = 20),
@@ -108,7 +108,7 @@ class ChapterSeekbarPolicyTest {
 
     @Test
     fun `property - resolveSeekTarget always returns in-range index and chapter position`() {
-        runBlocking {
+        runTest {
             checkAll(
                 Arb.list(Arb.long(min = 0L, max = 300_000L), range = 1..8),
                 Arb.float(min = -5f, max = 5f),

@@ -15,8 +15,11 @@
 package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
-import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
+import com.jabook.app.jabook.compose.data.local.entity.toSearchHistoryEntity
+import com.jabook.app.jabook.compose.data.local.entity.toSearchHistoryItem
+import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,7 +37,8 @@ public class SearchHistoryRepository
         /**
          * Get recent searches as Flow.
          */
-        public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>> = searchHistoryDao.getRecentSearches(limit)
+        public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryItem>> =
+            searchHistoryDao.getRecentSearches(limit).map { history -> history.map { it.toSearchHistoryItem() } }
 
         /**
          * Save a search query to history.
@@ -44,11 +48,11 @@ public class SearchHistoryRepository
             resultCount: Int = 0,
         ) {
             searchHistoryDao.insertSearch(
-                SearchHistoryEntity(
+                SearchHistoryItem(
                     query = query,
                     timestamp = System.currentTimeMillis(),
                     resultCount = resultCount,
-                ),
+                ).toSearchHistoryEntity(),
             )
             // Trim old history to keep database size manageable
             searchHistoryDao.trimHistory(keepCount = 50)

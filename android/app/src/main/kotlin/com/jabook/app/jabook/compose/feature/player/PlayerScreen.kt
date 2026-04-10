@@ -86,10 +86,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -167,6 +171,7 @@ public fun PlayerScreen(
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
     val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
+    val hapticFeedback = LocalHapticFeedback.current
 
     val navigationClickGuard = remember { NavigationClickGuard() }
 
@@ -506,23 +511,28 @@ public fun PlayerScreen(
                                         chapterRepeatMode = chapterRepeatMode,
                                         visualizerWaveformData = visualizerWaveformData,
                                         onPlayPause = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             clickDebouncer.debounce {
                                                 viewModel.dispatch(PlayerIntent.TogglePlayPause)
                                             }
                                         },
                                         onSkipNext = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
                                         },
                                         onSkipPrevious = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
                                         },
                                         onSeek = { positionMs ->
                                             viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
                                         },
                                         onSeekForward = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
                                         },
                                         onSeekBackward = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
                                         },
                                         onSelectChapter = { chapterIndex ->
@@ -544,8 +554,12 @@ public fun PlayerScreen(
                                         },
                                         onSpeedClick = { showSpeedSheet = true },
                                         onAudioSettingsClick = { showAudioSettingsSheet = true },
-                                        onSleepTimerClick = { showSleepTimerSheet = true },
+                                        onSleepTimerClick = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            showSleepTimerSheet = true
+                                        },
                                         onChapterRepeatClick = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             clickDebouncer.debounce {
                                                 viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
                                             }
@@ -706,10 +720,22 @@ private fun PlayerContent(
     }
 
     val displayAuthor = authorFromMetadata
+    val sleepTimerAccessibilityDescription =
+        when (sleepTimerState) {
+            is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active ->
+                "${stringResource(R.string.sleepTimer)}, ${formatSleepTimerRemaining(sleepTimerState.remainingSeconds)}"
+            com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfChapter ->
+                "${stringResource(R.string.sleepTimer)}, ${stringResource(R.string.endOfChapterLabel)}"
+            is com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfTrack ->
+                "${stringResource(R.string.sleepTimer)}, ${stringResource(R.string.endOfTrackLabel)}"
+            com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle ->
+                stringResource(R.string.sleepTimer)
+        }
 
     // Lyrics visibility state
     var showLyrics by remember { mutableStateOf(false) }
     val seekScope = rememberCoroutineScope()
+    val hapticFeedback = LocalHapticFeedback.current
 
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
@@ -777,6 +803,14 @@ private fun PlayerContent(
                             fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
                             cornerRadius = 16f, // 16dp rounded corners for player
                         ).build()
+                val canToggleLyrics = !state.lyrics.isNullOrEmpty()
+                val toggleLyricsLabel = stringResource(R.string.toggleLyricsView)
+                val toggleLyricsStateDescription =
+                    if (showLyrics) {
+                        stringResource(R.string.lyricsVisibleState)
+                    } else {
+                        stringResource(R.string.lyricsHiddenState)
+                    }
 
                 // Animated "breathing" effect for the cover
                 val infiniteTransition =
@@ -817,8 +851,17 @@ private fun PlayerContent(
                         modifier =
                             imageModifier
                                 .fillMaxWidth(coverWidth)
-                                .clickable {
-                                    if (!state.lyrics.isNullOrEmpty()) {
+                                .semantics {
+                                    if (canToggleLyrics) {
+                                        role = androidx.compose.ui.semantics.Role.Button
+                                        contentDescription = toggleLyricsLabel
+                                        stateDescription = toggleLyricsStateDescription
+                                    }
+                                }.clickable(
+                                    enabled = canToggleLyrics,
+                                    onClickLabel = toggleLyricsLabel,
+                                ) {
+                                    if (canToggleLyrics) {
                                         showLyrics = !showLyrics
                                     }
                                 },
@@ -836,12 +879,18 @@ private fun PlayerContent(
                                     scaleY = if (state.isPlaying) scale else 1f
                                 }.clip(RoundedCornerShape(24.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                                .clickable {
-                                    // Make cover clickable to toggle lyrics if available
-                                    if (!state.lyrics.isNullOrEmpty()) {
+                                .semantics {
+                                    if (canToggleLyrics) {
+                                        role = androidx.compose.ui.semantics.Role.Button
+                                        stateDescription = toggleLyricsStateDescription
+                                    }
+                                }.clickable(
+                                    enabled = canToggleLyrics,
+                                    onClickLabel = toggleLyricsLabel,
+                                ) {
+                                    if (canToggleLyrics) {
                                         showLyrics = !showLyrics
                                     }
-                                    // Or if no lyrics, maybe handle as "show controls" or just do nothing (existing behavior)
                                 },
                         contentScale = ContentScale.Crop,
                     )
@@ -907,6 +956,7 @@ private fun PlayerContent(
                     var dragPosition by remember { mutableStateOf<Float?>(null) }
                     var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
                     var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
+                    var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
                     val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
                     val displayedProgress by remember(coalescedPlayerProgress, dragPosition, pendingSeekPosition) {
                         derivedStateOf {
@@ -989,11 +1039,23 @@ private fun PlayerContent(
                         }
                     }
 
+                    val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
+                    val sliderHaptic = LocalHapticFeedback.current
+
                     SquigglySlider(
                         value = displayedProgress,
                         onValueChange = { newProgress ->
                             pendingSeekPosition = null
-                            dragPosition = newProgress.coerceIn(0f, 1f)
+                            val constrainedProgress = newProgress.coerceIn(0f, 1f)
+                            val shouldTriggerHaptic =
+                                lastSliderHapticProgress == null ||
+                                    kotlin.math.abs(constrainedProgress - (lastSliderHapticProgress ?: constrainedProgress)) >=
+                                    0.05f
+                            if (shouldTriggerHaptic) {
+                                sliderHaptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                lastSliderHapticProgress = constrainedProgress
+                            }
+                            dragPosition = constrainedProgress
                         },
                         onValueChangeFinished = {
                             // Seek only when user finishes dragging
@@ -1016,6 +1078,7 @@ private fun PlayerContent(
                                 }
                             }
                             dragPosition = null
+                            lastSliderHapticProgress = null
                         },
                         isPlaying = state.isPlaying,
                         chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
@@ -1029,6 +1092,7 @@ private fun PlayerContent(
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
                                 .semantics {
+                                    contentDescription = playbackPositionLabel
                                     val current = formatDuration(currentGlobalPositionMs)
                                     val total = formatDuration(chapterTimeline.totalDurationMs)
                                     stateDescription = "$current of $total"
@@ -1278,7 +1342,12 @@ private fun PlayerContent(
                         ) {
                             Icon(
                                 imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription = if (state.isPlaying) "Pause" else "Play",
+                                contentDescription =
+                                    if (state.isPlaying) {
+                                        stringResource(R.string.pauseButton)
+                                    } else {
+                                        stringResource(R.string.playButton)
+                                    },
                                 modifier = Modifier.size(playPauseIconSize * 1.2f),
                             )
                         }
@@ -1430,7 +1499,13 @@ private fun PlayerContent(
                             // Sleep Timer Button
                             FilledTonalButton(
                                 onClick = onSleepTimerClick,
-                                modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .height(controlButtonHeight)
+                                        .semantics {
+                                            contentDescription = sleepTimerAccessibilityDescription
+                                        },
                             ) {
                                 Icon(
                                     Icons.Filled.Timer,
@@ -1449,7 +1524,10 @@ private fun PlayerContent(
                             // Lyrics Toggle Button
                             if (!state.lyrics.isNullOrEmpty()) {
                                 FilledTonalButton(
-                                    onClick = { showLyrics = !showLyrics },
+                                    onClick = {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        showLyrics = !showLyrics
+                                    },
                                     modifier = Modifier.weight(1f).height(controlButtonHeight),
                                     colors =
                                         ButtonDefaults.filledTonalButtonColors(
@@ -1573,7 +1651,13 @@ private fun PlayerContent(
                         // Sleep Timer Button
                         FilledTonalButton(
                             onClick = onSleepTimerClick,
-                            modifier = Modifier.weight(1f).height(controlButtonHeight),
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .height(controlButtonHeight)
+                                    .semantics {
+                                        contentDescription = sleepTimerAccessibilityDescription
+                                    },
                         ) {
                             Icon(
                                 Icons.Filled.Timer,
@@ -1592,7 +1676,10 @@ private fun PlayerContent(
                         // Lyrics Toggle Button
                         if (!state.lyrics.isNullOrEmpty()) {
                             FilledTonalButton(
-                                onClick = { showLyrics = !showLyrics },
+                                onClick = {
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    showLyrics = !showLyrics
+                                },
                                 modifier = Modifier.weight(1f).height(controlButtonHeight),
                                 colors =
                                     ButtonDefaults.filledTonalButtonColors(

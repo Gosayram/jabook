@@ -23,12 +23,13 @@ import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.data.local.parser.EncodingDetector
 import com.jabook.app.jabook.compose.data.local.parser.MetadataCache
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
@@ -41,9 +42,10 @@ import java.nio.file.Files
 import java.util.Comparator
 
 class DirectFileSystemScannerCancellationTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `scanAudiobooks propagates cancellation and skips timestamp updates`() =
-        runBlocking {
+        runTest {
             val logger = mock<Logger>()
             val loggerFactory = mock<LoggerFactory>()
             whenever(loggerFactory.get(any<String>())).thenReturn(logger)
@@ -90,11 +92,8 @@ class DirectFileSystemScannerCancellationTest {
                     scanJob.cancelAndJoin()
                 }
 
-                assertThrows(CancellationException::class.java) {
-                    runBlocking {
-                        scanJob.await()
-                    }
-                }
+                assertTrue(scanJob.isCancelled)
+                assertTrue(scanJob.getCompletionExceptionOrNull() is CancellationException)
                 verify(scanPathDao, never()).updateLastScanTimestamp(eq(rootDir.toString()), any())
             } finally {
                 Files

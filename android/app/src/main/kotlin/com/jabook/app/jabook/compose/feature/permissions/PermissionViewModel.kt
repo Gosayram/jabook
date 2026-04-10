@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.permissions
 
 import android.content.Context
 import android.os.Environment
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.permissions.PermissionManager
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@Immutable
 public data class PermissionUiState(
     val hasFullStoragePermission: Boolean = false,
     val hasStorageFallbackEnabled: Boolean = false,

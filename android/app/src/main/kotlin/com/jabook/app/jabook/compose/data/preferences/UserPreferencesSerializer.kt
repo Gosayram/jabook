@@ -55,11 +55,20 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setResumeRewindSeconds(10)
             .setSleepTimerShakeExtendEnabled(true)
             .setEqualizerPreset("FLAT")
+            .setSchemaVersion(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION)
             .build()
 
     override suspend fun readFrom(input: InputStream): UserPreferences =
         try {
-            UserPreferences.parseFrom(input)
+            UserPreferences
+                .parseFrom(input)
+                .let { parsed ->
+                    if (parsed.schemaVersion < UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION) {
+                        UserPreferencesDataMigration().migrate(parsed)
+                    } else {
+                        parsed
+                    }
+                }
         } catch (exception: InvalidProtocolBufferException) {
             throw CorruptionException("Cannot read proto.", exception)
         }

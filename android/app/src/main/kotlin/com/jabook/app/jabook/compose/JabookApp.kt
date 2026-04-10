@@ -105,12 +105,18 @@ public fun JabookApp(
             is MainActivityUiState.Success -> (uiState as MainActivityUiState.Success).userData.onboardingCompleted
             else -> false // Default to false during loading to avoid flickering
         }
+    val useDynamicColors =
+        when (uiState) {
+            is MainActivityUiState.Success -> (uiState as MainActivityUiState.Success).useDynamicColors
+            else -> false
+        }
 
     // If onboarding is not completed, we show it.
     // It will handle its own internal navigation and permissions.
     if (!onboardingCompleted && uiState is MainActivityUiState.Success) {
         JabookTheme(
             darkTheme = isSystemInDarkTheme(),
+            dynamicColor = useDynamicColors,
             isBetaFlavor = isBetaFlavor,
         ) {
             com.jabook.app.jabook.compose.feature.onboarding.OnboardingScreen(
@@ -190,6 +196,7 @@ public fun JabookApp(
     JabookTheme(
         darkTheme = darkTheme,
         amoledMode = isAmoledMode,
+        dynamicColor = useDynamicColors,
         isBetaFlavor = isBetaFlavor,
         selectedFont = selectedFont,
     ) {

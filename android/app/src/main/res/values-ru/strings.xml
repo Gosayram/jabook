@@ -275,6 +275,9 @@
     <string name="themeAmoled">AMOLED / Чистый черный</string>
     <string name="vinylMode">Режим винила</string>
     <string name="lyrics">Текст песни</string>
+    <string name="toggleLyricsView">Переключить отображение текста</string>
+    <string name="lyricsVisibleState">Текст отображается</string>
+    <string name="lyricsHiddenState">Текст скрыт</string>
     <!-- Заголовок настройки аудио -->
     <string name="audioTitle">Аудио</string>
     <!-- Описание настройки аудио -->
@@ -2015,6 +2018,7 @@
     <!-- Шаг 3 для настроек One UI -->
     <!-- Индикатор позиции трека -->
     <string name="trackOfTotal">Трек {currentTrack} из {totalTracks}</string>
+    <string name="playbackPositionLabel">Позиция воспроизведения</string>
     <!-- Заголовок секции треков с множественным числом -->
     <string name="tracksTitle">{count, plural, =0{Нет треков} =1{Трек} other{Треки}}</string>
     <!-- Режим без повтора -->
@@ -2197,6 +2201,8 @@
     <!-- Глава $номер -->
     <!-- Выберите тему приложения -->
     <string name="chooseAppTheme">Выберите тему приложения</string>
+    <string name="dynamicColorsTitle">Динамические цвета (Material You)</string>
+    <string name="dynamicColorsDescription">Подстраивать цвета приложения под обои на Android 12+</string>
     <!-- Настройки шрифта -->
     <string name="fontTitle">Шрифт</string>
     <!-- Выберите шрифт -->
@@ -2480,6 +2486,9 @@
     <string name="sort_by_date_added">По дате добавления</string>
     <!-- Book Properties Dialog -->
     <string name="bookProperties">Свойства книги</string>
+    <string name="changeCover">Изменить обложку</string>
+    <string name="coverUpdated">Обложка обновлена</string>
+    <string name="coverUpdateFailed">Не удалось обновить обложку</string>
     <string name="title">Название</string>
     <string name="author">Автор</string>
     <string name="dateAdded">Дата добавления</string>

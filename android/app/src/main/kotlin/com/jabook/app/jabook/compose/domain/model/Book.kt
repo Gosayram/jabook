@@ -185,15 +185,15 @@ public fun Book.toEntity(): BookEntity =
 public fun List<BookEntity>.toBooks(): List<Book> = map { it.toBook() }
 
 /**
- * Extension function to convert domain Book to FavoriteEntity.
- * Used for synchronizing local library favorites with FavoriteEntity table.
+ * Extension function to convert domain Book to FavoriteItem.
+ * Used for synchronizing local library favorites with favorites repository.
  */
-public fun Book.toFavoriteEntity(): com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity {
+public fun Book.toFavoriteItem(): FavoriteItem {
     val now =
         java.time.Instant
             .now()
             .toString()
-    return com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity(
+    return FavoriteItem(
         topicId = id,
         title = title,
         author = author,

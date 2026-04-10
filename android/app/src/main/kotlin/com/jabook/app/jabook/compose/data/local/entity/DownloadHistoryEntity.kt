@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 
 /**
  * Room entity representing download history.
@@ -55,3 +56,27 @@ public data class DownloadHistoryEntity(
      */
     val errorMessage: String?,
 )
+
+public fun DownloadHistoryEntity.toDownloadHistoryItem(): DownloadHistoryItem =
+    DownloadHistoryItem(
+        id = id,
+        bookId = bookId,
+        bookTitle = bookTitle,
+        status = status,
+        startedAt = startedAt,
+        completedAt = completedAt,
+        totalBytes = totalBytes,
+        errorMessage = errorMessage,
+    )
+
+public fun DownloadHistoryItem.toDownloadHistoryEntity(): DownloadHistoryEntity =
+    DownloadHistoryEntity(
+        id = id,
+        bookId = bookId,
+        bookTitle = bookTitle,
+        status = status,
+        startedAt = startedAt,
+        completedAt = completedAt,
+        totalBytes = totalBytes,
+        errorMessage = errorMessage,
+    )

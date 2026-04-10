@@ -15,14 +15,13 @@
 package com.jabook.app.jabook.compose.data.sync
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -57,12 +56,7 @@ public class SyncManager
         public fun schedulePeriodicSync() {
             logger.d { "Scheduling periodic sync" }
 
-            val constraints =
-                Constraints
-                    .Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .setRequiresBatteryNotLow(true)
-                    .build()
+            val constraints = WorkConstraintsPolicy.sync()
 
             val syncRequest =
                 PeriodicWorkRequestBuilder<SyncWorker>(
@@ -95,12 +89,7 @@ public class SyncManager
          */
         public fun syncNow() {
             logger.d { "Triggering immediate sync" }
-            val constraints =
-                Constraints
-                    .Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .setRequiresBatteryNotLow(true)
-                    .build()
+            val constraints = WorkConstraintsPolicy.sync()
             val syncRequest =
                 OneTimeWorkRequestBuilder<SyncWorker>()
                     .setConstraints(constraints)

@@ -52,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -107,6 +108,8 @@ public fun LibraryScreen(
     val scanFailedMessageTemplate = stringResource(R.string.scanFailedMessage)
     val noFoldersConfiguredMessage = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings)
     val scanCompleteNoBooksMessage = stringResource(R.string.scanCompleteNoBooks)
+    val coverUpdatedMessage = stringResource(R.string.coverUpdated)
+    val coverUpdateFailedMessage = stringResource(R.string.coverUpdateFailed)
     var hasReportedMeaningfulContent by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
@@ -137,6 +140,28 @@ public fun LibraryScreen(
             }
         }
 
+    val coverPickerLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .PickVisualMedia(),
+        ) { uri ->
+            val selectedBookId = selectedBook?.id ?: return@rememberLauncherForActivityResult
+            if (uri == null) return@rememberLauncherForActivityResult
+
+            scope.launch {
+                val result = viewModel.importBookCoverFromPicker(selectedBookId, uri)
+                val message =
+                    if (result.isSuccess) {
+                        coverUpdatedMessage
+                    } else {
+                        result.exceptionOrNull()?.localizedMessage?.takeIf { it.isNotBlank() }
+                            ?: coverUpdateFailedMessage
+                    }
+                snackbarHostState.showSnackbar(message)
+            }
+        }
+
     // Observe scan state changes with enhanced feedback
     androidx.compose.runtime.LaunchedEffect(scanState) {
         when (val state = scanState) {
@@ -163,7 +188,7 @@ public fun LibraryScreen(
     }
 
     // Get context for permission check in pull-to-refresh
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
     // 🎯 Navigator for ListDetailPaneScaffold
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
@@ -323,6 +348,15 @@ public fun LibraryScreen(
                         selectedBook?.let { book ->
                             BookPropertiesDialog(
                                 book = book,
+                                onPickCover = {
+                                    coverPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            mediaType =
+                                                androidx.activity.result.contract
+                                                    .ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                        ),
+                                    )
+                                },
                                 onDismiss = viewModel::hideBookProperties,
                             )
                         }

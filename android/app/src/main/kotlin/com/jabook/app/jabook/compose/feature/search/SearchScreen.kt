@@ -72,10 +72,10 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
-import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
+import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
 import kotlinx.coroutines.launch
 
@@ -459,7 +459,7 @@ public fun SearchScreen(
 private fun LocalSearchResults(
     query: String,
     results: List<com.jabook.app.jabook.compose.domain.model.Book>,
-    searchHistory: List<SearchHistoryEntity>,
+    searchHistory: List<SearchHistoryItem>,
     onBookClick: (String) -> Unit,
     onHistoryItemClick: (String) -> Unit,
     onHistoryItemDelete: (Int) -> Unit,
@@ -511,7 +511,7 @@ private fun LocalSearchResults(
 
 @Composable
 private fun SearchHistoryList(
-    history: List<SearchHistoryEntity>,
+    history: List<SearchHistoryItem>,
     onItemClick: (String) -> Unit,
     onItemDelete: (Int) -> Unit,
     onClearHistory: () -> Unit,

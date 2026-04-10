@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.data.local.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 
 /**
  * Room entity for search history.
@@ -34,3 +35,19 @@ public data class SearchHistoryEntity(
     @ColumnInfo(name = "result_count")
     val resultCount: Int = 0,
 )
+
+public fun SearchHistoryEntity.toSearchHistoryItem(): SearchHistoryItem =
+    SearchHistoryItem(
+        id = id,
+        query = query,
+        timestamp = timestamp,
+        resultCount = resultCount,
+    )
+
+public fun SearchHistoryItem.toSearchHistoryEntity(): SearchHistoryEntity =
+    SearchHistoryEntity(
+        id = id,
+        query = query,
+        timestamp = timestamp,
+        resultCount = resultCount,
+    )

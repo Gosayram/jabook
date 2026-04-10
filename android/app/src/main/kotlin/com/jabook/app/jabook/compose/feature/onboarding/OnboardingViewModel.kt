@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.onboarding
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
@@ -36,6 +37,7 @@ public enum class OnboardingStep {
 /**
  * UI state for the onboarding flow.
  */
+@Immutable
 public data class OnboardingUiState(
     val currentStep: OnboardingStep = OnboardingStep.WELCOME,
     val isFinished: Boolean = false,

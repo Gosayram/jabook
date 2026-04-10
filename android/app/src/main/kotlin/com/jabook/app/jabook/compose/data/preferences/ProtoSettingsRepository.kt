@@ -37,6 +37,7 @@ private fun createUserPreferencesDataStore(context: Context): DataStore<UserPref
                 storeName = "user_preferences",
                 defaultValue = UserPreferencesSerializer.defaultValue,
             ),
+        migrations = listOf(UserPreferencesDataMigration()),
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
         produceFile = { context.dataStoreFile("user_preferences.pb") },
     )

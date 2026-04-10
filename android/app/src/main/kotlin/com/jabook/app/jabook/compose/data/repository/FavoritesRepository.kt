@@ -15,9 +15,12 @@
 package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
-import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
+import com.jabook.app.jabook.compose.data.local.entity.toFavoriteEntity
+import com.jabook.app.jabook.compose.data.local.entity.toFavoriteItem
+import com.jabook.app.jabook.compose.domain.model.FavoriteItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,7 +38,10 @@ public class FavoritesRepository
         /**
          * Flow of all favorites, sorted by date added (newest first).
          */
-        public val allFavorites: Flow<List<FavoriteEntity>> = favoriteDao.getAllFavorites()
+        public val allFavorites: Flow<List<FavoriteItem>> =
+            favoriteDao.getAllFavorites().map { favorites ->
+                favorites.map { it.toFavoriteItem() }
+            }
 
         /**
          * Flow of all favorite topic IDs for quick membership checks.
@@ -46,10 +52,10 @@ public class FavoritesRepository
          * Add an audiobook to favorites.
          * Automatically handles duplicates (replaces existing entry).
          */
-        public suspend fun addToFavorites(favorite: FavoriteEntity): Result<Unit> =
+        public suspend fun addToFavorites(favorite: FavoriteItem): Result<Unit> =
             withContext(Dispatchers.IO) {
                 runCatching {
-                    favoriteDao.insertFavorite(favorite)
+                    favoriteDao.insertFavorite(favorite.toFavoriteEntity())
                 }
             }
 
@@ -102,8 +108,8 @@ public class FavoritesRepository
         /**
          * Get a single favorite by topic ID.
          */
-        public suspend fun getFavoriteById(topicId: String): FavoriteEntity? =
+        public suspend fun getFavoriteById(topicId: String): FavoriteItem? =
             withContext(Dispatchers.IO) {
-                favoriteDao.getFavoriteById(topicId)
+                favoriteDao.getFavoriteById(topicId)?.toFavoriteItem()
             }
     }

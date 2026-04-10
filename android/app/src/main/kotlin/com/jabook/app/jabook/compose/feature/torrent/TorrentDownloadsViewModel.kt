@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.torrent
 
 import android.os.Environment
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -49,6 +50,7 @@ import javax.inject.Inject
 public sealed interface TorrentDownloadsUiState {
     public data object Loading : TorrentDownloadsUiState
 
+    @Immutable
     public data class Success(
         val activeDownloads: ImmutableList<TorrentDownload>,
         val pausedDownloads: ImmutableList<TorrentDownload>,
@@ -58,6 +60,7 @@ public sealed interface TorrentDownloadsUiState {
 
     public data object Empty : TorrentDownloadsUiState
 
+    @Immutable
     public data class Error(
         val message: String,
     ) : TorrentDownloadsUiState

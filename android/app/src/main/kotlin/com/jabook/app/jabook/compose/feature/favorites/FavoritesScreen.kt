@@ -62,7 +62,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
-import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
+import com.jabook.app.jabook.compose.domain.model.FavoriteItem
 import com.jabook.app.jabook.compose.ui.favorites.FavoritesViewModel
 
 /**
@@ -369,7 +369,7 @@ private fun FavoritesEmptyState(modifier: Modifier = Modifier) {
  */
 @Composable
 private fun FavoritesList(
-    favorites: List<FavoriteEntity>,
+    favorites: List<FavoriteItem>,
     favoriteIds: Set<String>,
     isSelectionMode: Boolean,
     selectedIds: Set<String>,

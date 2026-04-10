@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import android.content.Context
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -148,7 +149,7 @@ public class PlayerViewModel
 
         // Store lyrics in a separate flow to avoid re-parsing on every seeking
         private val lyricsState =
-            MutableStateFlow<List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
+            MutableStateFlow<ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
 
         // Backpressure guard for seekbar/UI: keep only latest position updates and
         // suppress jittery micro-updates that don't change visible state.
@@ -285,7 +286,7 @@ public class PlayerViewModel
                 // Use the repository to get lyrics (includes fallback to demo lyrics)
                 val lyrics = lyricsRepository.getLyrics(audioPath)
                 if (lyrics.isNotEmpty()) {
-                    lyricsState.value = lyrics
+                    lyricsState.value = lyrics.toImmutableList()
                 } else {
                     lyricsState.value = null
                 }
@@ -752,6 +753,7 @@ public sealed interface PlayerUiState {
     /**
      * Success state with book and playback info.
      */
+    @Immutable
     public data class Success(
         val book: Book,
         val chapters: ImmutableList<Chapter>,
@@ -763,12 +765,13 @@ public sealed interface PlayerUiState {
         val forwardInterval: Int,
         val playbackSpeed: Float,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
-        val lyrics: List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
+        val lyrics: ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
     ) : PlayerUiState
 
     /**
      * Error state.
      */
+    @Immutable
     public data class Error(
         val message: String,
     ) : PlayerUiState
