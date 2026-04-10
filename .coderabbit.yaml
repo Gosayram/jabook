@@ -120,22 +120,22 @@ reviews:
           - Ensure input validation and explicit error handling are present.
           - Ensure behavior does not silently weaken existing security controls.
 
-tools:
-  detekt:
-    enabled: true
-    config_file: "default-detekt-config.yml"
-  markdownlint:
-    enabled: true
-  yamllint:
-    enabled: true
-  shellcheck:
-    enabled: true
-  checkmake:
-    enabled: true
-  gitleaks:
-    enabled: true
-  trufflehog:
-    enabled: true
+  tools:
+    detekt:
+      enabled: true
+      config_file: "default-detekt-config.yml"
+    markdownlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    checkmake:
+      enabled: true
+    gitleaks:
+      enabled: true
+    trufflehog:
+      enabled: true
 
 chat:
   auto_reply: true
