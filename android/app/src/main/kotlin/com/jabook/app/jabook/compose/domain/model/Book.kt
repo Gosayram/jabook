@@ -195,16 +195,21 @@ public fun Book.toFavoriteItem(
             .now()
             .toString(),
 ): FavoriteItem? {
+    // Trim and validate sourceUrl as a proper URI with magnet scheme
     val validatedSourceUrl =
         sourceUrl
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
+            ?.trim() // Remove leading/trailing whitespace
+            ?.takeIf { it.isNotEmpty() } // Reject empty strings
             ?.takeIf { rawUrl ->
+                // Parse as URI and validate scheme and structure
                 runCatching {
                     val parsed = URI(rawUrl)
-                    parsed.scheme?.equals("magnet", ignoreCase = true) == true && !parsed.schemeSpecificPart.isNullOrBlank()
+                    // Ensure scheme is "magnet" and schemeSpecificPart is not blank
+                    parsed.scheme?.equals("magnet", ignoreCase = true) == true &&
+                        !parsed.schemeSpecificPart.isNullOrBlank()
                 }.getOrDefault(false)
-            } ?: return null
+            } ?: return null // Return null if validation fails
+
     return FavoriteItem(
         topicId = id,
         title = title,
