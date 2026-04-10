@@ -45,12 +45,14 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -83,6 +85,7 @@ public fun LibraryScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToFavorites: () -> Unit = {},
+    onFirstMeaningfulContentDrawn: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
@@ -105,6 +108,21 @@ public fun LibraryScreen(
     val scanFailedMessageTemplate = stringResource(R.string.scanFailedMessage)
     val noFoldersConfiguredMessage = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings)
     val scanCompleteNoBooksMessage = stringResource(R.string.scanCompleteNoBooks)
+    val coverUpdatedMessage = stringResource(R.string.coverUpdated)
+    val coverUpdateFailedMessage = stringResource(R.string.coverUpdateFailed)
+    var hasReportedMeaningfulContent by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState) {
+        if (hasReportedMeaningfulContent) return@LaunchedEffect
+        val isMeaningfulState =
+            uiState is LibraryUiState.Success ||
+                uiState is LibraryUiState.Empty ||
+                uiState is LibraryUiState.Error
+        if (isMeaningfulState) {
+            hasReportedMeaningfulContent = true
+            onFirstMeaningfulContentDrawn()
+        }
+    }
 
     // Permission launcher for scanning
     val permissionLauncher =
@@ -119,6 +137,28 @@ public fun LibraryScreen(
                 scope.launch {
                     snackbarHostState.showSnackbar(storagePermissionText)
                 }
+            }
+        }
+
+    val coverPickerLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .PickVisualMedia(),
+        ) { uri ->
+            val selectedBookId = selectedBook?.id ?: return@rememberLauncherForActivityResult
+            if (uri == null) return@rememberLauncherForActivityResult
+
+            scope.launch {
+                val result = viewModel.importBookCoverFromPicker(selectedBookId, uri)
+                val message =
+                    if (result.isSuccess) {
+                        coverUpdatedMessage
+                    } else {
+                        result.exceptionOrNull()?.localizedMessage?.takeIf { it.isNotBlank() }
+                            ?: coverUpdateFailedMessage
+                    }
+                snackbarHostState.showSnackbar(message)
             }
         }
 
@@ -148,7 +188,7 @@ public fun LibraryScreen(
     }
 
     // Get context for permission check in pull-to-refresh
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
     // 🎯 Navigator for ListDetailPaneScaffold
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
@@ -308,6 +348,15 @@ public fun LibraryScreen(
                         selectedBook?.let { book ->
                             BookPropertiesDialog(
                                 book = book,
+                                onPickCover = {
+                                    coverPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            mediaType =
+                                                androidx.activity.result.contract
+                                                    .ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                        ),
+                                    )
+                                },
                                 onDismiss = viewModel::hideBookProperties,
                             )
                         }
@@ -353,7 +402,8 @@ public fun LibraryScreen(
                 Modifier
                     .align(Alignment.BottomCenter)
                     .windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.navigationBars)
-                    .padding(bottom = 16.dp, start = 16.dp, end = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp),
             snackbar = { snackbarData ->
                 androidx.compose.material3.Snackbar(
                     snackbarData = snackbarData,

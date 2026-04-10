@@ -50,6 +50,12 @@
     <string name="performerLabel">Исполнитель</string>
     <string name="seriesLabel">Цикл/серия</string>
     <string name="commentsLabel">Комментарии (%d)</string>
+    <plurals name="comments_label_plural">
+        <item quantity="one">Комментарий (%1$d)</item>
+        <item quantity="few">Комментарии (%1$d)</item>
+        <item quantity="many">Комментарии (%1$d)</item>
+        <item quantity="other">Комментарии (%1$d)</item>
+    </plurals>
     <!-- Метка для поля размера -->
     <string name="sizeLabel">Размер</string>
     <string name="durationLabel">Длительность</string>
@@ -91,6 +97,8 @@
     <string name="bufferHealth">Здоровье буфера</string>
     <string name="audioSessionId">ID аудиосессии</string>
     <string name="decoder">Декодер</string>
+    <string name="droppedFrames">Пропущенные кадры</string>
+    <string name="enableVisualizer">Включить визуализатор</string>
 
     <string name="sleepTimerExtended">Таймер сна продлен на 5 минут</string>
     <string name="shakeToExtendEnabled">Встряхните чтобы продлить</string>
@@ -267,6 +275,9 @@
     <string name="themeAmoled">AMOLED / Чистый черный</string>
     <string name="vinylMode">Режим винила</string>
     <string name="lyrics">Текст песни</string>
+    <string name="toggleLyricsView">Переключить отображение текста</string>
+    <string name="lyricsVisibleState">Текст отображается</string>
+    <string name="lyricsHiddenState">Текст скрыт</string>
     <!-- Заголовок настройки аудио -->
     <string name="audioTitle">Аудио</string>
     <!-- Описание настройки аудио -->
@@ -965,6 +976,18 @@
     <string name="downloadViaMagnet">Скачать через Magnet</string>
     <!-- Сообщение о начале загрузки -->
     <string name="downloadStarted">Загрузка начата</string>
+    <!-- Сообщение о старте воспроизведения переданного аудио -->
+    <string name="playingSharedAudio">Воспроизводим переданное аудио</string>
+    <!-- Сообщение об ошибке воспроизведения переданного аудио -->
+    <string name="cannotPlaySharedAudio">Не удалось воспроизвести это аудио</string>
+    <string name="crashNoStackTrace">Стек ошибки недоступен.</string>
+    <string name="crashLogLabel">Лог падения Jabook</string>
+    <string name="crashLogBodyFormat">Лог падения Jabook:\n\n%1$s</string>
+    <string name="shareCrashLog">Поделиться логом падения</string>
+    <string name="crashTitle">Jabook аварийно завершился</string>
+    <string name="crashSubtitle">Приносим извинения за неудобства.</string>
+    <string name="copyLog">Копировать лог</string>
+    <string name="restartApp">Перезапустить приложение</string>
     <string name="refreshChaptersFromTorrent">Обновить главы из торрента</string>
     <string name="chaptersRefreshed">Главы обновлены из торрента</string>
     <string name="failedToRefreshChapters">Не удалось обновить главы</string>
@@ -1084,6 +1107,23 @@
     <string name="migrationCompletedSuccessMessage">Перенос успешно завершен</string>
     <!-- Сообщение об ошибке при неудачном переносе -->
     <string name="migrationFailedMessage">Перенос не удался</string>
+    <string name="migrationCheckingForData">Проверка необходимости переноса данных...</string>
+    <string name="migrationInProgress">Переносим ваши данные...</string>
+    <string name="migrationMayTakeMoments">Это может занять некоторое время</string>
+    <string name="migrationCompleteTitle">Перенос завершён!</string>
+    <string name="migrationCompletedDetails">Перенесено: %1$s и %2$s</string>
+    <plurals name="migratedBooksCount">
+        <item quantity="one">%d книга</item>
+        <item quantity="few">%d книги</item>
+        <item quantity="many">%d книг</item>
+        <item quantity="other">%d книги</item>
+    </plurals>
+    <plurals name="migratedChaptersCount">
+        <item quantity="one">%d глава</item>
+        <item quantity="few">%d главы</item>
+        <item quantity="many">%d глав</item>
+        <item quantity="other">%d главы</item>
+    </plurals>
     <!-- Заголовок диалога подтверждения удаления -->
     <string name="deleteConfirmationTitle">Удалить аудиокнигу?</string>
     <!-- Сообщение диалога подтверждения удаления -->
@@ -1978,6 +2018,7 @@
     <!-- Шаг 3 для настроек One UI -->
     <!-- Индикатор позиции трека -->
     <string name="trackOfTotal">Трек {currentTrack} из {totalTracks}</string>
+    <string name="playbackPositionLabel">Позиция воспроизведения</string>
     <!-- Заголовок секции треков с множественным числом -->
     <string name="tracksTitle">{count, plural, =0{Нет треков} =1{Трек} other{Треки}}</string>
     <!-- Режим без повтора -->
@@ -2015,6 +2056,7 @@
     <string name="errorWithMessage">Ошибка: %1$s</string>
     <!-- Строки экрана аутентификации -->
     <string name="rutrackerAuth">Rutracker Auth</string>
+    <string name="rutrackernl">rutracker.nl</string>
     <string name="username">Имя пользователя</string>
     <string name="password">Пароль</string>
     <string name="rememberMe">Запомнить меня</string>
@@ -2159,6 +2201,8 @@
     <!-- Глава $номер -->
     <!-- Выберите тему приложения -->
     <string name="chooseAppTheme">Выберите тему приложения</string>
+    <string name="dynamicColorsTitle">Динамические цвета (Material You)</string>
+    <string name="dynamicColorsDescription">Подстраивать цвета приложения под обои на Android 12+</string>
     <!-- Настройки шрифта -->
     <string name="fontTitle">Шрифт</string>
     <!-- Выберите шрифт -->
@@ -2321,6 +2365,7 @@
     <string name="mirrorAddedFormat">Зеркало $domain добавлено</string>
     <!-- Играть -->
     <string name="play">Играть</string>
+    <string name="torrentDetailsTitle">Детали торрента</string>
     <!-- Назад -->
     <string name="backButton">Назад</string>
     <!-- Настройки -->
@@ -2347,6 +2392,10 @@
     <string name="systemThemeName">Системная</string>
     <string name="nextChapterTitle">Следующая глава</string>
     <string name="timerActive">Таймер активен</string>
+    <string name="sleep_timer_active">%1$s</string>
+    <string name="sleep_timer_end_of_chapter">%1$s</string>
+    <string name="sleep_timer_end_of_track">%1$s</string>
+    <string name="sleep_timer_idle">Не активен</string>
     <string name="sleepTimerTitle">Таймер сна</string>
     <string name="currentMirror">Текущее зеркало</string>
     <string name="theme">Тема</string>
@@ -2397,6 +2446,10 @@
     <string name="seekForwardDescription">Вперед на %d секунд</string>
     <!-- Описание кнопки назад -->
     <string name="seekBackwardDescription">Назад на %d секунд</string>
+    <string name="cacheSizeLabel">Кэш: %1$s</string>
+    <string name="dataSizeLabel">Данные: %1$s</string>
+    <string name="totalSizeLabel">Итого: %1$s</string>
+    <string name="cacheClearErrorMessage">Ошибка очистки кэша: %1$s</string>
     <!-- Настройки книги -->
     <string name="overrideBookSettings">Настройки книги</string>
     <!-- Использовать общие настройки -->
@@ -2437,6 +2490,9 @@
     <string name="sort_by_date_added">По дате добавления</string>
     <!-- Book Properties Dialog -->
     <string name="bookProperties">Свойства книги</string>
+    <string name="changeCover">Изменить обложку</string>
+    <string name="coverUpdated">Обложка обновлена</string>
+    <string name="coverUpdateFailed">Не удалось обновить обложку</string>
     <string name="title">Название</string>
     <string name="author">Автор</string>
     <string name="dateAdded">Дата добавления</string>
@@ -2461,6 +2517,12 @@
     <string name="scan_status_parsing">Парсинг: %1$s (%2$d/%3$d)</string>
     <string name="scan_status_saving">Сохранение в базу данных...</string>
     <string name="scan_status_complete">Сканирование завершено. Добавлено книг: %1$d.</string>
+    <plurals name="scan_status_complete_plural">
+        <item quantity="one">Сканирование завершено. Добавлена %1$d книга.</item>
+        <item quantity="few">Сканирование завершено. Добавлены %1$d книги.</item>
+        <item quantity="many">Сканирование завершено. Добавлено %1$d книг.</item>
+        <item quantity="other">Сканирование завершено. Добавлены %1$d книги.</item>
+    </plurals>
     <string name="scan_status_error">Ошибка: %1$s</string>
     <!-- Описание кнопки перемещения главы вверх -->
     <string name="moveUp">Переместить вверх</string>
@@ -2475,6 +2537,12 @@
     <string name="scan_status_preparing">Подготовка %1$d книг для базы данных...</string>
     <string name="scan_status_processing_covers">Обработка обложек...</string>
     <string name="scan_status_completed_saving">Завершено сохранение %1$d книг</string>
+    <plurals name="scan_status_completed_saving_plural">
+        <item quantity="one">Завершено сохранение %1$d книги</item>
+        <item quantity="few">Завершено сохранение %1$d книг</item>
+        <item quantity="many">Завершено сохранение %1$d книг</item>
+        <item quantity="other">Завершено сохранение %1$d книги</item>
+    </plurals>
     <string name="libraryUnknownError">Неизвестная ошибка</string>
     <!-- Строки панели деталей книги -->
     <string name="selectBookToViewDetails">Выберите книгу для просмотра деталей</string>
@@ -2488,10 +2556,23 @@
     <string name="jumpToChapterNumber">Перейти к главе №...</string>
     <!-- Строки панели фильтров поиска -->
     <string name="sizeRange">Диапазон размера</string>
+    <string name="sizeRangeWithBounds">Диапазон размера: %1$s - %2$s</string>
     <!-- Помощники форматирования длительности - не отображаются напрямую, а используются в коде -->
     <string name="durationHoursMinutes">%1$dч %2$dм</string>
     <string name="durationMinutes">%1$dм</string>
     <string name="durationSeconds">%1$dс</string>
+    <plurals name="durationMinutesFull">
+        <item quantity="one">%1$d минута</item>
+        <item quantity="few">%1$d минуты</item>
+        <item quantity="many">%1$d минут</item>
+        <item quantity="other">%1$d минуты</item>
+    </plurals>
+    <plurals name="durationSecondsFull">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="few">%1$d секунды</item>
+        <item quantity="many">%1$d секунд</item>
+        <item quantity="other">%1$d секунды</item>
+    </plurals>
     <!-- Поиск в RuTracker-->
     <string name="search_rutracker">Поиск в RuTracker</string>
     <string name="search_query">Поиск запроса</string>
@@ -2544,6 +2625,12 @@
     <string name="active_downloads">Активные загрузки</string>
     <string name="downloading_count_speed">%1$d загружается • %2$s</string>
     <string name="downloads_paused_or_queued">%1$d загрузок активно</string>
+    <plurals name="downloads_active_plural">
+        <item quantity="one">Активна %1$d загрузка</item>
+        <item quantity="few">Активны %1$d загрузки</item>
+        <item quantity="many">Активны %1$d загрузок</item>
+        <item quantity="other">Активны %1$d загрузки</item>
+    </plurals>
 
     <!-- Диалог добавления торрента -->
     <string name="add_torrent_title">Добавить торрент</string>
@@ -2625,4 +2712,78 @@
     <string name="continueWithLimitedMode">Продолжить в ограниченном режиме</string>
     <string name="grantFullAccessInstead">Предоставить полный доступ</string>
     <string name="limitedModeActiveDescription">Вы используете ограниченный режим. USB/OTG-накопители, просмотр внешних папок и пользовательские расположения загрузок недоступны.</string>
+    <string name="indexNotCreatedTitle">Индекс не создан</string>
+    <string name="indexNotCreatedDescriptionShort">Для быстрого поиска необходимо создать индекс форумов</string>
+    <string name="indexNotCreatedDescriptionLong">Для поиска аудиокниг необходимо создать индекс форумов. Индексация работает в фоне, вы можете продолжать использовать приложение.</string>
+    <string name="startIndexing">Начать индексацию</string>
+    <string name="indexStatusWithTopics">Индекс: %1$s</string>
+    <string name="searchWorksOffline">Поиск работает офлайн</string>
+    <string name="updateAction">Обновить</string>
+    <string name="indexingInProgressTitle">Индексация в процессе...</string>
+    <string name="indexingInProgressDescription">Пожалуйста, подождите завершения индексации. Прогресс можно увидеть в уведомлениях.</string>
+    <string name="indexRequiredForOnlineSearchDescription">Для онлайн поиска необходимо создать индекс. Локальный поиск работает всегда.</string>
+    <string name="indexingDialogTitle">Индексация</string>
+    <string name="indexingCompletedTitle">Индексация завершена</string>
+    <string name="indexingErrorTitle">Ошибка индексации</string>
+    <string name="indexingPreparing">Подготовка к индексации...</string>
+    <string name="indexingStatusForum">Индексируем форум: %1$s</string>
+    <string name="indexingStatusForumProgress">Форум %1$d из %2$d</string>
+    <string name="indexingStatusPage">Страница %1$d</string>
+    <string name="indexingCompletedHeadline">Индексация завершена!</string>
+    <string name="indexingDurationSeconds">Время: %1$d сек</string>
+    <string name="indexingForumLabel">Форум: %1$s</string>
+    <string name="hideAction">Скрыть</string>
+    <string name="cannotShareLogsActivityRequired">Не удалось поделиться логами: требуется Activity-контекст</string>
+    <string name="torrentBufferingTitle">Буферизация...</string>
+    <string name="torrentBufferingDescription">Подождите, пока загрузится достаточно данных для плавного воспроизведения.</string>
+    <string name="torrentStateLabel">Состояние: %1$s</string>
+    <string name="torrentProgressLabel">Прогресс: %1$d%%</string>
+    <string name="torrentSizeLabel">Размер: %1$s</string>
+    <string name="torrentEtaLabel">Осталось: %1$s</string>
+    <string name="manageFiles">Управление файлами</string>
+    <string name="deleteDownloadConfirmMessage">Вы уверены, что хотите удалить "%1$s"?</string>
+    <string name="deleteDownloadWithFiles">Также удалить загруженные файлы</string>
+    <string name="indexingForumsSectionTitle">Индексация форумов</string>
+    <string name="indexTapToCreate">Нажмите для создания индекса</string>
+    <string name="indexTapToUpdate">Нажмите для обновления индекса</string>
+    <string name="indexClearingTitle">Очистка индекса...</string>
+    <string name="pleaseWait">Пожалуйста, подождите...</string>
+    <string name="indexingStatusTitle">Статус индексации</string>
+    <string name="indexingCompactStatus">Индексируем: %1$s (%2$d/%3$d)%4$s</string>
+    <string name="indexCompletedCompactStatus">Завершено: %1$s%2$s</string>
+    <string name="indexDurationSeconds"> за %1$d сек</string>
+    <string name="indexReadyToStart">Готово к индексации</string>
+    <string name="indexProgressWithTopics">Прогресс: %1$d%% • Тем: %2$s</string>
+    <string name="resetIndexTitle">Сбросить индекс</string>
+    <string name="resetIndexSubtitle">Удалить все проиндексированные темы (%1$s)</string>
+    <string name="resetIndexDialogTitle">Сбросить индекс?</string>
+    <string name="resetIndexDialogMessage">Это действие удалит все проиндексированные темы (%1$s). Для поиска потребуется создать новый индекс.</string>
+    <string name="indexCheckTitle">Проверка индекса</string>
+    <string name="indexCheckSubtitle">Тем: %1$s | Старые: %2$s | Новые: %3$s</string>
+    <string name="autoLabel">Авто</string>
+    <string name="off">Выкл</string>
+    <string name="volumeBoostPercent">+%1$d%%</string>
+    <string name="smartEffectsTitle">Умные эффекты</string>
+    <string name="notificationPermissionPlaybackHint">Уведомления помогают управлять воспроизведением из панели уведомлений</string>
+    <string name="audioVisualizerPermissionHint">Аудиовизуализатору нужно разрешение на микрофон</string>
+    <string name="loadingPlayer">Загрузка плеера...</string>
+
+    <plurals name="indexTopicsCount">
+        <item quantity="one">%d тема</item>
+        <item quantity="few">%d темы</item>
+        <item quantity="many">%d тем</item>
+        <item quantity="other">%d темы</item>
+    </plurals>
+    <plurals name="indexTopicsIndexed">
+        <item quantity="one">Проиндексировано: %d тема</item>
+        <item quantity="few">Проиндексировано: %d темы</item>
+        <item quantity="many">Проиндексировано: %d тем</item>
+        <item quantity="other">Проиндексировано: %d темы</item>
+    </plurals>
+    <plurals name="selectedItemsCount">
+        <item quantity="one">Выбрана %d запись</item>
+        <item quantity="few">Выбрано %d записи</item>
+        <item quantity="many">Выбрано %d записей</item>
+        <item quantity="other">Выбрано %d записи</item>
+    </plurals>
 </resources>

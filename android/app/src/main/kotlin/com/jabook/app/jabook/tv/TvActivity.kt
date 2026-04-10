@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.tv
 
 import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -34,6 +35,7 @@ import dagger.hilt.android.AndroidEntryPoint
 public class TvActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         // Load the main TV browse fragment
         if (savedInstanceState == null) {

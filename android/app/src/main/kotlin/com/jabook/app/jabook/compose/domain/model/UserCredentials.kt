@@ -14,10 +14,26 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+import java.util.Arrays
+
 /**
  * User credentials for Rutracker authentication.
  */
+@Immutable
 public data class UserCredentials(
     val username: String,
     val password: String,
-)
+) {
+    /**
+     * Exposes password as a temporary [CharArray] and zeroes it after use.
+     */
+    public inline fun <T> withPasswordChars(block: (CharArray) -> T): T {
+        val chars = password.toCharArray()
+        return try {
+            block(chars)
+        } finally {
+            Arrays.fill(chars, '\u0000')
+        }
+    }
+}

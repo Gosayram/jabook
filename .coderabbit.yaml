@@ -1,0 +1,181 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+early_access: false
+tone_instructions: >-
+  You are a senior Android/Kotlin reviewer for JaBook. Focus on correctness,
+  runtime safety, security, and maintainability. Keep comments concise and
+  actionable, and avoid redundant nitpicks.
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  review_status: false
+  review_details: true
+  commit_status: true
+  fail_commit_status: false
+  changed_files_summary: true
+  sequence_diagrams: false
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: false
+  suggested_reviewers: false
+  auto_assign_reviewers: false
+  in_progress_fortune: false
+  poem: false
+  enable_prompt_for_ai_agents: true
+  collapse_walkthrough: true
+  disable_cache: false
+  abort_on_close: true
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+    drafts: false
+    base_branches:
+      - "main"
+      - "develop"
+      - "release.*"
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT REVIEW"
+      - "[skip-coderabbit]"
+
+  path_filters:
+    # Keep reviews focused on core production paths only (strict cap for file limits).
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/audio/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/auth/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/network/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/backup/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/preferences/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/torrent/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/sync/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/worker/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/repository/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/di/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/UserCredentials.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/Book.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/FavoriteItem.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/SearchHistoryItem.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/DownloadHistoryItem.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/ComposeMainActivity.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/MainViewModel.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/JabookApp.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/auth/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/player/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/topic/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/torrent/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/settings/**"
+    - "android/app/src/main/proto/**"
+    - "android/app/build.gradle.kts"
+    - "android/build.gradle.kts"
+    - ".coderabbit.yaml"
+    - "!scripts/**"
+    - "!makefiles/**"
+    - "!Makefile"
+    - "!README.md"
+    - "!CONTRIBUTING.md"
+    - "!.kotlin-version"
+    - "!.release-version"
+    - "!android/app/proguard-rules.pro"
+    - "!android/app/src/test/**"
+    - "!android/app/src/androidTest/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/library/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/search/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/downloads/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/favorites/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/onboarding/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/permissions/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/designsystem/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/ui/**"
+    - "!docs/**"
+    - "!test/**"
+    - "!test_results/**"
+    - "!**/build/**"
+    - "!**/.gradle/**"
+    - "!startup_profile.log"
+    - "!**/*.keystore"
+    - "!**/*.jks"
+    - "!**/*.apk"
+    - "!**/*.aab"
+
+  path_instructions:
+    - path: "android/**/*.kt"
+      instructions: |
+        Prioritize correctness and runtime safety for Android/Kotlin:
+        - Flag coroutine misuse (GlobalScope, leaked scopes, blocking main thread, missing cancellation handling).
+        - Flag Compose stability/recomposition risks and state-hoisting mistakes.
+        - Flag Room/DataStore migration or schema-compatibility risks.
+        - Flag Media3/audio lifecycle regressions (focus, service lifecycle, listener cleanup, process-death restore).
+        - Flag security issues (intent validation, URI parsing, storage access, crypto misuse, logging secrets).
+        Request tests for non-trivial logic changes.
+
+    - path: "android/app/src/main/proto/**/*.proto"
+      instructions: |
+        Check backward compatibility for persisted settings/schema fields:
+        - Avoid field renumbering/removal without migration strategy.
+        - Preserve compatibility guarantees for existing installations.
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: false
+
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+    title:
+      mode: "warning"
+      requirements: >-
+        Use clear imperative style, include scope when possible
+        (e.g. audio:, ci:, storage:), and keep title concise.
+    description:
+      mode: "warning"
+    issue_assessment:
+      mode: "warning"
+    custom_checks:
+      - name: "Android Quality Gates"
+        mode: "error"
+        instructions: |
+          Pass only if PR changes align with repository quality gates:
+          - Kotlin/Android code changes should include or update tests where behavior changed.
+          - Flag risky changes that bypass existing static checks (ktlint/detekt) without justification.
+      - name: "Security Sensitive Changes"
+        mode: "error"
+        instructions: |
+          For changes touching auth, storage permissions, intent handling, network config, cryptography, or backup:
+          - Ensure no sensitive data is logged.
+          - Ensure input validation and explicit error handling are present.
+          - Ensure behavior does not silently weaken existing security controls.
+
+  tools:
+    detekt:
+      enabled: true
+      config_file: "default-detekt-config.yml"
+    gitleaks:
+      enabled: true
+    trufflehog:
+      enabled: true
+
+chat:
+  auto_reply: true
+  allow_non_org_members: false
+
+knowledge_base:
+  web_search:
+    enabled: true
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - ".github/copilot-instructions.md"
+      - ".github/instructions/*.instructions.md"
+      - "**/AGENTS.md"
+      - "**/.cursorrules"

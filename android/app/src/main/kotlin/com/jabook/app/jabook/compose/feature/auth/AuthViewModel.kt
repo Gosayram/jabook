@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.network.MirrorManager
@@ -35,6 +36,7 @@ import javax.inject.Inject
 /**
  * UI State for AuthScreen.
  */
+@Immutable
 public data class AuthUiState(
     val isLoading: Boolean = false,
     val error: String? = null,

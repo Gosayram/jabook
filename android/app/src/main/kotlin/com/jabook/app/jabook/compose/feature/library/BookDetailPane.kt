@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,7 +61,6 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.domain.model.Book
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Book detail pane component for displaying book information in list-detail layout.
@@ -325,18 +325,9 @@ private fun MetadataRow(
 }
 
 /**
- * Formats a duration in milliseconds to a human-readable string.
- * Examples: "1h 23m", "45m", "12s"
+ * Formats a duration in milliseconds to elapsed-time format.
  */
 private fun formatDuration(millis: Long): String {
-    val duration = millis.milliseconds
-    val hours = duration.inWholeHours
-    val minutes = (duration.inWholeMinutes % 60)
-    val seconds = (duration.inWholeSeconds % 60)
-
-    return when {
-        hours > 0 -> "${hours}h ${minutes}m"
-        minutes > 0 -> "${minutes}m"
-        else -> "${seconds}s"
-    }
+    val totalSeconds = millis.coerceAtLeast(0L) / 1000L
+    return DateUtils.formatElapsedTime(totalSeconds)
 }

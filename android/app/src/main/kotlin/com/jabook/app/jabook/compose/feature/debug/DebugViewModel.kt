@@ -22,12 +22,12 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
@@ -265,7 +265,7 @@ public class DebugViewModel
                     } else {
                         // Check mirrors in parallel for better performance
                         val results =
-                            coroutineScope {
+                            supervisorScope {
                                 mirrors
                                     .map { mirror ->
                                         async {

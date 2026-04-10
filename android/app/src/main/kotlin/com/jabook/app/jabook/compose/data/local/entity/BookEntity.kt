@@ -41,7 +41,16 @@ import androidx.room.PrimaryKey
  * @property isFavorite Whether user has marked this book as favorite
  * @property sourceUrl Source URL where book was obtained from (e.g., rutracker link)
  */
-@Entity(tableName = "books")
+@Entity(
+    tableName = "books",
+    indices = [
+        androidx.room.Index(value = ["is_favorite"]),
+        androidx.room.Index(value = ["last_played_date"]),
+        androidx.room.Index(value = ["download_status"]),
+        androidx.room.Index(value = ["source_url"]),
+        androidx.room.Index(value = ["added_date"]),
+    ],
+)
 public data class BookEntity(
     @PrimaryKey
     @ColumnInfo(name = "id")
@@ -117,6 +126,7 @@ public data class BookEntity(
     indices = [
         androidx.room.Index(value = ["book_id"]),
         androidx.room.Index(value = ["chapter_index"]), // Faster sorting by chapter order
+        androidx.room.Index(value = ["book_id", "chapter_index"]), // WHERE book_id + chapter lookup/order path
     ],
 )
 public data class ChapterEntity(

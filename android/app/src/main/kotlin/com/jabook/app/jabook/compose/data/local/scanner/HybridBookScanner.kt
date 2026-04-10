@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.local.scanner
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.util.PerfTrace
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
 import kotlinx.coroutines.CoroutineScope
@@ -52,40 +53,53 @@ public class HybridBookScanner
             merge(mediaStoreScanner.scanProgress, directScanner.scanProgress)
                 .stateIn(
                     scope = CoroutineScope(Dispatchers.Default),
-                    started = SharingStarted.Lazily,
+                    started = SharingStarted.WhileSubscribed(5_000),
                     initialValue = ScanProgress.Idle,
                 )
 
-        override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> {
-            // CRITICAL FIX: Validate and clean up non-existent folders before scanning
-            // Remove folders that were deleted from filesystem
-            val customPaths = scanPathDao.getAllPathsList()
-            var removedCount = 0
-            for (pathEntity in customPaths) {
-                val folder = java.io.File(pathEntity.path)
-                if (!folder.exists() || !folder.isDirectory) {
-                    logger.w { "Removing non-existent scan folder: ${pathEntity.path}" }
-                    scanPathDao.deletePath(pathEntity)
-                    removedCount++
+        override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
+            PerfTrace.section(name = "HybridBookScanner.scanAudiobooks") {
+                // CRITICAL FIX: Validate and clean up non-existent folders before scanning
+                // Remove folders that were deleted from filesystem
+                val customPaths =
+                    PerfTrace.section(name = "HybridBookScanner.loadPaths") {
+                        scanPathDao.getAllPathsList()
+                    }
+                var removedCount = 0
+                PerfTrace.section(name = "HybridBookScanner.cleanupInvalidPaths") {
+                    for (pathEntity in customPaths) {
+                        val folder = java.io.File(pathEntity.path)
+                        if (!folder.exists() || !folder.isDirectory) {
+                            logger.w { "Removing non-existent scan folder: ${pathEntity.path}" }
+                            scanPathDao.deletePath(pathEntity)
+                            removedCount++
+                        }
+                    }
+                }
+
+                if (removedCount > 0) {
+                    logger.i { "Cleaned up $removedCount deleted scan folders" }
+                }
+
+                // Get updated list after cleanup
+                val validPaths =
+                    PerfTrace.section(name = "HybridBookScanner.loadValidPaths") {
+                        scanPathDao.getAllPathsList()
+                    }
+
+                if (validPaths.isEmpty()) {
+                    // No custom paths - use MediaStore (fast, indexed)
+                    logger.d { "Using MediaStore scanner (no custom paths)" }
+                    PerfTrace.section(name = "HybridBookScanner.mediaStoreScan") {
+                        mediaStoreScanner.scanAudiobooks()
+                    }
+                } else {
+                    // Has custom paths - use direct file system scan
+                    // This ignores .nomedia files (user's use case: hide images, show audio)
+                    logger.d { "Using direct file scanner (${validPaths.size} custom paths)" }
+                    PerfTrace.section(name = "HybridBookScanner.directScan") {
+                        directScanner.scanAudiobooks()
+                    }
                 }
             }
-
-            if (removedCount > 0) {
-                logger.i { "Cleaned up $removedCount deleted scan folders" }
-            }
-
-            // Get updated list after cleanup
-            val validPaths = scanPathDao.getAllPathsList()
-
-            return if (validPaths.isEmpty()) {
-                // No custom paths - use MediaStore (fast, indexed)
-                logger.d { "Using MediaStore scanner (no custom paths)" }
-                mediaStoreScanner.scanAudiobooks()
-            } else {
-                // Has custom paths - use direct file system scan
-                // This ignores .nomedia files (user's use case: hide images, show audio)
-                logger.d { "Using direct file scanner (${validPaths.size} custom paths)" }
-                directScanner.scanAudiobooks()
-            }
-        }
     }

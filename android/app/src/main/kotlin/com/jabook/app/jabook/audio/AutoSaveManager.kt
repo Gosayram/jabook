@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -60,7 +61,10 @@ public class AutoSaveManager
             public const val MIN_SAVE_INTERVAL_MS: Long = 120_000L
         }
 
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("AutoSaveManager"),
+            )
         private var autoSaveJob: Job? = null
         private var lastSaveTime = 0L
 

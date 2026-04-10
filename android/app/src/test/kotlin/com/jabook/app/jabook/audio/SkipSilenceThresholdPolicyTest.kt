@@ -15,6 +15,11 @@
 package com.jabook.app.jabook.audio
 
 import com.jabook.app.jabook.audio.processors.SkipSilenceThresholdPolicy
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.float
+import io.kotest.property.arbitrary.int
+import io.kotest.property.checkAll
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -55,5 +60,36 @@ class SkipSilenceThresholdPolicyTest {
         assertEquals(65, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(65))
         assertEquals(80, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(80))
         assertEquals(80, SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(200))
+    }
+
+    @Test
+    fun `property - normalized amplitude is finite and bounded for wide db range`() {
+        runTest {
+            checkAll(Arb.float(min = -500f, max = 500f)) { db ->
+                val amplitude = SkipSilenceThresholdPolicy.toNormalizedAmplitude(db)
+                assertTrue(amplitude.isFinite())
+                assertTrue(amplitude in 0f..1f)
+            }
+        }
+    }
+
+    @Test
+    fun `property - sanitizeMinSilenceMs always returns supported range or default`() {
+        runTest {
+            checkAll(Arb.int(min = -10_000, max = 10_000)) { value ->
+                val sanitized = SkipSilenceThresholdPolicy.sanitizeMinSilenceMs(value)
+                assertTrue(sanitized in 150..300)
+            }
+        }
+    }
+
+    @Test
+    fun `property - sanitizeRetainWindowMs always returns supported range or default`() {
+        runTest {
+            checkAll(Arb.int(min = -10_000, max = 10_000)) { value ->
+                val sanitized = SkipSilenceThresholdPolicy.sanitizeRetainWindowMs(value)
+                assertTrue(sanitized in 50..80)
+            }
+        }
     }
 }

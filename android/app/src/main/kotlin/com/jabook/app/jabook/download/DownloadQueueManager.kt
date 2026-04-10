@@ -15,13 +15,12 @@
 package com.jabook.app.jabook.download
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -70,12 +69,7 @@ public class DownloadQueueManager
                     .putString(DownloadWorker.KEY_SAVE_PATH, savePath)
                     .build()
 
-            val constraints =
-                Constraints
-                    .Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED) // Require network
-                    .setRequiresBatteryNotLow(false) // Allow on low battery
-                    .build()
+            val constraints = WorkConstraintsPolicy.userInitiatedDownload()
 
             val downloadRequest =
                 OneTimeWorkRequestBuilder<DownloadWorker>()

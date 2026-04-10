@@ -14,8 +14,10 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.model.DownloadStatus
+import java.net.URI
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -43,6 +45,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property isFavorite Whether user has favorited this book
  * @property sourceUrl Source URL where book was obtained
  */
+@Immutable
 public data class Book(
     val id: String,
     val title: String,
@@ -183,15 +186,31 @@ public fun Book.toEntity(): BookEntity =
 public fun List<BookEntity>.toBooks(): List<Book> = map { it.toBook() }
 
 /**
- * Extension function to convert domain Book to FavoriteEntity.
- * Used for synchronizing local library favorites with FavoriteEntity table.
+ * Extension function to convert domain Book to FavoriteItem.
+ * Used for synchronizing local library favorites with favorites repository.
  */
-public fun Book.toFavoriteEntity(): com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity {
-    val now =
+public fun Book.toFavoriteItem(
+    addedToFavorites: String =
         java.time.Instant
             .now()
-            .toString()
-    return com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity(
+            .toString(),
+): FavoriteItem? {
+    // Trim and validate sourceUrl as a proper URI with magnet scheme
+    val validatedSourceUrl =
+        sourceUrl
+            ?.trim() // Remove leading/trailing whitespace
+            ?.takeIf { it.isNotEmpty() } // Reject empty strings
+            ?.takeIf { rawUrl ->
+                // Parse as URI and validate scheme and structure
+                runCatching {
+                    val parsed = URI(rawUrl)
+                    // Ensure scheme is "magnet" and schemeSpecificPart is not blank
+                    parsed.scheme?.equals("magnet", ignoreCase = true) == true &&
+                        !parsed.schemeSpecificPart.isNullOrBlank()
+                }.getOrDefault(false)
+            } ?: return null // Return null if validation fails
+
+    return FavoriteItem(
         topicId = id,
         title = title,
         author = author,
@@ -199,7 +218,7 @@ public fun Book.toFavoriteEntity(): com.jabook.app.jabook.compose.data.local.ent
         size = "", // Size not available for local books
         seeders = 0,
         leechers = 0,
-        magnetUrl = sourceUrl ?: "",
+        magnetUrl = validatedSourceUrl,
         coverUrl = coverUrl,
         performer = null,
         genres = null,
@@ -207,7 +226,7 @@ public fun Book.toFavoriteEntity(): com.jabook.app.jabook.compose.data.local.ent
             java.time.Instant
                 .ofEpochMilli(addedDate)
                 .toString(),
-        addedToFavorites = now,
+        addedToFavorites = addedToFavorites,
         duration = null,
         bitrate = null,
         audioCodec = null,

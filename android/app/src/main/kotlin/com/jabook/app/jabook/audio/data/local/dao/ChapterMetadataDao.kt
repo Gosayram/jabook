@@ -18,6 +18,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.jabook.app.jabook.audio.data.local.database.entity.ChapterMetadataEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -49,6 +50,26 @@ public interface ChapterMetadataDao {
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     public suspend fun upsertChapters(chapters: List<ChapterMetadataEntity>)
+
+    /**
+     * Replaces all chapters for a book atomically.
+     *
+     * Ensures stale chapter rows are removed and consumers never observe
+     * a partially-updated chapter set.
+     */
+    @Transaction
+    public suspend fun replaceChaptersForBook(
+        bookId: String,
+        chapters: List<ChapterMetadataEntity>,
+    ) {
+        require(chapters.all { it.bookId == bookId }) {
+            "replaceChaptersForBook expects all chapters to match bookId=$bookId"
+        }
+        deleteChapters(bookId)
+        if (chapters.isNotEmpty()) {
+            upsertChapters(chapters)
+        }
+    }
 
     /**
      * Deletes all chapters for a book.

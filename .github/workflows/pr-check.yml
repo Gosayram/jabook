@@ -50,6 +50,9 @@ jobs:
       - name: Lint Kotlin code
         run: make lint-kotlin
 
+      - name: Validate Hilt dependency graph
+        run: make hilt-graph-check
+
       - name: Compile Kotlin code
         run: make compile
 

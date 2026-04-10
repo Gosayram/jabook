@@ -41,7 +41,7 @@ import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 /**
  * Logger for UnifiedBooksView Composable functions.
  */
-private val unifiedBooksViewLogger = LoggerFactoryImpl().get("UnifiedBooksView")
+private val unifiedBooksViewLogger by lazy { LoggerFactoryImpl().get("UnifiedBooksView") }
 
 /**
  * Unified books view that displays books in either grid or list layout.

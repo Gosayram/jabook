@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,11 +22,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +57,7 @@ import java.util.Locale
 @Composable
 public fun BookPropertiesDialog(
     book: Book,
+    onPickCover: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -135,6 +139,18 @@ public fun BookPropertiesDialog(
                         value = "${(book.progress * 100).toInt()}%",
                     )
                 }
+
+                TextButton(
+                    onClick = onPickCover,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(text = stringResource(R.string.changeCover))
+                }
             }
         }
     }
@@ -186,15 +202,8 @@ private fun formatDate(timestamp: Long): String {
  * Format duration in seconds to HH:MM:SS or MM:SS.
  */
 private fun formatDuration(seconds: Long): String {
-    val hours = seconds / 3600
-    val minutes = (seconds % 3600) / 60
-    val secs = seconds % 60
-
-    return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, secs)
-    } else {
-        String.format("%d:%02d", minutes, secs)
-    }
+    val safeSeconds = seconds.coerceAtLeast(0L)
+    return DateUtils.formatElapsedTime(safeSeconds)
 }
 
 /**

@@ -139,6 +139,25 @@ public class DynamicBaseUrlInterceptor
             } catch (e: Exception) {
                 val requestDuration = System.currentTimeMillis() - requestStartTime
 
+                val isCertificatePinningFailure =
+                    e is javax.net.ssl.SSLPeerUnverifiedException &&
+                        (e.message?.contains("Certificate pinning failure", ignoreCase = true) == true)
+
+                if (isCertificatePinningFailure) {
+                    logger.e(
+                        {
+                            "🚨 Certificate pinning validation failed for host ${newUrl.host}. " +
+                                "Blocking request to prevent MITM risk. User must review mirror trust."
+                        },
+                        e,
+                    )
+                    throw SecurityException(
+                        "Certificate pinning validation failed for ${newUrl.host}. " +
+                            "Please switch mirror or update the app.",
+                        e,
+                    )
+                }
+
                 // Check if this is a network/DNS error that should trigger mirror switch
                 val isNetworkError =
                     e is java.net.UnknownHostException ||

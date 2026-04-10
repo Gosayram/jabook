@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
@@ -124,7 +125,13 @@ public fun SleepTimerSheet(
                     durations.forEach { minutes ->
                         ListItem(
                             headlineContent = {
-                                Text("$minutes ${stringResource(R.string.minutes)}")
+                                Text(
+                                    pluralStringResource(
+                                        R.plurals.durationMinutesFull,
+                                        minutes,
+                                        minutes,
+                                    ),
+                                )
                             },
                             leadingContent = {
                                 Icon(
@@ -144,7 +151,11 @@ public fun SleepTimerSheet(
                 is SleepTimerState.Active -> {
                     // Show countdown
                     ActiveTimerContent(
-                        timeText = currentState.formattedTime,
+                        timeText =
+                            stringResource(
+                                R.string.sleep_timer_active,
+                                formatSleepTimerRemaining(currentState.remainingSeconds),
+                            ),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )
@@ -153,7 +164,11 @@ public fun SleepTimerSheet(
                 is SleepTimerState.EndOfChapter -> {
                     // Show End of Chapter status
                     ActiveTimerContent(
-                        timeText = stringResource(R.string.endOfChapterLabel),
+                        timeText =
+                            stringResource(
+                                R.string.sleep_timer_end_of_chapter,
+                                stringResource(R.string.endOfChapterLabel),
+                            ),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )
@@ -162,11 +177,14 @@ public fun SleepTimerSheet(
                 is SleepTimerState.EndOfTrack -> {
                     ActiveTimerContent(
                         timeText =
-                            if (currentState.fallbackFromChapter) {
-                                stringResource(R.string.endOfTrackFallbackLabel)
-                            } else {
-                                stringResource(R.string.endOfTrackLabel)
-                            },
+                            stringResource(
+                                R.string.sleep_timer_end_of_track,
+                                if (currentState.fallbackFromChapter) {
+                                    stringResource(R.string.endOfTrackFallbackLabel)
+                                } else {
+                                    stringResource(R.string.endOfTrackLabel)
+                                },
+                            ),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )

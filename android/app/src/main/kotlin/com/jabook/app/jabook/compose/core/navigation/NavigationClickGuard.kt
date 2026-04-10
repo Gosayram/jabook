@@ -30,10 +30,18 @@ public class NavigationClickGuard(
 
     public fun run(action: () -> Unit) {
         val nowMs = nowMsProvider()
-        if (lastAcceptedAtMs != UNSET && nowMs - lastAcceptedAtMs < minIntervalMs) {
+        val shouldRun =
+            synchronized(this) {
+                if (lastAcceptedAtMs != UNSET && nowMs - lastAcceptedAtMs < minIntervalMs) {
+                    false
+                } else {
+                    lastAcceptedAtMs = nowMs
+                    true
+                }
+            }
+        if (!shouldRun) {
             return
         }
-        lastAcceptedAtMs = nowMs
         action()
     }
 

@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import android.view.KeyEvent
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -42,7 +43,10 @@ public class MediaButtonHandler
             private const val TAG = "MediaButtonHandler"
         }
 
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("MediaButtonHandler"),
+            )
         private var clickCount = 0
         private var clickJob: Job? = null
 

@@ -59,7 +59,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
-import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
+import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 import com.jabook.app.jabook.compose.domain.model.HistorySortOrder
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -276,7 +276,7 @@ private fun EmptyHistoryState(modifier: Modifier = Modifier) {
 
 @Composable
 private fun HistoryCard(
-    entry: DownloadHistoryEntity,
+    entry: DownloadHistoryItem,
     contentPadding: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {

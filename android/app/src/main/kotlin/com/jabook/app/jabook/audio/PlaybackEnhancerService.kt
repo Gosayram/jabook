@@ -20,9 +20,12 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.firstOrNull
@@ -76,9 +79,13 @@ public class PlaybackEnhancerService
         private val player: ExoPlayer,
         private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository,
     ) {
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.Default + loggingCoroutineExceptionHandler("PlaybackEnhancerService"),
+            )
 
         private var enhancer: LoudnessEnhancer? = null
+        private var volumeBoostJob: Job? = null
 
         /**
          * Flow of volume boost levels from user preferences.
@@ -109,11 +116,13 @@ public class PlaybackEnhancerService
             attachEnhancer(player.audioSessionId, currentBoost)
 
             // Observe changes in volume boost settings
-            scope.launch {
-                volumeBoostFlow.collectLatest { boost ->
-                    updateGain(boost)
+            volumeBoostJob?.cancel()
+            volumeBoostJob =
+                scope.launch {
+                    volumeBoostFlow.collectLatest { boost ->
+                        updateGain(boost)
+                    }
                 }
-            }
         }
 
         /**
@@ -200,6 +209,9 @@ public class PlaybackEnhancerService
          * Should be called when service is destroyed.
          */
         public fun release() {
+            volumeBoostJob?.cancel()
+            volumeBoostJob = null
+            scope.coroutineContext.cancel()
             player.removeListener(playerListener)
             enhancer?.release()
             enhancer = null

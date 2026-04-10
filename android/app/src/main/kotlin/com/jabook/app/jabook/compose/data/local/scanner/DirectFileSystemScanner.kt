@@ -18,12 +18,13 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -368,7 +369,7 @@ public class DirectFileSystemScanner
 
                 // Process audio files in PARALLEL with rate limiting
                 if (audioFiles.isNotEmpty()) {
-                    coroutineScope {
+                    supervisorScope {
                         audioFiles
                             .map { file ->
                                 async(Dispatchers.IO) {
@@ -384,6 +385,8 @@ public class DirectFileSystemScanner
                                                     "✓ ${file.name} (album: ${audioInfo.album ?: "none"})"
                                                 }
                                             }
+                                        } catch (e: CancellationException) {
+                                            throw e
                                         } catch (e: Exception) {
                                             logger.w {
                                                 "✗ Failed: ${file.name} - ${e.message}"

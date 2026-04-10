@@ -14,9 +14,11 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import android.net.Uri
+import android.webkit.MimeTypeMap
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
@@ -26,8 +28,9 @@ import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
+import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import com.jabook.app.jabook.compose.domain.model.Book
-import com.jabook.app.jabook.compose.domain.model.toFavoriteEntity
+import com.jabook.app.jabook.compose.domain.model.toFavoriteItem
 import com.jabook.app.jabook.compose.domain.usecase.library.DeleteBookUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.GetFavoriteBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.GetInProgressBooksUseCase
@@ -36,6 +39,8 @@ import com.jabook.app.jabook.compose.domain.usecase.library.GetRecentlyPlayedBoo
 import com.jabook.app.jabook.compose.domain.usecase.library.SearchBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,6 +50,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -73,6 +80,7 @@ public class LibraryViewModel
         private val favoritesRepository: FavoritesRepository,
         private val workManager: WorkManager,
         private val userPreferencesRepository: UserPreferencesRepository,
+        private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val application: android.app.Application,
     ) : ViewModel() {
@@ -126,7 +134,7 @@ public class LibraryViewModel
                             if (filteredBooks.isEmpty()) {
                                 LibraryUiState.Empty
                             } else {
-                                LibraryUiState.Success(filteredBooks)
+                                LibraryUiState.Success(filteredBooks.toImmutableList())
                             }
                         } catch (e: Exception) {
                             LibraryUiState.Error(e.message ?: "Unknown error")
@@ -200,7 +208,7 @@ public class LibraryViewModel
 
         /**
          * Toggle favorite status of a book.
-         * Synchronizes with FavoriteEntity for unified favorites system.
+         * Synchronizes with favorites repository for unified favorites system.
          */
         public fun toggleFavorite(
             bookId: String,
@@ -216,24 +224,26 @@ public class LibraryViewModel
                 // This will trigger Flow update automatically
                 toggleFavoriteUseCase(bookId, isFavorite)
 
-                // Synchronize with FavoriteEntity for unified favorites system
+                // Synchronize with favorites repository for unified favorites system
                 if (isFavorite) {
-                    // Add to FavoriteEntity if book exists
+                    // Add to favorites storage if book exists
                     if (book != null) {
-                        val favoriteEntity = book.toFavoriteEntity()
-                        favoritesRepository.addToFavorites(favoriteEntity)
+                        book.toFavoriteItem()?.let { favoriteItem ->
+                            favoritesRepository.addToFavorites(favoriteItem)
+                        }
                     } else {
                         // If book not found in current list, try to get it from database directly
                         // This can happen if book is filtered out by search
                         val allBooks = getLibraryUseCase(BookSortOrder.BY_ACTIVITY).first()
                         val foundBook = allBooks.find { it.id == bookId }
                         if (foundBook != null) {
-                            val favoriteEntity = foundBook.toFavoriteEntity()
-                            favoritesRepository.addToFavorites(favoriteEntity)
+                            foundBook.toFavoriteItem()?.let { favoriteItem ->
+                                favoritesRepository.addToFavorites(favoriteItem)
+                            }
                         }
                     }
                 } else {
-                    // Remove from FavoriteEntity
+                    // Remove from favorites storage
                     favoritesRepository.removeFromFavorites(bookId)
                 }
             }
@@ -270,6 +280,38 @@ public class LibraryViewModel
             _selectedBookForProperties.value = null
         }
 
+        /**
+         * Imports a custom cover image selected via Photo Picker and binds it to the book.
+         */
+        public suspend fun importBookCoverFromPicker(
+            bookId: String,
+            coverUri: Uri,
+        ): Result<Unit> =
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    val resolver = application.contentResolver
+                    val extension = resolveCoverExtension(resolver.getType(coverUri))
+                    val coversDir = File(application.filesDir, "covers").apply { mkdirs() }
+                    val targetFile = File(coversDir, "$bookId.$extension")
+
+                    resolver.openInputStream(coverUri).use { input ->
+                        requireNotNull(input) { "Unable to read selected image" }
+                        targetFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+
+                    // Keep both fields aligned for faster UI refresh and backup consistency.
+                    booksDao.updateCoverPath(bookId, targetFile.absolutePath)
+                    booksDao.updateCoverUrl(bookId, targetFile.absolutePath)
+                }
+            }
+
+        private fun resolveCoverExtension(mimeType: String?): String {
+            val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
+            return extension?.lowercase()?.takeIf { it in setOf("jpg", "jpeg", "png", "webp") } ?: "jpg"
+        }
+
         // Library scan state
         private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
         public val scanState: StateFlow<ScanState> = _scanState
@@ -297,12 +339,8 @@ public class LibraryViewModel
                 // Folders configured - proceed with scan
                 val scanRequest =
                     OneTimeWorkRequestBuilder<LibraryScanWorker>()
-                        .setConstraints(
-                            Constraints
-                                .Builder()
-                                .setRequiresStorageNotLow(true)
-                                .build(),
-                        ).build()
+                        .setConstraints(WorkConstraintsPolicy.libraryScan())
+                        .build()
 
                 // Track work ID for cancellation
                 currentScanWorkId = scanRequest.id
@@ -360,8 +398,9 @@ public sealed interface LibraryUiState {
     /**
      * Success state with books.
      */
+    @Immutable
     public data class Success(
-        val books: List<Book>,
+        val books: ImmutableList<Book>,
     ) : LibraryUiState
 
     /**
@@ -372,6 +411,7 @@ public sealed interface LibraryUiState {
     /**
      * Error state.
      */
+    @Immutable
     public data class Error(
         val message: String,
     ) : LibraryUiState
@@ -383,15 +423,18 @@ public sealed interface LibraryUiState {
 public sealed interface ScanState {
     public data object Idle : ScanState
 
+    @Immutable
     public data class Scanning(
         val message: String,
     ) : ScanState
 
+    @Immutable
     public data class Completed(
         val booksFound: Int,
         val noFoldersConfigured: Boolean = false,
     ) : ScanState
 
+    @Immutable
     public data class Failed(
         val error: String,
     ) : ScanState

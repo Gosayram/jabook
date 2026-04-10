@@ -72,17 +72,17 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
-import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
+import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
 import kotlinx.coroutines.launch
 
 /**
  * Logger for SearchScreen Composable functions.
  */
-private val searchScreenLogger = LoggerFactoryImpl().get("SearchScreen")
+private val searchScreenLogger by lazy { LoggerFactoryImpl().get("SearchScreen") }
 
 /**
  * Search screen for finding audiobooks.
@@ -289,15 +289,13 @@ public fun SearchScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                     ) {
                                         Text(
-                                            text = "Индекс не создан",
+                                            text = stringResource(R.string.indexNotCreatedTitle),
                                             style = MaterialTheme.typography.titleMedium,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
                                         Text(
-                                            text =
-                                                "Для поиска аудиокниг необходимо создать индекс форумов. " +
-                                                    "Индексация работает в фоне, вы можете продолжать использовать приложение.",
+                                            text = stringResource(R.string.indexNotCreatedDescriptionLong),
                                             style = MaterialTheme.typography.bodySmall,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         )
@@ -307,7 +305,7 @@ public fun SearchScreen(
                                                 indexingViewModel.startIndexing(context)
                                             },
                                         ) {
-                                            Text("Начать индексацию")
+                                            Text(stringResource(R.string.startIndexing))
                                         }
                                     }
                                 }
@@ -348,9 +346,9 @@ public fun SearchScreen(
                                             Text(
                                                 text =
                                                     if (isIndexingNow) {
-                                                        "Индексация в процессе..."
+                                                        stringResource(R.string.indexingInProgressTitle)
                                                     } else {
-                                                        "Индекс не создан"
+                                                        stringResource(R.string.indexNotCreatedTitle)
                                                     },
                                                 style = MaterialTheme.typography.titleSmall,
                                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -359,11 +357,9 @@ public fun SearchScreen(
                                             Text(
                                                 text =
                                                     if (isIndexingNow) {
-                                                        "Пожалуйста, подождите завершения индексации. " +
-                                                            "Прогресс можно увидеть в уведомлениях."
+                                                        stringResource(R.string.indexingInProgressDescription)
                                                     } else {
-                                                        "Для онлайн поиска необходимо создать индекс. " +
-                                                            "Локальный поиск работает всегда."
+                                                        stringResource(R.string.indexRequiredForOnlineSearchDescription)
                                                     },
                                                 style = MaterialTheme.typography.bodySmall,
                                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -463,7 +459,7 @@ public fun SearchScreen(
 private fun LocalSearchResults(
     query: String,
     results: List<com.jabook.app.jabook.compose.domain.model.Book>,
-    searchHistory: List<SearchHistoryEntity>,
+    searchHistory: List<SearchHistoryItem>,
     onBookClick: (String) -> Unit,
     onHistoryItemClick: (String) -> Unit,
     onHistoryItemDelete: (Int) -> Unit,
@@ -515,7 +511,7 @@ private fun LocalSearchResults(
 
 @Composable
 private fun SearchHistoryList(
-    history: List<SearchHistoryEntity>,
+    history: List<SearchHistoryItem>,
     onItemClick: (String) -> Unit,
     onItemDelete: (Int) -> Unit,
     onClearHistory: () -> Unit,

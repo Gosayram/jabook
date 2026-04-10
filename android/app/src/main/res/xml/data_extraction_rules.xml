@@ -14,6 +14,11 @@
         <include domain="file" path="." />
         <exclude domain="file" path="cache/" />
         <exclude domain="file" path="code_cache/" />
+        <!-- Exclude sensitive credential/cookie DataStore payloads -->
+        <exclude domain="file" path="datastore/secure_credentials.preferences_pb" />
+        <exclude domain="file" path="datastore/cookies.preferences_pb" />
+        <!-- Exclude Tink keyset preference container -->
+        <exclude domain="sharedpref" path="secure_credentials_prefs.xml" />
         
         <!-- Exclude database files (user data can be re-synced) -->
         <!-- Database domain is excluded by default (not included above) -->
@@ -30,6 +35,11 @@
         <include domain="file" path="." />
         <exclude domain="file" path="cache/" />
         <exclude domain="file" path="code_cache/" />
+        <!-- Exclude sensitive credential/cookie DataStore payloads -->
+        <exclude domain="file" path="datastore/secure_credentials.preferences_pb" />
+        <exclude domain="file" path="datastore/cookies.preferences_pb" />
+        <!-- Exclude Tink keyset preference container -->
+        <exclude domain="sharedpref" path="secure_credentials_prefs.xml" />
         
         <!-- Exclude database files (user data can be re-synced) -->
         <!-- Database domain is excluded by default (not included above) -->

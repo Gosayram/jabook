@@ -29,6 +29,7 @@ import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_14_15
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_15_16
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_16_17
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_17_18
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import dagger.Module
 import dagger.Provides
@@ -46,7 +47,7 @@ public object DatabaseModule {
     /**
      * Logger for DatabaseModule.
      */
-    private val logger = LoggerFactoryImpl().get("Room")
+    private val logger by lazy { LoggerFactoryImpl().get("Room") }
 
     /**
      * Helper function to wrap migration with logging.
@@ -322,6 +323,7 @@ public object DatabaseModule {
             MIGRATION_14_15,
             MIGRATION_15_16,
             MIGRATION_16_17,
+            MIGRATION_17_18,
         )
 
     @Provides
@@ -340,10 +342,9 @@ public object DatabaseModule {
                 // This replaces the need for setQueryExecutor and provides better performance
                 .setQueryCoroutineContext(Dispatchers.IO)
                 // PreparedStatementCache is enabled by default (size 25) for better query performance
-                // This caches prepared SQL statements to avoid recompilation overhead
-                // JournalMode.AUTOMATIC is the default - Room chooses WAL on modern devices, TRUNCATE on low-RAM
-                // WAL provides better concurrency, TRUNCATE is more memory-efficient
-                .setJournalMode(RoomDatabase.JournalMode.AUTOMATIC)
+                // This caches prepared SQL statements to avoid recompilation overhead.
+                // Enforce WAL explicitly for deterministic behavior and improved read/write concurrency.
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         // In-memory invalidation tracking is enabled by default (better performance)
         // Can be disabled with setInMemoryTrackingMode(false) if memory is a concern
         // requireMigration is true by default - ensures migrations are always provided for safety

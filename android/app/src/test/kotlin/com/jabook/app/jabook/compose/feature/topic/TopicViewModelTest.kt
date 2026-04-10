@@ -20,6 +20,7 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
+import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerComment
@@ -40,10 +41,13 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -68,6 +72,7 @@ class TopicViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         whenever(authRepository.authStatus).thenReturn(authStatusFlow)
+        whenever(context.getString(any())).thenReturn("message")
         whenever(loggerFactory.get(org.mockito.kotlin.any<String>())).thenReturn(
             com.jabook.app.jabook.compose.core.logger.NoOpLogger,
         )
@@ -341,5 +346,81 @@ class TopicViewModelTest {
 
             // Should have 4 comments total
             assertEquals(4, state!!.details.comments.size)
+        }
+
+    @Test
+    fun `downloadTorrentRelease rejects http url immediately`() =
+        runTest {
+            whenever(rutrackerRepository.getTopicDetails("12345"))
+                .thenReturn(Result.Error(AppError.DataError.NotFound))
+            viewModel =
+                TopicViewModel(
+                    rutrackerRepository,
+                    authRepository,
+                    torrentManager,
+                    rutrackerApi,
+                    mirrorManager,
+                    withAuthorisedCheckUseCase,
+                    avatarPreloader,
+                    loggerFactory,
+                    context,
+                    savedStateHandle,
+                )
+
+            viewModel.downloadTorrentRelease(
+                magnetUrl = null,
+                torrentUrl = "https://example.com/file.torrent",
+            )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            verify(torrentManager, never()).initialize()
+            verify(torrentManager, never()).addTorrent(any(), any(), anyOrNull(), anyOrNull())
+        }
+
+    @Test
+    fun `downloadTorrentRelease accepts valid magnet and starts torrent manager`() =
+        runTest {
+            whenever(rutrackerRepository.getTopicDetails("12345"))
+                .thenReturn(Result.Error(AppError.DataError.NotFound))
+            val downloadsDir =
+                android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS,
+                )
+            downloadsDir?.mkdirs()
+            File(downloadsDir, "JabookAudio").mkdirs()
+
+            whenever(
+                withAuthorisedCheckUseCase.invoke(anyOrNull(), any<suspend () -> Unit>()),
+            ).thenAnswer { invocation ->
+                val block = invocation.getArgument<suspend () -> Unit>(1)
+                kotlinx.coroutines.runBlocking { block() }
+                Unit
+            }
+            whenever(
+                torrentManager.addTorrent(any(), any(), anyOrNull(), anyOrNull()),
+            ).thenReturn(kotlin.Result.success("hash"))
+
+            viewModel =
+                TopicViewModel(
+                    rutrackerRepository,
+                    authRepository,
+                    torrentManager,
+                    rutrackerApi,
+                    mirrorManager,
+                    withAuthorisedCheckUseCase,
+                    avatarPreloader,
+                    loggerFactory,
+                    context,
+                    savedStateHandle,
+                )
+
+            viewModel.downloadTorrentRelease(
+                magnetUrl = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
+                torrentUrl = null,
+            )
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            verify(torrentManager).initialize()
+            verify(torrentManager).addTorrent(any(), any(), anyOrNull(), anyOrNull())
         }
 }

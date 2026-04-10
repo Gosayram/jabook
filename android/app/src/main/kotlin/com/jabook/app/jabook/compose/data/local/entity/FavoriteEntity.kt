@@ -18,6 +18,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.jabook.app.jabook.compose.domain.model.FavoriteItem
 
 /**
  * Room entity for storing favorite audiobooks.
@@ -49,3 +50,43 @@ public data class FavoriteEntity(
     @ColumnInfo(name = "bitrate") val bitrate: String? = null,
     @ColumnInfo(name = "audio_codec") val audioCodec: String? = null,
 )
+
+public fun FavoriteEntity.toFavoriteItem(): FavoriteItem =
+    FavoriteItem(
+        topicId = topicId,
+        title = title,
+        author = author,
+        category = category,
+        size = size,
+        seeders = seeders,
+        leechers = leechers,
+        magnetUrl = magnetUrl,
+        coverUrl = coverUrl,
+        performer = performer,
+        genres = genres,
+        addedDate = addedDate,
+        addedToFavorites = addedToFavorites,
+        duration = duration,
+        bitrate = bitrate,
+        audioCodec = audioCodec,
+    )
+
+public fun FavoriteItem.toFavoriteEntity(): FavoriteEntity =
+    FavoriteEntity(
+        topicId = topicId,
+        title = title,
+        author = author,
+        category = category,
+        size = size,
+        seeders = seeders,
+        leechers = leechers,
+        magnetUrl = magnetUrl,
+        coverUrl = coverUrl,
+        performer = performer,
+        genres = genres,
+        addedDate = addedDate,
+        addedToFavorites = addedToFavorites,
+        duration = duration,
+        bitrate = bitrate,
+        audioCodec = audioCodec,
+    )

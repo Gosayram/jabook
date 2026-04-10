@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.torrent.MagnetUriValidationPolicy
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
@@ -296,11 +297,7 @@ public class TopicViewModel
                         return@launch
                     }
 
-                    // Validate URL format
-                    if (!downloadUrl.startsWith("magnet:", ignoreCase = true) &&
-                        !downloadUrl.startsWith("http://", ignoreCase = true) &&
-                        !downloadUrl.startsWith("https://", ignoreCase = true)
-                    ) {
+                    if (!MagnetUriValidationPolicy.isValidMagnetUri(downloadUrl)) {
                         logger.e { "Invalid download URL format: $downloadUrl" }
                         _message.value = context.getString(R.string.invalidDownloadUrl)
                         return@launch
@@ -354,18 +351,6 @@ public class TopicViewModel
 
                     val savePath = bookFolder.absolutePath
                     logger.d { "Saving torrent to: $savePath" }
-
-                    // Check if downloadUrl is a magnet URI or HTTP/HTTPS URL
-                    // TorrentManager.addTorrent only accepts magnet URIs
-                    if (!downloadUrl.startsWith("magnet:", ignoreCase = true)) {
-                        logger.e { "downloadTorrentRelease only supports magnet URIs, got: $downloadUrl" }
-                        _message.value =
-                            context.getString(
-                                R.string.failedToStartDownloadWithError,
-                                "Only magnet links are supported for torrent downloads",
-                            )
-                        return@launch
-                    }
 
                     // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
                     withAuthorisedCheckUseCase(operationId = "download_torrent_$topicId") {

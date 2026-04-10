@@ -54,6 +54,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -61,7 +62,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
-import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
+import com.jabook.app.jabook.compose.domain.model.FavoriteItem
 import com.jabook.app.jabook.compose.ui.favorites.FavoritesViewModel
 
 /**
@@ -104,7 +105,13 @@ public fun FavoritesScreen(
             TopAppBar(
                 title = {
                     if (isSelectionMode) {
-                        Text("${selectedIds.size} selected")
+                        Text(
+                            pluralStringResource(
+                                R.plurals.selectedItemsCount,
+                                selectedIds.size,
+                                selectedIds.size,
+                            ),
+                        )
                     } else {
                         TextField(
                             value = searchQuery,
@@ -362,7 +369,7 @@ private fun FavoritesEmptyState(modifier: Modifier = Modifier) {
  */
 @Composable
 private fun FavoritesList(
-    favorites: List<FavoriteEntity>,
+    favorites: List<FavoriteItem>,
     favoriteIds: Set<String>,
     isSelectionMode: Boolean,
     selectedIds: Set<String>,

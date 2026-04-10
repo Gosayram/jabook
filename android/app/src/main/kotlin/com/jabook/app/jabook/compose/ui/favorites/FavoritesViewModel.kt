@@ -16,10 +16,10 @@ package com.jabook.app.jabook.compose.ui.favorites
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
-import com.jabook.app.jabook.compose.domain.model.toFavoriteEntity
+import com.jabook.app.jabook.compose.domain.model.FavoriteItem
+import com.jabook.app.jabook.compose.domain.model.toFavoriteItem
 import com.jabook.app.jabook.compose.domain.usecase.library.GetFavoriteBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,17 +55,17 @@ public class FavoritesViewModel
 
         /**
          * All favorites with search and sort applied.
-         * Combines online favorites (FavoriteEntity) and local library favorites (Book with isFavorite=true).
+         * Combines online favorites and local library favorites (Book with isFavorite=true).
          */
-        public val favorites: StateFlow<List<FavoriteEntity>> =
+        public val favorites: StateFlow<List<FavoriteItem>> =
             combine(
                 favoritesRepository.allFavorites,
                 getFavoriteBooksUseCase(),
                 _searchQuery,
                 _sortOrder,
             ) { onlineFavorites, localFavoriteBooks, query, order ->
-                // Convert local favorite books to FavoriteEntity
-                val localFavorites = localFavoriteBooks.map { it.toFavoriteEntity() }
+                // Convert local favorite books to domain favorite items
+                val localFavorites = localFavoriteBooks.mapNotNull { it.toFavoriteItem() }
 
                 // Combine online and local favorites, avoiding duplicates (prefer online if exists)
                 val favoriteIds = onlineFavorites.map { it.topicId }.toSet()
@@ -126,7 +126,7 @@ public class FavoritesViewModel
         /**
          * Add or remove an audiobook from favorites.
          */
-        public fun toggleFavorite(favorite: FavoriteEntity) {
+        public fun toggleFavorite(favorite: FavoriteItem) {
             viewModelScope.launch {
                 _isLoading.value = true
                 val isFavoriteNow = favoritesRepository.isFavorite(favorite.topicId)
@@ -151,7 +151,7 @@ public class FavoritesViewModel
          */
         public fun removeFromFavorites(topicId: String) {
             viewModelScope.launch {
-                // Remove from FavoriteEntity
+                // Remove from persisted favorites storage
                 favoritesRepository
                     .removeFromFavorites(topicId)
                     .onFailure { _errorMessage.value = it.message }

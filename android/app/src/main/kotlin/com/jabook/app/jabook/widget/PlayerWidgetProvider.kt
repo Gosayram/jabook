@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,7 +54,10 @@ import java.util.concurrent.TimeUnit
  * Clicking the widget opens the player screen.
  */
 public class PlayerWidgetProvider : AppWidgetProvider() {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val scope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("PlayerWidgetProvider"),
+        )
 
     // Debounce updates to prevent excessive widget refreshes
     private val updateJobRegistry = WidgetUpdateJobRegistry()

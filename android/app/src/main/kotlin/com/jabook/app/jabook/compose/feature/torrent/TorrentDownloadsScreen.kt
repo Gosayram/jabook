@@ -185,7 +185,12 @@ public fun TorrentDownloadsScreen(
             title = { Text(stringResource(R.string.delete_download)) },
             text = {
                 Column {
-                    Text("Are you sure you want to delete \"${downloadToDelete?.name}\"?")
+                    Text(
+                        stringResource(
+                            R.string.deleteDownloadConfirmMessage,
+                            downloadToDelete?.name.orEmpty(),
+                        ),
+                    )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 16.dp),
@@ -194,7 +199,7 @@ public fun TorrentDownloadsScreen(
                             checked = deleteFiles,
                             onCheckedChange = { deleteFiles = it },
                         )
-                        Text("Also delete downloaded files")
+                        Text(stringResource(R.string.deleteDownloadWithFiles))
                     }
                 }
             },
@@ -210,7 +215,7 @@ public fun TorrentDownloadsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { downloadToDelete = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             },
         )

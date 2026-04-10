@@ -33,12 +33,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.jabook.app.jabook.R
 
 public data class PlayerStats(
     val audioFormat: String = "Unknown",
@@ -78,7 +80,7 @@ public fun StatsOverlay(
                     modifier = Modifier.padding(end = 8.dp),
                 )
                 Text(
-                    text = "Stats for Nerds",
+                    text = stringResource(R.string.statsForNerds),
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
@@ -87,7 +89,7 @@ public fun StatsOverlay(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.close),
                         tint = Color.White.copy(alpha = 0.7f),
                     )
                 }
@@ -95,14 +97,14 @@ public fun StatsOverlay(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            StatItem(label = "Audio Format", value = stats.audioFormat)
-            StatItem(label = "Bitrate", value = stats.bitrate)
-            StatItem(label = "Decoder", value = stats.decoderName)
-            StatItem(label = "Buffer Health", value = stats.bufferHealth)
-            StatItem(label = "Audio Session ID", value = stats.audioSessionId)
+            StatItem(label = stringResource(R.string.audioFormat), value = stats.audioFormat)
+            StatItem(label = stringResource(R.string.bitrate), value = stats.bitrate)
+            StatItem(label = stringResource(R.string.decoder), value = stats.decoderName)
+            StatItem(label = stringResource(R.string.bufferHealth), value = stats.bufferHealth)
+            StatItem(label = stringResource(R.string.audioSessionId), value = stats.audioSessionId)
 
             if (stats.droppedFrames > 0) {
-                StatItem(label = "Dropped Frames", value = stats.droppedFrames.toString(), color = Color.Red)
+                StatItem(label = stringResource(R.string.droppedFrames), value = stats.droppedFrames.toString(), color = Color.Red)
             }
         }
     }

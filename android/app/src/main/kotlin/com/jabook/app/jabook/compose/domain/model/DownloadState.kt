@@ -14,16 +14,20 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents the state of a download operation.
  *
  * Used to track download progress and display appropriate UI
  * for different download states.
  */
+@Immutable
 public sealed interface DownloadState {
     /**
      * No active download.
      */
+    @Immutable
     public data object Idle : DownloadState
 
     /**
@@ -34,6 +38,7 @@ public sealed interface DownloadState {
      * @param totalBytes Total bytes to download (null if unknown)
      * @param speedBytesPerSecond Download speed in bytes per second
      */
+    @Immutable
     public data class Downloading(
         val progress: Float,
         val downloadedBytes: Long,
@@ -55,6 +60,7 @@ public sealed interface DownloadState {
      *
      * @param localPath Path to downloaded file
      */
+    @Immutable
     public data class Completed(
         val localPath: String,
     ) : DownloadState
@@ -64,6 +70,7 @@ public sealed interface DownloadState {
      *
      * @param progress Progress when paused (0.0 to 1.0)
      */
+    @Immutable
     public data class Paused(
         val progress: Float,
     ) : DownloadState
@@ -74,6 +81,7 @@ public sealed interface DownloadState {
      * @param error Error message
      * @param isRetryable Whether download can be retried
      */
+    @Immutable
     public data class Failed(
         val error: String,
         val isRetryable: Boolean = true,

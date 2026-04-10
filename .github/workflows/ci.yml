@@ -168,10 +168,7 @@ jobs:
       - name: Generate changelog
         if: steps.rename-apk.outputs.has_files == 'true'
         run: |
-          # Simple changelog from recent commits
-          echo "# Changelog for ${FULL_VERSION}" > CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          git log --pretty=format:"- %s (%h)" --since="1 week ago" >> CHANGELOG.md
+          make changelog
 
       - name: Create GitHub Prerelease
         if: steps.rename-apk.outputs.has_files == 'true'

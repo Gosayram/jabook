@@ -17,7 +17,6 @@ package com.jabook.app.jabook.compose.feature.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -37,6 +36,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
+import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -116,12 +116,8 @@ public class SettingsViewModel
                 val workRequest =
                     OneTimeWorkRequestBuilder<LibraryScanWorker>()
                         .addTag(LibraryScanWorker.WORK_TAG)
-                        .setConstraints(
-                            Constraints
-                                .Builder()
-                                .setRequiresStorageNotLow(true)
-                                .build(),
-                        ).build()
+                        .setConstraints(WorkConstraintsPolicy.libraryScan())
+                        .build()
                 workManager.enqueueUniqueWork(
                     LibraryScanWorker.WORK_NAME,
                     ExistingWorkPolicy.KEEP,

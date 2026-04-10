@@ -50,6 +50,10 @@
     <string name="performerLabel">Performer</string>
     <string name="seriesLabel">Series</string>
     <string name="commentsLabel">Comments (%d)</string>
+    <plurals name="comments_label_plural">
+        <item quantity="one">Comment (%1$d)</item>
+        <item quantity="other">Comments (%1$d)</item>
+    </plurals>
     <!-- Label for size field -->
     <string name="sizeLabel">Size</string>
     <string name="durationLabel">Duration</string>
@@ -91,6 +95,8 @@
     <string name="bufferHealth">Buffer Health</string>
     <string name="audioSessionId">Audio Session ID</string>
     <string name="decoder">Decoder</string>
+    <string name="droppedFrames">Dropped Frames</string>
+    <string name="enableVisualizer">Enable visualizer</string>
 
     <string name="sleepTimerExtended">Sleep timer extended by 5 minutes</string>
     <string name="shakeToExtendEnabled">Shake to extend enabled</string>
@@ -286,6 +292,9 @@
     <string name="themeAmoled">AMOLED / Pure Black</string>
     <string name="vinylMode">Vinyl Mode</string>
     <string name="lyrics">Lyrics</string>
+    <string name="toggleLyricsView">Toggle lyrics view</string>
+    <string name="lyricsVisibleState">Lyrics visible</string>
+    <string name="lyricsHiddenState">Lyrics hidden</string>
     <!-- Label for high contrast -->
     <string name="highContrast">High contrast</string>
     <!-- Title for audio settings -->
@@ -602,6 +611,10 @@
     <string name="active_downloads">Active Downloads</string>
     <string name="downloading_count_speed">%1$d downloading • %2$s</string>
     <string name="downloads_paused_or_queued">%1$d downloads active</string>
+    <plurals name="downloads_active_plural">
+        <item quantity="one">%1$d download active</item>
+        <item quantity="other">%1$d downloads active</item>
+    </plurals>
     <!-- Label for magnet link -->
     <string name="magnetLinkLabelText">Magnet link</string>
     <!-- Message for magnet link copied -->
@@ -997,6 +1010,18 @@
     <string name="downloadViaMagnet">Download via Magnet</string>
     <!-- Message for download start -->
     <string name="downloadStarted">Download started</string>
+    <!-- Message when shared external audio playback starts -->
+    <string name="playingSharedAudio">Playing shared audio</string>
+    <!-- Message when shared external audio cannot be played -->
+    <string name="cannotPlaySharedAudio">Cannot play this audio</string>
+    <string name="crashNoStackTrace">No stack trace available.</string>
+    <string name="crashLogLabel">Jabook Crash Log</string>
+    <string name="crashLogBodyFormat">Jabook Crash Log:\n\n%1$s</string>
+    <string name="shareCrashLog">Share Crash Log</string>
+    <string name="crashTitle">Jabook Crashed</string>
+    <string name="crashSubtitle">We apologize for the inconvenience.</string>
+    <string name="copyLog">Copy Log</string>
+    <string name="restartApp">Restart App</string>
     <string name="refreshChaptersFromTorrent">Refresh chapters from torrent</string>
     <string name="chaptersRefreshed">Chapters refreshed from torrent</string>
     <string name="failedToRefreshChapters">Failed to refresh chapters</string>
@@ -1116,6 +1141,26 @@
     <string name="migrationCompletedSuccessMessage">Migration completed successfully</string>
     <!-- Error message when migration fails -->
     <string name="migrationFailedMessage">Migration failed</string>
+    <!-- Title shown while checking whether data migration is needed -->
+    <string name="migrationCheckingForData">Checking for data migration...</string>
+    <!-- Title shown while data migration is in progress -->
+    <string name="migrationInProgress">Migrating your data...</string>
+    <!-- Subtitle shown during migration -->
+    <string name="migrationMayTakeMoments">This may take a few moments</string>
+    <!-- Title shown when migration has completed -->
+    <string name="migrationCompleteTitle">Migration complete!</string>
+    <!-- Combined migration details line -->
+    <string name="migrationCompletedDetails">Migrated %1$s and %2$s</string>
+    <!-- Plural for migrated books count -->
+    <plurals name="migratedBooksCount">
+        <item quantity="one">%d book</item>
+        <item quantity="other">%d books</item>
+    </plurals>
+    <!-- Plural for migrated chapters count -->
+    <plurals name="migratedChaptersCount">
+        <item quantity="one">%d chapter</item>
+        <item quantity="other">%d chapters</item>
+    </plurals>
     <!-- Title for delete confirmation dialog -->
     <string name="deleteConfirmationTitle">Delete Audiobook?</string>
     <!-- Message for delete confirmation dialog -->
@@ -1954,6 +1999,7 @@
     <!-- Step 3 for One UI settings -->
     <!-- Track position indicator -->
     <string name="trackOfTotal">Track {currentTrack} of {totalTracks}</string>
+    <string name="playbackPositionLabel">Playback position</string>
     <!-- Tracks section title with plural -->
     <string name="tracksTitle">{count, plural, =0{No tracks} =1{Track} other{Tracks}}</string>
     <!-- No repeat mode -->
@@ -2186,6 +2232,8 @@
     <!-- Chapter $number -->
     <!-- Choose app theme -->
     <string name="chooseAppTheme">Choose app theme</string>
+    <string name="dynamicColorsTitle">Dynamic colors (Material You)</string>
+    <string name="dynamicColorsDescription">Adapt app colors to your wallpaper on Android 12+</string>
     <!-- Font settings title -->
     <string name="fontTitle">Font</string>
     <!-- Choose font family -->
@@ -2323,6 +2371,7 @@
     <string name="loadingEllipsis">Loading...</string>
     <string name="mirrorAddedFormat">Mirror $domain added</string>
     <string name="play">Play</string>
+    <string name="torrentDetailsTitle">Torrent Details</string>
     <string name="backButton">Back</string>
     <string name="settings">Settings</string>
     <string name="invalidUrlFormatError">Invalid URL. Use format: rutracker.example</string>
@@ -2343,6 +2392,10 @@
     <string name="systemThemeName">System</string>
     <string name="nextChapterTitle">Next chapter</string>
     <string name="timerActive">Timer Active</string>
+    <string name="sleep_timer_active">%1$s</string>
+    <string name="sleep_timer_end_of_chapter">%1$s</string>
+    <string name="sleep_timer_end_of_track">%1$s</string>
+    <string name="sleep_timer_idle">Not active</string>
     <string name="sleepTimerTitle">Sleep Timer</string>
     <string name="currentMirror">Current Mirror</string>
     <string name="theme">Theme</string>
@@ -2394,6 +2447,10 @@
     <string name="seekForwardDescription">Seek forward %d seconds</string>
     <!-- Description for seek backward button -->
     <string name="seekBackwardDescription">Seek backward %d seconds</string>
+    <string name="cacheSizeLabel">Cache: %1$s</string>
+    <string name="dataSizeLabel">Data: %1$s</string>
+    <string name="totalSizeLabel">Total: %1$s</string>
+    <string name="cacheClearErrorMessage">Error clearing cache: %1$s</string>
     <!-- Override book settings title -->
     <string name="overrideBookSettings">Override book settings</string>
     <!-- Use global settings option -->
@@ -2434,6 +2491,9 @@
     <string name="sort_by_date_added">Date Added</string>
     <!-- Book Properties Dialog -->
     <string name="bookProperties">Book Properties</string>
+    <string name="changeCover">Change cover</string>
+    <string name="coverUpdated">Cover updated</string>
+    <string name="coverUpdateFailed">Failed to update cover</string>
     <string name="title">Title</string>
     <string name="author">Author</string>
     <string name="dateAdded">Date Added</string>
@@ -2458,6 +2518,10 @@
     <string name="scan_status_parsing">Parsing: %1$s (%2$d/%3$d)</string>
     <string name="scan_status_saving">Saving to database...</string>
     <string name="scan_status_complete">Scan complete. Added %1$d books.</string>
+    <plurals name="scan_status_complete_plural">
+        <item quantity="one">Scan complete. Added %1$d book.</item>
+        <item quantity="other">Scan complete. Added %1$d books.</item>
+    </plurals>
     <string name="scan_status_error">Error: %1$s</string>
     <!-- Content description for move chapter up button -->
     <string name="moveUp">Move Up</string>
@@ -2472,6 +2536,10 @@
     <string name="scan_status_preparing">Preparing %1$d books for database...</string>
     <string name="scan_status_processing_covers">Processing cover art...</string>
     <string name="scan_status_completed_saving">Completed saving %1$d books</string>
+    <plurals name="scan_status_completed_saving_plural">
+        <item quantity="one">Completed saving %1$d book</item>
+        <item quantity="other">Completed saving %1$d books</item>
+    </plurals>
     <string name="libraryUnknownError">Unknown error</string>
     <!-- Book detail pane strings -->
     <string name="selectBookToViewDetails">Select a book to view details</string>
@@ -2485,10 +2553,19 @@
     <string name="jumpToChapterNumber">Jump to chapter #...</string>
     <!-- Search filters pane strings -->
     <string name="sizeRange">Size Range</string>
+    <string name="sizeRangeWithBounds">Size Range: %1$s - %2$s</string>
     <!-- Duration format helpers - not directly displayed but used in code -->
     <string name="durationHoursMinutes">%1$dh %2$dm</string>
     <string name="durationMinutes">%1$dm</string>
     <string name="durationSeconds">%1$ds</string>
+    <plurals name="durationMinutesFull">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <plurals name="durationSecondsFull">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
 
     <!-- RuTracker search screen -->
     <string name="search_rutracker">Search RuTracker</string>
@@ -2592,4 +2669,72 @@
     <string name="continueWithLimitedMode">Continue with limited mode</string>
     <string name="grantFullAccessInstead">Grant full access instead</string>
     <string name="limitedModeActiveDescription">You are using limited mode. USB/OTG storage, external folder browsing, and custom download locations are not available.</string>
+    <string name="indexNotCreatedTitle">Index is not created</string>
+    <string name="indexNotCreatedDescriptionShort">Create a forum index for faster search</string>
+    <string name="indexNotCreatedDescriptionLong">To search audiobooks, you need to create a forum index. Indexing runs in background, and you can keep using the app.</string>
+    <string name="startIndexing">Start indexing</string>
+    <string name="indexStatusWithTopics">Index: %1$s</string>
+    <string name="searchWorksOffline">Search works offline</string>
+    <string name="updateAction">Update</string>
+    <string name="indexingInProgressTitle">Indexing in progress...</string>
+    <string name="indexingInProgressDescription">Please wait until indexing is complete. Progress is available in notifications.</string>
+    <string name="indexRequiredForOnlineSearchDescription">Online search requires index creation. Local search is always available.</string>
+    <string name="indexingDialogTitle">Indexing</string>
+    <string name="indexingCompletedTitle">Indexing completed</string>
+    <string name="indexingErrorTitle">Indexing error</string>
+    <string name="indexingPreparing">Preparing indexing...</string>
+    <string name="indexingStatusForum">Indexing forum: %1$s</string>
+    <string name="indexingStatusForumProgress">Forum %1$d of %2$d</string>
+    <string name="indexingStatusPage">Page %1$d</string>
+    <string name="indexingCompletedHeadline">Indexing completed!</string>
+    <string name="indexingDurationSeconds">Time: %1$d sec</string>
+    <string name="indexingForumLabel">Forum: %1$s</string>
+    <string name="hideAction">Hide</string>
+    <string name="cannotShareLogsActivityRequired">Cannot share logs: activity context required</string>
+    <string name="torrentBufferingTitle">Buffering...</string>
+    <string name="torrentBufferingDescription">Please wait while we buffer enough data for smooth playback.</string>
+    <string name="torrentStateLabel">State: %1$s</string>
+    <string name="torrentProgressLabel">Progress: %1$d%%</string>
+    <string name="torrentSizeLabel">Size: %1$s</string>
+    <string name="torrentEtaLabel">ETA: %1$s</string>
+    <string name="manageFiles">Manage files</string>
+    <string name="deleteDownloadConfirmMessage">Are you sure you want to delete "%1$s"?</string>
+    <string name="deleteDownloadWithFiles">Also delete downloaded files</string>
+    <string name="indexingForumsSectionTitle">Forum indexing</string>
+    <string name="indexTapToCreate">Tap to create index</string>
+    <string name="indexTapToUpdate">Tap to update index</string>
+    <string name="indexClearingTitle">Clearing index...</string>
+    <string name="pleaseWait">Please wait...</string>
+    <string name="indexingStatusTitle">Indexing status</string>
+    <string name="indexingCompactStatus">Indexing: %1$s (%2$d/%3$d)%4$s</string>
+    <string name="indexCompletedCompactStatus">Completed: %1$s%2$s</string>
+    <string name="indexDurationSeconds"> in %1$d sec</string>
+    <string name="indexReadyToStart">Ready to index</string>
+    <string name="indexProgressWithTopics">Progress: %1$d%% • Topics: %2$s</string>
+    <string name="resetIndexTitle">Reset index</string>
+    <string name="resetIndexSubtitle">Delete all indexed topics (%1$s)</string>
+    <string name="resetIndexDialogTitle">Reset index?</string>
+    <string name="resetIndexDialogMessage">This action will delete all indexed topics (%1$s). You will need to create a new index for search.</string>
+    <string name="indexCheckTitle">Index check</string>
+    <string name="indexCheckSubtitle">Topics: %1$s | Oldest: %2$s | Newest: %3$s</string>
+    <string name="autoLabel">Auto</string>
+    <string name="off">Off</string>
+    <string name="volumeBoostPercent">+%1$d%%</string>
+    <string name="smartEffectsTitle">Smart Effects</string>
+    <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
+    <string name="audioVisualizerPermissionHint">Audio visualizer needs microphone permission</string>
+    <string name="loadingPlayer">Loading player...</string>
+
+    <plurals name="indexTopicsCount">
+        <item quantity="one">%d topic</item>
+        <item quantity="other">%d topics</item>
+    </plurals>
+    <plurals name="indexTopicsIndexed">
+        <item quantity="one">Indexed: %d topic</item>
+        <item quantity="other">Indexed: %d topics</item>
+    </plurals>
+    <plurals name="selectedItemsCount">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
 </resources>

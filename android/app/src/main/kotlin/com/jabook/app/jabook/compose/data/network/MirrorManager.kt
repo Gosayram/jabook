@@ -18,6 +18,7 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import com.jabook.app.jabook.crash.CrashDiagnostics
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,7 +65,10 @@ public class MirrorManager
             private const val DEFAULT_MIRROR = "rutracker.me"
         }
 
-        private val scope = CoroutineScope(SupervisorJob() + NetworkRuntimePolicy.ioDispatcher)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + NetworkRuntimePolicy.ioDispatcher + loggingCoroutineExceptionHandler("MirrorManager"),
+            )
 
         private val _currentMirror = MutableStateFlow(DEFAULT_MIRROR)
 

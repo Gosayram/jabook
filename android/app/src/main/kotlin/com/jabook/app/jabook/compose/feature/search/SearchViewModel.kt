@@ -14,19 +14,23 @@
 
 package com.jabook.app.jabook.compose.feature.search
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.FavoriteItem
 import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
+import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
 import com.jabook.app.jabook.compose.domain.usecase.library.SearchBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.search.SearchRutrackerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -48,11 +52,13 @@ public sealed interface SearchUiState {
 
     public data object Loading : SearchUiState
 
+    @Immutable
     public data class Success(
-        public val localResults: List<Book>,
-        public val onlineResults: List<RutrackerSearchResult>,
+        public val localResults: ImmutableList<Book>,
+        public val onlineResults: ImmutableList<RutrackerSearchResult>,
     ) : SearchUiState
 
+    @Immutable
     public data class Error(
         public val message: String,
     ) : SearchUiState
@@ -117,7 +123,7 @@ public class SearchViewModel
         /**
          * Recent search history.
          */
-        public val searchHistory: StateFlow<List<com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity>> =
+        public val searchHistory: StateFlow<List<SearchHistoryItem>> =
             searchHistoryRepository
                 .getRecentSearches(limit = 10)
                 .stateIn(
@@ -241,8 +247,9 @@ public class SearchViewModel
 
             _uiState.value =
                 SearchUiState.Success(
-                    localResults = localResults.value, // Note: Local results filtering is separate/implicit via query for now
-                    onlineResults = filtered,
+                    // Local results filtering is separate/implicit via query for now.
+                    localResults = localResults.value.toImmutableList(),
+                    onlineResults = filtered.toImmutableList(),
                 )
         }
 
@@ -333,7 +340,7 @@ public class SearchViewModel
                     favoritesRepository.removeFromFavorites(result.topicId)
                 } else {
                     val favorite =
-                        FavoriteEntity(
+                        FavoriteItem(
                             topicId = result.topicId,
                             title = result.title,
                             author = result.author,
@@ -342,9 +349,9 @@ public class SearchViewModel
                             seeders = result.seeders,
                             leechers = result.leechers,
                             magnetUrl = result.magnetUrl ?: "",
-                            coverUrl = "", // Not available in search result
-                            performer = "",
-                            genres = "",
+                            coverUrl = null,
+                            performer = null,
+                            genres = null,
                             addedDate =
                                 java.time.Instant
                                     .now()
@@ -353,9 +360,6 @@ public class SearchViewModel
                                 java.time.Instant
                                     .now()
                                     .toString(),
-                            duration = null,
-                            bitrate = null,
-                            audioCodec = null,
                         )
                     favoritesRepository.addToFavorites(favorite)
                 }

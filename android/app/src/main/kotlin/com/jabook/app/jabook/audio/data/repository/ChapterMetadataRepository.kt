@@ -18,6 +18,7 @@ import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.core.result.asResult
 import com.jabook.app.jabook.audio.data.local.dao.ChapterMetadataDao
 import com.jabook.app.jabook.audio.data.local.database.entity.ChapterMetadataEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -75,17 +76,30 @@ public class ChapterMetadataRepository
                 chapterDao.upsertChapter(entity)
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
         /**
          * Saves multiple chapters.
          */
-        public suspend fun saveChapters(chapters: List<ChapterMetadataEntity>): Result<Unit> =
+        public suspend fun saveChapters(
+            bookId: String,
+            chapters: List<ChapterMetadataEntity>,
+        ): Result<Unit> =
             try {
-                chapterDao.upsertChapters(chapters)
+                require(chapters.all { it.bookId == bookId }) {
+                    val wrongBookIds = chapters.map { it.bookId }.distinct().filter { it != bookId }
+                    "saveChapters expects chapters for bookId=$bookId, got mismatched bookIds=$wrongBookIds"
+                }
+
+                chapterDao.replaceChaptersForBook(
+                    bookId = bookId,
+                    chapters = chapters,
+                )
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -97,6 +111,7 @@ public class ChapterMetadataRepository
                 chapterDao.deleteChapters(bookId)
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -108,6 +123,7 @@ public class ChapterMetadataRepository
                 chapterDao.deleteChapter(id)
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
     }

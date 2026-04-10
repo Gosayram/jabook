@@ -1,11 +1,7 @@
 config:
   validation: true
   warningsAsErrors: false
-  excludes: ''
-
-build:
-  maxIssues: 0
-  excludeCorrectable: false
+  excludes: []
 
 processors:
   active: true
@@ -20,10 +16,6 @@ console-reports:
     - 'NotificationReport'
     - 'FindingsReport'
     - 'FileBasedFindingsReport'
-
-output-reports:
-  active: true
-  exclude: []
 
 comments:
   active: false

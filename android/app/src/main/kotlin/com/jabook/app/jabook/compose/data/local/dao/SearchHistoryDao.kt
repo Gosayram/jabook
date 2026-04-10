@@ -47,6 +47,12 @@ public interface SearchHistoryDao {
     public suspend fun deleteSearch(id: Long)
 
     /**
+     * Delete all history records for a specific query.
+     */
+    @Query("DELETE FROM search_history WHERE query = :query")
+    public suspend fun deleteByQuery(query: String)
+
+    /**
      * Clear all search history.
      */
     @Query("DELETE FROM search_history")

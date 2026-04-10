@@ -45,23 +45,30 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `database initializes at version 17 with required tables`() {
+    fun `database initializes at version 18 with required tables`() {
         database = DatabaseModule.provideJabookDatabase(context)
         val sqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(17, pragmaUserVersion(sqlDb))
+        assertEquals(18, pragmaUserVersion(sqlDb))
         assertTrue(tableExists(sqlDb, "books"))
         assertTrue(tableExists(sqlDb, "chapters"))
         assertTrue(tableExists(sqlDb, "cached_topics"))
         assertTrue(tableExists(sqlDb, "books_fts"))
+        assertTrue(indexExists(sqlDb, "index_books_is_favorite"))
+        assertTrue(indexExists(sqlDb, "index_books_last_played_date"))
+        assertTrue(indexExists(sqlDb, "index_books_download_status"))
+        assertTrue(indexExists(sqlDb, "index_books_source_url"))
+        assertTrue(indexExists(sqlDb, "index_books_added_date"))
+        assertTrue(indexExists(sqlDb, "index_chapters_book_id_chapter_index"))
     }
 
     @Test
-    fun `migration contract includes 14 to 15 and 15 to 16 and 16 to 17 and migration updates blank category`() {
+    fun `migration contract includes 14 to 15 and 15 to 16 and 16 to 17 and 17 to 18 and migration updates blank category`() {
         val migrationPairs = DatabaseModule.configuredMigrations.map { it.startVersion to it.endVersion }
         assertTrue(migrationPairs.contains(14 to 15))
         assertTrue(migrationPairs.contains(15 to 16))
         assertTrue(migrationPairs.contains(16 to 17))
+        assertTrue(migrationPairs.contains(17 to 18))
 
         database = DatabaseModule.provideJabookDatabase(context)
         val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
@@ -110,7 +117,7 @@ class DatabaseModuleMigrationSmokeTest {
         database = DatabaseModule.provideJabookDatabase(context)
         val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(17, pragmaUserVersion(migratedSqlDb))
+        assertEquals(18, pragmaUserVersion(migratedSqlDb))
         assertEquals(
             "Аудиокниги",
             querySingleString(
@@ -122,6 +129,8 @@ class DatabaseModuleMigrationSmokeTest {
                 """.trimIndent(),
             ),
         )
+        assertTrue(indexExists(migratedSqlDb, "index_books_is_favorite"))
+        assertTrue(indexExists(migratedSqlDb, "index_chapters_book_id_chapter_index"))
     }
 
     private fun tableExists(
@@ -129,6 +138,14 @@ class DatabaseModuleMigrationSmokeTest {
         tableName: String,
     ): Boolean =
         database.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$tableName'").use { cursor ->
+            cursor.count > 0
+        }
+
+    private fun indexExists(
+        database: androidx.sqlite.db.SupportSQLiteDatabase,
+        indexName: String,
+    ): Boolean =
+        database.query("SELECT name FROM sqlite_master WHERE type = 'index' AND name = '$indexName'").use { cursor ->
             cursor.count > 0
         }
 

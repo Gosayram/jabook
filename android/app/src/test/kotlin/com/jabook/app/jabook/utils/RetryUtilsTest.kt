@@ -19,6 +19,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -235,5 +236,64 @@ class RetryUtilsTest {
                 assertSame(expected, actual)
                 assertEquals(3, attempts)
             }
+        }
+
+    @Test
+    fun `retryWithBackoff rethrows cancellation from block without retry`() =
+        runTest {
+            var attempts = 0
+
+            try {
+                retryWithBackoff(
+                    RetryConfig(
+                        maxRetries = 3,
+                        initialDelayMs = 10,
+                        shouldRetry = { true },
+                    ),
+                ) {
+                    attempts++
+                    throw CancellationException("cancelled")
+                }
+                fail("Expected cancellation to be rethrown")
+            } catch (actual: CancellationException) {
+                assertEquals("cancelled", actual.message)
+                assertEquals(1, attempts)
+            }
+        }
+
+    @Test
+    fun `retryWithBackoffResult rethrows cancellation instead of wrapping into failure`() =
+        runTest {
+            try {
+                retryWithBackoffResult(
+                    RetryConfig(
+                        maxRetries = 2,
+                        shouldRetry = { true },
+                    ),
+                ) {
+                    throw CancellationException("cancelled-result")
+                }
+                fail("Expected cancellation to be rethrown")
+            } catch (actual: CancellationException) {
+                assertEquals("cancelled-result", actual.message)
+            }
+        }
+
+    @Test
+    fun `retryWithBackoffResult returns failure for non-cancellation exception`() =
+        runTest {
+            val result =
+                retryWithBackoffResult(
+                    RetryConfig(
+                        maxRetries = 0,
+                        shouldRetry = { false },
+                    ),
+                ) {
+                    throw IllegalStateException("fatal")
+                }
+
+            assertTrue(result.isFailure)
+            assertFalse(result.isSuccess)
+            assertTrue(result.exceptionOrNull() is IllegalStateException)
         }
 }

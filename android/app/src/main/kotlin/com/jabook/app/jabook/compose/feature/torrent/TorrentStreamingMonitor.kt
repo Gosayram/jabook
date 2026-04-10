@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +55,10 @@ public class TorrentStreamingMonitor
         private val _isBuffering = kotlinx.coroutines.flow.MutableStateFlow(false)
         public val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
 
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.Default + loggingCoroutineExceptionHandler("TorrentStreamingMonitor"),
+            )
         private var monitoringJob: Job? = null
 
         private var currentHash: String? = null
@@ -94,7 +98,11 @@ public class TorrentStreamingMonitor
             monitoringJob =
                 scope.launch {
                     while (isActive) {
-                        checkBufferState()
+                        try {
+                            checkBufferState()
+                        } catch (e: Exception) {
+                            logger.e({ "Buffer state check failed: ${e.message}" }, e)
+                        }
                         delay(POLLING_INTERVAL_MS)
                     }
                 }

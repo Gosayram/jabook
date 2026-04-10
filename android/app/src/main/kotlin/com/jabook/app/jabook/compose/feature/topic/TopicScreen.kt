@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -79,6 +80,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -374,7 +376,7 @@ private fun TopicDetailsContent(
                 ) {
                     AssistChip(
                         onClick = {},
-                        label = { Text("${details.seeders}") },
+                        label = { Text(details.seeders.toString()) },
                         leadingIcon = {
                             Icon(
                                 Icons.Filled.ArrowUpward,
@@ -386,7 +388,7 @@ private fun TopicDetailsContent(
 
                     AssistChip(
                         onClick = {},
-                        label = { Text("${details.leechers}") },
+                        label = { Text(details.leechers.toString()) },
                         leadingIcon = {
                             Icon(
                                 Icons.Filled.ArrowDownward,
@@ -531,10 +533,10 @@ private fun TopicDetailsContent(
                         modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
-                items(
+                itemsIndexed(
                     items = mediaInfo.video,
-                    key = { video -> "${video.codec}_${video.resolution}_${video.bitrate}" },
-                ) { video ->
+                    key = { index, video -> "${video.codec}_${video.resolution}_${video.bitrate}_$index" },
+                ) { _, video ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors =
@@ -578,10 +580,10 @@ private fun TopicDetailsContent(
                         modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
-                items(
+                itemsIndexed(
                     items = mediaInfo.audio,
-                    key = { audio -> "${audio.codec}_${audio.bitrate}_${audio.channels}_${audio.language}" },
-                ) { audio ->
+                    key = { index, audio -> "${audio.codec}_${audio.bitrate}_${audio.channels}_${audio.language}_$index" },
+                ) { _, audio ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors =
@@ -638,7 +640,7 @@ private fun SeedersLeechersChip(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         AssistChip(
             onClick = {},
-            label = { Text("$seeders") },
+            label = { Text(seeders.toString()) },
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowUpward,
@@ -650,7 +652,7 @@ private fun SeedersLeechersChip(
 
         AssistChip(
             onClick = {},
-            label = { Text("$leechers") },
+            label = { Text(leechers.toString()) },
             leadingIcon = {
                 Icon(
                     Icons.Filled.ArrowDownward,
@@ -917,7 +919,12 @@ private fun ExpandableComments(
         ) {
             Column {
                 Text(
-                    text = stringResource(R.string.commentsLabel, comments.size),
+                    text =
+                        pluralStringResource(
+                            R.plurals.comments_label_plural,
+                            comments.size,
+                            comments.size,
+                        ),
                     style = MaterialTheme.typography.titleSmall,
                 )
                 if (totalPages > 1 && expanded) {
@@ -956,12 +963,12 @@ private fun ExpandableComments(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 // Comments (newest to oldest)
-                items(
-                    count = comments.size,
-                    key = { index -> comments[index].author + comments[index].date },
-                ) { index ->
+                itemsIndexed(
+                    items = comments,
+                    key = { _, comment -> comment.id },
+                ) { _, comment ->
                     CommentItem(
-                        comment = comments[index],
+                        comment = comment,
                         onNavigateToTopic = onNavigateToTopic,
                     )
                 }

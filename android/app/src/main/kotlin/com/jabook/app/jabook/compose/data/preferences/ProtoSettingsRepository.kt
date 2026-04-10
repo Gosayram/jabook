@@ -37,6 +37,7 @@ private fun createUserPreferencesDataStore(context: Context): DataStore<UserPref
                 storeName = "user_preferences",
                 defaultValue = UserPreferencesSerializer.defaultValue,
             ),
+        migrations = listOf(UserPreferencesDataMigration()),
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
         produceFile = { context.dataStoreFile("user_preferences.pb") },
     )
@@ -151,6 +152,11 @@ public interface SettingsRepository {
      * Update library sort order.
      */
     public suspend fun updateLibrarySortOrder(sortOrder: String)
+
+    /**
+     * Update equalizer preset.
+     */
+    public suspend fun updateEqualizerPreset(preset: String)
 
     /**
      * Update onboarding completion status.
@@ -331,6 +337,12 @@ public class ProtoSettingsRepository
         override suspend fun updateLibrarySortOrder(sortOrder: String) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setLibrarySortOrder(sortOrder).build()
+            }
+        }
+
+        override suspend fun updateEqualizerPreset(preset: String) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setEqualizerPreset(preset).build()
             }
         }
 

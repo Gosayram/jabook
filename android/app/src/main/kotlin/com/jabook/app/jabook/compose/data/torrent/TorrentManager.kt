@@ -21,6 +21,7 @@ import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkType
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,7 +54,10 @@ public class TorrentManager
             get() = session.downloadsFlow
 
         private var isInitialized = false
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ComposeTorrentManager"),
+            )
 
         /**
          * Initialize torrent system

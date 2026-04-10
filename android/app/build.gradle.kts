@@ -92,7 +92,7 @@ plugins {
     // REMOVED: kotlin-kapt - migrated to KSP for Kotlin 2.0+ compatibility
     // id("kotlin-kapt")
     id("org.jlleitschuh.gradle.ktlint")
-    id("io.gitlab.arturbosch.detekt")
+    id("dev.detekt")
     // Kotlinx serialization for type-safe navigation
     id("org.jetbrains.kotlin.plugin.serialization")
     // Compose Compiler (required for Kotlin 2.0+)
@@ -167,7 +167,7 @@ val generateProtoLite by tasks.registering(GenerateProtoLiteTask::class) {
 
 android {
     namespace = "com.jabook.app.jabook"
-    compileSdk = 36 // Android 16 (required by androidx.activity:1.12.1)
+    compileSdk = 37 // Android 16+ (required by material3-adaptive 1.3.0-alpha10)
     // ndkVersion no longer needed without Flutter
 
     compileOptions {
@@ -201,14 +201,47 @@ android {
     signingConfigs {
         create("release") {
             val keystorePropertiesFile = rootProject.file("key.properties")
+            val keystoreProperties = Properties()
             if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = Properties()
                 keystoreProperties.load(keystorePropertiesFile.inputStream())
+            }
 
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
+            val envStoreFile = System.getenv("JABOOK_KEYSTORE_FILE")
+            val envStorePassword = System.getenv("JABOOK_KEYSTORE_PASSWORD")
+            val envKeyAlias = System.getenv("JABOOK_KEY_ALIAS")
+            val envKeyPassword = System.getenv("JABOOK_KEY_PASSWORD")
+
+            val resolvedStoreFile = keystoreProperties.getProperty("storeFile") ?: envStoreFile
+            val resolvedStorePassword = keystoreProperties.getProperty("storePassword") ?: envStorePassword
+            val resolvedKeyAlias = keystoreProperties.getProperty("keyAlias") ?: envKeyAlias
+            val resolvedKeyPassword = keystoreProperties.getProperty("keyPassword") ?: envKeyPassword
+            val signingProps =
+                mapOf(
+                    "storeFile" to resolvedStoreFile,
+                    "storePassword" to resolvedStorePassword,
+                    "keyAlias" to resolvedKeyAlias,
+                    "keyPassword" to resolvedKeyPassword,
+                )
+            val hasAnySigningConfig = signingProps.values.any { !it.isNullOrBlank() }
+            val missingSigningProps =
+                signingProps
+                    .filterValues { it.isNullOrBlank() }
+                    .keys
+
+            if (
+                !resolvedStoreFile.isNullOrBlank() &&
+                !resolvedStorePassword.isNullOrBlank() &&
+                !resolvedKeyAlias.isNullOrBlank() &&
+                !resolvedKeyPassword.isNullOrBlank()
+            ) {
+                storeFile = file(resolvedStoreFile)
+                storePassword = resolvedStorePassword
+                keyAlias = resolvedKeyAlias
+                keyPassword = resolvedKeyPassword
+            } else if (hasAnySigningConfig) {
+                logger.warn(
+                    "Release signing config is incomplete; missing: ${missingSigningProps.joinToString(", ")}",
+                )
             }
         }
     }
@@ -276,6 +309,13 @@ android {
         // Enable explicit intent handling for Android 14+
         manifestPlaceholders["enableExplicitIntentHandling"] = "true"
         buildConfigField("boolean", "HAS_GOOGLE_SERVICES", hasGoogleServicesJson.toString())
+    }
+
+    lint {
+        checkDependencies = true
+        abortOnError = true
+        warningsAsErrors = true
+        baseline = file("lint-baseline.xml")
     }
 
     flavorDimensions += "default"
@@ -377,6 +417,7 @@ dependencies {
     // Add coroutines support for proper async handling
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.guava)
+    implementation(libs.kotlinx.collections.immutable)
 
     // Kotlinx serialization (required by Room 2.8.4+)
     // Room uses setClassDiscriminatorMode which requires kotlinx.serialization 1.6.0+
@@ -465,6 +506,7 @@ dependencies {
     testImplementation(libs.bundles.test)
     testImplementation(libs.androidx.work.testing)
     testImplementation(libs.jimfs)
+    testImplementation(libs.kotest.property)
 
     // Firebase - Import the Firebase BoM to manage library versions
     implementation(platform(libs.firebase.bom))
@@ -502,8 +544,15 @@ ktlint {
 detekt {
     buildUponDefaultConfig = true
     allRules = false
-    config.setFrom(files("${rootProject.projectDir}/../default-detekt-config.yml"))
-    baseline = file("${rootProject.projectDir}/../detekt-baseline.xml")
+    config.setFrom(
+        rootProject.layout.projectDirectory
+            .file("../default-detekt-config.yml")
+            .asFile,
+    )
+    baseline =
+        rootProject.layout.projectDirectory
+            .file("../detekt-baseline.xml")
+            .asFile
 
     source.setFrom(
         files(

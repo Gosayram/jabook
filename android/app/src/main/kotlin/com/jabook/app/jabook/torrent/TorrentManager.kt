@@ -18,6 +18,7 @@ import android.content.Context
 import android.util.Log
 import com.jabook.app.jabook.torrent.data.DownloadProgress
 import com.jabook.app.jabook.torrent.data.TorrentState
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +63,10 @@ public class TorrentManager
             private const val UPDATE_INTERVAL_MS = 1000L
         }
 
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("TorrentManager"),
+            )
         private var session: SessionManager? = null
         private val activeTorrents = mutableMapOf<String, TorrentHandle>()
         private val _downloads = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())

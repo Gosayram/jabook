@@ -30,6 +30,7 @@ import com.jabook.app.jabook.audio.ForegroundStartOutcome
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.torrent.TorrentManager
 import com.jabook.app.jabook.torrent.data.TorrentState
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -110,7 +111,10 @@ public class DownloadForegroundService : Service() {
     private var isServiceRunning = false
 
     // Coroutine scope for background work
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val serviceScope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("DownloadService"),
+        )
 
     // Active downloads: infoHash -> magnetUri
     private val activeDownloads = mutableMapOf<String, String>()

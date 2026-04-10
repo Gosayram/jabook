@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.tv
 
 import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import androidx.leanback.app.PlaybackSupportFragment
 import androidx.leanback.widget.Action
@@ -44,6 +45,7 @@ import javax.inject.Inject
 public class TvPlayerActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         val bookId = intent.getStringExtra("book_id")
         if (bookId.isNullOrBlank()) {

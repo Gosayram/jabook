@@ -48,10 +48,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.data.torrent.TorrentFile
@@ -92,13 +94,13 @@ public fun TorrentDetailsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = download?.name ?: "Torrent Details",
+                        text = download?.name ?: stringResource(R.string.torrentDetailsTitle),
                         maxLines = 1,
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = safeNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
             )
@@ -129,7 +131,7 @@ public fun TorrentDetailsScreen(
             if (isBuffering) {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = { /* Disable dismiss */ },
-                    title = { Text("Buffering...") },
+                    title = { Text(stringResource(R.string.torrentBufferingTitle)) },
                     text = {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -137,7 +139,7 @@ public fun TorrentDetailsScreen(
                         ) {
                             CircularProgressIndicator()
                             Text(
-                                "Please wait while we buffer enough data for smooth playback.",
+                                stringResource(R.string.torrentBufferingDescription),
                                 modifier = Modifier.padding(top = 8.dp),
                             )
                         }
@@ -158,15 +160,24 @@ public fun TorrentDetailsScreen(
                     // Header Info
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(contentPadding)) {
-                            Text("State: ${state.state}", style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                "Progress: ${(state.progress * 100).toInt()}%",
+                                stringResource(R.string.torrentStateLabel, state.state),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
-                            Text("Size: ${formatSize(state.totalSize)}", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                stringResource(R.string.torrentProgressLabel, (state.progress * 100).toInt()),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                stringResource(R.string.torrentSizeLabel, formatSize(state.totalSize)),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
 
                             if (state.eta > 0) {
-                                Text("ETA: ${formatEta(state.eta)}", style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    stringResource(R.string.torrentEtaLabel, formatEta(state.eta)),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
                             }
                         }
                     }
@@ -179,12 +190,12 @@ public fun TorrentDetailsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            "Files",
+                            stringResource(R.string.files),
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(vertical = 8.dp),
                         )
                         androidx.compose.material3.TextButton(onClick = { showFileSelection = true }) {
-                            Text("Manage Files")
+                            Text(stringResource(R.string.manageFiles))
                         }
                     }
                 }
@@ -229,7 +240,7 @@ private fun FileItem(
         trailingContent = {
             if (isAudio) {
                 IconButton(onClick = onPlay) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = "Play")
+                    Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.play))
                 }
             }
         },

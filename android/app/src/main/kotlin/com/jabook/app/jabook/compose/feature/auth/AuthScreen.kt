@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
+import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -60,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
@@ -79,6 +81,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
+import com.jabook.app.jabook.utils.componentActivity
 
 @Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
@@ -93,6 +96,7 @@ public fun AuthScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val navigationClickGuard = remember { NavigationClickGuard() }
+    val currentView = LocalView.current
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -107,6 +111,15 @@ public fun AuthScreen(
     LaunchedEffect(uiState.showWebViewLogin) {
         if (uiState.showWebViewLogin) {
             navigationClickGuard.run { onNavigateToWebView(viewModel.getLoginUrl()) }
+        }
+    }
+
+    // Protect credentials screen from screenshots/recording while it is visible.
+    DisposableEffect(currentView) {
+        val window = currentView.context.componentActivity.window
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
 

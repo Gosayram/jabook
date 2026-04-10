@@ -67,6 +67,12 @@ message UserPreferences {
 
   // Enable "shake to extend sleep timer" behavior for fixed-duration sleep timer mode.
   bool sleep_timer_shake_extend_enabled = 35;
+
+  // Equalizer preset: "FLAT", "VOICE_CLARITY", "NIGHT"
+  string equalizer_preset = 36;
+
+  // Internal schema version for explicit Proto DataStore migrations.
+  int32 schema_version = 37;
 }
 
 // Theme mode enum

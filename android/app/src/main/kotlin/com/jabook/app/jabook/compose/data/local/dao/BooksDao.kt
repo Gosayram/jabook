@@ -124,7 +124,7 @@ public interface BooksDao {
     public suspend fun updateFavoriteStatus(
         bookId: String,
         isFavorite: Boolean,
-    )
+    ): Int
 
     /**
      * Updates the author of a book.

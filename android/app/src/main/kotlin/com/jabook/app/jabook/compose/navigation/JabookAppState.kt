@@ -28,7 +28,7 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 /**
  * Logger for Navigation.
  */
-private val navigationLogger = LoggerFactoryImpl().get("Navigation")
+private val navigationLogger by lazy { LoggerFactoryImpl().get("Navigation") }
 
 /**
  * Remembers and creates a [JabookAppState] instance.

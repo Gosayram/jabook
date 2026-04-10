@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.crash
 
 import android.app.Application
+import android.content.Context
 import android.content.Intent
 import android.os.Process
 import java.io.PrintWriter
@@ -28,6 +29,18 @@ public class GlobalExceptionHandler(
     private val application: Application,
     private val defaultHandler: Thread.UncaughtExceptionHandler?,
 ) : Thread.UncaughtExceptionHandler {
+    private val prefs by lazy {
+        application.getSharedPreferences("jabook_crash_handler", Context.MODE_PRIVATE)
+    }
+
+    public companion object {
+        /** Time window (ms) to detect consecutive crashes as a loop. */
+        private const val CRASH_LOOP_THRESHOLD_MS: Long = 30_000L
+
+        /** Max crashes allowed within the threshold window before breaking the loop. */
+        private const val MAX_CONSECUTIVE_CRASHES: Int = 3
+    }
+
     override fun uncaughtException(
         thread: Thread,
         throwable: Throwable,
@@ -40,6 +53,39 @@ public class GlobalExceptionHandler(
                 throwable = throwable,
                 attributes = mapOf("source" to "global_exception_handler"),
             )
+
+            // Crash loop protection: only show CrashActivity once per 30 seconds
+            val now = System.currentTimeMillis()
+            val lastCrashTime = prefs.getLong("last_crash_time", 0L)
+            val crashCount = prefs.getInt("crash_count", 0)
+
+            if (now - lastCrashTime < CRASH_LOOP_THRESHOLD_MS && crashCount >= MAX_CONSECUTIVE_CRASHES) {
+                android.util.Log.e(
+                    "GlobalExceptionHandler",
+                    "Crash loop detected ($crashCount crashes in ${CRASH_LOOP_THRESHOLD_MS}ms), " +
+                        "clearing state to break the loop",
+                )
+                // Clear crash counter and let default handler finish the process
+                prefs
+                    .edit()
+                    .remove("last_crash_time")
+                    .remove("crash_count")
+                    .apply()
+                defaultHandler?.uncaughtException(thread, throwable)
+                    ?: run {
+                        Process.killProcess(Process.myPid())
+                        exitProcess(10)
+                    }
+                return
+            }
+
+            // Update crash tracking
+            val newCount = if (now - lastCrashTime < CRASH_LOOP_THRESHOLD_MS) crashCount + 1 else 1
+            prefs
+                .edit()
+                .putLong("last_crash_time", now)
+                .putInt("crash_count", newCount)
+                .apply()
 
             // Launch CrashActivity
             val intent =

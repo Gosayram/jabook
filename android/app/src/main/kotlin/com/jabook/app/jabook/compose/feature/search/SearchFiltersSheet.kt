@@ -117,7 +117,12 @@ public fun SearchFiltersSheet(
 
             // Size Range
             Text(
-                text = "Size Range: ${formatSize(sizeRange.start)} - ${formatSize(sizeRange.endInclusive)}",
+                text =
+                    stringResource(
+                        R.string.sizeRangeWithBounds,
+                        formatSize(sizeRange.start),
+                        formatSize(sizeRange.endInclusive),
+                    ),
                 style = MaterialTheme.typography.titleMedium,
             )
             RangeSlider(

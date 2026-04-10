@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -45,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,7 +62,7 @@ import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 /**
  * Logger for UnifiedBookCard Composable functions.
  */
-private val unifiedBookCardLogger = LoggerFactoryImpl().get("UnifiedBookCard")
+private val unifiedBookCardLogger by lazy { LoggerFactoryImpl().get("UnifiedBookCard") }
 
 /**
  * Unified book card component that adapts its layout based on display mode.
@@ -174,7 +176,7 @@ private fun GridBookCard(
                 .combinedClickable(
                     onClick = { actionsProvider.onBookClick(book.id) },
                     onLongClick = { actionsProvider.onBookLongPress(book.id) },
-                ),
+                ).semantics(mergeDescendants = true) {},
     ) {
         Column {
             // Cover image with favorite button overlay
@@ -187,6 +189,7 @@ private fun GridBookCard(
                         modifier =
                             Modifier
                                 .align(Alignment.TopStart)
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                 .padding(4.dp),
                     )
                 }
@@ -219,7 +222,10 @@ private fun GridBookCard(
                 if (actionsProvider.showFavoriteButton) {
                     IconButton(
                         onClick = { actionsProvider.onToggleFavorite(book.id, !isFavorite) },
-                        modifier = Modifier.align(Alignment.TopEnd),
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                     ) {
                         Icon(
                             imageVector =
@@ -364,7 +370,8 @@ private fun ListBookCard(
                     .combinedClickable(
                         onClick = { actionsProvider.onBookClick(book.id) },
                         onLongClick = { actionsProvider.onBookLongPress(book.id) },
-                    ).padding(8.dp),
+                    ).semantics(mergeDescendants = true) {}
+                    .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Selection checkbox at the start
@@ -372,6 +379,7 @@ private fun ListBookCard(
                 Checkbox(
                     checked = isSelected,
                     onCheckedChange = { onToggleSelection() },
+                    modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
@@ -463,6 +471,7 @@ private fun ListBookCard(
             if (actionsProvider.showFavoriteButton) {
                 IconButton(
                     onClick = { actionsProvider.onToggleFavorite(book.id, !isFavorite) },
+                    modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                 ) {
                     Icon(
                         imageVector =

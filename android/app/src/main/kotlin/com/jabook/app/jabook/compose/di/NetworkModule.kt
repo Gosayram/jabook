@@ -20,6 +20,7 @@ import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkTelemetryEventListenerFactory
+import com.jabook.app.jabook.compose.data.network.RutrackerCertificatePinningPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
@@ -48,6 +49,10 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 public object NetworkModule {
+    private val rutrackerCertificatePinner by lazy {
+        RutrackerCertificatePinningPolicy.buildCertificatePinner()
+    }
+
     /**
      * Provide JSON serializer for Retrofit.
      */
@@ -101,6 +106,7 @@ public object NetworkModule {
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
+                .certificatePinner(rutrackerCertificatePinner)
                 .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .readTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -137,6 +143,7 @@ public object NetworkModule {
         OkHttpClient
             .Builder()
             .cookieJar(cookieJar)
+            .certificatePinner(rutrackerCertificatePinner)
             .eventListenerFactory(networkTelemetryEventListenerFactory)
             // Interceptor order matters! They are called in order:
             // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)

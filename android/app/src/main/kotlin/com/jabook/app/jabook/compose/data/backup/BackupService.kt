@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.data.backup
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import androidx.room.withTransaction
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
@@ -52,12 +53,14 @@ public class BackupService
         private val protoSettingsRepository: ProtoSettingsRepository,
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
         private val mirrorManager: com.jabook.app.jabook.compose.data.network.MirrorManager,
+        private val backupRuntimeSecurity: BackupRuntimeSecurity,
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("BackupService")
 
         public companion object {
             private const val CURRENT_VERSION = "1.0.0"
+            private val DEFAULT_CONFLICT_POLICY: ConflictResolutionPolicy = ConflictResolutionPolicy.KEEP_NEWER
         }
 
         private val json =
@@ -79,7 +82,19 @@ public class BackupService
                     val backupData = collectData()
 
                     // 2. Serialize to JSON
-                    val jsonString = json.encodeToString(backupData)
+                    val payloadJson = json.encodeToString(backupData)
+                    val integrityMetadata = backupRuntimeSecurity.createIntegrityMetadata(payloadJson)
+                    val jsonString =
+                        if (integrityMetadata == null) {
+                            payloadJson
+                        } else {
+                            json.encodeToString(
+                                BackupIntegrityEnvelope(
+                                    payload = backupData,
+                                    integrity = integrityMetadata,
+                                ),
+                            )
+                        }
                     logger.d { "Serialized backup: ${jsonString.length} bytes" }
 
                     // 3. Write to file
@@ -120,7 +135,7 @@ public class BackupService
                     logger.d { "Read backup file: ${jsonString.length} bytes" }
 
                     // 2. Parse JSON
-                    val backupData = json.decodeFromString<BackupData>(jsonString)
+                    val backupData = decodeBackupData(jsonString)
                     logger.d { "Parsed backup version ${backupData.version}" }
 
                     // 3. Validate schema version (support both 1.x and 2.x)
@@ -141,19 +156,19 @@ public class BackupService
                     logger.d { "Settings restored" }
 
                     // Import book metadata
-                    restoreBooks(backupData.bookMetadata)
+                    restoreBooks(backupData.bookMetadata, DEFAULT_CONFLICT_POLICY)
                     stats.booksRestored = backupData.bookMetadata.size
 
                     // Import favorites
-                    restoreFavorites(backupData.favorites)
+                    restoreFavorites(backupData.favorites, DEFAULT_CONFLICT_POLICY)
                     stats.favoritesRestored = backupData.favorites.size
 
                     // Import search history
-                    restoreSearchHistory(backupData.searchHistory)
+                    restoreSearchHistory(backupData.searchHistory, DEFAULT_CONFLICT_POLICY)
                     stats.historyRestored = backupData.searchHistory.size
 
                     // Import scan paths
-                    restoreScanPaths(backupData.scanPaths)
+                    restoreScanPaths(backupData.scanPaths, DEFAULT_CONFLICT_POLICY)
 
                     logger.d { "Import complete: $stats" }
                     stats
@@ -162,6 +177,44 @@ public class BackupService
                     throw e
                 }
             }
+
+        private fun decodeBackupData(rawJson: String): BackupData {
+            val integrityEnvelope =
+                runCatching {
+                    json.decodeFromString<BackupIntegrityEnvelope>(rawJson)
+                }.getOrNull()
+
+            if (integrityEnvelope == null) {
+                return json.decodeFromString(rawJson)
+            }
+
+            val payloadJson = json.encodeToString(integrityEnvelope.payload)
+            val integrity = integrityEnvelope.integrity
+            if (integrity == null) {
+                logger.w { "Backup integrity metadata is missing, proceeding with payload import" }
+                return integrityEnvelope.payload
+            }
+
+            return when (
+                backupRuntimeSecurity.verifyIntegrity(
+                    payloadJson = payloadJson,
+                    metadata = integrity,
+                )
+            ) {
+                BackupIntegrityVerificationResult.VERIFIED -> integrityEnvelope.payload
+                BackupIntegrityVerificationResult.KEY_UNAVAILABLE -> {
+                    logger.w { "Backup signature key is unavailable, importing payload without local verification" }
+                    integrityEnvelope.payload
+                }
+                BackupIntegrityVerificationResult.UNSUPPORTED_ALGORITHM -> {
+                    logger.w { "Unsupported backup integrity algorithm ${integrity.algorithm}, importing payload" }
+                    integrityEnvelope.payload
+                }
+                BackupIntegrityVerificationResult.SIGNATURE_INVALID -> {
+                    throw SecurityException("Backup integrity verification failed. The file may be tampered.")
+                }
+            }
+        }
 
         /**
          * Collects all backup data including app info and statistics.
@@ -505,12 +558,33 @@ public class BackupService
         /**
          * Restores books to database.
          */
-        private suspend fun restoreBooks(books: List<BookBackup>) {
+        private suspend fun restoreBooks(
+            books: List<BookBackup>,
+            policy: ConflictResolutionPolicy,
+        ) {
             val dao = database.booksDao()
 
             books.forEach { backup ->
                 val existing = dao.getBookById(backup.id)
                 if (existing != null) {
+                    val localTimestamp = existing.lastPlayedDate ?: existing.addedDate
+                    val incomingTimestamp =
+                        backup.lastPlayedTimestamp
+                            .takeIf { it > 0 }
+                            ?.toLong()
+                            ?: backup.addedDate.toLong()
+                    val shouldApplyIncoming =
+                        ConflictResolutionResolver.shouldUseIncoming(
+                            policy = policy,
+                            localExists = true,
+                            localTimestamp = localTimestamp,
+                            incomingTimestamp = incomingTimestamp,
+                        )
+
+                    if (!shouldApplyIncoming) {
+                        return@forEach
+                    }
+
                     // Update existing book
                     dao.updatePlaybackProgress(
                         bookId = backup.id,
@@ -586,11 +660,30 @@ public class BackupService
         /**
          * Restores favorites.
          */
-        private suspend fun restoreFavorites(favorites: List<FavoriteBackup>) {
+        private suspend fun restoreFavorites(
+            favorites: List<FavoriteBackup>,
+            policy: ConflictResolutionPolicy,
+        ) {
             val bookDao = database.booksDao()
             val favoriteDao = database.favoriteDao()
 
             favorites.forEach { fav ->
+                val existing = favoriteDao.getFavoriteById(fav.bookId)
+                val localTimestamp =
+                    existing?.addedToFavorites?.let { dateStr ->
+                        runCatching { DateTimeFormatter.parseISO8601ToMillis(dateStr) }.getOrNull()
+                    } ?: 0L
+                val shouldApplyIncoming =
+                    ConflictResolutionResolver.shouldUseIncoming(
+                        policy = policy,
+                        localExists = existing != null,
+                        localTimestamp = localTimestamp,
+                        incomingTimestamp = fav.addedDate,
+                    )
+                if (!shouldApplyIncoming) {
+                    return@forEach
+                }
+
                 // 1. Mark as favorite in BooksDao (if exists as a book)
                 bookDao.updateFavoriteStatus(fav.bookId, true)
 
@@ -620,31 +713,81 @@ public class BackupService
         /**
          * Restores search history.
          */
-        private suspend fun restoreSearchHistory(history: List<SearchHistoryBackup>) {
+        private suspend fun restoreSearchHistory(
+            history: List<SearchHistoryBackup>,
+            policy: ConflictResolutionPolicy,
+        ) {
             val dao = database.searchHistoryDao()
-            history.forEach { item ->
-                dao.insertSearch(
-                    SearchHistoryEntity(
-                        query = item.query,
-                        timestamp = item.timestamp,
-                        resultCount = item.resultCount,
-                    ),
-                )
+            val existingByQuery =
+                dao
+                    .getRecentSearches(limit = 10000)
+                    .first()
+                    .groupBy { it.query }
+                    .mapValues { entry -> entry.value.maxOfOrNull { it.timestamp } ?: 0L }
+
+            database.withTransaction {
+                history.forEach { item ->
+                    val localTimestamp = existingByQuery[item.query] ?: 0L
+                    val localExists = localTimestamp > 0L
+                    val shouldApplyIncoming =
+                        ConflictResolutionResolver.shouldUseIncoming(
+                            policy = policy,
+                            localExists = localExists,
+                            localTimestamp = localTimestamp,
+                            incomingTimestamp = item.timestamp,
+                        )
+                    if (!shouldApplyIncoming) {
+                        return@forEach
+                    }
+
+                    if (localExists) {
+                        dao.deleteByQuery(item.query)
+                    }
+                    dao.insertSearch(
+                        SearchHistoryEntity(
+                            query = item.query,
+                            timestamp = item.timestamp,
+                            resultCount = item.resultCount,
+                        ),
+                    )
+                }
             }
         }
 
         /**
          * Restores scan paths.
          */
-        private suspend fun restoreScanPaths(paths: List<ScanPathBackup>) {
+        private suspend fun restoreScanPaths(
+            paths: List<ScanPathBackup>,
+            policy: ConflictResolutionPolicy,
+        ) {
             val dao = database.scanPathDao()
-            paths.forEach { item ->
-                dao.insertPath(
-                    ScanPathEntity(
-                        path = item.path,
-                        addedDate = item.addedDate,
-                    ),
-                )
+            val existingByPath = dao.getAllPathsList().associateBy({ it.path }, { it.addedDate })
+            database.withTransaction {
+                paths.forEach { item ->
+                    val localTimestamp = existingByPath[item.path] ?: 0L
+                    val localExists = existingByPath.containsKey(item.path)
+                    val shouldApplyIncoming =
+                        ConflictResolutionResolver.shouldUseIncoming(
+                            policy = policy,
+                            localExists = localExists,
+                            localTimestamp = localTimestamp,
+                            incomingTimestamp = item.addedDate,
+                        )
+                    if (!shouldApplyIncoming) {
+                        return@forEach
+                    }
+
+                    if (localExists) {
+                        dao.deletePathByString(item.path)
+                    }
+                    dao.insertPath(
+                        ScanPathEntity(
+                            path = item.path,
+                            addedDate = item.addedDate,
+                        ),
+                    )
+                }
             }
         }
 

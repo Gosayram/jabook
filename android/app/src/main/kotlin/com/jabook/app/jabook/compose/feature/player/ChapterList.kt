@@ -23,9 +23,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,13 +50,25 @@ public fun ChapterList(
     onChapterClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(currentChapterIndex, chapters.size) {
+        if (currentChapterIndex in chapters.indices) {
+            listState.animateScrollToItem(currentChapterIndex)
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = modifier,
         contentPadding =
             androidx.compose.foundation.layout
                 .PaddingValues(bottom = 16.dp),
     ) {
-        itemsIndexed(chapters) { index, chapter ->
+        itemsIndexed(
+            items = chapters,
+            key = { _, chapter -> chapter.id },
+        ) { index, chapter ->
             ChapterItem(
                 chapter = chapter,
                 index = index + 1,

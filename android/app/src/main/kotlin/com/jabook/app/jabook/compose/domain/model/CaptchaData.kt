@@ -14,9 +14,12 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Data required for Rutracker captcha verification.
  */
+@Immutable
 public data class CaptchaData(
     /** The URL of the captcha image */
     val url: String,

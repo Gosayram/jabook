@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import android.content.Context
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -32,16 +33,20 @@ import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.abs
 import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
 
 /**
@@ -144,7 +149,19 @@ public class PlayerViewModel
 
         // Store lyrics in a separate flow to avoid re-parsing on every seeking
         private val lyricsState =
-            MutableStateFlow<List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
+            MutableStateFlow<ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
+
+        // Backpressure guard for seekbar/UI: keep only latest position updates and
+        // suppress jittery micro-updates that don't change visible state.
+        private val uiPositionFlow: StateFlow<Long> =
+            playerController.currentPosition
+                .map { it.coerceAtLeast(0L) }
+                .distinctUntilChanged { previous, current -> abs(current - previous) < POSITION_UI_EPSILON_MS }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = playerController.currentPosition.value.coerceAtLeast(0L),
+                )
 
         /**
          * Combined UI state from book data, playback state, and settings.
@@ -154,7 +171,7 @@ public class PlayerViewModel
                 getBookDetailsUseCase(bookId),
                 getChaptersUseCase(bookId),
                 playerController.isPlaying,
-                playerController.currentPosition,
+                uiPositionFlow,
                 playerController.currentChapterIndex,
                 playerController.currentBookId,
                 settingsRepository.userPreferences,
@@ -213,7 +230,7 @@ public class PlayerViewModel
 
                     PlayerUiState.Success(
                         book = book,
-                        chapters = chapters,
+                        chapters = chapters.toImmutableList(),
                         isPlaying = playing,
                         currentPosition = position,
                         currentChapterIndex = chapterIndex,
@@ -260,12 +277,16 @@ public class PlayerViewModel
             }
         }
 
+        private companion object {
+            private const val POSITION_UI_EPSILON_MS: Long = 150L
+        }
+
         private suspend fun loadLyrics(audioPath: String) {
             try {
                 // Use the repository to get lyrics (includes fallback to demo lyrics)
                 val lyrics = lyricsRepository.getLyrics(audioPath)
                 if (lyrics.isNotEmpty()) {
-                    lyricsState.value = lyrics
+                    lyricsState.value = lyrics.toImmutableList()
                 } else {
                     lyricsState.value = null
                 }
@@ -732,9 +753,10 @@ public sealed interface PlayerUiState {
     /**
      * Success state with book and playback info.
      */
+    @Immutable
     public data class Success(
         val book: Book,
-        val chapters: List<Chapter>,
+        val chapters: ImmutableList<Chapter>,
         val isPlaying: Boolean,
         val currentPosition: Long, // milliseconds
         val currentChapterIndex: Int,
@@ -743,12 +765,13 @@ public sealed interface PlayerUiState {
         val forwardInterval: Int,
         val playbackSpeed: Float,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
-        val lyrics: List<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
+        val lyrics: ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
     ) : PlayerUiState
 
     /**
      * Error state.
      */
+    @Immutable
     public data class Error(
         val message: String,
     ) : PlayerUiState

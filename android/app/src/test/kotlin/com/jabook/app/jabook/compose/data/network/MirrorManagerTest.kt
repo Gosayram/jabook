@@ -279,4 +279,6 @@ private class FakeSettingsRepository(
     override suspend fun updateOnboardingCompleted(completed: Boolean) = Unit
 
     override suspend fun resetToDefaults() = Unit
+
+    override suspend fun updateEqualizerPreset(preset: String) = Unit
 }

@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Information about an active download.
  *
@@ -27,6 +29,7 @@ package com.jabook.app.jabook.compose.domain.model
  * @param queuePosition Position in download queue (0 = downloading now, 1+ = queued)
  * @param createdAt When download was created (Unix timestamp)
  */
+@Immutable
 public data class DownloadInfo(
     val bookId: String,
     val bookTitle: String,

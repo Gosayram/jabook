@@ -33,6 +33,7 @@ import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +63,10 @@ public class IndexingForegroundService : Service() {
             logWarn = { message, throwable -> Log.w(TAG, message, throwable) },
         )
 
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val serviceScope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("IndexingService"),
+        )
     private var indexingJob: Job? = null
     private var currentProgress: IndexingProgress = IndexingProgress.Idle
     private var startTime: Long = 0L

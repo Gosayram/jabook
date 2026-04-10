@@ -42,6 +42,7 @@ import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.capitalizeFirst
+import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -304,7 +305,10 @@ public class AudioPlayerService : MediaLibraryService() {
     internal var crossFadePlayer: CrossFadePlayer? = null
     internal var crossfadeHandler: CrossfadeHandler? = null
 
-    internal val playerServiceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    internal val playerServiceScope =
+        CoroutineScope(
+            Dispatchers.Main + SupervisorJob() + loggingCoroutineExceptionHandler("AudioPlayerService"),
+        )
 
     private val foregroundNotificationCoordinator by lazy {
         ForegroundNotificationCoordinator(
@@ -1498,25 +1502,23 @@ public class AudioPlayerService : MediaLibraryService() {
                         ): android.graphics.Bitmap? {
                             player.mediaMetadata.artworkUri?.let { artworkUri ->
                                 // Load cover bitmap via Coil3 (unified image pipeline)
-                                kotlinx.coroutines
-                                    .CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
-                                    .launch {
-                                        try {
-                                            val loader = coil3.SingletonImageLoader.get(this@AudioPlayerService)
-                                            val request =
-                                                coil3.request.ImageRequest
-                                                    .Builder(this@AudioPlayerService)
-                                                    .data(artworkUri)
-                                                    .size(512, 512)
-                                                    .build()
-                                            val result = loader.execute(request)
-                                            if (result is SuccessResult) {
-                                                callback.onBitmap(result.image!!.toBitmap())
-                                            }
-                                        } catch (e: Exception) {
-                                            android.util.Log.w("AudioPlayerService", "Failed to load large icon via Coil", e)
+                                playerServiceScope.launch(Dispatchers.IO) {
+                                    try {
+                                        val loader = coil3.SingletonImageLoader.get(this@AudioPlayerService)
+                                        val request =
+                                            coil3.request.ImageRequest
+                                                .Builder(this@AudioPlayerService)
+                                                .data(artworkUri)
+                                                .size(512, 512)
+                                                .build()
+                                        val result = loader.execute(request)
+                                        if (result is SuccessResult) {
+                                            callback.onBitmap(result.image.toBitmap())
                                         }
+                                    } catch (e: Exception) {
+                                        android.util.Log.w("AudioPlayerService", "Failed to load large icon via Coil", e)
                                     }
+                                }
                             }
                             return null
                         }
@@ -1808,8 +1810,12 @@ public class AudioPlayerService : MediaLibraryService() {
         playerNotificationManager?.setPlayer(null)
         playerNotificationManager = null
 
-        audioOutputManager.stopMonitoring()
-        playbackEnhancerService.release()
+        if (::audioOutputManager.isInitialized) {
+            audioOutputManager.stopMonitoring()
+        }
+        if (::playbackEnhancerService.isInitialized) {
+            playbackEnhancerService.release()
+        }
 
         sleepTimerManager?.release()
         sleepTimerManager = null

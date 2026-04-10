@@ -31,7 +31,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 
@@ -75,13 +77,13 @@ public fun AudioSettingsSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = "Audio Enhancements", // TODO: Move to strings.xml
+                text = stringResource(R.string.audioEnhancementTitle),
                 style = MaterialTheme.typography.headlineSmall,
             )
 
             // Volume Boost Section
             Text(
-                text = "Volume Boost", // TODO: Move to strings.xml
+                text = stringResource(R.string.volumeBoostTitle),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -91,12 +93,12 @@ public fun AudioSettingsSheet(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     VolumeBoostChip(
-                        label = "Off",
+                        label = stringResource(R.string.off),
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Off,
                         onClick = { onUpdateSettings(VolumeBoostLevel.Off, null, null, null, null, null, null, null) },
                     )
                     VolumeBoostChip(
-                        label = "+50%",
+                        label = stringResource(R.string.volumeBoostPercent, 50),
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost50,
                         onClick = {
                             onUpdateSettings(
@@ -112,7 +114,7 @@ public fun AudioSettingsSheet(
                         },
                     )
                     VolumeBoostChip(
-                        label = "+100%",
+                        label = stringResource(R.string.volumeBoostPercent, 100),
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost100,
                         onClick = {
                             onUpdateSettings(
@@ -130,7 +132,7 @@ public fun AudioSettingsSheet(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     VolumeBoostChip(
-                        label = "+200%",
+                        label = stringResource(R.string.volumeBoostPercent, 200),
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Boost200,
                         onClick = {
                             onUpdateSettings(
@@ -146,7 +148,7 @@ public fun AudioSettingsSheet(
                         },
                     )
                     VolumeBoostChip(
-                        label = "Auto",
+                        label = stringResource(R.string.autoLabel),
                         selected = state.volumeBoostLevel == VolumeBoostLevel.Auto,
                         onClick = { onUpdateSettings(VolumeBoostLevel.Auto, null, null, null, null, null, null, null) },
                     )
@@ -157,39 +159,39 @@ public fun AudioSettingsSheet(
 
             // Smart Effects Section
             Text(
-                text = "Smart Effects", // TODO: Move to strings.xml
+                text = stringResource(R.string.smartEffectsTitle),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
 
             // Silence Skip
             AudioSettingSwitch(
-                title = "Skip Silence", // TODO: strings.xml
-                description = "Automatically skip silent parts",
+                title = stringResource(R.string.skip_silence_title),
+                description = stringResource(R.string.skip_silence_desc),
                 checked = state.skipSilence,
                 onCheckedChange = { onUpdateSettings(null, it, null, null, null, null, null, null) },
             )
 
             // Normalize Volume
             AudioSettingSwitch(
-                title = "Normalize Volume", // TODO: strings.xml
-                description = "Keep consistent volume across tracks",
+                title = stringResource(R.string.normalizeVolumeTitle),
+                description = stringResource(R.string.normalizeVolumeDescription),
                 checked = state.normalizeVolume,
                 onCheckedChange = { onUpdateSettings(null, null, null, null, null, it, null, null) },
             )
 
             // Speech Enhancer
             AudioSettingSwitch(
-                title = "Speech Enhancer", // TODO: strings.xml
-                description = "Clarify voices and reduce background noise",
+                title = stringResource(R.string.speechEnhancerTitle),
+                description = stringResource(R.string.speechEnhancerDescription),
                 checked = state.speechEnhancer,
                 onCheckedChange = { onUpdateSettings(null, null, null, null, null, null, it, null) },
             )
 
             // Auto Volume Leveling
             AudioSettingSwitch(
-                title = "Auto Leveling", // TODO: strings.xml
-                description = "Adjust volume dynamically",
+                title = stringResource(R.string.autoVolumeLevelingTitle),
+                description = stringResource(R.string.autoVolumeLevelingDescription),
                 checked = state.autoVolumeLeveling,
                 onCheckedChange = { onUpdateSettings(null, null, null, null, null, null, null, it) },
             )

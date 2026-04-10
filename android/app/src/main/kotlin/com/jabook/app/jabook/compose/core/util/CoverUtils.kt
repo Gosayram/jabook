@@ -19,6 +19,7 @@ import android.graphics.drawable.ColorDrawable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import coil3.asImage
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.request.crossfade
@@ -149,6 +150,8 @@ public object CoverUtils {
                 .data(data)
                 .crossfade(true)
                 .allowHardware(allowHardware)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
                 .placeholder(ColorDrawable(placeholderColor.toArgb()).asImage())
                 .error(ColorDrawable(errorColor.toArgb()).asImage())
                 .fallback(ColorDrawable(fallbackColor.toArgb()).asImage())

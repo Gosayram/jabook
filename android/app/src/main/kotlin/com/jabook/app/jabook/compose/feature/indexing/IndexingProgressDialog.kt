@@ -28,8 +28,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 
 /**
@@ -59,10 +62,10 @@ public fun IndexingProgressDialog(
         title = {
             Text(
                 when (progress) {
-                    is IndexingProgress.Idle -> "Индексация"
-                    is IndexingProgress.InProgress -> "Индексация"
-                    is IndexingProgress.Completed -> "Индексация завершена"
-                    is IndexingProgress.Error -> "Ошибка индексации"
+                    is IndexingProgress.Idle -> stringResource(R.string.indexingDialogTitle)
+                    is IndexingProgress.InProgress -> stringResource(R.string.indexingDialogTitle)
+                    is IndexingProgress.Completed -> stringResource(R.string.indexingCompletedTitle)
+                    is IndexingProgress.Error -> stringResource(R.string.indexingErrorTitle)
                 },
             )
         },
@@ -76,7 +79,7 @@ public fun IndexingProgressDialog(
                     is IndexingProgress.Idle -> {
                         CircularProgressIndicator()
                         Text(
-                            text = "Подготовка к индексации...",
+                            text = stringResource(R.string.indexingPreparing),
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -89,12 +92,25 @@ public fun IndexingProgressDialog(
                         )
 
                         // Status text
+                        val forumProgressText =
+                            stringResource(
+                                R.string.indexingStatusForumProgress,
+                                progress.currentForumIndex + 1,
+                                progress.totalForums,
+                            )
+                        val pageText = stringResource(R.string.indexingStatusPage, progress.currentPage + 1)
+                        val topicsIndexedText =
+                            pluralStringResource(
+                                R.plurals.indexTopicsIndexed,
+                                progress.topicsIndexed,
+                                progress.topicsIndexed,
+                            )
                         Text(
                             text =
-                                "Индексируем форум: ${progress.currentForum}\n" +
-                                    "Форум ${progress.currentForumIndex + 1} из ${progress.totalForums}\n" +
-                                    "Страница ${progress.currentPage + 1}\n" +
-                                    "Проиндексировано: ${progress.topicsIndexed} тем",
+                                stringResource(R.string.indexingStatusForum, progress.currentForum) + "\n" +
+                                    forumProgressText + "\n" +
+                                    pageText + "\n" +
+                                    topicsIndexedText,
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -110,11 +126,22 @@ public fun IndexingProgressDialog(
                     is IndexingProgress.Completed -> {
                         // Use indexSize from database as single source of truth
                         val displayCount = if (indexSize > 0) indexSize else progress.totalTopics
+                        val topicsIndexedText =
+                            pluralStringResource(
+                                R.plurals.indexTopicsIndexed,
+                                displayCount,
+                                displayCount,
+                            )
+                        val durationSecondsText =
+                            stringResource(
+                                R.string.indexingDurationSeconds,
+                                progress.durationMs / 1000,
+                            )
                         Text(
                             text =
-                                "Индексация завершена!\n" +
-                                    "Проиндексировано: $displayCount тем\n" +
-                                    "Время: ${progress.durationMs / 1000} сек",
+                                stringResource(R.string.indexingCompletedHeadline) + "\n" +
+                                    topicsIndexedText + "\n" +
+                                    durationSecondsText,
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -129,7 +156,7 @@ public fun IndexingProgressDialog(
                         if (progress.forumId != null) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Форум: ${progress.forumId}",
+                                text = stringResource(R.string.indexingForumLabel, progress.forumId),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -141,7 +168,7 @@ public fun IndexingProgressDialog(
         confirmButton = {
             if (progress is IndexingProgress.Completed || progress is IndexingProgress.Error) {
                 TextButton(onClick = onDismiss) {
-                    Text("Закрыть")
+                    Text(stringResource(R.string.close))
                 }
             }
         },
@@ -150,7 +177,7 @@ public fun IndexingProgressDialog(
             if (progress is IndexingProgress.InProgress || progress is IndexingProgress.Idle) {
                 onHide?.let { hide ->
                     TextButton(onClick = hide) {
-                        Text("Скрыть")
+                        Text(stringResource(R.string.hideAction))
                     }
                 }
             }

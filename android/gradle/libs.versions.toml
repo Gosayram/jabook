@@ -1,7 +1,7 @@
 [versions]
 # Android
 androidGradlePlugin = "9.1.0"
-compileSdk = "36"
+compileSdk = "37"
 minSdk = "30"
 targetSdk = "36"
 
@@ -9,6 +9,7 @@ targetSdk = "36"
 kotlin = "2.3.20"
 ksp = "2.3.6"
 kotlinxCoroutines = "1.10.2"
+kotlinxCollectionsImmutable = "0.4.0"
 kotlinxSerialization = "1.10.0"
 
 # AndroidX Core
@@ -92,6 +93,7 @@ androidxTestExt = "1.3.0"
 robolectric = "4.16.1"
 truth = "1.4.5"
 jimfs = "1.3.1"
+kotest = "5.9.1"
 
 # Code Quality
 ktlint = "14.2.0"
@@ -170,6 +172,7 @@ re2j = { group = "com.google.re2j", name = "re2j", version.ref = "re2j" }
 # Kotlinx
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-guava = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-guava", version.ref = "kotlinxCoroutines" }
+kotlinx-collections-immutable = { group = "org.jetbrains.kotlinx", name = "kotlinx-collections-immutable", version.ref = "kotlinxCollectionsImmutable" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 
@@ -218,6 +221,7 @@ androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 jimfs = { group = "com.google.jimfs", name = "jimfs", version.ref = "jimfs" }
+kotest-property = { group = "io.kotest", name = "kotest-property-jvm", version.ref = "kotest" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }

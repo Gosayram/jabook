@@ -29,10 +29,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jabook.app.jabook.R
 
 /**
  * Screen shown during data migration from Flutter to Kotlin.
@@ -66,7 +69,7 @@ public fun MigrationScreen(
                 CircularProgressIndicator(modifier = Modifier.size(64.dp))
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "Checking for data migration...",
+                    text = stringResource(R.string.migrationCheckingForData),
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center,
                 )
@@ -75,33 +78,50 @@ public fun MigrationScreen(
                 CircularProgressIndicator(modifier = Modifier.size(64.dp))
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "Migrating your data...",
+                    text = stringResource(R.string.migrationInProgress),
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "This may take a few moments",
+                    text = stringResource(R.string.migrationMayTakeMoments),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             is MigrationUiState.Success -> {
+                val migratedBooksText =
+                    pluralStringResource(
+                        id = R.plurals.migratedBooksCount,
+                        count = currentState.booksCount,
+                        currentState.booksCount,
+                    )
+                val migratedChaptersText =
+                    pluralStringResource(
+                        id = R.plurals.migratedChaptersCount,
+                        count = currentState.chaptersCount,
+                        currentState.chaptersCount,
+                    )
                 Text(
-                    text = "Migration complete!",
+                    text = stringResource(R.string.migrationCompleteTitle),
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Migrated ${currentState.booksCount} books and ${currentState.chaptersCount} chapters",
+                    text =
+                        stringResource(
+                            R.string.migrationCompletedDetails,
+                            migratedBooksText,
+                            migratedChaptersText,
+                        ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             is MigrationUiState.Error -> {
                 Text(
-                    text = "Migration failed",
+                    text = stringResource(R.string.migrationFailedMessage),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center,
