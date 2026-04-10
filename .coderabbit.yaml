@@ -2,12 +2,17 @@
 
 language: "en-US"
 early_access: false
+tone_instructions: >-
+  You are a senior Android/Kotlin reviewer for JaBook. Focus on correctness,
+  runtime safety, security, and maintainability. Keep comments concise and
+  actionable, and avoid redundant nitpicks.
 
 reviews:
   profile: "assertive"
+  request_changes_workflow: false
   high_level_summary: true
   high_level_summary_in_walkthrough: true
-  review_status: true
+  review_status: false
   review_details: true
   commit_status: true
   fail_commit_status: false
@@ -32,6 +37,10 @@ reviews:
     auto_incremental_review: true
     auto_pause_after_reviewed_commits: 0
     drafts: false
+    base_branches:
+      - "main"
+      - "develop"
+      - "release.*"
     ignore_title_keywords:
       - "WIP"
       - "DO NOT REVIEW"
@@ -40,12 +49,28 @@ reviews:
   path_filters:
     # Keep reviews focused on core production paths only (strict cap for file limits).
     - "android/app/src/main/kotlin/com/jabook/app/jabook/audio/**"
-    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/auth/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/network/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/backup/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/preferences/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/torrent/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/sync/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/worker/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/data/repository/**"
     - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/di/**"
-    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/UserCredentials.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/Book.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/FavoriteItem.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/SearchHistoryItem.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/domain/model/DownloadHistoryItem.kt"
     - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/ComposeMainActivity.kt"
     - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/MainViewModel.kt"
     - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/JabookApp.kt"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/auth/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/player/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/topic/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/torrent/**"
+    - "android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/settings/**"
     - "android/app/src/main/proto/**"
     - "android/app/build.gradle.kts"
     - "android/build.gradle.kts"
@@ -61,6 +86,14 @@ reviews:
     - "!android/app/src/main/res/**"
     - "!android/app/src/test/**"
     - "!android/app/src/androidTest/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/library/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/search/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/downloads/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/favorites/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/onboarding/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/feature/permissions/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/designsystem/**"
+    - "!android/app/src/main/kotlin/com/jabook/app/jabook/compose/ui/**"
     - "!docs/**"
     - "!test/**"
     - "!test_results/**"
