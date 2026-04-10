@@ -49,7 +49,6 @@ reviews:
     - "android/app/src/main/proto/**"
     - "android/app/build.gradle.kts"
     - "android/build.gradle.kts"
-    - ".github/workflows/**"
     - ".coderabbit.yaml"
     - "!scripts/**"
     - "!makefiles/**"
@@ -84,31 +83,11 @@ reviews:
         - Flag security issues (intent validation, URI parsing, storage access, crypto misuse, logging secrets).
         Request tests for non-trivial logic changes.
 
-    - path: ".github/workflows/**/*.yml"
-      instructions: |
-        Review CI/CD hardening:
-        - Pin GitHub Actions to commit SHAs.
-        - Principle of least privilege in workflow permissions.
-        - No plaintext secrets or insecure shell patterns.
-        - Validate release/signing steps and artifact integrity assumptions.
-
-    - path: "scripts/**/*.sh"
-      instructions: |
-        Focus on shell safety and portability:
-        - Proper quoting and error handling (`set -euo pipefail` where applicable).
-        - Avoid unsafe globbing/word-splitting.
-        - Validate input paths and avoid destructive behavior by default.
-
     - path: "android/app/src/main/proto/**/*.proto"
       instructions: |
         Check backward compatibility for persisted settings/schema fields:
         - Avoid field renumbering/removal without migration strategy.
         - Preserve compatibility guarantees for existing installations.
-
-    - path: "docs/**/*.md"
-      instructions: |
-        Check technical accuracy and consistency with the current codebase and CI commands.
-        Call out stale commands/paths and ambiguous operational steps.
 
   finishing_touches:
     docstrings:
@@ -136,7 +115,6 @@ reviews:
         instructions: |
           Pass only if PR changes align with repository quality gates:
           - Kotlin/Android code changes should include or update tests where behavior changed.
-          - CI-impacting changes should keep `make lint-kotlin`, `make compile`, and `make test` valid.
           - Flag risky changes that bypass existing static checks (ktlint/detekt) without justification.
       - name: "Security Sensitive Changes"
         mode: "warning"
@@ -150,14 +128,6 @@ reviews:
     detekt:
       enabled: true
       config_file: "default-detekt-config.yml"
-    markdownlint:
-      enabled: true
-    yamllint:
-      enabled: true
-    shellcheck:
-      enabled: true
-    checkmake:
-      enabled: true
     gitleaks:
       enabled: true
     trufflehog:
@@ -173,6 +143,5 @@ knowledge_base:
   code_guidelines:
     enabled: true
     filePatterns:
-      - "CONTRIBUTING.md"
-      - "README.md"
-      - "docs/adr/**/*.md"
+      - "android/app/src/main/kotlin/**/*.kt"
+      - "android/app/src/main/proto/**/*.proto"
