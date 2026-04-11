@@ -26,6 +26,7 @@ import com.jabook.app.jabook.compose.data.backup.ImportStats
 import com.jabook.app.jabook.compose.data.cache.CacheManager
 import com.jabook.app.jabook.compose.data.cache.CacheStatistics
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import kotlinx.coroutines.CancellationException
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
@@ -368,7 +369,9 @@ public class SettingsViewModel
                         }
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: CancellationException) {
+                throw CancellationException()
+            } catch (_: Exception) {
                 // Ignore parsing errors and return original
             }
             return uriString
@@ -416,6 +419,8 @@ public class SettingsViewModel
                     _backupState.value = BackupUiState.Exporting
                     val uri = backupService.exportToFile()
                     _backupState.value = BackupUiState.ExportReady(uri)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _backupState.value = BackupUiState.Error(e.message ?: "Export failed")
                 }
@@ -431,6 +436,8 @@ public class SettingsViewModel
                     _backupState.value = BackupUiState.Importing
                     val stats = backupService.importFromFile(uri)
                     _backupState.value = BackupUiState.ImportComplete(stats)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _backupState.value = BackupUiState.Error(e.message ?: "Import failed: ${e.message}")
                 }
@@ -462,6 +469,8 @@ public class SettingsViewModel
                     val stats = cacheManager.getCacheStatistics()
                     _cacheStats.value = stats
                     _cacheOperation.value = CacheOperationState.Idle
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to load cache stats")
                 }
@@ -496,6 +505,8 @@ public class SettingsViewModel
                     } else {
                         _cacheOperation.value = CacheOperationState.Error("Failed to clear cache")
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to clear cache")
                 }

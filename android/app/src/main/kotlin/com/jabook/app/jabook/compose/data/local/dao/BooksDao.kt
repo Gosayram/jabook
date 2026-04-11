@@ -375,6 +375,21 @@ public interface BooksDao {
         bookId: String,
         path: String,
     )
+
+    /**
+     * Atomically updates both cover URL and cover path for a book.
+     *
+     * Prevents inconsistent state where one field is updated but the other is not
+     * (e.g., app crash between two separate UPDATE statements).
+     */
+    @Transaction
+    public suspend fun updateCoverPathAndUrl(
+        bookId: String,
+        path: String,
+    ) {
+        updateCoverPath(bookId, path)
+        updateCoverUrl(bookId, path)
+    }
 }
 
 /**

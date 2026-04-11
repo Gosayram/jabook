@@ -21,6 +21,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import kotlinx.coroutines.CancellationException
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.torrent.TorrentManager
 import com.jabook.app.jabook.torrent.data.TorrentState
@@ -85,6 +86,9 @@ public class DownloadWorker
 
                 // Monitor progress until complete or error
                 monitorDownloadProgress(infoHash, bookTitle)
+            } catch (e: CancellationException) {
+                Log.i(TAG, "Download cancelled: $bookTitle")
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Download failed", e)
                 CrashDiagnostics.reportNonFatal(

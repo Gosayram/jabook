@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import com.jabook.app.jabook.compose.domain.model.toAppError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -177,6 +178,8 @@ public class RutrackerRepositoryImpl
                         // Index is empty - return empty results
                         emit(Result.Success(emptyList()))
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     // android.util.Log.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
                     // Search failed - return error
@@ -207,6 +210,8 @@ public class RutrackerRepositoryImpl
                     }
                     is Result.Loading -> Result.Loading()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }
@@ -217,7 +222,9 @@ public class RutrackerRepositoryImpl
         ) {
             try {
                 offlineSearchDao.saveSearchResults(query, results.map { it.toCachedTopicEntity() })
-            } catch (e: Exception) {
+            } catch (_: CancellationException) {
+                throw CancellationException()
+            } catch (_: Exception) {
                 // Log.e("RutrackerRepo", "Failed to save results", e)
             }
         }
@@ -257,6 +264,8 @@ public class RutrackerRepositoryImpl
                         AppError.ParsingError.Generic("Topic details failed validation"),
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }
@@ -285,6 +294,8 @@ public class RutrackerRepositoryImpl
                 // Check if login was successful by checking cookies or response content
                 // Rutracker sets session cookies on successful login
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }
@@ -329,6 +340,8 @@ public class RutrackerRepositoryImpl
                         AppError.ParsingError.Generic("Topic details failed validation"),
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }

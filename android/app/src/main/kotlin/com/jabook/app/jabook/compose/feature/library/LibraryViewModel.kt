@@ -23,6 +23,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import kotlinx.coroutines.CancellationException
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
@@ -136,6 +137,8 @@ public class LibraryViewModel
                             } else {
                                 LibraryUiState.Success(filteredBooks.toImmutableList())
                             }
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             LibraryUiState.Error(e.message ?: "Unknown error")
                         }
@@ -301,9 +304,8 @@ public class LibraryViewModel
                         }
                     }
 
-                    // Keep both fields aligned for faster UI refresh and backup consistency.
-                    booksDao.updateCoverPath(bookId, targetFile.absolutePath)
-                    booksDao.updateCoverUrl(bookId, targetFile.absolutePath)
+                    // Keep both fields aligned atomically to avoid inconsistent cover state.
+                    booksDao.updateCoverPathAndUrl(bookId, targetFile.absolutePath)
                 }
             }
 
