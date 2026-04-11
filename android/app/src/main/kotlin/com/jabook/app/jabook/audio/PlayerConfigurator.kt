@@ -48,7 +48,12 @@ internal class PlayerConfigurator(
      * Active LoudnessNormalizer instance (if available).
      */
     var loudnessNormalizer: LoudnessNormalizer? = null
-        private set
+
+    /**
+     * Audio underrun monitor (BP-13.1).
+     * Tracks AudioTrack underruns via AnalyticsListener and reports bursts.
+     */
+    private var underrunMonitor: AudioUnderrunMonitor? = null
 
     /**
      * Current audio processing settings.
@@ -134,6 +139,9 @@ internal class PlayerConfigurator(
             playerListener?.let {
                 activePlayer.addListener(it)
             }
+
+            // BP-13.1: Register audio underrun monitor
+            underrunMonitor = AudioUnderrunMonitor(activePlayer).also { it.register() }
 
             // Match lissen-android: don't set WakeMode or ScrubbingMode
             // These may interfere with AudioFocus handling
@@ -367,6 +375,10 @@ internal class PlayerConfigurator(
     }
 
     public fun release() {
+        // BP-13.1: Unregister underrun monitor
+        underrunMonitor?.unregister()
+        underrunMonitor = null
+
         playerListener?.let { listener ->
             try {
                 service.exoPlayer.removeListener(listener)

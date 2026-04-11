@@ -186,6 +186,9 @@ public class AudioPlayerService : MediaLibraryService() {
     internal var headsetAutoplayHandler: HeadsetAutoplayHandler? = null
     internal var mediaButtonHandler: MediaButtonHandler? = null
 
+    /** BP-13.3: Audio output device routing monitor. */
+    internal var audioOutputDeviceMonitor: AudioOutputDeviceMonitor? = null
+
     // Track if playback was active before phone call (for auto-resume)
     internal var wasPlayingBeforeCall = false
 
@@ -1841,6 +1844,10 @@ public class AudioPlayerService : MediaLibraryService() {
 
         headsetAutoplayHandler?.stopListening()
         headsetAutoplayHandler = null
+
+        // BP-13.3: Unregister audio output device monitor
+        audioOutputDeviceMonitor?.unregister()
+        audioOutputDeviceMonitor = null
 
         serviceMediaController?.release()
         serviceMediaController = null
