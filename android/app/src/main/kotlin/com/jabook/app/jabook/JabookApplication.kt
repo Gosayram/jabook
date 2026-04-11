@@ -24,6 +24,7 @@ import coil3.request.crossfade
 import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
 import com.jabook.app.jabook.crash.CrashDiagnostics
+import com.jabook.app.jabook.diagnostics.AnrWatchdog
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -60,6 +61,9 @@ public class JabookApplication :
     @Inject
     public lateinit var syncManager: SyncManager
 
+    /** ANR watchdog — active only in debug/beta builds via LogUtils gating. */
+    private val anrWatchdog: AnrWatchdog = AnrWatchdog()
+
     public override val workManagerConfiguration: androidx.work.Configuration
         get() =
             androidx.work.Configuration
@@ -71,6 +75,9 @@ public class JabookApplication :
         super.onCreate()
 
         configureDiagnostics()
+
+        // Start ANR watchdog for debug/beta builds (BP-6.3)
+        anrWatchdog.start()
 
         // Initialize Global Exception Handler
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()

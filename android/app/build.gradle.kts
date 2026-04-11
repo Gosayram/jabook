@@ -502,6 +502,9 @@ dependencies {
     // Flutter references these classes but they're not actually used
     // ProGuard rules in proguard-rules.pro handle R8 warnings with -dontwarn
 
+    // LeakCanary - Memory leak detection for debug builds (BP-6.4)
+    debugImplementation(libs.leakcanary.android)
+
     // Testing dependencies
     testImplementation(libs.bundles.test)
     testImplementation(libs.androidx.work.testing)
