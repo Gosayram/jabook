@@ -37,8 +37,8 @@ public class HoldToBoostPolicy(
     public val isBoosting: Boolean get() = savedSpeed != null
 
     /** The speed that should be applied right now. */
-    public val currentSpeed: Float
-        get() = if (isBoosting) boostSpeed else (savedSpeed ?: 1f)
+    public val currentSpeed: Float?
+        get() = if (isBoosting) boostSpeed else savedSpeed
 
     /**
      * Called on press-down (pointer/button down).
@@ -55,10 +55,10 @@ public class HoldToBoostPolicy(
     /**
      * Called on release (pointer/button up).
      *
-     * @return the speed that should be restored
+     * @return the speed that should be restored, or null if no saved speed
      */
-    public fun onRelease(): Float {
-        val restore = savedSpeed ?: 1f
+    public fun onRelease(): Float? {
+        val restore = savedSpeed
         savedSpeed = null
         return restore
     }
@@ -66,9 +66,9 @@ public class HoldToBoostPolicy(
     /**
      * Called when the hold is cancelled (e.g. focus loss, gesture cancellation).
      *
-     * @return the speed that should be restored
+     * @return the speed that should be restored, or null if no saved speed
      */
-    public fun onCancel(): Float = onRelease()
+    public fun onCancel(): Float? = onRelease()
 
     public companion object {
         /** Default boost speed (3.0x). */

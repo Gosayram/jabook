@@ -53,10 +53,11 @@ public object LufsRmsEstimator {
     }
 
     /**
-     * Estimate LUFS from raw 16-bit PCM byte data.
+     * Estimate LUFS from 16-bit PCM sample data.
      *
-     * @param pcm16Data byte buffer in native byte order (little-endian on most devices)
-     * @param channels  number of audio channels
+     * @param pcm16Data ShortArray of 16-bit PCM samples; for multi-channel audio,
+     *                  samples are interleaved (e.g., [L0, R0, L1, R1, ...])
+     * @param channels  number of audio channels (used to extract first channel only)
      * @return estimated LUFS value, or null if insufficient data
      */
     public fun estimateLufsFromPcm16(
@@ -67,7 +68,8 @@ public object LufsRmsEstimator {
 
         val samples = FloatArray(pcm16Data.size / channels)
         for (i in samples.indices) {
-            samples[i] = pcm16Data[i * channels].toFloat() / Short.MAX_VALUE
+            val normalized = pcm16Data[i * channels].toFloat() / 32768f
+            samples[i] = normalized.coerceIn(-1.0f, 1.0f)
         }
         return estimateLufs(samples)
     }

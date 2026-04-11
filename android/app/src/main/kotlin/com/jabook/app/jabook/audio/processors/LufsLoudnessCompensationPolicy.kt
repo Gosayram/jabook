@@ -62,7 +62,6 @@ public class LufsLoudnessCompensationPolicy(
     ): Float {
         val previousGain = compensationGain(previousBookLufs)
         val newGain = compensationGain(newBookLufs)
-        if (previousGain == 0f) return newGain
         return (newGain / previousGain).coerceIn(GAIN_MIN, GAIN_MAX)
     }
 

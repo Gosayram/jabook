@@ -38,7 +38,7 @@ class HoldToBoostPolicyTest {
     fun `onRelease restores previous speed`() {
         policy.onPress(1.5f)
         val speed = policy.onRelease()
-        assertEquals(1.5f, speed, 0.01f)
+        assertEquals(1.5f, speed!!, 0.01f)
         assertFalse(policy.isBoosting)
     }
 
@@ -46,14 +46,14 @@ class HoldToBoostPolicyTest {
     fun `onCancel restores previous speed`() {
         policy.onPress(2.0f)
         val speed = policy.onCancel()
-        assertEquals(2.0f, speed, 0.01f)
+        assertEquals(2.0f, speed!!, 0.01f)
         assertFalse(policy.isBoosting)
     }
 
     @Test
-    fun `onRelease without press returns default 1x`() {
+    fun `onRelease without press returns null`() {
         val speed = policy.onRelease()
-        assertEquals(1.0f, speed, 0.01f)
+        assertEquals(null, speed)
     }
 
     @Test
@@ -63,16 +63,36 @@ class HoldToBoostPolicyTest {
         assertEquals(3.0f, speed, 0.01f) // still returns boost speed
 
         val restored = policy.onRelease()
-        assertEquals(1.2f, restored, 0.01f) // restores original, not second press
+        assertEquals(1.2f, restored!!, 0.01f) // restores original, not second press
+    }
+
+    @Test
+    fun `duplicate onRelease returns null after first release`() {
+        policy.onPress(1.5f)
+        val firstRelease = policy.onRelease()
+        assertEquals(1.5f, firstRelease!!, 0.01f)
+
+        val secondRelease = policy.onRelease()
+        assertEquals(null, secondRelease) // no saved speed
+    }
+
+    @Test
+    fun `duplicate onCancel returns null after first cancel`() {
+        policy.onPress(2.0f)
+        val firstCancel = policy.onCancel()
+        assertEquals(2.0f, firstCancel!!, 0.01f)
+
+        val secondCancel = policy.onCancel()
+        assertEquals(null, secondCancel) // no saved speed
     }
 
     @Test
     fun `currentSpeed reflects boost state`() {
-        assertEquals(1.0f, policy.currentSpeed, 0.01f) // not boosting
+        assertEquals(null, policy.currentSpeed) // not boosting, no saved speed
         policy.onPress(1.5f)
-        assertEquals(3.0f, policy.currentSpeed, 0.01f) // boosting
+        assertEquals(3.0f, policy.currentSpeed!!, 0.01f) // boosting
         policy.onRelease()
-        assertEquals(1.0f, policy.currentSpeed, 0.01f) // released
+        assertEquals(null, policy.currentSpeed) // released
     }
 
     @Test
@@ -80,14 +100,14 @@ class HoldToBoostPolicyTest {
         // First cycle: press at 1x, boost, release
         val boostSpeed = policy.onPress(1.0f)
         assertEquals(3.0f, boostSpeed, 0.01f)
-        assertEquals(1.0f, policy.onRelease(), 0.01f)
+        assertEquals(1.0f, policy.onRelease()!!, 0.01f)
         assertFalse(policy.isBoosting)
 
         // Second cycle with different base speed
         val boostSpeed2 = policy.onPress(2.0f)
         assertEquals(3.0f, boostSpeed2, 0.01f)
-        assertEquals(3.0f, policy.currentSpeed, 0.01f)
-        assertEquals(2.0f, policy.onRelease(), 0.01f)
+        assertEquals(3.0f, policy.currentSpeed!!, 0.01f)
+        assertEquals(2.0f, policy.onRelease()!!, 0.01f)
         assertFalse(policy.isBoosting)
     }
 

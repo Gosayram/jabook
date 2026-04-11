@@ -84,8 +84,7 @@ public class HeadsetAutoplayHandler(
                         lastDisconnectWasBluetooth = false
                     }
                     BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
-                        val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-                        LogUtils.d(TAG, "Bluetooth device disconnected: ${device?.name ?: "unknown device"}")
+                        LogUtils.d(TAG, "Bluetooth device disconnected")
                         lastDisconnectWasBluetooth = true
                         // BP-13.2: Pause and save position on BT disconnect
                         onHeadsetDisconnected?.invoke()

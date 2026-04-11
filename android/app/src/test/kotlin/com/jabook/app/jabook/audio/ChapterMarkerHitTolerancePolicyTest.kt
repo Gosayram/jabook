@@ -65,6 +65,11 @@ class ChapterMarkerHitTolerancePolicyTest {
     }
 
     @Test
+    fun `negative tolerance returns null`() {
+        assertNull(ChapterMarkerHitTolerancePolicy.resolveChapter(0.5f, chapters, -0.1f))
+    }
+
+    @Test
     fun `zero tolerance returns null for non-exact match`() {
         assertNull(ChapterMarkerHitTolerancePolicy.resolveChapter(0.501f, chapters, 0.0f))
     }
@@ -72,6 +77,14 @@ class ChapterMarkerHitTolerancePolicyTest {
     @Test
     fun `zero tolerance returns index for exact match`() {
         assertEquals(2, ChapterMarkerHitTolerancePolicy.resolveChapter(0.5f, chapters, 0.0f))
+    }
+
+    @Test
+    fun `distance equal to tolerance is treated as hit`() {
+        // Marker at 0.5, tolerance 0.01, tap at 0.51 (distance = 0.01, exactly on boundary)
+        assertEquals(2, ChapterMarkerHitTolerancePolicy.resolveChapter(0.51f, chapters, 0.01f))
+        // Marker at 0.25, tolerance 0.02, tap at 0.27 (distance = 0.02, exactly on boundary)
+        assertEquals(1, ChapterMarkerHitTolerancePolicy.resolveChapter(0.27f, chapters, 0.02f))
     }
 
     @Test

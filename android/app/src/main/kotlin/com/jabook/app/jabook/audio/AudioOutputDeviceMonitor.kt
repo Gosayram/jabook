@@ -42,6 +42,7 @@ internal class AudioOutputDeviceMonitor(
     /**
      * Current output device type.
      */
+    @Volatile
     var currentOutputType: OutputType = detectCurrentOutputType()
         private set
 
