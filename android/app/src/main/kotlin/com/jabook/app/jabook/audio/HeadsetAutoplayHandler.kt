@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.audio
 
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -87,7 +86,7 @@ public class HeadsetAutoplayHandler(
                     }
                     BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                         val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-                        LogUtils.d(TAG, "Bluetooth device disconnected: ${device?.address}")
+                        LogUtils.d(TAG, "Bluetooth device disconnected: ${device?.name ?: "unknown device"}")
                         lastDisconnectWasBluetooth = true
                         // BP-13.2: Pause and save position on BT disconnect
                         onHeadsetDisconnected?.invoke()

@@ -103,6 +103,7 @@ internal class AudioUnderrunMonitor(
         LogUtils.w(TAG, "Audio underrun burst detected: $burstCount underruns in ${BURST_WINDOW_MS}ms window")
 
         CrashDiagnostics.reportNonFatal(
+            TAG,
             RuntimeException(
                 "Audio underrun burst: $burstCount in ${BURST_WINDOW_MS}ms " +
                     "(total=$totalUnderruns, bufferSize=${bufferSize}b/${bufferSizeMs}ms)",
