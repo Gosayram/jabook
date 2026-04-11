@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.audio
 
 import android.os.SystemClock
-import android.util.Log
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import com.jabook.app.jabook.crash.CrashDiagnostics
@@ -31,7 +30,6 @@ import com.jabook.app.jabook.util.LogUtils
 internal class AudioUnderrunMonitor(
     private val player: ExoPlayer,
 ) : AnalyticsListener {
-
     companion object {
         private const val TAG = "AudioUnderrunMonitor"
 
@@ -70,7 +68,10 @@ internal class AudioUnderrunMonitor(
         underrunTimestamps.add(now)
         pruneOldTimestamps(now)
 
-        LogUtils.d(TAG, "Audio underrun #$totalUnderruns (buffer=${bufferSize}b/${bufferSizeMs}ms, sinceLast=${elapsedSinceLastUnderrunMs}ms)")
+        LogUtils.d(
+            TAG,
+            "Audio underrun #$totalUnderruns (buffer=${bufferSize}b/${bufferSizeMs}ms, sinceLast=${elapsedSinceLastUnderrunMs}ms)",
+        )
 
         // Check burst threshold
         if (underrunTimestamps.size >= UNDERRUN_BURST_THRESHOLD) {
@@ -93,7 +94,11 @@ internal class AudioUnderrunMonitor(
     /**
      * Report an underrun burst to CrashDiagnostics for monitoring.
      */
-    private fun reportBurst(now: Long, bufferSize: Int, bufferSizeMs: Long) {
+    private fun reportBurst(
+        now: Long,
+        bufferSize: Int,
+        bufferSizeMs: Long,
+    ) {
         if (now - lastReportTime < REPORT_COOLDOWN_MS) {
             return // Cooldown — avoid spamming reports
         }

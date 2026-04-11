@@ -112,32 +112,39 @@ internal class AudioOutputDeviceMonitor(
 
         // Priority: Bluetooth > USB > Wired > Speaker
         // Check for BT first (A2DP or hearing aid)
-        val hasBt = devices.any {
-            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
-                it.type == AudioDeviceInfo.TYPE_HEARING_AID ||
-                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    it.type == AudioDeviceInfo.TYPE_BLE_HEADSET) ||
-                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                    it.type == AudioDeviceInfo.TYPE_BLE_BROADCAST)
-        }
+        val hasBt =
+            devices.any {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                    it.type == AudioDeviceInfo.TYPE_HEARING_AID ||
+                    (
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                            it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
+                    ) ||
+                    (
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                            it.type == AudioDeviceInfo.TYPE_BLE_BROADCAST
+                    )
+            }
         if (hasBt) return OutputType.BLUETOOTH
 
         // Check for USB audio
-        val hasUsb = devices.any {
-            it.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
-                it.type == AudioDeviceInfo.TYPE_USB_ACCESSORY ||
-                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
-        }
+        val hasUsb =
+            devices.any {
+                it.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
+                    it.type == AudioDeviceInfo.TYPE_USB_ACCESSORY ||
+                    it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+            }
         if (hasUsb) return OutputType.USB
 
         // Check for wired headset/headphones
-        val hasWired = devices.any {
-            it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                it.type == AudioDeviceInfo.TYPE_LINE_ANALOG ||
-                it.type == AudioDeviceInfo.TYPE_LINE_DIGITAL
-        }
+        val hasWired =
+            devices.any {
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                    it.type == AudioDeviceInfo.TYPE_LINE_ANALOG ||
+                    it.type == AudioDeviceInfo.TYPE_LINE_DIGITAL
+            }
         if (hasWired) return OutputType.WIRED_HEADPHONE
 
         return OutputType.SPEAKER

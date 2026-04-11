@@ -21,12 +21,12 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import kotlinx.coroutines.CancellationException
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.torrent.TorrentManager
 import com.jabook.app.jabook.torrent.data.TorrentState
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 
 /**
  * WorkManager-based worker for background torrent downloads.

@@ -89,7 +89,9 @@ public class AnrWatchdog(
 
     private fun checkMainThread() {
         val startTime = System.currentTimeMillis()
-        val completed = java.util.concurrent.atomic.AtomicBoolean(false)
+        val completed =
+            java.util.concurrent.atomic
+                .AtomicBoolean(false)
 
         mainHandler.post {
             completed.set(true)
@@ -115,6 +117,7 @@ public class AnrWatchdog(
             LogUtils.e(TAG, "Main thread stack trace:\n$stackTrace")
 
             CrashDiagnostics.reportNonFatal(
+                TAG,
                 AnrDetectedException(message, stackTrace),
             )
         }
