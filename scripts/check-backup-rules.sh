@@ -6,6 +6,13 @@ MANIFEST="$ROOT_DIR/android/app/src/main/AndroidManifest.xml"
 DATA_EXTRACTION="$ROOT_DIR/android/app/src/main/res/xml/data_extraction_rules.xml"
 BACKUP_RULES="$ROOT_DIR/android/app/src/main/res/xml/backup_rules.xml"
 
+# Use ripgrep if available, fall back to grep for CI environments without rg
+if command -v rg >/dev/null 2>&1; then
+    search() { rg -n --fixed-strings "$1" "$2" >/dev/null 2>&1; }
+else
+    search() { grep -Fn "$1" "$2" >/dev/null 2>&1; }
+fi
+
 required_manifest_patterns=(
   'android:allowBackup="true"'
   'android:dataExtractionRules="@xml/data_extraction_rules"'
@@ -19,18 +26,18 @@ required_xml_patterns=(
 )
 
 for pattern in "${required_manifest_patterns[@]}"; do
-  if ! rg -n --fixed-strings "$pattern" "$MANIFEST" >/dev/null; then
+  if ! search "$pattern" "$MANIFEST"; then
     echo "❌ Backup manifest audit failed: missing '$pattern' in $MANIFEST"
     exit 1
   fi
 done
 
 for pattern in "${required_xml_patterns[@]}"; do
-  if ! rg -n --fixed-strings "$pattern" "$DATA_EXTRACTION" >/dev/null; then
+  if ! search "$pattern" "$DATA_EXTRACTION"; then
     echo "❌ Data extraction audit failed: missing '$pattern' in $DATA_EXTRACTION"
     exit 1
   fi
-  if ! rg -n --fixed-strings "$pattern" "$BACKUP_RULES" >/dev/null; then
+  if ! search "$pattern" "$BACKUP_RULES"; then
     echo "❌ Backup rules audit failed: missing '$pattern' in $BACKUP_RULES"
     exit 1
   fi
