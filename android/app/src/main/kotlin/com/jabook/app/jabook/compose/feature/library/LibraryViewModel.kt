@@ -41,6 +41,7 @@ import com.jabook.app.jabook.compose.domain.usecase.library.ToggleFavoriteUseCas
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -136,6 +137,8 @@ public class LibraryViewModel
                             } else {
                                 LibraryUiState.Success(filteredBooks.toImmutableList())
                             }
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             LibraryUiState.Error(e.message ?: "Unknown error")
                         }
@@ -301,9 +304,8 @@ public class LibraryViewModel
                         }
                     }
 
-                    // Keep both fields aligned for faster UI refresh and backup consistency.
-                    booksDao.updateCoverPath(bookId, targetFile.absolutePath)
-                    booksDao.updateCoverUrl(bookId, targetFile.absolutePath)
+                    // Keep both fields aligned atomically to avoid inconsistent cover state.
+                    booksDao.updateCoverPathAndUrl(bookId, targetFile.absolutePath)
                 }
             }
 

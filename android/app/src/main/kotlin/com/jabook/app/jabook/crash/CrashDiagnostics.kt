@@ -71,6 +71,20 @@ public object CrashDiagnostics {
         }
     }
 
+    /**
+     * Sets a custom key-value pair in the crash diagnostics context.
+     * Values are sanitized to strings and truncated to [VALUE_LIMIT] characters.
+     */
+    public fun setCustomKey(
+        key: String,
+        value: Any?,
+    ) {
+        if (!isEnabled()) return
+        safeRun {
+            sinkFactory().setCustomKey(key, sanitize(value))
+        }
+    }
+
     public fun reportUncaughtException(
         threadName: String,
         throwable: Throwable,

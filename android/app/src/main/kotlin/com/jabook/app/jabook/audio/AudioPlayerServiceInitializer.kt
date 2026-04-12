@@ -21,6 +21,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -218,17 +219,41 @@ public class AudioPlayerServiceInitializer(
         // Initialize MediaButtonHandler for multi-click headset support
         service.mediaButtonHandler = MediaButtonHandler()
 
-        // Initialize HeadsetAutoplayHandler
+        // Initialize HeadsetAutoplayHandler (BP-13.2: BT disconnect guard)
         service.headsetAutoplayHandler =
             HeadsetAutoplayHandler(
                 context = service,
                 onHeadsetConnected = {
-                    if (!service.isPlaying) {
-                        service.play()
+                    // Wired headset: auto-resume playback
+                    // BT reconnect: HeadsetAutoplayHandler only triggers this when
+                    // wasPlayingBeforeBtDisconnect is true — but per BP-13.2 spec,
+                    // we don't auto-play. Instead, user manually resumes via UI.
+                    // For wired headset (lastDisconnectWasBluetooth=false), auto-play.
+                    val handler = service.headsetAutoplayHandler
+                    if (handler != null && !handler.lastDisconnectWasBluetooth) {
+                        if (!service.isPlaying) {
+                            service.play()
+                        }
+                    }
+                    // BT reconnect: no auto-play, user resumes manually via notification/mini-player
+                },
+                onHeadsetDisconnected = {
+                    // BP-13.2: On BT disconnect — save position and pause
+                    service.headsetAutoplayHandler?.recordWasPlaying(service.isPlaying)
+                    if (service.isPlaying) {
+                        service.saveCurrentPosition()
+                        service.pause()
+                        LogUtils.d(
+                            "AudioPlayerService",
+                            "BT/headset disconnected — paused playback and saved position",
+                        )
                     }
                 },
             )
         service.headsetAutoplayHandler?.startListening()
+
+        // BP-13.3: Initialize audio output device routing monitor
+        service.audioOutputDeviceMonitor = AudioOutputDeviceMonitor(service).also { it.register() }
 
         // Ensure ExoPlayer is initialized
         // Note: Hilt initialization check removed to avoid backing field access error

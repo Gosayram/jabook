@@ -19,6 +19,7 @@ import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -145,6 +146,8 @@ public class MirrorManager
                     response.close()
 
                     isHealthy
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     // Individual mirror unavailable is normal, not a warning
                     logger.i { "Mirror $domain unavailable (timeout or unreachable): ${e.message}" }

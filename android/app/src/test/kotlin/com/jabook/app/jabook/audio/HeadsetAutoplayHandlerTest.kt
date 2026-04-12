@@ -37,7 +37,7 @@ class HeadsetAutoplayHandlerTest {
     fun setup() {
         context = mock()
         callbackInvoked = false
-        handler = HeadsetAutoplayHandler(context) { callbackInvoked = true }
+        handler = HeadsetAutoplayHandler(context, onHeadsetConnected = { callbackInvoked = true })
     }
 
     @Test

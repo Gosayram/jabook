@@ -38,7 +38,9 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.toBitmap
+import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.capitalizeFirst
@@ -115,6 +117,16 @@ public class AudioPlayerService : MediaLibraryService() {
     @Inject
     public lateinit var audioVisualizerStateBridge: AudioVisualizerStateBridge
 
+    // Book loudness compensation for consistent volume across books
+    @Inject
+    public lateinit var booksDao: BooksDao
+
+    internal val bookLoudnessCompensator: BookLoudnessCompensator = BookLoudnessCompensator()
+
+    // Tracks the LUFS value of the previously playing book for transition gain
+    internal var previousBookLufs: Double? = null
+        private set
+
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
     // Keep mediaSession for backward compatibility during migration
@@ -185,6 +197,9 @@ public class AudioPlayerService : MediaLibraryService() {
     // Headset and Media Button handlers (Quick Wins)
     internal var headsetAutoplayHandler: HeadsetAutoplayHandler? = null
     internal var mediaButtonHandler: MediaButtonHandler? = null
+
+    /** BP-13.3: Audio output device routing monitor. */
+    internal var audioOutputDeviceMonitor: AudioOutputDeviceMonitor? = null
 
     // Track if playback was active before phone call (for auto-resume)
     internal var wasPlayingBeforeCall = false
@@ -867,6 +882,12 @@ public class AudioPlayerService : MediaLibraryService() {
         groupPath: String? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
     ) {
+        // Apply book loudness compensation when switching to a different book
+        val isBookSwitch = groupPath != null && groupPath != currentGroupPath
+        if (isBookSwitch) {
+            applyBookLoudnessCompensation(groupPath)
+        }
+
         playlistManager?.setPlaylist(
             filePaths,
             metadata,
@@ -877,6 +898,57 @@ public class AudioPlayerService : MediaLibraryService() {
         ) ?: run {
             LogUtils.e("AudioPlayerService", "PlaylistManager not initialized")
             callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
+        }
+    }
+
+    /**
+     * Applies loudness compensation when switching books.
+     *
+     * Reads the new book's measured LUFS value from the database and computes
+     * the gain needed to maintain consistent perceived volume. The gain is
+     * applied to the player volume after the book switch.
+     *
+     * This is a fire-and-forget operation — if the LUFS value is not yet
+     * available (e.g., [LufsAnalysisWorker] hasn't analyzed the book), the
+     * volume remains unchanged (gain = 1.0).
+     *
+     * @param newBookId the groupPath/bookId of the book being switched to
+     */
+    internal fun applyBookLoudnessCompensation(newBookId: String?) {
+        if (newBookId.isNullOrBlank()) return
+        playerServiceScope.launch(Dispatchers.IO) {
+            try {
+                val bookEntity = booksDao.getBookById(newBookId)
+                val newLufs = bookEntity?.lufsValue
+                val prevLufs = previousBookLufs
+
+                val gain =
+                    if (prevLufs != null && newLufs != null) {
+                        bookLoudnessCompensator.computeTransitionGain(prevLufs, newLufs)
+                    } else {
+                        bookLoudnessCompensator.computeBookGain(newLufs)
+                    }
+
+                // Update previous book LUFS for future transitions
+                previousBookLufs = newLufs
+
+                if (gain != BookLoudnessCompensator.NO_GAIN) {
+                    withContext(Dispatchers.Main) {
+                        val player = getActivePlayer()
+                        player.volume = gain.coerceIn(0f, 1f)
+                        LogUtils.i(
+                            "AudioPlayerService",
+                            "Book loudness compensation applied: gain=$gain, lufs=$newLufs, book=$newBookId",
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                LogUtils.w(
+                    "AudioPlayerService",
+                    "Failed to apply book loudness compensation for book=$newBookId: ${e.message}",
+                )
+                CrashDiagnostics.reportNonFatal("book_loudness_compensation", e)
+            }
         }
     }
 
@@ -1841,6 +1913,10 @@ public class AudioPlayerService : MediaLibraryService() {
 
         headsetAutoplayHandler?.stopListening()
         headsetAutoplayHandler = null
+
+        // BP-13.3: Unregister audio output device monitor
+        audioOutputDeviceMonitor?.unregister()
+        audioOutputDeviceMonitor = null
 
         serviceMediaController?.release()
         serviceMediaController = null

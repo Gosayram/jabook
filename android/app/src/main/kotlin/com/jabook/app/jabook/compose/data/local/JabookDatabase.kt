@@ -60,6 +60,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 16: Added books_fts (FTS virtual index) for fast local library search.
  * Database version 17: Added last_scan_timestamp to scan_paths for incremental scanning.
  * Database version 18: Added hot-path indices for books/chapters query performance.
+ * Database version 19: Added lufs_value and preferred_speed columns for per-book loudness analysis and speed preference.
  */
 @Database(
     entities = [
@@ -76,7 +77,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {

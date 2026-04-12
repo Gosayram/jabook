@@ -95,6 +95,9 @@ truth = "1.4.5"
 jimfs = "1.3.1"
 kotest = "5.9.1"
 
+# Diagnostics
+leakcanary = "2.14"
+
 # Code Quality
 ktlint = "14.2.0"
 
@@ -206,6 +209,9 @@ leanback = { group = "androidx.leanback", name = "leanback", version.ref = "lean
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+
+# Diagnostics
+leakcanary-android = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

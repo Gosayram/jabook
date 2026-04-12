@@ -36,6 +36,7 @@ import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseC
 import com.jabook.app.jabook.compose.navigation.TopicRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -357,6 +358,8 @@ public class TopicViewModel
                         // Ensure TorrentManager is initialized
                         try {
                             torrentManager.initialize()
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             logger.e(e) { "TorrentManager already initialized or error: ${e.message}" }
                         }
@@ -386,6 +389,8 @@ public class TopicViewModel
                     logger.e(e) { "Illegal state during torrent download" }
                     _message.value =
                         context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e(e) { "Unexpected error starting torrent download" }
                     _message.value =
@@ -439,6 +444,8 @@ public class TopicViewModel
                 } catch (e: RuTrackerError.Unauthorized) {
                     logger.w { "Download torrent file requires authentication" }
                     _message.value = context.getString(R.string.authenticationRequired)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e(e) { "Error downloading torrent file" }
                 }
