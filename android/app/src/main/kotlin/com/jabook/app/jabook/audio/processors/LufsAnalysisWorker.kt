@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio.processors
 
 import android.content.Context
+import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import androidx.hilt.work.HiltWorker
@@ -196,13 +197,12 @@ public class LufsAnalysisWorker
          * Reads [SAMPLE_WINDOWS] evenly-spaced chunks and integrates the results
          * using energy-weighted averaging via [LufsRmsEstimator.integrateEstimates].
          *
-         * Note: This reads raw compressed sample data from [MediaExtractor]. For compressed
-         * formats (MP3, AAC, etc.), the raw bytes don't represent PCM — but the energy
-         * distribution in compressed samples still correlates well with loudness for the
-         * purpose of relative book-to-book normalization. For WAV/FLAC, samples are actual PCM.
+         * Uses [MediaCodec] to decode compressed audio formats (MP3, AAC, etc.) into
+         * PCM before estimating LUFS, ensuring accurate loudness measurement.
          */
         internal fun estimateLufsForFile(audioFile: File): Double? {
             val extractor = MediaExtractor()
+            var codec: MediaCodec? = null
             return try {
                 extractor.setDataSource(audioFile.absolutePath)
                 val audioTrackIndex = findAudioTrackIndex(extractor) ?: return null
@@ -212,10 +212,20 @@ public class LufsAnalysisWorker
                 val durationUs =
                     runCatching { format.getLong(MediaFormat.KEY_DURATION) }
                         .getOrDefault(0L)
-                val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-                val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                val sampleRate =
+                    runCatching { format.getInteger(MediaFormat.KEY_SAMPLE_RATE) }
+                        .getOrDefault(0)
+                val channels =
+                    runCatching { format.getInteger(MediaFormat.KEY_CHANNEL_COUNT) }
+                        .getOrDefault(0)
 
                 if (durationUs <= 0 || sampleRate <= 0 || channels <= 0) return null
+
+                // Create and configure MediaCodec decoder
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
+                codec = MediaCodec.createDecoderByType(mime)
+                codec.configure(format, null, null, 0)
+                codec.start()
 
                 val windowSizeUs = durationUs / SAMPLE_WINDOWS
                 val chunkSizeSamples = TARGET_SAMPLES_PER_CHUNK
@@ -225,48 +235,77 @@ public class LufsAnalysisWorker
                     val seekPositionUs = windowIndex * windowSizeUs
                     extractor.seekTo(seekPositionUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 
-                    val pcmBuffer = ShortArray(chunkSizeSamples * channels)
-                    var samplesRead = 0
-                    var buffersRead = 0
+                    val pcmBuffer = mutableListOf<Short>()
+                    var buffersProcessed = 0
+                    val inputBufferInfo = MediaCodec.BufferInfo()
 
-                    val sampleBuf =
-                        ByteBuffer
-                            .allocateDirect(chunkSizeSamples * channels * 2)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-
-                    while (samplesRead < pcmBuffer.size && buffersRead < MAX_BUFFERS_PER_CHUNK) {
-                        sampleBuf.clear()
-                        val bytesRead = extractor.readSampleData(sampleBuf, 0)
-                        if (bytesRead <= 0) break
-
-                        sampleBuf.flip()
-                        val shortsToRead = minOf(bytesRead / 2, pcmBuffer.size - samplesRead)
-                        for (i in 0 until shortsToRead) {
-                            if (sampleBuf.hasRemaining() && samplesRead < pcmBuffer.size) {
-                                pcmBuffer[samplesRead++] = sampleBuf.short
+                    // Decode samples for this window
+                    while (pcmBuffer.size < chunkSizeSamples * channels && buffersProcessed < MAX_BUFFERS_PER_CHUNK) {
+                        // Feed input to decoder
+                        val inputBufferIndex = codec.dequeueInputBuffer(10_000)
+                        if (inputBufferIndex >= 0) {
+                            val inputBuffer = codec.getInputBuffer(inputBufferIndex)
+                            if (inputBuffer != null) {
+                                inputBuffer.clear()
+                                val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                                if (sampleSize >= 0) {
+                                    val presentationTimeUs = extractor.sampleTime
+                                    codec.queueInputBuffer(inputBufferIndex, 0, sampleSize, presentationTimeUs, 0)
+                                    extractor.advance()
+                                } else {
+                                    // End of stream
+                                    codec.queueInputBuffer(inputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                }
                             }
                         }
-                        extractor.advance()
-                        buffersRead++
+
+                        // Get decoded output
+                        val outputBufferIndex = codec.dequeueOutputBuffer(inputBufferInfo, 10_000)
+                        if (outputBufferIndex >= 0) {
+                            val outputBuffer = codec.getOutputBuffer(outputBufferIndex)
+                            if (outputBuffer != null && inputBufferInfo.size > 0) {
+                                outputBuffer.position(inputBufferInfo.offset)
+                                outputBuffer.limit(inputBufferInfo.offset + inputBufferInfo.size)
+                                // Convert ByteBuffer to ShortArray (PCM 16-bit)
+                                outputBuffer.order(ByteOrder.LITTLE_ENDIAN)
+                                while (outputBuffer.hasRemaining() && pcmBuffer.size < chunkSizeSamples * channels) {
+                                    pcmBuffer.add(outputBuffer.short)
+                                }
+                            }
+                            codec.releaseOutputBuffer(outputBufferIndex, false)
+                            buffersProcessed++
+                        } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                            // Output format changed, continue
+                        }
+
+                        if ((inputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                            break
+                        }
                     }
 
-                    if (samplesRead > channels) {
+                    // Estimate LUFS for this window
+                    if (pcmBuffer.size > channels) {
                         val estimate =
                             LufsRmsEstimator.estimateLufsFromPcm16(
-                                pcm16Data = pcmBuffer.copyOf(samplesRead),
+                                pcm16Data = pcmBuffer.toShortArray(),
                                 channels = channels,
                             )
                         if (estimate != null) {
                             estimates.add(estimate)
                         }
                     }
+
+                    // Reset codec for next window
+                    codec.flush()
                 }
 
                 LufsRmsEstimator.integrateEstimates(estimates)
             } catch (e: IOException) {
-                logger.w { "Could not read audio file: ${audioFile.absolutePath}" }
+                logger.w({ "Could not read audio file: ${audioFile.absolutePath}" }, e)
                 null
             } finally {
+                codec?.stop()
+                codec?.release()
                 extractor.release()
             }
         }

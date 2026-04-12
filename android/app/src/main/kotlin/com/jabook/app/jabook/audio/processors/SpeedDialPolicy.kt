@@ -63,6 +63,7 @@ public object SpeedDialPolicy {
      * @return nearest valid step value, clamped to [MIN_SPEED]..[MAX_SPEED]
      */
     public fun snapToStep(speed: Float): Float {
+        if (!speed.isFinite()) return MIN_SPEED
         val clamped = speed.coerceIn(MIN_SPEED, MAX_SPEED)
         val stepIndex = ((clamped - MIN_SPEED) / STEP).roundToInt()
         return MIN_SPEED + stepIndex * STEP
@@ -99,6 +100,7 @@ public object SpeedDialPolicy {
      * @return step index in 0..[TOTAL_STEPS]-1
      */
     public fun stepIndex(speed: Float): Int {
+        if (!speed.isFinite()) return 0
         val snapped = snapToStep(speed)
         return ((snapped - MIN_SPEED) / STEP).roundToInt()
     }
@@ -115,16 +117,23 @@ public object SpeedDialPolicy {
     }
 
     /**
+     * Cached list of all valid speed steps.
+     */
+    private val cachedSteps: List<Float> by lazy {
+        (0 until TOTAL_STEPS).map { speedForIndex(it) }
+    }
+
+    /**
      * Returns all valid speed steps as a list, from [MIN_SPEED] to [MAX_SPEED].
      * Useful for UI components that need the full list of available speeds.
      */
-    public fun allSteps(): List<Float> = (0 until TOTAL_STEPS).map { speedForIndex(it) }
+    public fun allSteps(): List<Float> = cachedSteps
 
     /**
      * Formats a speed value for display in the UI.
      *
      * @param speed playback speed
-     * @return formatted string (e.g., "1.0x", "1.5x", "0.5x")
+     * @return formatted string (e.g., "1x", "1.5x", "0.5x")
      */
     public fun formatSpeed(speed: Float): String {
         val snapped = snapToStep(speed)

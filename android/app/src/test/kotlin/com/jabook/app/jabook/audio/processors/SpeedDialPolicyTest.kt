@@ -84,6 +84,21 @@ class SpeedDialPolicyTest {
         assertEquals(3.5f, SpeedDialPolicy.snapToStep(100.0f), EPSILON)
     }
 
+    @Test
+    fun `snapToStep handles NaN by returning MIN_SPEED`() {
+        assertEquals(0.5f, SpeedDialPolicy.snapToStep(Float.NaN), EPSILON)
+    }
+
+    @Test
+    fun `snapToStep handles positive infinity by returning MIN_SPEED`() {
+        assertEquals(0.5f, SpeedDialPolicy.snapToStep(Float.POSITIVE_INFINITY), EPSILON)
+    }
+
+    @Test
+    fun `snapToStep handles negative infinity by returning MIN_SPEED`() {
+        assertEquals(0.5f, SpeedDialPolicy.snapToStep(Float.NEGATIVE_INFINITY), EPSILON)
+    }
+
     // ── stepUp ─────────────────────────────────────────────────────
 
     @Test
@@ -141,6 +156,17 @@ class SpeedDialPolicyTest {
     }
 
     @Test
+    fun `stepIndex handles NaN by returning 0`() {
+        assertEquals(0, SpeedDialPolicy.stepIndex(Float.NaN))
+    }
+
+    @Test
+    fun `stepIndex handles infinity by returning 0`() {
+        assertEquals(0, SpeedDialPolicy.stepIndex(Float.POSITIVE_INFINITY))
+        assertEquals(0, SpeedDialPolicy.stepIndex(Float.NEGATIVE_INFINITY))
+    }
+
+    @Test
     fun `speedForIndex is inverse of stepIndex`() {
         for (i in 0 until SpeedDialPolicy.TOTAL_STEPS) {
             val speed = SpeedDialPolicy.speedForIndex(i)
@@ -178,6 +204,14 @@ class SpeedDialPolicyTest {
             val delta = steps[i] - steps[i - 1]
             assertEquals(0.05f, delta, EPSILON)
         }
+    }
+
+    @Test
+    fun `allSteps returns cached instance on multiple calls`() {
+        val firstCall = SpeedDialPolicy.allSteps()
+        val secondCall = SpeedDialPolicy.allSteps()
+        // Verify same instance is returned (reference equality)
+        assertTrue(firstCall === secondCall)
     }
 
     // ── formatSpeed ────────────────────────────────────────────────
@@ -226,6 +260,36 @@ class SpeedDialPolicyTest {
         speed = SpeedDialPolicy.stepDown(speed)
         speed = SpeedDialPolicy.stepUp(speed)
         assertEquals(2.0f, speed, EPSILON)
+    }
+
+    // ── Round-trip invariants ──────────────────────────────────────
+
+    @Test
+    fun `speedForIndex and stepIndex are inverse operations`() {
+        for (i in 0 until SpeedDialPolicy.TOTAL_STEPS) {
+            val speed = SpeedDialPolicy.speedForIndex(i)
+            val index = SpeedDialPolicy.stepIndex(speed)
+            assertEquals("Round-trip failed for index $i", i, index)
+        }
+    }
+
+    @Test
+    fun `snapToStep and speedForIndex roundtrip for all steps`() {
+        for (i in 0 until SpeedDialPolicy.TOTAL_STEPS) {
+            val speed = SpeedDialPolicy.speedForIndex(i)
+            val snapped = SpeedDialPolicy.snapToStep(speed)
+            assertEquals("Snap failed for index $i", speed, snapped, EPSILON)
+        }
+    }
+
+    @Test
+    fun `snapToStep is idempotent`() {
+        val testSpeeds = listOf(0.75f, 1.23f, 2.47f, 3.21f)
+        for (speed in testSpeeds) {
+            val snapped1 = SpeedDialPolicy.snapToStep(speed)
+            val snapped2 = SpeedDialPolicy.snapToStep(snapped1)
+            assertEquals("snapToStep not idempotent for $speed", snapped1, snapped2, EPSILON)
+        }
     }
 
     private companion object {
