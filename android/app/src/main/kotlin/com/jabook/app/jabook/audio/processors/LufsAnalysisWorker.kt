@@ -221,72 +221,21 @@ public class LufsAnalysisWorker
                 if (durationUs <= 0 || sampleRate <= 0 || channels <= 0) return null
 
                 // Create and configure MediaCodec decoder
-                val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
-                codec = MediaCodec.createDecoderByType(mime)
-                codec.configure(format, null, null, 0)
-                codec.start()
+                codec = createAndConfigureDecoder(format) ?: return null
 
                 val windowSizeUs = durationUs / SAMPLE_WINDOWS
-                val chunkSizeSamples = TARGET_SAMPLES_PER_CHUNK
                 val estimates = mutableListOf<Double>()
 
                 for (windowIndex in 0 until SAMPLE_WINDOWS) {
                     val seekPositionUs = windowIndex * windowSizeUs
                     extractor.seekTo(seekPositionUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-
-                    val pcmBuffer = mutableListOf<Short>()
-                    var buffersProcessed = 0
-                    val inputBufferInfo = MediaCodec.BufferInfo()
-
-                    // Decode samples for this window
-                    while (pcmBuffer.size < chunkSizeSamples * channels && buffersProcessed < MAX_BUFFERS_PER_CHUNK) {
-                        // Feed input to decoder
-                        val inputBufferIndex = codec.dequeueInputBuffer(10_000)
-                        if (inputBufferIndex >= 0) {
-                            val inputBuffer = codec.getInputBuffer(inputBufferIndex)
-                            if (inputBuffer != null) {
-                                inputBuffer.clear()
-                                val sampleSize = extractor.readSampleData(inputBuffer, 0)
-                                if (sampleSize >= 0) {
-                                    val presentationTimeUs = extractor.sampleTime
-                                    codec.queueInputBuffer(inputBufferIndex, 0, sampleSize, presentationTimeUs, 0)
-                                    extractor.advance()
-                                } else {
-                                    // End of stream
-                                    codec.queueInputBuffer(inputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                                }
-                            }
-                        }
-
-                        // Get decoded output
-                        val outputBufferIndex = codec.dequeueOutputBuffer(inputBufferInfo, 10_000)
-                        if (outputBufferIndex >= 0) {
-                            val outputBuffer = codec.getOutputBuffer(outputBufferIndex)
-                            if (outputBuffer != null && inputBufferInfo.size > 0) {
-                                outputBuffer.position(inputBufferInfo.offset)
-                                outputBuffer.limit(inputBufferInfo.offset + inputBufferInfo.size)
-                                // Convert ByteBuffer to ShortArray (PCM 16-bit)
-                                outputBuffer.order(ByteOrder.LITTLE_ENDIAN)
-                                while (outputBuffer.hasRemaining() && pcmBuffer.size < chunkSizeSamples * channels) {
-                                    pcmBuffer.add(outputBuffer.short)
-                                }
-                            }
-                            codec.releaseOutputBuffer(outputBufferIndex, false)
-                            buffersProcessed++
-                        } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                            // Output format changed, continue
-                        }
-
-                        if ((inputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                            break
-                        }
-                    }
+                    val pcmSamples = decodeWindow(extractor, codec, channels, TARGET_SAMPLES_PER_CHUNK)
 
                     // Estimate LUFS for this window
-                    if (pcmBuffer.size > channels) {
+                    if (pcmSamples != null && pcmSamples.size > channels) {
                         val estimate =
                             LufsRmsEstimator.estimateLufsFromPcm16(
-                                pcm16Data = pcmBuffer.toShortArray(),
+                                pcm16Data = pcmSamples,
                                 channels = channels,
                             )
                         if (estimate != null) {
@@ -302,11 +251,111 @@ public class LufsAnalysisWorker
             } catch (e: IOException) {
                 logger.w({ "Could not read audio file: ${audioFile.absolutePath}" }, e)
                 null
+            } catch (e: IllegalArgumentException) {
+                logger.w({ "Invalid codec configuration for file: ${audioFile.absolutePath}" }, e)
+                null
+            } catch (e: MediaCodec.CodecException) {
+                logger.w({ "Codec error processing file: ${audioFile.absolutePath}" }, e)
+                null
             } finally {
                 codec?.stop()
                 codec?.release()
                 extractor.release()
             }
+        }
+
+        /**
+         * Creates and configures a MediaCodec decoder for the given format.
+         *
+         * @param format the media format to decode
+         * @return configured and started MediaCodec, or null on failure
+         */
+        private fun createAndConfigureDecoder(format: MediaFormat): MediaCodec? {
+            return try {
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
+                val codec = MediaCodec.createDecoderByType(mime)
+                codec.configure(format, null, null, 0)
+                codec.start()
+                codec
+            } catch (e: IOException) {
+                logger.w({ "Failed to create decoder" }, e)
+                null
+            } catch (e: IllegalArgumentException) {
+                logger.w({ "Invalid decoder configuration" }, e)
+                null
+            } catch (e: MediaCodec.CodecException) {
+                logger.w({ "Codec exception during decoder creation" }, e)
+                null
+            }
+        }
+
+        /**
+         * Decodes a window of audio samples from the extractor.
+         *
+         * Seeks to the window position, feeds input buffers to the codec, and collects
+         * PCM samples into a ShortArray.
+         *
+         * @param extractor the media extractor positioned at the desired track
+         * @param codec the configured and started MediaCodec decoder
+         * @param channels number of audio channels
+         * @param targetSamples target number of samples per channel to decode
+         * @return ShortArray of PCM samples, or null if decoding failed
+         */
+        private fun decodeWindow(
+            extractor: MediaExtractor,
+            codec: MediaCodec,
+            channels: Int,
+            targetSamples: Int,
+        ): ShortArray? {
+            val pcmBuffer = mutableListOf<Short>()
+            var buffersProcessed = 0
+            val outputBufferInfo = MediaCodec.BufferInfo()
+
+            // Decode samples for this window
+            while (pcmBuffer.size < targetSamples * channels && buffersProcessed < MAX_BUFFERS_PER_CHUNK) {
+                // Feed input to decoder
+                val inputBufferIndex = codec.dequeueInputBuffer(10_000)
+                if (inputBufferIndex >= 0) {
+                    val inputBuffer = codec.getInputBuffer(inputBufferIndex)
+                    if (inputBuffer != null) {
+                        inputBuffer.clear()
+                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                        if (sampleSize >= 0) {
+                            val presentationTimeUs = extractor.sampleTime
+                            codec.queueInputBuffer(inputBufferIndex, 0, sampleSize, presentationTimeUs, 0)
+                            extractor.advance()
+                        } else {
+                            // End of stream
+                            codec.queueInputBuffer(inputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        }
+                    }
+                }
+
+                // Get decoded output
+                val outputBufferIndex = codec.dequeueOutputBuffer(outputBufferInfo, 10_000)
+                if (outputBufferIndex >= 0) {
+                    val outputBuffer = codec.getOutputBuffer(outputBufferIndex)
+                    if (outputBuffer != null && outputBufferInfo.size > 0) {
+                        outputBuffer.position(outputBufferInfo.offset)
+                        outputBuffer.limit(outputBufferInfo.offset + outputBufferInfo.size)
+                        // Convert ByteBuffer to ShortArray (PCM 16-bit)
+                        outputBuffer.order(ByteOrder.LITTLE_ENDIAN)
+                        while (outputBuffer.hasRemaining() && pcmBuffer.size < targetSamples * channels) {
+                            pcmBuffer.add(outputBuffer.short)
+                        }
+                    }
+                    codec.releaseOutputBuffer(outputBufferIndex, false)
+                    buffersProcessed++
+                } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    // Output format changed, continue
+                }
+
+                if ((outputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                    break
+                }
+            }
+
+            return if (pcmBuffer.isNotEmpty()) pcmBuffer.toShortArray() else null
         }
 
         /**
