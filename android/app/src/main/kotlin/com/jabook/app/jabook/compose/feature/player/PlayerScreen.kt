@@ -181,7 +181,7 @@ public fun PlayerScreen(
     // Use specific keys to avoid unnecessary recomposition
     val shouldInitializePlayer =
         remember(uiState) {
-            uiState is PlayerUiState.Success && (uiState as? PlayerUiState.Success)?.chapters?.isNotEmpty() == true
+            uiState is PlayerState.Active && (uiState as? PlayerState.Active)?.chapters?.isNotEmpty() == true
         }
     androidx.compose.runtime.LaunchedEffect(shouldInitializePlayer) {
         if (shouldInitializePlayer) {
@@ -418,8 +418,8 @@ public fun PlayerScreen(
     // Removed Chapter Selector Sheet - using adaptive pane instead
 
     // Player Settings Sheet (Book Specific)
-    if (showSettingsSheet && uiState is PlayerUiState.Success) {
-        val state = uiState as PlayerUiState.Success
+    if (showSettingsSheet && uiState is PlayerState.Active) {
+        val state = uiState as PlayerState.Active
         PlayerSettingsSheet(
             book = state.book,
             onUpdateSettings = { rewindSeconds, forwardSeconds ->
@@ -494,11 +494,11 @@ public fun PlayerScreen(
                                 .windowInsetsPadding(WindowInsets.systemBars),
                     ) {
                         when (val state = uiState) {
-                            is PlayerUiState.Loading -> {
+                            is PlayerState.Loading -> {
                                 LoadingScreen(message = stringResource(R.string.loadingPlayer))
                             }
 
-                            is PlayerUiState.Success -> {
+                            is PlayerState.Active -> {
                                 val chapterRepeatMode by viewModel.chapterRepeatMode.collectAsStateWithLifecycle()
                                 // Click debouncer for preventing double clicks (inspired by Easybook)
                                 val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
@@ -590,7 +590,7 @@ public fun PlayerScreen(
                                 }
                             }
 
-                            is PlayerUiState.Error -> {
+                            is PlayerState.Error -> {
                                 ErrorScreen(
                                     message = state.message,
                                     onRetry = { navigationClickGuard.run(onNavigateBack) },
@@ -604,8 +604,8 @@ public fun PlayerScreen(
         supportingPane = {
             AnimatedPane(modifier = Modifier) {
                 // Show chapter pane only when we have chapters
-                if (uiState is PlayerUiState.Success) {
-                    val state = uiState as PlayerUiState.Success
+                if (uiState is PlayerState.Active) {
+                    val state = uiState as PlayerState.Active
                     PlayerChapterPane(
                         chapters = state.chapters,
                         currentChapterIndex = state.currentChapterIndex,
@@ -636,7 +636,7 @@ public fun PlayerScreen(
 )
 @Composable
 private fun PlayerContent(
-    state: PlayerUiState.Success,
+    state: PlayerState.Active,
     playbackSpeed: Float,
     hazeState: HazeState?,
     isVinylMode: Boolean,

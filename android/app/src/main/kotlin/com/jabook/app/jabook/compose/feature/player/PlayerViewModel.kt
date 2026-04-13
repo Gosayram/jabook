@@ -171,7 +171,7 @@ public class PlayerViewModel
         /**
          * Combined UI state from book data, playback state, and settings.
          */
-        public val uiState: StateFlow<PlayerUiState> =
+        public val uiState: StateFlow<PlayerState> =
             combine(
                 getBookDetailsUseCase(bookId),
                 getChaptersUseCase(bookId),
@@ -194,7 +194,7 @@ public class PlayerViewModel
                 val playbackSpeed = args[7] as Float
 
                 if (book == null) {
-                    PlayerUiState.Error("Book not found")
+                    PlayerState.Error("Book not found")
                 } else {
                     // Calculate effective seek intervals
                     // Priority: Book Override -> Global Setting -> Hardcoded Default
@@ -233,7 +233,7 @@ public class PlayerViewModel
                             savedPosition.coerceAtLeast(0L)
                         }
 
-                    PlayerUiState.Success(
+                    PlayerState.Active(
                         book = book,
                         chapters = chapters.toImmutableList(),
                         isPlaying = playing,
@@ -246,13 +246,13 @@ public class PlayerViewModel
                     )
                 }
             }.combine(_themeColors) { state, themeColors ->
-                if (state is PlayerUiState.Success) {
+                if (state is PlayerState.Active) {
                     state.copy(themeColors = themeColors)
                 } else {
                     state
                 }
             }.combine(lyricsState) { state, lyrics ->
-                if (state is PlayerUiState.Success) {
+                if (state is PlayerState.Active) {
                     state.copy(lyrics = lyrics)
                 } else {
                     state
@@ -260,7 +260,7 @@ public class PlayerViewModel
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = PlayerUiState.Loading,
+                initialValue = PlayerState.Loading,
             )
 
         // Load lyrics when chapter changes
@@ -428,7 +428,7 @@ public class PlayerViewModel
                 PlayerIntent.InitializePlayer -> initializePlayer()
                 PlayerIntent.TogglePlayPause -> {
                     val state = uiState.value
-                    if (state is PlayerUiState.Success && state.isPlaying) {
+                    if (state is PlayerState.Active && state.isPlaying) {
                         pause()
                     } else {
                         play()
@@ -476,7 +476,7 @@ public class PlayerViewModel
         public fun play() {
             logger.d { "Action: Play requested" }
             val state = uiState.value
-            if (state is PlayerUiState.Success) {
+            if (state is PlayerState.Active) {
                 // Ensure book is loaded before playing
                 if (!isBookLoaded) {
                     val filePaths = state.chapters.mapNotNull { it.fileUrl }
@@ -511,7 +511,7 @@ public class PlayerViewModel
         }
 
         public fun seekTo(positionMs: Long) {
-            val state = uiState.value as? PlayerUiState.Success
+            val state = uiState.value as? PlayerState.Active
             val chapterDurationMs = state?.currentChapter?.duration?.inWholeMilliseconds
             val clampedPositionMs = PlayerIntentGuardPolicy.clampSeekPosition(positionMs, chapterDurationMs)
             logger.d { "Action: Seek requested to ${positionMs}ms (clamped=${clampedPositionMs}ms)" }
@@ -544,7 +544,7 @@ public class PlayerViewModel
         public fun seekForward() {
             logger.d { "Action: Seek Forward requested" }
             val state = uiState.value
-            if (state is PlayerUiState.Success && state.currentChapter != null) {
+            if (state is PlayerState.Active && state.currentChapter != null) {
                 val interval: Long = state.forwardInterval.toLong()
                 val newPosition =
                     (playerController.currentPosition.value + interval * 1000)
@@ -556,7 +556,7 @@ public class PlayerViewModel
         public fun seekBackward() {
             logger.d { "Action: Seek Backward requested" }
             val state = uiState.value
-            if (state is PlayerUiState.Success) {
+            if (state is PlayerState.Active) {
                 val interval: Long = state.rewindInterval.toLong()
                 val newPosition = (playerController.currentPosition.value - interval * 1000).coerceAtLeast(0)
                 seekTo(newPosition)
@@ -678,7 +678,7 @@ public class PlayerViewModel
          */
         public fun initializePlayer() {
             val state = uiState.value
-            if (state is PlayerUiState.Success && !isBookLoaded) {
+            if (state is PlayerState.Active && !isBookLoaded) {
                 val filePaths = state.chapters.mapNotNull { it.fileUrl }
                 if (filePaths.isNotEmpty()) {
                     // Single source-of-truth: initialize from unified uiState (controller/service-driven
@@ -776,17 +776,17 @@ public enum class ChapterRepeatMode {
 /**
  * UI state for the Player screen.
  */
-public sealed interface PlayerUiState {
+public sealed interface PlayerState {
     /**
      * Loading state - fetching book data.
      */
-    public data object Loading : PlayerUiState
+    public data object Loading : PlayerState
 
     /**
      * Success state with book and playback info.
      */
     @Immutable
-    public data class Success(
+    public data class Active(
         val book: Book,
         val chapters: ImmutableList<Chapter>,
         val isPlaying: Boolean,
@@ -798,7 +798,7 @@ public sealed interface PlayerUiState {
         val playbackSpeed: Float,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
         val lyrics: ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
-    ) : PlayerUiState
+    ) : PlayerState
 
     /**
      * Error state.
@@ -806,5 +806,5 @@ public sealed interface PlayerUiState {
     @Immutable
     public data class Error(
         val message: String,
-    ) : PlayerUiState
+    ) : PlayerState
 }
