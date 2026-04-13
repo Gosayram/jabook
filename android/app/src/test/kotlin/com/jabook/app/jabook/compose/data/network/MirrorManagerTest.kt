@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.network
 
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.preferences.PlayerStateSnapshotPreference
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode
 import com.jabook.app.jabook.compose.data.preferences.ThemeMode
@@ -201,6 +202,7 @@ private class FakeSettingsRepository(
         private set
 
     override val userPreferences: Flow<UserPreferences> = state
+    override val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?> = MutableStateFlow(null)
 
     override suspend fun updateThemeMode(themeMode: ThemeMode) = Unit
 
@@ -283,4 +285,8 @@ private class FakeSettingsRepository(
     override suspend fun resetToDefaults() = Unit
 
     override suspend fun updateEqualizerPreset(preset: String) = Unit
+
+    override suspend fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference) = Unit
+
+    override suspend fun clearPlayerStateSnapshot() = Unit
 }

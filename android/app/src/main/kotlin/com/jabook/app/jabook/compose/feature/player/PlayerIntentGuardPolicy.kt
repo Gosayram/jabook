@@ -21,6 +21,8 @@ import kotlin.math.abs
  * Guard policy for Player intents to keep behavior deterministic and idempotent.
  */
 public object PlayerIntentGuardPolicy {
+    public fun clampPlaybackSpeed(requestedSpeed: Float): Float = requestedSpeed.coerceIn(MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED)
+
     public fun clampSeekPosition(
         requestedPositionMs: Long,
         chapterDurationMs: Long?,
@@ -46,4 +48,6 @@ public object PlayerIntentGuardPolicy {
     public fun shouldStartEndOfTrack(currentState: SleepTimerState): Boolean = currentState !is SleepTimerState.EndOfTrack
 
     private const val SAME_TIMER_EPSILON_SECONDS: Int = 2
+    private const val MIN_PLAYBACK_SPEED: Float = 0.5f
+    private const val MAX_PLAYBACK_SPEED: Float = 2.0f
 }

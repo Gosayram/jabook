@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
+import com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.collections.immutable.toImmutableList
@@ -113,6 +115,26 @@ class PlayerReducerTest {
     }
 
     @Test
+    fun `reduce clamps playback speed to allowed range`() {
+        val state = activeStateTemplate().copy(playbackSpeed = 1.0f)
+
+        val tooLow = PlayerReducer.reduce(state, PlayerIntent.SetPlaybackSpeed(speed = 0.1f)) as PlayerState.Active
+        val tooHigh = PlayerReducer.reduce(state, PlayerIntent.SetPlaybackSpeed(speed = 3.5f)) as PlayerState.Active
+
+        assertEquals(0.5f, tooLow.playbackSpeed)
+        assertEquals(2.0f, tooHigh.playbackSpeed)
+    }
+
+    @Test
+    fun `reduce keeps state when playback speed is already clamped target`() {
+        val state = activeStateTemplate().copy(playbackSpeed = 2.0f)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SetPlaybackSpeed(speed = 9.0f))
+
+        assertEquals(state, reduced)
+    }
+
+    @Test
     fun `reduce select chapter clamps index and resets position`() {
         val chapters =
             listOf(
@@ -203,6 +225,68 @@ class PlayerReducerTest {
         require(reduced is PlayerState.Active)
         assertEquals(15, reduced.rewindInterval)
         assertEquals(45, reduced.forwardInterval)
+    }
+
+    @Test
+    fun `reduce keeps state when audio settings intent does not change values`() {
+        val state =
+            activeStateTemplate().copy(
+                volumeBoostLevel = VolumeBoostLevel.Boost50,
+                skipSilence = true,
+                skipSilenceThresholdDb = -30f,
+                skipSilenceMinMs = 220,
+                skipSilenceMode = SkipSilenceMode.SPEED_UP,
+                normalizeVolume = false,
+                speechEnhancer = true,
+                autoVolumeLeveling = true,
+            )
+
+        val reduced =
+            PlayerReducer.reduce(
+                state,
+                PlayerIntent.UpdateAudioSettings(
+                    volumeBoostLevel = VolumeBoostLevel.Boost50,
+                    skipSilence = true,
+                    skipSilenceThresholdDb = -30f,
+                    skipSilenceMinMs = 220,
+                    skipSilenceMode = SkipSilenceMode.SPEED_UP,
+                    normalizeVolume = false,
+                    speechEnhancer = true,
+                    autoVolumeLeveling = true,
+                ),
+            )
+
+        assertEquals(state, reduced)
+    }
+
+    @Test
+    fun `reduce updates state when audio settings intent changes values`() {
+        val state = activeStateTemplate()
+
+        val reduced =
+            PlayerReducer.reduce(
+                state,
+                PlayerIntent.UpdateAudioSettings(
+                    volumeBoostLevel = VolumeBoostLevel.Boost200,
+                    skipSilence = true,
+                    skipSilenceThresholdDb = -28f,
+                    skipSilenceMinMs = 180,
+                    skipSilenceMode = SkipSilenceMode.SPEED_UP,
+                    normalizeVolume = false,
+                    speechEnhancer = true,
+                    autoVolumeLeveling = true,
+                ),
+            )
+
+        require(reduced is PlayerState.Active)
+        assertEquals(VolumeBoostLevel.Boost200, reduced.volumeBoostLevel)
+        assertTrue(reduced.skipSilence)
+        assertEquals(-28f, reduced.skipSilenceThresholdDb)
+        assertEquals(180, reduced.skipSilenceMinMs)
+        assertEquals(SkipSilenceMode.SPEED_UP, reduced.skipSilenceMode)
+        assertFalse(reduced.normalizeVolume)
+        assertTrue(reduced.speechEnhancer)
+        assertTrue(reduced.autoVolumeLeveling)
     }
 
     @Test

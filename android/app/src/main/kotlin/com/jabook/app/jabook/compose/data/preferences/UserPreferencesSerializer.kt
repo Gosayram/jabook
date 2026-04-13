@@ -56,6 +56,8 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setSleepTimerShakeExtendEnabled(true)
             .setEqualizerPreset("FLAT")
             .setAutoLoadCoversOnCellular(true)
+            .setPlayerSnapshotPlaybackSpeed(1.0f)
+            .setPlayerSnapshotSleepMode("idle")
             .setSchemaVersion(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION)
             .build()
 

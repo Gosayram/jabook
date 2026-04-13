@@ -91,8 +91,6 @@ public class PlayerViewModel
         private val args = savedStateHandle.toRoute<PlayerRoute>()
         private val bookId = args.bookId
 
-        // Track if book has been loaded into player
-        private var isBookLoaded = false
         private val _effects = MutableSharedFlow<PlayerEffect>(extraBufferCapacity = 8)
         public val effects: SharedFlow<PlayerEffect> = _effects.asSharedFlow()
 
@@ -105,6 +103,8 @@ public class PlayerViewModel
         private var savedChapterIndex: Int = 0
         private var savedPlaybackSpeed: Float = 1.0f
         private var savedSleepTimerMode: String = PlayerStateSnapshotPolicy.MODE_IDLE
+        private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
+        private var hasRestoredSnapshot: Boolean = false
 
         // Chapter repeat mode state
         private val chapterRepeatModeState = MutableStateFlow(ChapterRepeatMode.OFF)
@@ -120,6 +120,9 @@ public class PlayerViewModel
 
         init {
             restoreStateSnapshot()
+            restoreStateSnapshotFromDataStore()
+            restorePlaybackSpeedFromSnapshotIfNeeded()
+            restoreSleepTimerModeFromSnapshotIfNeeded()
 
             // CRITICAL: Restore saved position from database on init
             // This ensures position is restored in all scenarios:
@@ -170,6 +173,24 @@ public class PlayerViewModel
                             savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] = snapshot.chapterIndex
                             savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] = snapshot.playbackSpeed
                             savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] = snapshot.sleepTimerMode
+
+                            val persistentSnapshot = PlayerStateSnapshotPolicy.normalizeForPersistence(snapshot)
+                            if (PlayerStateSnapshotPolicy.shouldPersistSnapshot(lastPersistedPlayerSnapshot, persistentSnapshot)) {
+                                lastPersistedPlayerSnapshot = persistentSnapshot
+                                runCatching {
+                                    settingsRepository.updatePlayerStateSnapshot(
+                                        com.jabook.app.jabook.compose.data.preferences.PlayerStateSnapshotPreference(
+                                            bookId = persistentSnapshot.bookId,
+                                            positionMs = persistentSnapshot.positionMs,
+                                            chapterIndex = persistentSnapshot.chapterIndex,
+                                            playbackSpeed = persistentSnapshot.playbackSpeed,
+                                            sleepTimerMode = persistentSnapshot.sleepTimerMode,
+                                        ),
+                                    )
+                                }.onFailure { error ->
+                                    logger.w(error) { "Failed to persist player snapshot to DataStore" }
+                                }
+                            }
                         }
                     }
             }
@@ -238,7 +259,7 @@ public class PlayerViewModel
                     val hasControllerStateForCurrentBook =
                         isControllerBoundToCurrentBook &&
                             (
-                                isBookLoaded ||
+                                isControllerBoundToCurrentBook ||
                                     controllerPosition > 0L ||
                                     controllerChapterIndex > 0 ||
                                     playing
@@ -275,6 +296,18 @@ public class PlayerViewModel
                             (sleepTimerState as? com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active)
                                 ?.remainingSeconds,
                         chapterRepeatMode = chapterRepeatMode,
+                        volumeBoostLevel =
+                            runCatching {
+                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel
+                                    .valueOf(preferences.volumeBoostLevel)
+                            }.getOrElse { com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off },
+                        skipSilence = preferences.skipSilence,
+                        skipSilenceThresholdDb = preferences.skipSilenceThresholdDb,
+                        skipSilenceMinMs = preferences.skipSilenceMinMs,
+                        skipSilenceMode = preferences.skipSilenceMode,
+                        normalizeVolume = preferences.normalizeVolume,
+                        speechEnhancer = preferences.speechEnhancer,
+                        autoVolumeLeveling = preferences.autoVolumeLeveling,
                     )
                 }
             }.combine(_themeColors) { state, themeColors ->
@@ -511,7 +544,10 @@ public class PlayerViewModel
                 }
                 PlayerIntent.InitializeVisualizer -> initializeVisualizer()
                 is PlayerIntent.SetVisualizerEnabled -> setVisualizerEnabled(intent.enabled)
-                is PlayerIntent.SetPlaybackSpeed -> setPlaybackSpeed(intent.speed)
+                is PlayerIntent.SetPlaybackSpeed -> {
+                    val reducedSpeed = (reducedState as? PlayerState.Active)?.playbackSpeed ?: return
+                    setPlaybackSpeed(reducedSpeed)
+                }
                 is PlayerIntent.SetPitchCorrectionEnabled -> setPitchCorrectionEnabled(intent.enabled)
                 is PlayerIntent.StartSleepTimer -> {
                     if (reducedState == uiState.value) {
@@ -553,19 +589,20 @@ public class PlayerViewModel
                     }
                 PlayerIntent.ResetBookSeekSettings -> resetBookSeekSettings()
                 is PlayerIntent.UpdateAudioSettings ->
-                    if (intent.isNoOp()) {
+                    if (reducedState == uiState.value) {
                         logger.d { "Audio settings intent has no changes, skipping command" }
                         return
                     } else {
+                        val targetState = reducedState as? PlayerState.Active ?: return
                         updateAudioSettings(
-                            volumeBoostLevel = intent.volumeBoostLevel,
-                            skipSilence = intent.skipSilence,
-                            skipSilenceThresholdDb = intent.skipSilenceThresholdDb,
-                            skipSilenceMinMs = intent.skipSilenceMinMs,
-                            skipSilenceMode = intent.skipSilenceMode,
-                            normalizeVolume = intent.normalizeVolume,
-                            speechEnhancer = intent.speechEnhancer,
-                            autoVolumeLeveling = intent.autoVolumeLeveling,
+                            volumeBoostLevel = targetState.volumeBoostLevel,
+                            skipSilence = targetState.skipSilence,
+                            skipSilenceThresholdDb = targetState.skipSilenceThresholdDb,
+                            skipSilenceMinMs = targetState.skipSilenceMinMs,
+                            skipSilenceMode = targetState.skipSilenceMode,
+                            normalizeVolume = targetState.normalizeVolume,
+                            speechEnhancer = targetState.speechEnhancer,
+                            autoVolumeLeveling = targetState.autoVolumeLeveling,
                         )
                     }
                 is PlayerIntent.ReportError -> {
@@ -582,7 +619,8 @@ public class PlayerViewModel
             val state = uiState.value
             if (state is PlayerState.Active) {
                 // Ensure book is loaded before playing
-                if (!isBookLoaded) {
+                val isControllerBoundToCurrentBook = playerController.currentBookId.value == bookId
+                if (!isControllerBoundToCurrentBook) {
                     val filePaths = state.chapters.mapNotNull { it.fileUrl }
                     if (filePaths.isNotEmpty()) {
                         playerController.loadBook(
@@ -599,7 +637,6 @@ public class PlayerViewModel
                                 ),
                             bookId = bookId,
                         )
-                        isBookLoaded = true
                     }
                 } else {
                     playerController.play()
@@ -782,7 +819,8 @@ public class PlayerViewModel
          */
         public fun initializePlayer() {
             val state = uiState.value
-            if (state is PlayerState.Active && !isBookLoaded) {
+            val isControllerBoundToCurrentBook = playerController.currentBookId.value == bookId
+            if (state is PlayerState.Active && !isControllerBoundToCurrentBook) {
                 val filePaths = state.chapters.mapNotNull { it.fileUrl }
                 if (filePaths.isNotEmpty()) {
                     // Single source-of-truth: initialize from unified uiState (controller/service-driven
@@ -813,7 +851,6 @@ public class PlayerViewModel
                             ),
                         bookId = bookId,
                     )
-                    isBookLoaded = true
                 }
             }
         }
@@ -863,10 +900,66 @@ public class PlayerViewModel
             savedChapterIndex = (savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] ?: 0).coerceAtLeast(0)
             savedPlaybackSpeed = (savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] ?: 1.0f).coerceAtLeast(0f)
             savedSleepTimerMode = savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] ?: PlayerStateSnapshotPolicy.MODE_IDLE
+            hasRestoredSnapshot = true
 
             logger.d {
                 "Restored player snapshot: chapter=$savedChapterIndex, " +
                     "position=${savedPosition}ms, speed=$savedPlaybackSpeed, sleepMode=$savedSleepTimerMode"
+            }
+        }
+
+        private fun restoreStateSnapshotFromDataStore() {
+            viewModelScope.launch {
+                if (savedChapterIndex > 0 || savedPosition > 0L) return@launch
+                val snapshot = settingsRepository.playerStateSnapshot.first() ?: return@launch
+                if (snapshot.bookId != bookId) return@launch
+                savedPosition = snapshot.positionMs.coerceAtLeast(0L)
+                savedChapterIndex = snapshot.chapterIndex.coerceAtLeast(0)
+                savedPlaybackSpeed = snapshot.playbackSpeed.coerceAtLeast(0f)
+                savedSleepTimerMode = snapshot.sleepTimerMode.ifBlank { PlayerStateSnapshotPolicy.MODE_IDLE }
+                hasRestoredSnapshot = true
+                logger.d {
+                    "Restored player snapshot from DataStore: chapter=$savedChapterIndex, " +
+                        "position=${savedPosition}ms, speed=$savedPlaybackSpeed, sleepMode=$savedSleepTimerMode"
+                }
+            }
+        }
+
+        private fun restorePlaybackSpeedFromSnapshotIfNeeded() {
+            viewModelScope.launch {
+                if (!hasRestoredSnapshot || savedPlaybackSpeed <= 0f) return@launch
+                runCatching {
+                    val currentSpeed = userPreferencesRepository.userData.first().playbackSpeed
+                    if (kotlin.math.abs(currentSpeed - savedPlaybackSpeed) > 0.01f) {
+                        userPreferencesRepository.setPlaybackSpeed(savedPlaybackSpeed)
+                    }
+                }.onFailure { error ->
+                    logger.w(error) { "Failed to restore playback speed from player snapshot" }
+                }
+            }
+        }
+
+        private fun restoreSleepTimerModeFromSnapshotIfNeeded() {
+            viewModelScope.launch {
+                if (!hasRestoredSnapshot) return@launch
+                when (savedSleepTimerMode) {
+                    PlayerStateSnapshotPolicy.MODE_END_OF_CHAPTER -> {
+                        if (PlayerIntentGuardPolicy.shouldStartEndOfChapter(sleepTimerState.value)) {
+                            sleepTimerRepository.startTimerEndOfChapter()
+                        }
+                    }
+                    PlayerStateSnapshotPolicy.MODE_END_OF_TRACK -> {
+                        if (PlayerIntentGuardPolicy.shouldStartEndOfTrack(sleepTimerState.value)) {
+                            sleepTimerRepository.startTimerEndOfTrack()
+                        }
+                    }
+                    PlayerStateSnapshotPolicy.MODE_ACTIVE -> {
+                        // Remaining seconds are intentionally not persisted in the snapshot.
+                        logger.d { "Skipping restore for fixed sleep timer mode due to missing remaining seconds" }
+                    }
+                    PlayerStateSnapshotPolicy.MODE_IDLE -> Unit
+                    else -> Unit
+                }
             }
         }
 
@@ -906,16 +999,6 @@ public class PlayerViewModel
                 com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfChapter -> PlayerSleepTimerMode.END_OF_CHAPTER
                 is com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfTrack -> PlayerSleepTimerMode.END_OF_TRACK
             }
-
-        private fun PlayerIntent.UpdateAudioSettings.isNoOp(): Boolean =
-            volumeBoostLevel == null &&
-                skipSilence == null &&
-                skipSilenceThresholdDb == null &&
-                skipSilenceMinMs == null &&
-                skipSilenceMode == null &&
-                normalizeVolume == null &&
-                speechEnhancer == null &&
-                autoVolumeLeveling == null
     }
 
 private const val STATE_SNAPSHOT_BOOK_ID: String = "player_snapshot.book_id"
@@ -963,6 +1046,16 @@ public sealed interface PlayerState {
         val sleepTimerMode: PlayerSleepTimerMode,
         val sleepTimerRemainingSeconds: Int?,
         val chapterRepeatMode: ChapterRepeatMode,
+        val volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel =
+            com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
+        val skipSilence: Boolean = false,
+        val skipSilenceThresholdDb: Float = -32.0f,
+        val skipSilenceMinMs: Int = 250,
+        val skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode =
+            com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP,
+        val normalizeVolume: Boolean = true,
+        val speechEnhancer: Boolean = false,
+        val autoVolumeLeveling: Boolean = false,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
         val lyrics: ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
     ) : PlayerState

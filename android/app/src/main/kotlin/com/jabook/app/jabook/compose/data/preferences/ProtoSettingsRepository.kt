@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -52,6 +53,11 @@ public interface SettingsRepository {
      * Get user preferences as Flow.
      */
     public val userPreferences: Flow<UserPreferences>
+
+    /**
+     * Last persisted player snapshot for process-death fallback.
+     */
+    public val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?>
 
     /**
      * Update theme mode.
@@ -169,6 +175,16 @@ public interface SettingsRepository {
     public suspend fun updateOnboardingCompleted(completed: Boolean)
 
     /**
+     * Persist player state snapshot for process death restore fallback.
+     */
+    public suspend fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference)
+
+    /**
+     * Clear persisted player state snapshot.
+     */
+    public suspend fun clearPlayerStateSnapshot()
+
+    /**
      * Reset all settings to defaults.
      */
     public suspend fun resetToDefaults()
@@ -194,6 +210,22 @@ public class ProtoSettingsRepository
                         throw exception
                     }
                 }
+
+        override val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?> =
+            userPreferences.map { preferences ->
+                val bookId = preferences.playerSnapshotBookId
+                if (bookId.isBlank()) {
+                    null
+                } else {
+                    PlayerStateSnapshotPreference(
+                        bookId = bookId,
+                        positionMs = preferences.playerSnapshotPositionMs.coerceAtLeast(0L),
+                        chapterIndex = preferences.playerSnapshotChapterIndex.coerceAtLeast(0),
+                        playbackSpeed = preferences.playerSnapshotPlaybackSpeed.coerceAtLeast(0f),
+                        sleepTimerMode = preferences.playerSnapshotSleepMode,
+                    )
+                }
+            }
 
         override suspend fun updateThemeMode(themeMode: ThemeMode) {
             dataStore.updateData { preferences ->
@@ -360,6 +392,32 @@ public class ProtoSettingsRepository
         override suspend fun updateOnboardingCompleted(completed: Boolean) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setOnboardingCompleted(completed).build()
+            }
+        }
+
+        override suspend fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference) {
+            dataStore.updateData { preferences ->
+                preferences
+                    .toBuilder()
+                    .setPlayerSnapshotBookId(snapshot.bookId)
+                    .setPlayerSnapshotPositionMs(snapshot.positionMs.coerceAtLeast(0L))
+                    .setPlayerSnapshotChapterIndex(snapshot.chapterIndex.coerceAtLeast(0))
+                    .setPlayerSnapshotPlaybackSpeed(snapshot.playbackSpeed.coerceAtLeast(0f))
+                    .setPlayerSnapshotSleepMode(snapshot.sleepTimerMode)
+                    .build()
+            }
+        }
+
+        override suspend fun clearPlayerStateSnapshot() {
+            dataStore.updateData { preferences ->
+                preferences
+                    .toBuilder()
+                    .clearPlayerSnapshotBookId()
+                    .setPlayerSnapshotPositionMs(0L)
+                    .setPlayerSnapshotChapterIndex(0)
+                    .setPlayerSnapshotPlaybackSpeed(1.0f)
+                    .clearPlayerSnapshotSleepMode()
+                    .build()
             }
         }
 

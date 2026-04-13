@@ -82,6 +82,14 @@ public object PlayerReducer {
                 }
             }
             PlayerIntent.TogglePlayPause -> state.copy(isPlaying = !state.isPlaying)
+            is PlayerIntent.SetPlaybackSpeed -> {
+                val clampedSpeed = PlayerIntentGuardPolicy.clampPlaybackSpeed(intent.speed)
+                if (state.playbackSpeed == clampedSpeed) {
+                    state
+                } else {
+                    state.copy(playbackSpeed = clampedSpeed)
+                }
+            }
             is PlayerIntent.SeekTo -> {
                 val clampedPosition =
                     PlayerIntentGuardPolicy.clampSeekPosition(
@@ -179,6 +187,39 @@ public object PlayerReducer {
                     state.copy(
                         rewindInterval = updatedRewind,
                         forwardInterval = updatedForward,
+                    )
+                }
+            }
+            is PlayerIntent.UpdateAudioSettings -> {
+                val updatedVolumeBoost = intent.volumeBoostLevel ?: state.volumeBoostLevel
+                val updatedSkipSilence = intent.skipSilence ?: state.skipSilence
+                val updatedSkipSilenceThresholdDb = intent.skipSilenceThresholdDb ?: state.skipSilenceThresholdDb
+                val updatedSkipSilenceMinMs = intent.skipSilenceMinMs ?: state.skipSilenceMinMs
+                val updatedSkipSilenceMode = intent.skipSilenceMode ?: state.skipSilenceMode
+                val updatedNormalizeVolume = intent.normalizeVolume ?: state.normalizeVolume
+                val updatedSpeechEnhancer = intent.speechEnhancer ?: state.speechEnhancer
+                val updatedAutoVolumeLeveling = intent.autoVolumeLeveling ?: state.autoVolumeLeveling
+                if (
+                    updatedVolumeBoost == state.volumeBoostLevel &&
+                    updatedSkipSilence == state.skipSilence &&
+                    updatedSkipSilenceThresholdDb == state.skipSilenceThresholdDb &&
+                    updatedSkipSilenceMinMs == state.skipSilenceMinMs &&
+                    updatedSkipSilenceMode == state.skipSilenceMode &&
+                    updatedNormalizeVolume == state.normalizeVolume &&
+                    updatedSpeechEnhancer == state.speechEnhancer &&
+                    updatedAutoVolumeLeveling == state.autoVolumeLeveling
+                ) {
+                    state
+                } else {
+                    state.copy(
+                        volumeBoostLevel = updatedVolumeBoost,
+                        skipSilence = updatedSkipSilence,
+                        skipSilenceThresholdDb = updatedSkipSilenceThresholdDb,
+                        skipSilenceMinMs = updatedSkipSilenceMinMs,
+                        skipSilenceMode = updatedSkipSilenceMode,
+                        normalizeVolume = updatedNormalizeVolume,
+                        speechEnhancer = updatedSpeechEnhancer,
+                        autoVolumeLeveling = updatedAutoVolumeLeveling,
                     )
                 }
             }

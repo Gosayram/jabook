@@ -18,6 +18,8 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 import kotlinx.collections.immutable.persistentListOf
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlayerStateSnapshotPolicyTest {
@@ -70,5 +72,44 @@ class PlayerStateSnapshotPolicyTest {
             PlayerStateSnapshotPolicy.MODE_END_OF_TRACK,
             PlayerStateSnapshotPolicy.sleepTimerModeOf(SleepTimerState.EndOfTrack(fallbackFromChapter = true)),
         )
+    }
+
+    @Test
+    fun `normalizeForPersistence rounds position down by persistence step`() {
+        val snapshot =
+            PlayerStateSnapshot(
+                bookId = "book-1",
+                positionMs = 12_345L,
+                chapterIndex = 2,
+                playbackSpeed = 1.25f,
+                sleepTimerMode = PlayerStateSnapshotPolicy.MODE_ACTIVE,
+            )
+
+        val normalized = PlayerStateSnapshotPolicy.normalizeForPersistence(snapshot)
+
+        assertEquals(10_000L, normalized.positionMs)
+        assertEquals(snapshot.bookId, normalized.bookId)
+        assertEquals(snapshot.chapterIndex, normalized.chapterIndex)
+    }
+
+    @Test
+    fun `shouldPersistSnapshot respects coarse-grained threshold and state switches`() {
+        val base =
+            PlayerStateSnapshot(
+                bookId = "book-1",
+                positionMs = 10_000L,
+                chapterIndex = 1,
+                playbackSpeed = 1.0f,
+                sleepTimerMode = PlayerStateSnapshotPolicy.MODE_IDLE,
+            )
+
+        val sameNearPosition = base.copy(positionMs = 14_000L)
+        assertFalse(PlayerStateSnapshotPolicy.shouldPersistSnapshot(base, sameNearPosition))
+
+        val farEnoughPosition = base.copy(positionMs = 15_000L)
+        assertTrue(PlayerStateSnapshotPolicy.shouldPersistSnapshot(base, farEnoughPosition))
+
+        val differentChapter = base.copy(chapterIndex = 2)
+        assertTrue(PlayerStateSnapshotPolicy.shouldPersistSnapshot(base, differentChapter))
     }
 }
