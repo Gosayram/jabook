@@ -214,7 +214,14 @@ class PlayerReducerTest {
 
     @Test
     fun `reduce updates state when book seek settings intent changes values`() {
-        val state = activeStateTemplate().copy(rewindInterval = 10, forwardInterval = 30)
+        val state =
+            activeStateTemplate().copy(
+                rewindInterval = 10,
+                forwardInterval = 30,
+                defaultRewindInterval = 10,
+                defaultForwardInterval = 30,
+                hasBookSeekOverride = false,
+            )
 
         val reduced =
             PlayerReducer.reduce(
@@ -225,6 +232,42 @@ class PlayerReducerTest {
         require(reduced is PlayerState.Active)
         assertEquals(15, reduced.rewindInterval)
         assertEquals(45, reduced.forwardInterval)
+        assertTrue(reduced.hasBookSeekOverride)
+    }
+
+    @Test
+    fun `reduce keeps state when reset seek settings intent is idempotent`() {
+        val state =
+            activeStateTemplate().copy(
+                rewindInterval = 10,
+                forwardInterval = 30,
+                defaultRewindInterval = 10,
+                defaultForwardInterval = 30,
+                hasBookSeekOverride = false,
+            )
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.ResetBookSeekSettings)
+
+        assertEquals(state, reduced)
+    }
+
+    @Test
+    fun `reduce resets seek settings to defaults when override is active`() {
+        val state =
+            activeStateTemplate().copy(
+                rewindInterval = 15,
+                forwardInterval = 45,
+                defaultRewindInterval = 10,
+                defaultForwardInterval = 30,
+                hasBookSeekOverride = true,
+            )
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.ResetBookSeekSettings)
+
+        require(reduced is PlayerState.Active)
+        assertEquals(10, reduced.rewindInterval)
+        assertEquals(30, reduced.forwardInterval)
+        assertFalse(reduced.hasBookSeekOverride)
     }
 
     @Test

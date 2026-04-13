@@ -101,10 +101,8 @@ public class PlayerViewModel
         // Saved position from database (restored on init)
         private var savedPosition: Long = 0L
         private var savedChapterIndex: Int = 0
-        private var savedPlaybackSpeed: Float = 1.0f
-        private var savedSleepTimerMode: String = PlayerStateSnapshotPolicy.MODE_IDLE
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
-        private var hasRestoredSnapshot: Boolean = false
+        private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
 
         // Chapter repeat mode state
         private val chapterRepeatModeState = MutableStateFlow(ChapterRepeatMode.OFF)
@@ -252,6 +250,18 @@ public class PlayerViewModel
                     val forwardInterval =
                         book.forwardDuration
                             ?: if (preferences.forwardDurationSeconds > 0) preferences.forwardDurationSeconds else 30
+                    val defaultRewindInterval =
+                        if (preferences.rewindDurationSeconds > 0) {
+                            preferences.rewindDurationSeconds
+                        } else {
+                            10
+                        }
+                    val defaultForwardInterval =
+                        if (preferences.forwardDurationSeconds > 0) {
+                            preferences.forwardDurationSeconds
+                        } else {
+                            30
+                        }
 
                     val maxChapterIndex = (chapters.size - 1).coerceAtLeast(0)
                     val safeSavedChapterIndex = savedChapterIndex.coerceIn(0, maxChapterIndex)
@@ -290,6 +300,9 @@ public class PlayerViewModel
                         currentChapter = chapters.getOrNull(chapterIndex),
                         rewindInterval = rewindInterval,
                         forwardInterval = forwardInterval,
+                        defaultRewindInterval = defaultRewindInterval,
+                        defaultForwardInterval = defaultForwardInterval,
+                        hasBookSeekOverride = book.rewindDuration != null || book.forwardDuration != null,
                         playbackSpeed = playbackSpeed,
                         sleepTimerMode = sleepTimerState.toPlayerSleepTimerMode(),
                         sleepTimerRemainingSeconds =
@@ -545,6 +558,10 @@ public class PlayerViewModel
                 PlayerIntent.InitializeVisualizer -> initializeVisualizer()
                 is PlayerIntent.SetVisualizerEnabled -> setVisualizerEnabled(intent.enabled)
                 is PlayerIntent.SetPlaybackSpeed -> {
+                    if (reducedState == uiState.value) {
+                        logger.d { "Playback speed unchanged by reducer, skipping command" }
+                        return
+                    }
                     val reducedSpeed = (reducedState as? PlayerState.Active)?.playbackSpeed ?: return
                     setPlaybackSpeed(reducedSpeed)
                 }
@@ -582,12 +599,31 @@ public class PlayerViewModel
                         logger.d { "Book seek settings unchanged by reducer, skipping command" }
                         return
                     } else {
+                        val targetState = reducedState as? PlayerState.Active ?: return
+                        val targetRewindSeconds =
+                            if (targetState.rewindInterval == targetState.defaultRewindInterval) {
+                                null
+                            } else {
+                                targetState.rewindInterval
+                            }
+                        val targetForwardSeconds =
+                            if (targetState.forwardInterval == targetState.defaultForwardInterval) {
+                                null
+                            } else {
+                                targetState.forwardInterval
+                            }
                         updateBookSeekSettings(
-                            rewindSeconds = intent.rewindSeconds,
-                            forwardSeconds = intent.forwardSeconds,
+                            rewindSeconds = targetRewindSeconds,
+                            forwardSeconds = targetForwardSeconds,
                         )
                     }
-                PlayerIntent.ResetBookSeekSettings -> resetBookSeekSettings()
+                PlayerIntent.ResetBookSeekSettings ->
+                    if (reducedState == uiState.value) {
+                        logger.d { "Book seek settings already reset, skipping command" }
+                        return
+                    } else {
+                        resetBookSeekSettings()
+                    }
                 is PlayerIntent.UpdateAudioSettings ->
                     if (reducedState == uiState.value) {
                         logger.d { "Audio settings intent has no changes, skipping command" }
@@ -898,13 +934,17 @@ public class PlayerViewModel
 
             savedPosition = (savedStateHandle[STATE_SNAPSHOT_POSITION_MS] ?: 0L).coerceAtLeast(0L)
             savedChapterIndex = (savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] ?: 0).coerceAtLeast(0)
-            savedPlaybackSpeed = (savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] ?: 1.0f).coerceAtLeast(0f)
-            savedSleepTimerMode = savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] ?: PlayerStateSnapshotPolicy.MODE_IDLE
-            hasRestoredSnapshot = true
+            val restoredSpeed = (savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] ?: 1.0f).coerceAtLeast(0f)
+            val restoredSleepMode = savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] ?: PlayerStateSnapshotPolicy.MODE_IDLE
+            restoredBootstrapSnapshot =
+                RestoredBootstrapSnapshot(
+                    playbackSpeed = restoredSpeed,
+                    sleepTimerMode = restoredSleepMode,
+                )
 
             logger.d {
                 "Restored player snapshot: chapter=$savedChapterIndex, " +
-                    "position=${savedPosition}ms, speed=$savedPlaybackSpeed, sleepMode=$savedSleepTimerMode"
+                    "position=${savedPosition}ms, speed=$restoredSpeed, sleepMode=$restoredSleepMode"
             }
         }
 
@@ -915,23 +955,28 @@ public class PlayerViewModel
                 if (snapshot.bookId != bookId) return@launch
                 savedPosition = snapshot.positionMs.coerceAtLeast(0L)
                 savedChapterIndex = snapshot.chapterIndex.coerceAtLeast(0)
-                savedPlaybackSpeed = snapshot.playbackSpeed.coerceAtLeast(0f)
-                savedSleepTimerMode = snapshot.sleepTimerMode.ifBlank { PlayerStateSnapshotPolicy.MODE_IDLE }
-                hasRestoredSnapshot = true
+                val restoredSpeed = snapshot.playbackSpeed.coerceAtLeast(0f)
+                val restoredSleepMode = snapshot.sleepTimerMode.ifBlank { PlayerStateSnapshotPolicy.MODE_IDLE }
+                restoredBootstrapSnapshot =
+                    RestoredBootstrapSnapshot(
+                        playbackSpeed = restoredSpeed,
+                        sleepTimerMode = restoredSleepMode,
+                    )
                 logger.d {
                     "Restored player snapshot from DataStore: chapter=$savedChapterIndex, " +
-                        "position=${savedPosition}ms, speed=$savedPlaybackSpeed, sleepMode=$savedSleepTimerMode"
+                        "position=${savedPosition}ms, speed=$restoredSpeed, sleepMode=$restoredSleepMode"
                 }
             }
         }
 
         private fun restorePlaybackSpeedFromSnapshotIfNeeded() {
             viewModelScope.launch {
-                if (!hasRestoredSnapshot || savedPlaybackSpeed <= 0f) return@launch
+                val bootstrapSnapshot = restoredBootstrapSnapshot ?: return@launch
+                if (bootstrapSnapshot.playbackSpeed <= 0f) return@launch
                 runCatching {
                     val currentSpeed = userPreferencesRepository.userData.first().playbackSpeed
-                    if (kotlin.math.abs(currentSpeed - savedPlaybackSpeed) > 0.01f) {
-                        userPreferencesRepository.setPlaybackSpeed(savedPlaybackSpeed)
+                    if (kotlin.math.abs(currentSpeed - bootstrapSnapshot.playbackSpeed) > 0.01f) {
+                        userPreferencesRepository.setPlaybackSpeed(bootstrapSnapshot.playbackSpeed)
                     }
                 }.onFailure { error ->
                     logger.w(error) { "Failed to restore playback speed from player snapshot" }
@@ -941,8 +986,8 @@ public class PlayerViewModel
 
         private fun restoreSleepTimerModeFromSnapshotIfNeeded() {
             viewModelScope.launch {
-                if (!hasRestoredSnapshot) return@launch
-                when (savedSleepTimerMode) {
+                val bootstrapSnapshot = restoredBootstrapSnapshot ?: return@launch
+                when (bootstrapSnapshot.sleepTimerMode) {
                     PlayerStateSnapshotPolicy.MODE_END_OF_CHAPTER -> {
                         if (PlayerIntentGuardPolicy.shouldStartEndOfChapter(sleepTimerState.value)) {
                             sleepTimerRepository.startTimerEndOfChapter()
@@ -1042,6 +1087,9 @@ public sealed interface PlayerState {
         val currentChapter: Chapter?,
         val rewindInterval: Int,
         val forwardInterval: Int,
+        val defaultRewindInterval: Int = rewindInterval,
+        val defaultForwardInterval: Int = forwardInterval,
+        val hasBookSeekOverride: Boolean = false,
         val playbackSpeed: Float,
         val sleepTimerMode: PlayerSleepTimerMode,
         val sleepTimerRemainingSeconds: Int?,
@@ -1075,3 +1123,8 @@ public enum class PlayerSleepTimerMode {
     END_OF_CHAPTER,
     END_OF_TRACK,
 }
+
+private data class RestoredBootstrapSnapshot(
+    val playbackSpeed: Float,
+    val sleepTimerMode: String,
+)

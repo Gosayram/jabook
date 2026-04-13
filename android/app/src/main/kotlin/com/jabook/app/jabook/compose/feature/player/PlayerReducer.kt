@@ -181,12 +181,31 @@ public object PlayerReducer {
             is PlayerIntent.UpdateBookSeekSettings -> {
                 val updatedRewind = intent.rewindSeconds ?: state.rewindInterval
                 val updatedForward = intent.forwardSeconds ?: state.forwardInterval
+                val updatedHasOverride =
+                    updatedRewind != state.defaultRewindInterval ||
+                        updatedForward != state.defaultForwardInterval
                 if (updatedRewind == state.rewindInterval && updatedForward == state.forwardInterval) {
                     state
                 } else {
                     state.copy(
                         rewindInterval = updatedRewind,
                         forwardInterval = updatedForward,
+                        hasBookSeekOverride = updatedHasOverride,
+                    )
+                }
+            }
+            PlayerIntent.ResetBookSeekSettings -> {
+                val isAlreadyReset =
+                    !state.hasBookSeekOverride &&
+                        state.rewindInterval == state.defaultRewindInterval &&
+                        state.forwardInterval == state.defaultForwardInterval
+                if (isAlreadyReset) {
+                    state
+                } else {
+                    state.copy(
+                        rewindInterval = state.defaultRewindInterval,
+                        forwardInterval = state.defaultForwardInterval,
+                        hasBookSeekOverride = false,
                     )
                 }
             }
