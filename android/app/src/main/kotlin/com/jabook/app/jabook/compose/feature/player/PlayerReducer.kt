@@ -67,10 +67,43 @@ public object PlayerReducer {
         intent: PlayerIntent,
     ): PlayerState =
         when (intent) {
+            PlayerIntent.Play -> {
+                if (state.isPlaying) {
+                    state
+                } else {
+                    state.copy(isPlaying = true)
+                }
+            }
+            PlayerIntent.Pause -> {
+                if (!state.isPlaying) {
+                    state
+                } else {
+                    state.copy(isPlaying = false)
+                }
+            }
+            PlayerIntent.TogglePlayPause -> state.copy(isPlaying = !state.isPlaying)
             is PlayerIntent.SeekTo -> {
                 val clampedPosition =
                     PlayerIntentGuardPolicy.clampSeekPosition(
                         requestedPositionMs = intent.positionMs,
+                        chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
+                    )
+                state.copy(currentPosition = clampedPosition)
+            }
+            PlayerIntent.SeekForward -> {
+                val requestedPosition = state.currentPosition + state.forwardInterval * 1_000L
+                val clampedPosition =
+                    PlayerIntentGuardPolicy.clampSeekPosition(
+                        requestedPositionMs = requestedPosition,
+                        chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
+                    )
+                state.copy(currentPosition = clampedPosition)
+            }
+            PlayerIntent.SeekBackward -> {
+                val requestedPosition = state.currentPosition - state.rewindInterval * 1_000L
+                val clampedPosition =
+                    PlayerIntentGuardPolicy.clampSeekPosition(
+                        requestedPositionMs = requestedPosition,
                         chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
                     )
                 state.copy(currentPosition = clampedPosition)

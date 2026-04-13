@@ -78,6 +78,40 @@ class PlayerReducerTest {
     }
 
     @Test
+    fun `reduce toggles play state with toggle intent`() {
+        val paused = activeStateTemplate().copy(isPlaying = false)
+        val playing = activeStateTemplate().copy(isPlaying = true)
+
+        val pausedToPlaying = PlayerReducer.reduce(paused, PlayerIntent.TogglePlayPause)
+        val playingToPaused = PlayerReducer.reduce(playing, PlayerIntent.TogglePlayPause)
+
+        require(pausedToPlaying is PlayerState.Active)
+        require(playingToPaused is PlayerState.Active)
+        assertTrue(pausedToPlaying.isPlaying)
+        assertFalse(playingToPaused.isPlaying)
+    }
+
+    @Test
+    fun `reduce seek forward uses forward interval and clamps by duration`() {
+        val state = activeStateTemplate().copy(currentPosition = 50_000L, forwardInterval = 15)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekForward)
+
+        require(reduced is PlayerState.Active)
+        assertEquals(60_000L, reduced.currentPosition)
+    }
+
+    @Test
+    fun `reduce seek backward uses rewind interval and clamps to zero`() {
+        val state = activeStateTemplate().copy(currentPosition = 5_000L, rewindInterval = 10)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekBackward)
+
+        require(reduced is PlayerState.Active)
+        assertEquals(0L, reduced.currentPosition)
+    }
+
+    @Test
     fun `reduce keeps state when fixed sleep timer request is idempotent`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.FIXED, sleepTimerRemainingSeconds = 300)
 

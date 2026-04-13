@@ -462,23 +462,40 @@ public class PlayerViewModel
             when (intent) {
                 PlayerIntent.InitializePlayer -> initializePlayer()
                 PlayerIntent.TogglePlayPause -> {
-                    val state = uiState.value
-                    if (state is PlayerState.Active && state.isPlaying) {
-                        pause()
-                    } else {
+                    val currentState = uiState.value as? PlayerState.Active
+                    val targetState = reducedState as? PlayerState.Active
+                    if (currentState == null || targetState == null || currentState == targetState) {
+                        logger.d { "TogglePlayPause produced no state change, skipping command" }
+                        return
+                    }
+                    if (targetState.isPlaying) {
                         play()
+                    } else {
+                        pause()
                     }
                 }
-                PlayerIntent.Play -> play()
-                PlayerIntent.Pause -> pause()
+                PlayerIntent.Play -> {
+                    if (reducedState == uiState.value) return
+                    play()
+                }
+                PlayerIntent.Pause -> {
+                    if (reducedState == uiState.value) return
+                    pause()
+                }
                 PlayerIntent.SkipNext -> skipToNext()
                 PlayerIntent.SkipPrevious -> skipToPrevious()
                 is PlayerIntent.SeekTo -> {
                     val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: intent.positionMs
                     seekTo(reducedPosition)
                 }
-                PlayerIntent.SeekForward -> seekForward()
-                PlayerIntent.SeekBackward -> seekBackward()
+                PlayerIntent.SeekForward -> {
+                    val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: return
+                    seekTo(reducedPosition)
+                }
+                PlayerIntent.SeekBackward -> {
+                    val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: return
+                    seekTo(reducedPosition)
+                }
                 is PlayerIntent.SelectChapter -> skipToChapter(intent.chapterIndex)
                 PlayerIntent.ToggleChapterRepeat -> toggleChapterRepeat()
                 PlayerIntent.InitializeVisualizer -> initializeVisualizer()
