@@ -35,9 +35,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -90,6 +93,8 @@ public class PlayerViewModel
 
         // Track if book has been loaded into player
         private var isBookLoaded = false
+        private val _effects = MutableSharedFlow<PlayerEffect>(extraBufferCapacity = 8)
+        public val effects: SharedFlow<PlayerEffect> = _effects.asSharedFlow()
 
         // Player Stats for Nerds
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
@@ -495,6 +500,8 @@ public class PlayerViewModel
                 } else {
                     playerController.play()
                 }
+            } else {
+                emitEffect(PlayerEffect.ShowSnackbar("Player is not ready yet"))
             }
         }
 
@@ -555,10 +562,18 @@ public class PlayerViewModel
 
         public fun setPlaybackSpeed(speed: Float) {
             viewModelScope.launch {
-                userPreferencesRepository.setPlaybackSpeed(speed)
+                runCatching { userPreferencesRepository.setPlaybackSpeed(speed) }
+                    .onFailure { error ->
+                        logger.e({ "Failed to persist playback speed" }, error)
+                        emitEffect(PlayerEffect.ShowError("Failed to save playback speed"))
+                    }
             }
             viewModelScope.launch {
-                playerController.setPlaybackSpeed(speed)
+                runCatching { playerController.setPlaybackSpeed(speed) }
+                    .onFailure { error ->
+                        logger.e({ "Failed to set playback speed on player" }, error)
+                        emitEffect(PlayerEffect.ShowError("Failed to update playback speed"))
+                    }
             }
         }
 
@@ -595,13 +610,21 @@ public class PlayerViewModel
             forwardSeconds: Int?,
         ) {
             viewModelScope.launch {
-                updateBookSettingsUseCase(bookId, rewindSeconds, forwardSeconds)
+                runCatching { updateBookSettingsUseCase(bookId, rewindSeconds, forwardSeconds) }
+                    .onFailure { error ->
+                        logger.e({ "Failed to update book seek settings" }, error)
+                        emitEffect(PlayerEffect.ShowError("Failed to update seek settings"))
+                    }
             }
         }
 
         public fun resetBookSeekSettings() {
             viewModelScope.launch {
-                updateBookSettingsUseCase.resetForBook(bookId)
+                runCatching { updateBookSettingsUseCase.resetForBook(bookId) }
+                    .onFailure { error ->
+                        logger.e({ "Failed to reset book seek settings" }, error)
+                        emitEffect(PlayerEffect.ShowError("Failed to reset seek settings"))
+                    }
             }
         }
 
@@ -616,16 +639,21 @@ public class PlayerViewModel
             autoVolumeLeveling: Boolean? = null,
         ) {
             viewModelScope.launch {
-                settingsRepository.updateAudioSettings(
-                    volumeBoost = volumeBoostLevel?.name,
-                    skipSilence = skipSilence,
-                    skipSilenceThresholdDb = skipSilenceThresholdDb,
-                    skipSilenceMinMs = skipSilenceMinMs,
-                    skipSilenceMode = skipSilenceMode,
-                    normalizeVolume = normalizeVolume,
-                    speechEnhancer = speechEnhancer,
-                    autoVolumeLeveling = autoVolumeLeveling,
-                )
+                runCatching {
+                    settingsRepository.updateAudioSettings(
+                        volumeBoost = volumeBoostLevel?.name,
+                        skipSilence = skipSilence,
+                        skipSilenceThresholdDb = skipSilenceThresholdDb,
+                        skipSilenceMinMs = skipSilenceMinMs,
+                        skipSilenceMode = skipSilenceMode,
+                        normalizeVolume = normalizeVolume,
+                        speechEnhancer = speechEnhancer,
+                        autoVolumeLeveling = autoVolumeLeveling,
+                    )
+                }.onFailure { error ->
+                    logger.e({ "Failed to update audio settings" }, error)
+                    emitEffect(PlayerEffect.ShowError("Failed to update audio settings"))
+                }
             }
         }
 
@@ -673,8 +701,16 @@ public class PlayerViewModel
 
         public fun reorderChapters(newOrderedIds: List<String>) {
             viewModelScope.launch {
-                booksRepository.updateChapterOrder(bookId, newOrderedIds)
+                runCatching { booksRepository.updateChapterOrder(bookId, newOrderedIds) }
+                    .onFailure { error ->
+                        logger.e({ "Failed to reorder chapters" }, error)
+                        emitEffect(PlayerEffect.ShowError("Failed to reorder chapters"))
+                    }
             }
+        }
+
+        private fun emitEffect(effect: PlayerEffect) {
+            _effects.tryEmit(effect)
         }
 
         /**

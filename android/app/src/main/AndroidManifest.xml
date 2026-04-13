@@ -263,7 +263,7 @@
             android:name=".compose.data.torrent.TorrentDownloadService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="dataSync|mediaPlayback" />
 
         <!-- Indexing foreground service -->
         <service

@@ -125,6 +125,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -205,6 +206,16 @@ public fun PlayerScreen(
     val openSettingsLabel = stringResource(R.string.openSettings)
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collectLatest { effect ->
+            when (effect) {
+                is PlayerEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
+                is PlayerEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+                PlayerEffect.NavigateBack -> navigationClickGuard.run(onNavigateBack)
+            }
+        }
+    }
 
     // Check for Power Save Mode to disable expensive visual effects
     val isPowerSaveMode by remember(context) {
