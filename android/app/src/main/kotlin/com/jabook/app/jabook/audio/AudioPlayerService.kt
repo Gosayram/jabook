@@ -937,12 +937,9 @@ public class AudioPlayerService : MediaLibraryService() {
                 if (gain != BookLoudnessCompensator.NO_GAIN) {
                     withContext(Dispatchers.Main) {
                         val player = getActivePlayer()
-                        // Apply transition gain as delta, absolute gain directly
-                        player.volume = if (prevLufs != null && newLufs != null) {
-                            (player.volume + gain).coerceIn(0f, 1f)
-                        } else {
-                            gain.coerceIn(0f, 1f)
-                        }
+                        // Player.volume is an absolute linear multiplier. Loudness compensation gain
+                        // is relative, so it must be composed multiplicatively to preserve user volume.
+                        player.volume = (player.volume * gain).coerceIn(0f, 1f)
                         LogUtils.i(
                             "AudioPlayerService",
                             "Book loudness compensation applied: gain=$gain, lufs=$newLufs, book=$newBookId",

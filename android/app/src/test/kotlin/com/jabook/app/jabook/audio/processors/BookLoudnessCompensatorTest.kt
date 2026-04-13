@@ -77,6 +77,17 @@ class BookLoudnessCompensatorTest {
         assertTrue(extremeLoud in BookLoudnessCompensator.GAIN_RANGE)
     }
 
+    @Test
+    fun computeBookGain_validNegative_matchesPolicyCompensationGain() {
+        val policy = LufsLoudnessCompensationPolicy()
+        val lufs = -19.0
+
+        val expected = policy.compensationGain(lufs)
+        val actual = compensator.computeBookGain(lufs)
+
+        assertEquals(expected, actual, 0.0001f)
+    }
+
     // --- computeTransitionGain ---
 
     @Test
@@ -135,6 +146,18 @@ class BookLoudnessCompensatorTest {
     fun computeTransitionGain_extremeTransition_withinGainRange() {
         val gain = compensator.computeTransitionGain(-10.0, -30.0)
         assertTrue(gain in BookLoudnessCompensator.GAIN_RANGE)
+    }
+
+    @Test
+    fun computeTransitionGain_validNegativeValues_matchesPolicyTransitionGain() {
+        val policy = LufsLoudnessCompensationPolicy()
+        val prev = -22.0
+        val next = -17.0
+
+        val expected = policy.transitionGain(prev, next)
+        val actual = compensator.computeTransitionGain(prev, next)
+
+        assertEquals(expected, actual, 0.0001f)
     }
 
     @Test
