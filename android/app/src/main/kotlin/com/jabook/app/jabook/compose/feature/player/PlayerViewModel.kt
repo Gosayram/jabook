@@ -732,14 +732,8 @@ public class PlayerViewModel
          * Toggle chapter repeat mode: OFF -> ONCE -> INFINITE -> OFF
          */
         public fun toggleChapterRepeat() {
-            _chapterRepeatMode.value =
-                when (_chapterRepeatMode.value) {
-                    ChapterRepeatMode.OFF -> ChapterRepeatMode.ONCE
-                    ChapterRepeatMode.ONCE -> ChapterRepeatMode.INFINITE
-                    ChapterRepeatMode.INFINITE -> ChapterRepeatMode.OFF
-                }
-            // Reset repeat flag when changing mode
-            hasRepeatedOnce = false
+            _chapterRepeatMode.value = PlayerReducer.nextChapterRepeatMode(_chapterRepeatMode.value)
+            hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
         }
 
         /**
@@ -748,34 +742,21 @@ public class PlayerViewModel
          *
          * @return true if chapter should be repeated, false to continue to next
          */
-        public fun onChapterEnded(): Boolean =
-            when (_chapterRepeatMode.value) {
-                ChapterRepeatMode.OFF -> {
-                    // No repeat, continue to next chapter
-                    false
-                }
-                ChapterRepeatMode.ONCE -> {
-                    // Repeat once if not already repeated
-                    if (!hasRepeatedOnce) {
-                        hasRepeatedOnce = true
-                        true // Need to repeat
-                    } else {
-                        // Already repeated once, continue to next
-                        hasRepeatedOnce = false
-                        false
-                    }
-                }
-                ChapterRepeatMode.INFINITE -> {
-                    // Always repeat
-                    true
-                }
-            }
+        public fun onChapterEnded(): Boolean {
+            val reduction =
+                PlayerReducer.reduceChapterEnded(
+                    mode = _chapterRepeatMode.value,
+                    hasRepeatedOnce = hasRepeatedOnce,
+                )
+            hasRepeatedOnce = reduction.hasRepeatedOnce
+            return reduction.shouldRepeat
+        }
 
         /**
          * Reset repeat flag when chapter changes manually.
          */
         public fun onChapterChanged() {
-            hasRepeatedOnce = false
+            hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
         }
     }
 
