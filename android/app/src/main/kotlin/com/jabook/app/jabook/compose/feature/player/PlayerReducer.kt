@@ -75,6 +75,51 @@ public object PlayerReducer {
                     )
                 state.copy(currentPosition = clampedPosition)
             }
+            is PlayerIntent.StartSleepTimer -> {
+                val requestedSeconds = intent.minutes.coerceAtLeast(1) * 60
+                val isSameFixedTimer =
+                    state.sleepTimerMode == PlayerSleepTimerMode.FIXED &&
+                        state.sleepTimerRemainingSeconds != null &&
+                        kotlin.math.abs(state.sleepTimerRemainingSeconds - requestedSeconds) <= SAME_TIMER_EPSILON_SECONDS
+                if (isSameFixedTimer) {
+                    state
+                } else {
+                    state.copy(
+                        sleepTimerMode = PlayerSleepTimerMode.FIXED,
+                        sleepTimerRemainingSeconds = requestedSeconds,
+                    )
+                }
+            }
+            PlayerIntent.StartSleepTimerEndOfChapter -> {
+                if (state.sleepTimerMode == PlayerSleepTimerMode.END_OF_CHAPTER) {
+                    state
+                } else {
+                    state.copy(
+                        sleepTimerMode = PlayerSleepTimerMode.END_OF_CHAPTER,
+                        sleepTimerRemainingSeconds = null,
+                    )
+                }
+            }
+            PlayerIntent.StartSleepTimerEndOfTrack -> {
+                if (state.sleepTimerMode == PlayerSleepTimerMode.END_OF_TRACK) {
+                    state
+                } else {
+                    state.copy(
+                        sleepTimerMode = PlayerSleepTimerMode.END_OF_TRACK,
+                        sleepTimerRemainingSeconds = null,
+                    )
+                }
+            }
+            PlayerIntent.CancelSleepTimer -> {
+                if (state.sleepTimerMode == PlayerSleepTimerMode.IDLE) {
+                    state
+                } else {
+                    state.copy(
+                        sleepTimerMode = PlayerSleepTimerMode.IDLE,
+                        sleepTimerRemainingSeconds = null,
+                    )
+                }
+            }
             is PlayerIntent.ReportError -> PlayerState.Error(intent.reason)
             else -> state
         }
@@ -89,6 +134,8 @@ public object PlayerReducer {
             else -> state
         }
 }
+
+private const val SAME_TIMER_EPSILON_SECONDS: Int = 2
 
 public data class ChapterEndReduction(
     val shouldRepeat: Boolean,

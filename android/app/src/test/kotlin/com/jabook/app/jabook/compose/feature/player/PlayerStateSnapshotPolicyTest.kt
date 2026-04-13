@@ -36,6 +36,8 @@ class PlayerStateSnapshotPolicyTest {
                 rewindInterval = 10,
                 forwardInterval = 30,
                 playbackSpeed = -2f,
+                sleepTimerMode = PlayerSleepTimerMode.IDLE,
+                sleepTimerRemainingSeconds = null,
             )
 
         val snapshot =

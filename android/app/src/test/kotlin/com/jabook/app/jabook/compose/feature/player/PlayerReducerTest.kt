@@ -59,6 +59,8 @@ class PlayerReducerTest {
                 rewindInterval = 10,
                 forwardInterval = 30,
                 playbackSpeed = 1.0f,
+                sleepTimerMode = PlayerSleepTimerMode.IDLE,
+                sleepTimerRemainingSeconds = null,
             )
 
         val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekTo(positionMs = 120_000L))
@@ -73,6 +75,35 @@ class PlayerReducerTest {
 
         require(reduced is PlayerState.Error)
         assertEquals("boom", reduced.message)
+    }
+
+    @Test
+    fun `reduce keeps state when fixed sleep timer request is idempotent`() {
+        val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.FIXED, sleepTimerRemainingSeconds = 300)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimer(minutes = 5))
+
+        assertEquals(state, reduced)
+    }
+
+    @Test
+    fun `reduce updates state when fixed sleep timer request differs`() {
+        val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.FIXED, sleepTimerRemainingSeconds = 120)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimer(minutes = 5))
+
+        require(reduced is PlayerState.Active)
+        assertEquals(PlayerSleepTimerMode.FIXED, reduced.sleepTimerMode)
+        assertEquals(300, reduced.sleepTimerRemainingSeconds)
+    }
+
+    @Test
+    fun `reduce keeps state when end-of-chapter timer already active`() {
+        val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.END_OF_CHAPTER, sleepTimerRemainingSeconds = null)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimerEndOfChapter)
+
+        assertEquals(state, reduced)
     }
 
     @Test
@@ -141,4 +172,29 @@ class PlayerReducerTest {
     fun `reduceChapterChanged resets repeat flag`() {
         assertFalse(PlayerReducer.reduceChapterChanged())
     }
+
+    private fun activeStateTemplate(): PlayerState.Active =
+        PlayerState.Active(
+            book = Book.preview().copy(id = "book-1"),
+            chapters =
+                listOf(
+                    Chapter.preview().copy(
+                        id = "c1",
+                        bookId = "book-1",
+                        chapterIndex = 0,
+                        fileIndex = 0,
+                        duration = 1.minutes,
+                        position = 0.seconds,
+                    ),
+                ).toImmutableList(),
+            isPlaying = true,
+            currentPosition = 10_000L,
+            currentChapterIndex = 0,
+            currentChapter = Chapter.preview().copy(id = "c1", bookId = "book-1", duration = 1.minutes),
+            rewindInterval = 10,
+            forwardInterval = 30,
+            playbackSpeed = 1.0f,
+            sleepTimerMode = PlayerSleepTimerMode.IDLE,
+            sleepTimerRemainingSeconds = null,
+        )
 }

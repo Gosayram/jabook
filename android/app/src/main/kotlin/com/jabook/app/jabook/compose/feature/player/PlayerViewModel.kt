@@ -205,6 +205,7 @@ public class PlayerViewModel
                 playerController.currentBookId,
                 settingsRepository.userPreferences,
                 userPreferencesRepository.userData.map { it.playbackSpeed },
+                sleepTimerRepository.timerState,
             ) { args ->
                 val book = args[0] as? Book
 
@@ -216,6 +217,7 @@ public class PlayerViewModel
                 val controllerBookId = args[5] as String?
                 val preferences = args[6] as com.jabook.app.jabook.compose.data.preferences.UserPreferences
                 val playbackSpeed = args[7] as Float
+                val sleepTimerState = args[8] as com.jabook.app.jabook.compose.domain.model.SleepTimerState
 
                 if (book == null) {
                     PlayerState.Error("Book not found")
@@ -267,6 +269,10 @@ public class PlayerViewModel
                         rewindInterval = rewindInterval,
                         forwardInterval = forwardInterval,
                         playbackSpeed = playbackSpeed,
+                        sleepTimerMode = sleepTimerState.toPlayerSleepTimerMode(),
+                        sleepTimerRemainingSeconds =
+                            (sleepTimerState as? com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active)
+                                ?.remainingSeconds,
                     )
                 }
             }.combine(_themeColors) { state, themeColors ->
@@ -479,10 +485,34 @@ public class PlayerViewModel
                 is PlayerIntent.SetVisualizerEnabled -> setVisualizerEnabled(intent.enabled)
                 is PlayerIntent.SetPlaybackSpeed -> setPlaybackSpeed(intent.speed)
                 is PlayerIntent.SetPitchCorrectionEnabled -> setPitchCorrectionEnabled(intent.enabled)
-                is PlayerIntent.StartSleepTimer -> startSleepTimer(intent.minutes)
-                PlayerIntent.StartSleepTimerEndOfChapter -> startSleepTimerEndOfChapter()
-                PlayerIntent.StartSleepTimerEndOfTrack -> startSleepTimerEndOfTrack()
-                PlayerIntent.CancelSleepTimer -> cancelSleepTimer()
+                is PlayerIntent.StartSleepTimer -> {
+                    if (reducedState == uiState.value) {
+                        logger.d { "Sleep timer state unchanged by reducer, skipping command" }
+                        return
+                    }
+                    startSleepTimer(intent.minutes)
+                }
+                PlayerIntent.StartSleepTimerEndOfChapter -> {
+                    if (reducedState == uiState.value) {
+                        logger.d { "Sleep timer end-of-chapter already active, skipping command" }
+                        return
+                    }
+                    startSleepTimerEndOfChapter()
+                }
+                PlayerIntent.StartSleepTimerEndOfTrack -> {
+                    if (reducedState == uiState.value) {
+                        logger.d { "Sleep timer end-of-track already active, skipping command" }
+                        return
+                    }
+                    startSleepTimerEndOfTrack()
+                }
+                PlayerIntent.CancelSleepTimer -> {
+                    if (reducedState == uiState.value) {
+                        logger.d { "Sleep timer already idle, skipping cancel command" }
+                        return
+                    }
+                    cancelSleepTimer()
+                }
                 is PlayerIntent.UpdateBookSeekSettings ->
                     updateBookSeekSettings(
                         rewindSeconds = intent.rewindSeconds,
@@ -838,6 +868,14 @@ public class PlayerViewModel
                 is PlayerIntent.ReportError,
                 -> false
             }
+
+        private fun com.jabook.app.jabook.compose.domain.model.SleepTimerState.toPlayerSleepTimerMode(): PlayerSleepTimerMode =
+            when (this) {
+                com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle -> PlayerSleepTimerMode.IDLE
+                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active -> PlayerSleepTimerMode.FIXED
+                com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfChapter -> PlayerSleepTimerMode.END_OF_CHAPTER
+                is com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfTrack -> PlayerSleepTimerMode.END_OF_TRACK
+            }
     }
 
 private const val STATE_SNAPSHOT_BOOK_ID: String = "player_snapshot.book_id"
@@ -882,6 +920,8 @@ public sealed interface PlayerState {
         val rewindInterval: Int,
         val forwardInterval: Int,
         val playbackSpeed: Float,
+        val sleepTimerMode: PlayerSleepTimerMode,
+        val sleepTimerRemainingSeconds: Int?,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
         val lyrics: ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
     ) : PlayerState
@@ -893,4 +933,11 @@ public sealed interface PlayerState {
     public data class Error(
         val message: String,
     ) : PlayerState
+}
+
+public enum class PlayerSleepTimerMode {
+    IDLE,
+    FIXED,
+    END_OF_CHAPTER,
+    END_OF_TRACK,
 }
