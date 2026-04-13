@@ -70,7 +70,7 @@ import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
 public class PlayerViewModel
     @Inject
     constructor(
-        savedStateHandle: SavedStateHandle,
+        private val savedStateHandle: SavedStateHandle,
         private val getBookDetailsUseCase: GetBookDetailsUseCase,
         private val getChaptersUseCase: GetChaptersUseCase,
         private val playerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController,
@@ -103,6 +103,8 @@ public class PlayerViewModel
         // Saved position from database (restored on init)
         private var savedPosition: Long = 0L
         private var savedChapterIndex: Int = 0
+        private var savedPlaybackSpeed: Float = 1.0f
+        private var savedSleepTimerMode: String = PlayerStateSnapshotPolicy.MODE_IDLE
 
         // Chapter repeat mode state
         private val _chapterRepeatMode = MutableStateFlow(ChapterRepeatMode.OFF)
@@ -118,6 +120,8 @@ public class PlayerViewModel
                 .asStateFlow()
 
         init {
+            restoreStateSnapshot()
+
             // CRITICAL: Restore saved position from database on init
             // This ensures position is restored in all scenarios:
             // - User paused and closed app
@@ -149,6 +153,26 @@ public class PlayerViewModel
                 } catch (e: Exception) {
                     logger.e({ "Error restoring position from database" }, e)
                 }
+            }
+
+            // Persist player snapshot for process-death restore.
+            viewModelScope.launch {
+                combine(uiState, sleepTimerState) { state, timerState -> state to timerState }
+                    .collect { (state, timerState) ->
+                        if (state is PlayerState.Active) {
+                            val snapshot =
+                                PlayerStateSnapshotPolicy.capture(
+                                    bookId = bookId,
+                                    state = state,
+                                    sleepTimerState = timerState,
+                                )
+                            savedStateHandle[STATE_SNAPSHOT_BOOK_ID] = snapshot.bookId
+                            savedStateHandle[STATE_SNAPSHOT_POSITION_MS] = snapshot.positionMs
+                            savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] = snapshot.chapterIndex
+                            savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] = snapshot.playbackSpeed
+                            savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] = snapshot.sleepTimerMode
+                        }
+                    }
             }
         }
 
@@ -771,6 +795,21 @@ public class PlayerViewModel
             hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
         }
 
+        private fun restoreStateSnapshot() {
+            val snapshotBookId: String = savedStateHandle[STATE_SNAPSHOT_BOOK_ID] ?: return
+            if (snapshotBookId != bookId) return
+
+            savedPosition = (savedStateHandle[STATE_SNAPSHOT_POSITION_MS] ?: 0L).coerceAtLeast(0L)
+            savedChapterIndex = (savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] ?: 0).coerceAtLeast(0)
+            savedPlaybackSpeed = (savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] ?: 1.0f).coerceAtLeast(0f)
+            savedSleepTimerMode = savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] ?: PlayerStateSnapshotPolicy.MODE_IDLE
+
+            logger.d {
+                "Restored player snapshot: chapter=$savedChapterIndex, " +
+                    "position=${savedPosition}ms, speed=$savedPlaybackSpeed, sleepMode=$savedSleepTimerMode"
+            }
+        }
+
         private fun PlayerIntent.isPlaybackControlIntent(): Boolean =
             when (this) {
                 PlayerIntent.TogglePlayPause,
@@ -800,6 +839,12 @@ public class PlayerViewModel
                 -> false
             }
     }
+
+private const val STATE_SNAPSHOT_BOOK_ID: String = "player_snapshot.book_id"
+private const val STATE_SNAPSHOT_POSITION_MS: String = "player_snapshot.position_ms"
+private const val STATE_SNAPSHOT_CHAPTER_INDEX: String = "player_snapshot.chapter_index"
+private const val STATE_SNAPSHOT_PLAYBACK_SPEED: String = "player_snapshot.playback_speed"
+private const val STATE_SNAPSHOT_SLEEP_MODE: String = "player_snapshot.sleep_mode"
 
 /**
  * Chapter repeat mode for player.
