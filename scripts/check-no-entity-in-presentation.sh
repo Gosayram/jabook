@@ -13,7 +13,15 @@ violations=0
 if command -v rg >/dev/null 2>&1; then
     search_dir() { rg -n "$1" "$2"; }
 else
-    search_dir() { grep -rnE "$1" "$2" || true; }
+    search_dir() {
+      grep -rnE "$1" "$2"
+      local status=$?
+      # grep exits 1 when no matches are found (expected).
+      if [ "$status" -eq 1 ]; then
+        return 1
+      fi
+      return "$status"
+    }
 fi
 
 for target in "${TARGETS[@]}"; do
