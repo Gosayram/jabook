@@ -55,6 +55,7 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setResumeRewindSeconds(10)
             .setSleepTimerShakeExtendEnabled(true)
             .setEqualizerPreset("FLAT")
+            .setAutoLoadCoversOnCellular(true)
             .setSchemaVersion(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION)
             .build()
 

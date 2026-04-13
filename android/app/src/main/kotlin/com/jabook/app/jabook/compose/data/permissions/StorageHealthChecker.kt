@@ -42,6 +42,7 @@ public data class StorageHealthResult(
  */
 public class StorageHealthChecker(
     private val minAvailableBytes: Long = DEFAULT_MIN_AVAILABLE_BYTES,
+    private val forceLowStorageProvider: (() -> Boolean)? = null,
 ) {
     /**
      * Checks storage health for the volume containing [path].
@@ -51,6 +52,17 @@ public class StorageHealthChecker(
      */
     public fun check(path: String): StorageHealthResult =
         try {
+            if (forceLowStorageProvider?.invoke() == true) {
+                val forcedAvailableBytes = minAvailableBytes / 4
+                return StorageHealthResult(
+                    availableBytes = forcedAvailableBytes,
+                    totalBytes = null,
+                    isHealthy = false,
+                    warningMessage =
+                        "Low storage (debug simulation): ${formatBytes(forcedAvailableBytes)} available " +
+                            "(minimum ${formatBytes(minAvailableBytes)} required)",
+                )
+            }
             val file = File(path)
             val stat = StatFs(file.absolutePath)
             val availableBytes = stat.availableBlocksLong * stat.blockSizeLong

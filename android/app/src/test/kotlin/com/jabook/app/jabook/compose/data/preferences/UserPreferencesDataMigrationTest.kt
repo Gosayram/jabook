@@ -56,10 +56,11 @@ class UserPreferencesDataMigrationTest {
             assertEquals(10, migrated.resumeRewindSeconds)
             assertEquals(-32.0f, migrated.skipSilenceThresholdDb)
             assertEquals(250, migrated.skipSilenceMinMs)
+            assertTrue(migrated.autoLoadCoversOnCellular)
         }
 
     @Test
-    fun `serializer readFrom migrates legacy payload`() =
+    fun `serializer readFrom with explicit migration upgrades legacy payload`() =
         runTest {
             val legacy =
                 UserPreferences
@@ -69,9 +70,11 @@ class UserPreferencesDataMigrationTest {
                     .build()
             val payload = legacy.toByteArray().inputStream()
 
-            val parsed = UserPreferencesSerializer.readFrom(payload)
+            val parsedRaw = UserPreferencesSerializer.readFrom(payload)
+            val parsed = migration.migrate(parsedRaw)
 
             assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, parsed.schemaVersion)
             assertEquals("FLAT", parsed.equalizerPreset)
+            assertTrue(parsed.autoLoadCoversOnCellular)
         }
 }

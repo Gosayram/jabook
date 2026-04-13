@@ -268,6 +268,8 @@ private class FakeSettingsRepository(
 
     override suspend fun updateWifiOnly(enabled: Boolean) = Unit
 
+    override suspend fun updateAutoLoadCoversOnCellular(enabled: Boolean) = Unit
+
     override suspend fun updateLimitDownloadSpeed(enabled: Boolean) = Unit
 
     override suspend fun updateMaxDownloadSpeed(speedKb: Int) = Unit

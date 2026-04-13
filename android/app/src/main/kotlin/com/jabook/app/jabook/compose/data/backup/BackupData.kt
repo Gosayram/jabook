@@ -63,6 +63,7 @@ public data class AppSettings(
     val playerNotifications: Boolean = true,
     // Proto Settings
     val wifiOnlyDownload: Boolean,
+    val autoLoadCoversOnCellular: Boolean = true,
     val downloadPath: String,
     val currentMirror: String,
     val customMirrors: List<String> = emptyList(),

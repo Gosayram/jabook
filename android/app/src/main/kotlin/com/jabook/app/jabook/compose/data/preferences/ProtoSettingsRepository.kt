@@ -149,6 +149,11 @@ public interface SettingsRepository {
     public suspend fun updateMaxConcurrentDownloads(count: Int)
 
     /**
+     * Update cover loading behavior on cellular network.
+     */
+    public suspend fun updateAutoLoadCoversOnCellular(enabled: Boolean)
+
+    /**
      * Update library sort order.
      */
     public suspend fun updateLibrarySortOrder(sortOrder: String)
@@ -331,6 +336,12 @@ public class ProtoSettingsRepository
         override suspend fun updateMaxConcurrentDownloads(count: Int) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setMaxConcurrentDownloads(count).build()
+            }
+        }
+
+        override suspend fun updateAutoLoadCoversOnCellular(enabled: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setAutoLoadCoversOnCellular(enabled).build()
             }
         }
 

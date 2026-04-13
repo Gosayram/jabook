@@ -73,6 +73,9 @@ message UserPreferences {
 
   // Internal schema version for explicit Proto DataStore migrations.
   int32 schema_version = 37;
+
+  // Allow automatic cover image loading on cellular networks.
+  bool auto_load_covers_on_cellular = 38;
 }
 
 // Theme mode enum

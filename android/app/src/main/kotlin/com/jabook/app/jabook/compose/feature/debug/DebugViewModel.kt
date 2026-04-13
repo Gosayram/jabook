@@ -17,15 +17,23 @@ package com.jabook.app.jabook.compose.feature.debug
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.debug.DebugAudioFocusSimulator
 import com.jabook.app.jabook.compose.data.debug.DebugLogService
+import com.jabook.app.jabook.compose.data.debug.DebugNetworkOverrideMode
+import com.jabook.app.jabook.compose.data.debug.DebugRuntimeOverrides
+import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.data.network.NetworkMonitor
+import com.jabook.app.jabook.compose.data.network.NetworkType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeout
@@ -43,6 +51,10 @@ public class DebugViewModel
         private val mirrorManager: MirrorManager,
         private val authService: com.jabook.app.jabook.compose.data.auth.RutrackerAuthService,
         private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
+        private val debugRuntimeOverrides: DebugRuntimeOverrides,
+        private val debugAudioFocusSimulator: DebugAudioFocusSimulator,
+        private val networkMonitor: NetworkMonitor,
+        private val database: JabookDatabase,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
         private val logger = loggerFactory.get("DebugViewModel")
@@ -56,6 +68,20 @@ public class DebugViewModel
         public val authDebugInfo: StateFlow<com.jabook.app.jabook.compose.data.debug.AuthDebugInfo?> =
             _authDebugInfo
                 .asStateFlow()
+        private val _networkOverrideMode = MutableStateFlow(debugRuntimeOverrides.networkOverrideMode.value)
+        public val networkOverrideMode: StateFlow<DebugNetworkOverrideMode> = _networkOverrideMode.asStateFlow()
+
+        private val _effectiveNetworkType = MutableStateFlow(NetworkType.UNKNOWN)
+        public val effectiveNetworkType: StateFlow<NetworkType> = _effectiveNetworkType.asStateFlow()
+
+        private val _forceLowStorage = MutableStateFlow(debugRuntimeOverrides.forceLowStorage.value)
+        public val forceLowStorage: StateFlow<Boolean> = _forceLowStorage.asStateFlow()
+
+        private val _dbInspectorSnapshot = MutableStateFlow(DebugDbInspectorSnapshot())
+        public val dbInspectorSnapshot: StateFlow<DebugDbInspectorSnapshot> = _dbInspectorSnapshot.asStateFlow()
+
+        private val _recentSearchPreview = MutableStateFlow<List<String>>(emptyList())
+        public val recentSearchPreview: StateFlow<List<String>> = _recentSearchPreview.asStateFlow()
 
         init {
             // Delay initialization until viewModelScope is fully ready
@@ -68,6 +94,9 @@ public class DebugViewModel
                         loadLogs()
                         loadCacheStats()
                         refreshAuthDebugInfo()
+                        observeDebugRuntimeState()
+                        observeRecentSearchHistory()
+                        refreshDbInspector()
                     } catch (e: Exception) {
                         logger.e({ "Failed to initialize debug data" }, e)
                         _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
@@ -152,6 +181,27 @@ public class DebugViewModel
             loadLogs()
             refreshAuthDebugInfo()
             loadCacheStats()
+            refreshDbInspector()
+        }
+
+        public fun setNetworkOverrideMode(mode: DebugNetworkOverrideMode) {
+            debugRuntimeOverrides.setNetworkOverrideMode(mode)
+        }
+
+        public fun setForceLowStorage(enabled: Boolean) {
+            debugRuntimeOverrides.setForceLowStorage(enabled)
+        }
+
+        public fun simulateAudioFocusDuck() {
+            debugAudioFocusSimulator.simulateDuck()
+        }
+
+        public fun simulateAudioFocusLossTransient() {
+            debugAudioFocusSimulator.simulateLossTransient()
+        }
+
+        public fun simulateAudioFocusGain() {
+            debugAudioFocusSimulator.simulateGain()
         }
 
         public fun refreshAuthDebugInfo() {
@@ -352,6 +402,56 @@ public class DebugViewModel
                 }
             }
         }
+
+        public fun refreshDbInspector() {
+            viewModelScope.launch {
+                try {
+                    val booksCount = database.booksDao().getBookCount()
+                    val favoritesCount = database.favoriteDao().getFavoritesCount()
+                    val indexedTopicsCount = database.offlineSearchDao().getTopicCount()
+                    val downloadHistoryCount = database.downloadHistoryDao().getCount()
+                    _dbInspectorSnapshot.value =
+                        DebugDbInspectorSnapshot(
+                            booksCount = booksCount,
+                            favoritesCount = favoritesCount,
+                            indexedTopicsCount = indexedTopicsCount,
+                            downloadHistoryCount = downloadHistoryCount,
+                        )
+                } catch (e: Exception) {
+                    logger.e({ "Failed to refresh DB inspector snapshot" }, e)
+                }
+            }
+        }
+
+        private fun observeDebugRuntimeState() {
+            viewModelScope.launch {
+                debugRuntimeOverrides.networkOverrideMode.collect { mode ->
+                    _networkOverrideMode.value = mode
+                }
+            }
+            viewModelScope.launch {
+                debugRuntimeOverrides.forceLowStorage.collect { forced ->
+                    _forceLowStorage.value = forced
+                }
+            }
+            viewModelScope.launch {
+                networkMonitor.networkType.collect { type ->
+                    _effectiveNetworkType.value = type
+                }
+            }
+        }
+
+        private fun observeRecentSearchHistory() {
+            viewModelScope.launch {
+                database
+                    .searchHistoryDao()
+                    .getRecentSearches(limit = 20)
+                    .map { history -> history.map { it.query } }
+                    .collect { queries ->
+                        _recentSearchPreview.value = queries
+                    }
+            }
+        }
     }
 
 /**
@@ -368,3 +468,10 @@ public sealed class DebugUiState {
         val message: String,
     ) : DebugUiState()
 }
+
+public data class DebugDbInspectorSnapshot(
+    val booksCount: Int = 0,
+    val favoritesCount: Int = 0,
+    val indexedTopicsCount: Int = 0,
+    val downloadHistoryCount: Int = 0,
+)

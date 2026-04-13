@@ -19,6 +19,7 @@ import android.content.Context
 import android.net.Uri
 import com.jabook.app.jabook.audio.PlayerPersistenceManager
 import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
+import com.jabook.app.jabook.compose.data.debug.DebugRuntimeOverrides
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
@@ -119,6 +120,7 @@ class BackupServiceTest {
             playerPersistenceManager = mock<PlayerPersistenceManager>(),
             mirrorManager = mock<MirrorManager>(),
             backupRuntimeSecurity = backupRuntimeSecurity,
+            debugRuntimeOverrides = mock<DebugRuntimeOverrides>(),
             loggerFactory = NoOpLoggerFactory,
         )
 

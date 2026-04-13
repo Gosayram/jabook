@@ -1215,6 +1215,41 @@
     <string name="libraryFoldersTitle">Library Folders</string>
     <!-- Title for cache section -->
     <string name="cacheSectionTitle">Cache</string>
+    <!-- Tab title for debug simulators -->
+    <string name="debugSimulatorsTab">Simulators</string>
+    <!-- Tab title for database inspector -->
+    <string name="debugDatabaseInspectorTab">DB Inspector</string>
+    <!-- Debug network override section title -->
+    <string name="debugNetworkOverrideTitle">Network Condition Simulator</string>
+    <!-- Effective network type label -->
+    <string name="debugEffectiveNetworkValue">Effective network: %1$s</string>
+    <!-- Debug network override mode labels -->
+    <string name="debugNetworkOverrideAuto">Auto (real network)</string>
+    <string name="debugNetworkOverrideOffline">Force offline</string>
+    <string name="debugNetworkOverrideMetered">Force metered (cellular)</string>
+    <string name="debugNetworkOverrideWifi">Force unmetered (Wi-Fi)</string>
+    <!-- Debug storage override section title -->
+    <string name="debugStorageOverrideTitle">Storage Simulator</string>
+    <!-- Debug storage override states -->
+    <string name="debugStorageOverrideEnabled">Fake low-storage mode is enabled</string>
+    <string name="debugStorageOverrideDisabled">Fake low-storage mode is disabled</string>
+    <string name="debugEnableFakeStorageFull">Enable fake storage full</string>
+    <string name="debugDisableFakeStorageFull">Disable fake storage full</string>
+    <!-- Debug audio focus simulator section title -->
+    <string name="debugAudioFocusSimulatorTitle">Audio Focus Simulator</string>
+    <!-- Debug audio focus simulator actions -->
+    <string name="debugSimulateDuck">Simulate duck (LOSS_TRANSIENT_CAN_DUCK)</string>
+    <string name="debugSimulateFocusLossTransient">Simulate transient loss (LOSS_TRANSIENT)</string>
+    <string name="debugSimulateFocusGain">Simulate focus gain (GAIN)</string>
+    <!-- Debug DB inspector titles -->
+    <string name="debugDbInspectorStatsTitle">Database Snapshot</string>
+    <string name="debugDbLiveQueryTitle">Live Query Preview (recent searches)</string>
+    <string name="debugDbLiveQueryEmpty">No recent search rows</string>
+    <!-- Debug DB inspector metrics -->
+    <string name="debugDbBooksCount">Books</string>
+    <string name="debugDbFavoritesCount">Favorites</string>
+    <string name="debugDbIndexedTopicsCount">Indexed topics</string>
+    <string name="debugDbDownloadHistoryCount">Download history</string>
     <!-- Label for total cache size -->
     <string name="totalCacheSize">Total Cache</string>
     <!-- Button to clear playback cache -->
@@ -2351,6 +2386,8 @@
     <string name="webview">WebView</string>
     <!-- Wi-Fi Only -->
     <string name="wifiOnly">Wi-Fi Only</string>
+    <string name="autoLoadCoversOnCellular">Load Covers on Cellular</string>
+    <string name="autoLoadCoversOnCellularDesc">Allow automatic cover downloads on mobile data</string>
     <string name="autoSwitchToWorkingMirrorOnError">Auto-switch mirror on error</string>
     <string name="autoPlayNextChapter">Auto-play next chapter when current ends</string>
     <string name="autoSwitching">Auto-switching</string>

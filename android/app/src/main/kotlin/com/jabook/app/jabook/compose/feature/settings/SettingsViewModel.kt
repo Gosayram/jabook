@@ -383,6 +383,12 @@ public class SettingsViewModel
             }
         }
 
+        public fun updateAutoLoadCoversOnCellular(enabled: Boolean) {
+            viewModelScope.launch {
+                settingsRepository.updateAutoLoadCoversOnCellular(enabled)
+            }
+        }
+
         private val _torrentStorageSize = MutableStateFlow<Long>(0L)
         public val torrentStorageSize: StateFlow<Long> = _torrentStorageSize.asStateFlow()
 

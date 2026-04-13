@@ -1178,6 +1178,41 @@
     <string name="libraryFoldersTitle">Папки библиотеки</string>
     <!-- Заголовок секции кэша -->
     <string name="cacheSectionTitle">Кэш</string>
+    <!-- Название вкладки симуляторов -->
+    <string name="debugSimulatorsTab">Симуляторы</string>
+    <!-- Название вкладки инспектора БД -->
+    <string name="debugDatabaseInspectorTab">Инспектор БД</string>
+    <!-- Заголовок секции симуляции сети -->
+    <string name="debugNetworkOverrideTitle">Симулятор сетевых условий</string>
+    <!-- Подпись эффективного типа сети -->
+    <string name="debugEffectiveNetworkValue">Эффективная сеть: %1$s</string>
+    <!-- Метки режимов сетевого override -->
+    <string name="debugNetworkOverrideAuto">Авто (реальная сеть)</string>
+    <string name="debugNetworkOverrideOffline">Принудительно офлайн</string>
+    <string name="debugNetworkOverrideMetered">Принудительно лимитированная (мобильная)</string>
+    <string name="debugNetworkOverrideWifi">Принудительно безлимитная (Wi-Fi)</string>
+    <!-- Заголовок секции симуляции хранилища -->
+    <string name="debugStorageOverrideTitle">Симулятор хранилища</string>
+    <!-- Состояния симулятора хранилища -->
+    <string name="debugStorageOverrideEnabled">Режим \"мало места\" включен</string>
+    <string name="debugStorageOverrideDisabled">Режим \"мало места\" выключен</string>
+    <string name="debugEnableFakeStorageFull">Включить симуляцию заполненного хранилища</string>
+    <string name="debugDisableFakeStorageFull">Выключить симуляцию заполненного хранилища</string>
+    <!-- Заголовок секции симуляции аудиофокуса -->
+    <string name="debugAudioFocusSimulatorTitle">Симулятор аудиофокуса</string>
+    <!-- Действия симулятора аудиофокуса -->
+    <string name="debugSimulateDuck">Симулировать duck (LOSS_TRANSIENT_CAN_DUCK)</string>
+    <string name="debugSimulateFocusLossTransient">Симулировать временную потерю (LOSS_TRANSIENT)</string>
+    <string name="debugSimulateFocusGain">Симулировать возврат фокуса (GAIN)</string>
+    <!-- Заголовки инспектора БД -->
+    <string name="debugDbInspectorStatsTitle">Снимок базы данных</string>
+    <string name="debugDbLiveQueryTitle">Live preview запроса (последние поиски)</string>
+    <string name="debugDbLiveQueryEmpty">Нет строк последних поисков</string>
+    <!-- Метрики инспектора БД -->
+    <string name="debugDbBooksCount">Книги</string>
+    <string name="debugDbFavoritesCount">Избранное</string>
+    <string name="debugDbIndexedTopicsCount">Индексированные темы</string>
+    <string name="debugDbDownloadHistoryCount">История загрузок</string>
     <!-- Метка для общего размера кэша -->
     <string name="totalCacheSize">Общий кэш</string>
     <!-- Кнопка для очистки кэша воспроизведения -->
@@ -2322,6 +2357,8 @@
     <string name="webview">Веб-представление</string>
     <!-- Только Wi-Fi -->
     <string name="wifiOnly">Только Wi-Fi</string>
+    <string name="autoLoadCoversOnCellular">Загружать обложки по мобильной сети</string>
+    <string name="autoLoadCoversOnCellularDesc">Разрешить автоматическую загрузку обложек через мобильный интернет</string>
     <!-- Автоматически переключаться на рабочем зеркале при ошибках -->
     <string name="autoSwitchToWorkingMirrorOnError">Автопереключение зеркала при ошибке</string>
     <!-- Автоматически проигрывать эту главу при текущем завершении -->

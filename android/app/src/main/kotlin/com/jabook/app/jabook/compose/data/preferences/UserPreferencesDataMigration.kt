@@ -25,7 +25,7 @@ import androidx.datastore.core.DataMigration
  */
 public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
     public companion object {
-        public const val CURRENT_SCHEMA_VERSION: Int = 1
+        public const val CURRENT_SCHEMA_VERSION: Int = 2
     }
 
     override suspend fun shouldMigrate(currentData: UserPreferences): Boolean = currentData.schemaVersion < CURRENT_SCHEMA_VERSION
@@ -49,6 +49,14 @@ public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
                 builder.skipSilenceMinMs = 250
             }
             builder.schemaVersion = 1
+            migrated = builder.build()
+        }
+
+        // v2: keep previous runtime behavior and allow cellular cover preloads by default.
+        if (migrated.schemaVersion < 2) {
+            val builder = migrated.toBuilder()
+            builder.autoLoadCoversOnCellular = true
+            builder.schemaVersion = 2
             migrated = builder.build()
         }
 
