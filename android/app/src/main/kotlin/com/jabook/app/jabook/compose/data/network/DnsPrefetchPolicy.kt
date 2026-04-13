@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import java.net.InetAddress
+
 /**
  * Policy for DNS prefetching of mirror hosts to reduce TTFB on first real request.
  *
@@ -33,6 +35,9 @@ package com.jabook.app.jabook.compose.data.network
  * ```
  */
 public object DnsPrefetchPolicy {
+    private val lock: Any = Any()
+    private var hostTimestamps: Map<String, Long> = emptyMap()
+
     /**
      * Minimum interval between prefetch attempts for the same host.
      * Prevents excessive DNS lookups in a short time window.
@@ -120,6 +125,74 @@ public object DnsPrefetchPolicy {
             beforePort.takeIf { it.isNotBlank() }
         } catch (_: Exception) {
             null
+        }
+    }
+
+    /**
+     * Performs a best-effort DNS prefetch for the given host.
+     *
+     * This method is safe to call frequently: it applies cooldown-based deduplication.
+     * DNS errors are returned in [PrefetchResult] and should not be treated as fatal.
+     */
+    public fun prefetch(
+        host: String,
+        currentTimeMs: Long = System.currentTimeMillis(),
+        resolver: (String) -> Array<InetAddress> = { InetAddress.getAllByName(it) },
+    ): PrefetchResult {
+        if (host.isBlank()) {
+            return PrefetchResult(
+                host = host,
+                success = false,
+                error = "Host is blank",
+            )
+        }
+
+        val shouldExecute =
+            synchronized(lock) {
+                shouldPrefetch(host, hostTimestamps, currentTimeMs)
+            }
+
+        if (!shouldExecute) {
+            return PrefetchResult(
+                host = host,
+                success = false,
+                error = "Prefetch skipped due to cooldown",
+            )
+        }
+
+        val startedAt = System.currentTimeMillis()
+        return try {
+            val resolved = resolver(host)
+            val elapsed = System.currentTimeMillis() - startedAt
+            synchronized(lock) {
+                hostTimestamps = pruneTimestamps(hostTimestamps, host, currentTimeMs)
+            }
+            PrefetchResult(
+                host = host,
+                success = true,
+                addresses = resolved.map { it.hostAddress.orEmpty() },
+                elapsedMs = elapsed,
+            )
+        } catch (e: Exception) {
+            val elapsed = System.currentTimeMillis() - startedAt
+            synchronized(lock) {
+                hostTimestamps = pruneTimestamps(hostTimestamps, host, currentTimeMs)
+            }
+            PrefetchResult(
+                host = host,
+                success = false,
+                elapsedMs = elapsed,
+                error = e.message ?: e.javaClass.simpleName,
+            )
+        }
+    }
+
+    /**
+     * Test-only helper to reset cooldown state between unit tests.
+     */
+    internal fun resetForTests() {
+        synchronized(lock) {
+            hostTimestamps = emptyMap()
         }
     }
 }

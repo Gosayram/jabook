@@ -14,11 +14,14 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
+import com.jabook.app.jabook.compose.data.network.ConnectivityAwareRequestScheduler
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.model.Comment
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
+import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.Result
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -28,12 +31,15 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class RutrackerRepositoryTest {
     private val api: RutrackerApi = mock()
     private val parser: RutrackerParser = mock()
     private val offlineSearchDao: OfflineSearchDao = mock()
+    private val connectivityScheduler: ConnectivityAwareRequestScheduler = mock()
 
     private lateinit var repository: RutrackerRepositoryImpl
 
@@ -44,7 +50,12 @@ class RutrackerRepositoryTest {
                 api,
                 parser,
                 offlineSearchDao,
+                connectivityScheduler,
+                NoOpLoggerFactory,
             )
+        runTest {
+            whenever(connectivityScheduler.awaitOnline(any(), any())).thenReturn(true)
+        }
     }
 
     @Test
@@ -95,5 +106,17 @@ class RutrackerRepositoryTest {
             val data = (result as Result.Success).data
             assertEquals("Test Title", data.title)
             assertEquals(1, data.comments.size)
+        }
+
+    @Test
+    fun `getTopicDetailsPage returns NoConnection when scheduler timeout happens`() =
+        runTest {
+            whenever(connectivityScheduler.awaitOnline(any(), any())).thenReturn(false)
+
+            val result = repository.getTopicDetailsPage(topicId = "123", page = 1)
+
+            assertTrue(result is Result.Error)
+            assertTrue((result as Result.Error).error is AppError.NetworkError.NoConnection)
+            verify(api, never()).getTopicDetailsAtPage(any(), any())
         }
 }
