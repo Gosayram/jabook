@@ -828,14 +828,6 @@ public class PlayerViewModel
         }
 
         /**
-         * Toggle chapter repeat mode: OFF -> ONCE -> INFINITE -> OFF
-         */
-        public fun toggleChapterRepeat() {
-            chapterRepeatModeState.value = PlayerReducer.nextChapterRepeatMode(chapterRepeatModeState.value)
-            hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
-        }
-
-        /**
          * Handle chapter end - check if we need to repeat.
          * Called by AudioPlayerController when chapter ends.
          *
