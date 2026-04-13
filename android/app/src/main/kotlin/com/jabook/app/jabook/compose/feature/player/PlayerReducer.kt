@@ -108,6 +108,20 @@ public object PlayerReducer {
                     )
                 state.copy(currentPosition = clampedPosition)
             }
+            is PlayerIntent.SelectChapter -> {
+                if (state.chapters.isEmpty()) {
+                    state
+                } else {
+                    val maxIndex = state.chapters.lastIndex
+                    val clampedIndex = intent.chapterIndex.coerceIn(0, maxIndex)
+                    val selectedChapter = state.chapters[clampedIndex]
+                    state.copy(
+                        currentChapterIndex = clampedIndex,
+                        currentChapter = selectedChapter,
+                        currentPosition = 0L,
+                    )
+                }
+            }
             is PlayerIntent.StartSleepTimer -> {
                 val requestedSeconds = intent.minutes.coerceAtLeast(1) * 60
                 val isSameFixedTimer =

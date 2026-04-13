@@ -496,7 +496,11 @@ public class PlayerViewModel
                     val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: return
                     seekTo(reducedPosition)
                 }
-                is PlayerIntent.SelectChapter -> skipToChapter(intent.chapterIndex)
+                is PlayerIntent.SelectChapter -> {
+                    val reducedChapterIndex =
+                        (reducedState as? PlayerState.Active)?.currentChapterIndex ?: intent.chapterIndex
+                    skipToChapter(reducedChapterIndex)
+                }
                 PlayerIntent.ToggleChapterRepeat -> toggleChapterRepeat()
                 PlayerIntent.InitializeVisualizer -> initializeVisualizer()
                 is PlayerIntent.SetVisualizerEnabled -> setVisualizerEnabled(intent.enabled)

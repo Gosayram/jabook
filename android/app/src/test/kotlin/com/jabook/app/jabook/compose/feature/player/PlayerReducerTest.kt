@@ -112,6 +112,30 @@ class PlayerReducerTest {
     }
 
     @Test
+    fun `reduce select chapter clamps index and resets position`() {
+        val chapters =
+            listOf(
+                Chapter.preview().copy(id = "c1", chapterIndex = 0),
+                Chapter.preview().copy(id = "c2", chapterIndex = 1),
+                Chapter.preview().copy(id = "c3", chapterIndex = 2),
+            ).toImmutableList()
+        val state =
+            activeStateTemplate().copy(
+                chapters = chapters,
+                currentChapterIndex = 0,
+                currentChapter = chapters.first(),
+                currentPosition = 42_000L,
+            )
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SelectChapter(chapterIndex = 99))
+
+        require(reduced is PlayerState.Active)
+        assertEquals(2, reduced.currentChapterIndex)
+        assertEquals("c3", reduced.currentChapter?.id)
+        assertEquals(0L, reduced.currentPosition)
+    }
+
+    @Test
     fun `reduce keeps state when fixed sleep timer request is idempotent`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.FIXED, sleepTimerRemainingSeconds = 300)
 
