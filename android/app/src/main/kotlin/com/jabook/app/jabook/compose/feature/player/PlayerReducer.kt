@@ -170,6 +170,18 @@ public object PlayerReducer {
                     )
                 }
             }
+            is PlayerIntent.UpdateBookSeekSettings -> {
+                val updatedRewind = intent.rewindSeconds ?: state.rewindInterval
+                val updatedForward = intent.forwardSeconds ?: state.forwardInterval
+                if (updatedRewind == state.rewindInterval && updatedForward == state.forwardInterval) {
+                    state
+                } else {
+                    state.copy(
+                        rewindInterval = updatedRewind,
+                        forwardInterval = updatedForward,
+                    )
+                }
+            }
             is PlayerIntent.ReportError -> PlayerState.Error(intent.reason)
             else -> state
         }

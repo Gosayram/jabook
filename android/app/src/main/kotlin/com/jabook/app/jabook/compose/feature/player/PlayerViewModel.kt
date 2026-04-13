@@ -542,10 +542,15 @@ public class PlayerViewModel
                     cancelSleepTimer()
                 }
                 is PlayerIntent.UpdateBookSeekSettings ->
-                    updateBookSeekSettings(
-                        rewindSeconds = intent.rewindSeconds,
-                        forwardSeconds = intent.forwardSeconds,
-                    )
+                    if (reducedState == uiState.value) {
+                        logger.d { "Book seek settings unchanged by reducer, skipping command" }
+                        return
+                    } else {
+                        updateBookSeekSettings(
+                            rewindSeconds = intent.rewindSeconds,
+                            forwardSeconds = intent.forwardSeconds,
+                        )
+                    }
                 PlayerIntent.ResetBookSeekSettings -> resetBookSeekSettings()
                 is PlayerIntent.UpdateAudioSettings ->
                     updateAudioSettings(

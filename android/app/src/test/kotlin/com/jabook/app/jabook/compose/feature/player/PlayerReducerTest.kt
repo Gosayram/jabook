@@ -178,6 +178,34 @@ class PlayerReducerTest {
     }
 
     @Test
+    fun `reduce keeps state when book seek settings intent does not change values`() {
+        val state = activeStateTemplate().copy(rewindInterval = 10, forwardInterval = 30)
+
+        val reduced =
+            PlayerReducer.reduce(
+                state,
+                PlayerIntent.UpdateBookSeekSettings(rewindSeconds = 10, forwardSeconds = 30),
+            )
+
+        assertEquals(state, reduced)
+    }
+
+    @Test
+    fun `reduce updates state when book seek settings intent changes values`() {
+        val state = activeStateTemplate().copy(rewindInterval = 10, forwardInterval = 30)
+
+        val reduced =
+            PlayerReducer.reduce(
+                state,
+                PlayerIntent.UpdateBookSeekSettings(rewindSeconds = 15, forwardSeconds = 45),
+            )
+
+        require(reduced is PlayerState.Active)
+        assertEquals(15, reduced.rewindInterval)
+        assertEquals(45, reduced.forwardInterval)
+    }
+
+    @Test
     fun `nextChapterRepeatMode cycles through all modes`() {
         assertEquals(ChapterRepeatMode.ONCE, PlayerReducer.nextChapterRepeatMode(ChapterRepeatMode.OFF))
         assertEquals(ChapterRepeatMode.INFINITE, PlayerReducer.nextChapterRepeatMode(ChapterRepeatMode.ONCE))
