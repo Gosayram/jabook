@@ -3,6 +3,11 @@
    <configuration>
       <verify-metadata>true</verify-metadata>
       <verify-signatures>false</verify-signatures>
+      <trusted-artifacts>
+         <!-- AGP resolves platform-specific aapt2 classifier (osx/linux) depending on runner OS.
+              We pin osx checksum below and explicitly trust linux classifier for CI runners. -->
+         <trust group="com.android.tools.build" name="aapt2" version="9.1.0-14792394" file="aapt2-9.1.0-14792394-linux.jar" reason="platform-specific classifier used on Linux CI"/>
+      </trusted-artifacts>
    </configuration>
    <components>
       <component group="androidx.activity" name="activity" version="1.13.0">

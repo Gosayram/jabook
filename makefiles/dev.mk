@@ -183,7 +183,7 @@ detekt: ## Run detekt static analysis
 .PHONY: hilt-graph-check
 hilt-graph-check: ## Validate Hilt dependency graph for beta/prod debug variants
 	@echo "Validating Hilt dependency graph..."
-	@(cd android && ./gradlew :app:hiltAggregateDepsBetaDebug :app:hiltAggregateDepsProdDebug --no-daemon); \
+	@(cd android && ./gradlew :app:hiltAggregateDepsBetaDebug :app:hiltAggregateDepsProdDebug --no-daemon --no-configuration-cache); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Hilt graph validation passed"; \
