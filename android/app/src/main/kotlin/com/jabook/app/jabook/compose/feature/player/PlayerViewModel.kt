@@ -553,16 +553,21 @@ public class PlayerViewModel
                     }
                 PlayerIntent.ResetBookSeekSettings -> resetBookSeekSettings()
                 is PlayerIntent.UpdateAudioSettings ->
-                    updateAudioSettings(
-                        volumeBoostLevel = intent.volumeBoostLevel,
-                        skipSilence = intent.skipSilence,
-                        skipSilenceThresholdDb = intent.skipSilenceThresholdDb,
-                        skipSilenceMinMs = intent.skipSilenceMinMs,
-                        skipSilenceMode = intent.skipSilenceMode,
-                        normalizeVolume = intent.normalizeVolume,
-                        speechEnhancer = intent.speechEnhancer,
-                        autoVolumeLeveling = intent.autoVolumeLeveling,
-                    )
+                    if (intent.isNoOp()) {
+                        logger.d { "Audio settings intent has no changes, skipping command" }
+                        return
+                    } else {
+                        updateAudioSettings(
+                            volumeBoostLevel = intent.volumeBoostLevel,
+                            skipSilence = intent.skipSilence,
+                            skipSilenceThresholdDb = intent.skipSilenceThresholdDb,
+                            skipSilenceMinMs = intent.skipSilenceMinMs,
+                            skipSilenceMode = intent.skipSilenceMode,
+                            normalizeVolume = intent.normalizeVolume,
+                            speechEnhancer = intent.speechEnhancer,
+                            autoVolumeLeveling = intent.autoVolumeLeveling,
+                        )
+                    }
                 is PlayerIntent.ReportError -> {
                     val reason = (reducedState as? PlayerState.Error)?.message ?: intent.reason
                     emitEffect(PlayerEffect.ShowError(reason))
@@ -901,6 +906,16 @@ public class PlayerViewModel
                 com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfChapter -> PlayerSleepTimerMode.END_OF_CHAPTER
                 is com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfTrack -> PlayerSleepTimerMode.END_OF_TRACK
             }
+
+        private fun PlayerIntent.UpdateAudioSettings.isNoOp(): Boolean =
+            volumeBoostLevel == null &&
+                skipSilence == null &&
+                skipSilenceThresholdDb == null &&
+                skipSilenceMinMs == null &&
+                skipSilenceMode == null &&
+                normalizeVolume == null &&
+                speechEnhancer == null &&
+                autoVolumeLeveling == null
     }
 
 private const val STATE_SNAPSHOT_BOOK_ID: String = "player_snapshot.book_id"
