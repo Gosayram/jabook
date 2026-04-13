@@ -604,14 +604,14 @@ public class PlayerViewModel
                 runCatching { userPreferencesRepository.setPlaybackSpeed(speed) }
                     .onFailure { error ->
                         logger.e({ "Failed to persist playback speed" }, error)
-                        emitEffect(PlayerEffect.ShowError("Failed to save playback speed"))
+                        dispatch(PlayerIntent.ReportError("Failed to save playback speed"))
                     }
             }
             viewModelScope.launch {
                 runCatching { playerController.setPlaybackSpeed(speed) }
                     .onFailure { error ->
                         logger.e({ "Failed to set playback speed on player" }, error)
-                        emitEffect(PlayerEffect.ShowError("Failed to update playback speed"))
+                        dispatch(PlayerIntent.ReportError("Failed to update playback speed"))
                     }
             }
         }
@@ -664,7 +664,7 @@ public class PlayerViewModel
                 runCatching { updateBookSettingsUseCase(bookId, rewindSeconds, forwardSeconds) }
                     .onFailure { error ->
                         logger.e({ "Failed to update book seek settings" }, error)
-                        emitEffect(PlayerEffect.ShowError("Failed to update seek settings"))
+                        dispatch(PlayerIntent.ReportError("Failed to update seek settings"))
                     }
             }
         }
@@ -674,7 +674,7 @@ public class PlayerViewModel
                 runCatching { updateBookSettingsUseCase.resetForBook(bookId) }
                     .onFailure { error ->
                         logger.e({ "Failed to reset book seek settings" }, error)
-                        emitEffect(PlayerEffect.ShowError("Failed to reset seek settings"))
+                        dispatch(PlayerIntent.ReportError("Failed to reset seek settings"))
                     }
             }
         }
@@ -703,7 +703,7 @@ public class PlayerViewModel
                     )
                 }.onFailure { error ->
                     logger.e({ "Failed to update audio settings" }, error)
-                    emitEffect(PlayerEffect.ShowError("Failed to update audio settings"))
+                    dispatch(PlayerIntent.ReportError("Failed to update audio settings"))
                 }
             }
         }
@@ -755,7 +755,7 @@ public class PlayerViewModel
                 runCatching { booksRepository.updateChapterOrder(bookId, newOrderedIds) }
                     .onFailure { error ->
                         logger.e({ "Failed to reorder chapters" }, error)
-                        emitEffect(PlayerEffect.ShowError("Failed to reorder chapters"))
+                        dispatch(PlayerIntent.ReportError("Failed to reorder chapters"))
                     }
             }
         }
