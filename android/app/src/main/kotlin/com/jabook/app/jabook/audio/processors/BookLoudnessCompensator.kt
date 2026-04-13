@@ -26,7 +26,7 @@ package com.jabook.app.jabook.audio.processors
  * Usage:
  * ```
  * val compensator = BookLoudnessCompensator(policy)
- * val gain = compensator.computeBookGain(bookLufs = -20.0, previousBookLufs = -16.0)
+ * val gain = compensator.computeBookGain(bookLufs = -20.0)
  * player.volume = gain.coerceIn(0f, 1f)
  * ```
  *

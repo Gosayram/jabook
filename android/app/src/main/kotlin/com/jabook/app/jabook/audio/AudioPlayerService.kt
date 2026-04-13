@@ -885,7 +885,9 @@ public class AudioPlayerService : MediaLibraryService() {
         // Apply book loudness compensation when switching to a different book
         val isBookSwitch = groupPath != null && groupPath != currentGroupPath
         if (isBookSwitch) {
-            applyBookLoudnessCompensation(groupPath)
+            // Extract book ID from groupPath (format: "author/bookId" or similar)
+            val bookId = groupPath.substringAfterLast("/").takeIf { it.isNotBlank() } ?: groupPath
+            applyBookLoudnessCompensation(bookId)
         }
 
         playlistManager?.setPlaylist(
@@ -935,7 +937,12 @@ public class AudioPlayerService : MediaLibraryService() {
                 if (gain != BookLoudnessCompensator.NO_GAIN) {
                     withContext(Dispatchers.Main) {
                         val player = getActivePlayer()
-                        player.volume = gain.coerceIn(0f, 1f)
+                        // Apply transition gain as delta, absolute gain directly
+                        player.volume = if (prevLufs != null && newLufs != null) {
+                            (player.volume + gain).coerceIn(0f, 1f)
+                        } else {
+                            gain.coerceIn(0f, 1f)
+                        }
                         LogUtils.i(
                             "AudioPlayerService",
                             "Book loudness compensation applied: gain=$gain, lufs=$newLufs, book=$newBookId",
@@ -943,6 +950,8 @@ public class AudioPlayerService : MediaLibraryService() {
                     }
                 }
             } catch (e: Exception) {
+                // Re-throw CancellationException to preserve coroutine cancellation
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 LogUtils.w(
                     "AudioPlayerService",
                     "Failed to apply book loudness compensation for book=$newBookId: ${e.message}",
