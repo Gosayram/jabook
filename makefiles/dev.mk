@@ -68,10 +68,18 @@ fmt-kotlin: ## Format Kotlin code (ktlint + detekt auto-correct) + regenerate ve
 lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verification)
 	@echo "Linting Kotlin code with ktlint + detekt..."
 	@echo "Checking coroutine test discipline (no Thread.sleep in unit tests)..."
-	@if rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin >/dev/null; then \
-		rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin; \
-		echo "❌ Found Thread.sleep(...) in unit tests. Use runTest + advanceTimeBy/advanceUntilIdle instead."; \
-		exit 1; \
+	@if command -v rg >/dev/null 2>&1; then \
+		if rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin >/dev/null; then \
+			rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin; \
+			echo "❌ Found Thread.sleep(...) in unit tests. Use runTest + advanceTimeBy/advanceUntilIdle instead."; \
+			exit 1; \
+		fi; \
+	else \
+		if grep -R -n -E "Thread\\.sleep\\(" android/app/src/test/kotlin >/dev/null 2>&1; then \
+			grep -R -n -E "Thread\\.sleep\\(" android/app/src/test/kotlin || true; \
+			echo "❌ Found Thread.sleep(...) in unit tests. Use runTest + advanceTimeBy/advanceUntilIdle instead."; \
+			exit 1; \
+		fi; \
 	fi
 	@echo "Verifying dependency checksums against verification-metadata.xml..."
 	@(cd android && ./gradlew --dependency-verification=strict help --no-daemon 2>&1); \

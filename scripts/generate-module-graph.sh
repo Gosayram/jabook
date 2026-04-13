@@ -13,7 +13,12 @@ fi
 TMP_MODULES="$(mktemp)"
 trap 'rm -f "$TMP_MODULES"' EXIT
 
-rg -n 'include\(' "$SETTINGS_FILE" \
+# Use ripgrep if available, fall back to grep for CI environments without rg
+if command -v rg >/dev/null 2>&1; then
+    rg -n 'include\(' "$SETTINGS_FILE"
+else
+    grep -nE 'include\(' "$SETTINGS_FILE" || true
+fi \
   | sed -E 's/.*include\((.*)\).*/\1/' \
   | tr ',' '\n' \
   | sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//' \
