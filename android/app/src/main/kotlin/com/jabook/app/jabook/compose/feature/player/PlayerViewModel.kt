@@ -98,9 +98,6 @@ public class PlayerViewModel
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
         public val visualizerWaveformData: StateFlow<FloatArray> = audioVisualizerStateBridge.waveformData
 
-        // Saved position from database (restored on init)
-        private var savedPosition: Long = 0L
-        private var savedChapterIndex: Int = 0
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
         private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
 
@@ -134,10 +131,16 @@ public class PlayerViewModel
                     when (positionResult) {
                         is TypedResult.Success -> {
                             positionResult.data?.let { entity ->
-                                savedPosition = entity.position
-                                savedChapterIndex = entity.trackIndex
+                                val currentSnapshot = restoredBootstrapSnapshot
+                                restoredBootstrapSnapshot =
+                                    RestoredBootstrapSnapshot(
+                                        positionMs = entity.position.coerceAtLeast(0L),
+                                        chapterIndex = entity.trackIndex.coerceAtLeast(0),
+                                        playbackSpeed = currentSnapshot?.playbackSpeed ?: 1.0f,
+                                        sleepTimerMode = currentSnapshot?.sleepTimerMode ?: PlayerStateSnapshotPolicy.MODE_IDLE,
+                                    )
                                 logger.d {
-                                    "Restored position from database: chapter=$savedChapterIndex, position=${savedPosition}ms"
+                                    "Restored position from database: chapter=${entity.trackIndex}, position=${entity.position}ms"
                                 }
                             }
                         }
@@ -264,16 +267,12 @@ public class PlayerViewModel
                         }
 
                     val maxChapterIndex = (chapters.size - 1).coerceAtLeast(0)
-                    val safeSavedChapterIndex = savedChapterIndex.coerceIn(0, maxChapterIndex)
+                    val bootstrapSnapshot = restoredBootstrapSnapshot
+                    val safeSavedChapterIndex = (bootstrapSnapshot?.chapterIndex ?: 0).coerceIn(0, maxChapterIndex)
                     val isControllerBoundToCurrentBook = controllerBookId == bookId
-                    val hasControllerStateForCurrentBook =
-                        isControllerBoundToCurrentBook &&
-                            (
-                                isControllerBoundToCurrentBook ||
-                                    controllerPosition > 0L ||
-                                    controllerChapterIndex > 0 ||
-                                    playing
-                            )
+                    // Once controller is bound to this book, it is the single source of truth
+                    // even when position/chapter are zero (freshly initialized state).
+                    val hasControllerStateForCurrentBook = isControllerBoundToCurrentBook
 
                     val chapterIndex =
                         if (hasControllerStateForCurrentBook) {
@@ -288,7 +287,7 @@ public class PlayerViewModel
                         if (hasControllerStateForCurrentBook) {
                             controllerPosition.coerceAtLeast(0L)
                         } else {
-                            savedPosition.coerceAtLeast(0L)
+                            (bootstrapSnapshot?.positionMs ?: 0L).coerceAtLeast(0L)
                         }
 
                     PlayerState.Active(
@@ -932,39 +931,44 @@ public class PlayerViewModel
             val snapshotBookId: String = savedStateHandle[STATE_SNAPSHOT_BOOK_ID] ?: return
             if (snapshotBookId != bookId) return
 
-            savedPosition = (savedStateHandle[STATE_SNAPSHOT_POSITION_MS] ?: 0L).coerceAtLeast(0L)
-            savedChapterIndex = (savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] ?: 0).coerceAtLeast(0)
+            val restoredPosition = (savedStateHandle[STATE_SNAPSHOT_POSITION_MS] ?: 0L).coerceAtLeast(0L)
+            val restoredChapterIndex = (savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] ?: 0).coerceAtLeast(0)
             val restoredSpeed = (savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] ?: 1.0f).coerceAtLeast(0f)
             val restoredSleepMode = savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] ?: PlayerStateSnapshotPolicy.MODE_IDLE
             restoredBootstrapSnapshot =
                 RestoredBootstrapSnapshot(
+                    positionMs = restoredPosition,
+                    chapterIndex = restoredChapterIndex,
                     playbackSpeed = restoredSpeed,
                     sleepTimerMode = restoredSleepMode,
                 )
 
             logger.d {
-                "Restored player snapshot: chapter=$savedChapterIndex, " +
-                    "position=${savedPosition}ms, speed=$restoredSpeed, sleepMode=$restoredSleepMode"
+                "Restored player snapshot: chapter=$restoredChapterIndex, " +
+                    "position=${restoredPosition}ms, speed=$restoredSpeed, sleepMode=$restoredSleepMode"
             }
         }
 
         private fun restoreStateSnapshotFromDataStore() {
             viewModelScope.launch {
-                if (savedChapterIndex > 0 || savedPosition > 0L) return@launch
+                val existingSnapshot = restoredBootstrapSnapshot
+                if ((existingSnapshot?.chapterIndex ?: 0) > 0 || (existingSnapshot?.positionMs ?: 0L) > 0L) return@launch
                 val snapshot = settingsRepository.playerStateSnapshot.first() ?: return@launch
                 if (snapshot.bookId != bookId) return@launch
-                savedPosition = snapshot.positionMs.coerceAtLeast(0L)
-                savedChapterIndex = snapshot.chapterIndex.coerceAtLeast(0)
+                val restoredPosition = snapshot.positionMs.coerceAtLeast(0L)
+                val restoredChapterIndex = snapshot.chapterIndex.coerceAtLeast(0)
                 val restoredSpeed = snapshot.playbackSpeed.coerceAtLeast(0f)
                 val restoredSleepMode = snapshot.sleepTimerMode.ifBlank { PlayerStateSnapshotPolicy.MODE_IDLE }
                 restoredBootstrapSnapshot =
                     RestoredBootstrapSnapshot(
+                        positionMs = restoredPosition,
+                        chapterIndex = restoredChapterIndex,
                         playbackSpeed = restoredSpeed,
                         sleepTimerMode = restoredSleepMode,
                     )
                 logger.d {
-                    "Restored player snapshot from DataStore: chapter=$savedChapterIndex, " +
-                        "position=${savedPosition}ms, speed=$restoredSpeed, sleepMode=$restoredSleepMode"
+                    "Restored player snapshot from DataStore: chapter=$restoredChapterIndex, " +
+                        "position=${restoredPosition}ms, speed=$restoredSpeed, sleepMode=$restoredSleepMode"
                 }
             }
         }
@@ -1125,6 +1129,8 @@ public enum class PlayerSleepTimerMode {
 }
 
 private data class RestoredBootstrapSnapshot(
+    val positionMs: Long,
+    val chapterIndex: Int,
     val playbackSpeed: Float,
     val sleepTimerMode: String,
 )
