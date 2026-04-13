@@ -122,6 +122,9 @@ public object PlayerReducer {
                     )
                 }
             }
+            PlayerIntent.ToggleChapterRepeat -> {
+                state.copy(chapterRepeatMode = nextChapterRepeatMode(state.chapterRepeatMode))
+            }
             is PlayerIntent.StartSleepTimer -> {
                 val requestedSeconds = intent.minutes.coerceAtLeast(1) * 60
                 val isSameFixedTimer =

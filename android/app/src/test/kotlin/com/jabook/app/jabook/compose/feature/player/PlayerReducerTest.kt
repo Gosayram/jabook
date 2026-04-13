@@ -61,6 +61,7 @@ class PlayerReducerTest {
                 playbackSpeed = 1.0f,
                 sleepTimerMode = PlayerSleepTimerMode.IDLE,
                 sleepTimerRemainingSeconds = null,
+                chapterRepeatMode = ChapterRepeatMode.OFF,
             )
 
         val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekTo(positionMs = 120_000L))
@@ -133,6 +134,18 @@ class PlayerReducerTest {
         assertEquals(2, reduced.currentChapterIndex)
         assertEquals("c3", reduced.currentChapter?.id)
         assertEquals(0L, reduced.currentPosition)
+    }
+
+    @Test
+    fun `reduce toggle chapter repeat cycles repeat mode in active state`() {
+        val off = activeStateTemplate().copy(chapterRepeatMode = ChapterRepeatMode.OFF)
+        val once = PlayerReducer.reduce(off, PlayerIntent.ToggleChapterRepeat) as PlayerState.Active
+        val infinite = PlayerReducer.reduce(once, PlayerIntent.ToggleChapterRepeat) as PlayerState.Active
+        val backToOff = PlayerReducer.reduce(infinite, PlayerIntent.ToggleChapterRepeat) as PlayerState.Active
+
+        assertEquals(ChapterRepeatMode.ONCE, once.chapterRepeatMode)
+        assertEquals(ChapterRepeatMode.INFINITE, infinite.chapterRepeatMode)
+        assertEquals(ChapterRepeatMode.OFF, backToOff.chapterRepeatMode)
     }
 
     @Test
@@ -254,5 +267,6 @@ class PlayerReducerTest {
             playbackSpeed = 1.0f,
             sleepTimerMode = PlayerSleepTimerMode.IDLE,
             sleepTimerRemainingSeconds = null,
+            chapterRepeatMode = ChapterRepeatMode.OFF,
         )
 }

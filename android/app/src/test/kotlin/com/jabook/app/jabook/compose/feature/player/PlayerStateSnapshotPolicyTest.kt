@@ -38,6 +38,7 @@ class PlayerStateSnapshotPolicyTest {
                 playbackSpeed = -2f,
                 sleepTimerMode = PlayerSleepTimerMode.IDLE,
                 sleepTimerRemainingSeconds = null,
+                chapterRepeatMode = ChapterRepeatMode.OFF,
             )
 
         val snapshot =

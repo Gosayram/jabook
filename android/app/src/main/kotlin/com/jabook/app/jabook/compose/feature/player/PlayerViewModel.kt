@@ -206,6 +206,7 @@ public class PlayerViewModel
                 settingsRepository.userPreferences,
                 userPreferencesRepository.userData.map { it.playbackSpeed },
                 sleepTimerRepository.timerState,
+                _chapterRepeatMode,
             ) { args ->
                 val book = args[0] as? Book
 
@@ -218,6 +219,7 @@ public class PlayerViewModel
                 val preferences = args[6] as com.jabook.app.jabook.compose.data.preferences.UserPreferences
                 val playbackSpeed = args[7] as Float
                 val sleepTimerState = args[8] as com.jabook.app.jabook.compose.domain.model.SleepTimerState
+                val chapterRepeatMode = args[9] as ChapterRepeatMode
 
                 if (book == null) {
                     PlayerState.Error("Book not found")
@@ -273,6 +275,7 @@ public class PlayerViewModel
                         sleepTimerRemainingSeconds =
                             (sleepTimerState as? com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active)
                                 ?.remainingSeconds,
+                        chapterRepeatMode = chapterRepeatMode,
                     )
                 }
             }.combine(_themeColors) { state, themeColors ->
@@ -501,7 +504,12 @@ public class PlayerViewModel
                         (reducedState as? PlayerState.Active)?.currentChapterIndex ?: intent.chapterIndex
                     skipToChapter(reducedChapterIndex)
                 }
-                PlayerIntent.ToggleChapterRepeat -> toggleChapterRepeat()
+                PlayerIntent.ToggleChapterRepeat -> {
+                    val targetMode = (reducedState as? PlayerState.Active)?.chapterRepeatMode ?: return
+                    if (targetMode == _chapterRepeatMode.value) return
+                    _chapterRepeatMode.value = targetMode
+                    hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
+                }
                 PlayerIntent.InitializeVisualizer -> initializeVisualizer()
                 is PlayerIntent.SetVisualizerEnabled -> setVisualizerEnabled(intent.enabled)
                 is PlayerIntent.SetPlaybackSpeed -> setPlaybackSpeed(intent.speed)
@@ -943,6 +951,7 @@ public sealed interface PlayerState {
         val playbackSpeed: Float,
         val sleepTimerMode: PlayerSleepTimerMode,
         val sleepTimerRemainingSeconds: Int?,
+        val chapterRepeatMode: ChapterRepeatMode,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
         val lyrics: ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
     ) : PlayerState
