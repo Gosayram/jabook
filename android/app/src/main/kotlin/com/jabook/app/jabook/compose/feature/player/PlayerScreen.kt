@@ -499,7 +499,6 @@ public fun PlayerScreen(
                             }
 
                             is PlayerState.Active -> {
-                                val chapterRepeatMode by viewModel.chapterRepeatMode.collectAsStateWithLifecycle()
                                 // Click debouncer for preventing double clicks (inspired by Easybook)
                                 val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
 
@@ -519,7 +518,7 @@ public fun PlayerScreen(
                                         isVinylMode = isVinylMode,
                                         sleepTimerState = sleepTimerState,
                                         normalizeEnabled = normalizeEnabled,
-                                        chapterRepeatMode = chapterRepeatMode,
+                                        chapterRepeatMode = state.chapterRepeatMode,
                                         visualizerWaveformData = visualizerWaveformData,
                                         onPlayPause = {
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)

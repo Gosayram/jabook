@@ -107,8 +107,7 @@ public class PlayerViewModel
         private var savedSleepTimerMode: String = PlayerStateSnapshotPolicy.MODE_IDLE
 
         // Chapter repeat mode state
-        private val _chapterRepeatMode = MutableStateFlow(ChapterRepeatMode.OFF)
-        public val chapterRepeatMode: StateFlow<ChapterRepeatMode> = _chapterRepeatMode.asStateFlow()
+        private val chapterRepeatModeState = MutableStateFlow(ChapterRepeatMode.OFF)
 
         // Track if we've already repeated once (for ONCE mode)
         private var hasRepeatedOnce = false
@@ -206,7 +205,7 @@ public class PlayerViewModel
                 settingsRepository.userPreferences,
                 userPreferencesRepository.userData.map { it.playbackSpeed },
                 sleepTimerRepository.timerState,
-                _chapterRepeatMode,
+                chapterRepeatModeState,
             ) { args ->
                 val book = args[0] as? Book
 
@@ -506,8 +505,8 @@ public class PlayerViewModel
                 }
                 PlayerIntent.ToggleChapterRepeat -> {
                     val targetMode = (reducedState as? PlayerState.Active)?.chapterRepeatMode ?: return
-                    if (targetMode == _chapterRepeatMode.value) return
-                    _chapterRepeatMode.value = targetMode
+                    if (targetMode == chapterRepeatModeState.value) return
+                    chapterRepeatModeState.value = targetMode
                     hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
                 }
                 PlayerIntent.InitializeVisualizer -> initializeVisualizer()
@@ -827,7 +826,7 @@ public class PlayerViewModel
          * Toggle chapter repeat mode: OFF -> ONCE -> INFINITE -> OFF
          */
         public fun toggleChapterRepeat() {
-            _chapterRepeatMode.value = PlayerReducer.nextChapterRepeatMode(_chapterRepeatMode.value)
+            chapterRepeatModeState.value = PlayerReducer.nextChapterRepeatMode(chapterRepeatModeState.value)
             hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
         }
 
@@ -840,7 +839,7 @@ public class PlayerViewModel
         public fun onChapterEnded(): Boolean {
             val reduction =
                 PlayerReducer.reduceChapterEnded(
-                    mode = _chapterRepeatMode.value,
+                    mode = chapterRepeatModeState.value,
                     hasRepeatedOnce = hasRepeatedOnce,
                 )
             hasRepeatedOnce = reduction.hasRepeatedOnce
