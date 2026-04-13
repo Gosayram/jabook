@@ -511,8 +511,11 @@ public class PlayerViewModel
         }
 
         public fun seekTo(positionMs: Long) {
-            logger.d { "Action: Seek requested to ${positionMs}ms" }
-            playerController.seekTo(positionMs)
+            val state = uiState.value as? PlayerUiState.Success
+            val chapterDurationMs = state?.currentChapter?.duration?.inWholeMilliseconds
+            val clampedPositionMs = PlayerIntentGuardPolicy.clampSeekPosition(positionMs, chapterDurationMs)
+            logger.d { "Action: Seek requested to ${positionMs}ms (clamped=${clampedPositionMs}ms)" }
+            playerController.seekTo(clampedPositionMs)
         }
 
         public fun skipToNext() {
@@ -590,14 +593,26 @@ public class PlayerViewModel
         }
 
         public fun startSleepTimer(minutes: Int) {
+            if (!PlayerIntentGuardPolicy.shouldStartFixedSleepTimer(sleepTimerState.value, minutes)) {
+                logger.d { "Sleep timer already active with same target, skipping restart" }
+                return
+            }
             sleepTimerRepository.startTimer(minutes)
         }
 
         public fun startSleepTimerEndOfChapter() {
+            if (!PlayerIntentGuardPolicy.shouldStartEndOfChapter(sleepTimerState.value)) {
+                logger.d { "Sleep timer is already in end-of-chapter mode, skipping restart" }
+                return
+            }
             sleepTimerRepository.startTimerEndOfChapter()
         }
 
         public fun startSleepTimerEndOfTrack() {
+            if (!PlayerIntentGuardPolicy.shouldStartEndOfTrack(sleepTimerState.value)) {
+                logger.d { "Sleep timer is already in end-of-track mode, skipping restart" }
+                return
+            }
             sleepTimerRepository.startTimerEndOfTrack()
         }
 
