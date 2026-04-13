@@ -141,6 +141,33 @@ class StorageTransferWorkflowTest {
         targetDir.deleteRecursively()
     }
 
+    @Test
+    fun `transferFile rejects traversal segments in paths`() {
+        val sourceDir = Files.createTempDirectory("jabook-source").toFile()
+        val source = File(sourceDir, "book.mp3").apply { writeText("audio") }
+        val targetDir = Files.createTempDirectory("jabook-target").toFile()
+        val traversalTargetPath = "${targetDir.absolutePath}/../escape.mp3"
+        val workflow = StorageTransferWorkflow(preflightChecker = checker)
+
+        val result =
+            workflow.transferFile(
+                sourcePath = source.absolutePath,
+                targetPath = traversalTargetPath,
+                overwrite = false,
+            )
+
+        assertFalse(result.isSuccess)
+        assertEquals(
+            StorageTransferWorkflowFailureReason.TARGET_PATH_VALIDATION_FAILED,
+            result.failureReason,
+        )
+        assertFalse(File(targetDir.parentFile, "escape.mp3").exists())
+
+        source.delete()
+        sourceDir.deleteRecursively()
+        targetDir.deleteRecursively()
+    }
+
     private fun createTempFileWithContent(content: String): File {
         val file = Files.createTempFile("jabook-transfer-workflow", ".tmp").toFile()
         file.writeText(content)

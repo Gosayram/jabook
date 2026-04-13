@@ -18,6 +18,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.crash.CrashDiagnostics
 
 /**
@@ -209,7 +210,7 @@ public class SyncWorker
                         // Download file
                         val url = java.net.URL(coverUrl)
                         url.openStream().use { input ->
-                            java.io.FileOutputStream(coverFile).use { output ->
+                            AtomicFileWriter.writeWithLock(coverFile) { output ->
                                 input.copyTo(output)
                             }
                         }

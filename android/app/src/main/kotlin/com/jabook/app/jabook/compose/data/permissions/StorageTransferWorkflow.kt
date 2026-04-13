@@ -24,6 +24,7 @@ public enum class StorageTransferWorkflowFailureReason {
     NONE,
     SOURCE_PRECHECK_FAILED,
     TARGET_PRECHECK_FAILED,
+    TARGET_PATH_VALIDATION_FAILED,
     TARGET_ALREADY_EXISTS,
     COPY_FAILED,
     INTEGRITY_CHECK_FAILED,
@@ -54,8 +55,25 @@ public class StorageTransferWorkflow(
         targetPath: String,
         overwrite: Boolean,
     ): StorageTransferWorkflowResult {
+        if (containsTraversalSegment(sourcePath) || containsTraversalSegment(targetPath)) {
+            return StorageTransferWorkflowResult(
+                isSuccess = false,
+                targetPath = targetPath,
+                failureReason = StorageTransferWorkflowFailureReason.TARGET_PATH_VALIDATION_FAILED,
+            )
+        }
+
         val sourceFile = File(sourcePath)
         val targetFile = File(targetPath)
+        val initialCanonicalTargetDir =
+            runCatching { targetFile.parentFile?.canonicalPath }
+                .getOrNull()
+                ?: return StorageTransferWorkflowResult(
+                    isSuccess = false,
+                    targetPath = targetPath,
+                    failureReason = StorageTransferWorkflowFailureReason.TARGET_PATH_VALIDATION_FAILED,
+                )
+
         val sourceDirResult = preflightChecker.checkDirectory(sourceFile.parent)
         if (!sourceDirResult.isSuccess) {
             return StorageTransferWorkflowResult(
@@ -99,6 +117,17 @@ public class StorageTransferWorkflow(
                     targetFile.toPath(),
                     backupTarget.toPath(),
                     StandardCopyOption.REPLACE_EXISTING,
+                )
+            }
+
+            if (!isTargetPathStillSafe(targetFile, initialCanonicalTargetDir)) {
+                rollbackPerformed = true
+                restoreBackupOrDeleteTarget(targetFile = targetFile, backupTarget = backupTarget)
+                return StorageTransferWorkflowResult(
+                    isSuccess = false,
+                    targetPath = targetPath,
+                    failureReason = StorageTransferWorkflowFailureReason.TARGET_PATH_VALIDATION_FAILED,
+                    rollbackPerformed = true,
                 )
             }
 
@@ -168,4 +197,25 @@ public class StorageTransferWorkflow(
             )
         }
     }
+
+    private fun isTargetPathStillSafe(
+        targetFile: File,
+        initialCanonicalTargetDir: String,
+    ): Boolean {
+        val currentCanonicalTargetDir =
+            runCatching { targetFile.parentFile?.canonicalPath }
+                .getOrNull()
+                ?: return false
+        if (currentCanonicalTargetDir != initialCanonicalTargetDir) return false
+
+        val canonicalTargetPath =
+            runCatching { targetFile.canonicalPath }
+                .getOrNull()
+                ?: return false
+
+        return canonicalTargetPath == initialCanonicalTargetDir ||
+            canonicalTargetPath.startsWith("$initialCanonicalTargetDir${File.separator}")
+    }
+
+    private fun containsTraversalSegment(path: String): Boolean = path.replace('\\', '/').split('/').any { it == ".." }
 }

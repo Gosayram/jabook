@@ -25,8 +25,10 @@ import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.model.AppTheme
+import com.jabook.app.jabook.compose.data.permissions.StorageHealthChecker
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.compose.util.DateTimeFormatter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -77,6 +79,11 @@ public class BackupService
             withContext(Dispatchers.IO) {
                 try {
                     logger.d { "Starting data export" }
+                    val storageHealthChecker = StorageHealthChecker()
+                    val health = storageHealthChecker.check(context.cacheDir)
+                    if (!health.isHealthy) {
+                        throw IOException(health.warningMessage ?: "Low storage: backup export aborted")
+                    }
 
                     // 1. Collect data
                     val backupData = collectData()
@@ -101,7 +108,11 @@ public class BackupService
                     val timestamp = DateTimeFormatter.formatCurrentForFilename()
                     val fileName: String = "jabook_backup_$timestamp.json"
                     val file = File(context.cacheDir, fileName)
-                    file.writeText(jsonString)
+                    val encoded = jsonString.toByteArray(Charsets.UTF_8)
+                    AtomicFileWriter.writeWithLock(file) { output ->
+                        output.write(encoded)
+                        encoded.size.toLong()
+                    }
 
                     logger.d { "Backup written to ${file.absolutePath}" }
 

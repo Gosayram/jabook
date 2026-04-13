@@ -19,6 +19,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -251,7 +252,11 @@ public class DebugLogService
                 val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
                 // Save to cache directory (will be cleared on uninstall)
                 val logFile = File(context.cacheDir, fileName)
-                logFile.writeText(logs)
+                AtomicFileWriter.writeWithLock(logFile) { output ->
+                    val bytes = logs.toByteArray(Charsets.UTF_8)
+                    output.write(bytes)
+                    bytes.size.toLong()
+                }
 
                 logger.d { "Logs exported to ${logFile.absolutePath} (${logFile.length()} bytes)" }
 
