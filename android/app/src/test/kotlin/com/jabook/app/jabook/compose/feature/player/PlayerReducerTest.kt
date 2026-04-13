@@ -14,12 +14,67 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.Chapter
+import kotlinx.collections.immutable.toImmutableList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 class PlayerReducerTest {
+    @Test
+    fun `reduce keeps loading state when play intent received`() {
+        val state = PlayerState.Loading
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.Play)
+
+        assertSame(state, reduced)
+    }
+
+    @Test
+    fun `reduce clamps seek intent to chapter duration in active state`() {
+        val state =
+            PlayerState.Active(
+                book = Book.preview().copy(id = "book-1", title = "Title", author = "Author"),
+                chapters =
+                    listOf(
+                        Chapter.preview().copy(
+                            id = "c1",
+                            bookId = "book-1",
+                            title = "Chapter 1",
+                            chapterIndex = 0,
+                            fileIndex = 0,
+                            duration = 1.minutes,
+                            position = 0.seconds,
+                        ),
+                    ).toImmutableList(),
+                isPlaying = true,
+                currentPosition = 10_000L,
+                currentChapterIndex = 0,
+                currentChapter = Chapter.preview().copy(id = "c1", bookId = "book-1", duration = 1.minutes),
+                rewindInterval = 10,
+                forwardInterval = 30,
+                playbackSpeed = 1.0f,
+            )
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekTo(positionMs = 120_000L))
+
+        require(reduced is PlayerState.Active)
+        assertEquals(60_000L, reduced.currentPosition)
+    }
+
+    @Test
+    fun `reduce transitions to error state on report error intent`() {
+        val reduced = PlayerReducer.reduce(PlayerState.Loading, PlayerIntent.ReportError("boom"))
+
+        require(reduced is PlayerState.Error)
+        assertEquals("boom", reduced.message)
+    }
+
     @Test
     fun `nextChapterRepeatMode cycles through all modes`() {
         assertEquals(ChapterRepeatMode.ONCE, PlayerReducer.nextChapterRepeatMode(ChapterRepeatMode.OFF))

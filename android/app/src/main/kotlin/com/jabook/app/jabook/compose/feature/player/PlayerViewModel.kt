@@ -424,6 +424,11 @@ public class PlayerViewModel
         // Unified player command dispatcher (incremental PlayerIntent migration)
         public fun dispatch(intent: PlayerIntent) {
             logger.d { "PlayerIntent received: $intent" }
+            val reducedState = PlayerReducer.reduce(uiState.value, intent)
+            if (uiState.value is PlayerState.Loading && reducedState is PlayerState.Loading && intent.isPlaybackControlIntent()) {
+                emitEffect(PlayerEffect.ShowSnackbar("Player is not ready yet"))
+                return
+            }
             when (intent) {
                 PlayerIntent.InitializePlayer -> initializePlayer()
                 PlayerIntent.TogglePlayPause -> {
@@ -438,7 +443,10 @@ public class PlayerViewModel
                 PlayerIntent.Pause -> pause()
                 PlayerIntent.SkipNext -> skipToNext()
                 PlayerIntent.SkipPrevious -> skipToPrevious()
-                is PlayerIntent.SeekTo -> seekTo(intent.positionMs)
+                is PlayerIntent.SeekTo -> {
+                    val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: intent.positionMs
+                    seekTo(reducedPosition)
+                }
                 PlayerIntent.SeekForward -> seekForward()
                 PlayerIntent.SeekBackward -> seekBackward()
                 is PlayerIntent.SelectChapter -> skipToChapter(intent.chapterIndex)
@@ -468,6 +476,10 @@ public class PlayerViewModel
                         speechEnhancer = intent.speechEnhancer,
                         autoVolumeLeveling = intent.autoVolumeLeveling,
                     )
+                is PlayerIntent.ReportError -> {
+                    val reason = (reducedState as? PlayerState.Error)?.message ?: intent.reason
+                    emitEffect(PlayerEffect.ShowError(reason))
+                }
             }
         }
 
@@ -758,6 +770,35 @@ public class PlayerViewModel
         public fun onChapterChanged() {
             hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
         }
+
+        private fun PlayerIntent.isPlaybackControlIntent(): Boolean =
+            when (this) {
+                PlayerIntent.TogglePlayPause,
+                PlayerIntent.Play,
+                PlayerIntent.Pause,
+                PlayerIntent.SkipNext,
+                PlayerIntent.SkipPrevious,
+                is PlayerIntent.SeekTo,
+                PlayerIntent.SeekForward,
+                PlayerIntent.SeekBackward,
+                is PlayerIntent.SelectChapter,
+                PlayerIntent.ToggleChapterRepeat,
+                PlayerIntent.InitializeVisualizer,
+                is PlayerIntent.SetVisualizerEnabled,
+                is PlayerIntent.SetPlaybackSpeed,
+                is PlayerIntent.SetPitchCorrectionEnabled,
+                is PlayerIntent.StartSleepTimer,
+                PlayerIntent.StartSleepTimerEndOfChapter,
+                PlayerIntent.StartSleepTimerEndOfTrack,
+                PlayerIntent.CancelSleepTimer,
+                is PlayerIntent.UpdateBookSeekSettings,
+                PlayerIntent.ResetBookSeekSettings,
+                is PlayerIntent.UpdateAudioSettings,
+                -> true
+                PlayerIntent.InitializePlayer,
+                is PlayerIntent.ReportError,
+                -> false
+            }
     }
 
 /**

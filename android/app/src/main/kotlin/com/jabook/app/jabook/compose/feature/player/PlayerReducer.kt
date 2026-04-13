@@ -18,6 +18,16 @@ package com.jabook.app.jabook.compose.feature.player
  * Pure reducer helpers for player state transitions.
  */
 public object PlayerReducer {
+    public fun reduce(
+        state: PlayerState,
+        intent: PlayerIntent,
+    ): PlayerState =
+        when (state) {
+            PlayerState.Loading -> reduceLoading(state, intent)
+            is PlayerState.Active -> reduceActive(state, intent)
+            is PlayerState.Error -> reduceError(state, intent)
+        }
+
     public fun nextChapterRepeatMode(current: ChapterRepeatMode): ChapterRepeatMode =
         when (current) {
             ChapterRepeatMode.OFF -> ChapterRepeatMode.ONCE
@@ -42,6 +52,42 @@ public object PlayerReducer {
         }
 
     public fun reduceChapterChanged(): Boolean = false
+
+    private fun reduceLoading(
+        state: PlayerState,
+        intent: PlayerIntent,
+    ): PlayerState =
+        when (intent) {
+            is PlayerIntent.ReportError -> PlayerState.Error(intent.reason)
+            else -> state
+        }
+
+    private fun reduceActive(
+        state: PlayerState.Active,
+        intent: PlayerIntent,
+    ): PlayerState =
+        when (intent) {
+            is PlayerIntent.SeekTo -> {
+                val clampedPosition =
+                    PlayerIntentGuardPolicy.clampSeekPosition(
+                        requestedPositionMs = intent.positionMs,
+                        chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
+                    )
+                state.copy(currentPosition = clampedPosition)
+            }
+            is PlayerIntent.ReportError -> PlayerState.Error(intent.reason)
+            else -> state
+        }
+
+    private fun reduceError(
+        state: PlayerState.Error,
+        intent: PlayerIntent,
+    ): PlayerState =
+        when (intent) {
+            is PlayerIntent.ReportError -> PlayerState.Error(intent.reason)
+            PlayerIntent.InitializePlayer -> PlayerState.Loading
+            else -> state
+        }
 }
 
 public data class ChapterEndReduction(
