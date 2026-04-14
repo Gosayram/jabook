@@ -16,9 +16,12 @@ package com.jabook.app.jabook.compose.data.torrent
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkType
+import com.jabook.app.jabook.compose.data.network.TorrentDownloadNetworkPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
@@ -331,7 +334,11 @@ public class TorrentManager
             wifiOnly: Boolean,
             net: NetworkType,
         ) {
-            val isRestricted = wifiOnly && net == NetworkType.CELLULAR
+            val isRestricted =
+                TorrentDownloadNetworkPolicy.shouldPauseForNetwork(
+                    wifiOnlyEnabled = wifiOnly,
+                    networkType = net,
+                )
 
             if (isRestricted) {
                 if (!pausedByNetwork) {
@@ -355,11 +362,11 @@ public class TorrentManager
                         pausedByNetwork = true
 
                         // Show notification about paused downloads
-                        android.widget.Toast
+                        Toast
                             .makeText(
                                 context,
-                                "Downloads paused (WiFi required)",
-                                android.widget.Toast.LENGTH_SHORT,
+                                context.getString(R.string.downloadsPausedWifiRequired),
+                                Toast.LENGTH_SHORT,
                             ).show()
                     }
                 }
@@ -372,11 +379,11 @@ public class TorrentManager
                     pausedByNetwork = false
 
                     // Show notification about resumed downloads
-                    android.widget.Toast
+                    Toast
                         .makeText(
                             context,
-                            "Downloads resumed",
-                            android.widget.Toast.LENGTH_SHORT,
+                            context.getString(R.string.downloadsResumed),
+                            Toast.LENGTH_SHORT,
                         ).show()
                 }
             }

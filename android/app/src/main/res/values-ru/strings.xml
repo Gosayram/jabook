@@ -2760,6 +2760,8 @@
     <string name="updateAction">Обновить</string>
     <string name="indexingInProgressTitle">Индексация в процессе...</string>
     <string name="indexingInProgressDescription">Пожалуйста, подождите завершения индексации. Прогресс можно увидеть в уведомлениях.</string>
+    <string name="downloadsPausedWifiRequired">Загрузки приостановлены (требуется Wi-Fi)</string>
+    <string name="downloadsResumed">Загрузки возобновлены</string>
     <string name="indexRequiredForOnlineSearchDescription">Для онлайн поиска необходимо создать индекс. Локальный поиск работает всегда.</string>
     <string name="indexingDialogTitle">Индексация</string>
     <string name="indexingCompletedTitle">Индексация завершена</string>

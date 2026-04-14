@@ -2717,6 +2717,8 @@
     <string name="updateAction">Update</string>
     <string name="indexingInProgressTitle">Indexing in progress...</string>
     <string name="indexingInProgressDescription">Please wait until indexing is complete. Progress is available in notifications.</string>
+    <string name="downloadsPausedWifiRequired">Downloads paused (Wi-Fi required)</string>
+    <string name="downloadsResumed">Downloads resumed</string>
     <string name="indexRequiredForOnlineSearchDescription">Online search requires index creation. Local search is always available.</string>
     <string name="indexingDialogTitle">Indexing</string>
     <string name="indexingCompletedTitle">Indexing completed</string>
