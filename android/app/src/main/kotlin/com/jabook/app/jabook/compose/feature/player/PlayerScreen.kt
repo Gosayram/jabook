@@ -703,6 +703,9 @@ private fun PlayerContent(
     val itemSpacing = if (isCompact) 16.dp else AdaptiveUtils.getItemSpacing(windowSizeClass)
     // Spacing for compact screens between specific elements
     val smallItemSpacing = if (isCompact) 8.dp else 12.dp
+    val playbackSpeedLabel by remember(playbackSpeed) {
+        derivedStateOf { formatPlaybackSpeedLabel(playbackSpeed) }
+    }
     // Large spacing for major sections
     val largeItemSpacing = if (isCompact) 24.dp else 32.dp
 
@@ -1161,23 +1164,27 @@ private fun PlayerContent(
                                 state.chapters.size,
                             )
 
-                        // Calculate finish time
-                        val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
-                        val speed = state.playbackSpeed
-                        // Avoid division by zero
-                        val realRemainingMs = if (speed > 0) (remainingMs / speed).toLong() else remainingMs
-
-                        val finishTime =
-                            java.util.Calendar.getInstance().apply {
-                                add(java.util.Calendar.MILLISECOND, realRemainingMs.toInt())
+                        val formattedFinishTime by remember(
+                            chapterTimeline.totalDurationMs,
+                            currentGlobalPositionMs,
+                            state.playbackSpeed,
+                        ) {
+                            derivedStateOf {
+                                val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
+                                val speed = state.playbackSpeed
+                                val realRemainingMs = if (speed > 0f) (remainingMs / speed).toLong() else remainingMs
+                                val finishTime =
+                                    java.util.Calendar.getInstance().apply {
+                                        add(java.util.Calendar.MILLISECOND, realRemainingMs.toInt())
+                                    }
+                                java.text
+                                    .SimpleDateFormat(
+                                        "HH:mm",
+                                        java.util.Locale.getDefault(),
+                                    ).format(finishTime.time)
                             }
-                        val formattedTime =
-                            java.text
-                                .SimpleDateFormat(
-                                    "HH:mm",
-                                    java.util.Locale.getDefault(),
-                                ).format(finishTime.time)
-                        val finishText = stringResource(R.string.finishAt, formattedTime)
+                        }
+                        val finishText = stringResource(R.string.finishAt, formattedFinishTime)
 
                         Text(
                             text = "$chapterText • $finishText",
@@ -1426,22 +1433,7 @@ private fun PlayerContent(
                                     modifier = Modifier.size(controlButtonIconSize).padding(end = 4.dp),
                                 )
                                 Text(
-                                    text =
-                                        run {
-                                            val formattedSpeed =
-                                                if (playbackSpeed % 1.0f == 0.0f) {
-                                                    playbackSpeed.toInt().toString()
-                                                } else {
-                                                    val locale = java.util.Locale.getDefault()
-                                                    val isRussian = locale.language == "ru"
-                                                    val symbols =
-                                                        java.text.DecimalFormatSymbols(
-                                                            if (isRussian) locale else java.util.Locale.US,
-                                                        )
-                                                    java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
-                                                }
-                                            "${formattedSpeed}x"
-                                        },
+                                    text = playbackSpeedLabel,
                                     fontSize = controlButtonTextSize,
                                 )
                             }
@@ -1588,22 +1580,7 @@ private fun PlayerContent(
                                 modifier = Modifier.size(controlButtonIconSize).padding(end = 8.dp),
                             )
                             Text(
-                                text =
-                                    run {
-                                        val formattedSpeed =
-                                            if (playbackSpeed % 1.0f == 0.0f) {
-                                                playbackSpeed.toInt().toString()
-                                            } else {
-                                                val locale = java.util.Locale.getDefault()
-                                                val isRussian = locale.language == "ru"
-                                                val symbols =
-                                                    java.text.DecimalFormatSymbols(
-                                                        if (isRussian) locale else java.util.Locale.US,
-                                                    )
-                                                java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
-                                            }
-                                        "${formattedSpeed}x"
-                                    },
+                                text = playbackSpeedLabel,
                                 fontSize = controlButtonTextSize,
                             )
                         }
@@ -1891,4 +1868,20 @@ public fun PlayerSettingsSheet(
 internal fun formatDuration(durationMs: Long): String {
     val totalSeconds = (durationMs.coerceAtLeast(0L) / 1000L)
     return DateUtils.formatElapsedTime(totalSeconds)
+}
+
+internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String {
+    val formattedSpeed =
+        if (playbackSpeed % 1.0f == 0.0f) {
+            playbackSpeed.toInt().toString()
+        } else {
+            val locale = java.util.Locale.getDefault()
+            val isRussian = locale.language == "ru"
+            val symbols =
+                java.text.DecimalFormatSymbols(
+                    if (isRussian) locale else java.util.Locale.US,
+                )
+            java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
+        }
+    return "${formattedSpeed}x"
 }

@@ -211,7 +211,8 @@ def append_blocks(
             if block_lines and block_lines[-1].strip() != "":
                 lines.append("\n")
             added += 1
-        lines.append("\n")
+        if lines and lines[-1].strip() != "":
+            lines.append("\n")
 
     return lines, added
 

@@ -21,6 +21,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.collections.immutable.toImmutableList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -397,6 +398,48 @@ class PlayerReducerTest {
     @Test
     fun `reduceChapterChanged resets repeat flag`() {
         assertFalse(PlayerReducer.reduceChapterChanged())
+    }
+
+    @Test
+    fun `reduce is deterministic for same input`() {
+        val state = activeStateTemplate().copy(currentPosition = 12_345L, playbackSpeed = 1.25f)
+        val intent = PlayerIntent.SeekForward
+
+        val first = PlayerReducer.reduce(state, intent)
+        val second = PlayerReducer.reduce(state, intent)
+
+        assertEquals(first, second)
+    }
+
+    @Test
+    fun `reduce does not mutate source state`() {
+        val source =
+            activeStateTemplate().copy(
+                currentPosition = 9_000L,
+                rewindInterval = 10,
+                forwardInterval = 30,
+            )
+        val snapshot = source.copy()
+
+        val reduced =
+            PlayerReducer.reduce(
+                source,
+                PlayerIntent.UpdateBookSeekSettings(rewindSeconds = 15, forwardSeconds = 45),
+            )
+
+        require(reduced is PlayerState.Active)
+        assertEquals(snapshot, source)
+        assertNotSame(source, reduced)
+        assertEquals(9_000L, source.currentPosition)
+        assertEquals(10, source.rewindInterval)
+        assertEquals(30, source.forwardInterval)
+    }
+
+    @Test
+    fun `reduce transitions error to loading on initialize intent`() {
+        val reduced = PlayerReducer.reduce(PlayerState.Error("oops"), PlayerIntent.InitializePlayer)
+
+        assertEquals(PlayerState.Loading, reduced)
     }
 
     private fun activeStateTemplate(): PlayerState.Active =
