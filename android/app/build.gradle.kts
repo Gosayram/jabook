@@ -507,6 +507,7 @@ dependencies {
 
     // Testing dependencies
     testImplementation(libs.bundles.test)
+    testImplementation(libs.bundles.compose.test)
     testImplementation(libs.androidx.work.testing)
     testImplementation(libs.jimfs)
     testImplementation(libs.kotest.property)
