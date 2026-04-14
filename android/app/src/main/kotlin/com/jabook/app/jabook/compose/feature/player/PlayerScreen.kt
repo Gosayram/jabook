@@ -154,12 +154,6 @@ import java.io.File
  */
 private val playerScreenLogger by lazy { LoggerFactoryImpl().get("PlayerScreen") }
 
-private enum class PlayerScreenPhase {
-    Loading,
-    Active,
-    Error,
-}
-
 /**
  * EntryPoint to access AudioMetadataParser from Hilt in Composable.
  */
@@ -208,14 +202,6 @@ public fun PlayerScreen(
     val shouldInitializePlayer =
         remember(uiState) {
             uiState is PlayerState.Active && (uiState as? PlayerState.Active)?.chapters?.isNotEmpty() == true
-        }
-    val uiPhase =
-        remember(uiState) {
-            when (uiState) {
-                is PlayerState.Loading -> PlayerScreenPhase.Loading
-                is PlayerState.Active -> PlayerScreenPhase.Active
-                is PlayerState.Error -> PlayerScreenPhase.Error
-            }
         }
     androidx.compose.runtime.LaunchedEffect(shouldInitializePlayer) {
         if (shouldInitializePlayer) {
@@ -539,7 +525,7 @@ public fun PlayerScreen(
                                 .windowInsetsPadding(WindowInsets.systemBars),
                     ) {
                         AnimatedContent(
-                            targetState = uiPhase,
+                            targetState = uiState,
                             transitionSpec = {
                                 (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f, animationSpec = tween(220)))
                                     .togetherWith(
@@ -547,15 +533,15 @@ public fun PlayerScreen(
                                     )
                             },
                             label = "player_state_transition",
-                        ) { phase ->
-                            when (phase) {
-                                PlayerScreenPhase.Loading -> {
+                        ) { animatedState ->
+                            when (animatedState) {
+                                is PlayerState.Loading -> {
                                     PlayerLoadingSkeleton(
                                         modifier = Modifier.fillMaxSize(),
                                     )
                                 }
-                                PlayerScreenPhase.Active -> {
-                                    val state = uiState as? PlayerState.Active ?: return@AnimatedContent
+                                is PlayerState.Active -> {
+                                    val state = animatedState
 
                                     // Click debouncer for preventing double clicks (inspired by Easybook)
                                     val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
@@ -646,8 +632,8 @@ public fun PlayerScreen(
                                         )
                                     }
                                 }
-                                PlayerScreenPhase.Error -> {
-                                    val state = uiState as? PlayerState.Error ?: return@AnimatedContent
+                                is PlayerState.Error -> {
+                                    val state = animatedState
                                     ErrorScreen(
                                         message = state.message,
                                         onRetry = { navigationClickGuard.run(onNavigateBack) },
