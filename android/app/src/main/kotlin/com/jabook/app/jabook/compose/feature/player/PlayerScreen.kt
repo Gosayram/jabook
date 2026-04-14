@@ -18,7 +18,14 @@ import android.os.PowerManager
 import android.text.format.DateUtils
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -95,6 +102,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -125,7 +133,6 @@ import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
-import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 import com.jabook.app.jabook.compose.feature.player.SquigglySlider
 import com.jabook.app.jabook.compose.feature.player.lyrics.LyricsView
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
@@ -543,7 +550,9 @@ public fun PlayerScreen(
                         ) { phase ->
                             when (phase) {
                                 PlayerScreenPhase.Loading -> {
-                                    LoadingScreen(message = stringResource(R.string.loadingPlayer))
+                                    PlayerLoadingSkeleton(
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
                                 }
                                 PlayerScreenPhase.Active -> {
                                     val state = uiState as? PlayerState.Active ?: return@AnimatedContent
@@ -732,6 +741,24 @@ private fun PlayerContent(
     val playPauseIconSize = if (isCompact) 40.dp else 48.dp
     val skipIconSize = if (isCompact) 40.dp else 48.dp
     val seekIconSize = if (isCompact) 32.dp else 40.dp
+    val playPauseButtonScale by animateFloatAsState(
+        targetValue = if (state.isPlaying) 1.0f else 0.94f,
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        label = "play_pause_button_scale",
+    )
+    val playPauseIconScale by animateFloatAsState(
+        targetValue = if (state.isPlaying) 1.0f else 0.92f,
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMedium,
+            ),
+        label = "play_pause_icon_scale",
+    )
     // Adaptive sizes for control buttons (Speed, Repeat, Timer) - increased for better ergonomics
     val controlButtonHeight = if (isCompact) 48.dp else 56.dp
     val controlButtonIconSize = if (isCompact) 22.dp else 24.dp
@@ -1404,7 +1431,11 @@ private fun PlayerContent(
                         contentAlignment = Alignment.Center,
                         modifier =
                             Modifier
-                                .size(playPauseButtonSize * 1.2f),
+                                .size(playPauseButtonSize * 1.2f)
+                                .graphicsLayer {
+                                    scaleX = playPauseButtonScale
+                                    scaleY = playPauseButtonScale
+                                },
                     ) {
                         FilledIconButton(
                             onClick = onPlayPause,
@@ -1424,7 +1455,13 @@ private fun PlayerContent(
                                     } else {
                                         stringResource(R.string.playButton)
                                     },
-                                modifier = Modifier.size(playPauseIconSize * 1.2f),
+                                modifier =
+                                    Modifier
+                                        .size(playPauseIconSize * 1.2f)
+                                        .graphicsLayer {
+                                            scaleX = playPauseIconScale
+                                            scaleY = playPauseIconScale
+                                        },
                             )
                         }
                     }
@@ -1970,4 +2007,123 @@ private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.65f))
                 .padding(horizontal = 8.dp, vertical = 4.dp),
     )
+}
+
+@Composable
+private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "player_loading_skeleton")
+    val shimmerShift by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 1100, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "player_loading_shimmer_shift",
+    )
+    val shimmerBrush =
+        Brush.linearGradient(
+            colors =
+                listOf(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                ),
+            start =
+                androidx.compose.ui.geometry
+                    .Offset(x = -600f + 1200f * shimmerShift, y = 0f),
+            end =
+                androidx.compose.ui.geometry
+                    .Offset(x = 0f + 1200f * shimmerShift, y = 600f),
+        )
+
+    Column(
+        modifier =
+            modifier
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.72f)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(shimmerBrush),
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.64f)
+                    .height(22.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(shimmerBrush),
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.46f)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(shimmerBrush),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.92f)
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(shimmerBrush),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(0.92f),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(width = 48.dp, height = 14.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(shimmerBrush),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(width = 48.dp, height = 14.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(shimmerBrush),
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(21.dp))
+                        .background(shimmerBrush),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(30.dp))
+                        .background(shimmerBrush),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(21.dp))
+                        .background(shimmerBrush),
+            )
+        }
+    }
 }
