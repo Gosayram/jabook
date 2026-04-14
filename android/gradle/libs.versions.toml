@@ -100,6 +100,7 @@ leakcanary = "2.14"
 
 # Code Quality
 ktlint = "14.2.0"
+detekt = "2.0.0-alpha.2"
 
 [libraries]
 # AndroidX Core
@@ -213,6 +214,9 @@ firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashly
 
 # Diagnostics
 leakcanary-android = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
+
+# Code Quality - Detekt API for custom rules
+detekt-api = { group = "dev.detekt", name = "detekt-api", version.ref = "detekt" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

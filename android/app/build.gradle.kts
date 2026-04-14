@@ -505,6 +505,9 @@ dependencies {
     // LeakCanary - Memory leak detection for debug builds (BP-6.4)
     debugImplementation(libs.leakcanary.android)
 
+    // Detekt API for custom rules (compileOnly - only needed for compilation)
+    compileOnly(libs.detekt.api)
+
     // Testing dependencies
     testImplementation(libs.bundles.test)
     testImplementation(libs.bundles.compose.test)
