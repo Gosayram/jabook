@@ -101,7 +101,6 @@ private val searchScreenLogger by lazy { LoggerFactoryImpl().get("SearchScreen")
  * @param viewModel ViewModel provided by Hilt
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
-@Suppress("DEPRECATION") // hiltViewModel is from correct package but marked deprecated in some versions
 @Composable
 public fun SearchScreen(
     onNavigateBack: () -> Unit,

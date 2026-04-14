@@ -90,7 +90,6 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
  * - MirrorManager, proper headers
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
-@Suppress("DEPRECATION") // hiltViewModel is from correct package
 @Composable
 public fun RutrackerSearchScreen(
     onNavigateBack: () -> Unit,
