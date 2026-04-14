@@ -276,9 +276,13 @@ public fun LibraryScreen(
                         },
                         modifier = Modifier.fillMaxSize(),
                     ) { padding ->
+                        val isRefreshing = scanState is ScanState.Scanning
                         androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-                            isRefreshing = scanState is ScanState.Scanning,
+                            isRefreshing = isRefreshing,
                             onRefresh = {
+                                if (isRefreshing) {
+                                    return@PullToRefreshBox
+                                }
                                 val permission =
                                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                                         android.Manifest.permission.READ_MEDIA_AUDIO
