@@ -136,6 +136,7 @@ private val ProdDarkColorScheme =
  * @param content The composable content to be themed.
  */
 // AMOLED Dark Color Scheme (True Black)
+// Optimized for OLED screens: pure black background saves battery
 private val AmoledDarkColorScheme =
     ProdDarkColorScheme.copy(
         background = androidx.compose.ui.graphics.Color.Black,
@@ -144,6 +145,21 @@ private val AmoledDarkColorScheme =
         surfaceVariant =
             androidx.compose.ui.graphics
                 .Color(0xFF121212),
+        // Surface containers for layered UI elements (cards, sheets, dialogs)
+        // Graduated from pure black to maintain visual hierarchy
+        surfaceContainerLowest = androidx.compose.ui.graphics.Color.Black,
+        surfaceContainerLow =
+            androidx.compose.ui.graphics
+                .Color(0xFF0A0A0A),
+        surfaceContainer =
+            androidx.compose.ui.graphics
+                .Color(0xFF121212),
+        surfaceContainerHigh =
+            androidx.compose.ui.graphics
+                .Color(0xFF1A1A1A),
+        surfaceContainerHighest =
+            androidx.compose.ui.graphics
+                .Color(0xFF222222),
     )
 
 /**
@@ -170,8 +186,13 @@ public fun JabookTheme(
     selectedFont: com.jabook.app.jabook.compose.data.model.AppFont = com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
     content: @Composable () -> Unit,
 ) {
+    // AMOLED Mode takes priority over dynamic colors to ensure pure black background
+    // Dynamic colors would override the black background with wallpaper-based colors
     val colorScheme =
         when {
+            // AMOLED Mode (always dark, overrides dynamic colors and flavor themes)
+            darkTheme && amoledMode -> AmoledDarkColorScheme
+            // Dynamic color is available on Android 12+ (only when not in AMOLED mode)
             dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S -> {
                 val context = LocalView.current.context
                 if (darkTheme) {
@@ -182,8 +203,6 @@ public fun JabookTheme(
                     androidx.compose.material3.dynamicLightColorScheme(context)
                 }
             }
-            // AMOLED Mode (always dark, overrides flavor specific dark theme background)
-            darkTheme && amoledMode -> AmoledDarkColorScheme
             isBetaFlavor && darkTheme -> BetaDarkColorScheme
             isBetaFlavor && !darkTheme -> BetaLightColorScheme
             !isBetaFlavor && darkTheme -> ProdDarkColorScheme
