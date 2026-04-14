@@ -55,11 +55,18 @@ fmt-kotlin: ## Format Kotlin code (ktlint + detekt auto-correct) + regenerate ve
 		echo "❌ Kotlin formatting failed with exit code $$EXIT_CODE"; \
 		exit $$EXIT_CODE; \
 	fi; \
-	echo "Regenerating dependency verification metadata..."; \
-	(cd android && ./gradlew --write-verification-metadata sha256 help --no-daemon 2>&1); \
+	VERIFICATION_FILE="android/gradle/verification-metadata.xml"; \
+	BEFORE_HASH=$$(shasum -a 256 "$$VERIFICATION_FILE" 2>/dev/null | cut -d' ' -f1 || echo ""); \
+	echo "Checking dependency verification metadata..."; \
+	(cd android && ./gradlew --write-verification-metadata sha256 help --no-daemon 2>&1 > /dev/null); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
-		echo "✅ Dependency verification metadata regenerated"; \
+		AFTER_HASH=$$(shasum -a 256 "$$VERIFICATION_FILE" 2>/dev/null | cut -d' ' -f1 || echo ""); \
+		if [ "$$BEFORE_HASH" = "$$AFTER_HASH" ] && [ -n "$$BEFORE_HASH" ]; then \
+			echo "⏭️  Dependency verification metadata unchanged (skip)"; \
+		else \
+			echo "✅ Dependency verification metadata regenerated"; \
+		fi; \
 	else \
 		echo "⚠️  Dependency verification metadata regeneration failed (non-fatal)"; \
 	fi
