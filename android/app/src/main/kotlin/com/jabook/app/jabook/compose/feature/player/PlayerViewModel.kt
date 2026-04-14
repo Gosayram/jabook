@@ -36,6 +36,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -95,9 +96,14 @@ public class PlayerViewModel
         private val args = savedStateHandle.toRoute<PlayerRoute>()
         private val bookId = args.bookId
 
-        private val _effects = MutableSharedFlow<PlayerEffect>(extraBufferCapacity = 8)
+        private val _effects =
+            MutableSharedFlow<PlayerEffect>(
+                replay = 0,
+                extraBufferCapacity = 16,
+                onBufferOverflow = BufferOverflow.DROP_OLDEST,
+            )
         public val effects: PlayerEventFlowContract = _effects.asSharedFlow()
-        private val commandChannel: Channel<PlayerCommand> = Channel(Channel.BUFFERED)
+        private val commandChannel: Channel<PlayerCommand> = Channel(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         private val commandFlow: PlayerCommandFlowContract = commandChannel.receiveAsFlow()
         private val commandExecutor =
             PlayerCommandExecutor(
@@ -592,11 +598,9 @@ public class PlayerViewModel
             }
 
         private fun dispatchCommand(command: PlayerCommand) {
-            if (!commandChannel.trySend(command).isSuccess) {
-                logger.w { "Command channel buffer is full, falling back to suspending send for $command" }
-                viewModelScope.launch {
-                    commandChannel.send(command)
-                }
+            val result = commandChannel.trySend(command)
+            if (!result.isSuccess) {
+                logger.w { "Command dispatch failed for $command: $result" }
             }
         }
 
@@ -854,7 +858,9 @@ public class PlayerViewModel
         }
 
         private fun emitEffect(effect: PlayerEffect) {
-            _effects.tryEmit(effect)
+            if (!_effects.tryEmit(effect)) {
+                logger.w { "Dropping player effect due to backpressure: $effect" }
+            }
         }
 
         /**
