@@ -1916,7 +1916,9 @@ public class AudioPlayerService : MediaLibraryService() {
         audioVisualizerManager = null
         visualizerBridgeJob?.cancel()
         visualizerBridgeJob = null
-        audioVisualizerStateBridge.reset()
+        if (::audioVisualizerStateBridge.isInitialized) {
+            audioVisualizerStateBridge.reset()
+        }
 
         phoneCallListener?.stopListening()
         phoneCallListener = null

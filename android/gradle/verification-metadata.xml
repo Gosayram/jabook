@@ -4,15 +4,15 @@
       <verify-metadata>true</verify-metadata>
       <verify-signatures>false</verify-signatures>
       <trusted-artifacts>
-         <trust group="com.android.tools.build" name="aapt2" reason="platform-specific aapt2 binary - version can vary based on AGP/Gradle"/>
-         <trust group="org.jetbrains.intellij.deps.kotlinx" name="kotlinx-coroutines-bom" version="1.8.0-intellij-14" reason="JetBrains IntelliJ coroutines BOM used by KSP/Kotlin compiler toolchain"/>
-         <trust group="org.jetbrains.intellij.deps.kotlinx" name="kotlinx-coroutines-bom" version="1.8.0-intellij-14" reason="JetBrains IntelliJ coroutines BOM used by KSP/Kotlin compiler toolchain"/>
-         <trust group="org.jetbrains.intellij.deps.kotlinx" name="kotlinx-coroutines-core-jvm" version="1.8.0-intellij-14" reason="JetBrains IntelliJ coroutines core used by KSP/Kotlin compiler toolchain"/>
          <trust group="com.android.tools" reason="Android SDK tools - version varies based on AGP/Gradle"/>
+         <trust group="com.android.tools.build" name="aapt2" reason="platform-specific aapt2 binary - version can vary based on AGP/Gradle"/>
          <trust group="com.android.tools.external.com-intellij" reason="IntelliJ dependencies for Android lint - version varies based on AGP"/>
          <trust group="com.android.tools.external.org-jetbrains" reason="JetBrains dependencies for Android lint - version varies based on AGP"/>
          <trust group="com.android.tools.lint" reason="Android lint tools - version varies based on AGP"/>
-       </trusted-artifacts>
+         <trust group="org.jetbrains.intellij.deps.kotlinx" name="kotlinx-coroutines-bom" version="1.8.0-intellij-14" reason="JetBrains IntelliJ coroutines BOM used by KSP/Kotlin compiler toolchain"/>
+         <trust group="org.jetbrains.intellij.deps.kotlinx" name="kotlinx-coroutines-bom" version="1.8.0-intellij-14" reason="JetBrains IntelliJ coroutines BOM used by KSP/Kotlin compiler toolchain"/>
+         <trust group="org.jetbrains.intellij.deps.kotlinx" name="kotlinx-coroutines-core-jvm" version="1.8.0-intellij-14" reason="JetBrains IntelliJ coroutines core used by KSP/Kotlin compiler toolchain"/>
+      </trusted-artifacts>
    </configuration>
    <components>
       <component group="androidx.activity" name="activity" version="1.13.0">
