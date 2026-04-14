@@ -29,6 +29,7 @@ import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -212,7 +213,10 @@ public class LibraryScanWorker
                                                     if (coverData != null && coverData.isNotEmpty()) {
                                                         // Minimum size check (at least 1KB to avoid corrupted/invalid images)
                                                         if (coverData.size >= 1024) {
-                                                            coverFile.writeBytes(coverData)
+                                                            AtomicFileWriter.writeWithLock(coverFile) { output ->
+                                                                output.write(coverData)
+                                                                coverData.size.toLong()
+                                                            }
                                                             logger.d {
                                                                 "Extracted embedded cover from ID3 tags: ${book.title} (${coverData.size} bytes)"
                                                             }

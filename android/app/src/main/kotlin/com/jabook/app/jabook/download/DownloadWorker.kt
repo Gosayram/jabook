@@ -26,6 +26,7 @@ import com.jabook.app.jabook.torrent.TorrentManager
 import com.jabook.app.jabook.torrent.data.TorrentState
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 
 /**
  * WorkManager-based worker for background torrent downloads.
@@ -85,6 +86,9 @@ public class DownloadWorker
 
                 // Monitor progress until complete or error
                 monitorDownloadProgress(infoHash, bookTitle)
+            } catch (e: CancellationException) {
+                Log.i(TAG, "Download cancelled: $bookTitle")
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Download failed", e)
                 CrashDiagnostics.reportNonFatal(

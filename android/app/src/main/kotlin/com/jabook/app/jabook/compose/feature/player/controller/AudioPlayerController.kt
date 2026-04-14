@@ -226,7 +226,7 @@ public class AudioPlayerController
                     _duration.value = controller.duration.coerceAtLeast(0)
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
                         // Initial position update from MediaController
-                        _currentPosition.value = controller.currentPosition
+                        publishCurrentPosition(controller.currentPosition, force = true)
 
                         // Handle chapter end for repeat logic (UI-level concern)
                         if (playbackState == Player.STATE_ENDED) {
@@ -251,7 +251,7 @@ public class AudioPlayerController
                 ) {
                     val controller = mediaController ?: return
                     // Update position and chapter index from MediaController (single source of truth)
-                    _currentPosition.value = controller.currentPosition
+                    publishCurrentPosition(controller.currentPosition)
                     _currentChapterIndex.value = controller.currentMediaItemIndex
                 }
 
@@ -296,7 +296,7 @@ public class AudioPlayerController
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     _duration.value = exoPlayer.duration.coerceAtLeast(0)
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
-                        _currentPosition.value = exoPlayer.currentPosition
+                        publishCurrentPosition(exoPlayer.currentPosition, force = true)
                     }
                 }
 
@@ -305,7 +305,7 @@ public class AudioPlayerController
                     newPosition: Player.PositionInfo,
                     reason: Int,
                 ) {
-                    _currentPosition.value = exoPlayer.currentPosition
+                    publishCurrentPosition(exoPlayer.currentPosition)
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
                 }
 
@@ -466,7 +466,7 @@ public class AudioPlayerController
                             // Initialize state from MediaController
                             controller?.let { ctrl ->
                                 _isPlaying.value = ctrl.isPlaying
-                                _currentPosition.value = ctrl.currentPosition
+                                publishCurrentPosition(ctrl.currentPosition, force = true)
                                 _duration.value = ctrl.duration.coerceAtLeast(0)
                                 _currentChapterIndex.value = ctrl.currentMediaItemIndex
                                 updateStats(ctrl)
@@ -686,7 +686,7 @@ public class AudioPlayerController
             if (isBookChanged) {
                 logger.i { "Book changed: $previousBookId -> ${request.bookId}. Resetting state." }
                 // Reset state to avoid showing old book's data
-                _currentPosition.value = request.initialPosition
+                publishCurrentPosition(request.initialPosition, force = true)
                 _currentChapterIndex.value = request.initialChapterIndex
                 _isPlaying.value = false
             }
@@ -924,6 +924,23 @@ public class AudioPlayerController
             if (mediaController == null && mediaControllerFuture == null) {
                 initMediaController()
             }
+        }
+
+        private fun publishCurrentPosition(
+            positionMs: Long,
+            force: Boolean = false,
+        ) {
+            val sanitizedPositionMs = positionMs.coerceAtLeast(0L)
+            if (
+                !PositionPublishPolicy.shouldPublish(
+                    previousPositionMs = _currentPosition.value,
+                    incomingPositionMs = sanitizedPositionMs,
+                    force = force,
+                )
+            ) {
+                return
+            }
+            _currentPosition.value = sanitizedPositionMs
         }
 
         private fun startService() {

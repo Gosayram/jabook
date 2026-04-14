@@ -30,6 +30,7 @@ import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
 import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.data.network.SearchStaleWhileRevalidatePolicy
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
@@ -45,6 +46,7 @@ import dagger.Lazy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -260,10 +262,28 @@ public class RutrackerRepository
         ): Flow<Result<List<RutrackerSearchResult>>> =
             flow {
                 val currentMirror = mirrorManager.getCurrentMirrorDomain()
-                logger.i { "🔍 Index-only search started: query='$query', forumIds=$forumIds" }
+                logger.i { "🔍 SWR search started: query='$query', forumIds=$forumIds" }
                 logger.i { "Using mirror: $currentMirror" }
 
                 try {
+                    var lastEmitted: List<RutrackerSearchResult> = emptyList()
+
+                    suspend fun emitIfChanged(next: List<RutrackerSearchResult>) {
+                        if (SearchStaleWhileRevalidatePolicy.isMeaningfulRefresh(lastEmitted, next)) {
+                            lastEmitted = next
+                            emit(Result.success(next))
+                        }
+                    }
+
+                    // 1) Immediate stale emission from in-memory cache
+                    searchCache.get(query, forumIds)?.let { cached ->
+                        val domainCached = cached.toDomainFromIndex()
+                        if (domainCached.isNotEmpty()) {
+                            logger.d { "⚡ Emitting memory-cached search result: ${domainCached.size} items" }
+                            emitIfChanged(domainCached)
+                        }
+                    }
+
                     // Check if index exists and has data
                     val indexSize =
                         withContext(Dispatchers.IO) {
@@ -278,22 +298,20 @@ public class RutrackerRepository
                             }
                         }
 
+                    // 2) Stale emission from indexed DB snapshot (if available)
                     if (indexSize > 0) {
-                        // Check for debug command
                         if (query.trim() == "!index" || query.trim() == ":debug") {
                             val sampleTopics = offlineSearchDao.getSampleTopics(10)
                             val domainResults = sampleTopics.map { it.toSearchResult() }.toDomainFromIndex()
-                            emit(Result.success(domainResults))
+                            emitIfChanged(domainResults)
                             return@flow
                         }
 
-                        // Tokenize query for fuzzy search
                         val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
 
                         if (tokens.isEmpty()) {
-                            emit(Result.success(emptyList()))
+                            emitIfChanged(emptyList())
                         } else {
-                            // Build dynamic SQL query for token-based search
                             val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
                             val args = ArrayList<Any>()
 
@@ -315,20 +333,28 @@ public class RutrackerRepository
                                     args.toArray(),
                                 )
 
-                            // Emit Flow from Room
-                            offlineSearchDao
-                                .searchIndexedTopicsRaw(simpleQuery)
-                                .map { entities ->
-                                    val dtoResults = entities.map { it.toSearchResult() }
-                                    val domainResults = dtoResults.toDomainFromIndex()
-                                    Result.success(domainResults)
-                                }.collect {
-                                    emit(it)
-                                }
+                            val indexedEntities = offlineSearchDao.searchIndexedTopicsRaw(simpleQuery).first()
+                            val indexedDomainResults = indexedEntities.map { it.toSearchResult() }.toDomainFromIndex()
+                            if (indexedDomainResults.isNotEmpty()) {
+                                logger.d { "📚 Emitting indexed stale result: ${indexedDomainResults.size} items" }
+                            }
+                            emitIfChanged(indexedDomainResults)
                         }
                     } else {
-                        logger.w { "⚠️ Index is empty ($indexSize topics). Returning empty results." }
-                        emit(Result.success(emptyList()))
+                        logger.w { "⚠️ Index is empty ($indexSize topics)." }
+                    }
+
+                    // 3) Revalidate from network and emit refreshed result when changed
+                    val refreshed = fetchFromNetwork(query, forumIds)
+                    if (refreshed.isSuccess) {
+                        emitIfChanged(refreshed.getOrDefault(emptyList()))
+                    } else {
+                        logger.w {
+                            "SWR network revalidation failed for query '$query': ${refreshed.exceptionOrNull()?.message}"
+                        }
+                        if (lastEmitted.isEmpty()) {
+                            emit(Result.success(emptyList()))
+                        }
                     }
                 } catch (e: Exception) {
                     logger.e(
@@ -624,8 +650,8 @@ public class RutrackerRepository
             // Memory Cache
             searchCache.put(query, forumIds, results)
 
-            // DB Persistence (Only for generic searches without unexpected filters)
-            if (forumIds == null) {
+            // DB Persistence for default/generic search scopes.
+            if (SearchStaleWhileRevalidatePolicy.shouldPersistResults(forumIds)) {
                 try {
                     val entities = results.map { it.toCachedTopicEntity() }
                     val dbSaveStartTime = System.currentTimeMillis()

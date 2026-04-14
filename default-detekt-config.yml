@@ -46,7 +46,17 @@ potential-bugs:
     active: false
 
 coroutines:
-  active: false
+  active: true
+  GlobalCoroutineUsage:
+    active: true
+  RedundantSuspendModifier:
+    active: true
+  SleepInsteadOfDelay:
+    active: true
+  SuspendFunWithCoroutineScopeReceiver:
+    active: false
+  SuspendFunWithFlowReturnType:
+    active: true
 
 performance:
   active: false

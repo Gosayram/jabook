@@ -73,6 +73,16 @@ message UserPreferences {
 
   // Internal schema version for explicit Proto DataStore migrations.
   int32 schema_version = 37;
+
+  // Allow automatic cover image loading on cellular networks.
+  bool auto_load_covers_on_cellular = 38;
+
+  // Last known player snapshot for process-death restore fallback.
+  string player_snapshot_book_id = 39;
+  int64 player_snapshot_position_ms = 40;
+  int32 player_snapshot_chapter_index = 41;
+  float player_snapshot_playback_speed = 42;
+  string player_snapshot_sleep_mode = 43;
 }
 
 // Theme mode enum

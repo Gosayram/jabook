@@ -87,4 +87,11 @@ public sealed interface PlayerIntent {
         val speechEnhancer: Boolean? = null,
         val autoVolumeLeveling: Boolean? = null,
     ) : PlayerIntent
+
+    /**
+     * Internal intent for deterministic error-state reduction and testing.
+     */
+    public data class ReportError(
+        val reason: String,
+    ) : PlayerIntent
 }

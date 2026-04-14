@@ -19,6 +19,7 @@ import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -118,6 +119,14 @@ public class MirrorManager
             val previousMirror = _currentMirror.value
             _currentMirror.value = domain
             settingsRepository.updateSelectedMirror(domain)
+            val prefetch = DnsPrefetchPolicy.prefetch(domain)
+            if (prefetch.success) {
+                logger.d {
+                    "DNS prefetch success for $domain: ${prefetch.addresses.size} addresses in ${prefetch.elapsedMs}ms"
+                }
+            } else {
+                logger.d { "DNS prefetch skipped/failed for $domain: ${prefetch.error}" }
+            }
             logger.i { "Mirror changed from $previousMirror to $domain (saved to settings)" }
         }
 
@@ -145,6 +154,8 @@ public class MirrorManager
                     response.close()
 
                     isHealthy
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     // Individual mirror unavailable is normal, not a warning
                     logger.i { "Mirror $domain unavailable (timeout or unreachable): ${e.message}" }

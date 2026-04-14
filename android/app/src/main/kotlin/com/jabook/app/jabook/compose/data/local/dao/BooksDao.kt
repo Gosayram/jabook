@@ -375,6 +375,64 @@ public interface BooksDao {
         bookId: String,
         path: String,
     )
+
+    /**
+     * Atomically updates both cover URL and cover path for a book.
+     *
+     * Prevents inconsistent state where one field is updated but the other is not
+     * (e.g., app crash between two separate UPDATE statements).
+     */
+    @Transaction
+    public suspend fun updateCoverPathAndUrl(
+        bookId: String,
+        path: String,
+    ) {
+        updateCoverPath(bookId, path)
+        updateCoverUrl(bookId, path)
+    }
+
+    /**
+     * Updates the LUFS loudness estimate for a book.
+     *
+     * This value is computed by [LufsAnalysisWorker] during background loudness analysis
+     * and consumed by [LufsLoudnessCompensationPolicy] during book transitions.
+     *
+     * @param bookId target book ID
+     * @param lufsValue estimated LUFS value (negative, e.g. -20.0), or null to clear
+     */
+    @Query("UPDATE books SET lufs_value = :lufsValue WHERE id = :bookId")
+    public suspend fun updateLufsValue(
+        bookId: String,
+        lufsValue: Double?,
+    )
+
+    /**
+     * Updates the per-book preferred playback speed.
+     *
+     * When set, this overrides the global speed setting for this specific book.
+     *
+     * @param bookId target book ID
+     * @param speed playback speed multiplier (e.g. 1.5f), or null to use global default
+     */
+    @Query("UPDATE books SET preferred_speed = :speed WHERE id = :bookId")
+    public suspend fun updatePreferredSpeed(
+        bookId: String,
+        speed: Float?,
+    )
+
+    /**
+     * Returns all book IDs that do not yet have a LUFS analysis value.
+     * Used by [LufsAnalysisWorker] to find books that need background analysis.
+     */
+    @Query("SELECT id FROM books WHERE lufs_value IS NULL AND local_path IS NOT NULL")
+    public suspend fun getBookIdsWithoutLufs(): List<String>
+
+    /**
+     * Returns the local path for a given book ID.
+     * Used by [LufsAnalysisWorker] to locate audio files for analysis.
+     */
+    @Query("SELECT local_path FROM books WHERE id = :bookId LIMIT 1")
+    public suspend fun getBookLocalPath(bookId: String): String?
 }
 
 /**

@@ -263,7 +263,7 @@ internal fun sanitizeChapterMarkersFractions(markers: List<Float>): List<Float> 
         .sorted()
         .toList()
 
-private fun normalizeValueRange(valueRange: ClosedFloatingPointRange<Float>): ClosedFloatingPointRange<Float> {
+internal fun normalizeValueRange(valueRange: ClosedFloatingPointRange<Float>): ClosedFloatingPointRange<Float> {
     val start =
         if (valueRange.start.isFinite()) {
             valueRange.start

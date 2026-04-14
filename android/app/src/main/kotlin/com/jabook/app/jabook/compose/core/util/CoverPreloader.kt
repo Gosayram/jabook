@@ -24,6 +24,7 @@ import coil3.SingletonImageLoader
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.crash.CrashDiagnostics
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -157,6 +158,8 @@ private class CoverPreloader(
                     preloadedIds.add(book.id)
 
                     coverPreloaderLogger.v { "Preloaded cover for: ${book.title}" }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     // Silently fail - covers will load on demand
                     coverPreloaderLogger.e({ "Failed to preload cover for ${book.title}" }, e)

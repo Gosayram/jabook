@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.player
 
 import android.os.PowerManager
 import android.text.format.DateUtils
+import android.view.WindowManager
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -76,8 +77,10 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -106,6 +109,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
@@ -124,8 +128,11 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -180,7 +187,7 @@ public fun PlayerScreen(
     // Use specific keys to avoid unnecessary recomposition
     val shouldInitializePlayer =
         remember(uiState) {
-            uiState is PlayerUiState.Success && (uiState as? PlayerUiState.Success)?.chapters?.isNotEmpty() == true
+            uiState is PlayerState.Active && (uiState as? PlayerState.Active)?.chapters?.isNotEmpty() == true
         }
     androidx.compose.runtime.LaunchedEffect(shouldInitializePlayer) {
         if (shouldInitializePlayer) {
@@ -205,6 +212,16 @@ public fun PlayerScreen(
     val openSettingsLabel = stringResource(R.string.openSettings)
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collectLatest { effect ->
+            when (effect) {
+                is PlayerEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
+                is PlayerEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+                PlayerEffect.NavigateBack -> navigationClickGuard.run(onNavigateBack)
+            }
+        }
+    }
 
     // Check for Power Save Mode to disable expensive visual effects
     val isPowerSaveMode by remember(context) {
@@ -235,6 +252,17 @@ public fun PlayerScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // FLAG_SECURE: Prevent screenshots and screen recording on PlayerScreen
+    // Protects copyrighted audiobook content
+    DisposableEffect(Unit) {
+        val activity = context as? android.app.Activity
+        val window = activity?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
 
@@ -407,8 +435,8 @@ public fun PlayerScreen(
     // Removed Chapter Selector Sheet - using adaptive pane instead
 
     // Player Settings Sheet (Book Specific)
-    if (showSettingsSheet && uiState is PlayerUiState.Success) {
-        val state = uiState as PlayerUiState.Success
+    if (showSettingsSheet && uiState is PlayerState.Active) {
+        val state = uiState as PlayerState.Active
         PlayerSettingsSheet(
             book = state.book,
             onUpdateSettings = { rewindSeconds, forwardSeconds ->
@@ -483,12 +511,11 @@ public fun PlayerScreen(
                                 .windowInsetsPadding(WindowInsets.systemBars),
                     ) {
                         when (val state = uiState) {
-                            is PlayerUiState.Loading -> {
+                            is PlayerState.Loading -> {
                                 LoadingScreen(message = stringResource(R.string.loadingPlayer))
                             }
 
-                            is PlayerUiState.Success -> {
-                                val chapterRepeatMode by viewModel.chapterRepeatMode.collectAsStateWithLifecycle()
+                            is PlayerState.Active -> {
                                 // Click debouncer for preventing double clicks (inspired by Easybook)
                                 val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
 
@@ -508,7 +535,7 @@ public fun PlayerScreen(
                                         isVinylMode = isVinylMode,
                                         sleepTimerState = sleepTimerState,
                                         normalizeEnabled = normalizeEnabled,
-                                        chapterRepeatMode = chapterRepeatMode,
+                                        chapterRepeatMode = state.chapterRepeatMode,
                                         visualizerWaveformData = visualizerWaveformData,
                                         onPlayPause = {
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -579,7 +606,7 @@ public fun PlayerScreen(
                                 }
                             }
 
-                            is PlayerUiState.Error -> {
+                            is PlayerState.Error -> {
                                 ErrorScreen(
                                     message = state.message,
                                     onRetry = { navigationClickGuard.run(onNavigateBack) },
@@ -593,8 +620,8 @@ public fun PlayerScreen(
         supportingPane = {
             AnimatedPane(modifier = Modifier) {
                 // Show chapter pane only when we have chapters
-                if (uiState is PlayerUiState.Success) {
-                    val state = uiState as PlayerUiState.Success
+                if (uiState is PlayerState.Active) {
+                    val state = uiState as PlayerState.Active
                     PlayerChapterPane(
                         chapters = state.chapters,
                         currentChapterIndex = state.currentChapterIndex,
@@ -625,7 +652,7 @@ public fun PlayerScreen(
 )
 @Composable
 private fun PlayerContent(
-    state: PlayerUiState.Success,
+    state: PlayerState.Active,
     playbackSpeed: Float,
     hazeState: HazeState?,
     isVinylMode: Boolean,
@@ -693,6 +720,9 @@ private fun PlayerContent(
     val itemSpacing = if (isCompact) 16.dp else AdaptiveUtils.getItemSpacing(windowSizeClass)
     // Spacing for compact screens between specific elements
     val smallItemSpacing = if (isCompact) 8.dp else 12.dp
+    val playbackSpeedLabel by remember(playbackSpeed) {
+        derivedStateOf { formatPlaybackSpeedLabel(playbackSpeed) }
+    }
     // Large spacing for major sections
     val largeItemSpacing = if (isCompact) 24.dp else 32.dp
 
@@ -713,7 +743,10 @@ private fun PlayerContent(
         if (!fileUrl.isNullOrBlank()) {
             val file = File(fileUrl)
             if (file.exists()) {
-                val metadata = metadataParser.parseMetadata(fileUrl)
+                val metadata =
+                    withContext(Dispatchers.IO) {
+                        metadataParser.parseMetadata(fileUrl)
+                    }
                 authorFromMetadata = metadata?.artist?.takeIf { it.isNotBlank() }
             }
         }
@@ -734,6 +767,12 @@ private fun PlayerContent(
 
     // Lyrics visibility state
     var showLyrics by remember { mutableStateOf(false) }
+    val hasLyrics by remember(state.lyrics) {
+        derivedStateOf { !state.lyrics.isNullOrEmpty() }
+    }
+    val showingLyrics by remember(showLyrics, hasLyrics) {
+        derivedStateOf { showLyrics && hasLyrics }
+    }
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
 
@@ -803,10 +842,10 @@ private fun PlayerContent(
                             fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
                             cornerRadius = 16f, // 16dp rounded corners for player
                         ).build()
-                val canToggleLyrics = !state.lyrics.isNullOrEmpty()
+                val canToggleLyrics = hasLyrics
                 val toggleLyricsLabel = stringResource(R.string.toggleLyricsView)
                 val toggleLyricsStateDescription =
-                    if (showLyrics) {
+                    if (showingLyrics) {
                         stringResource(R.string.lyricsVisibleState)
                     } else {
                         stringResource(R.string.lyricsHiddenState)
@@ -829,7 +868,7 @@ private fun PlayerContent(
                     label = "scale",
                 )
 
-                if (showLyrics && !state.lyrics.isNullOrEmpty()) {
+                if (showingLyrics) {
                     Box(
                         modifier =
                             imageModifier
@@ -1151,23 +1190,27 @@ private fun PlayerContent(
                                 state.chapters.size,
                             )
 
-                        // Calculate finish time
-                        val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
-                        val speed = state.playbackSpeed
-                        // Avoid division by zero
-                        val realRemainingMs = if (speed > 0) (remainingMs / speed).toLong() else remainingMs
-
-                        val finishTime =
-                            java.util.Calendar.getInstance().apply {
-                                add(java.util.Calendar.MILLISECOND, realRemainingMs.toInt())
+                        val formattedFinishTime by remember(
+                            chapterTimeline.totalDurationMs,
+                            currentGlobalPositionMs,
+                            state.playbackSpeed,
+                        ) {
+                            derivedStateOf {
+                                val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
+                                val speed = state.playbackSpeed
+                                val realRemainingMs = if (speed > 0f) (remainingMs / speed).toLong() else remainingMs
+                                val finishTime =
+                                    java.util.Calendar.getInstance().apply {
+                                        add(java.util.Calendar.MILLISECOND, realRemainingMs.toInt())
+                                    }
+                                java.text
+                                    .SimpleDateFormat(
+                                        "HH:mm",
+                                        java.util.Locale.getDefault(),
+                                    ).format(finishTime.time)
                             }
-                        val formattedTime =
-                            java.text
-                                .SimpleDateFormat(
-                                    "HH:mm",
-                                    java.util.Locale.getDefault(),
-                                ).format(finishTime.time)
-                        val finishText = stringResource(R.string.finishAt, formattedTime)
+                        }
+                        val finishText = stringResource(R.string.finishAt, formattedFinishTime)
 
                         Text(
                             text = "$chapterText • $finishText",
@@ -1416,22 +1459,7 @@ private fun PlayerContent(
                                     modifier = Modifier.size(controlButtonIconSize).padding(end = 4.dp),
                                 )
                                 Text(
-                                    text =
-                                        run {
-                                            val formattedSpeed =
-                                                if (playbackSpeed % 1.0f == 0.0f) {
-                                                    playbackSpeed.toInt().toString()
-                                                } else {
-                                                    val locale = java.util.Locale.getDefault()
-                                                    val isRussian = locale.language == "ru"
-                                                    val symbols =
-                                                        java.text.DecimalFormatSymbols(
-                                                            if (isRussian) locale else java.util.Locale.US,
-                                                        )
-                                                    java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
-                                                }
-                                            "${formattedSpeed}x"
-                                        },
+                                    text = playbackSpeedLabel,
                                     fontSize = controlButtonTextSize,
                                 )
                             }
@@ -1522,7 +1550,7 @@ private fun PlayerContent(
                             }
 
                             // Lyrics Toggle Button
-                            if (!state.lyrics.isNullOrEmpty()) {
+                            if (hasLyrics) {
                                 FilledTonalButton(
                                     onClick = {
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1532,13 +1560,13 @@ private fun PlayerContent(
                                     colors =
                                         ButtonDefaults.filledTonalButtonColors(
                                             containerColor =
-                                                if (showLyrics) {
+                                                if (showingLyrics) {
                                                     MaterialTheme.colorScheme.primaryContainer
                                                 } else {
                                                     MaterialTheme.colorScheme.surfaceVariant
                                                 },
                                             contentColor =
-                                                if (showLyrics) {
+                                                if (showingLyrics) {
                                                     MaterialTheme.colorScheme.onPrimaryContainer
                                                 } else {
                                                     MaterialTheme.colorScheme.onSurfaceVariant
@@ -1578,22 +1606,7 @@ private fun PlayerContent(
                                 modifier = Modifier.size(controlButtonIconSize).padding(end = 8.dp),
                             )
                             Text(
-                                text =
-                                    run {
-                                        val formattedSpeed =
-                                            if (playbackSpeed % 1.0f == 0.0f) {
-                                                playbackSpeed.toInt().toString()
-                                            } else {
-                                                val locale = java.util.Locale.getDefault()
-                                                val isRussian = locale.language == "ru"
-                                                val symbols =
-                                                    java.text.DecimalFormatSymbols(
-                                                        if (isRussian) locale else java.util.Locale.US,
-                                                    )
-                                                java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
-                                            }
-                                        "${formattedSpeed}x"
-                                    },
+                                text = playbackSpeedLabel,
                                 fontSize = controlButtonTextSize,
                             )
                         }
@@ -1674,7 +1687,7 @@ private fun PlayerContent(
                         }
 
                         // Lyrics Toggle Button
-                        if (!state.lyrics.isNullOrEmpty()) {
+                        if (hasLyrics) {
                             FilledTonalButton(
                                 onClick = {
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1684,13 +1697,13 @@ private fun PlayerContent(
                                 colors =
                                     ButtonDefaults.filledTonalButtonColors(
                                         containerColor =
-                                            if (showLyrics) {
+                                            if (showingLyrics) {
                                                 MaterialTheme.colorScheme.primaryContainer
                                             } else {
                                                 MaterialTheme.colorScheme.surfaceVariant
                                             },
                                         contentColor =
-                                            if (showLyrics) {
+                                            if (showingLyrics) {
                                                 MaterialTheme.colorScheme.onPrimaryContainer
                                             } else {
                                                 MaterialTheme.colorScheme.onSurfaceVariant
@@ -1872,6 +1885,17 @@ public fun PlayerSettingsSheet(
                 )
             }
         }
+
+        if (BuildConfig.DEBUG) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopEnd,
+            ) {
+                DebugRecompositionCounter(
+                    modifier = Modifier.padding(top = 8.dp, end = 8.dp),
+                )
+            }
+        }
     }
 }
 
@@ -1881,4 +1905,36 @@ public fun PlayerSettingsSheet(
 internal fun formatDuration(durationMs: Long): String {
     val totalSeconds = (durationMs.coerceAtLeast(0L) / 1000L)
     return DateUtils.formatElapsedTime(totalSeconds)
+}
+
+internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String {
+    val formattedSpeed =
+        if (playbackSpeed % 1.0f == 0.0f) {
+            playbackSpeed.toInt().toString()
+        } else {
+            val locale = java.util.Locale.getDefault()
+            val isRussian = locale.language == "ru"
+            val symbols =
+                java.text.DecimalFormatSymbols(
+                    if (isRussian) locale else java.util.Locale.US,
+                )
+            java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
+        }
+    return "${formattedSpeed}x"
+}
+
+@Composable
+private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {
+    var count by remember { mutableIntStateOf(0) }
+    SideEffect { count += 1 }
+    Text(
+        text = count.toString(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.65f))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+    )
 }

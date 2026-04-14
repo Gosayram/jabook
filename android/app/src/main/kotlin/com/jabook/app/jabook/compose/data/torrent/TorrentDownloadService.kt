@@ -21,7 +21,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -67,6 +66,7 @@ public class TorrentDownloadService : Service() {
             logDebug = { message -> logger.i { message } },
             logWarn = { message, throwable -> logger.e({ message }, throwable) },
         )
+    private var currentForegroundServiceType: Int = -1
 
     override fun onCreate() {
         super.onCreate()
@@ -137,13 +137,18 @@ public class TorrentDownloadService : Service() {
         createNotificationChannel()
 
         val notification = createForegroundNotification()
+        val hasStreamingWork =
+            torrentManager.downloadsFlow.value.values
+                .any { it.state == TorrentState.STREAMING }
+        val serviceType = TorrentForegroundServiceTypePolicy.resolveType(hasStreamingWork)
+        currentForegroundServiceType = serviceType
 
         val outcome =
             foregroundStartPolicy.startForeground(
                 this,
                 NOTIFICATION_ID_FOREGROUND,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                serviceType,
                 "torrent-onCreate",
             )
 
@@ -213,6 +218,8 @@ public class TorrentDownloadService : Service() {
     private fun updateNotifications(downloads: Map<String, TorrentDownload>) {
         if (downloads.isEmpty()) return
 
+        updateForegroundServiceTypeIfNeeded(downloads)
+
         // Update summary notification
         val summaryNotification =
             notificationManager.createSummaryNotification(
@@ -226,6 +233,27 @@ public class TorrentDownloadService : Service() {
         downloads.forEach { (hash, download) ->
             val notification = notificationManager.createProgressNotification(download)
             nm.notify(hash.hashCode(), notification)
+        }
+    }
+
+    private fun updateForegroundServiceTypeIfNeeded(downloads: Map<String, TorrentDownload>) {
+        val hasStreamingWork = downloads.values.any { it.state == TorrentState.STREAMING }
+        val serviceType = TorrentForegroundServiceTypePolicy.resolveType(hasStreamingWork)
+        if (serviceType == currentForegroundServiceType) return
+        currentForegroundServiceType = serviceType
+
+        val outcome =
+            foregroundStartPolicy.startForeground(
+                this,
+                NOTIFICATION_ID_FOREGROUND,
+                createForegroundNotification(),
+                serviceType,
+                "torrent-updateForegroundType",
+            )
+        if (outcome != ForegroundStartOutcome.SUCCESS) {
+            logger.e { "Failed to update foreground service type outcome=$outcome type=$serviceType" }
+        } else {
+            logger.i { "Updated foreground service type to $serviceType (streaming=$hasStreamingWork)" }
         }
     }
 

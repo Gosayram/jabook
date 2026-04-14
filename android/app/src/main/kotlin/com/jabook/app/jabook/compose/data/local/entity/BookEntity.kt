@@ -92,6 +92,12 @@ public data class BookEntity(
     val rewindDuration: Int? = null,
     @ColumnInfo(name = "forward_duration")
     val forwardDuration: Int? = null,
+    // Per-book LUFS loudness estimate (null = not yet analyzed)
+    @ColumnInfo(name = "lufs_value")
+    val lufsValue: Double? = null,
+    // Per-book preferred playback speed (null = use global default)
+    @ColumnInfo(name = "preferred_speed")
+    val preferredSpeed: Float? = null,
     // Legacy field for backwards compatibility
     @ColumnInfo(name = "is_downloaded")
     val isDownloaded: Boolean = false,

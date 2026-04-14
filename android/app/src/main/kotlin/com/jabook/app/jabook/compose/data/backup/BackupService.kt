@@ -19,14 +19,17 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.room.withTransaction
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.debug.DebugRuntimeOverrides
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.model.AppTheme
+import com.jabook.app.jabook.compose.data.permissions.StorageHealthChecker
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.compose.util.DateTimeFormatter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +57,7 @@ public class BackupService
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
         private val mirrorManager: com.jabook.app.jabook.compose.data.network.MirrorManager,
         private val backupRuntimeSecurity: BackupRuntimeSecurity,
+        private val debugRuntimeOverrides: DebugRuntimeOverrides,
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("BackupService")
@@ -77,6 +81,14 @@ public class BackupService
             withContext(Dispatchers.IO) {
                 try {
                     logger.d { "Starting data export" }
+                    val storageHealthChecker =
+                        StorageHealthChecker(
+                            forceLowStorageProvider = { debugRuntimeOverrides.isForceLowStorageEnabled() },
+                        )
+                    val health = storageHealthChecker.check(context.cacheDir)
+                    if (!health.isHealthy) {
+                        throw IOException(health.warningMessage ?: "Low storage: backup export aborted")
+                    }
 
                     // 1. Collect data
                     val backupData = collectData()
@@ -101,7 +113,11 @@ public class BackupService
                     val timestamp = DateTimeFormatter.formatCurrentForFilename()
                     val fileName: String = "jabook_backup_$timestamp.json"
                     val file = File(context.cacheDir, fileName)
-                    file.writeText(jsonString)
+                    val encoded = jsonString.toByteArray(Charsets.UTF_8)
+                    AtomicFileWriter.writeWithLock(file) { output ->
+                        output.write(encoded)
+                        encoded.size.toLong()
+                    }
 
                     logger.d { "Backup written to ${file.absolutePath}" }
 
@@ -370,6 +386,7 @@ public class BackupService
                 font = userPrefs.font.name,
                 normalizeChapterTitles = userPrefs.normalizeChapterTitles,
                 wifiOnlyDownload = protoSettings.wifiOnlyDownload,
+                autoLoadCoversOnCellular = protoSettings.autoLoadCoversOnCellular,
                 // Use default if empty
                 downloadPath = protoSettings.downloadPath.ifEmpty { defaultDownloadPath },
                 // FIXED: Use actual mirror from MirrorManager
@@ -527,6 +544,7 @@ public class BackupService
 
                 // Restore ProtoSettings
                 protoSettingsRepository.updateWifiOnly(settings.wifiOnlyDownload)
+                protoSettingsRepository.updateAutoLoadCoversOnCellular(settings.autoLoadCoversOnCellular)
                 protoSettingsRepository.updateDownloadPath(settings.downloadPath)
                 protoSettingsRepository.updateSelectedMirror(settings.currentMirror)
                 protoSettingsRepository.updateAutoSwitchMirror(settings.autoSwitchMirror)

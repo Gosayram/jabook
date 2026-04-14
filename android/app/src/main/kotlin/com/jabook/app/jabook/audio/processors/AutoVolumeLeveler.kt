@@ -26,8 +26,8 @@ import kotlin.math.pow
  * Maintains consistent volume level by:
  * - Measuring LUFS in real-time (400ms sliding window)
  * - Adaptive gain adjustment:
- *   - If level < -23 LUFS (quiet): add gain to reach -23 LUFS
- *   - If level > -16 LUFS (loud): apply soft limiter
+ *   - If level < [AUDIOBOOK_TARGET_LUFS] LUFS (quiet): add gain to reach target
+ *   - If level > loud threshold: apply soft limiter
  * - Smooth gain changes (slew rate: 0.5 dB/s) to avoid artifacts
  */
 @UnstableApi
@@ -36,8 +36,8 @@ public class AutoVolumeLeveler : AudioProcessor {
     private var outputAudioFormat: AudioProcessor.AudioFormat? = null
     private var isActive = false
 
-    // Target LUFS: -23 LUFS (EBU R128 for speech)
-    private val targetLufs = -23.0
+    // Target LUFS: audiobook-optimized target (-16 LUFS, vs -14 for music)
+    private val targetLufs = AUDIOBOOK_TARGET_LUFS
 
     // LUFS measurement window: 400ms
     private val windowSizeMs = 400
@@ -284,5 +284,8 @@ public class AutoVolumeLeveler : AudioProcessor {
 
     public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
+
+        /** Audiobook-optimized loudness target. -16 LUFS is better suited for long-form speech than EBU R128 -23. */
+        public const val AUDIOBOOK_TARGET_LUFS: Double = -16.0
     }
 }

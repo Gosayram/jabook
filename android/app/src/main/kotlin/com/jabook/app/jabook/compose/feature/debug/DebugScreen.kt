@@ -39,6 +39,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -64,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.data.debug.DebugNetworkOverrideMode
 import com.jabook.app.jabook.compose.data.debug.toIcon
 import kotlinx.coroutines.launch
 
@@ -87,6 +89,8 @@ public fun DebugScreen(
             stringResource(R.string.rutrackerTab),
             stringResource(R.string.mirrorsTooltip),
             stringResource(R.string.cacheSectionTitle),
+            stringResource(R.string.debugSimulatorsTab),
+            stringResource(R.string.debugDatabaseInspectorTab),
         )
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -179,6 +183,8 @@ public fun DebugScreen(
                 1 -> RutrackerTab(viewModel, selectedTab)
                 2 -> MirrorsTab(viewModel, selectedTab)
                 3 -> CacheTab(viewModel, selectedTab)
+                4 -> SimulatorsTab(viewModel, selectedTab)
+                5 -> DatabaseInspectorTab(viewModel, selectedTab)
             }
         }
     }
@@ -530,4 +536,228 @@ private fun RutrackerTab(
             Text(stringResource(R.string.refresh))
         }
     }
+}
+
+@Composable
+private fun SimulatorsTab(
+    viewModel: DebugViewModel,
+    tabIndex: Int,
+) {
+    val networkOverrideMode by viewModel.networkOverrideMode.collectAsStateWithLifecycle()
+    val effectiveNetworkType by viewModel.effectiveNetworkType.collectAsStateWithLifecycle()
+    val forceLowStorage by viewModel.forceLowStorage.collectAsStateWithLifecycle()
+
+    LaunchedEffect(tabIndex) {
+        viewModel.refreshDbInspector()
+    }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+    ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.debugNetworkOverrideTitle),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.padding(4.dp))
+                Text(
+                    text = stringResource(R.string.debugEffectiveNetworkValue, effectiveNetworkType.name),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.padding(8.dp))
+
+                NetworkOverrideButton(
+                    label = stringResource(R.string.debugNetworkOverrideAuto),
+                    selected = networkOverrideMode == DebugNetworkOverrideMode.AUTO,
+                    onClick = { viewModel.setNetworkOverrideMode(DebugNetworkOverrideMode.AUTO) },
+                )
+                NetworkOverrideButton(
+                    label = stringResource(R.string.debugNetworkOverrideOffline),
+                    selected = networkOverrideMode == DebugNetworkOverrideMode.FORCE_OFFLINE,
+                    onClick = { viewModel.setNetworkOverrideMode(DebugNetworkOverrideMode.FORCE_OFFLINE) },
+                )
+                NetworkOverrideButton(
+                    label = stringResource(R.string.debugNetworkOverrideMetered),
+                    selected = networkOverrideMode == DebugNetworkOverrideMode.FORCE_METERED,
+                    onClick = { viewModel.setNetworkOverrideMode(DebugNetworkOverrideMode.FORCE_METERED) },
+                )
+                NetworkOverrideButton(
+                    label = stringResource(R.string.debugNetworkOverrideWifi),
+                    selected = networkOverrideMode == DebugNetworkOverrideMode.FORCE_UNMETERED_WIFI,
+                    onClick = { viewModel.setNetworkOverrideMode(DebugNetworkOverrideMode.FORCE_UNMETERED_WIFI) },
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.padding(8.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.debugStorageOverrideTitle),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.padding(4.dp))
+                Text(
+                    text =
+                        stringResource(
+                            if (forceLowStorage) {
+                                R.string.debugStorageOverrideEnabled
+                            } else {
+                                R.string.debugStorageOverrideDisabled
+                            },
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(modifier = Modifier.padding(8.dp))
+                OutlinedButton(
+                    onClick = { viewModel.setForceLowStorage(!forceLowStorage) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text =
+                            stringResource(
+                                if (forceLowStorage) {
+                                    R.string.debugDisableFakeStorageFull
+                                } else {
+                                    R.string.debugEnableFakeStorageFull
+                                },
+                            ),
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.padding(8.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.debugAudioFocusSimulatorTitle),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.padding(8.dp))
+                OutlinedButton(
+                    onClick = { viewModel.simulateAudioFocusDuck() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.debugSimulateDuck))
+                }
+                Spacer(modifier = Modifier.padding(4.dp))
+                OutlinedButton(
+                    onClick = { viewModel.simulateAudioFocusLossTransient() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.debugSimulateFocusLossTransient))
+                }
+                Spacer(modifier = Modifier.padding(4.dp))
+                OutlinedButton(
+                    onClick = { viewModel.simulateAudioFocusGain() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.debugSimulateFocusGain))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DatabaseInspectorTab(
+    viewModel: DebugViewModel,
+    tabIndex: Int,
+) {
+    val dbSnapshot by viewModel.dbInspectorSnapshot.collectAsStateWithLifecycle()
+    val recentSearchPreview by viewModel.recentSearchPreview.collectAsStateWithLifecycle()
+
+    LaunchedEffect(tabIndex) {
+        viewModel.refreshDbInspector()
+    }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+    ) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.debugDbInspectorStatsTitle),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.padding(8.dp))
+                DebugInfoRow(stringResource(R.string.debugDbBooksCount), dbSnapshot.booksCount.toString())
+                DebugInfoRow(stringResource(R.string.debugDbFavoritesCount), dbSnapshot.favoritesCount.toString())
+                DebugInfoRow(stringResource(R.string.debugDbIndexedTopicsCount), dbSnapshot.indexedTopicsCount.toString())
+                DebugInfoRow(
+                    stringResource(R.string.debugDbDownloadHistoryCount),
+                    dbSnapshot.downloadHistoryCount.toString(),
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.padding(8.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.debugDbLiveQueryTitle),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(modifier = Modifier.padding(8.dp))
+                if (recentSearchPreview.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.debugDbLiveQueryEmpty),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else {
+                    recentSearchPreview.forEachIndexed { index, query ->
+                        Text(
+                            text = "${index + 1}. $query",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.padding(8.dp))
+
+        Button(
+            onClick = { viewModel.refreshDbInspector() },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = null)
+            Spacer(modifier = Modifier.padding(4.dp))
+            Text(stringResource(R.string.refresh))
+        }
+    }
+}
+
+@Composable
+private fun NetworkOverrideButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        val prefix =
+            if (selected) {
+                "● "
+            } else {
+                "○ "
+            }
+        Text(text = prefix + label)
+    }
+    Spacer(modifier = Modifier.padding(2.dp))
 }

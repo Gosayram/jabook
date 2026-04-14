@@ -24,6 +24,7 @@ import coil3.request.crossfade
 import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
 import com.jabook.app.jabook.crash.CrashDiagnostics
+import com.jabook.app.jabook.diagnostics.AnrWatchdog
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -60,6 +61,9 @@ public class JabookApplication :
     @Inject
     public lateinit var syncManager: SyncManager
 
+    /** ANR watchdog — active only in debug/beta builds via LogUtils gating. */
+    private val anrWatchdog: AnrWatchdog = AnrWatchdog()
+
     public override val workManagerConfiguration: androidx.work.Configuration
         get() =
             androidx.work.Configuration
@@ -71,6 +75,9 @@ public class JabookApplication :
         super.onCreate()
 
         configureDiagnostics()
+
+        // Start ANR watchdog for debug/beta builds (BP-6.3)
+        anrWatchdog.start()
 
         // Initialize Global Exception Handler
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -138,8 +145,9 @@ public class JabookApplication :
                     DiskCache
                         .Builder()
                         .directory(cacheDir.absolutePath.toPath())
-                        // Increased to 5% for better cover caching - covers are important for UX
-                        .maxSizePercent(0.05)
+                        // Fixed 50MB limit for predictable disk usage (covers are important for UX)
+                        // Fixed size prevents unbounded growth on devices with large storage
+                        .maxSizeBytes(50L * 1024 * 1024) // 50 MB
                         .build()
                 }
                 // Show a short crossfade when loading images asynchronously

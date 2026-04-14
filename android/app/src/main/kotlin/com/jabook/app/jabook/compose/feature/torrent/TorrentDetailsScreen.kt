@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -261,12 +262,5 @@ private fun formatSize(bytes: Long): String {
 
 private fun formatEta(seconds: Long): String {
     if (seconds < 0) return "∞"
-    val hours = seconds / 3600
-    val minutes = (seconds % 3600) / 60
-    val secs = seconds % 60
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(Locale.US, hours, minutes, secs)
-    } else {
-        "%02d:%02d".format(Locale.US, minutes, secs)
-    }
+    return DateUtils.formatElapsedTime(seconds.coerceAtLeast(0))
 }

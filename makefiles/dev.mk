@@ -45,7 +45,7 @@ compile-prod: ## Compile prod flavor only
 	@echo "✅ Prod flavor compiled"
 
 .PHONY: fmt-kotlin
-fmt-kotlin: ## Format Kotlin code (ktlint + detekt auto-correct)
+fmt-kotlin: ## Format Kotlin code (ktlint + detekt auto-correct) + regenerate verification metadata
 	@echo "Formatting Kotlin code with ktlint + detekt..."
 	@(cd android && ./gradlew :app:ktlintFormat :app:detekt --auto-correct --no-daemon); \
 	EXIT_CODE=$$?; \
@@ -53,18 +53,49 @@ fmt-kotlin: ## Format Kotlin code (ktlint + detekt auto-correct)
 		echo "✅ Kotlin code formatted successfully (ktlint + detekt)"; \
 	else \
 		echo "❌ Kotlin formatting failed with exit code $$EXIT_CODE"; \
+		exit $$EXIT_CODE; \
 	fi; \
-	exit $$EXIT_CODE
+	VERIFICATION_FILE="android/gradle/verification-metadata.xml"; \
+	BEFORE_HASH=$$(shasum -a 256 "$$VERIFICATION_FILE" 2>/dev/null | cut -d' ' -f1 || echo ""); \
+	echo "Checking dependency verification metadata..."; \
+	(cd android && ./gradlew --write-verification-metadata sha256 help --no-daemon 2>&1 > /dev/null); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		AFTER_HASH=$$(shasum -a 256 "$$VERIFICATION_FILE" 2>/dev/null | cut -d' ' -f1 || echo ""); \
+		if [ "$$BEFORE_HASH" = "$$AFTER_HASH" ] && [ -n "$$BEFORE_HASH" ]; then \
+			echo "⏭️  Dependency verification metadata unchanged (skip)"; \
+		else \
+			echo "✅ Dependency verification metadata regenerated"; \
+		fi; \
+	else \
+		echo "⚠️  Dependency verification metadata regeneration failed (non-fatal)"; \
+	fi
 
 .PHONY: lint-kotlin
-lint-kotlin: ## Lint Kotlin code (ktlint + detekt check)
+lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verification)
 	@echo "Linting Kotlin code with ktlint + detekt..."
 	@echo "Checking coroutine test discipline (no Thread.sleep in unit tests)..."
-	@if rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin >/dev/null; then \
-		rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin; \
-		echo "❌ Found Thread.sleep(...) in unit tests. Use runTest + advanceTimeBy/advanceUntilIdle instead."; \
-		exit 1; \
+	@if command -v rg >/dev/null 2>&1; then \
+		if rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin >/dev/null; then \
+			rg -n "Thread\\.sleep\\(" android/app/src/test/kotlin; \
+			echo "❌ Found Thread.sleep(...) in unit tests. Use runTest + advanceTimeBy/advanceUntilIdle instead."; \
+			exit 1; \
+		fi; \
+	else \
+		if grep -R -n -E "Thread\\.sleep\\(" android/app/src/test/kotlin >/dev/null 2>&1; then \
+			grep -R -n -E "Thread\\.sleep\\(" android/app/src/test/kotlin || true; \
+			echo "❌ Found Thread.sleep(...) in unit tests. Use runTest + advanceTimeBy/advanceUntilIdle instead."; \
+			exit 1; \
+		fi; \
 	fi
+	@echo "Verifying dependency checksums against verification-metadata.xml..."
+	@(cd android && ./gradlew --dependency-verification=strict help --no-daemon 2>&1); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -ne 0 ]; then \
+		echo "❌ Dependency verification failed — run 'make fmt-kotlin' to regenerate verification-metadata.xml"; \
+		exit $$EXIT_CODE; \
+	fi; \
+	echo "✅ Dependency verification passed"
 	@(cd android && ./gradlew :app:ktlintCheck :app:detekt --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
@@ -95,7 +126,7 @@ lint-kotlin: ## Lint Kotlin code (ktlint + detekt check)
 										./scripts/check-no-entity-in-presentation.sh; \
 										EXIT_CODE=$$?; \
 										if [ $$EXIT_CODE -eq 0 ]; then \
-											echo "✅ Kotlin linting passed (ktlint + detekt + i18n keys + logging guard + backup audit + deterministic build guard + module graph guard + plugin/version lock guard + receiver export guard + edge-to-edge guard + entity presentation guard)"; \
+											echo "✅ Kotlin linting passed (ktlint + detekt + dependency verification + i18n keys + logging guard + backup audit + deterministic build guard + module graph guard + plugin/version lock guard + receiver export guard + edge-to-edge guard + entity presentation guard)"; \
 										else \
 											echo "❌ Entity presentation guard failed with exit code $$EXIT_CODE"; \
 										fi; \
@@ -159,7 +190,7 @@ detekt: ## Run detekt static analysis
 .PHONY: hilt-graph-check
 hilt-graph-check: ## Validate Hilt dependency graph for beta/prod debug variants
 	@echo "Validating Hilt dependency graph..."
-	@(cd android && ./gradlew :app:hiltAggregateDepsBetaDebug :app:hiltAggregateDepsProdDebug --no-daemon); \
+	@(cd android && ./gradlew :app:hiltAggregateDepsBetaDebug :app:hiltAggregateDepsProdDebug --no-daemon --no-configuration-cache); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Hilt graph validation passed"; \

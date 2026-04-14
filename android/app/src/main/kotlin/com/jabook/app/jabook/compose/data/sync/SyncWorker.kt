@@ -18,7 +18,12 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.network.CoverDownloadNetworkPolicy
+import com.jabook.app.jabook.compose.data.network.NetworkMonitor
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.crash.CrashDiagnostics
+import kotlinx.coroutines.flow.first
 
 /**
  * Worker for periodic data synchronization.
@@ -42,6 +47,8 @@ public class SyncWorker
         private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
         private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
         private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
+        private val settingsRepository: SettingsRepository,
+        private val networkMonitor: NetworkMonitor,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
         private val logger = loggerFactory.get("SyncWorker")
@@ -180,6 +187,19 @@ public class SyncWorker
 
         private suspend fun syncCoverImages() {
             logger.d { "Syncing cover images" }
+            val prefs = settingsRepository.userPreferences.first()
+            val networkType = networkMonitor.networkType.first()
+            if (
+                !CoverDownloadNetworkPolicy.canAutoLoadCovers(
+                    networkType = networkType,
+                    allowOnCellular = prefs.autoLoadCoversOnCellular,
+                )
+            ) {
+                logger.i {
+                    "Skipping cover sync on $networkType network (auto_load_covers_on_cellular=${prefs.autoLoadCoversOnCellular})"
+                }
+                return
+            }
 
             // Find books with coverUrl but no local coverPath
             val books = booksDao.getAllBooks()
@@ -209,7 +229,7 @@ public class SyncWorker
                         // Download file
                         val url = java.net.URL(coverUrl)
                         url.openStream().use { input ->
-                            java.io.FileOutputStream(coverFile).use { output ->
+                            AtomicFileWriter.writeWithLock(coverFile) { output ->
                                 input.copyTo(output)
                             }
                         }

@@ -780,6 +780,16 @@ public fun SettingsScreen(
                 smallSpacing = smallSpacing,
             )
 
+            SettingsSwitchItem(
+                title = stringResource(R.string.autoLoadCoversOnCellular),
+                subtitle = stringResource(R.string.autoLoadCoversOnCellularDesc),
+                checked = protoSettings.autoLoadCoversOnCellular,
+                onCheckedChange = viewModel::updateAutoLoadCoversOnCellular,
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
             // Bandwidth Limiting
             SettingsSwitchItem(
                 title = stringResource(R.string.limitDownloadSpeed),

@@ -14,9 +14,12 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
+import com.jabook.app.jabook.compose.data.network.ConnectivityAwareRequestScheduler
+import com.jabook.app.jabook.compose.data.network.ParserVersionPolicy
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomainFromIndex
@@ -27,6 +30,7 @@ import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import com.jabook.app.jabook.compose.domain.model.toAppError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -101,7 +105,11 @@ public class RutrackerRepositoryImpl
         private val api: RutrackerApi,
         private val parser: RutrackerParser,
         private val offlineSearchDao: OfflineSearchDao,
+        private val connectivityScheduler: ConnectivityAwareRequestScheduler,
+        loggerFactory: LoggerFactory,
     ) : RutrackerRepository {
+        private val logger = loggerFactory.get("RutrackerRepositoryImpl")
+
         override suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>> =
             flow {
                 // Use ONLY indexed search (no network)
@@ -177,6 +185,8 @@ public class RutrackerRepositoryImpl
                         // Index is empty - return empty results
                         emit(Result.Success(emptyList()))
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     // android.util.Log.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
                     // Search failed - return error
@@ -207,6 +217,8 @@ public class RutrackerRepositoryImpl
                     }
                     is Result.Loading -> Result.Loading()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }
@@ -217,13 +229,18 @@ public class RutrackerRepositoryImpl
         ) {
             try {
                 offlineSearchDao.saveSearchResults(query, results.map { it.toCachedTopicEntity() })
-            } catch (e: Exception) {
+            } catch (_: CancellationException) {
+                throw CancellationException()
+            } catch (_: Exception) {
                 // Log.e("RutrackerRepo", "Failed to save results", e)
             }
         }
 
         override suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails, AppError> {
             return try {
+                if (!connectivityScheduler.awaitOnline("getTopicDetails")) {
+                    return Result.Error(AppError.NetworkError.NoConnection)
+                }
                 val response = api.getTopicDetails(topicId)
 
                 if (!response.isSuccessful) {
@@ -244,9 +261,20 @@ public class RutrackerRepositoryImpl
 
                 val dtoDetails =
                     parser.parseTopicDetails(html, topicId)
-                        ?: return Result.Error(
-                            AppError.ParsingError.Generic("Failed to parse topic details"),
-                        )
+                        ?: run {
+                            val check =
+                                ParserVersionPolicy.checkBreakage(
+                                    parserName = "topic_details",
+                                    parserVersion = ParserVersionPolicy.TOPIC_PARSER_VERSION,
+                                    resultCount = 0,
+                                    query = topicId,
+                                    responseHtmlLength = html.length,
+                                )
+                            logger.w { ParserVersionPolicy.formatBreakageLog(check) }
+                            return Result.Error(
+                                AppError.ParsingError.Generic("Failed to parse topic details"),
+                            )
+                        }
 
                 // Map DTO to domain model
                 val domainDetails = dtoDetails.toDomain()
@@ -257,6 +285,8 @@ public class RutrackerRepositoryImpl
                         AppError.ParsingError.Generic("Topic details failed validation"),
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }
@@ -267,6 +297,9 @@ public class RutrackerRepositoryImpl
             password: String,
         ): Result<Unit, AppError> {
             return try {
+                if (!connectivityScheduler.awaitOnline("login")) {
+                    return Result.Error(AppError.NetworkError.NoConnection)
+                }
                 // Create form-url-encoded request body with CP1251 encoding
                 val formBody: String = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
                 val requestBody =
@@ -285,6 +318,8 @@ public class RutrackerRepositoryImpl
                 // Check if login was successful by checking cookies or response content
                 // Rutracker sets session cookies on successful login
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }
@@ -295,6 +330,9 @@ public class RutrackerRepositoryImpl
             page: Int,
         ): Result<RutrackerTopicDetails, AppError> {
             return try {
+                if (!connectivityScheduler.awaitOnline("getTopicDetailsPage")) {
+                    return Result.Error(AppError.NetworkError.NoConnection)
+                }
                 // Calculate offset: each page has 30 comments, offset = (page - 1) * 30
                 val offset = (page - 1) * 30
                 val response = api.getTopicDetailsAtPage(topicId, offset)
@@ -316,9 +354,20 @@ public class RutrackerRepositoryImpl
 
                 val dtoDetails =
                     parser.parseTopicDetails(html, topicId)
-                        ?: return Result.Error(
-                            AppError.ParsingError.Generic("Failed to parse topic details"),
-                        )
+                        ?: run {
+                            val check =
+                                ParserVersionPolicy.checkBreakage(
+                                    parserName = "topic_details_page",
+                                    parserVersion = ParserVersionPolicy.TOPIC_PARSER_VERSION,
+                                    resultCount = 0,
+                                    query = "$topicId:$page",
+                                    responseHtmlLength = html.length,
+                                )
+                            logger.w { ParserVersionPolicy.formatBreakageLog(check) }
+                            return Result.Error(
+                                AppError.ParsingError.Generic("Failed to parse topic details"),
+                            )
+                        }
 
                 val domainDetails = dtoDetails.toDomain()
 
@@ -329,6 +378,8 @@ public class RutrackerRepositoryImpl
                         AppError.ParsingError.Generic("Topic details failed validation"),
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }

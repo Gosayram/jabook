@@ -1,6 +1,6 @@
 [versions]
 # Android
-androidGradlePlugin = "9.1.0"
+androidGradlePlugin = "9.1.1"
 compileSdk = "37"
 minSdk = "30"
 targetSdk = "36"
@@ -93,10 +93,14 @@ androidxTestExt = "1.3.0"
 robolectric = "4.16.1"
 truth = "1.4.5"
 jimfs = "1.3.1"
-kotest = "5.9.1"
+kotest = "6.1.11"
+
+# Diagnostics
+leakcanary = "2.14"
 
 # Code Quality
 ktlint = "14.2.0"
+detekt = "2.0.0-alpha.2"
 
 [libraries]
 # AndroidX Core
@@ -116,6 +120,7 @@ androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-compose-material3-window-size = { group = "androidx.compose.material3", name = "material3-window-size-class" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
@@ -207,6 +212,12 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
+# Diagnostics
+leakcanary-android = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
+
+# Code Quality - Detekt API for custom rules
+detekt-api = { group = "dev.detekt", name = "detekt-api", version.ref = "detekt" }
+
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlinTest" }
@@ -245,6 +256,11 @@ compose = [
 
 compose-debug = [
     "androidx-compose-ui-tooling",
+    "androidx-compose-ui-test-manifest",
+]
+
+compose-test = [
+    "androidx-compose-ui-test-junit4",
     "androidx-compose-ui-test-manifest",
 ]
 

@@ -24,8 +24,13 @@ import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
+import com.jabook.app.jabook.compose.data.network.NetworkMonitor
+import com.jabook.app.jabook.compose.data.network.NetworkType
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -41,6 +46,8 @@ class SyncWorkerTest {
     private val torrentDownloadRepository: TorrentDownloadRepository = mock()
     private val booksDao: BooksDao = mock()
     private val rutrackerRepository: RutrackerRepository = mock()
+    private val settingsRepository: SettingsRepository = mock()
+    private val networkMonitor: NetworkMonitor = mock()
     private val loggerFactory: LoggerFactory =
         object : LoggerFactory {
             override fun get(tag: String): Logger = NoopLogger
@@ -51,6 +58,8 @@ class SyncWorkerTest {
     @Test
     fun `doWork returns retry when failure happens and attempts remain`() =
         runTest {
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
             whenever(torrentDownloadRepository.getAll()).thenReturn(emptyList())
             whenever(booksDao.getAllBooks()).thenReturn(emptyList())
             whenever(offlineSearchDao.clearOldCache(org.mockito.kotlin.any())).thenThrow(
@@ -66,6 +75,8 @@ class SyncWorkerTest {
     @Test
     fun `doWork returns failure when retry budget exhausted`() =
         runTest {
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
             whenever(torrentDownloadRepository.getAll()).thenReturn(emptyList())
             whenever(booksDao.getAllBooks()).thenReturn(emptyList())
             whenever(offlineSearchDao.clearOldCache(org.mockito.kotlin.any())).thenThrow(
@@ -94,6 +105,8 @@ class SyncWorkerTest {
                         torrentDownloadRepository = torrentDownloadRepository,
                         booksDao = booksDao,
                         rutrackerRepository = rutrackerRepository,
+                        settingsRepository = settingsRepository,
+                        networkMonitor = networkMonitor,
                         loggerFactory = loggerFactory,
                     )
                 }

@@ -74,3 +74,17 @@ report: ## Analyze startup_profile.log and generate debug report
 	@echo "📊 Analyzing startup_profile.log..."
 	@python3 scripts/analyze_startup_log.py startup_profile.log --output .debug-report-docs.md
 	@echo "✅ Debug report saved to .debug-report-docs.md"
+
+## Arch Docs Sync
+
+.PHONY: sync-arch-open
+sync-arch-open: ## Sync open tasks: .closed-arch-docs.md -> .reborn-arch-docs.md
+	@python3 scripts/sync_arch_docs_open_tasks.py --direction open-from-closed
+
+.PHONY: sync-arch-closed
+sync-arch-closed: ## Sync closed tasks: .reborn-arch-docs.md -> .closed-arch-docs.md
+	@python3 scripts/sync_arch_docs_open_tasks.py --direction closed-from-reborn
+
+.PHONY: sync-arch
+sync-arch: ## Run both arch docs sync directions
+	@python3 scripts/sync_arch_docs_open_tasks.py --direction both

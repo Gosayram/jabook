@@ -10,12 +10,19 @@ if [[ ! -f "$MANIFEST" || ! -f "$MAIN_ACTIVITY" ]]; then
   exit 1
 fi
 
-if ! rg -q 'android:enableOnBackInvokedCallback="true"' "$MANIFEST"; then
+# Use ripgrep if available, fall back to grep for CI environments without rg
+if command -v rg >/dev/null 2>&1; then
+    search_file() { rg -q "$1" "$2"; }
+else
+    search_file() { grep -qE "$1" "$2"; }
+fi
+
+if ! search_file 'android:enableOnBackInvokedCallback="true"' "$MANIFEST"; then
   echo "❌ Edge-to-edge guard failed: AndroidManifest.xml must keep enableOnBackInvokedCallback=true"
   exit 1
 fi
 
-if ! rg -q '\benableEdgeToEdge\(\)' "$MAIN_ACTIVITY"; then
+if ! search_file '\benableEdgeToEdge\(\)' "$MAIN_ACTIVITY"; then
   echo "❌ Edge-to-edge guard failed: ComposeMainActivity must call enableEdgeToEdge()"
   exit 1
 fi

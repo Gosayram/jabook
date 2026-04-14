@@ -63,10 +63,17 @@ if [[ ! -s "$VERIFY_FILE" ]]; then
   fail=1
 fi
 
+# Use ripgrep if available, fall back to grep for CI environments without rg
+if command -v rg >/dev/null 2>&1; then
+    search_file() { rg -q "$1" "$2"; }
+else
+    search_file() { grep -qE "$1" "$2"; }
+fi
+
 require_component() {
   local description="$1"
   local pattern="$2"
-  if ! rg -q "$pattern" "$VERIFY_FILE"; then
+  if ! search_file "$pattern" "$VERIFY_FILE"; then
     echo "❌ Verification metadata is missing required component: $description"
     fail=1
   fi

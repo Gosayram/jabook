@@ -214,7 +214,5 @@ public abstract class NetworkBindingModule {
      */
     @Binds
     @Singleton
-    public abstract fun bindNetworkMonitor(
-        impl: com.jabook.app.jabook.compose.data.network.ConnectivityManagerNetworkMonitor,
-    ): NetworkMonitor
+    public abstract fun bindNetworkMonitor(impl: com.jabook.app.jabook.compose.data.network.DebuggableNetworkMonitor): NetworkMonitor
 }
