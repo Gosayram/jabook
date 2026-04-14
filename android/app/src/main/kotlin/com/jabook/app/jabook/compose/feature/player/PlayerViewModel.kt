@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import android.content.Context
-import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -35,9 +34,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -45,7 +45,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -92,7 +96,9 @@ public class PlayerViewModel
         private val bookId = args.bookId
 
         private val _effects = MutableSharedFlow<PlayerEffect>(extraBufferCapacity = 8)
-        public val effects: SharedFlow<PlayerEffect> = _effects.asSharedFlow()
+        public val effects: PlayerEventFlowContract = _effects.asSharedFlow()
+        private val commandChannel: Channel<PlayerCommand> = Channel(Channel.BUFFERED)
+        private val commandFlow: PlayerCommandFlowContract = commandChannel.receiveAsFlow()
         private val commandExecutor =
             PlayerCommandExecutor(
                 initializePlayer = ::initializePlayer,
@@ -139,6 +145,12 @@ public class PlayerViewModel
             restoreStateSnapshotFromDataStore()
             restorePlaybackSpeedFromSnapshotIfNeeded()
             restoreSleepTimerModeFromSnapshotIfNeeded()
+
+            viewModelScope.launch {
+                commandFlow.collect { command ->
+                    commandExecutor.execute(command)
+                }
+            }
 
             // CRITICAL: Restore saved position from database on init
             // This ensures position is restored in all scenarios:
@@ -237,7 +249,7 @@ public class PlayerViewModel
         /**
          * Combined UI state from book data, playback state, and settings.
          */
-        public val uiState: StateFlow<PlayerState> =
+        public val uiState: PlayerStateFlowContract =
             combine(
                 getBookDetailsUseCase(bookId),
                 getChaptersUseCase(bookId),
@@ -361,41 +373,47 @@ public class PlayerViewModel
                 initialValue = PlayerState.Loading,
             )
 
-        // Load lyrics when chapter changes
         init {
-            viewModelScope.launch {
-                // Monitor chapter changes
-                combine(
-                    getChaptersUseCase(bookId),
-                    playerController.currentChapterIndex,
-                ) { chapters, index ->
-                    chapters.getOrNull(index)
-                }.collect { chapter ->
-                    if (chapter?.fileUrl != null) {
-                        loadLyrics(chapter.fileUrl)
-                    } else {
-                        lyricsState.value = null
-                    }
-                }
-            }
+            observeChapterLyrics()
         }
 
         private companion object {
             private const val POSITION_UI_EPSILON_MS: Long = 150L
         }
 
-        private suspend fun loadLyrics(audioPath: String) {
+        @OptIn(ExperimentalCoroutinesApi::class)
+        private fun observeChapterLyrics() {
+            viewModelScope.launch {
+                combine(
+                    getChaptersUseCase(bookId),
+                    playerController.currentChapterIndex,
+                ) { chapters, index ->
+                    chapters.getOrNull(index)?.fileUrl
+                }.distinctUntilChanged()
+                    .flatMapLatest { fileUrl ->
+                        if (fileUrl.isNullOrBlank()) {
+                            flowOf<ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?>(null)
+                        } else {
+                            flow<ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>?> {
+                                emit(loadLyricsOrNull(fileUrl))
+                            }
+                        }
+                    }.collect { lyrics ->
+                        lyricsState.value = lyrics
+                    }
+            }
+        }
+
+        private suspend fun loadLyricsOrNull(
+            audioPath: String,
+        ): ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? {
             try {
                 // Use the repository to get lyrics (includes fallback to demo lyrics)
                 val lyrics = lyricsRepository.getLyrics(audioPath)
-                if (lyrics.isNotEmpty()) {
-                    lyricsState.value = lyrics.toImmutableList()
-                } else {
-                    lyricsState.value = null
-                }
+                return if (lyrics.isNotEmpty()) lyrics.toImmutableList() else null
             } catch (e: Exception) {
                 logger.e({ "Failed to load lyrics" }, e)
-                lyricsState.value = null
+                return null
             }
         }
 
@@ -632,7 +650,12 @@ public class PlayerViewModel
             }
 
         private fun dispatchCommand(command: PlayerCommand) {
-            commandExecutor.execute(command)
+            if (!commandChannel.trySend(command).isSuccess) {
+                logger.w { "Command channel buffer is full, falling back to suspending send for $command" }
+                viewModelScope.launch {
+                    commandChannel.send(command)
+                }
+            }
         }
 
         // Player control methods delegated to controller
@@ -1043,78 +1066,6 @@ private const val STATE_SNAPSHOT_POSITION_MS: String = "player_snapshot.position
 private const val STATE_SNAPSHOT_CHAPTER_INDEX: String = "player_snapshot.chapter_index"
 private const val STATE_SNAPSHOT_PLAYBACK_SPEED: String = "player_snapshot.playback_speed"
 private const val STATE_SNAPSHOT_SLEEP_MODE: String = "player_snapshot.sleep_mode"
-
-/**
- * Chapter repeat mode for player.
- *
- * - OFF: No repeat, play next chapter when current ends
- * - ONCE: Repeat current chapter once, then play next
- * - INFINITE: Repeat current chapter infinitely
- */
-public enum class ChapterRepeatMode {
-    OFF,
-    ONCE,
-    INFINITE,
-}
-
-/**
- * UI state for the Player screen.
- */
-public sealed interface PlayerState {
-    /**
-     * Loading state - fetching book data.
-     */
-    public data object Loading : PlayerState
-
-    /**
-     * Success state with book and playback info.
-     */
-    @Immutable
-    public data class Active(
-        val book: Book,
-        val chapters: ImmutableList<Chapter>,
-        val isPlaying: Boolean,
-        val currentPosition: Long, // milliseconds
-        val currentChapterIndex: Int,
-        val currentChapter: Chapter?,
-        val rewindInterval: Int,
-        val forwardInterval: Int,
-        val defaultRewindInterval: Int = rewindInterval,
-        val defaultForwardInterval: Int = forwardInterval,
-        val hasBookSeekOverride: Boolean = false,
-        val playbackSpeed: Float,
-        val sleepTimerMode: PlayerSleepTimerMode,
-        val sleepTimerRemainingSeconds: Int?,
-        val chapterRepeatMode: ChapterRepeatMode,
-        val volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel =
-            com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
-        val skipSilence: Boolean = false,
-        val skipSilenceThresholdDb: Float = -32.0f,
-        val skipSilenceMinMs: Int = 250,
-        val skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode =
-            com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP,
-        val normalizeVolume: Boolean = true,
-        val speechEnhancer: Boolean = false,
-        val autoVolumeLeveling: Boolean = false,
-        val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
-        val lyrics: ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
-    ) : PlayerState
-
-    /**
-     * Error state.
-     */
-    @Immutable
-    public data class Error(
-        val message: String,
-    ) : PlayerState
-}
-
-public enum class PlayerSleepTimerMode {
-    IDLE,
-    FIXED,
-    END_OF_CHAPTER,
-    END_OF_TRACK,
-}
 
 private data class RestoredBootstrapSnapshot(
     val positionMs: Long,

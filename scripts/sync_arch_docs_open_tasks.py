@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Move open checklist tasks from .closed-arch-docs.md to .reborn-arch-docs.md.
+"""Sync checklist tasks between `.closed-arch-docs.md` and `.reborn-arch-docs.md`.
+
+Supported directions:
+- `open-from-closed`: move open tasks (`- [ ]`) from closed -> reborn.
+- `closed-from-reborn`: move closed tasks (`- [x]`) from reborn -> closed.
+- `both`: run both directions in one pass.
 
 Rules:
-- Source of truth for "open task": markdown checklist item with "- [ ]".
-- Open tasks are removed from `.closed-arch-docs.md`.
-- Missing open tasks are appended to `.reborn-arch-docs.md` under an auto-sync section.
-- Duplicates in `.reborn-arch-docs.md` are avoided using normalized task text.
+- Source of truth for task items: markdown checklist item with `- [ ]` or `- [x]`.
+- A task is moved together with its trailing descriptive block (paragraphs/code fences)
+  until the next sibling checklist item or heading.
+- Duplicates are avoided using normalized checklist text.
 """
 
 from __future__ import annotations
@@ -13,11 +18,22 @@ from __future__ import annotations
 import argparse
 import re
 from collections import OrderedDict
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 CHECKBOX_RE = re.compile(r"^(?P<indent>\s*)- \[(?P<state>[ xX])\] (?P<text>.+?)\s*$")
 HEADING_RE = re.compile(r"^(#{2,6})\s+(.+?)\s*$")
+HR_RE = re.compile(r"^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$")
+FENCE_RE = re.compile(r"^\s*```")
+
+
+@dataclass(frozen=True)
+class TaskBlock:
+    source: str
+    text: str
+    state: str
+    lines: list[str]
 
 
 def normalize_task_text(text: str) -> str:
@@ -44,15 +60,54 @@ def current_source(headings: dict[int, str]) -> str:
     return "Uncategorized"
 
 
-def collect_and_remove_open_tasks(closed_lines: list[str]) -> tuple[list[tuple[str, str]], list[str]]:
+def find_task_block_end(lines: list[str], start: int, indent: int) -> int:
+    n = len(lines)
+    j = start + 1
+    in_fence = False
+
+    while j < n:
+        line = lines[j]
+        stripped_nl = line.rstrip("\n")
+        stripped = line.strip()
+
+        if FENCE_RE.match(stripped_nl):
+            in_fence = not in_fence
+            j += 1
+            continue
+
+        if not in_fence:
+            cmatch = CHECKBOX_RE.match(stripped_nl)
+            if cmatch and len(cmatch.group("indent")) <= indent:
+                break
+
+            hmatch = HEADING_RE.match(stripped_nl)
+            if hmatch:
+                heading_indent = len(line) - len(line.lstrip(" "))
+                if heading_indent <= indent:
+                    break
+
+        j += 1
+
+    while j < n and lines[j].strip() == "":
+        j += 1
+
+    if j < n and HR_RE.match(lines[j].rstrip("\n")):
+        j += 1
+        while j < n and lines[j].strip() == "":
+            j += 1
+
+    return j
+
+
+def collect_and_remove_tasks(lines: list[str], target_state: str) -> tuple[list[TaskBlock], list[str]]:
     headings: dict[int, str] = {}
-    moved: list[tuple[str, str]] = []
+    moved: list[TaskBlock] = []
     remove_ranges: list[tuple[int, int]] = []
 
     i = 0
-    n = len(closed_lines)
+    n = len(lines)
     while i < n:
-        line = closed_lines[i]
+        line = lines[i]
 
         hmatch = HEADING_RE.match(line.rstrip("\n"))
         if hmatch:
@@ -63,92 +118,102 @@ def collect_and_remove_open_tasks(closed_lines: list[str]) -> tuple[list[tuple[s
                     del headings[lvl]
 
         cmatch = CHECKBOX_RE.match(line.rstrip("\n"))
-        if not cmatch or cmatch.group("state") != " ":
+        if not cmatch or cmatch.group("state").lower() != target_state.lower():
             i += 1
             continue
 
         indent = len(cmatch.group("indent"))
         task_text = cmatch.group("text").strip()
-        moved.append((current_source(headings), task_text))
-
-        end = i
-        j = i + 1
-        while j < n:
-            nxt = closed_lines[j]
-            if HEADING_RE.match(nxt.rstrip("\n")):
-                break
-            if nxt.strip() == "":
-                break
-
-            nxt_indent = len(nxt) - len(nxt.lstrip(" "))
-            stripped = nxt.lstrip(" ")
-
-            if stripped.startswith("- ") and nxt_indent <= indent:
-                break
-            if nxt_indent <= indent:
-                break
-
-            end = j
-            j += 1
-
-        remove_ranges.append((i, end))
-        i = end + 1
+        end = find_task_block_end(lines, i, indent)
+        moved.append(
+            TaskBlock(
+                source=current_source(headings),
+                text=task_text,
+                state=cmatch.group("state").lower(),
+                lines=lines[i:end],
+            )
+        )
+        remove_ranges.append((i, end - 1))
+        i = end
 
     to_remove = [False] * n
     for start, end in remove_ranges:
         for idx in range(start, end + 1):
             to_remove[idx] = True
 
-    filtered_closed = [line for idx, line in enumerate(closed_lines) if not to_remove[idx]]
-    return moved, filtered_closed
+    filtered_lines = [line for idx, line in enumerate(lines) if not to_remove[idx]]
+    return moved, filtered_lines
 
 
-def collect_existing_tasks(reborn_lines: list[str]) -> set[str]:
+def collect_existing_tasks(lines: list[str]) -> set[str]:
     existing: set[str] = set()
-    for line in reborn_lines:
+    for line in lines:
         cmatch = CHECKBOX_RE.match(line.rstrip("\n"))
         if cmatch:
             existing.add(normalize_task_text(cmatch.group("text")))
     return existing
 
 
-def append_to_reborn(
-    reborn_lines: list[str],
-    moved_tasks: list[tuple[str, str]],
+def block_with_state(block: TaskBlock, state: str | None) -> list[str]:
+    if state is None:
+        return block.lines
+    if not block.lines:
+        return block.lines
+
+    first = block.lines[0].rstrip("\n")
+    cmatch = CHECKBOX_RE.match(first)
+    if not cmatch:
+        return block.lines
+
+    normalized_state = "x" if state.lower() == "x" else " "
+    replacement = f"{cmatch.group('indent')}- [{normalized_state}] {cmatch.group('text')}"
+    updated = [replacement + "\n"]
+    updated.extend(block.lines[1:])
+    return updated
+
+
+def append_blocks(
+    lines: list[str],
+    moved_tasks: list[TaskBlock],
     existing_normalized: set[str],
+    section_title: str,
+    forced_state: str | None = None,
 ) -> tuple[list[str], int]:
-    unique_new: OrderedDict[str, list[str]] = OrderedDict()
+    unique_new: OrderedDict[str, list[TaskBlock]] = OrderedDict()
     seen_run: set[str] = set()
 
-    for source, text in moved_tasks:
-        normalized = normalize_task_text(text)
+    for block in moved_tasks:
+        normalized = normalize_task_text(block.text)
         if normalized in existing_normalized or normalized in seen_run:
             continue
         seen_run.add(normalized)
-        unique_new.setdefault(source, []).append(text)
+        unique_new.setdefault(block.source, []).append(block)
 
     if not unique_new:
-        return reborn_lines, 0
+        return lines, 0
 
-    if reborn_lines and not reborn_lines[-1].endswith("\n"):
-        reborn_lines[-1] += "\n"
-    if reborn_lines and reborn_lines[-1].strip() != "":
-        reborn_lines.append("\n")
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
+    if lines and lines[-1].strip() != "":
+        lines.append("\n")
 
-    reborn_lines.append("## Auto-Moved Open Tasks From Closed\n")
-    reborn_lines.append(f"Synced at: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
-    reborn_lines.append("\n")
+    lines.append(section_title + "\n")
+    lines.append(f"Synced at: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+    lines.append("\n")
 
     added = 0
     for source, tasks in unique_new.items():
-        reborn_lines.append(f"### {source}\n")
-        reborn_lines.append("\n")
+        lines.append(f"### {source}\n")
+        lines.append("\n")
         for task in tasks:
-            reborn_lines.append(f"- [ ] {task}\n")
+            block_lines = block_with_state(task, forced_state)
+            lines.extend(block_lines)
+            if block_lines and block_lines[-1].strip() != "":
+                lines.append("\n")
             added += 1
-        reborn_lines.append("\n")
+        lines.append("\n")
 
-    return reborn_lines, added
+    return lines, added
 
 
 def parse_args() -> argparse.Namespace:
@@ -162,6 +227,12 @@ def parse_args() -> argparse.Namespace:
         "--reborn",
         default=".reborn-arch-docs.md",
         help="Path to reborn architecture docs",
+    )
+    parser.add_argument(
+        "--direction",
+        choices=("open-from-closed", "closed-from-reborn", "both"),
+        default="open-from-closed",
+        help="Sync direction (default keeps backward-compatible behavior)",
     )
     return parser.parse_args()
 
@@ -179,16 +250,45 @@ def main() -> int:
     closed_lines = load_lines(closed_path)
     reborn_lines = load_lines(reborn_path)
 
-    moved_tasks, updated_closed = collect_and_remove_open_tasks(closed_lines)
-    existing = collect_existing_tasks(reborn_lines)
-    updated_reborn, added_count = append_to_reborn(reborn_lines, moved_tasks, existing)
+    moved_open_count = 0
+    moved_closed_count = 0
+    added_open_count = 0
+    added_closed_count = 0
 
-    write_lines(closed_path, updated_closed)
-    write_lines(reborn_path, updated_reborn)
+    if args.direction in ("open-from-closed", "both"):
+        moved_open, closed_lines = collect_and_remove_tasks(closed_lines, target_state=" ")
+        existing_in_reborn = collect_existing_tasks(reborn_lines)
+        reborn_lines, added_open_count = append_blocks(
+            reborn_lines,
+            moved_open,
+            existing_in_reborn,
+            section_title="## Auto-Moved Open Tasks From Closed",
+            forced_state=" ",
+        )
+        moved_open_count = len(moved_open)
 
-    print(f"Detected open tasks in closed: {len(moved_tasks)}")
-    print(f"Added to reborn (deduplicated): {added_count}")
-    print(f"Removed from closed: {len(moved_tasks)}")
+    if args.direction in ("closed-from-reborn", "both"):
+        moved_closed, reborn_lines = collect_and_remove_tasks(reborn_lines, target_state="x")
+        existing_in_closed = collect_existing_tasks(closed_lines)
+        closed_lines, added_closed_count = append_blocks(
+            closed_lines,
+            moved_closed,
+            existing_in_closed,
+            section_title="## Auto-Moved Closed Tasks From Reborn",
+            forced_state="x",
+        )
+        moved_closed_count = len(moved_closed)
+
+    write_lines(closed_path, closed_lines)
+    write_lines(reborn_path, reborn_lines)
+
+    print(f"Direction: {args.direction}")
+    print(f"Detected open tasks in closed: {moved_open_count}")
+    print(f"Added to reborn (deduplicated): {added_open_count}")
+    print(f"Removed from closed: {moved_open_count}")
+    print(f"Detected closed tasks in reborn: {moved_closed_count}")
+    print(f"Added to closed (deduplicated): {added_closed_count}")
+    print(f"Removed from reborn: {moved_closed_count}")
     return 0
 
 
