@@ -43,6 +43,17 @@ class PlayerIntentCommandRouterTest {
     }
 
     @Test
+    fun `isSleepTimerIntent and isSettingsIntent classify intents correctly`() {
+        assertTrue(PlayerIntentCommandRouter.isSleepTimerIntent(PlayerIntent.StartSleepTimer(15)))
+        assertTrue(PlayerIntentCommandRouter.isSleepTimerIntent(PlayerIntent.CancelSleepTimer))
+        assertFalse(PlayerIntentCommandRouter.isSleepTimerIntent(PlayerIntent.Play))
+
+        assertTrue(PlayerIntentCommandRouter.isSettingsIntent(PlayerIntent.UpdateBookSeekSettings(10, 30)))
+        assertTrue(PlayerIntentCommandRouter.isSettingsIntent(PlayerIntent.UpdateAudioSettings(skipSilence = true)))
+        assertFalse(PlayerIntentCommandRouter.isSettingsIntent(PlayerIntent.SeekForward))
+    }
+
+    @Test
     fun `routePlaybackIntent returns null for idempotent play command`() {
         val state = activeState(isPlaying = true)
 
@@ -116,11 +127,82 @@ class PlayerIntentCommandRouterTest {
         assertEquals(PlayerCommand.SetPlaybackSpeed(1.75f), changedCommand)
     }
 
+    @Test
+    fun `routeSleepTimerIntent returns null when reducer state is unchanged`() {
+        val state = activeState()
+
+        val command =
+            PlayerIntentCommandRouter.routeSleepTimerIntent(
+                intent = PlayerIntent.StartSleepTimer(10),
+                currentState = state,
+                reducedState = state,
+            )
+
+        assertNull(command)
+    }
+
+    @Test
+    fun `routeSleepTimerIntent maps active command when state changed`() {
+        val current = activeState(sleepTimerMode = PlayerSleepTimerMode.IDLE)
+        val reduced = current.copy(sleepTimerMode = PlayerSleepTimerMode.END_OF_CHAPTER)
+
+        val command =
+            PlayerIntentCommandRouter.routeSleepTimerIntent(
+                intent = PlayerIntent.StartSleepTimerEndOfChapter,
+                currentState = current,
+                reducedState = reduced,
+            )
+
+        assertEquals(PlayerCommand.StartSleepTimerEndOfChapter, command)
+    }
+
+    @Test
+    fun `routeSettingsIntent maps seek settings from reduced state`() {
+        val current = activeState(rewindInterval = 10, forwardInterval = 30)
+        val reduced =
+            current.copy(
+                rewindInterval = 15,
+                forwardInterval = 45,
+                hasBookSeekOverride = true,
+            )
+
+        val command =
+            PlayerIntentCommandRouter.routeSettingsIntent(
+                intent = PlayerIntent.UpdateBookSeekSettings(rewindSeconds = 15, forwardSeconds = 45),
+                currentState = current,
+                reducedState = reduced,
+            )
+
+        assertEquals(PlayerCommand.UpdateBookSeekSettings(rewindSeconds = 15, forwardSeconds = 45), command)
+    }
+
+    @Test
+    fun `routeSettingsIntent maps audio settings from reduced state`() {
+        val current = activeState(skipSilence = false)
+        val reduced = current.copy(skipSilence = true)
+
+        val command =
+            PlayerIntentCommandRouter.routeSettingsIntent(
+                intent = PlayerIntent.UpdateAudioSettings(skipSilence = true),
+                currentState = current,
+                reducedState = reduced,
+            )
+
+        require(command is PlayerCommand.UpdateAudioSettings)
+        assertEquals(true, command.skipSilence)
+        assertEquals(current.volumeBoostLevel, command.volumeBoostLevel)
+        assertEquals(current.skipSilenceMode, command.skipSilenceMode)
+    }
+
     private fun activeState(
         isPlaying: Boolean = false,
         currentPosition: Long = 0L,
         currentChapterIndex: Int = 0,
         playbackSpeed: Float = 1.0f,
+        sleepTimerMode: PlayerSleepTimerMode = PlayerSleepTimerMode.IDLE,
+        rewindInterval: Int = 10,
+        forwardInterval: Int = 30,
+        skipSilence: Boolean = false,
     ): PlayerState.Active {
         val chapter =
             Chapter.preview().copy(
@@ -138,12 +220,13 @@ class PlayerIntentCommandRouterTest {
             currentPosition = currentPosition,
             currentChapterIndex = currentChapterIndex,
             currentChapter = chapter,
-            rewindInterval = 10,
-            forwardInterval = 30,
+            rewindInterval = rewindInterval,
+            forwardInterval = forwardInterval,
             playbackSpeed = playbackSpeed,
-            sleepTimerMode = PlayerSleepTimerMode.IDLE,
+            sleepTimerMode = sleepTimerMode,
             sleepTimerRemainingSeconds = null,
             chapterRepeatMode = ChapterRepeatMode.OFF,
+            skipSilence = skipSilence,
         )
     }
 }

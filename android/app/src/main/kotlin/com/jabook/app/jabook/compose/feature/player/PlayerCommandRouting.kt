@@ -162,6 +162,96 @@ internal object PlayerIntentCommandRouter {
             else -> false
         }
 
+    fun isSleepTimerIntent(intent: PlayerIntent): Boolean =
+        when (intent) {
+            is PlayerIntent.StartSleepTimer,
+            PlayerIntent.StartSleepTimerEndOfChapter,
+            PlayerIntent.StartSleepTimerEndOfTrack,
+            PlayerIntent.CancelSleepTimer,
+            -> true
+            else -> false
+        }
+
+    fun routeSleepTimerIntent(
+        intent: PlayerIntent,
+        currentState: PlayerState,
+        reducedState: PlayerState,
+    ): PlayerCommand? {
+        if (reducedState == currentState) return null
+        return when (intent) {
+            is PlayerIntent.StartSleepTimer -> PlayerCommand.StartSleepTimer(intent.minutes)
+            PlayerIntent.StartSleepTimerEndOfChapter -> PlayerCommand.StartSleepTimerEndOfChapter
+            PlayerIntent.StartSleepTimerEndOfTrack -> PlayerCommand.StartSleepTimerEndOfTrack
+            PlayerIntent.CancelSleepTimer -> PlayerCommand.CancelSleepTimer
+            else -> null
+        }
+    }
+
+    fun isSettingsIntent(intent: PlayerIntent): Boolean =
+        when (intent) {
+            is PlayerIntent.UpdateBookSeekSettings,
+            PlayerIntent.ResetBookSeekSettings,
+            is PlayerIntent.UpdateAudioSettings,
+            -> true
+            else -> false
+        }
+
+    fun routeSettingsIntent(
+        intent: PlayerIntent,
+        currentState: PlayerState,
+        reducedState: PlayerState,
+    ): PlayerCommand? =
+        when (intent) {
+            is PlayerIntent.UpdateBookSeekSettings -> {
+                if (reducedState == currentState) {
+                    null
+                } else {
+                    val targetState = reducedState as? PlayerState.Active ?: return null
+                    val targetRewindSeconds =
+                        if (targetState.rewindInterval == targetState.defaultRewindInterval) {
+                            null
+                        } else {
+                            targetState.rewindInterval
+                        }
+                    val targetForwardSeconds =
+                        if (targetState.forwardInterval == targetState.defaultForwardInterval) {
+                            null
+                        } else {
+                            targetState.forwardInterval
+                        }
+                    PlayerCommand.UpdateBookSeekSettings(
+                        rewindSeconds = targetRewindSeconds,
+                        forwardSeconds = targetForwardSeconds,
+                    )
+                }
+            }
+            PlayerIntent.ResetBookSeekSettings -> {
+                if (reducedState == currentState) {
+                    null
+                } else {
+                    PlayerCommand.ResetBookSeekSettings
+                }
+            }
+            is PlayerIntent.UpdateAudioSettings -> {
+                if (reducedState == currentState) {
+                    null
+                } else {
+                    val targetState = reducedState as? PlayerState.Active ?: return null
+                    PlayerCommand.UpdateAudioSettings(
+                        volumeBoostLevel = targetState.volumeBoostLevel,
+                        skipSilence = targetState.skipSilence,
+                        skipSilenceThresholdDb = targetState.skipSilenceThresholdDb,
+                        skipSilenceMinMs = targetState.skipSilenceMinMs,
+                        skipSilenceMode = targetState.skipSilenceMode,
+                        normalizeVolume = targetState.normalizeVolume,
+                        speechEnhancer = targetState.speechEnhancer,
+                        autoVolumeLeveling = targetState.autoVolumeLeveling,
+                    )
+                }
+            }
+            else -> null
+        }
+
     fun routePlaybackIntent(
         intent: PlayerIntent,
         currentState: PlayerState,

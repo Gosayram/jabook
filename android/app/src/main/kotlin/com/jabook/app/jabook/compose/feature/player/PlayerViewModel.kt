@@ -602,40 +602,16 @@ public class PlayerViewModel
             currentState: PlayerState,
             reducedState: PlayerState,
         ): Boolean =
-            when (intent) {
-                is PlayerIntent.StartSleepTimer -> {
-                    if (reducedState == currentState) {
-                        logger.d { "Sleep timer state unchanged by reducer, skipping command" }
-                    } else {
-                        dispatchCommand(PlayerCommand.StartSleepTimer(intent.minutes))
-                    }
-                    true
+            if (!PlayerIntentCommandRouter.isSleepTimerIntent(intent)) {
+                false
+            } else {
+                val command = PlayerIntentCommandRouter.routeSleepTimerIntent(intent, currentState, reducedState)
+                if (command == null) {
+                    logger.d { "Sleep timer intent produced no command: $intent" }
+                } else {
+                    dispatchCommand(command)
                 }
-                PlayerIntent.StartSleepTimerEndOfChapter -> {
-                    if (reducedState == currentState) {
-                        logger.d { "Sleep timer end-of-chapter already active, skipping command" }
-                    } else {
-                        dispatchCommand(PlayerCommand.StartSleepTimerEndOfChapter)
-                    }
-                    true
-                }
-                PlayerIntent.StartSleepTimerEndOfTrack -> {
-                    if (reducedState == currentState) {
-                        logger.d { "Sleep timer end-of-track already active, skipping command" }
-                    } else {
-                        dispatchCommand(PlayerCommand.StartSleepTimerEndOfTrack)
-                    }
-                    true
-                }
-                PlayerIntent.CancelSleepTimer -> {
-                    if (reducedState == currentState) {
-                        logger.d { "Sleep timer already idle, skipping cancel command" }
-                    } else {
-                        dispatchCommand(PlayerCommand.CancelSleepTimer)
-                    }
-                    true
-                }
-                else -> false
+                true
             }
 
         private fun handleSettingsIntent(
@@ -643,62 +619,16 @@ public class PlayerViewModel
             currentState: PlayerState,
             reducedState: PlayerState,
         ): Boolean =
-            when (intent) {
-                is PlayerIntent.UpdateBookSeekSettings -> {
-                    if (reducedState == currentState) {
-                        logger.d { "Book seek settings unchanged by reducer, skipping command" }
-                        return true
-                    }
-                    val targetState = reducedState as? PlayerState.Active ?: return true
-                    val targetRewindSeconds =
-                        if (targetState.rewindInterval == targetState.defaultRewindInterval) {
-                            null
-                        } else {
-                            targetState.rewindInterval
-                        }
-                    val targetForwardSeconds =
-                        if (targetState.forwardInterval == targetState.defaultForwardInterval) {
-                            null
-                        } else {
-                            targetState.forwardInterval
-                        }
-                    dispatchCommand(
-                        PlayerCommand.UpdateBookSeekSettings(
-                            rewindSeconds = targetRewindSeconds,
-                            forwardSeconds = targetForwardSeconds,
-                        ),
-                    )
-                    true
+            if (!PlayerIntentCommandRouter.isSettingsIntent(intent)) {
+                false
+            } else {
+                val command = PlayerIntentCommandRouter.routeSettingsIntent(intent, currentState, reducedState)
+                if (command == null) {
+                    logger.d { "Settings intent produced no command: $intent" }
+                } else {
+                    dispatchCommand(command)
                 }
-                PlayerIntent.ResetBookSeekSettings -> {
-                    if (reducedState == currentState) {
-                        logger.d { "Book seek settings already reset, skipping command" }
-                    } else {
-                        dispatchCommand(PlayerCommand.ResetBookSeekSettings)
-                    }
-                    true
-                }
-                is PlayerIntent.UpdateAudioSettings -> {
-                    if (reducedState == currentState) {
-                        logger.d { "Audio settings intent has no changes, skipping command" }
-                        return true
-                    }
-                    val targetState = reducedState as? PlayerState.Active ?: return true
-                    dispatchCommand(
-                        PlayerCommand.UpdateAudioSettings(
-                            volumeBoostLevel = targetState.volumeBoostLevel,
-                            skipSilence = targetState.skipSilence,
-                            skipSilenceThresholdDb = targetState.skipSilenceThresholdDb,
-                            skipSilenceMinMs = targetState.skipSilenceMinMs,
-                            skipSilenceMode = targetState.skipSilenceMode,
-                            normalizeVolume = targetState.normalizeVolume,
-                            speechEnhancer = targetState.speechEnhancer,
-                            autoVolumeLeveling = targetState.autoVolumeLeveling,
-                        ),
-                    )
-                    true
-                }
-                else -> false
+                true
             }
 
         private fun dispatchCommand(command: PlayerCommand) {

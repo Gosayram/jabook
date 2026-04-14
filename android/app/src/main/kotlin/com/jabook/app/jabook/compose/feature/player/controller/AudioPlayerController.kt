@@ -931,7 +931,13 @@ public class AudioPlayerController
             force: Boolean = false,
         ) {
             val sanitizedPositionMs = positionMs.coerceAtLeast(0L)
-            if (!force && kotlin.math.abs(sanitizedPositionMs - _currentPosition.value) < POSITION_UPDATE_EPSILON_MS) {
+            if (
+                !PositionPublishPolicy.shouldPublish(
+                    previousPositionMs = _currentPosition.value,
+                    incomingPositionMs = sanitizedPositionMs,
+                    force = force,
+                )
+            ) {
                 return
             }
             _currentPosition.value = sanitizedPositionMs
@@ -995,9 +1001,5 @@ public class AudioPlayerController
             }
             mediaControllerFuture = null
             _connectionState.value = ConnectionState.DISCONNECTED
-        }
-
-        private companion object {
-            private const val POSITION_UPDATE_EPSILON_MS: Long = 120L
         }
     }
