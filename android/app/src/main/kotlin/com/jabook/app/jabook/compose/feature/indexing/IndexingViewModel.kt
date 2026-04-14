@@ -26,6 +26,8 @@ import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import com.jabook.app.jabook.indexing.IndexingForegroundService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,6 +60,7 @@ public class IndexingViewModel
 
         private val _isIndexing = MutableStateFlow(false)
         public val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
+        private var serviceMonitorJob: Job? = null
 
         /**
          * Start full indexing of all audiobook forums using Foreground Service.
@@ -79,6 +82,7 @@ public class IndexingViewModel
                 _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
                 IndexingForegroundService.start(context)
+                startServiceCompletionMonitor()
                 // Progress will be updated from service via broadcast or we can observe service state
                 // For now, we'll update state when service completes
                 return
@@ -164,6 +168,8 @@ public class IndexingViewModel
 
             // Start foreground service
             IndexingForegroundService.start(context)
+            _isIndexing.value = true
+            startServiceCompletionMonitor()
         }
 
         /**
@@ -185,4 +191,26 @@ public class IndexingViewModel
                 _clearingInProgress.value = false
                 false
             }
+
+        private fun startServiceCompletionMonitor() {
+            serviceMonitorJob?.cancel()
+            serviceMonitorJob =
+                viewModelScope.launch {
+                    var serviceWasVisible = false
+                    val startTime = System.currentTimeMillis()
+                    val timeoutMs = 60 * 60 * 1000L // 1h safety timeout
+
+                    while (System.currentTimeMillis() - startTime < timeoutMs) {
+                        val service = IndexingForegroundService.getInstance()
+                        if (service != null) {
+                            serviceWasVisible = true
+                        } else if (serviceWasVisible) {
+                            break
+                        }
+                        delay(1000L)
+                    }
+
+                    _isIndexing.value = false
+                }
+        }
     }

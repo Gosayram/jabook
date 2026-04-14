@@ -59,6 +59,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -71,7 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
@@ -79,6 +80,7 @@ import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
+import kotlinx.coroutines.delay
 
 /**
  * RuTracker search screen.
@@ -119,13 +121,15 @@ public fun RutrackerSearchScreen(
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
     var showIndexingDialog by remember { mutableStateOf(false) }
+    var indexSize by remember { mutableIntStateOf(0) }
+    var indexRefreshNonce by remember { mutableLongStateOf(0L) }
 
     var showFilters by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     // Check if indexing is needed on first load
     LaunchedEffect(Unit) {
-        val indexSize = indexingViewModel.getIndexSize()
+        indexSize = indexingViewModel.getIndexSize()
         if (indexSize == 0) {
             // No index, show dialog to start indexing
             showIndexingDialog = true
@@ -134,6 +138,21 @@ public fun RutrackerSearchScreen(
             if (needsUpdate) {
                 // Index is old, suggest update
                 showIndexingDialog = true
+            }
+        }
+    }
+
+    // Refresh index size on indexing state transitions and explicit refresh requests.
+    LaunchedEffect(isIndexing, indexingProgress, indexRefreshNonce) {
+        indexSize = indexingViewModel.getIndexSize()
+    }
+
+    // While indexing is active, periodically refresh index size in UI.
+    LaunchedEffect(isIndexing) {
+        if (isIndexing) {
+            while (indexingViewModel.isIndexing.value) {
+                indexSize = indexingViewModel.getIndexSize()
+                delay(1500L)
             }
         }
     }
@@ -265,12 +284,7 @@ public fun RutrackerSearchScreen(
             Spacer(modifier = Modifier.height(itemSpacing))
 
             // Index status card
-            val indexSize = remember { mutableStateOf(0) }
-            LaunchedEffect(Unit) {
-                indexSize.value = indexingViewModel.getIndexSize()
-            }
-
-            if (indexSize.value == 0) {
+            if (indexSize == 0) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors =
@@ -298,6 +312,7 @@ public fun RutrackerSearchScreen(
                             onClick = {
                                 showIndexingDialog = true
                                 indexingViewModel.startIndexing(context)
+                                indexRefreshNonce = System.currentTimeMillis()
                             },
                         ) {
                             Text(stringResource(R.string.startIndexing))
@@ -322,8 +337,8 @@ public fun RutrackerSearchScreen(
                             val indexTopicsCount =
                                 pluralStringResource(
                                     R.plurals.indexTopicsCount,
-                                    indexSize.value,
-                                    indexSize.value,
+                                    indexSize,
+                                    indexSize,
                                 )
                             Text(
                                 text = stringResource(R.string.indexStatusWithTopics, indexTopicsCount),
@@ -339,6 +354,7 @@ public fun RutrackerSearchScreen(
                             onClick = {
                                 showIndexingDialog = true
                                 indexingViewModel.startIndexing(context)
+                                indexRefreshNonce = System.currentTimeMillis()
                             },
                         ) {
                             Text(stringResource(R.string.updateAction))

@@ -122,17 +122,15 @@ public class ForumIndexer
                 val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
                 var totalIndexed: Int = 0
+                val coversToPreload = mutableListOf<String>()
 
                 // Log current mirror at start of indexing
                 val initialMirror = mirrorManager.getCurrentMirrorDomain()
                 logger.i { "=== FORUM INDEXING START ===" }
                 logger.i { "Using mirror: $initialMirror" }
                 logger.i { "Indexing version: $currentIndexVersion" }
-
-                // Clear old indexed data
                 val oldCount = getIndexSize()
-                clearIndex()
-                logger.i { "Old indexed data cleared (was $oldCount topics)" }
+                logger.i { "Existing indexed data: $oldCount topics" }
 
                 onProgress?.invoke(
                     IndexingProgress.InProgress(
@@ -156,7 +154,7 @@ public class ForumIndexer
                             async(Dispatchers.IO) {
                                 try {
                                     val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
-                                    val (indexed, _) =
+                                    val (indexed, covers) =
                                         indexForum(forumId, currentIndexVersion) { page, topicsInForum ->
                                             if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
                                                 val currentTotal = topicsIndexedAtomic.get()
@@ -172,6 +170,11 @@ public class ForumIndexer
                                             }
                                         }
                                     topicsIndexedAtomic.addAndGet(indexed)
+                                    if (covers.isNotEmpty()) {
+                                        synchronized(coversToPreload) {
+                                            coversToPreload.addAll(covers)
+                                        }
+                                    }
                                 } catch (e: Exception) {
                                     logger.e({ "Failed to index forum $forumId" }, e)
                                 }
@@ -181,6 +184,20 @@ public class ForumIndexer
 
                 totalIndexed = topicsIndexedAtomic.get()
                 val duration = System.currentTimeMillis() - startTime
+
+                // If index run produced no data, keep existing index and surface explicit failure.
+                if (totalIndexed == 0) {
+                    val message =
+                        "Indexing returned zero topics. Old index preserved ($oldCount topics). " +
+                            "Likely auth/session or parser issue."
+                    logger.e { message }
+                    onProgress?.invoke(IndexingProgress.Error(message))
+                    throw IllegalStateException(message)
+                }
+
+                if (preloadCovers && coversToPreload.isNotEmpty()) {
+                    preloadCovers(coversToPreload)
+                }
 
                 // Verify actual count
                 val actualCountInDb = getIndexSize()
@@ -260,6 +277,8 @@ public class ForumIndexer
             var hasMorePages: Boolean = true
             val coversToPreload = mutableListOf<String>()
             val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
+            var lastPageSignature: String? = null
+            var repeatedSignatureCount: Int = 0
 
             val forumStartTime = System.currentTimeMillis()
             val initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
@@ -293,6 +312,28 @@ public class ForumIndexer
                         }
                         hasMorePages = false
                     } else {
+                        val pageSignature =
+                            buildString {
+                                append(topics.firstOrNull()?.topicId ?: "none")
+                                append('|')
+                                append(topics.lastOrNull()?.topicId ?: "none")
+                                append('|')
+                                append(topics.size)
+                            }
+                        if (pageSignature == lastPageSignature) {
+                            repeatedSignatureCount++
+                            if (repeatedSignatureCount >= 3) {
+                                logger.w {
+                                    "Forum $forumId page $page repeated same signature 3 times; " +
+                                        "stopping to prevent infinite pagination loop"
+                                }
+                                hasMorePages = false
+                            }
+                        } else {
+                            repeatedSignatureCount = 0
+                            lastPageSignature = pageSignature
+                        }
+
                         val validTopics = topics.filter { it.toDomain().isValid() }
                         val invalidCount = topics.size - validTopics.size
                         if (invalidCount > 0) {
@@ -302,6 +343,10 @@ public class ForumIndexer
                         val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
                         totalTopics += validTopics.size
+                        coversToPreload.addAll(
+                            newEntities
+                                .mapNotNull { it.coverUrl?.takeIf(String::isNotBlank) },
+                        )
 
                         if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
                             val dbWriteStartTime = System.currentTimeMillis()

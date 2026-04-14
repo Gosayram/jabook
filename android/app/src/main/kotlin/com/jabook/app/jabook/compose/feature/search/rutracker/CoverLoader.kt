@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.ConcurrentHashMap
@@ -50,6 +51,9 @@ public class CoverLoader
         private val loadQueue = Channel<String>(Channel.UNLIMITED)
         private val activeLoads = ConcurrentHashMap.newKeySet<String>()
         private val loadedCache = ConcurrentHashMap.newKeySet<String>() // Simple memory cache for session
+        private val retryAttempts = ConcurrentHashMap<String, Int>()
+        private val maxRetryAttempts = 3
+        private val retryDelayMs = 1200L
 
         // Concurrency control: allow only N simultaneous loads
         private val concurrencyPermits = Mutex()
@@ -87,24 +91,37 @@ public class CoverLoader
 
         private suspend fun processTopic(topicId: String) {
             try {
-                // Artificial delay to prevent burst if needed, or just proceed
-                // delay(100L)
-
                 val result = repository.fetchAndSaveCover(topicId)
 
-                // Mark as loaded regardless of success to avoid endless retries in this session
-                // If it failed, user can retry by restarting app or we can implement retry logic later
-                loadedCache.add(topicId)
-
-                if (result.isFailure) {
+                if (result.isSuccess) {
+                    loadedCache.add(topicId)
+                    retryAttempts.remove(topicId)
+                } else {
                     // If Rutracker failed (e.g. no cover), check Flibusta (To Be Implemented)
                     checkFlibusta(topicId)
+                    scheduleRetry(topicId)
                 }
             } catch (e: Exception) {
                 // Log error
                 logger.e(e) { "Error loading cover for $topicId" }
+                scheduleRetry(topicId)
             } finally {
                 activeLoads.remove(topicId)
+            }
+        }
+
+        private fun scheduleRetry(topicId: String) {
+            val currentAttempt = retryAttempts[topicId] ?: 0
+            if (currentAttempt >= maxRetryAttempts) {
+                logger.d { "Cover retries exhausted for topic $topicId" }
+                return
+            }
+            retryAttempts[topicId] = currentAttempt + 1
+            scope.launch {
+                delay(retryDelayMs * (currentAttempt + 1))
+                if (topicId !in loadedCache && topicId !in activeLoads) {
+                    loadCover(topicId)
+                }
             }
         }
 

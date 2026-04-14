@@ -66,7 +66,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
@@ -77,6 +77,7 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
 import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -144,6 +145,13 @@ public fun SearchScreen(
     androidx.compose.runtime.LaunchedEffect(isIndexing) {
         if (!isIndexing) {
             indexSize = indexingViewModel.getIndexSize()
+            showIndexingMessage = indexSize == 0
+        } else {
+            while (indexingViewModel.isIndexing.value) {
+                indexSize = indexingViewModel.getIndexSize()
+                showIndexingMessage = indexSize == 0
+                delay(1500L)
+            }
         }
     }
 
@@ -325,13 +333,12 @@ public fun SearchScreen(
                                     Spacer(Modifier.height(16.dp))
                                 } else {
                                     // Show message that indexing is needed for online search
-                                    val isIndexingNow = indexingViewModel.isIndexing.collectAsStateWithLifecycle().value
                                     androidx.compose.material3.Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors =
                                             androidx.compose.material3.CardDefaults.cardColors(
                                                 containerColor =
-                                                    if (isIndexingNow) {
+                                                    if (isIndexing) {
                                                         MaterialTheme.colorScheme.primaryContainer
                                                     } else {
                                                         MaterialTheme.colorScheme.secondaryContainer
@@ -344,7 +351,7 @@ public fun SearchScreen(
                                         ) {
                                             Text(
                                                 text =
-                                                    if (isIndexingNow) {
+                                                    if (isIndexing) {
                                                         stringResource(R.string.indexingInProgressTitle)
                                                     } else {
                                                         stringResource(R.string.indexNotCreatedTitle)
@@ -355,7 +362,7 @@ public fun SearchScreen(
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
                                                 text =
-                                                    if (isIndexingNow) {
+                                                    if (isIndexing) {
                                                         stringResource(R.string.indexingInProgressDescription)
                                                     } else {
                                                         stringResource(R.string.indexRequiredForOnlineSearchDescription)
