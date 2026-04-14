@@ -43,6 +43,30 @@ class ChapterAutoScrollPolicyTest {
     }
 
     @Test
+    fun `resolve returns animate when edge distance equals snap threshold`() {
+        val action =
+            ChapterAutoScrollPolicy.resolve(
+                targetIndex = 30,
+                firstVisibleIndex = 10,
+                lastVisibleIndex = 20,
+            )
+
+        assertEquals(ChapterAutoScrollPolicy.ScrollAction.ANIMATE, action)
+    }
+
+    @Test
+    fun `resolve returns animate for nearby target before visible range`() {
+        val action =
+            ChapterAutoScrollPolicy.resolve(
+                targetIndex = 2,
+                firstVisibleIndex = 4,
+                lastVisibleIndex = 10,
+            )
+
+        assertEquals(ChapterAutoScrollPolicy.ScrollAction.ANIMATE, action)
+    }
+
+    @Test
     fun `resolve returns snap for far offscreen target`() {
         val action =
             ChapterAutoScrollPolicy.resolve(
