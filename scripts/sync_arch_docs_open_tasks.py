@@ -68,7 +68,6 @@ def find_task_block_end(lines: list[str], start: int, indent: int) -> int:
     while j < n:
         line = lines[j]
         stripped_nl = line.rstrip("\n")
-        stripped = line.strip()
 
         if FENCE_RE.match(stripped_nl):
             in_fence = not in_fence
