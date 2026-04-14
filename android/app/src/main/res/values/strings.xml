@@ -237,6 +237,8 @@
     <string name="statusLabelNoColon">Status</string>
     <!-- Label for download progress -->
     <string name="downloadProgressLabel">Progress</string>
+    <!-- Badge text for active download progress on book cover -->
+    <string name="downloadProgressBadge">Downloading %1$d%%</string>
     <!-- Title for cache statistics -->
     <string name="cacheStatistics">Cache Statistics</string>
     <!-- Label for total entries -->

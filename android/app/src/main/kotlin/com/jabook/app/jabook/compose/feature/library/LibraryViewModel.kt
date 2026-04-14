@@ -464,5 +464,6 @@ public fun LibraryViewModel.createBookActionsProvider(
         favoriteIds = favoriteIds,
         showProgress = true,
         showFavoriteButton = true,
+        showDownloadStatus = true,
     )
 }

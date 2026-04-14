@@ -218,6 +218,8 @@
     <string name="statusLabelNoColon">Статус</string>
     <!-- Метка для прогресса загрузки -->
     <string name="downloadProgressLabel">Прогресс</string>
+    <!-- Текст бейджа прогресса активной загрузки на обложке книги -->
+    <string name="downloadProgressBadge">Загрузка %1$d%%</string>
     <!-- Заголовок статистики кэша -->
     <string name="cacheStatistics">Статистика кэша</string>
     <!-- Метка для общего количества записей -->
