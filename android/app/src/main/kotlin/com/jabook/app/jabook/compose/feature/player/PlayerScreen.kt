@@ -17,7 +17,14 @@ package com.jabook.app.jabook.compose.feature.player
 import android.os.PowerManager
 import android.text.format.DateUtils
 import android.view.WindowManager
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -140,6 +147,12 @@ import java.io.File
  */
 private val playerScreenLogger by lazy { LoggerFactoryImpl().get("PlayerScreen") }
 
+private enum class PlayerScreenPhase {
+    Loading,
+    Active,
+    Error,
+}
+
 /**
  * EntryPoint to access AudioMetadataParser from Hilt in Composable.
  */
@@ -188,6 +201,14 @@ public fun PlayerScreen(
     val shouldInitializePlayer =
         remember(uiState) {
             uiState is PlayerState.Active && (uiState as? PlayerState.Active)?.chapters?.isNotEmpty() == true
+        }
+    val uiPhase =
+        remember(uiState) {
+            when (uiState) {
+                is PlayerState.Loading -> PlayerScreenPhase.Loading
+                is PlayerState.Active -> PlayerScreenPhase.Active
+                is PlayerState.Error -> PlayerScreenPhase.Error
+            }
         }
     androidx.compose.runtime.LaunchedEffect(shouldInitializePlayer) {
         if (shouldInitializePlayer) {
@@ -510,107 +531,119 @@ public fun PlayerScreen(
                                 .padding(padding)
                                 .windowInsetsPadding(WindowInsets.systemBars),
                     ) {
-                        when (val state = uiState) {
-                            is PlayerState.Loading -> {
-                                LoadingScreen(message = stringResource(R.string.loadingPlayer))
-                            }
+                        AnimatedContent(
+                            targetState = uiPhase,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f, animationSpec = tween(220)))
+                                    .togetherWith(
+                                        fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 1.02f, animationSpec = tween(180)),
+                                    )
+                            },
+                            label = "player_state_transition",
+                        ) { phase ->
+                            when (phase) {
+                                PlayerScreenPhase.Loading -> {
+                                    LoadingScreen(message = stringResource(R.string.loadingPlayer))
+                                }
+                                PlayerScreenPhase.Active -> {
+                                    val state = uiState as? PlayerState.Active ?: return@AnimatedContent
 
-                            is PlayerState.Active -> {
-                                // Click debouncer for preventing double clicks (inspired by Easybook)
-                                val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
+                                    // Click debouncer for preventing double clicks (inspired by Easybook)
+                                    val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
 
-                                // Haze State for Glassmorphism
-                                val hazeState = rememberHazeState()
+                                    // Haze State for Glassmorphism
+                                    val hazeState = rememberHazeState()
 
-                                // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
-                                PremiumPlayerBackground(
-                                    themeColors = state.themeColors,
-                                    hazeState = hazeState,
-                                    isPowerSaveMode = isPowerSaveMode,
-                                ) {
-                                    PlayerContent(
-                                        state = state,
-                                        playbackSpeed = playbackSpeed,
+                                    // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
+                                    PremiumPlayerBackground(
+                                        themeColors = state.themeColors,
                                         hazeState = hazeState,
-                                        isVinylMode = isVinylMode,
-                                        sleepTimerState = sleepTimerState,
-                                        normalizeEnabled = normalizeEnabled,
-                                        chapterRepeatMode = state.chapterRepeatMode,
-                                        visualizerWaveformData = visualizerWaveformData,
-                                        onPlayPause = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce {
-                                                viewModel.dispatch(PlayerIntent.TogglePlayPause)
-                                            }
-                                        },
-                                        onSkipNext = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
-                                        },
-                                        onSkipPrevious = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
-                                        },
-                                        onSeek = { positionMs ->
-                                            viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
-                                        },
-                                        onSeekForward = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
-                                        },
-                                        onSeekBackward = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
-                                        },
-                                        onSelectChapter = { chapterIndex ->
-                                            viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
-                                        },
-                                        onChapterClick = {
-                                            // Toggle chapters pane on medium/expanded screens
-                                            clickDebouncer.debounce {
-                                                scope.launch {
-                                                    if (scaffoldNavigator.canNavigateBack()) {
-                                                        scaffoldNavigator.navigateBack()
-                                                    } else {
-                                                        scaffoldNavigator.navigateTo(
-                                                            SupportingPaneScaffoldRole.Supporting,
-                                                        )
+                                        isPowerSaveMode = isPowerSaveMode,
+                                    ) {
+                                        PlayerContent(
+                                            state = state,
+                                            playbackSpeed = playbackSpeed,
+                                            hazeState = hazeState,
+                                            isVinylMode = isVinylMode,
+                                            sleepTimerState = sleepTimerState,
+                                            normalizeEnabled = normalizeEnabled,
+                                            chapterRepeatMode = state.chapterRepeatMode,
+                                            visualizerWaveformData = visualizerWaveformData,
+                                            onPlayPause = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                clickDebouncer.debounce {
+                                                    viewModel.dispatch(PlayerIntent.TogglePlayPause)
+                                                }
+                                            },
+                                            onSkipNext = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
+                                            },
+                                            onSkipPrevious = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
+                                            },
+                                            onSeek = { positionMs ->
+                                                viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
+                                            },
+                                            onSeekForward = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
+                                            },
+                                            onSeekBackward = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
+                                            },
+                                            onSelectChapter = { chapterIndex ->
+                                                viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
+                                            },
+                                            onChapterClick = {
+                                                // Toggle chapters pane on medium/expanded screens
+                                                clickDebouncer.debounce {
+                                                    scope.launch {
+                                                        if (scaffoldNavigator.canNavigateBack()) {
+                                                            scaffoldNavigator.navigateBack()
+                                                        } else {
+                                                            scaffoldNavigator.navigateTo(
+                                                                SupportingPaneScaffoldRole.Supporting,
+                                                            )
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        },
-                                        onSpeedClick = { showSpeedSheet = true },
-                                        onAudioSettingsClick = { showAudioSettingsSheet = true },
-                                        onSleepTimerClick = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            showSleepTimerSheet = true
-                                        },
-                                        onChapterRepeatClick = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce {
-                                                viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
-                                            }
-                                        },
-                                        onStatsClick = { showStatsOverlay = true },
-                                        hasRecordAudioPermission = hasRecordAudioPermission,
-                                        onRequestRecordAudioPermission = requestRecordAudioPermission,
-                                        onInitializeVisualizer = {
-                                            viewModel.dispatch(PlayerIntent.InitializeVisualizer)
-                                        },
-                                        onSetVisualizerEnabled = { enabled ->
-                                            viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
-                                        },
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope,
+                                            },
+                                            onSpeedClick = { showSpeedSheet = true },
+                                            onAudioSettingsClick = { showAudioSettingsSheet = true },
+                                            onSleepTimerClick = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                showSleepTimerSheet = true
+                                            },
+                                            onChapterRepeatClick = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                clickDebouncer.debounce {
+                                                    viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
+                                                }
+                                            },
+                                            onStatsClick = { showStatsOverlay = true },
+                                            hasRecordAudioPermission = hasRecordAudioPermission,
+                                            onRequestRecordAudioPermission = requestRecordAudioPermission,
+                                            onInitializeVisualizer = {
+                                                viewModel.dispatch(PlayerIntent.InitializeVisualizer)
+                                            },
+                                            onSetVisualizerEnabled = { enabled ->
+                                                viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
+                                            },
+                                            sharedTransitionScope = sharedTransitionScope,
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                        )
+                                    }
+                                }
+                                PlayerScreenPhase.Error -> {
+                                    val state = uiState as? PlayerState.Error ?: return@AnimatedContent
+                                    ErrorScreen(
+                                        message = state.message,
+                                        onRetry = { navigationClickGuard.run(onNavigateBack) },
                                     )
                                 }
-                            }
-
-                            is PlayerState.Error -> {
-                                ErrorScreen(
-                                    message = state.message,
-                                    onRetry = { navigationClickGuard.run(onNavigateBack) },
-                                )
                             }
                         }
                     }
