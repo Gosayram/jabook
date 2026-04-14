@@ -78,6 +78,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.CoverWaterfallPolicy
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import kotlinx.coroutines.delay
@@ -586,9 +587,12 @@ private fun SearchResultCard(
                 // Adaptive cover size: smaller on compact screens
                 val coverWidth = if (isCompact) 60.dp else 80.dp
                 val coverHeight = if (isCompact) 90.dp else 120.dp
+                val normalizedCoverUrl =
+                    (CoverWaterfallPolicy.resolveOnlineUrl(coverUrl)?.data as? String)
+                        ?: coverUrl
 
                 RemoteImage(
-                    src = coverUrl,
+                    src = normalizedCoverUrl,
                     contentDescription = result.title,
                     modifier =
                         Modifier

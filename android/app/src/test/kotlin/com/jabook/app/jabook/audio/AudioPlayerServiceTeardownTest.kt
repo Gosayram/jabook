@@ -28,4 +28,3 @@ class AudioPlayerServiceTeardownTest {
         service.onDestroy()
     }
 }
-
