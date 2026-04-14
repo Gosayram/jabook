@@ -558,91 +558,33 @@ public class PlayerViewModel
             currentState: PlayerState,
             reducedState: PlayerState,
         ) {
-            if (handleSleepTimerIntent(intent, currentState, reducedState)) return
-            if (handleSettingsIntent(intent, currentState, reducedState)) return
-            if (handlePlaybackIntent(intent, currentState, reducedState)) return
+            if (handleCommandIntent(intent, currentState, reducedState)) return
             when (intent) {
-                PlayerIntent.InitializePlayer -> dispatchCommand(PlayerCommand.InitializePlayer)
                 PlayerIntent.ToggleChapterRepeat -> {
                     val targetMode = (reducedState as? PlayerState.Active)?.chapterRepeatMode ?: return
                     if (targetMode == chapterRepeatModeState.value) return
                     chapterRepeatModeState.value = targetMode
                     hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
                 }
-                PlayerIntent.InitializeVisualizer -> dispatchCommand(PlayerCommand.InitializeVisualizer)
-                is PlayerIntent.SetVisualizerEnabled -> dispatchCommand(PlayerCommand.SetVisualizerEnabled(intent.enabled))
-                is PlayerIntent.SetPitchCorrectionEnabled ->
-                    dispatchCommand(PlayerCommand.SetPitchCorrectionEnabled(intent.enabled))
                 is PlayerIntent.ReportError -> {
                     val reason = (reducedState as? PlayerState.Error)?.message ?: intent.reason
                     emitEffect(PlayerEffect.ShowError(reason))
                 }
-                is PlayerIntent.StartSleepTimer,
-                PlayerIntent.StartSleepTimerEndOfChapter,
-                PlayerIntent.StartSleepTimerEndOfTrack,
-                PlayerIntent.CancelSleepTimer,
-                PlayerIntent.Play,
-                PlayerIntent.Pause,
-                PlayerIntent.TogglePlayPause,
-                PlayerIntent.SkipNext,
-                PlayerIntent.SkipPrevious,
-                is PlayerIntent.SeekTo,
-                PlayerIntent.SeekForward,
-                PlayerIntent.SeekBackward,
-                is PlayerIntent.SelectChapter,
-                is PlayerIntent.SetPlaybackSpeed,
-                is PlayerIntent.UpdateBookSeekSettings,
-                PlayerIntent.ResetBookSeekSettings,
-                is PlayerIntent.UpdateAudioSettings,
-                -> Unit
+                else -> Unit
             }
         }
 
-        private fun handlePlaybackIntent(
+        private fun handleCommandIntent(
             intent: PlayerIntent,
             currentState: PlayerState,
             reducedState: PlayerState,
         ): Boolean =
-            if (!PlayerIntentCommandRouter.isPlaybackIntent(intent)) {
+            if (!PlayerIntentCommandRouter.isCommandIntent(intent)) {
                 false
             } else {
-                val command = PlayerIntentCommandRouter.routePlaybackIntent(intent, currentState, reducedState)
+                val command = PlayerIntentCommandRouter.routeIntent(intent, currentState, reducedState)
                 if (command == null) {
-                    logger.d { "Playback intent produced no command: $intent" }
-                } else {
-                    dispatchCommand(command)
-                }
-                true
-            }
-
-        private fun handleSleepTimerIntent(
-            intent: PlayerIntent,
-            currentState: PlayerState,
-            reducedState: PlayerState,
-        ): Boolean =
-            if (!PlayerIntentCommandRouter.isSleepTimerIntent(intent)) {
-                false
-            } else {
-                val command = PlayerIntentCommandRouter.routeSleepTimerIntent(intent, currentState, reducedState)
-                if (command == null) {
-                    logger.d { "Sleep timer intent produced no command: $intent" }
-                } else {
-                    dispatchCommand(command)
-                }
-                true
-            }
-
-        private fun handleSettingsIntent(
-            intent: PlayerIntent,
-            currentState: PlayerState,
-            reducedState: PlayerState,
-        ): Boolean =
-            if (!PlayerIntentCommandRouter.isSettingsIntent(intent)) {
-                false
-            } else {
-                val command = PlayerIntentCommandRouter.routeSettingsIntent(intent, currentState, reducedState)
-                if (command == null) {
-                    logger.d { "Settings intent produced no command: $intent" }
+                    logger.d { "Command intent produced no command: $intent" }
                 } else {
                     dispatchCommand(command)
                 }

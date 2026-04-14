@@ -16,83 +16,29 @@ package com.jabook.app.jabook.compose.feature.player
 
 import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
 import com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode
+import com.jabook.app.jabook.compose.feature.player.testdoubles.FakePlayerCommandCallbacks
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlayerCommandExecutorTest {
     @Test
     fun `execute routes playback commands to expected callbacks`() {
-        var played = 0
-        var paused = 0
-        var seekPosition = -1L
-
-        val executor =
-            PlayerCommandExecutor(
-                initializePlayer = {},
-                play = { played++ },
-                pause = { paused++ },
-                skipToNext = {},
-                skipToPrevious = {},
-                seekTo = { seekPosition = it },
-                skipToChapter = {},
-                initializeVisualizer = {},
-                setVisualizerEnabled = {},
-                setPlaybackSpeed = {},
-                setPitchCorrectionEnabled = {},
-                startSleepTimer = {},
-                startSleepTimerEndOfChapter = {},
-                startSleepTimerEndOfTrack = {},
-                cancelSleepTimer = {},
-                updateBookSeekSettings = { _, _ -> },
-                resetBookSeekSettings = {},
-                updateAudioSettings = { _, _, _, _, _, _, _, _ -> },
-            )
+        val fakeCallbacks = FakePlayerCommandCallbacks()
+        val executor = fakeCallbacks.buildExecutor()
 
         executor.execute(PlayerCommand.Play)
         executor.execute(PlayerCommand.Pause)
         executor.execute(PlayerCommand.SeekTo(42_000L))
 
-        assertEquals(1, played)
-        assertEquals(1, paused)
-        assertEquals(42_000L, seekPosition)
+        assertEquals(1, fakeCallbacks.playCalls)
+        assertEquals(1, fakeCallbacks.pauseCalls)
+        assertEquals(42_000L, fakeCallbacks.lastSeekPositionMs)
     }
 
     @Test
     fun `execute routes settings commands with payload`() {
-        var rewind: Int? = null
-        var forward: Int? = null
-        var volumeBoost: VolumeBoostLevel? = null
-        var skipSilence: Boolean? = null
-        var skipSilenceMode: SkipSilenceMode? = null
-
-        val executor =
-            PlayerCommandExecutor(
-                initializePlayer = {},
-                play = {},
-                pause = {},
-                skipToNext = {},
-                skipToPrevious = {},
-                seekTo = {},
-                skipToChapter = {},
-                initializeVisualizer = {},
-                setVisualizerEnabled = {},
-                setPlaybackSpeed = {},
-                setPitchCorrectionEnabled = {},
-                startSleepTimer = {},
-                startSleepTimerEndOfChapter = {},
-                startSleepTimerEndOfTrack = {},
-                cancelSleepTimer = {},
-                updateBookSeekSettings = { r, f ->
-                    rewind = r
-                    forward = f
-                },
-                resetBookSeekSettings = {},
-                updateAudioSettings = { boost, skip, _, _, mode, _, _, _ ->
-                    volumeBoost = boost
-                    skipSilence = skip
-                    skipSilenceMode = mode
-                },
-            )
+        val fakeCallbacks = FakePlayerCommandCallbacks()
+        val executor = fakeCallbacks.buildExecutor()
 
         executor.execute(PlayerCommand.UpdateBookSeekSettings(rewindSeconds = 15, forwardSeconds = 45))
         executor.execute(
@@ -103,10 +49,10 @@ class PlayerCommandExecutorTest {
             ),
         )
 
-        assertEquals(15, rewind)
-        assertEquals(45, forward)
-        assertEquals(VolumeBoostLevel.Boost200, volumeBoost)
-        assertEquals(true, skipSilence)
-        assertEquals(SkipSilenceMode.SPEED_UP, skipSilenceMode)
+        assertEquals(15, fakeCallbacks.lastRewindSeconds)
+        assertEquals(45, fakeCallbacks.lastForwardSeconds)
+        assertEquals(VolumeBoostLevel.Boost200, fakeCallbacks.lastVolumeBoostLevel)
+        assertEquals(true, fakeCallbacks.lastSkipSilence)
+        assertEquals(SkipSilenceMode.SPEED_UP, fakeCallbacks.lastSkipSilenceMode)
     }
 }

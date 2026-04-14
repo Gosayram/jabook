@@ -54,6 +54,15 @@ class PlayerIntentCommandRouterTest {
     }
 
     @Test
+    fun `isCommandIntent returns true for direct command intents`() {
+        assertTrue(PlayerIntentCommandRouter.isCommandIntent(PlayerIntent.InitializePlayer))
+        assertTrue(PlayerIntentCommandRouter.isCommandIntent(PlayerIntent.InitializeVisualizer))
+        assertTrue(PlayerIntentCommandRouter.isCommandIntent(PlayerIntent.SetVisualizerEnabled(enabled = true)))
+        assertTrue(PlayerIntentCommandRouter.isCommandIntent(PlayerIntent.SetPitchCorrectionEnabled(enabled = false)))
+        assertFalse(PlayerIntentCommandRouter.isCommandIntent(PlayerIntent.ReportError("fail")))
+    }
+
+    @Test
     fun `routePlaybackIntent returns null for idempotent play command`() {
         val state = activeState(isPlaying = true)
 
@@ -192,6 +201,33 @@ class PlayerIntentCommandRouterTest {
         assertEquals(true, command.skipSilence)
         assertEquals(current.volumeBoostLevel, command.volumeBoostLevel)
         assertEquals(current.skipSilenceMode, command.skipSilenceMode)
+    }
+
+    @Test
+    fun `routeIntent maps direct command intents`() {
+        val current = activeState()
+        val reduced = current
+
+        assertEquals(
+            PlayerCommand.InitializePlayer,
+            PlayerIntentCommandRouter.routeIntent(PlayerIntent.InitializePlayer, current, reduced),
+        )
+        assertEquals(
+            PlayerCommand.InitializeVisualizer,
+            PlayerIntentCommandRouter.routeIntent(PlayerIntent.InitializeVisualizer, current, reduced),
+        )
+        assertEquals(
+            PlayerCommand.SetVisualizerEnabled(enabled = true),
+            PlayerIntentCommandRouter.routeIntent(PlayerIntent.SetVisualizerEnabled(enabled = true), current, reduced),
+        )
+        assertEquals(
+            PlayerCommand.SetPitchCorrectionEnabled(enabled = false),
+            PlayerIntentCommandRouter.routeIntent(
+                PlayerIntent.SetPitchCorrectionEnabled(enabled = false),
+                current,
+                reduced,
+            ),
+        )
     }
 
     private fun activeState(

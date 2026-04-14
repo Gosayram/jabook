@@ -146,6 +146,39 @@ internal class PlayerCommandExecutor(
 }
 
 internal object PlayerIntentCommandRouter {
+    fun isCommandIntent(intent: PlayerIntent): Boolean =
+        isPlaybackIntent(intent) ||
+            isSleepTimerIntent(intent) ||
+            isSettingsIntent(intent) ||
+            when (intent) {
+                PlayerIntent.InitializePlayer,
+                PlayerIntent.InitializeVisualizer,
+                is PlayerIntent.SetVisualizerEnabled,
+                is PlayerIntent.SetPitchCorrectionEnabled,
+                -> true
+                else -> false
+            }
+
+    fun routeIntent(
+        intent: PlayerIntent,
+        currentState: PlayerState,
+        reducedState: PlayerState,
+    ): PlayerCommand? =
+        when {
+            isPlaybackIntent(intent) -> routePlaybackIntent(intent, currentState, reducedState)
+            isSleepTimerIntent(intent) -> routeSleepTimerIntent(intent, currentState, reducedState)
+            isSettingsIntent(intent) -> routeSettingsIntent(intent, currentState, reducedState)
+            else ->
+                when (intent) {
+                    PlayerIntent.InitializePlayer -> PlayerCommand.InitializePlayer
+                    PlayerIntent.InitializeVisualizer -> PlayerCommand.InitializeVisualizer
+                    is PlayerIntent.SetVisualizerEnabled -> PlayerCommand.SetVisualizerEnabled(intent.enabled)
+                    is PlayerIntent.SetPitchCorrectionEnabled ->
+                        PlayerCommand.SetPitchCorrectionEnabled(intent.enabled)
+                    else -> null
+                }
+        }
+
     fun isPlaybackIntent(intent: PlayerIntent): Boolean =
         when (intent) {
             PlayerIntent.TogglePlayPause,

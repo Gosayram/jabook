@@ -76,8 +76,10 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -106,6 +108,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
@@ -124,9 +127,11 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -726,7 +731,10 @@ private fun PlayerContent(
         if (!fileUrl.isNullOrBlank()) {
             val file = File(fileUrl)
             if (file.exists()) {
-                val metadata = metadataParser.parseMetadata(fileUrl)
+                val metadata =
+                    withContext(Dispatchers.IO) {
+                        metadataParser.parseMetadata(fileUrl)
+                    }
                 authorFromMetadata = metadata?.artist?.takeIf { it.isNotBlank() }
             }
         }
@@ -747,6 +755,12 @@ private fun PlayerContent(
 
     // Lyrics visibility state
     var showLyrics by remember { mutableStateOf(false) }
+    val hasLyrics by remember(state.lyrics) {
+        derivedStateOf { !state.lyrics.isNullOrEmpty() }
+    }
+    val showingLyrics by remember(showLyrics, hasLyrics) {
+        derivedStateOf { showLyrics && hasLyrics }
+    }
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
 
@@ -816,10 +830,10 @@ private fun PlayerContent(
                             fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
                             cornerRadius = 16f, // 16dp rounded corners for player
                         ).build()
-                val canToggleLyrics = !state.lyrics.isNullOrEmpty()
+                val canToggleLyrics = hasLyrics
                 val toggleLyricsLabel = stringResource(R.string.toggleLyricsView)
                 val toggleLyricsStateDescription =
-                    if (showLyrics) {
+                    if (showingLyrics) {
                         stringResource(R.string.lyricsVisibleState)
                     } else {
                         stringResource(R.string.lyricsHiddenState)
@@ -842,7 +856,7 @@ private fun PlayerContent(
                     label = "scale",
                 )
 
-                if (showLyrics && !state.lyrics.isNullOrEmpty()) {
+                if (showingLyrics) {
                     Box(
                         modifier =
                             imageModifier
@@ -1524,7 +1538,7 @@ private fun PlayerContent(
                             }
 
                             // Lyrics Toggle Button
-                            if (!state.lyrics.isNullOrEmpty()) {
+                            if (hasLyrics) {
                                 FilledTonalButton(
                                     onClick = {
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1534,13 +1548,13 @@ private fun PlayerContent(
                                     colors =
                                         ButtonDefaults.filledTonalButtonColors(
                                             containerColor =
-                                                if (showLyrics) {
+                                                if (showingLyrics) {
                                                     MaterialTheme.colorScheme.primaryContainer
                                                 } else {
                                                     MaterialTheme.colorScheme.surfaceVariant
                                                 },
                                             contentColor =
-                                                if (showLyrics) {
+                                                if (showingLyrics) {
                                                     MaterialTheme.colorScheme.onPrimaryContainer
                                                 } else {
                                                     MaterialTheme.colorScheme.onSurfaceVariant
@@ -1661,7 +1675,7 @@ private fun PlayerContent(
                         }
 
                         // Lyrics Toggle Button
-                        if (!state.lyrics.isNullOrEmpty()) {
+                        if (hasLyrics) {
                             FilledTonalButton(
                                 onClick = {
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1671,13 +1685,13 @@ private fun PlayerContent(
                                 colors =
                                     ButtonDefaults.filledTonalButtonColors(
                                         containerColor =
-                                            if (showLyrics) {
+                                            if (showingLyrics) {
                                                 MaterialTheme.colorScheme.primaryContainer
                                             } else {
                                                 MaterialTheme.colorScheme.surfaceVariant
                                             },
                                         contentColor =
-                                            if (showLyrics) {
+                                            if (showingLyrics) {
                                                 MaterialTheme.colorScheme.onPrimaryContainer
                                             } else {
                                                 MaterialTheme.colorScheme.onSurfaceVariant
@@ -1859,6 +1873,17 @@ public fun PlayerSettingsSheet(
                 )
             }
         }
+
+        if (BuildConfig.DEBUG) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopEnd,
+            ) {
+                DebugRecompositionCounter(
+                    modifier = Modifier.padding(top = 8.dp, end = 8.dp),
+                )
+            }
+        }
     }
 }
 
@@ -1884,4 +1909,20 @@ internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String {
             java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
         }
     return "${formattedSpeed}x"
+}
+
+@Composable
+private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {
+    var count by remember { mutableIntStateOf(0) }
+    SideEffect { count += 1 }
+    Text(
+        text = count.toString(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.65f))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+    )
 }
