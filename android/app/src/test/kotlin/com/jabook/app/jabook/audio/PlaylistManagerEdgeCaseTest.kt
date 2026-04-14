@@ -19,6 +19,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
+import com.jabook.app.jabook.compose.core.di.AppDispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -68,6 +69,14 @@ class PlaylistManagerEdgeCaseTest {
         whenever(exoPlayer.currentPosition).thenReturn(0L)
         playerPersistenceManager = mock()
 
+        val testAppDispatchers =
+            object : AppDispatchers {
+                override val io = testDispatcher
+                override val default = testDispatcher
+                override val main = testDispatcher
+                override val unconfined = testDispatcher
+            }
+
         playlistManager =
             PlaylistManager(
                 context = context,
@@ -75,6 +84,7 @@ class PlaylistManagerEdgeCaseTest {
                 getActivePlayer = { exoPlayer },
                 playerServiceScope = testScope,
                 mediaItemDispatcher = testDispatcher,
+                dispatchers = testAppDispatchers,
                 getFlavorSuffix = { "" },
                 durationManager = mock(),
                 playerPersistenceManager = playerPersistenceManager,
@@ -167,6 +177,14 @@ class PlaylistManagerEdgeCaseTest {
             val targetPosition = 1_234L
             var pendingDeferred: CompletableDeferred<Int>? = null
 
+            val testAppDispatchers2 =
+                object : AppDispatchers {
+                    override val io = testDispatcher
+                    override val default = testDispatcher
+                    override val main = testDispatcher
+                    override val unconfined = testDispatcher
+                }
+
             val timeoutFallbackManager =
                 PlaylistManager(
                     context = context,
@@ -174,6 +192,7 @@ class PlaylistManagerEdgeCaseTest {
                     getActivePlayer = { exoPlayer },
                     playerServiceScope = testScope,
                     mediaItemDispatcher = testDispatcher,
+                    dispatchers = testAppDispatchers2,
                     getFlavorSuffix = { "" },
                     durationManager = mock(),
                     playerPersistenceManager = mock(),
