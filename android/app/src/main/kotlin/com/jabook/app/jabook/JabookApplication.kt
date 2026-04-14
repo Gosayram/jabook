@@ -145,8 +145,9 @@ public class JabookApplication :
                     DiskCache
                         .Builder()
                         .directory(cacheDir.absolutePath.toPath())
-                        // Increased to 5% for better cover caching - covers are important for UX
-                        .maxSizePercent(0.05)
+                        // Fixed 50MB limit for predictable disk usage (covers are important for UX)
+                        // Fixed size prevents unbounded growth on devices with large storage
+                        .maxSizeBytes(50L * 1024 * 1024) // 50 MB
                         .build()
                 }
                 // Show a short crossfade when loading images asynchronously

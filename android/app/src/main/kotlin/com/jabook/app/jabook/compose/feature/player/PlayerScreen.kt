@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.player
 
 import android.os.PowerManager
 import android.text.format.DateUtils
+import android.view.WindowManager
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -251,6 +252,17 @@ public fun PlayerScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // FLAG_SECURE: Prevent screenshots and screen recording on PlayerScreen
+    // Protects copyrighted audiobook content
+    DisposableEffect(Unit) {
+        val activity = context as? android.app.Activity
+        val window = activity?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
 
