@@ -93,6 +93,27 @@ public class PlayerViewModel
 
         private val _effects = MutableSharedFlow<PlayerEffect>(extraBufferCapacity = 8)
         public val effects: SharedFlow<PlayerEffect> = _effects.asSharedFlow()
+        private val commandExecutor =
+            PlayerCommandExecutor(
+                initializePlayer = ::initializePlayer,
+                play = ::play,
+                pause = ::pause,
+                skipToNext = ::skipToNext,
+                skipToPrevious = ::skipToPrevious,
+                seekTo = ::seekTo,
+                skipToChapter = ::skipToChapter,
+                initializeVisualizer = ::initializeVisualizer,
+                setVisualizerEnabled = ::setVisualizerEnabled,
+                setPlaybackSpeed = ::setPlaybackSpeed,
+                setPitchCorrectionEnabled = ::setPitchCorrectionEnabled,
+                startSleepTimer = ::startSleepTimer,
+                startSleepTimerEndOfChapter = ::startSleepTimerEndOfChapter,
+                startSleepTimerEndOfTrack = ::startSleepTimerEndOfTrack,
+                cancelSleepTimer = ::cancelSleepTimer,
+                updateBookSeekSettings = ::updateBookSeekSettings,
+                resetBookSeekSettings = ::resetBookSeekSettings,
+                updateAudioSettings = ::updateAudioSettings,
+            )
 
         // Player Stats for Nerds
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
@@ -501,135 +522,170 @@ public class PlayerViewModel
         // Unified player command dispatcher (incremental PlayerIntent migration)
         public fun dispatch(intent: PlayerIntent) {
             logger.d { "PlayerIntent received: $intent" }
-            val reducedState = PlayerReducer.reduce(uiState.value, intent)
-            if (uiState.value is PlayerState.Loading && reducedState is PlayerState.Loading && intent.isPlaybackControlIntent()) {
+            val currentState = uiState.value
+            val reducedState = PlayerReducer.reduce(currentState, intent)
+            if (currentState is PlayerState.Loading && reducedState is PlayerState.Loading && intent.isPlaybackControlIntent()) {
                 emitEffect(PlayerEffect.ShowSnackbar("Player is not ready yet"))
                 return
             }
+            handleIntentSideEffects(
+                intent = intent,
+                currentState = currentState,
+                reducedState = reducedState,
+            )
+        }
+
+        private fun handleIntentSideEffects(
+            intent: PlayerIntent,
+            currentState: PlayerState,
+            reducedState: PlayerState,
+        ) {
+            if (handleSleepTimerIntent(intent, currentState, reducedState)) return
+            if (handleSettingsIntent(intent, currentState, reducedState)) return
+            if (handlePlaybackIntent(intent, currentState, reducedState)) return
             when (intent) {
-                PlayerIntent.InitializePlayer -> initializePlayer()
-                PlayerIntent.TogglePlayPause -> {
-                    val currentState = uiState.value as? PlayerState.Active
-                    val targetState = reducedState as? PlayerState.Active
-                    if (currentState == null || targetState == null || currentState == targetState) {
-                        logger.d { "TogglePlayPause produced no state change, skipping command" }
-                        return
-                    }
-                    if (targetState.isPlaying) {
-                        play()
-                    } else {
-                        pause()
-                    }
-                }
-                PlayerIntent.Play -> {
-                    if (reducedState == uiState.value) return
-                    play()
-                }
-                PlayerIntent.Pause -> {
-                    if (reducedState == uiState.value) return
-                    pause()
-                }
-                PlayerIntent.SkipNext -> skipToNext()
-                PlayerIntent.SkipPrevious -> skipToPrevious()
-                is PlayerIntent.SeekTo -> {
-                    val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: intent.positionMs
-                    seekTo(reducedPosition)
-                }
-                PlayerIntent.SeekForward -> {
-                    val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: return
-                    seekTo(reducedPosition)
-                }
-                PlayerIntent.SeekBackward -> {
-                    val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: return
-                    seekTo(reducedPosition)
-                }
-                is PlayerIntent.SelectChapter -> {
-                    val reducedChapterIndex =
-                        (reducedState as? PlayerState.Active)?.currentChapterIndex ?: intent.chapterIndex
-                    skipToChapter(reducedChapterIndex)
-                }
+                PlayerIntent.InitializePlayer -> dispatchCommand(PlayerCommand.InitializePlayer)
                 PlayerIntent.ToggleChapterRepeat -> {
                     val targetMode = (reducedState as? PlayerState.Active)?.chapterRepeatMode ?: return
                     if (targetMode == chapterRepeatModeState.value) return
                     chapterRepeatModeState.value = targetMode
                     hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
                 }
-                PlayerIntent.InitializeVisualizer -> initializeVisualizer()
-                is PlayerIntent.SetVisualizerEnabled -> setVisualizerEnabled(intent.enabled)
-                is PlayerIntent.SetPlaybackSpeed -> {
-                    if (reducedState == uiState.value) {
-                        logger.d { "Playback speed unchanged by reducer, skipping command" }
-                        return
-                    }
-                    val reducedSpeed = (reducedState as? PlayerState.Active)?.playbackSpeed ?: return
-                    setPlaybackSpeed(reducedSpeed)
+                PlayerIntent.InitializeVisualizer -> dispatchCommand(PlayerCommand.InitializeVisualizer)
+                is PlayerIntent.SetVisualizerEnabled -> dispatchCommand(PlayerCommand.SetVisualizerEnabled(intent.enabled))
+                is PlayerIntent.SetPitchCorrectionEnabled ->
+                    dispatchCommand(PlayerCommand.SetPitchCorrectionEnabled(intent.enabled))
+                is PlayerIntent.ReportError -> {
+                    val reason = (reducedState as? PlayerState.Error)?.message ?: intent.reason
+                    emitEffect(PlayerEffect.ShowError(reason))
                 }
-                is PlayerIntent.SetPitchCorrectionEnabled -> setPitchCorrectionEnabled(intent.enabled)
+                is PlayerIntent.StartSleepTimer,
+                PlayerIntent.StartSleepTimerEndOfChapter,
+                PlayerIntent.StartSleepTimerEndOfTrack,
+                PlayerIntent.CancelSleepTimer,
+                PlayerIntent.Play,
+                PlayerIntent.Pause,
+                PlayerIntent.TogglePlayPause,
+                PlayerIntent.SkipNext,
+                PlayerIntent.SkipPrevious,
+                is PlayerIntent.SeekTo,
+                PlayerIntent.SeekForward,
+                PlayerIntent.SeekBackward,
+                is PlayerIntent.SelectChapter,
+                is PlayerIntent.SetPlaybackSpeed,
+                is PlayerIntent.UpdateBookSeekSettings,
+                PlayerIntent.ResetBookSeekSettings,
+                is PlayerIntent.UpdateAudioSettings,
+                -> Unit
+            }
+        }
+
+        private fun handlePlaybackIntent(
+            intent: PlayerIntent,
+            currentState: PlayerState,
+            reducedState: PlayerState,
+        ): Boolean =
+            if (!PlayerIntentCommandRouter.isPlaybackIntent(intent)) {
+                false
+            } else {
+                val command = PlayerIntentCommandRouter.routePlaybackIntent(intent, currentState, reducedState)
+                if (command == null) {
+                    logger.d { "Playback intent produced no command: $intent" }
+                } else {
+                    dispatchCommand(command)
+                }
+                true
+            }
+
+        private fun handleSleepTimerIntent(
+            intent: PlayerIntent,
+            currentState: PlayerState,
+            reducedState: PlayerState,
+        ): Boolean =
+            when (intent) {
                 is PlayerIntent.StartSleepTimer -> {
-                    if (reducedState == uiState.value) {
+                    if (reducedState == currentState) {
                         logger.d { "Sleep timer state unchanged by reducer, skipping command" }
-                        return
+                    } else {
+                        dispatchCommand(PlayerCommand.StartSleepTimer(intent.minutes))
                     }
-                    startSleepTimer(intent.minutes)
+                    true
                 }
                 PlayerIntent.StartSleepTimerEndOfChapter -> {
-                    if (reducedState == uiState.value) {
+                    if (reducedState == currentState) {
                         logger.d { "Sleep timer end-of-chapter already active, skipping command" }
-                        return
+                    } else {
+                        dispatchCommand(PlayerCommand.StartSleepTimerEndOfChapter)
                     }
-                    startSleepTimerEndOfChapter()
+                    true
                 }
                 PlayerIntent.StartSleepTimerEndOfTrack -> {
-                    if (reducedState == uiState.value) {
+                    if (reducedState == currentState) {
                         logger.d { "Sleep timer end-of-track already active, skipping command" }
-                        return
+                    } else {
+                        dispatchCommand(PlayerCommand.StartSleepTimerEndOfTrack)
                     }
-                    startSleepTimerEndOfTrack()
+                    true
                 }
                 PlayerIntent.CancelSleepTimer -> {
-                    if (reducedState == uiState.value) {
+                    if (reducedState == currentState) {
                         logger.d { "Sleep timer already idle, skipping cancel command" }
-                        return
-                    }
-                    cancelSleepTimer()
-                }
-                is PlayerIntent.UpdateBookSeekSettings ->
-                    if (reducedState == uiState.value) {
-                        logger.d { "Book seek settings unchanged by reducer, skipping command" }
-                        return
                     } else {
-                        val targetState = reducedState as? PlayerState.Active ?: return
-                        val targetRewindSeconds =
-                            if (targetState.rewindInterval == targetState.defaultRewindInterval) {
-                                null
-                            } else {
-                                targetState.rewindInterval
-                            }
-                        val targetForwardSeconds =
-                            if (targetState.forwardInterval == targetState.defaultForwardInterval) {
-                                null
-                            } else {
-                                targetState.forwardInterval
-                            }
-                        updateBookSeekSettings(
+                        dispatchCommand(PlayerCommand.CancelSleepTimer)
+                    }
+                    true
+                }
+                else -> false
+            }
+
+        private fun handleSettingsIntent(
+            intent: PlayerIntent,
+            currentState: PlayerState,
+            reducedState: PlayerState,
+        ): Boolean =
+            when (intent) {
+                is PlayerIntent.UpdateBookSeekSettings -> {
+                    if (reducedState == currentState) {
+                        logger.d { "Book seek settings unchanged by reducer, skipping command" }
+                        return true
+                    }
+                    val targetState = reducedState as? PlayerState.Active ?: return true
+                    val targetRewindSeconds =
+                        if (targetState.rewindInterval == targetState.defaultRewindInterval) {
+                            null
+                        } else {
+                            targetState.rewindInterval
+                        }
+                    val targetForwardSeconds =
+                        if (targetState.forwardInterval == targetState.defaultForwardInterval) {
+                            null
+                        } else {
+                            targetState.forwardInterval
+                        }
+                    dispatchCommand(
+                        PlayerCommand.UpdateBookSeekSettings(
                             rewindSeconds = targetRewindSeconds,
                             forwardSeconds = targetForwardSeconds,
-                        )
-                    }
-                PlayerIntent.ResetBookSeekSettings ->
-                    if (reducedState == uiState.value) {
+                        ),
+                    )
+                    true
+                }
+                PlayerIntent.ResetBookSeekSettings -> {
+                    if (reducedState == currentState) {
                         logger.d { "Book seek settings already reset, skipping command" }
-                        return
                     } else {
-                        resetBookSeekSettings()
+                        dispatchCommand(PlayerCommand.ResetBookSeekSettings)
                     }
-                is PlayerIntent.UpdateAudioSettings ->
-                    if (reducedState == uiState.value) {
+                    true
+                }
+                is PlayerIntent.UpdateAudioSettings -> {
+                    if (reducedState == currentState) {
                         logger.d { "Audio settings intent has no changes, skipping command" }
-                        return
-                    } else {
-                        val targetState = reducedState as? PlayerState.Active ?: return
-                        updateAudioSettings(
+                        return true
+                    }
+                    val targetState = reducedState as? PlayerState.Active ?: return true
+                    dispatchCommand(
+                        PlayerCommand.UpdateAudioSettings(
                             volumeBoostLevel = targetState.volumeBoostLevel,
                             skipSilence = targetState.skipSilence,
                             skipSilenceThresholdDb = targetState.skipSilenceThresholdDb,
@@ -638,13 +694,15 @@ public class PlayerViewModel
                             normalizeVolume = targetState.normalizeVolume,
                             speechEnhancer = targetState.speechEnhancer,
                             autoVolumeLeveling = targetState.autoVolumeLeveling,
-                        )
-                    }
-                is PlayerIntent.ReportError -> {
-                    val reason = (reducedState as? PlayerState.Error)?.message ?: intent.reason
-                    emitEffect(PlayerEffect.ShowError(reason))
+                        ),
+                    )
+                    true
                 }
+                else -> false
             }
+
+        private fun dispatchCommand(command: PlayerCommand) {
+            commandExecutor.execute(command)
         }
 
         // Player control methods delegated to controller
@@ -1134,3 +1192,207 @@ private data class RestoredBootstrapSnapshot(
     val playbackSpeed: Float,
     val sleepTimerMode: String,
 )
+
+private sealed interface PlayerCommand {
+    data object InitializePlayer : PlayerCommand
+
+    data object Play : PlayerCommand
+
+    data object Pause : PlayerCommand
+
+    data object SkipToNext : PlayerCommand
+
+    data object SkipToPrevious : PlayerCommand
+
+    data class SeekTo(
+        val positionMs: Long,
+    ) : PlayerCommand
+
+    data class SkipToChapter(
+        val chapterIndex: Int,
+    ) : PlayerCommand
+
+    data object InitializeVisualizer : PlayerCommand
+
+    data class SetVisualizerEnabled(
+        val enabled: Boolean,
+    ) : PlayerCommand
+
+    data class SetPlaybackSpeed(
+        val speed: Float,
+    ) : PlayerCommand
+
+    data class SetPitchCorrectionEnabled(
+        val enabled: Boolean,
+    ) : PlayerCommand
+
+    data class StartSleepTimer(
+        val minutes: Int,
+    ) : PlayerCommand
+
+    data object StartSleepTimerEndOfChapter : PlayerCommand
+
+    data object StartSleepTimerEndOfTrack : PlayerCommand
+
+    data object CancelSleepTimer : PlayerCommand
+
+    data class UpdateBookSeekSettings(
+        val rewindSeconds: Int?,
+        val forwardSeconds: Int?,
+    ) : PlayerCommand
+
+    data object ResetBookSeekSettings : PlayerCommand
+
+    data class UpdateAudioSettings(
+        val volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel? = null,
+        val skipSilence: Boolean? = null,
+        val skipSilenceThresholdDb: Float? = null,
+        val skipSilenceMinMs: Int? = null,
+        val skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode? = null,
+        val normalizeVolume: Boolean? = null,
+        val speechEnhancer: Boolean? = null,
+        val autoVolumeLeveling: Boolean? = null,
+    ) : PlayerCommand
+}
+
+private class PlayerCommandExecutor(
+    private val initializePlayer: () -> Unit,
+    private val play: () -> Unit,
+    private val pause: () -> Unit,
+    private val skipToNext: () -> Unit,
+    private val skipToPrevious: () -> Unit,
+    private val seekTo: (Long) -> Unit,
+    private val skipToChapter: (Int) -> Unit,
+    private val initializeVisualizer: () -> Unit,
+    private val setVisualizerEnabled: (Boolean) -> Unit,
+    private val setPlaybackSpeed: (Float) -> Unit,
+    private val setPitchCorrectionEnabled: (Boolean) -> Unit,
+    private val startSleepTimer: (Int) -> Unit,
+    private val startSleepTimerEndOfChapter: () -> Unit,
+    private val startSleepTimerEndOfTrack: () -> Unit,
+    private val cancelSleepTimer: () -> Unit,
+    private val updateBookSeekSettings: (Int?, Int?) -> Unit,
+    private val resetBookSeekSettings: () -> Unit,
+    private val updateAudioSettings: (
+        com.jabook.app.jabook.audio.processors.VolumeBoostLevel?,
+        Boolean?,
+        Float?,
+        Int?,
+        com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode?,
+        Boolean?,
+        Boolean?,
+        Boolean?,
+    ) -> Unit,
+) {
+    fun execute(command: PlayerCommand) {
+        when (command) {
+            PlayerCommand.InitializePlayer -> initializePlayer()
+            PlayerCommand.Play -> play()
+            PlayerCommand.Pause -> pause()
+            PlayerCommand.SkipToNext -> skipToNext()
+            PlayerCommand.SkipToPrevious -> skipToPrevious()
+            is PlayerCommand.SeekTo -> seekTo(command.positionMs)
+            is PlayerCommand.SkipToChapter -> skipToChapter(command.chapterIndex)
+            PlayerCommand.InitializeVisualizer -> initializeVisualizer()
+            is PlayerCommand.SetVisualizerEnabled -> setVisualizerEnabled(command.enabled)
+            is PlayerCommand.SetPlaybackSpeed -> setPlaybackSpeed(command.speed)
+            is PlayerCommand.SetPitchCorrectionEnabled -> setPitchCorrectionEnabled(command.enabled)
+            is PlayerCommand.StartSleepTimer -> startSleepTimer(command.minutes)
+            PlayerCommand.StartSleepTimerEndOfChapter -> startSleepTimerEndOfChapter()
+            PlayerCommand.StartSleepTimerEndOfTrack -> startSleepTimerEndOfTrack()
+            PlayerCommand.CancelSleepTimer -> cancelSleepTimer()
+            is PlayerCommand.UpdateBookSeekSettings ->
+                updateBookSeekSettings(command.rewindSeconds, command.forwardSeconds)
+            PlayerCommand.ResetBookSeekSettings -> resetBookSeekSettings()
+            is PlayerCommand.UpdateAudioSettings ->
+                updateAudioSettings(
+                    command.volumeBoostLevel,
+                    command.skipSilence,
+                    command.skipSilenceThresholdDb,
+                    command.skipSilenceMinMs,
+                    command.skipSilenceMode,
+                    command.normalizeVolume,
+                    command.speechEnhancer,
+                    command.autoVolumeLeveling,
+                )
+        }
+    }
+}
+
+private object PlayerIntentCommandRouter {
+    fun isPlaybackIntent(intent: PlayerIntent): Boolean =
+        when (intent) {
+            PlayerIntent.TogglePlayPause,
+            PlayerIntent.Play,
+            PlayerIntent.Pause,
+            PlayerIntent.SkipNext,
+            PlayerIntent.SkipPrevious,
+            is PlayerIntent.SeekTo,
+            PlayerIntent.SeekForward,
+            PlayerIntent.SeekBackward,
+            is PlayerIntent.SelectChapter,
+            is PlayerIntent.SetPlaybackSpeed,
+            -> true
+            else -> false
+        }
+
+    fun routePlaybackIntent(
+        intent: PlayerIntent,
+        currentState: PlayerState,
+        reducedState: PlayerState,
+    ): PlayerCommand? =
+        when (intent) {
+            PlayerIntent.TogglePlayPause -> {
+                val activeCurrentState = currentState as? PlayerState.Active
+                val targetState = reducedState as? PlayerState.Active
+                if (activeCurrentState == null || targetState == null || activeCurrentState == targetState) {
+                    null
+                } else if (targetState.isPlaying) {
+                    PlayerCommand.Play
+                } else {
+                    PlayerCommand.Pause
+                }
+            }
+            PlayerIntent.Play -> {
+                if (reducedState == currentState) {
+                    null
+                } else {
+                    PlayerCommand.Play
+                }
+            }
+            PlayerIntent.Pause -> {
+                if (reducedState == currentState) {
+                    null
+                } else {
+                    PlayerCommand.Pause
+                }
+            }
+            PlayerIntent.SkipNext -> PlayerCommand.SkipToNext
+            PlayerIntent.SkipPrevious -> PlayerCommand.SkipToPrevious
+            is PlayerIntent.SeekTo -> {
+                val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: intent.positionMs
+                PlayerCommand.SeekTo(reducedPosition)
+            }
+            PlayerIntent.SeekForward -> {
+                val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: return null
+                PlayerCommand.SeekTo(reducedPosition)
+            }
+            PlayerIntent.SeekBackward -> {
+                val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: return null
+                PlayerCommand.SeekTo(reducedPosition)
+            }
+            is PlayerIntent.SelectChapter -> {
+                val reducedChapterIndex = (reducedState as? PlayerState.Active)?.currentChapterIndex ?: intent.chapterIndex
+                PlayerCommand.SkipToChapter(reducedChapterIndex)
+            }
+            is PlayerIntent.SetPlaybackSpeed -> {
+                if (reducedState == currentState) {
+                    null
+                } else {
+                    val reducedSpeed = (reducedState as? PlayerState.Active)?.playbackSpeed ?: return null
+                    PlayerCommand.SetPlaybackSpeed(reducedSpeed)
+                }
+            }
+            else -> null
+        }
+}
