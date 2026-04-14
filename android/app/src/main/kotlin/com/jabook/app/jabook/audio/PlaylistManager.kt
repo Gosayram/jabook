@@ -33,11 +33,11 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.jabook.app.jabook.audio.ErrorHandler
 import com.jabook.app.jabook.audio.SavedPlaybackState
+import com.jabook.app.jabook.compose.core.di.AppDispatchers
 import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -95,6 +95,7 @@ internal class PlaylistManager(
     // getNotificationManager callback removed - MediaSession handles notification updates automatically
     private val playerServiceScope: CoroutineScope,
     private val mediaItemDispatcher: kotlinx.coroutines.CoroutineDispatcher,
+    private val dispatchers: AppDispatchers,
     private val getFlavorSuffix: () -> String,
     private val setPendingTrackSwitchDeferred: ((CompletableDeferred<Int>) -> Unit)? = null, // Callback to set deferred in PlayerListener
     private val durationManager: DurationManager,
@@ -205,7 +206,7 @@ internal class PlaylistManager(
         previousPositionMs: Long,
     ) {
         if (updatedPaths.isEmpty()) {
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 val player = getActivePlayer()
                 player.playWhenReady = false
                 player.clearMediaItems()
@@ -227,7 +228,7 @@ internal class PlaylistManager(
                 createMediaItemForPath(path, index, currentMetadata, dataSourceFactory)
             }
 
-        withContext(Dispatchers.Main) {
+        withContext(dispatchers.main) {
             val player = getActivePlayer()
             val wasPlaying = player.playWhenReady
             player.setMediaItems(mediaItems, normalizedIndex, restoredPositionMs)
@@ -437,7 +438,7 @@ internal class PlaylistManager(
             LogUtils.d("AudioPlayerService", "Playlist prepared successfully")
 
             // Call callback first to unblock Flutter
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 callback?.invoke(true, null)
             }
 
@@ -462,7 +463,7 @@ internal class PlaylistManager(
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to prepare playback", e)
             ErrorHandler.handleGeneralError("AudioPlayerService", e, "preparePlayback failed")
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 callback?.invoke(false, e)
             }
             throw e // Re-throw to let finally block handle cleanup
@@ -504,11 +505,11 @@ internal class PlaylistManager(
         initialTrackIndex: Int? = null,
         initialPosition: Long? = null,
         loadGeneration: Long = playlistLoadGeneration,
-    ) = withContext(Dispatchers.IO) {
+    ) = withContext(dispatchers.io) {
         val playlistLoadStartTime = System.currentTimeMillis()
         val playlistSize = filePaths.size
         if (playlistSize == 0) {
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 val activePlayer = getActivePlayer()
                 activePlayer.playWhenReady = false
                 activePlayer.clearMediaItems()
@@ -575,7 +576,7 @@ internal class PlaylistManager(
             }
 
         // Apply to player on main thread
-        withContext(Dispatchers.Main) {
+        withContext(dispatchers.main) {
             val activePlayer = getActivePlayer()
             activePlayer.playWhenReady = false
 
@@ -621,7 +622,7 @@ internal class PlaylistManager(
         initialPosition: Long?,
         loadStartTime: Long,
         loadGeneration: Long,
-    ) = withContext(Dispatchers.IO) {
+    ) = withContext(dispatchers.io) {
         try {
             LogUtils.d("AudioPlayerService", "Using async loading for large playlist (${filePaths.size} tracks)")
             val dataSourceFactory = SimpleMediaDataSourceFactory()
@@ -646,7 +647,7 @@ internal class PlaylistManager(
                 )
 
             // Set first MediaSource and prepare player immediately
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 val activePlayer = getActivePlayer()
                 activePlayer.playWhenReady = false
 
@@ -792,7 +793,7 @@ internal class PlaylistManager(
                                 }
 
                                 // Add to player with synchronization to maintain order
-                                withContext(Dispatchers.Main) {
+                                withContext(dispatchers.main) {
                                     addMutex.withLock {
                                         // CRITICAL: Check if already added BEFORE getting player (prevent duplicates)
                                         if (index in addedIndices) {
@@ -897,7 +898,7 @@ internal class PlaylistManager(
                             initialPosition != null &&
                             initialPosition > 0
                         ) {
-                            withContext(Dispatchers.Main) {
+                            withContext(dispatchers.main) {
                                 applyInitialPositionAfterLoad(
                                     initialTrackIndex,
                                     initialPosition,
@@ -930,7 +931,7 @@ internal class PlaylistManager(
                     if (!isLoadGenerationActive(loadGeneration)) {
                         return@launch
                     }
-                    withContext(Dispatchers.Main) {
+                    withContext(dispatchers.main) {
                         val activePlayer = getActivePlayer()
                         if (activePlayer.mediaItemCount == filePaths.size) {
                             var orderMismatchCount = 0
@@ -1625,7 +1626,7 @@ internal class PlaylistManager(
                         dataSourceFactory = dataSourceFactory,
                     )
 
-                withContext(Dispatchers.Main) {
+                withContext(dispatchers.main) {
                     // Check again if track was loaded while we were creating MediaSource
                     // getMediaItemAt throws IndexOutOfBoundsException if index is invalid, not null
                     val stillNeeded =

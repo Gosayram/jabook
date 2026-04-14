@@ -111,6 +111,7 @@ public class AudioPlayerServiceInitializer(
                 // getNotificationManager callback removed - MediaSession handles updates automatically
                 playerServiceScope = service.playerServiceScope,
                 mediaItemDispatcher = service.mediaItemDispatcher,
+                dispatchers = service.dispatchers,
                 getFlavorSuffix = { AudioPlayerService.getFlavorSuffix(service) },
                 setPendingTrackSwitchDeferred = { deferred ->
                     service.playerListener?.setPendingTrackSwitchDeferred(deferred)

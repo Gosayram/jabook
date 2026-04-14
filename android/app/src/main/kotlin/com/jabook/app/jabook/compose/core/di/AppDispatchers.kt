@@ -83,7 +83,6 @@ public class ProductionDispatchers : AppDispatchers {
 @Module
 @InstallIn(SingletonComponent::class)
 public object DispatchersModule {
-
     @Provides
     @Singleton
     public fun provideAppDispatchers(): AppDispatchers = ProductionDispatchers()

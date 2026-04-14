@@ -117,6 +117,10 @@ public class AudioPlayerService : MediaLibraryService() {
     @Inject
     public lateinit var audioVisualizerStateBridge: AudioVisualizerStateBridge
 
+    // AppDispatchers for testable coroutine dispatchers
+    @Inject
+    public lateinit var dispatchers: com.jabook.app.jabook.compose.core.di.AppDispatchers
+
     // Book loudness compensation for consistent volume across books
     @Inject
     public lateinit var booksDao: BooksDao
