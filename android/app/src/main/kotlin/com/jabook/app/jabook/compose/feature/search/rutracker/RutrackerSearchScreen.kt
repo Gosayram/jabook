@@ -263,87 +263,117 @@ public fun RutrackerSearchScreen(
             Spacer(modifier = Modifier.height(itemSpacing))
 
             // Index status card
-            if (
+            when {
                 indexCheckCompleted &&
-                indexSize == 0 &&
-                !isIndexing &&
-                indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
-            ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        ),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                    indexSize == 0 &&
+                    (isIndexing || indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress) -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            ),
                     ) {
-                        Text(
-                            text = stringResource(R.string.indexNotCreatedTitle),
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.indexNotCreatedDescriptionShort),
-                            style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = {
-                                showIndexingDialog = true
-                                indexingViewModel.startIndexing(context)
-                            },
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text(stringResource(R.string.startIndexing))
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(itemSpacing))
-            } else {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            val indexTopicsCount =
-                                pluralStringResource(
-                                    R.plurals.indexTopicsCount,
-                                    indexSize,
-                                    indexSize,
-                                )
                             Text(
-                                text = stringResource(R.string.indexStatusWithTopics, indexTopicsCount),
-                                style = MaterialTheme.typography.bodyMedium,
+                                text = stringResource(R.string.indexingInProgressTitle),
+                                style = MaterialTheme.typography.titleMedium,
+                                textAlign = TextAlign.Center,
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = stringResource(R.string.searchWorksOffline),
+                                text = stringResource(R.string.indexingInProgressDescription),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
                             )
                         }
-                        TextButton(
-                            onClick = {
-                                showIndexingDialog = true
-                                indexingViewModel.startIndexing(context)
-                            },
+                    }
+                    Spacer(modifier = Modifier.height(itemSpacing))
+                }
+                indexCheckCompleted &&
+                    indexSize == 0 &&
+                    !isIndexing &&
+                    indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            ),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text(stringResource(R.string.updateAction))
+                            Text(
+                                text = stringResource(R.string.indexNotCreatedTitle),
+                                style = MaterialTheme.typography.titleMedium,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.indexNotCreatedDescriptionShort),
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = {
+                                    showIndexingDialog = true
+                                    indexingViewModel.startIndexing(context)
+                                },
+                            ) {
+                                Text(stringResource(R.string.startIndexing))
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.height(itemSpacing))
                 }
-                Spacer(modifier = Modifier.height(itemSpacing))
+                else -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            ),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                val indexTopicsCount =
+                                    pluralStringResource(
+                                        R.plurals.indexTopicsCount,
+                                        indexSize,
+                                        indexSize,
+                                    )
+                                Text(
+                                    text = stringResource(R.string.indexStatusWithTopics, indexTopicsCount),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text = stringResource(R.string.searchWorksOffline),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            TextButton(
+                                onClick = {
+                                    showIndexingDialog = true
+                                    indexingViewModel.startIndexing(context)
+                                },
+                            ) {
+                                Text(stringResource(R.string.updateAction))
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(itemSpacing))
+                }
             }
 
             // Results
@@ -376,10 +406,11 @@ public fun RutrackerSearchScreen(
                         snapshotFlow {
                             resultsListState.layoutInfo.visibleItemsInfo
                                 .mapNotNull { visibleItem ->
-                                    state.results
-                                        .getOrNull(visibleItem.index)
-                                        ?.result
-                                        ?.topicId
+                                    state.results.getOrNull(visibleItem.index)?.result?.let { result ->
+                                        result.topicId.takeIf {
+                                            it.isNotBlank() && result.coverUrl.isNullOrBlank()
+                                        }
+                                    }
                                 }.filter(String::isNotBlank)
                         }.distinctUntilChanged()
                             .collect(viewModel::requestCoverLoads)
@@ -589,7 +620,7 @@ private fun SearchResultCard(
             // Adaptive cover size: smaller on compact screens
             val coverWidth = if (isCompact) 60.dp else 80.dp
             val coverHeight = if (isCompact) 90.dp else 120.dp
-            result.coverUrl?.let { coverUrl ->
+            result.coverUrl?.takeIf { it.isNotBlank() }?.let { coverUrl ->
                 val normalizedCoverUrl =
                     (CoverWaterfallPolicy.resolveOnlineUrl(coverUrl)?.data as? String)
                         ?: coverUrl
