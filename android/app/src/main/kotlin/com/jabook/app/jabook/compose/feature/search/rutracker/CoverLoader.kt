@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.search.rutracker
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -137,6 +138,7 @@ public class CoverLoader
                     scheduleRetry(topicId)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 // Log error
                 logger.e(e) { "Error loading cover for $topicId" }
                 scheduleRetry(topicId)

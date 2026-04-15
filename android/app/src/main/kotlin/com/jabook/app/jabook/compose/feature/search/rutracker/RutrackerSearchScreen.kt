@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -62,6 +63,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -80,6 +82,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverWaterfallPolicy
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * RuTracker search screen.
@@ -126,20 +129,11 @@ public fun RutrackerSearchScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var indexCheckCompleted by remember { mutableStateOf(false) }
 
-    // Check if indexing is needed on first load
+    // Initial index check for UI status; do not auto-open indexing dialog here to avoid
+    // false-positive prompts while foreground indexing state is still synchronizing.
     LaunchedEffect(Unit) {
-        val size = indexingViewModel.getIndexSize()
+        indexingViewModel.getIndexSize()
         indexCheckCompleted = true
-        if (size == 0) {
-            // No index, show dialog to start indexing
-            showIndexingDialog = true
-        } else {
-            val needsUpdate = indexingViewModel.needsUpdate()
-            if (needsUpdate) {
-                // Index is old, suggest update
-                showIndexingDialog = true
-            }
-        }
     }
 
     // Show indexing dialog when indexing is active
@@ -269,7 +263,12 @@ public fun RutrackerSearchScreen(
             Spacer(modifier = Modifier.height(itemSpacing))
 
             // Index status card
-            if (indexCheckCompleted && indexSize == 0) {
+            if (
+                indexCheckCompleted &&
+                indexSize == 0 &&
+                !isIndexing &&
+                indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
+            ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors =
@@ -372,7 +371,22 @@ public fun RutrackerSearchScreen(
                 }
 
                 is SearchState.Success -> {
+                    val resultsListState = rememberLazyListState()
+                    LaunchedEffect(state.results) {
+                        snapshotFlow {
+                            resultsListState.layoutInfo.visibleItemsInfo
+                                .mapNotNull { visibleItem ->
+                                    state.results
+                                        .getOrNull(visibleItem.index)
+                                        ?.result
+                                        ?.topicId
+                                }.filter(String::isNotBlank)
+                        }.distinctUntilChanged()
+                            .collect(viewModel::requestCoverLoads)
+                    }
+
                     LazyColumn(
+                        state = resultsListState,
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(itemSpacing),
                         contentPadding = PaddingValues(vertical = itemSpacing),

@@ -26,6 +26,7 @@ import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import com.jabook.app.jabook.indexing.IndexingForegroundService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -123,6 +124,7 @@ public class IndexingViewModel
                             message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
                         )
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     logger.e({ "Indexing failed" }, e)
                     _indexingProgress.value =
                         IndexingProgress.Error(
@@ -159,6 +161,7 @@ public class IndexingViewModel
                     _indexSize.value = size
                     return size
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     lastError = e
                     attempt += 1
                     if (attempt < 3) {
@@ -219,6 +222,7 @@ public class IndexingViewModel
                 _clearingInProgress.value = false
                 true
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 logger.e({ "Failed to clear index" }, e)
                 _clearingInProgress.value = false
                 false
@@ -244,6 +248,7 @@ public class IndexingViewModel
                             }
                         } else {
                             if (serviceWasRunning) {
+                                serviceWasRunning = false
                                 val sizeAfterFinish = refreshIndexSize()
                                 if (
                                     _indexingProgress.value is IndexingProgress.InProgress ||

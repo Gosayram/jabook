@@ -205,6 +205,15 @@ public class RutrackerSearchViewModel
             coverLoader.loadCover(topicId)
         }
 
+        public fun requestCoverLoads(topicIds: List<String>) {
+            if (topicIds.isEmpty()) return
+            topicIds
+                .asSequence()
+                .filter { it.isNotBlank() }
+                .distinct()
+                .forEach(coverLoader::loadCover)
+        }
+
         /**
          * Update search filters and reapply to results.
          */
