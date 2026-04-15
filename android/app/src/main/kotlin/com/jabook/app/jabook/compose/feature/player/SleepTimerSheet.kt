@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.app.TimePickerDialog
+import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,11 +36,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
+import java.time.LocalDateTime
 
 /**
  * Bottom sheet for managing sleep timer.
@@ -68,6 +72,8 @@ public fun SleepTimerSheet(
         sheetState = sheetState,
         modifier = modifier,
     ) {
+        val context = LocalContext.current
+        val now = LocalDateTime.now()
         Column(
             modifier =
                 Modifier
@@ -116,6 +122,40 @@ public fun SleepTimerSheet(
                             Modifier.clickable {
                                 onStartTimerEndOfTrack()
                                 onDismiss()
+                            },
+                    )
+
+                    ListItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.stopAtSpecificTime))
+                        },
+                        supportingContent = {
+                            Text(stringResource(R.string.stopAtSpecificTimeDesc))
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Filled.Timer,
+                                contentDescription = null,
+                            )
+                        },
+                        modifier =
+                            Modifier.clickable {
+                                TimePickerDialog(
+                                    context,
+                                    { _, hourOfDay, minute ->
+                                        val minutesUntilStop =
+                                            SleepTimerSchedulePolicy.minutesUntil(
+                                                targetHour = hourOfDay,
+                                                targetMinute = minute,
+                                                now = LocalDateTime.now(),
+                                            )
+                                        onStartTimer(minutesUntilStop)
+                                        onDismiss()
+                                    },
+                                    now.hour,
+                                    now.minute,
+                                    DateFormat.is24HourFormat(context),
+                                ).show()
                             },
                     )
 
