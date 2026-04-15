@@ -35,6 +35,18 @@ class ResultAsResultTest {
         }
 
     @Test
+    fun `asResult preserves upstream success emission order after loading`() =
+        runTest {
+            val values = flowOf(1, 2, 3).asResult().toList()
+
+            assertEquals(4, values.size)
+            assertEquals(Result.Loading, values[0])
+            assertEquals(Result.Success(1), values[1])
+            assertEquals(Result.Success(2), values[2])
+            assertEquals(Result.Success(3), values[3])
+        }
+
+    @Test
     fun `asResult emits loading then error for non-cancellation exception`() =
         runTest {
             val values =

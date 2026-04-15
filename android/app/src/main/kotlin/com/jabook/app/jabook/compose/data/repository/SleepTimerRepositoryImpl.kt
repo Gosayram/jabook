@@ -35,7 +35,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -112,9 +114,12 @@ public class SleepTimerRepositoryImpl
                                 )
                             mediaController = controller
                             logger.d { "MediaController initialized" }
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
+                        } catch (e: InterruptedException) {
+                            Thread.currentThread().interrupt()
+                            logger.e({ "MediaController initialization interrupted" }, e)
+                        } catch (e: TimeoutException) {
+                            logger.e({ "Timed out while initializing MediaController" }, e)
+                        } catch (e: ExecutionException) {
                             logger.e({ "Failed to initialize MediaController" }, e)
                         }
                     },
@@ -204,9 +209,12 @@ public class SleepTimerRepositoryImpl
                             // State will be updated by polling, but eagerly update for responsiveness
                             _timerState.value = SleepTimerState.Active(durationMinutes * 60)
                         }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
+                    } catch (e: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        throw CancellationException("Interrupted while setting sleep timer").apply { initCause(e) }
+                    } catch (e: TimeoutException) {
+                        logger.e({ "Timed out while setting sleep timer" }, e)
+                    } catch (e: ExecutionException) {
                         logger.e({ "Failed to set sleep timer" }, e)
                     }
                 } else {
@@ -242,9 +250,14 @@ public class SleepTimerRepositoryImpl
                                     SleepTimerState.EndOfChapter
                                 }
                         }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
+                    } catch (e: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        throw CancellationException("Interrupted while setting sleep timer end of chapter").apply {
+                            initCause(e)
+                        }
+                    } catch (e: TimeoutException) {
+                        logger.e({ "Timed out while setting sleep timer end of chapter" }, e)
+                    } catch (e: ExecutionException) {
                         logger.e({ "Failed to set sleep timer end of chapter" }, e)
                     }
                 } else {
@@ -268,9 +281,12 @@ public class SleepTimerRepositoryImpl
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             _timerState.value = SleepTimerState.EndOfTrack()
                         }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
+                    } catch (e: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        throw CancellationException("Interrupted while setting sleep timer end of track").apply { initCause(e) }
+                    } catch (e: TimeoutException) {
+                        logger.e({ "Timed out while setting sleep timer end of track" }, e)
+                    } catch (e: ExecutionException) {
                         logger.e({ "Failed to set sleep timer end of track" }, e)
                     }
                 } else {
@@ -295,9 +311,12 @@ public class SleepTimerRepositoryImpl
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             _timerState.value = SleepTimerState.Idle
                         }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
+                    } catch (e: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        throw CancellationException("Interrupted while cancelling sleep timer").apply { initCause(e) }
+                    } catch (e: TimeoutException) {
+                        logger.e({ "Timed out while cancelling sleep timer" }, e)
+                    } catch (e: ExecutionException) {
                         logger.e({ "Failed to cancel sleep timer" }, e)
                     }
                 } else {
