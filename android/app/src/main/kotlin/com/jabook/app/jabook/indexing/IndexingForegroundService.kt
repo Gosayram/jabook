@@ -35,6 +35,7 @@ import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -87,6 +88,10 @@ public class IndexingForegroundService : Service() {
         private var instance: IndexingForegroundService? = null
 
         public fun getInstance(): IndexingForegroundService? = instance
+
+        public fun isRunning(): Boolean = instance?.indexingJob?.isActive == true
+
+        public fun getCurrentProgress(): IndexingProgress? = instance?.currentProgress
 
         /**
          * Start the indexing service.
@@ -287,6 +292,7 @@ public class IndexingForegroundService : Service() {
                         }
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     Log.e(TAG, "Indexing failed", e)
                     currentProgress = IndexingProgress.Error(e.message ?: "Unknown error")
                     updateNotification(currentProgress)

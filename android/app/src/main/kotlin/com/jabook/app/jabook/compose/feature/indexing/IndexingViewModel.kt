@@ -31,6 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -60,7 +61,16 @@ public class IndexingViewModel
 
         private val _isIndexing = MutableStateFlow(false)
         public val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
+        private val _indexSize = MutableStateFlow(0)
+        public val indexSize: StateFlow<Int> = _indexSize.asStateFlow()
         private var serviceMonitorJob: Job? = null
+
+        init {
+            startServiceCompletionMonitor()
+            viewModelScope.launch {
+                refreshIndexSize()
+            }
+        }
 
         /**
          * Start full indexing of all audiobook forums using Foreground Service.
@@ -136,7 +146,17 @@ public class IndexingViewModel
         /**
          * Get current index size.
          */
-        public suspend fun getIndexSize(): Int = forumIndexer.getIndexSize()
+        public suspend fun getIndexSize(): Int = refreshIndexSize()
+
+        private suspend fun refreshIndexSize(): Int =
+            try {
+                val size = forumIndexer.getIndexSize()
+                _indexSize.value = size
+                size
+            } catch (e: Exception) {
+                logger.e({ "Failed to refresh index size, using cached value" }, e)
+                _indexSize.value
+            }
 
         /**
          * Check if index needs update.
@@ -193,24 +213,57 @@ public class IndexingViewModel
             }
 
         private fun startServiceCompletionMonitor() {
-            serviceMonitorJob?.cancel()
+            if (serviceMonitorJob?.isActive == true) {
+                return
+            }
             serviceMonitorJob =
                 viewModelScope.launch {
-                    var serviceWasVisible = false
-                    val startTime = System.currentTimeMillis()
-                    val timeoutMs = 60 * 60 * 1000L // 1h safety timeout
+                    var serviceWasRunning = false
+                    var lastIdleIndexRefreshAt = 0L
+                    while (isActive) {
+                        val running = IndexingForegroundService.isRunning()
+                        val serviceProgress = IndexingForegroundService.getCurrentProgress()
 
-                    while (System.currentTimeMillis() - startTime < timeoutMs) {
-                        val service = IndexingForegroundService.getInstance()
-                        if (service != null) {
-                            serviceWasVisible = true
-                        } else if (serviceWasVisible) {
-                            break
+                        if (running) {
+                            serviceWasRunning = true
+                            _isIndexing.value = true
+                            if (serviceProgress != null) {
+                                _indexingProgress.value = serviceProgress
+                            }
+                        } else {
+                            if (serviceWasRunning) {
+                                val sizeAfterFinish = refreshIndexSize()
+                                if (
+                                    _indexingProgress.value is IndexingProgress.InProgress ||
+                                    _indexingProgress.value is IndexingProgress.Idle
+                                ) {
+                                    _indexingProgress.value =
+                                        if (sizeAfterFinish > 0) {
+                                            IndexingProgress.Completed(
+                                                totalTopics = sizeAfterFinish,
+                                                durationMs = 0L,
+                                            )
+                                        } else {
+                                            IndexingProgress.Error("Индексация завершилась без данных")
+                                        }
+                                }
+                            } else if (_indexingProgress.value is IndexingProgress.Idle) {
+                                val now = System.currentTimeMillis()
+                                if (now - lastIdleIndexRefreshAt >= 10_000L) {
+                                    refreshIndexSize()
+                                    lastIdleIndexRefreshAt = now
+                                }
+                            }
+                            _isIndexing.value = false
                         }
                         delay(1000L)
                     }
-
-                    _isIndexing.value = false
                 }
+        }
+
+        override fun onCleared() {
+            super.onCleared()
+            serviceMonitorJob?.cancel()
+            serviceMonitorJob = null
         }
     }

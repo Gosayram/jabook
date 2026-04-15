@@ -67,6 +67,7 @@ public class RutrackerSearchViewModel
 
         // Store original results for client-side filtering/sorting
         private var originalResults: List<RutrackerSearchResult> = emptyList()
+        private val eagerCoverBatchSize = 24
 
         // Cache of library book source URLs to check "In Library" status against
         private val librarySourceUrls: StateFlow<Set<String>> =
@@ -165,9 +166,9 @@ public class RutrackerSearchViewModel
                                     SearchState.Success(uiResults, isCached = isCachedEmission)
                                 }
 
-                            // Trigger background cover loading for items without covers
+                            // Eager-load only first visible-ish batch to avoid network fan-out stalls.
                             if (filtered.isNotEmpty()) {
-                                filtered.forEach { item ->
+                                filtered.take(eagerCoverBatchSize).forEach { item ->
                                     if (item.coverUrl.isNullOrBlank()) {
                                         coverLoader.loadCover(item.topicId)
                                     }
@@ -197,6 +198,11 @@ public class RutrackerSearchViewModel
         public fun clearSearch() {
             _searchState.value = SearchState.Empty
             originalResults = emptyList()
+        }
+
+        public fun requestCoverLoad(topicId: String) {
+            if (topicId.isBlank()) return
+            coverLoader.loadCover(topicId)
         }
 
         /**

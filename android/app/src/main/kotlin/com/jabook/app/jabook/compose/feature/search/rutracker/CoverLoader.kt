@@ -28,7 +28,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -77,11 +76,10 @@ public class CoverLoader
         private val retryAttempts = ConcurrentHashMap<String, Int>()
         private val maxRetryAttempts = 3
         private val retryDelayMs = 1200L
-        private val _coverLoadedEvents = MutableSharedFlow<CoverLoadedEvent>(replay = 1, extraBufferCapacity = 64)
+        private val _coverLoadedEvents = MutableSharedFlow<CoverLoadedEvent>(replay = 0, extraBufferCapacity = 64)
         public val coverLoadedEvents: SharedFlow<CoverLoadedEvent> = _coverLoadedEvents.asSharedFlow()
 
         // Concurrency control: allow only N simultaneous loads
-        private val concurrencyPermits = Mutex()
         private val maxConcurrentLoads = 3
 
         init {

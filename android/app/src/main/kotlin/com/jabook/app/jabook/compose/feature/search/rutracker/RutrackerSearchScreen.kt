@@ -59,7 +59,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -81,7 +80,6 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverWaterfallPolicy
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
-import kotlinx.coroutines.delay
 
 /**
  * RuTracker search screen.
@@ -119,19 +117,18 @@ public fun RutrackerSearchScreen(
     // Indexing state
     val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
+    val indexSize by indexingViewModel.indexSize.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
     var showIndexingDialog by remember { mutableStateOf(false) }
-    var indexSize by remember { mutableIntStateOf(0) }
-    var indexRefreshNonce by remember { mutableLongStateOf(0L) }
 
     var showFilters by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     // Check if indexing is needed on first load
     LaunchedEffect(Unit) {
-        indexSize = indexingViewModel.getIndexSize()
-        if (indexSize == 0) {
+        val size = indexingViewModel.getIndexSize()
+        if (size == 0) {
             // No index, show dialog to start indexing
             showIndexingDialog = true
         } else {
@@ -139,21 +136,6 @@ public fun RutrackerSearchScreen(
             if (needsUpdate) {
                 // Index is old, suggest update
                 showIndexingDialog = true
-            }
-        }
-    }
-
-    // Refresh index size on indexing state transitions and explicit refresh requests.
-    LaunchedEffect(isIndexing, indexingProgress, indexRefreshNonce) {
-        indexSize = indexingViewModel.getIndexSize()
-    }
-
-    // While indexing is active, periodically refresh index size in UI.
-    LaunchedEffect(isIndexing) {
-        if (isIndexing) {
-            while (indexingViewModel.isIndexing.value) {
-                indexSize = indexingViewModel.getIndexSize()
-                delay(1500L)
             }
         }
     }
@@ -313,7 +295,6 @@ public fun RutrackerSearchScreen(
                             onClick = {
                                 showIndexingDialog = true
                                 indexingViewModel.startIndexing(context)
-                                indexRefreshNonce = System.currentTimeMillis()
                             },
                         ) {
                             Text(stringResource(R.string.startIndexing))
@@ -355,7 +336,6 @@ public fun RutrackerSearchScreen(
                             onClick = {
                                 showIndexingDialog = true
                                 indexingViewModel.startIndexing(context)
-                                indexRefreshNonce = System.currentTimeMillis()
                             },
                         ) {
                             Text(stringResource(R.string.updateAction))
@@ -405,6 +385,7 @@ public fun RutrackerSearchScreen(
                                 result = uiModel.result,
                                 isInLibrary = uiModel.isInLibrary,
                                 onClick = { onTopicClick(uiModel.result.topicId) },
+                                onCoverNeeded = viewModel::requestCoverLoad,
                             )
                         }
                     }
@@ -558,6 +539,7 @@ private fun SearchResultCard(
     result: RutrackerSearchResult,
     isInLibrary: Boolean,
     onClick: () -> Unit,
+    onCoverNeeded: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -582,11 +564,16 @@ private fun SearchResultCard(
             modifier = Modifier.padding(cardPadding),
             horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
+            if (result.coverUrl.isNullOrBlank()) {
+                LaunchedEffect(result.topicId) {
+                    onCoverNeeded(result.topicId)
+                }
+            }
             // Cover image - adaptive size based on screen size
+            // Adaptive cover size: smaller on compact screens
+            val coverWidth = if (isCompact) 60.dp else 80.dp
+            val coverHeight = if (isCompact) 90.dp else 120.dp
             result.coverUrl?.let { coverUrl ->
-                // Adaptive cover size: smaller on compact screens
-                val coverWidth = if (isCompact) 60.dp else 80.dp
-                val coverHeight = if (isCompact) 90.dp else 120.dp
                 val normalizedCoverUrl =
                     (CoverWaterfallPolicy.resolveOnlineUrl(coverUrl)?.data as? String)
                         ?: coverUrl
@@ -600,6 +587,20 @@ private fun SearchResultCard(
                             .height(coverHeight),
                     contentScale = ContentScale.Crop,
                     cornerRadius = 8f,
+                )
+            } ?: Box(
+                modifier =
+                    Modifier
+                        .width(coverWidth)
+                        .height(coverHeight)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Book,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
