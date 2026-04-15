@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio.data.repository
 import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao
 import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEntity
+import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 import javax.inject.Inject
@@ -42,6 +43,7 @@ public class SavedPlayerStateRepository
                 val entity = stateDao.getState(groupPath)
                 Result.Success(entity)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -53,6 +55,7 @@ public class SavedPlayerStateRepository
                 val entity = stateDao.getLatestState()
                 Result.Success(entity)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -95,6 +98,7 @@ public class SavedPlayerStateRepository
                 stateDao.upsertState(entity)
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -122,6 +126,7 @@ public class SavedPlayerStateRepository
                     Result.Success(Unit) // No state to update
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -165,6 +170,7 @@ public class SavedPlayerStateRepository
                 stateDao.deleteState(groupPath)
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -176,6 +182,7 @@ public class SavedPlayerStateRepository
                 stateDao.deleteAllStates()
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
     }

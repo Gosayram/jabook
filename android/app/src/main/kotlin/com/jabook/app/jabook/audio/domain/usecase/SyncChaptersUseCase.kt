@@ -19,6 +19,7 @@ import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.data.repository.ChapterMetadataRepository
 import com.jabook.app.jabook.audio.data.repository.PlaylistRepository
 import com.jabook.app.jabook.audio.domain.mapper.ChapterMapper
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 /**
@@ -70,6 +71,7 @@ public class SyncChaptersUseCase
                 com.jabook.app.jabook.audio.core.result.Result
                     .Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 com.jabook.app.jabook.audio.core.result.Result
                     .Error(e)
             }

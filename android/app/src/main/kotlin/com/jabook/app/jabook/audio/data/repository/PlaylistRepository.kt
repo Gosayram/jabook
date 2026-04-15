@@ -18,6 +18,7 @@ import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.core.result.asResult
 import com.jabook.app.jabook.audio.data.local.dao.PlaylistDao
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaylistEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
@@ -63,6 +64,7 @@ public class PlaylistRepository
                 playlistDao.upsertPlaylist(entity)
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -85,6 +87,7 @@ public class PlaylistRepository
                 playlistDao.deletePlaylist(bookId)
                 Result.Success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
