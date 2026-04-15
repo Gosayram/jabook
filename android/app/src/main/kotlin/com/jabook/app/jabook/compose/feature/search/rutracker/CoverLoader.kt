@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -71,7 +72,8 @@ public class CoverLoader
             CoroutineScope(
                 SupervisorJob() + ioDispatcher + loggingCoroutineExceptionHandler("CoverLoader"),
             )
-        private val loadQueue = Channel<String>(Channel.UNLIMITED)
+        private val primaryQueue = Channel<String>(Channel.UNLIMITED)
+        private val retryQueue = Channel<String>(Channel.UNLIMITED)
         private val activeLoads = ConcurrentHashMap.newKeySet<String>()
         private val loadedCache = ConcurrentHashMap.newKeySet<String>() // Simple memory cache for session
         private val retryAttempts = ConcurrentHashMap<String, Int>()
@@ -98,7 +100,7 @@ public class CoverLoader
 
             // Mark as active immediately to prevent duplicates in queue
             if (activeLoads.add(topicId)) {
-                loadQueue.trySend(topicId)
+                primaryQueue.trySend(topicId)
             }
         }
 
@@ -106,7 +108,12 @@ public class CoverLoader
             // Launch N workers
             repeat(maxConcurrentLoads) {
                 scope.launch {
-                    for (topicId in loadQueue) {
+                    while (true) {
+                        val topicId =
+                            select<String?> {
+                                primaryQueue.onReceiveCatching { it.getOrNull() }
+                                retryQueue.onReceiveCatching { it.getOrNull() }
+                            } ?: break
                         processTopic(topicId)
                     }
                 }
@@ -158,7 +165,9 @@ public class CoverLoader
             scope.launch {
                 delay(retryDelayMs * (currentAttempt + 1))
                 if (topicId !in loadedCache && topicId !in activeLoads) {
-                    loadCover(topicId)
+                    if (activeLoads.add(topicId)) {
+                        retryQueue.trySend(topicId)
+                    }
                 }
             }
         }
@@ -169,6 +178,8 @@ public class CoverLoader
         }
 
         internal fun shutdown() {
+            primaryQueue.close()
+            retryQueue.close()
             scope.cancel("CoverLoader shutdown")
         }
     }

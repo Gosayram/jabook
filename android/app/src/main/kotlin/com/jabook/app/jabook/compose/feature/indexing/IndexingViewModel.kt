@@ -48,6 +48,11 @@ public class IndexingViewModel
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
+        private companion object {
+            const val POST_COMPLETION_VERIFY_ATTEMPTS = 6
+            const val POST_COMPLETION_VERIFY_DELAY_MS = 750L
+        }
+
         private val logger = loggerFactory.get("IndexingViewModel")
 
         private val _indexingProgress = MutableStateFlow<IndexingProgress>(IndexingProgress.Idle)
@@ -153,6 +158,22 @@ public class IndexingViewModel
 
         private suspend fun refreshIndexSize(): Int = retryingIndexSizeRead()
 
+        private suspend fun resolveIndexSizeAfterServiceCompletion(): Int {
+            var size = refreshIndexSize()
+            if (size > 0) return size
+
+            repeat(POST_COMPLETION_VERIFY_ATTEMPTS) {
+                delay(POST_COMPLETION_VERIFY_DELAY_MS)
+                size = refreshIndexSize()
+                if (size > 0) {
+                    logger.d { "Index materialized after service stop on attempt ${it + 1}" }
+                    return size
+                }
+            }
+
+            return size
+        }
+
         private suspend fun retryingIndexSizeRead(): Int {
             var attempt = 0
             var lastError: Exception? = null
@@ -255,7 +276,7 @@ public class IndexingViewModel
                         } else {
                             if (serviceWasRunning) {
                                 serviceWasRunning = false
-                                val sizeAfterFinish = refreshIndexSize()
+                                val sizeAfterFinish = resolveIndexSizeAfterServiceCompletion()
                                 if (
                                     _indexingProgress.value is IndexingProgress.InProgress ||
                                     _indexingProgress.value is IndexingProgress.Idle
