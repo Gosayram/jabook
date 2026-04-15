@@ -117,19 +117,20 @@ public class CoverLoader
                 val result = fetchCover(topicId)
 
                 if (result.isSuccess) {
-                    result
-                        .getOrNull()
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let { resolvedCoverUrl ->
-                            _coverLoadedEvents.tryEmit(
-                                CoverLoadedEvent(
-                                    topicId = topicId,
-                                    coverUrl = resolvedCoverUrl,
-                                ),
-                            )
-                        }
-                    loadedCache.add(topicId)
-                    retryAttempts.remove(topicId)
+                    val resolvedCoverUrl = result.getOrNull()?.takeIf { it.isNotBlank() }
+                    if (resolvedCoverUrl != null) {
+                        _coverLoadedEvents.tryEmit(
+                            CoverLoadedEvent(
+                                topicId = topicId,
+                                coverUrl = resolvedCoverUrl,
+                            ),
+                        )
+                        loadedCache.add(topicId)
+                        retryAttempts.remove(topicId)
+                    } else {
+                        // Treat empty successful response as transient miss; retry a few times.
+                        scheduleRetry(topicId)
+                    }
                 } else {
                     // If Rutracker failed (e.g. no cover), check Flibusta (To Be Implemented)
                     checkFlibusta(topicId)

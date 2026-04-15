@@ -83,6 +83,14 @@ public class ForumIndexer
                 SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ForumIndexer"),
             )
 
+        private data class ForumBatchResult(
+            val forumId: String,
+            val indexed: Int,
+            val covers: List<String>,
+            val failed: Boolean,
+            val failureMessage: String? = null,
+        )
+
         public companion object {
             private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
             private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Rate limiting (reduced for faster indexing)
@@ -146,6 +154,10 @@ public class ForumIndexer
                 val topicsIndexedAtomic =
                     java.util.concurrent.atomic
                         .AtomicInteger(0)
+                val failedForums =
+                    java.util.concurrent.atomic
+                        .AtomicInteger(0)
+                val failedForumMessages = mutableListOf<String>()
 
                 // Process forums in parallel batches
                 forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEachIndexed { batchIndex, batch ->
@@ -169,22 +181,53 @@ public class ForumIndexer
                                                 )
                                             }
                                         }
-                                    topicsIndexedAtomic.addAndGet(indexed)
-                                    if (covers.isNotEmpty()) {
-                                        synchronized(coversToPreload) {
-                                            coversToPreload.addAll(covers)
-                                        }
-                                    }
+                                    ForumBatchResult(
+                                        forumId = forumId,
+                                        indexed = indexed,
+                                        covers = covers,
+                                        failed = false,
+                                    )
                                 } catch (e: Exception) {
                                     if (e is kotlinx.coroutines.CancellationException) throw e
                                     logger.e({ "Failed to index forum $forumId" }, e)
+                                    ForumBatchResult(
+                                        forumId = forumId,
+                                        indexed = 0,
+                                        covers = emptyList(),
+                                        failed = true,
+                                        failureMessage = e.message ?: "Unknown indexing failure",
+                                    )
                                 }
                             }
                         }.awaitAll()
+                        .forEach { result ->
+                            if (result.failed) {
+                                failedForums.incrementAndGet()
+                                synchronized(failedForumMessages) {
+                                    failedForumMessages.add("${result.forumId}: ${result.failureMessage}")
+                                }
+                            } else {
+                                topicsIndexedAtomic.addAndGet(result.indexed)
+                                if (result.covers.isNotEmpty()) {
+                                    synchronized(coversToPreload) {
+                                        coversToPreload.addAll(result.covers)
+                                    }
+                                }
+                            }
+                        }
                 }
 
                 totalIndexed = topicsIndexedAtomic.get()
                 val duration = System.currentTimeMillis() - startTime
+
+                if (failedForums.get() == forumIdList.size) {
+                    val message =
+                        "Indexing failed for all forums (${failedForums.get()}/${forumIdList.size}). " +
+                            failedForumMessages.take(3).joinToString("; ")
+                    logger.e { message }
+                    onProgress?.invoke(IndexingProgress.Error(message))
+                    throw IllegalStateException(message)
+                }
 
                 // If index run produced no data, keep existing index and surface explicit failure.
                 if (totalIndexed == 0) {
@@ -202,6 +245,13 @@ public class ForumIndexer
 
                 // Verify actual count
                 val actualCountInDb = getIndexSize()
+
+                if (failedForums.get() > 0) {
+                    logger.w {
+                        "Indexing completed with partial forum failures: ${failedForums.get()}/" +
+                            "${forumIdList.size}. Sample: ${failedForumMessages.take(3)}"
+                    }
+                }
 
                 logger.i { "Forum indexing completed. Indexed: $totalIndexed topics, duration: ${duration}ms" }
 
