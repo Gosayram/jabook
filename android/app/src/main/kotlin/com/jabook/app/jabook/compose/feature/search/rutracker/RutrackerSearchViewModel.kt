@@ -79,6 +79,17 @@ public class RutrackerSearchViewModel
                     initialValue = emptySet(),
                 )
 
+        init {
+            viewModelScope.launch {
+                coverLoader.coverLoadedEvents.collect { event ->
+                    applyCoverUpdate(
+                        topicId = event.topicId,
+                        coverUrl = event.coverUrl,
+                    )
+                }
+            }
+        }
+
         /**
          * Search for audiobooks.
          *
@@ -230,6 +241,24 @@ public class RutrackerSearchViewModel
                 } else {
                     SearchState.Success(uiResults, isCached = currentIsCached)
                 }
+        }
+
+        private fun applyCoverUpdate(
+            topicId: String,
+            coverUrl: String,
+        ) {
+            if (originalResults.none { it.topicId == topicId && it.coverUrl != coverUrl }) {
+                return
+            }
+            originalResults =
+                originalResults.map { item ->
+                    if (item.topicId == topicId) {
+                        item.copy(coverUrl = coverUrl)
+                    } else {
+                        item
+                    }
+                }
+            reapplyFiltersAndSort()
         }
 
         /**

@@ -17,11 +17,16 @@ package com.jabook.app.jabook.compose.feature.search.rutracker
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.ConcurrentHashMap
@@ -38,15 +43,33 @@ import javax.inject.Singleton
  */
 @Singleton
 public class CoverLoader
-    @Inject
     constructor(
         private val repository: RutrackerRepository,
         private val loggerFactory: LoggerFactory,
+        private val ioDispatcher: CoroutineDispatcher,
+        private val fetchCover: suspend (String) -> Result<String?> = { topicId ->
+            repository.fetchAndSaveCover(topicId)
+        },
     ) {
+        @Inject
+        public constructor(
+            repository: RutrackerRepository,
+            loggerFactory: LoggerFactory,
+        ) : this(
+            repository = repository,
+            loggerFactory = loggerFactory,
+            ioDispatcher = Dispatchers.IO,
+        )
+
+        public data class CoverLoadedEvent(
+            val topicId: String,
+            val coverUrl: String,
+        )
+
         private val logger = loggerFactory.get("CoverLoader")
         private val scope =
             CoroutineScope(
-                SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("CoverLoader"),
+                SupervisorJob() + ioDispatcher + loggingCoroutineExceptionHandler("CoverLoader"),
             )
         private val loadQueue = Channel<String>(Channel.UNLIMITED)
         private val activeLoads = ConcurrentHashMap.newKeySet<String>()
@@ -54,6 +77,8 @@ public class CoverLoader
         private val retryAttempts = ConcurrentHashMap<String, Int>()
         private val maxRetryAttempts = 3
         private val retryDelayMs = 1200L
+        private val _coverLoadedEvents = MutableSharedFlow<CoverLoadedEvent>(replay = 1, extraBufferCapacity = 64)
+        public val coverLoadedEvents: SharedFlow<CoverLoadedEvent> = _coverLoadedEvents.asSharedFlow()
 
         // Concurrency control: allow only N simultaneous loads
         private val concurrencyPermits = Mutex()
@@ -91,9 +116,20 @@ public class CoverLoader
 
         private suspend fun processTopic(topicId: String) {
             try {
-                val result = repository.fetchAndSaveCover(topicId)
+                val result = fetchCover(topicId)
 
                 if (result.isSuccess) {
+                    result
+                        .getOrNull()
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { resolvedCoverUrl ->
+                            _coverLoadedEvents.tryEmit(
+                                CoverLoadedEvent(
+                                    topicId = topicId,
+                                    coverUrl = resolvedCoverUrl,
+                                ),
+                            )
+                        }
                     loadedCache.add(topicId)
                     retryAttempts.remove(topicId)
                 } else {
@@ -128,5 +164,9 @@ public class CoverLoader
         private fun checkFlibusta(topicId: String) {
             // TODO: Implement fallback to Flibusta
             // FlibustaCoverProvider.fetch(topicId)
+        }
+
+        internal fun shutdown() {
+            scope.cancel("CoverLoader shutdown")
         }
     }
