@@ -25,6 +25,7 @@ import com.jabook.app.jabook.audio.MediaControllerExtensions
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -112,12 +113,14 @@ public class SleepTimerRepositoryImpl
                             mediaController = controller
                             logger.d { "MediaController initialized" }
                         } catch (e: Exception) {
+                            if (e is CancellationException) throw e
                             logger.e({ "Failed to initialize MediaController" }, e)
                         }
                     },
                     ContextCompat.getMainExecutor(context),
                 )
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 logger.e({ "Failed to create MediaController" }, e)
             }
         }
@@ -168,6 +171,7 @@ public class SleepTimerRepositoryImpl
                         }
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     logger.e({ "Failed to get timer state via MediaController" }, e)
                     SleepTimerState.Idle
                 }
@@ -198,6 +202,7 @@ public class SleepTimerRepositoryImpl
                             _timerState.value = SleepTimerState.Active(durationMinutes * 60)
                         }
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         logger.e({ "Failed to set sleep timer" }, e)
                     }
                 } else {
@@ -234,6 +239,7 @@ public class SleepTimerRepositoryImpl
                                 }
                         }
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         logger.e({ "Failed to set sleep timer end of chapter" }, e)
                     }
                 } else {
@@ -258,6 +264,7 @@ public class SleepTimerRepositoryImpl
                             _timerState.value = SleepTimerState.EndOfTrack()
                         }
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         logger.e({ "Failed to set sleep timer end of track" }, e)
                     }
                 } else {
@@ -283,6 +290,7 @@ public class SleepTimerRepositoryImpl
                             _timerState.value = SleepTimerState.Idle
                         }
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         logger.e({ "Failed to cancel sleep timer" }, e)
                     }
                 } else {

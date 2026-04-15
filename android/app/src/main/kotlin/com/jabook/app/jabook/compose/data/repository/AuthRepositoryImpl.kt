@@ -25,6 +25,7 @@ import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.repository.CaptchaRequiredException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -89,6 +90,7 @@ public class AuthRepositoryImpl
                         logger.e({ "Auth validation timeout - provider may be blocking" }, e)
                         false
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         logger.e({ "Auth validation error" }, e)
                         false
                     }
@@ -121,6 +123,7 @@ public class AuthRepositoryImpl
                         try {
                             login(stored)
                         } catch (e: Exception) {
+                            if (e is CancellationException) throw e
                             logger.e({ "Auto-relogin failed" }, e)
                         }
                     }
@@ -133,6 +136,7 @@ public class AuthRepositoryImpl
                     try {
                         login(stored)
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         logger.e({ "Auto-login failed" }, e)
                         _authStatus.value = AuthStatus.Unauthenticated
                     }
@@ -168,6 +172,7 @@ public class AuthRepositoryImpl
                                         )
                                     return@withLock Result.failure(Exception("Authentication validation timeout"))
                                 } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
                                     logger.e({ "[$operationId] Validation error" }, e)
                                     false
                                 }
@@ -178,6 +183,7 @@ public class AuthRepositoryImpl
                                     cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
                                     logger.d { "[$operationId] Cookies persisted to all layers" }
                                 } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
                                     logger.e({ "[$operationId] Cookie persistence failed" }, e)
                                 }
 
@@ -205,6 +211,7 @@ public class AuthRepositoryImpl
                         }
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     logger.e({ "Login exception" }, e)
                     _authStatus.value = AuthStatus.Error(e.message ?: "Unknown error")
                     Result.failure(e)
@@ -239,6 +246,7 @@ public class AuthRepositoryImpl
                                     cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
                                     logger.d { "[$operationId] Cookies persisted to all layers" }
                                 } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
                                     logger.e({ "[$operationId] Cookie persistence failed" }, e)
                                 }
 
@@ -263,6 +271,7 @@ public class AuthRepositoryImpl
                         }
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     logger.e({ "Captcha login exception" }, e)
                     Result.failure(e)
                 }
