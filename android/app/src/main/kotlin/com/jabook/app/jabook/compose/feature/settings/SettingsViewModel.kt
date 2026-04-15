@@ -369,8 +369,8 @@ public class SettingsViewModel
                         }
                     }
                 }
-            } catch (_: CancellationException) {
-                throw CancellationException()
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 // Ignore parsing errors and return original
             }

@@ -176,6 +176,7 @@ public class ForumIndexer
                                         }
                                     }
                                 } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                     logger.e({ "Failed to index forum $forumId" }, e)
                                 }
                             }
@@ -251,6 +252,7 @@ public class ForumIndexer
                         coversToPreload.addAll(covers)
                         logger.i { "Updated forum $forumId: $updated topics" }
                     } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
                         logger.e({ "Failed to update forum $forumId" }, e)
                     }
                 }
@@ -361,6 +363,7 @@ public class ForumIndexer
                         page++
                     }
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
                     val isNetworkError =
                         e is java.net.UnknownHostException ||
                             e is java.net.ConnectException ||
@@ -475,6 +478,7 @@ public class ForumIndexer
                         page++
                     }
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
                     logger.e({ "Error updating forum $forumId page $page" }, e)
                     hasMorePages = false
                 }
@@ -514,6 +518,7 @@ public class ForumIndexer
                                             .build()
                                     imageLoader.enqueue(request)
                                 } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                     // Silently fail - covers will load on demand
                                 }
                             }

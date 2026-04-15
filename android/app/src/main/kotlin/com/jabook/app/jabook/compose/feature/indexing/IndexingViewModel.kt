@@ -148,15 +148,27 @@ public class IndexingViewModel
          */
         public suspend fun getIndexSize(): Int = refreshIndexSize()
 
-        private suspend fun refreshIndexSize(): Int =
-            try {
-                val size = forumIndexer.getIndexSize()
-                _indexSize.value = size
-                size
-            } catch (e: Exception) {
-                logger.e({ "Failed to refresh index size, using cached value" }, e)
-                _indexSize.value
+        private suspend fun refreshIndexSize(): Int = retryingIndexSizeRead()
+
+        private suspend fun retryingIndexSizeRead(): Int {
+            var attempt = 0
+            var lastError: Exception? = null
+            while (attempt < 3) {
+                try {
+                    val size = forumIndexer.getIndexSize()
+                    _indexSize.value = size
+                    return size
+                } catch (e: Exception) {
+                    lastError = e
+                    attempt += 1
+                    if (attempt < 3) {
+                        delay(150L * attempt)
+                    }
+                }
             }
+            logger.e({ "Failed to refresh index size after retries, using cached value" }, lastError)
+            return _indexSize.value
+        }
 
         /**
          * Check if index needs update.

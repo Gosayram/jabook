@@ -124,10 +124,12 @@ public fun RutrackerSearchScreen(
 
     var showFilters by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var indexCheckCompleted by remember { mutableStateOf(false) }
 
     // Check if indexing is needed on first load
     LaunchedEffect(Unit) {
         val size = indexingViewModel.getIndexSize()
+        indexCheckCompleted = true
         if (size == 0) {
             // No index, show dialog to start indexing
             showIndexingDialog = true
@@ -267,7 +269,7 @@ public fun RutrackerSearchScreen(
             Spacer(modifier = Modifier.height(itemSpacing))
 
             // Index status card
-            if (indexSize == 0) {
+            if (indexCheckCompleted && indexSize == 0) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors =
